@@ -28,70 +28,53 @@ class OperationalCommandCenterAssembler:
         execution,
         intelligence,
     ):
+        """Map the canonical operational-state summary into the view model."""
 
         farm_status = FarmStatusSnapshot(
-
             milk=farm_state.get(
-                "milk",
-                {},
+                "milk_status",
+                farm_state.get("milk", {}),
             ),
-
             feeding=farm_state.get(
-                "feeding",
-                {},
+                "feeding_status",
+                farm_state.get("feeding", {}),
             ),
-
             breeding=farm_state.get(
-                "breeding",
-                {},
+                "breeding_status",
+                farm_state.get("breeding", {}),
             ),
-
             health=farm_state.get(
-                "health",
-                {},
+                "health_status",
+                farm_state.get("health", {}),
             ),
-
             inventory=farm_state.get(
-                "inventory",
-                {},
+                "inventory_status",
+                farm_state.get("inventory", {}),
             ),
-
             equipment=farm_state.get(
-                "equipment",
-                {},
+                "equipment_status",
+                farm_state.get("equipment", {}),
             ),
-
             workforce=farm_state.get(
-                "workforce",
-                {},
+                "workforce_status",
+                farm_state.get("workforce", {}),
             ),
-
             finance=farm_state.get(
-                "finance",
-                {},
+                "financial_status",
+                farm_state.get("finance", {}),
             ),
-
             attention_queue=farm_state.get(
                 "attention_queue",
                 [],
             ),
         )
 
-
         return OperationalCommandCenter(
-
             farm_status=farm_status,
-
             health=health,
-
             dashboard=dashboard,
-
             notifications=notifications,
-
             decisions=decisions,
-
             execution=execution,
-
             intelligence=intelligence,
-
         )
