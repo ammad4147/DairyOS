@@ -1,9 +1,13 @@
 """FastAPI bootstrap for DairyOS."""
 
+from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
@@ -31,8 +35,21 @@ container = RuntimeContainer(
 )
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Start the canonical runtime before serving requests."""
+
+    container.start()
+    logging.info("RuntimeContainer started - operations ready.")
+    try:
+        yield
+    finally:
+        container.shutdown()
+
+
 app = FastAPI(
-    title="DairyOS API"
+    title="DairyOS API",
+    lifespan=lifespan,
 )
 
 
@@ -73,10 +90,21 @@ app.include_router(operations_router)
 app.include_router(system_router)
 
 
-@app.on_event("startup")
-def startup():
-    container.start()
+# ---------------------------------------------------------------------------
+# Real operator UI
+# ---------------------------------------------------------------------------
 
-    logging.info(
-        "RuntimeContainer started - operations ready."
-    )
+WEB_DIR = Path(__file__).resolve().parent / "web"
+
+app.mount(
+    "/ui",
+    StaticFiles(directory=WEB_DIR, html=True),
+    name="ui",
+)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Open the real operator dashboard rather than exposing backend-only APIs."""
+
+    return FileResponse(WEB_DIR / "index.html")
