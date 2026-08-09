@@ -15,40 +15,33 @@ class OperationalStateDashboardAdapter:
     External dashboard/API consumers depend only on this contract.
     """
 
-
     def __init__(
         self,
         state,
     ):
-
         self.state = state
 
-
-
     @property
-    def is_enterprise_state(
-        self,
-    ):
-
+    def is_enterprise_state(self):
         return isinstance(
             self.state,
             FarmOperationalState,
         )
 
-
-
     @property
-    def farm_status(
-        self,
-    ):
-
-        if hasattr(
+    def farm_status(self):
+        """Return the serialized farm status value, not the bound method."""
+        operational_status = getattr(
             self.state,
             "operational_status",
-        ):
+            None,
+        )
 
-            return self.state.operational_status
+        if callable(operational_status):
+            return operational_status()
 
+        if operational_status is not None:
+            return operational_status
 
         return getattr(
             self.state,
@@ -56,21 +49,22 @@ class OperationalStateDashboardAdapter:
             "unknown",
         )
 
-
-
     @property
-    def animals_source(
-        self,
-    ):
-
-        animals = getattr(self.state, "animals", None)
+    def animals_source(self):
+        animals = getattr(
+            self.state,
+            "animals",
+            None,
+        )
 
         if animals is not None:
             return animals
 
         if hasattr(self.state, "active_operations"):
-            return self.state.active_operations.get("animals", {})
-
+            return self.state.active_operations.get(
+                "animals",
+                {},
+            )
 
         return getattr(
             self.state,
@@ -78,54 +72,43 @@ class OperationalStateDashboardAdapter:
             {},
         )
 
-
+    @property
+    def animals_count(self):
+        return len(self.animals_source)
 
     @property
-    def animals_count(
-        self,
-    ):
-
-        return len(
-            self.animals_source
-        )
-
-
-
-    @property
-    def milking_animals(
-        self,
-    ):
-
+    def milking_animals(self):
         return len(
             [
                 animal
                 for animal in self.animals_source.values()
-                if str(animal.get("status", "")).lower() == "milking"
+                if str(
+                    animal.get("status", "")
+                ).lower() == "milking"
             ]
         )
 
-
-
     @property
-    def dry_animals(
-        self,
-    ):
-
+    def dry_animals(self):
         return len(
             [
                 animal
                 for animal in self.animals_source.values()
-                if str(animal.get("status", "")).lower() == "dry"
+                if str(
+                    animal.get("status", "")
+                ).lower() == "dry"
             ]
         )
-
-
 
     @property
     def animals_needing_attention(self):
         animal_ids = {
             alert.get("animal_id")
-            for alert in getattr(self.state, "health_alerts", [])
+            for alert in getattr(
+                self.state,
+                "health_alerts",
+                [],
+            )
             if alert.get("animal_id")
         }
 
@@ -137,23 +120,16 @@ class OperationalStateDashboardAdapter:
 
         return len(animal_ids)
 
-
-
     @property
-    def milk_today(
-        self,
-    ):
-
+    def milk_today(self):
         if hasattr(
             self.state,
             "milk_production_summary",
         ):
-
             return self.state.milk_production_summary.get(
                 "total_litres_today",
                 0,
             )
-
 
         return getattr(
             self.state,
@@ -161,23 +137,16 @@ class OperationalStateDashboardAdapter:
             0,
         )
 
-
-
     @property
-    def milk_events(
-        self,
-    ):
-
+    def milk_events(self):
         if hasattr(
             self.state,
             "milk_production_summary",
         ):
-
             return self.state.milk_production_summary.get(
                 "milking_events_count",
                 0,
             )
-
 
         return getattr(
             self.state,
@@ -185,30 +154,20 @@ class OperationalStateDashboardAdapter:
             0,
         )
 
-
-
     @property
-    def feed_today(
-        self,
-    ):
-
+    def feed_today(self):
         if hasattr(
             self.state,
             "feeding_status",
         ):
-
             return sum(
                 item.get(
                     "quantity_kg",
                     0,
                 )
                 for item in self.state.feeding_status.values()
-                if isinstance(
-                    item,
-                    dict,
-                )
+                if isinstance(item, dict)
             )
-
 
         return getattr(
             self.state,
@@ -216,22 +175,13 @@ class OperationalStateDashboardAdapter:
             0,
         )
 
-
-
     @property
-    def feed_events(
-        self,
-    ):
-
+    def feed_events(self):
         if hasattr(
             self.state,
             "feeding_status",
         ):
-
-            return len(
-                self.state.feeding_status
-            )
-
+            return len(self.state.feeding_status)
 
         return getattr(
             self.state,
@@ -239,22 +189,15 @@ class OperationalStateDashboardAdapter:
             0,
         )
 
-
-
     @property
-    def last_operator(
-        self,
-    ):
-
+    def last_operator(self):
         if hasattr(
             self.state,
             "milk_production_summary",
         ):
-
             return self.state.milk_production_summary.get(
                 "last_operator"
             )
-
 
         return getattr(
             self.state,
@@ -262,18 +205,12 @@ class OperationalStateDashboardAdapter:
             "",
         )
 
-
-
     @property
-    def last_shift(
-        self,
-    ):
-
+    def last_shift(self):
         if hasattr(
             self.state,
             "milk_production_summary",
         ):
-
             last_shift = self.state.milk_production_summary.get(
                 "last_shift"
             )
@@ -281,13 +218,16 @@ class OperationalStateDashboardAdapter:
             if last_shift:
                 return last_shift
 
-            milk_status = getattr(self.state, "milk_status", {})
+            milk_status = getattr(
+                self.state,
+                "milk_status",
+                {},
+            )
 
             if milk_status:
                 return next(reversed(milk_status))
 
             return ""
-
 
         return getattr(
             self.state,
@@ -295,23 +235,16 @@ class OperationalStateDashboardAdapter:
             "",
         )
 
-
-
     @property
-    def last_feed_type(
-        self,
-    ):
-
+    def last_feed_type(self):
         if hasattr(
             self.state,
             "feeding_status",
         ):
-
             return self.state.feeding_status.get(
                 "last_feed_type",
                 "",
             )
-
 
         return getattr(
             self.state,
@@ -319,23 +252,16 @@ class OperationalStateDashboardAdapter:
             "",
         )
 
-
-
     @property
-    def last_event_type(
-        self,
-    ):
-
+    def last_event_type(self):
         if hasattr(
             self.state,
             "operational_freshness",
         ):
-
             return self.state.operational_freshness.get(
                 "event_type",
                 "",
             )
-
 
         return getattr(
             self.state,
@@ -343,23 +269,16 @@ class OperationalStateDashboardAdapter:
             "",
         )
 
-
-
     @property
-    def last_event_time(
-        self,
-    ):
-
+    def last_event_time(self):
         if hasattr(
             self.state,
             "operational_freshness",
         ):
-
             return self.state.operational_freshness.get(
                 "timestamp",
                 "",
             )
-
 
         return getattr(
             self.state,
@@ -367,53 +286,30 @@ class OperationalStateDashboardAdapter:
             "",
         )
 
-
-
     @property
-    def exceptions(
-        self,
-    ):
-
+    def exceptions(self):
         return getattr(
             self.state,
             "exceptions",
             [],
         )
 
-
-
     @property
-    def total_events(
-        self,
-    ):
-
+    def total_events(self):
         return getattr(
             self.state,
             "total_events",
             0,
         )
 
-
-
-    def snapshot(
-        self,
-    ):
-
+    def snapshot(self):
         if hasattr(
             self.state,
             "summary",
         ):
-
             return self.state.summary()
-
 
         return self.state.to_dict()
 
-
-
-    def to_dict(
-        self,
-    ):
-
+    def to_dict(self):
         return self.snapshot()
-
