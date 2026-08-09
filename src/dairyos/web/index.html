@@ -27,10 +27,11 @@
     .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
     .card, .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
     .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
-    .card .value { font-size:25px; font-weight:700; margin-top:8px; }
+    .card .value { font-size:25px; font-weight:700; margin-top:8px; word-break:break-word; }
     .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
-    .state-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #eef0f3; font-size:14px; }
+    .state-row { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #eef0f3; font-size:14px; }
     .state-row:last-child { border-bottom:0; }
+    .state-row .value { text-align:right; max-width:70%; word-break:break-word; }
     .badge { padding:3px 8px; border-radius:999px; background:#eef2f6; font-size:12px; }
     .badge.good { background:#e7f6ef; color:#067647; }
     .badge.warn { background:#fff4e5; color:#b54708; }
@@ -49,6 +50,8 @@
     pre { background:#111827; color:#e5e7eb; padding:14px; border-radius:8px; overflow:auto; max-height:360px; font-size:12px; }
     .notice { margin-bottom:14px; padding:10px 12px; border-radius:8px; background:#eef6ff; color:#175cd3; font-size:13px; display:none; }
     .notice.error { background:#feeceb; color:#b42318; }
+    .error-panel { border-color:#f3b5af; background:#fff7f6; }
+    .empty { padding:18px 0; color:var(--muted); }
     @media (max-width:850px) { .shell { grid-template-columns:1fr; } aside { border-right:0; border-bottom:1px solid var(--line); overflow:auto; } nav { display:flex; gap:5px; overflow-x:auto; } nav button { min-width:max-content; } main { padding:16px; } form { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -80,6 +83,18 @@ const tabs = [
   ['breeding','Breeding'], ['workforce','Workforce'], ['inventory','Inventory'], ['equipment','Equipment'],
   ['financial','Finance'], ['api-status','System / API']
 ];
+
+const domainMeta = {
+  milk:{label:'Milk',description:'Milk production records captured per animal and milking session.',input:'milk',title:'Milk Production'},
+  feed:{label:'Feeding',description:'Feed delivery and consumption records from the farm floor.',input:'feed',title:'Feeding'},
+  'health-observations':{label:'Health',description:'Animal health observations and clinical signals.',input:'health-observations',title:'Animal Health'},
+  breeding:{label:'Breeding',description:'Heat, insemination and reproduction events attributable to an operator.',input:'breeding',title:'Breeding'},
+  workforce:{label:'Workforce',description:'Worker activity, task and shift records.',input:'workforce',title:'Workforce'},
+  inventory:{label:'Inventory',description:'Inventory movements and current operational stock entries.',input:'inventory',title:'Inventory'},
+  equipment:{label:'Equipment',description:'Equipment inspections, maintenance and operational status.',input:'equipment',title:'Equipment'},
+  financial:{label:'Finance',description:'Farm financial transactions captured through the operational input layer.',input:'financial',title:'Finance'}
+};
+
 const entryFields = {
   milk:[['animal_id','Animal ID','text'],['morning_yield','Morning litres','number'],['afternoon_yield','Afternoon litres','number'],['evening_yield','Evening litres','number'],['milking_session','Milking session','text']],
   feed:[['feed_type','Feed type','text'],['quantity_kg','Quantity kg','number'],['group_or_pen','Group / pen','text'],['animal_id','Animal ID (optional)','text']],
@@ -90,22 +105,139 @@ const entryFields = {
   equipment:[['equipment_id','Equipment ID','text'],['activity','Activity','text'],['status','Status','text'],['running_hours','Running hours','number'],['location','Location','text'],['notes','Notes','text']],
   financial:[['transaction_type','Transaction type','text'],['amount','Amount','number'],['category','Category','text'],['payment_method','Payment method','text'],['counterparty','Counterparty','text'],['notes','Notes','text']]
 };
+
 function showNotice(message,error=false){const n=document.getElementById('notice'); n.textContent=message; n.className='notice'+(error?' error':''); n.style.display='block'; setTimeout(()=>n.style.display='none',3500);}
+
 async function getJSON(url, options={}){const r=await fetch(url,options); const text=await r.text(); let data; try{data=JSON.parse(text)}catch{data=text} if(!r.ok) throw new Error(`${r.status} ${r.statusText}: ${text}`); return data;}
+
 function makeNav(){const nav=document.getElementById('nav'); tabs.forEach(([id,label])=>{const b=document.createElement('button'); b.textContent=label; b.dataset.page=id; b.onclick=()=>openTab(id); nav.appendChild(b);});}
-async function openTab(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); const page=document.getElementById(id); if(page) page.classList.add('active'); document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id)); if(id==='dashboard') await loadDashboard(); else if(id==='command-center') await loadCommandCenter(); else if(id==='data-entry') renderEntryFields(); else if(id==='api-status') await loadApiStatus(); else await loadDomain(id);}
+
+function ensureDomainPage(domain){
+  if(document.getElementById(domain)) return document.getElementById(domain);
+  const meta=domainMeta[domain];
+  if(!meta) return null;
+  const section=document.createElement('section');
+  section.id=domain;
+  section.className='page';
+  section.innerHTML=`
+    <div class="page-head">
+      <div><h1>${escapeHtml(meta.title)}</h1><p>${escapeHtml(meta.description)}</p></div>
+      <div class="status"><span class="dot"></span><span id="${domain}-status">Loading</span></div>
+    </div>
+    <div class="cards" id="${domain}-cards"></div>
+    <div class="grid">
+      <div class="panel"><h2>Current records</h2><div id="${domain}-records" class="domain-records"></div></div>
+      <div class="panel"><h2>Operational entry</h2><p style="margin-bottom:12px">Use the live data-entry workflow for this domain.</p><button class="primary" type="button" onclick="openDataEntry('${domain}')">Open ${escapeHtml(meta.label)} entry</button></div>
+    </div>
+    <div class="panel" style="margin-top:16px"><h2>Live API response</h2><pre id="${domain}-json">Loading…</pre></div>`;
+  document.querySelector('main').appendChild(section);
+  return section;
+}
+
+async function openTab(id){
+  if(domainMeta[id]) ensureDomainPage(id);
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  const page=document.getElementById(id);
+  if(!page){showNotice(`UI page '${id}' is not registered`,true);return;}
+  page.classList.add('active');
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));
+  if(id==='dashboard') await loadDashboard();
+  else if(id==='command-center') await loadCommandCenter();
+  else if(id==='data-entry') renderEntryFields();
+  else if(id==='api-status') await loadApiStatus();
+  else await loadDomain(id);
+}
+
+function openDataEntry(domain){
+  document.getElementById('entry-domain').value=domain;
+  openTab('data-entry');
+}
+
 function valueOf(obj,...keys){for(const k of keys){if(obj && obj[k]!==undefined && obj[k]!==null) return obj[k]} return '—';}
-async function loadDashboard(){try{const [d,r]=await Promise.all([getJSON('/dashboard'),getJSON('/readiness')]); document.getElementById('dashboard-status').textContent=`Runtime ${r.runtime} · ${r.events} events`; document.getElementById('runtime-status').textContent=`${r.status} · ${r.database}`; document.getElementById('dashboard-json').textContent=JSON.stringify(d,null,2); const cards=document.getElementById('dashboard-cards'); cards.innerHTML=''; const metrics=d.metrics||d.summary||d.kpis||{}; const entries=Object.entries(metrics).slice(0,8); if(!entries.length){cards.innerHTML='<div class="card"><div class="label">Dashboard contract</div><div class="value">Connected</div></div>'} else entries.forEach(([k,v])=>cards.insertAdjacentHTML('beforeend',`<div class="card"><div class="label">${escapeHtml(k)}</div><div class="value">${escapeHtml(String(v))}</div></div>`)); renderObject('operational-state',d.operational_state||d.farm_operational_state||d.state||{}); renderObject('command-summary',d.command_center||d.commands||d.priorities||{}); }catch(e){showNotice(e.message,true); document.getElementById('dashboard-status').textContent='ERROR';}}
+
+async function loadDashboard(){
+  try{
+    const [d,r]=await Promise.all([getJSON('/dashboard'),getJSON('/readiness')]);
+    document.getElementById('dashboard-status').textContent=`Runtime ${r.runtime} · ${r.events} events`;
+    document.getElementById('runtime-status').textContent=`${r.status} · ${r.database}`;
+    document.getElementById('dashboard-json').textContent=JSON.stringify(d,null,2);
+    const cards=document.getElementById('dashboard-cards'); cards.innerHTML='';
+    const metrics=d.metrics||d.summary||d.kpis||{};
+    const entries=Object.entries(metrics).slice(0,8);
+    if(!entries.length) cards.innerHTML='<div class="card"><div class="label">Dashboard contract</div><div class="value">Connected</div></div>';
+    else entries.forEach(([k,v])=>cards.insertAdjacentHTML('beforeend',`<div class="card"><div class="label">${escapeHtml(k)}</div><div class="value">${escapeHtml(String(v))}</div></div>`));
+    renderObject('operational-state',d.operational_state||d.farm_operational_state||d.state||{});
+    renderObject('command-summary',d.command_center||d.commands||d.priorities||{});
+  }catch(e){showNotice(e.message,true); document.getElementById('dashboard-status').textContent='ERROR';}
+}
+
 async function loadCommandCenter(){try{const c=await getJSON('/command-center'); renderObject('command-view',c);}catch(e){showNotice(e.message,true)}}
-function renderObject(targetId,obj){const target=document.getElementById(targetId); if(!target)return; target.innerHTML=''; if(!obj || (typeof obj==='object'&&!Object.keys(obj).length)){target.innerHTML='<p>No current records.</p>';return;} if(Array.isArray(obj)){target.innerHTML='<table><tbody>'+obj.slice(0,20).map(x=>`<tr><td>${escapeHtml(JSON.stringify(x))}</td></tr>`).join('')+'</tbody></table>';return;} Object.entries(obj).slice(0,30).forEach(([k,v])=>{const row=document.createElement('div'); row.className='state-row'; row.innerHTML=`<span>${escapeHtml(k)}</span><span class="badge ${classFor(v)}">${escapeHtml(format(v))}</span>`; target.appendChild(row);});}
-function classFor(v){const s=String(v).toLowerCase(); if(['ready','active','healthy','ok','normal','complete','completed','clear'].some(x=>s.includes(x)))return'good'; if(['warning','pending','open','due','attention'].some(x=>s.includes(x)))return'warn'; if(['critical','error','failed','offline'].some(x=>s.includes(x)))return'bad'; return'';}
+
+function renderObject(targetId,obj){
+  const target=document.getElementById(targetId); if(!target)return; target.innerHTML='';
+  if(!obj || (typeof obj==='object'&&!Object.keys(obj).length)){target.innerHTML='<p class="empty">No current records.</p>';return;}
+  if(Array.isArray(obj)){target.innerHTML='<table><tbody>'+obj.slice(0,20).map(x=>`<tr><td>${escapeHtml(JSON.stringify(x))}</td></tr>`).join('')+'</tbody></table>';return;}
+  Object.entries(obj).slice(0,30).forEach(([k,v])=>{const row=document.createElement('div'); row.className='state-row'; row.innerHTML=`<span>${escapeHtml(k)}</span><span class="value badge ${classFor(v)}">${escapeHtml(format(v))}</span>`; target.appendChild(row);});
+}
+
+function classFor(v){const s=String(v).toLowerCase(); if(['ready','active','healthy','ok','normal','complete','completed','clear','recorded'].some(x=>s.includes(x)))return'good'; if(['warning','pending','open','due','attention'].some(x=>s.includes(x)))return'warn'; if(['critical','error','failed','offline'].some(x=>s.includes(x)))return'bad'; return'';}
 function format(v){if(typeof v==='object')return JSON.stringify(v); return String(v);}
 function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function renderEntryFields(){const d=document.getElementById('entry-domain').value; const target=document.getElementById('dynamic-fields'); target.innerHTML=''; (entryFields[d]||[]).forEach(([name,label,type])=>{target.insertAdjacentHTML('beforeend',`<label>${label}<input name="${name}" type="${type}" ${name==='animal_id'||name==='feed_type'||name==='quantity_kg'||name==='worker_id'||name==='activity'||name==='item'||name==='equipment_id'||name==='transaction_type'||name==='amount'?'required':''}></label>`)}); loadDomain(d);}
-async function loadDomain(domain){try{const rows=await getJSON(`/farm/${domain}`); const target=document.getElementById('entry-list'); if(!Array.isArray(rows)||!rows.length){target.innerHTML='<p>No entries recorded yet.</p>';return;} target.innerHTML='<table><thead><tr><th>Timestamp</th><th>Operator</th><th>Data</th></tr></thead><tbody>'+rows.slice(-20).reverse().map(x=>`<tr><td>${escapeHtml(valueOf(x,'timestamp','created_at'))}</td><td>${escapeHtml(valueOf(x,'operator','actor'))}</td><td><code>${escapeHtml(JSON.stringify(x))}</code></td></tr>`).join('')+'</tbody></table>';}catch(e){document.getElementById('entry-list').textContent=e.message;}}
-async function submitEntry(ev){ev.preventDefault(); const domain=document.getElementById('entry-domain').value; const form=document.getElementById('entry-form'); const payload={operator:document.getElementById('operator').value}; new FormData(form).forEach((v,k)=>{if(k==='operator')return; if(v!=='')payload[k]=['number'].includes(document.querySelector(`[name="${k}"]`)?.type)?Number(v):v;}); try{await getJSON(`/farm/${domain}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); showNotice(`${domain} entry recorded`); form.reset(); document.getElementById('operator').value=payload.operator; renderEntryFields();}catch(e){showNotice(e.message,true);}}
-async function loadApiStatus(){const urls=['/health','/readiness','/version','/dashboard','/command-center']; const out=[]; for(const u of urls){try{const data=await getJSON(u);out.push({url:u,status:'OK',data});}catch(e){out.push({url:u,status:'ERROR',error:e.message});}} document.getElementById('api-cards').innerHTML=out.map(x=>`<div class="card"><div class="label">${x.url}</div><div class="value">${x.status}</div></div>`).join(''); document.getElementById('api-json').textContent=JSON.stringify(out,null,2);}
-document.getElementById('entry-domain').addEventListener('change',renderEntryFields); document.getElementById('entry-form').addEventListener('submit',submitEntry); makeNav(); renderEntryFields(); loadDashboard();
+
+function renderEntryFields(){
+  const d=document.getElementById('entry-domain').value;
+  const target=document.getElementById('dynamic-fields'); target.innerHTML='';
+  (entryFields[d]||[]).forEach(([name,label,type])=>{target.insertAdjacentHTML('beforeend',`<label>${escapeHtml(label)}<input name="${name}" type="${type}" ${['animal_id','feed_type','quantity_kg','worker_id','activity','item','equipment_id','transaction_type','amount'].includes(name)?'required':''}></label>`)})
+  loadDomain(d);
+}
+
+async function loadDomain(domain){
+  const meta=domainMeta[domain];
+  if(!meta)return;
+  ensureDomainPage(domain);
+  try{
+    const rows=await getJSON(`/farm/${domain}`);
+    const status=document.getElementById(`${domain}-status`);
+    const cards=document.getElementById(`${domain}-cards`);
+    const records=document.getElementById(`${domain}-records`);
+    const raw=document.getElementById(`${domain}-json`);
+    if(status)status.textContent=`API connected · ${Array.isArray(rows)?rows.length:0} records`;
+    if(raw)raw.textContent=JSON.stringify(rows,null,2);
+    if(cards){cards.innerHTML=''; const count=Array.isArray(rows)?rows.length:0; cards.innerHTML=`<div class="card"><div class="label">Records</div><div class="value">${count}</div></div><div class="card"><div class="label">Endpoint</div><div class="value">/farm/${escapeHtml(domain)}</div></div><div class="card"><div class="label">Entry</div><div class="value">Live</div></div>`;}
+    if(!records)return;
+    if(!Array.isArray(rows)||!rows.length){records.innerHTML='<p class="empty">No entries recorded yet. Use the operational entry button to add one.</p>';return;}
+    records.innerHTML='<table><thead><tr><th>Timestamp</th><th>Operator</th><th>Status</th><th>Record</th></tr></thead><tbody>'+rows.slice(-25).reverse().map(x=>`<tr><td>${escapeHtml(valueOf(x,'timestamp','created_at'))}</td><td>${escapeHtml(valueOf(x,'operator','actor'))}</td><td>${escapeHtml(valueOf(x,'status','result'))}</td><td><code>${escapeHtml(JSON.stringify(x))}</code></td></tr>`).join('')+'</tbody></table>';
+  }catch(e){
+    const status=document.getElementById(`${domain}-status`); const records=document.getElementById(`${domain}-records`); const raw=document.getElementById(`${domain}-json`);
+    if(status)status.textContent='API ERROR';
+    if(records)records.innerHTML=`<div class="panel error-panel"><strong>Unable to load ${escapeHtml(meta.label)}</strong><p style="margin-top:8px">${escapeHtml(e.message)}</p></div>`;
+    if(raw)raw.textContent=e.message;
+    showNotice(`${meta.label}: ${e.message}`,true);
+  }
+}
+
+async function submitEntry(ev){
+  ev.preventDefault();
+  const domain=document.getElementById('entry-domain').value;
+  const form=document.getElementById('entry-form');
+  const payload={operator:document.getElementById('operator').value};
+  new FormData(form).forEach((v,k)=>{if(k==='operator')return; if(v!=='')payload[k]=document.querySelector(`[name="${k}"]`)?.type==='number'?Number(v):v;});
+  try{await getJSON(`/farm/${domain}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); showNotice(`${domain} entry recorded`); form.reset(); document.getElementById('operator').value=payload.operator; renderEntryFields();}
+  catch(e){showNotice(e.message,true);}
+}
+
+async function loadApiStatus(){
+  const urls=['/health','/readiness','/version','/dashboard','/command-center']; const out=[];
+  for(const u of urls){try{const data=await getJSON(u);out.push({url:u,status:'OK',data});}catch(e){out.push({url:u,status:'ERROR',error:e.message});}}
+  document.getElementById('api-cards').innerHTML=out.map(x=>`<div class="card"><div class="label">${escapeHtml(x.url)}</div><div class="value">${escapeHtml(x.status)}</div></div>`).join('');
+  document.getElementById('api-json').textContent=JSON.stringify(out,null,2);
+}
+
+document.getElementById('entry-domain').addEventListener('change',renderEntryFields);
+document.getElementById('entry-form').addEventListener('submit',submitEntry);
+makeNav();
+renderEntryFields();
+loadDashboard();
 </script>
 </body>
 </html>
