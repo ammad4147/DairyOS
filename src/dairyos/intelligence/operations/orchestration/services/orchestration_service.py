@@ -1,0 +1,91 @@
+from dairyos.intelligence.operations.orchestration.models.operational_action import (
+    OperationalAction,
+)
+
+from dairyos.intelligence.operations.orchestration.models.action_assignment import (
+    ActionAssignment,
+)
+
+from dairyos.intelligence.operations.orchestration.models.execution_record import (
+    ExecutionRecord,
+)
+
+from dairyos.intelligence.operations.orchestration.models.action_outcome import (
+    ActionOutcome,
+)
+
+
+class OrchestrationService:
+    """
+    Coordinates operational actions generated
+    from intelligence decisions.
+
+    Responsibilities:
+
+    - create operational actions
+    - assign ownership
+    - record execution
+    - capture outcomes
+    """
+
+    def create_action(
+        self,
+        action_type: str,
+        description: str,
+        priority: str,
+        source_decision: str,
+    ) -> OperationalAction:
+
+        return OperationalAction(
+            action_type=action_type,
+            description=description,
+            priority=priority,
+            status="pending",
+            source_decision=source_decision,
+        )
+
+
+    def assign_action(
+        self,
+        action_type: str,
+        assigned_to: str,
+        assigned_role: str,
+    ) -> ActionAssignment:
+
+        return ActionAssignment(
+            action_type=action_type,
+            assigned_to=assigned_to,
+            assigned_role=assigned_role,
+            status="assigned",
+        )
+
+
+    def record_execution(
+        self,
+        action_type: str,
+        performed_by: str,
+        notes: str,
+    ) -> ExecutionRecord:
+
+        return ExecutionRecord(
+            action_type=action_type,
+            performed_by=performed_by,
+            execution_status="completed",
+            notes=notes,
+        )
+
+
+    def record_outcome(
+        self,
+        action_type: str,
+        result: str,
+        feedback: str,
+        success: bool = True,
+    ) -> ActionOutcome:
+
+        return ActionOutcome(
+            action_type=action_type,
+            result=result,
+            success=success,
+            feedback=feedback,
+        )

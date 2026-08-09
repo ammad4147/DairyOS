@@ -1,0 +1,75 @@
+# Input module configuration for DairyOS
+# This file defines all input modules and their settings
+
+modules:
+  # Temperature sensor module
+  temperature_sensor:
+    module_class: "src.dairyos.core.inputs.example_module.ExampleInputModule"
+    config:
+      data_source: "temperature_sensor"
+      error_rate: 0.05
+      calibration_offset: 0.5
+      connection_params:
+        port: "/dev/ttyUSB0"
+        baud_rate: 9600
+    polling_interval: 2.0
+    is_active: true
+    max_reconnect_attempts: 5
+    reconnect_strategy: exponential
+    reconnect_base_delay: 1.0
+    offline_buffer_size: 1000
+    watchdog_timeout: 30.0
+
+  # Humidity sensor module
+  humidity_sensor:
+    module_class: "src.dairyos.core.inputs.example_module.ExampleInputModule"
+    config:
+      data_source: "humidity_sensor"
+      error_rate: 0.1
+      calibration_offset: -0.2
+      connection_params:
+        port: "/dev/ttyUSB1"
+        baud_rate: 9600
+    polling_interval: 3.0
+    is_active: true
+    max_reconnect_attempts: 5
+    reconnect_strategy: exponential
+    reconnect_base_delay: 1.0
+    offline_buffer_size: 1000
+    watchdog_timeout: 30.0
+
+  # Pressure sensor module
+  pressure_sensor:
+    module_class: "src.dairyos.core.inputs.example_module.ExampleInputModule"
+    config:
+      data_source: "pressure_sensor"
+      error_rate: 0.02
+      calibration_offset: 0.0
+      connection_params:
+        mqtt_topic: "farm/sensors/pressure"
+        port: 1883
+    polling_interval: 5.0
+    is_active: false  # Disabled by default
+    max_reconnect_attempts: 5
+    reconnect_strategy: exponential
+    reconnect_base_delay: 1.0
+    offline_buffer_size: 1000
+    watchdog_timeout: 30.0
+
+  # Motion sensor module
+  motion_sensor:
+    module_class: "src.dairyos.core.inputs.example_module.ExampleInputModule"
+    config:
+      data_source: "motion_sensor"
+      error_rate: 0.01
+      calibration_offset: 0.0
+      connection_params:
+        port: "/dev/ttyACM0"
+        baud_rate: 115200
+    polling_interval: 1.0
+    is_active: true
+    max_reconnect_attempts: 5
+    reconnect_strategy: exponential
+    reconnect_base_delay: 1.0
+    offline_buffer_size: 1000
+    watchdog_timeout: 30.0

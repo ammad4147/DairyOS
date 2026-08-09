@@ -1,0 +1,1284 @@
+================================================================================
+FILE: dairyos\farm\operations\state\farm_operational_state.py
+================================================================================
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+
+
+@dataclass
+class FarmOperationalState:
+    """
+    Living operational state of a dairy farm.
+
+    Represents the current condition
+    derived from operational activity.
+
+    This model does not store historical events.
+
+    Events describe what happened.
+
+    Operational state describes
+    what is true now.
+    """
+
+
+    farm_id: str
+
+
+    operational_date: str
+
+
+    created_at: datetime = field(
+        default_factory=lambda:
+            datetime.now(timezone.utc)
+    )
+
+
+    milk_status: dict = field(
+        default_factory=dict
+    )
+
+
+    feeding_status: dict = field(
+        default_factory=dict
+    )
+
+
+    health_alerts: list = field(
+        default_factory=list
+    )
+
+
+    breeding_status: dict = field(
+        default_factory=dict
+    )
+
+
+    workforce_status: dict = field(
+        default_factory=dict
+    )
+
+
+    open_tasks: list = field(
+        default_factory=list
+    )
+
+
+    exceptions: list = field(
+        default_factory=list
+    )
+
+
+
+    def record_milk_activity(
+        self,
+        shift: str,
+        litres: float,
+    ):
+        """
+        Update milk operational state.
+        """
+
+
+        self.milk_status[shift] = {
+
+            "status": "completed",
+
+            "litres": litres,
+
+        }
+
+
+
+    def record_feed_activity(
+        self,
+        feed_type: str,
+        quantity_kg: float,
+    ):
+        """
+        Update feeding operational state.
+        """
+
+
+        self.feeding_status[feed_type] = {
+
+            "status": "completed",
+
+            "quantity_kg": quantity_kg,
+
+        }
+
+
+
+    def add_health_alert(
+        self,
+        animal_id: str,
+        observation: str,
+        severity: str,
+    ):
+        """
+        Add health exception requiring attention.
+        """
+
+
+        self.health_alerts.append(
+
+            {
+
+                "animal_id": animal_id,
+
+                "observation": observation,
+
+                "severity": severity,
+
+            }
+
+        )
+
+
+
+    def add_exception(
+        self,
+        exception: dict,
+    ):
+        """
+        Add operational exception.
+        """
+
+
+        self.exceptions.append(
+            exception
+        )
+
+
+
+    def summary(
+        self,
+    ):
+        """
+        Provide current operational snapshot.
+        """
+
+
+        return {
+
+            "farm_id": self.farm_id,
+
+            "operational_date":
+                self.operational_date,
+
+            "milk_status":
+                self.milk_status,
+
+            "feeding_status":
+                self.feeding_status,
+
+            "health_alert_count":
+                len(self.health_alerts),
+
+            "open_task_count":
+                len(self.open_tasks),
+
+            "exception_count":
+                len(self.exceptions),
+
+        }
+
+================================================================================
+FILE: dairyos\farm\operations\runtime\farm_operations_runtime.py
+================================================================================
+from dairyos.farm.operations.models import (
+    MilkRecord,
+    FeedRecord,
+    HealthObservation,
+    BreedingRecord,
+)
+
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
+)
+
+from dairyos.farm.operations.repositories.adapters import (
+    MemoryMilkRepository,
+    MemoryFeedRepository,
+    MemoryHealthRepository,
+    MemoryBreedingRepository,
+)
+
+from dairyos.farm.operations.gateway.operations_event_gateway import (
+    OperationsEventGateway,
+)
+
+from dairyos.farm.operations.events.farm_operation_event_bus import (
+    FarmOperationEventBus,
+)
+
+
+class FarmOperationsRuntime:
+    """
+    Operational transaction boundary for DairyOS.
+    """
+
+
+    def __init__(
+        self,
+        milk_repository=None,
+        feed_repository=None,
+        health_repository=None,
+        breeding_repository=None,
+        event_gateway=None,
+        event_repository=None,
+        event_bus=None,
+    ):
+
+        self.milk_repository = (
+            milk_repository
+            if milk_repository is not None
+            else MemoryMilkRepository()
+        )
+
+        self.feed_repository = (
+            feed_repository
+            if feed_repository is not None
+            else MemoryFeedRepository()
+        )
+
+        self.health_repository = (
+            health_repository
+            if health_repository is not None
+            else MemoryHealthRepository()
+        )
+
+        self.breeding_repository = (
+            breeding_repository
+            if breeding_repository is not None
+            else MemoryBreedingRepository()
+        )
+
+        self.event_gateway = (
+            event_gateway
+            if event_gateway is not None
+            else OperationsEventGateway()
+        )
+
+        self.event_repository = event_repository
+
+        self.event_bus = (
+            event_bus
+            if event_bus is not None
+            else FarmOperationEventBus()
+        )
+
+        self.events = []
+
+
+    def _publish_event(
+        self,
+        event,
+    ):
+
+        timeline_event = (
+            self.event_gateway.publish(event)
+        )
+
+        self.events.append(
+            timeline_event
+        )
+
+        if self.event_repository is not None:
+            self.event_repository.add(event)
+
+        self.event_bus.publish(event)
+
+        return timeline_event
+
+
+    def record_milk(
+        self,
+        animal_group,
+        shift,
+        litres,
+        operator,
+    ):
+
+        record = MilkRecord(
+            animal_group=animal_group,
+            shift=shift,
+            litres=litres,
+            operator=operator,
+        )
+
+        saved = self.milk_repository.save(record)
+
+        self._publish_event(
+            FarmOperationEvent(
+                event_type="milk_recorded",
+                animal_id=animal_group,
+                operator=operator,
+                payload={
+                    "litres": litres,
+                    "shift": shift,
+                },
+            )
+        )
+
+        return saved
+
+
+    def record_feed(
+        self,
+        animal_group,
+        feed_type,
+        quantity_kg,
+        cost,
+        operator,
+    ):
+
+        record = FeedRecord(
+            animal_group=animal_group,
+            feed_type=feed_type,
+            quantity_kg=quantity_kg,
+            cost=cost,
+            operator=operator,
+        )
+
+        saved = self.feed_repository.save(record)
+
+        self._publish_event(
+            FarmOperationEvent(
+                event_type="feed_distributed",
+                animal_id=None,
+                operator=operator,
+                payload={
+                    "group_name": animal_group,
+                    "feed_type": feed_type,
+                    "quantity_kg": quantity_kg,
+                    "cost": cost,
+                },
+            )
+        )
+
+        return saved
+
+
+    def record_health(
+        self,
+        animal_id,
+        observation,
+        severity,
+        reported_by,
+    ):
+
+        record = HealthObservation(
+            animal_id=animal_id,
+            observation=observation,
+            severity=severity,
+            reported_by=reported_by,
+            observation_type="HEALTH_OBSERVATION",
+            notes=observation,
+            operator=reported_by,
+        )
+
+
+        saved = (
+            self.health_repository
+            .save(record)
+        )
+
+
+        self._publish_event(
+            FarmOperationEvent(
+
+                event_type="health_observation_recorded",
+
+                animal_id=animal_id,
+
+                operator=reported_by,
+
+                payload={
+                    "observation": observation,
+                    "severity": severity,
+                },
+
+            )
+        )
+
+
+        return saved
+
+
+    def record_breeding(
+        self,
+        animal_id,
+        event_type,
+        result,
+        technician,
+    ):
+
+        record = BreedingRecord(
+            animal_id=animal_id,
+            event_type=event_type,
+            result=result,
+            technician=technician,
+        )
+
+        return self.breeding_repository.save(record)
+
+
+    def get_events(
+        self,
+    ):
+
+        return self.events
+
+================================================================================
+FILE: dairyos\farm\operations\services\farm_operations_service.py
+================================================================================
+from dairyos.farm.operations.repositories.adapters.memory_milk_repository import (
+    MemoryMilkRepository,
+)
+
+from dairyos.farm.operations.repositories.adapters.memory_feed_repository import (
+    MemoryFeedRepository,
+)
+
+from dairyos.farm.operations.repositories.adapters.memory_health_repository import (
+    MemoryHealthRepository,
+)
+
+from dairyos.farm.operations.repositories.adapters.memory_breeding_repository import (
+    MemoryBreedingRepository,
+)
+
+
+class FarmOperationsService:
+    """
+    Provides operational summaries
+    from actual farm records.
+
+    This service connects:
+    farm activity -> operational intelligence -> management view.
+    """
+
+
+    def __init__(
+        self,
+        milk_repository=None,
+        feed_repository=None,
+        health_repository=None,
+        breeding_repository=None,
+    ):
+
+        self.milk_repository = (
+            milk_repository
+            if milk_repository
+            else MemoryMilkRepository()
+        )
+
+        self.feed_repository = (
+            feed_repository
+            if feed_repository
+            else MemoryFeedRepository()
+        )
+
+        self.health_repository = (
+            health_repository
+            if health_repository
+            else MemoryHealthRepository()
+        )
+
+        self.breeding_repository = (
+            breeding_repository
+            if breeding_repository
+            else MemoryBreedingRepository()
+        )
+
+
+    def daily_milk_total(
+        self,
+    ):
+
+        return sum(
+            record.litres
+            for record in self.milk_repository.get_all()
+        )
+
+
+    def daily_feed_quantity(
+        self,
+    ):
+
+        return sum(
+            record.quantity_kg
+            for record in self.feed_repository.get_all()
+        )
+
+
+    def daily_feed_cost(
+        self,
+    ):
+
+        return sum(
+            record.cost
+            for record in self.feed_repository.get_all()
+        )
+
+
+    def health_attention_count(
+        self,
+    ):
+
+        return len(
+            self.health_repository.get_all()
+        )
+
+
+    def breeding_pending_count(
+        self,
+    ):
+
+        return len(
+            self.breeding_repository.get_all()
+        )
+
+
+    def attention_items(
+        self,
+    ):
+        """
+        Returns operational items requiring attention.
+        """
+
+        items = []
+
+        for observation in self.health_repository.get_all():
+
+            items.append(
+                {
+                    "type": "health",
+                    "animal_id": observation.animal_id,
+                    "issue": observation.observation_type,
+                    "notes": observation.notes,
+                    "operator": observation.operator,
+                }
+            )
+
+        return items
+
+================================================================================
+FILE: dairyos\application\application_runtime.py
+================================================================================
+"""
+Application Runtime
+===================
+
+Composition root for DairyOS application.
+
+Owns shared application infrastructure dependencies and provides
+dependency injection boundaries for application services.
+
+No business logic belongs here.
+"""
+
+from __future__ import annotations
+
+
+from dairyos.data.database.session import SessionLocal
+
+from dairyos.data.repositories.animal_repository import (
+    AnimalRepository,
+)
+
+from dairyos.data.repositories.operational_event_repository import (
+    OperationalEventRepository,
+)
+
+
+from dairyos.farm.operations.repositories.adapters import (
+    MemoryMilkRepository,
+    MemoryFeedRepository,
+    MemoryHealthRepository,
+    MemoryBreedingRepository,
+)
+
+
+from dairyos.farm.operations.runtime import (
+    FarmOperationsRuntime,
+)
+
+
+from dairyos.farm.operations.events.farm_operation_event_bus import (
+    FarmOperationEventBus,
+)
+
+
+from dairyos.farm.operations.events.operational_state_event_subscriber import (
+    OperationalStateEventSubscriber,
+)
+
+
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
+)
+
+
+from dairyos.farm.operations.services.operational_state_query_service import (
+    OperationalStateQueryService,
+)
+
+
+from dairyos.farm.herd.services.animal_event_projection import (
+    AnimalEventProjection,
+)
+
+
+from dairyos.farm.herd.services.animal_intelligence_service import (
+    AnimalIntelligenceService,
+)
+
+
+from dairyos.farm.day.runtime.farm_day_runtime import (
+    FarmDayRuntime,
+)
+
+
+from dairyos.application.identity.repositories.adapters.memory_user_repository import (
+    MemoryUserRepository,
+)
+
+
+from dairyos.operations.command.services.operations_command_service import (
+    OperationsCommandService,
+)
+
+
+from dairyos.operations.health.services.operations_health_service import (
+    OperationsHealthService,
+)
+
+
+from dairyos.operations.executive.services.executive_operations_service import (
+    ExecutiveOperationsService,
+)
+
+
+from dairyos.operations.dashboard.services.dashboard_builder_service import (
+    DashboardBuilderService,
+)
+
+
+from dairyos.operations.dashboard.services.dashboard_summary_service import (
+    DashboardSummaryService,
+)
+
+
+
+class ApplicationRuntime:
+    """
+    DairyOS application composition root.
+
+    Creates and owns shared repositories,
+    operational runtime and application services.
+
+    No business logic belongs here.
+    """
+
+
+    def __init__(
+        self,
+        animal_repository: AnimalRepository | None = None,
+        milk_repository: MemoryMilkRepository | None = None,
+        feed_repository: MemoryFeedRepository | None = None,
+        health_repository: MemoryHealthRepository | None = None,
+        breeding_repository: MemoryBreedingRepository | None = None,
+        operational_event_repository: OperationalEventRepository | None = None,
+        user_repository: MemoryUserRepository | None = None,
+        operations_command_service: OperationsCommandService | None = None,
+        operations_health_service: OperationsHealthService | None = None,
+        executive_operations_service: ExecutiveOperationsService | None = None,
+        dashboard_builder_service: DashboardBuilderService | None = None,
+        dashboard_summary_service: DashboardSummaryService | None = None,
+        farm_operations_runtime: FarmOperationsRuntime | None = None,
+        farm_day_runtime: FarmDayRuntime | None = None,
+        animal_event_projection: AnimalEventProjection | None = None,
+        animal_intelligence_service: AnimalIntelligenceService | None = None,
+        operational_state_service: FarmOperationalStateService | None = None,
+        operational_state_query_service: OperationalStateQueryService | None = None,
+        farm_operation_event_bus: FarmOperationEventBus | None = None,
+    ):
+
+
+        self._animal_repository = (
+            animal_repository
+            if animal_repository is not None
+            else AnimalRepository(session=SessionLocal())
+        )
+
+
+        self._milk_repository = (
+            milk_repository
+            if milk_repository is not None
+            else MemoryMilkRepository()
+        )
+
+
+        self._feed_repository = (
+            feed_repository
+            if feed_repository is not None
+            else MemoryFeedRepository()
+        )
+
+
+        self._health_repository = (
+            health_repository
+            if health_repository is not None
+            else MemoryHealthRepository()
+        )
+
+
+        self._breeding_repository = (
+            breeding_repository
+            if breeding_repository is not None
+            else MemoryBreedingRepository()
+        )
+
+
+        self._operational_event_repository = (
+            operational_event_repository
+            if operational_event_repository is not None
+            else OperationalEventRepository()
+        )
+
+
+        self._user_repository = (
+            user_repository
+            if user_repository is not None
+            else MemoryUserRepository()
+        )
+
+
+        self._operational_state_service = (
+            operational_state_service
+            if operational_state_service is not None
+            else FarmOperationalStateService()
+        )
+
+
+        self._farm_operation_event_bus = (
+            farm_operation_event_bus
+            if farm_operation_event_bus is not None
+            else FarmOperationEventBus()
+        )
+
+
+        self._operational_state_event_subscriber = (
+            OperationalStateEventSubscriber(
+                self._operational_state_service
+            )
+        )
+
+
+        self._farm_operation_event_bus.subscribe(
+            self._operational_state_event_subscriber
+        )
+
+
+        self._farm_operations_runtime = (
+            farm_operations_runtime
+            if farm_operations_runtime is not None
+            else FarmOperationsRuntime(
+
+                milk_repository=self._milk_repository,
+
+                feed_repository=self._feed_repository,
+
+                health_repository=self._health_repository,
+
+                breeding_repository=self._breeding_repository,
+
+                event_repository=self._operational_event_repository,
+
+                event_bus=self._farm_operation_event_bus,
+
+            )
+        )
+
+
+        self._operational_state_query_service = (
+            operational_state_query_service
+            if operational_state_query_service is not None
+            else OperationalStateQueryService(
+                self._operational_state_service
+            )
+        )
+
+
+        self._animal_event_projection = (
+            animal_event_projection
+            if animal_event_projection is not None
+            else AnimalEventProjection()
+        )
+
+
+        self._animal_intelligence_service = (
+            animal_intelligence_service
+            if animal_intelligence_service is not None
+            else AnimalIntelligenceService()
+        )
+
+
+        self._farm_day_runtime = (
+            farm_day_runtime
+            if farm_day_runtime is not None
+            else FarmDayRuntime(
+                farm_id="TRIDENT-DAIRIES",
+                operations_runtime=self._farm_operations_runtime,
+            )
+        )
+
+
+        self._operations_command_service = (
+            operations_command_service
+            if operations_command_service is not None
+            else OperationsCommandService()
+        )
+
+
+        self._operations_health_service = (
+            operations_health_service
+            if operations_health_service is not None
+            else OperationsHealthService()
+        )
+
+
+        self._executive_operations_service = (
+            executive_operations_service
+            if executive_operations_service is not None
+            else ExecutiveOperationsService(
+                command_service=self._operations_command_service
+            )
+        )
+
+
+        self._dashboard_builder_service = (
+            dashboard_builder_service
+            if dashboard_builder_service is not None
+            else DashboardBuilderService()
+        )
+
+
+        self._dashboard_summary_service = (
+            dashboard_summary_service
+            if dashboard_summary_service is not None
+            else DashboardSummaryService()
+        )
+
+
+
+    @property
+    def farm_operation_event_bus(self):
+        return self._farm_operation_event_bus
+
+
+    @property
+    def operational_state_service(self):
+        return self._operational_state_service
+
+
+    @property
+    def operational_state_query_service(self):
+        return self._operational_state_query_service
+
+
+    @property
+    def farm_day_runtime(self):
+        return self._farm_day_runtime
+
+
+    @property
+    def animal_event_projection(self):
+        return self._animal_event_projection
+
+
+    @property
+    def animal_intelligence_service(self):
+        return self._animal_intelligence_service
+
+
+    @property
+    def farm_operations_runtime(self):
+        return self._farm_operations_runtime
+
+
+    @property
+    def animal_repository(self):
+        return self._animal_repository
+
+
+    @property
+    def milk_repository(self):
+        return self._milk_repository
+
+
+    @property
+    def feed_repository(self):
+        return self._feed_repository
+
+
+    @property
+    def health_repository(self):
+        return self._health_repository
+
+
+    @property
+    def breeding_repository(self):
+        return self._breeding_repository
+
+
+    @property
+    def operational_event_repository(self):
+        return self._operational_event_repository
+
+
+    @property
+    def user_repository(self):
+        return self._user_repository
+
+
+    @property
+    def operations_command_service(self):
+        return self._operations_command_service
+
+
+    @property
+    def operations_health_service(self):
+        return self._operations_health_service
+
+
+    @property
+    def executive_operations_service(self):
+        return self._executive_operations_service
+
+
+    @property
+    def dashboard_builder_service(self):
+        return self._dashboard_builder_service
+
+
+    @property
+    def dashboard_summary_service(self):
+        return self._dashboard_summary_service
+
+================================================================================
+FILE: dairyos\application\dashboard\dashboard_factory.py
+================================================================================
+from __future__ import annotations
+
+
+from dairyos.application.application_runtime import (
+    ApplicationRuntime,
+)
+
+from dairyos.application.dashboard.services.farm_dashboard_service import (
+    FarmDashboardService,
+)
+
+from dairyos.application.dashboard.services.dashboard_assembler import (
+    DashboardAssembler,
+)
+
+from dairyos.application.dashboard.integrations.domain_dashboard_adapter import (
+    DomainDashboardAdapter,
+)
+
+from dairyos.application.dashboard.integrations.event_dashboard_adapter import (
+    EventDashboardAdapter,
+)
+
+
+
+class DashboardFactory:
+    """
+    Application composition boundary
+    for dashboard services.
+    """
+
+
+
+    @staticmethod
+    def create(
+        runtime: ApplicationRuntime | None = None,
+    ):
+
+
+        if runtime is None:
+
+            runtime = ApplicationRuntime()
+
+
+
+        domain_adapter = DomainDashboardAdapter(
+
+            operations_runtime=(
+                runtime.farm_operations_runtime
+            ),
+
+            animal_repository=(
+                runtime.animal_repository
+            ),
+
+        )
+
+
+
+        event_adapter = EventDashboardAdapter(
+
+            event_repository=(
+                runtime.operational_event_repository
+            ),
+
+            operations_runtime=(
+                runtime.farm_operations_runtime
+            ),
+
+        )
+
+
+
+        assembler = DashboardAssembler(
+
+            adapter=domain_adapter,
+
+            event_adapter=event_adapter,
+
+        )
+
+
+        return FarmDashboardService(
+
+            assembler=assembler
+
+        )
+
+================================================================================
+FILE: dairyos\application\dashboard\farm_dashboard_service.py
+================================================================================
+
+================================================================================
+FILE: dairyos\application\dashboard\dashboard_query_service.py
+================================================================================
+
+================================================================================
+FILE: dairyos\application\dashboard\dashboard_context.py
+================================================================================
+
+================================================================================
+FILE: dairyos\application\dashboard\integrations\domain_dashboard_adapter.py
+================================================================================
+from dairyos.farm.operations.runtime import (
+    FarmOperationsRuntime,
+)
+
+from dairyos.farm.operations.services.farm_operations_service import (
+    FarmOperationsService,
+)
+
+from dairyos.farm.herd.services.animal_operational_bridge import (
+    AnimalOperationalBridge,
+)
+
+
+class DomainDashboardAdapter:
+
+
+    def __init__(
+        self,
+        operations_runtime: FarmOperationsRuntime | None = None,
+        animal_repository=None,
+        operations_service=None,
+        milk_repository=None,
+        feed_repository=None,
+        animal_bridge=None,
+    ):
+
+        self.operations_runtime = (
+            operations_runtime
+            if operations_runtime is not None
+            else FarmOperationsRuntime(
+                milk_repository=milk_repository,
+                feed_repository=feed_repository,
+            )
+        )
+
+
+        self.operations_service = operations_service
+
+        self.animal_repository = animal_repository
+
+
+        self.animal_bridge = (
+            animal_bridge
+            if animal_bridge is not None
+            else AnimalOperationalBridge()
+        )
+
+
+
+    def get_milk_total(self):
+
+        if self.operations_service:
+
+            return (
+                self.operations_service
+                .daily_milk_total()
+            )
+
+
+        return sum(
+            record.litres
+            for record in (
+                self.operations_runtime
+                .milk_repository
+                .get_all()
+            )
+        )
+
+
+
+    def get_feed_consumption(self):
+
+        if self.operations_service:
+
+            return (
+                self.operations_service
+                .daily_feed_quantity()
+            )
+
+
+        return sum(
+            record.quantity_kg
+            for record in (
+                self.operations_runtime
+                .feed_repository
+                .get_all()
+            )
+        )
+
+
+
+    def get_total_animals(self):
+
+        if self.animal_repository is None:
+
+            return 0
+
+
+        return len(
+            self.animal_repository.get_all()
+        )
+
+
+
+    def get_milking_animals(self):
+
+        if self.animal_repository is None:
+
+            return 0
+
+
+        count = 0
+
+
+        for animal in self.animal_repository.get_all():
+
+            if (
+                getattr(
+                    animal,
+                    "is_milking",
+                    False,
+                )
+                or
+                getattr(
+                    animal,
+                    "is_currently_milking",
+                    False,
+                )
+            ):
+
+                count += 1
+
+
+        return count
+
+
+
+    def get_dry_animals(self):
+
+        return max(
+            self.get_total_animals()
+            -
+            self.get_milking_animals(),
+            0,
+        )
+
+
+
+    def get_pending_tasks(self):
+
+        if self.operations_service:
+
+            return (
+                self.operations_service
+                .breeding_pending_count()
+            )
+
+
+        return 0
+
+
+
+    def get_overdue_tasks(self):
+
+        return 0
+
+
+
+    def get_animal_attention_count(self):
+
+        return len(
+            [
+                state
+                for state in (
+                    self.animal_bridge
+                    .get_all_states()
+                )
+                if state.attention_required
+            ]
+        )
+
+
+
+    def get_animal_attention_items(self):
+
+        items = []
+
+
+        for state in (
+            self.animal_bridge
+            .get_all_states()
+        ):
+
+            if state.attention_required:
+
+                items.append(
+                    {
+                        "animal_id": state.animal_id,
+                        "reasons": state.attention_reason,
+                        "milk_deviation":
+                            state.milk_deviation_percentage,
+                    }
+                )
+
+
+        return items
+

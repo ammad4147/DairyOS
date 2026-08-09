@@ -1,0 +1,3 @@
+"""
+Dashboard projection assemblers.
+"""

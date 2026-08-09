@@ -1,0 +1,88 @@
+.command-center {
+
+    padding: 24px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 20px;
+
+}
+
+
+.command-header {
+
+    font-size: 28px;
+
+    font-weight: bold;
+
+}
+
+
+
+.summary-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            3,
+            1fr
+        );
+
+    gap: 16px;
+
+}
+
+
+
+.operational-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            1fr
+        );
+
+    gap: 16px;
+
+}
+
+
+
+.panel {
+
+    border: 1px solid #ddd;
+
+    border-radius: 10px;
+
+    padding: 16px;
+
+    background: white;
+
+}
+
+
+
+.attention-panel {
+
+    margin-top: 10px;
+
+}
+
+
+
+@media(max-width:900px){
+
+    .summary-grid,
+    .operational-grid {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+}

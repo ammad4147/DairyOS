@@ -1,0 +1,18 @@
+services:
+
+  api:
+
+    build: .
+
+    container_name: dairyos_application
+
+    restart: always
+
+    environment:
+
+      DAIRYOS_DATABASE_PATH: /app/dairyos.db
+
+
+    ports:
+
+      - "8000:8000"
