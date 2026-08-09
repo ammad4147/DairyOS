@@ -18,51 +18,25 @@ class CommandCenterProjectionAssembler:
         *,
         command_center,
     ):
-
         farm_status = command_center.farm_status
 
-
         return CommandCenterView(
-
             status={
-
-                "milk":
-                    farm_status.milk,
-
-                "feeding":
-                    farm_status.feeding,
-
-                "breeding":
-                    farm_status.breeding,
-
-                "health":
-                    farm_status.health,
-
-                "workforce":
-                    farm_status.workforce,
-
-                "inventory":
-                    farm_status.inventory,
-
-                "equipment":
-                    farm_status.equipment,
-
-                "finance":
-                    farm_status.finance,
-
+                "milk": farm_status.milk,
+                "feeding": farm_status.feeding,
+                "breeding": farm_status.breeding,
+                "health": farm_status.health,
+                "workforce": farm_status.workforce,
+                "inventory": farm_status.inventory,
+                "equipment": farm_status.equipment,
+                "finance": farm_status.finance,
             },
-
-
             attention=(
                 command_center.notifications
+                if command_center.notifications
+                else farm_status.attention_queue
             ),
-
-
-            decisions=(
-                command_center.decisions
-            ),
-
-
+            decisions=command_center.decisions,
             actions=(
                 command_center.execution
                 if isinstance(
@@ -71,21 +45,13 @@ class CommandCenterProjectionAssembler:
                 )
                 else []
             ),
-
-
             confidence={
-
-                "operational_score":
-                    command_center.health.get(
-                        "operational_score",
-                        0,
-                    ),
-
-                "health_status":
-                    command_center.health.get(
-                        "health_status",
-                    ),
-
+                "operational_score": command_center.health.get(
+                    "operational_score",
+                    0,
+                ),
+                "health_status": command_center.health.get(
+                    "health_status",
+                ),
             },
-
         )
