@@ -1,38 +1,22 @@
-from dairyos.farm.operations.services.workforce_intelligence_service import (
-    WorkforceIntelligenceService,
-)
-from dairyos.farm.operations.services.inventory_intelligence_service import (
-    InventoryIntelligenceService,
-)
-from dairyos.farm.operations.services.equipment_intelligence_service import (
-    EquipmentIntelligenceService,
-)
-from dairyos.farm.operations.services.financial_intelligence_service import (
-    FinancialIntelligenceService,
-)
-from dairyos.farm.command_center.services.missing_input_detection_service import (
-    MissingInputDetectionService,
-)
+from datetime import date
+
+from dairyos.farm.operations.services.workforce_intelligence_service import WorkforceIntelligenceService
+from dairyos.farm.operations.services.inventory_intelligence_service import InventoryIntelligenceService
+from dairyos.farm.operations.services.equipment_intelligence_service import EquipmentIntelligenceService
+from dairyos.farm.operations.services.financial_intelligence_service import FinancialIntelligenceService
 
 
 class OperationalDecisionService:
     """Convert canonical FarmOperationalState into unique action-required decisions."""
 
-    def __init__(
-        self,
-        operational_state_service,
-        workforce_intelligence_service=None,
-        inventory_intelligence_service=None,
-        equipment_intelligence_service=None,
-        financial_intelligence_service=None,
-        missing_input_detection_service=None,
-    ):
+    def __init__(self, operational_state_service, workforce_intelligence_service=None,
+                 inventory_intelligence_service=None, equipment_intelligence_service=None,
+                 financial_intelligence_service=None):
         self.operational_state_service = operational_state_service
         self.workforce_intelligence_service = workforce_intelligence_service or WorkforceIntelligenceService()
         self.inventory_intelligence_service = inventory_intelligence_service or InventoryIntelligenceService()
         self.equipment_intelligence_service = equipment_intelligence_service or EquipmentIntelligenceService()
         self.financial_intelligence_service = financial_intelligence_service or FinancialIntelligenceService()
-        self.missing_input_detection_service = missing_input_detection_service or MissingInputDetectionService()
 
     def evaluate(self):
         state = self.operational_state_service.get_state()
@@ -114,30 +98,11 @@ class OperationalDecisionService:
                     escalation_level="HIGH",
                 )
 
-        for gap in self.missing_input_detection_service.detect(state):
-            action_map = {
-                "MILK": ("production", "record_milk_activity", "Complete milk production recording"),
-                "FEEDING": ("feeding", "record_feed_activity", "Complete feeding activity recording"),
-                "WORKFORCE": ("workforce", "record_workforce_activity", "Complete workforce activity recording"),
-            }
-            decision_type, action, title = action_map.get(
-                gap.area,
-                (str(gap.area).lower(), "record_operational_activity", f"Resolve {gap.area} input gap"),
-            )
+        for decision in self._missing_input_decisions(state):
             add_decision(
-                {
-                    "type": decision_type,
-                    "priority": str(gap.severity).lower(),
-                    "action": action,
-                    "title": title,
-                    "details": {
-                        "area": gap.area,
-                        "message": gap.message,
-                        "expected_activity": gap.expected_activity,
-                    },
-                },
+                decision,
                 source="missing_input",
-                escalation_level=str(gap.severity).upper(),
+                escalation_level=decision["priority"],
             )
 
         for service, source in (
@@ -170,6 +135,60 @@ class OperationalDecisionService:
         return summary
 
     @staticmethod
+    def _missing_input_decisions(state):
+        operational_date = str(getattr(state, "operational_date", "") or "")
+        current_day = operational_date == str(date.today())
+        decisions = []
+
+        milk = getattr(state, "milk_production_summary", {}) or {}
+        if not current_day or not int(milk.get("milking_events_count", 0) or 0):
+            decisions.append({
+                "type": "production",
+                "priority": "high",
+                "action": "record_milk_activity",
+                "title": "Complete milk production recording",
+                "details": "No milk production entry recorded today",
+            })
+
+        feeding = getattr(state, "feeding_status", {}) or {}
+        if not current_day or not OperationalDecisionService._has_activity(feeding):
+            decisions.append({
+                "type": "feeding",
+                "priority": "medium",
+                "action": "record_feed_activity",
+                "title": "Complete feeding activity recording",
+                "details": "No feeding activity recorded today",
+            })
+
+        workforce = getattr(state, "workforce_status", {}) or {}
+        if not current_day or not OperationalDecisionService._has_activity(workforce):
+            decisions.append({
+                "type": "workforce",
+                "priority": "medium",
+                "action": "record_workforce_activity",
+                "title": "Complete workforce activity recording",
+                "details": "No workforce activity recorded today",
+            })
+
+        return decisions
+
+    @staticmethod
+    def _has_activity(status):
+        if not status:
+            return False
+        for value in status.values():
+            if value is None:
+                continue
+            if isinstance(value, dict):
+                if value.get("status") not in (None, "UNKNOWN"):
+                    return True
+                if any(item not in (None, "", 0, False, []) and item != "UNKNOWN" for item in value.values()):
+                    return True
+            elif value not in ("UNKNOWN", "", None, 0, False):
+                return True
+        return False
+
+    @staticmethod
     def _health_priority(severity):
         return {
             "CRITICAL": "critical",
@@ -195,13 +214,7 @@ class OperationalDecisionService:
     def _fingerprint(decision):
         details = decision.get("details")
         if isinstance(details, dict):
-            details_key = tuple(
-                sorted(
-                    (str(k), str(v))
-                    for k, v in details.items()
-                    if k not in {"timestamp", "updated_at"}
-                )
-            )
+            details_key = tuple(sorted((str(k), str(v)) for k, v in details.items() if k not in {"timestamp", "updated_at"}))
         else:
             details_key = str(details)
         return (
