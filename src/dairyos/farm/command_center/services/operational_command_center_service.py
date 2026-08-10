@@ -42,7 +42,6 @@ class OperationalCommandCenterService:
         )
         self.operational_decision_service = operational_decision_service or OperationalDecisionService(
             operational_state_service=operational_state_service,
-            missing_input_detection_service=self.missing_input_detection_service,
         )
         self.operational_action_service = operational_action_service or OperationalActionService()
         self.assembler = assembler or OperationalCommandCenterAssembler()
