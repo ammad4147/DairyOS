@@ -1,4 +1,4 @@
-from ..models.operational_health_snapshot import OperationalHealthSnapshot
+﻿from ..models.operational_health_snapshot import OperationalHealthSnapshot
 
 
 class OperationsHealthService:
@@ -35,6 +35,7 @@ class OperationsHealthService:
             else str(getattr(item, "priority", "NORMAL")).upper()
             for item in attention_items
         ]
+
         priorities.extend(
             str(item.get("priority", "NORMAL")).upper()
             for item in decisions
@@ -44,7 +45,13 @@ class OperationsHealthService:
         if "CRITICAL" in priorities:
             status = "RED"
             attention = True
-        elif any(priority in {"HIGH", "MEDIUM", "ELEVATED"} for priority in priorities):
+        elif any(
+            priority in {"HIGH", "MEDIUM", "ELEVATED"}
+            for priority in priorities
+        ):
+            status = "AMBER"
+            attention = True
+        elif pending_actions > 0:
             status = "AMBER"
             attention = True
         else:
@@ -70,7 +77,9 @@ class OperationsHealthService:
             nonlocal score
             if key in seen:
                 return
+
             seen.add(key)
+
             penalty = {
                 "CRITICAL": 35.0,
                 "HIGH": 20.0,
@@ -80,19 +89,32 @@ class OperationsHealthService:
                 "LOW": 5.0,
                 "NORMAL": 0.0,
             }.get(str(priority).upper(), 5.0)
+
             score -= penalty
 
         for item in attention_items or []:
             if isinstance(item, dict):
                 priority = item.get("priority", "NORMAL")
-                key = (item.get("area"), item.get("animal_id"), item.get("message"))
+                key = (
+                    item.get("area"),
+                    item.get("animal_id"),
+                    item.get("message"),
+                )
             else:
                 priority = getattr(item, "priority", "NORMAL")
-                key = (getattr(item, "area", None), getattr(item, "animal_id", None), getattr(item, "message", None))
+                key = (
+                    getattr(item, "area", None),
+                    getattr(item, "animal_id", None),
+                    getattr(item, "message", None),
+                )
+
             apply_penalty(priority, key)
 
         represented = {
-            (str(item.get("area", "")).upper(), str(item.get("animal_id", "")))
+            (
+                str(item.get("area", "")).upper(),
+                str(item.get("animal_id", "")),
+            )
             for item in attention_items
             if isinstance(item, dict)
         }
@@ -100,15 +122,19 @@ class OperationsHealthService:
         for decision in decisions or []:
             if not isinstance(decision, dict):
                 continue
+
             area = {
                 "health": "HEALTH",
                 "production": "MILK",
                 "feeding": "FEEDING",
                 "workforce": "WORKFORCE",
             }.get(str(decision.get("type", "")).lower(), "")
+
             animal_id = str(decision.get("animal_id", ""))
+
             if area and (area, animal_id) in represented:
                 continue
+
             key = (
                 "DECISION",
                 decision.get("type"),
@@ -116,6 +142,10 @@ class OperationsHealthService:
                 decision.get("animal_id"),
                 str(decision.get("details")),
             )
-            apply_penalty(decision.get("priority", "NORMAL"), key)
+
+            apply_penalty(
+                decision.get("priority", "NORMAL"),
+                key,
+            )
 
         return round(max(0.0, min(100.0, score)), 1)
