@@ -84,6 +84,16 @@ const tabs = [
   ['financial','Finance'], ['api-status','System / API']
 ];
 
+const DOMAIN_ENDPOINTS = {
+  milk: '/farm/milk',
+  feed: '/farm/feed',
+  'health-observations': '/farm/health-observations',
+  breeding: '/farm/breeding',
+  workforce: '/farm/workforce',
+  inventory: '/farm/inventory',
+  equipment: '/farm/equipment',
+  financial: '/farm/financial'
+};
 const domainMeta = {
   milk:{label:'Milk',description:'Milk production records captured per animal and milking session.',input:'milk',title:'Milk Production'},
   feed:{label:'Feeding',description:'Feed delivery and consumption records from the farm floor.',input:'feed',title:'Feeding'},
@@ -203,7 +213,7 @@ async function loadDomain(domain){
     const raw=document.getElementById(`${domain}-json`);
     if(status)status.textContent=`API connected · ${Array.isArray(rows)?rows.length:0} records`;
     if(raw)raw.textContent=JSON.stringify(rows,null,2);
-    if(cards){cards.innerHTML=''; const count=Array.isArray(rows)?rows.length:0; cards.innerHTML=`<div class="card"><div class="label">Records</div><div class="value">${count}</div></div><div class="card"><div class="label">Endpoint</div><div class="value">/farm/${escapeHtml(domain)}</div></div><div class="card"><div class="label">Entry</div><div class="value">Live</div></div>`;}
+    if(cards){cards.innerHTML=''; const count=Array.isArray(rows)?rows.length:0; cards.innerHTML=`<div class="card"><div class="label">Records</div><div class="value">${count}</div></div><div class="card"><div class="label">Endpoint</div><div class="value">${escapeHtml(DOMAIN_ENDPOINTS[domain])}</div></div><div class="card"><div class="label">Entry</div><div class="value">Live</div></div>`;}
     if(!records)return;
     if(!Array.isArray(rows)||!rows.length){records.innerHTML='<p class="empty">No entries recorded yet. Use the operational entry button to add one.</p>';return;}
     records.innerHTML='<table><thead><tr><th>Timestamp</th><th>Operator</th><th>Status</th><th>Record</th></tr></thead><tbody>'+rows.slice(-25).reverse().map(x=>`<tr><td>${escapeHtml(valueOf(x,'timestamp','created_at'))}</td><td>${escapeHtml(valueOf(x,'operator','actor'))}</td><td>${escapeHtml(valueOf(x,'status','result'))}</td><td><code>${escapeHtml(JSON.stringify(x))}</code></td></tr>`).join('')+'</tbody></table>';
