@@ -61,6 +61,9 @@ def initialize_database() -> None:
     Create all registered PostgreSQL tables if they do not exist.
 
     The operation is intentionally idempotent.
+
+    Schema evolution belongs to the migration layer, not to this
+    runtime initialization boundary.
     """
 
     Base.metadata.create_all(

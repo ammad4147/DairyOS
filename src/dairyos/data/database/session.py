@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+﻿from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from dairyos.data.database.base import Base
@@ -23,10 +23,14 @@ SessionLocal = sessionmaker(
 
 def get_session():
     """
-    FastAPI dependency.
+    FastAPI request-scoped database dependency.
 
-    Provides a SQLAlchemy session and
-    guarantees cleanup after each request.
+    A new SQLAlchemy Session is created for the request and is
+    always closed when the dependency lifecycle ends.
+
+    Application-level components that need a long-lived session
+    must use SessionLocal() directly through their composition
+    boundary rather than consuming this generator.
     """
 
     session = SessionLocal()
@@ -35,3 +39,17 @@ def get_session():
         yield session
     finally:
         session.close()
+
+
+def create_application_session():
+    """
+    Create an application-owned SQLAlchemy session.
+
+    The caller owns the lifecycle and must eventually call
+    session.close().
+
+    This function exists so application composition does not
+    misuse the FastAPI dependency generator.
+    """
+
+    return SessionLocal()

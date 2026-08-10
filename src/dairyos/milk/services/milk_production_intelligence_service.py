@@ -108,19 +108,20 @@ class MilkProductionIntelligenceService:
             .get_state()
         )
 
-
-        total_animals = 0
-
+        unique_animals = set()
+        fallback_animal_count = 0
 
         for data in state.milk_status.values():
-
-            total_animals += (
-                data.get(
-                    "animals_milked",
-                    0,
+            animal_set = data.get("unique_animal_ids")
+            if animal_set:
+                unique_animals.update(animal_set)
+            else:
+                fallback_animal_count = max(
+                    fallback_animal_count,
+                    data.get("animals_milked", 0),
                 )
-            )
 
+        total_animals = len(unique_animals) if unique_animals else fallback_animal_count
 
         if total_animals == 0:
 

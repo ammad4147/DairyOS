@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
 from datetime import datetime
 
 from ..database.base import Base
@@ -58,6 +58,16 @@ class Animal(Base):
 
     date_of_birth = Column(
         Date,
+        nullable=True
+    )
+
+    dam_id = Column(
+        String,
+        nullable=True
+    )
+
+    sire_id = Column(
+        String,
         nullable=True
     )
 

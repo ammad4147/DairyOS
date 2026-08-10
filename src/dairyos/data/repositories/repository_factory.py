@@ -39,7 +39,7 @@ from dairyos.data.repositories.database_operational_state_repository import (
 )
 
 from dairyos.data.database.session import (
-    get_session,
+    create_application_session,
 )
 
 
@@ -47,25 +47,33 @@ class RepositoryFactory:
     """
     Application persistence composition boundary.
 
-    Owns construction of persistence adapters.
+    RepositoryFactory owns construction of PostgreSQL-backed
+    repository adapters around one application-owned SQLAlchemy
+    Session.
 
-    The class-level API is intentionally retained for
-    compatibility with existing DairyOS callers.
+    Request-scoped FastAPI sessions must not be obtained here.
 
-    New runtime composition should prefer:
+    Application composition should use:
 
-        factory = RepositoryFactory.create(session)
+        factory = RepositoryFactory.create()
 
     and then:
 
         factory.animal()
         factory.milk()
+        factory.feed()
+        factory.health()
+        factory.operational_events()
         factory.operational_state()
+
+    The factory owns the session lifecycle when it creates the
+    session itself. A caller-supplied session remains caller-owned.
     """
 
     def __init__(
         self,
         session: Session,
+        owns_session: bool = False,
     ):
         if session is None:
             raise ValueError(
@@ -73,54 +81,55 @@ class RepositoryFactory:
             )
 
         self._session = session
-
+        self._owns_session = bool(owns_session)
+        self._closed = False
 
     @property
     def session(self) -> Session:
         return self._session
 
+    @property
+    def owns_session(self) -> bool:
+        return self._owns_session
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
 
     def animal(self):
         return AnimalRepository(
             session=self._session,
         )
 
-
     def farm(self):
         return FarmRepository(
             session=self._session,
         )
-
 
     def milk(self):
         return MilkProductionRepository(
             session=self._session,
         )
 
-
     def finance(self):
         return FinancialRepository(
             session=self._session,
         )
-
 
     def operational_events(self):
         return OperationalEventRepository(
             session=self._session,
         )
 
-
     def feed(self):
         return FeedRecordRepository(
             session=self._session,
         )
 
-
     def health(self):
         return HealthObservationRepository(
             session=self._session,
         )
-
 
     def breeding(self):
         return DatabaseBreedingRepository(
@@ -132,35 +141,37 @@ class RepositoryFactory:
             session=self._session,
         )
 
+    # ------------------------------------------------------------------
+    # Compatibility aliases
+    # ------------------------------------------------------------------
 
     def milk_production(self):
         return self.milk()
 
-
     def financial(self):
         return self.finance()
-
 
     def feed_records(self):
         return self.feed()
 
-
     def health_observations(self):
         return self.health()
 
+    # ------------------------------------------------------------------
+    # Session lifecycle
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _create_session() -> Session:
         """
-        Create the application's database session.
+        Create a genuinely application-owned SQLAlchemy session.
 
-        The caller owns the session lifecycle.
+        This intentionally does NOT call next(get_session()) because
+        get_session() is a FastAPI dependency generator whose finally
+        block closes the session.
         """
 
-        return next(
-            get_session()
-        )
-
+        return create_application_session()
 
     @classmethod
     def create(
@@ -168,83 +179,85 @@ class RepositoryFactory:
         session: Session | None = None,
     ) -> "RepositoryFactory":
         """
-        Explicit composition constructor.
+        Construct a repository factory.
+
+        If a session is supplied, the caller owns its lifecycle.
+
+        If no session is supplied, RepositoryFactory creates and owns
+        the application session.
         """
 
         if session is None:
-            session = cls._create_session()
+            return cls(
+                session=cls._create_session(),
+                owns_session=True,
+            )
 
         return cls(
             session=session,
+            owns_session=False,
         )
 
+    def close(self) -> None:
+        """
+        Close the application-owned session.
+
+        A caller-supplied session is never closed by this factory.
+        """
+
+        if self._closed:
+            return
+
+        if self._owns_session:
+            self._session.close()
+
+        self._closed = True
+
+    def rollback(self) -> None:
+        """
+        Roll back the current transaction.
+
+        This does not close the session.
+        """
+
+        self._session.rollback()
+
+    # ------------------------------------------------------------------
+    # Legacy compatibility
+    # ------------------------------------------------------------------
 
     @classmethod
-    def _legacy(
-        cls,
-    ) -> "RepositoryFactory":
-        """
-        Compatibility factory for existing class-level callers.
-        """
-
+    def _legacy(cls) -> "RepositoryFactory":
         return cls.create()
 
-
-    # ------------------------------------------------------------------
-    # Legacy class-level repository construction
-    # ------------------------------------------------------------------
-
     @classmethod
-    def animal_legacy(
-        cls,
-    ):
+    def animal_legacy(cls):
         return cls._legacy().animal()
 
-
     @classmethod
-    def farm_legacy(
-        cls,
-    ):
+    def farm_legacy(cls):
         return cls._legacy().farm()
 
-
     @classmethod
-    def milk_legacy(
-        cls,
-    ):
+    def milk_legacy(cls):
         return cls._legacy().milk()
 
-
     @classmethod
-    def finance_legacy(
-        cls,
-    ):
+    def finance_legacy(cls):
         return cls._legacy().finance()
 
-
     @classmethod
-    def operational_events_legacy(
-        cls,
-    ):
+    def operational_events_legacy(cls):
         return cls._legacy().operational_events()
 
-
     @classmethod
-    def feed_legacy(
-        cls,
-    ):
+    def feed_legacy(cls):
         return cls._legacy().feed()
 
-
     @classmethod
-    def health_legacy(
-        cls,
-    ):
+    def health_legacy(cls):
         return cls._legacy().health()
 
-
     @classmethod
-    def operational_state_legacy(
-        cls,
-    ):
+    def operational_state_legacy(cls):
         return cls._legacy().operational_state()

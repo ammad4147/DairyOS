@@ -96,3 +96,15 @@ class HealthObservation(Base):
         String,
         default="OPEN",
     )
+
+    @property
+    def effective_observation(self) -> str | None:
+        return self.observation or self.symptom
+
+    @property
+    def effective_temperature(self) -> float | None:
+        return self.temperature if self.temperature is not None else self.temperature_c
+
+    @property
+    def effective_reporter(self) -> str | None:
+        return self.reported_by or self.observer

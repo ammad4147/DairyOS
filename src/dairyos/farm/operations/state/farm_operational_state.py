@@ -315,6 +315,9 @@ class FarmOperationalState:
                 "animals_milked":
                     0,
 
+                "unique_animal_ids":
+                    [],
+
                 "operators":
                     [],
 
@@ -328,7 +331,16 @@ class FarmOperationalState:
 
         entry["litres"] += litres
 
-        entry["animals_milked"] += 1
+        if "unique_animal_ids" not in entry or not isinstance(entry["unique_animal_ids"], list):
+            entry["unique_animal_ids"] = list(entry.get("unique_animal_ids") or [])
+
+        if animal_id:
+            str_id = str(animal_id)
+            if str_id not in entry["unique_animal_ids"]:
+                entry["unique_animal_ids"].append(str_id)
+            entry["animals_milked"] = len(entry["unique_animal_ids"])
+        else:
+            entry["animals_milked"] += 1
 
 
         if operator and operator not in entry["operators"]:

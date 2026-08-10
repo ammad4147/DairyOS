@@ -88,7 +88,7 @@
       "technician": "Dr-Ali"
     },
     "pregnancy_status": "PENDING_CONFIRMATION",
-    "breeding_attempts": 73,
+    "breeding_attempts": 75,
     "last_breeding_timestamp": "2026-08-04T09:15:53.674968+00:00",
     "expected_calving_date": null,
     "last_calving_event": {},
@@ -403,8 +403,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508432+00:00",
-    "last_event_timestamp": "2026-08-08T14:38:45.263788+00:00",
-    "last_updated": "2026-08-08T14:38:45.268639+00:00"
+    "last_event_timestamp": "2026-08-10T17:51:31.773783+00:00",
+    "last_updated": "2026-08-10T17:51:31.779545+00:00"
   },
   {
     "animal_id": "HEIFER-001",
@@ -500,8 +500,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508444+00:00",
-    "last_event_timestamp": "2026-08-08T14:38:45.241362+00:00",
-    "last_updated": "2026-08-08T14:38:45.241388+00:00"
+    "last_event_timestamp": "2026-08-10T17:51:31.739839+00:00",
+    "last_updated": "2026-08-10T17:51:31.739858+00:00"
   },
   {
     "animal_id": "COW-900",
@@ -598,8 +598,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508450+00:00",
-    "last_event_timestamp": "2026-08-08T14:38:45.277090+00:00",
-    "last_updated": "2026-08-08T14:38:45.278269+00:00"
+    "last_event_timestamp": "2026-08-10T17:51:31.789243+00:00",
+    "last_updated": "2026-08-10T17:51:31.791104+00:00"
   },
   {
     "animal_id": "HF-INT-001",
@@ -696,8 +696,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508454+00:00",
-    "last_event_timestamp": "2026-08-08T14:38:45.286726+00:00",
-    "last_updated": "2026-08-08T14:38:45.287697+00:00"
+    "last_event_timestamp": "2026-08-10T17:51:31.802910+00:00",
+    "last_updated": "2026-08-10T17:51:31.804542+00:00"
   },
   {
     "animal_id": "COW-RUNTIME-001",
@@ -794,8 +794,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508458+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:55.731443+00:00",
-    "last_updated": "2026-08-09T21:43:55.735175+00:00"
+    "last_event_timestamp": "2026-08-10T17:57:52.642283+00:00",
+    "last_updated": "2026-08-10T17:58:54.231538+00:00"
   },
   {
     "animal_id": "COW-DECISION-001",
@@ -986,8 +986,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:38:25.715541+00:00",
-    "last_event_timestamp": "2026-08-08T14:38:45.202663+00:00",
-    "last_updated": "2026-08-08T14:38:45.202691+00:00"
+    "last_event_timestamp": "2026-08-10T17:51:31.724599+00:00",
+    "last_updated": "2026-08-10T17:51:31.724618+00:00"
   },
   {
     "animal_id": "TEST-COW-001",
@@ -1149,9 +1149,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.804675+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.804702+00:00",
-    "last_updated": "2026-08-09T21:43:54.807554+00:00"
+    "created_at": "2026-08-10T17:57:51.379217+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.379247+00:00",
+    "last_updated": "2026-08-10T17:57:51.382862+00:00"
   },
   {
     "animal_id": "TEST-COW-DUP",
@@ -1190,9 +1190,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.816835+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.816857+00:00",
-    "last_updated": "2026-08-09T21:43:54.818366+00:00"
+    "created_at": "2026-08-10T17:57:51.392215+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.392237+00:00",
+    "last_updated": "2026-08-10T17:57:51.394100+00:00"
   },
   {
     "animal_id": "TEST-COW-A2",
@@ -1231,9 +1231,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.833364+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.833381+00:00",
-    "last_updated": "2026-08-09T21:43:54.834294+00:00"
+    "created_at": "2026-08-10T17:57:51.409022+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.409041+00:00",
+    "last_updated": "2026-08-10T17:57:51.410379+00:00"
   },
   {
     "animal_id": "TEST-COW-MILKING",
@@ -1272,9 +1272,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.857699+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.857719+00:00",
-    "last_updated": "2026-08-09T21:43:54.858607+00:00"
+    "created_at": "2026-08-10T17:57:51.432111+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.432130+00:00",
+    "last_updated": "2026-08-10T17:57:51.433800+00:00"
   },
   {
     "animal_id": "TEST-COW-FREQ",
@@ -1313,9 +1313,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.870483+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.870501+00:00",
-    "last_updated": "2026-08-09T21:43:54.871387+00:00"
+    "created_at": "2026-08-10T17:57:51.445829+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.445848+00:00",
+    "last_updated": "2026-08-10T17:57:51.447140+00:00"
   },
   {
     "animal_id": "TEST-COW-FREQ-BAD",
@@ -1354,8 +1354,8 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-09T21:43:54.885958+00:00",
-    "last_event_timestamp": "2026-08-09T21:43:54.885976+00:00",
-    "last_updated": "2026-08-09T21:43:54.886895+00:00"
+    "created_at": "2026-08-10T17:57:51.462227+00:00",
+    "last_event_timestamp": "2026-08-10T17:57:51.462245+00:00",
+    "last_updated": "2026-08-10T17:57:51.463557+00:00"
   }
 ]

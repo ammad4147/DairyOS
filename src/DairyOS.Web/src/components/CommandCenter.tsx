@@ -1,14 +1,18 @@
-import React, {
+﻿import React, {
     useEffect,
-    useState
+    useMemo,
+    useState,
 } from "react";
 
 import type {
-    DashboardResponse
+    DashboardResponse,
+    DashboardRuntime,
+    OperationalDecision,
+    OperationalState,
 } from "../models/dashboard";
 
 import {
-    getDashboard
+    getDashboard,
 } from "../api/dashboardClient";
 
 import "./CommandCenter.css";
@@ -23,115 +27,225 @@ import FeedCard from "./FeedCard";
 import FreshnessCard from "./FreshnessCard";
 
 function CommandCenter() {
-    const [
-        dashboard,
-        setDashboard
-    ] = useState<DashboardResponse | null>(
-        null
+    const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+    const loadDashboard = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const payload = await getDashboard();
+
+            setDashboard(payload);
+            setLastUpdated(new Date().toLocaleTimeString());
+        } catch (requestError) {
+            setError(
+                requestError instanceof Error
+                    ? requestError.message
+                    : "Unable to load the DairyOS dashboard.",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadDashboard();
+
+        const timer = window.setInterval(() => {
+            void loadDashboard();
+        }, 60_000);
+
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const runtimeDashboard: DashboardRuntime = useMemo(
+        () => dashboard?.dashboard ?? {},
+        [dashboard],
     );
 
-    const [
-        error,
-        setError
-    ] = useState<string | null>(
-        null
+    /*
+     * The established backend response currently exposes the operational
+     * state inside dashboard.operational_state. Older contract consumers may
+     * expose it at the response root. Support both without changing the
+     * backend contract.
+     */
+    const operationalState: OperationalState = useMemo(
+        () =>
+            dashboard?.operational_state
+            ?? runtimeDashboard.operational_state
+            ?? {},
+        [dashboard, runtimeDashboard],
     );
 
-    useEffect(
+    const farmStatus = useMemo(
         () => {
-            getDashboard()
-                .then(
-                    setDashboard
-                )
-                .catch(
-                    error =>
-                    setError(
-                        error.message
-                    )
+            const value =
+                dashboard?.farm_status
+                ?? runtimeDashboard.farm_status
+                ?? "UNKNOWN";
+
+            if (typeof value === "string") {
+                return value;
+            }
+
+            if (value && typeof value === "object") {
+                return String(
+                    value.status
+                    ?? value.state
+                    ?? value.farm_status
+                    ?? "UNKNOWN",
                 );
+            }
+
+            return "UNKNOWN";
         },
-        []
+        [dashboard, runtimeDashboard],
     );
 
-    if(error){
+    const systemHealth = useMemo(
+        () =>
+            dashboard?.health
+            ?? runtimeDashboard.health
+            ?? "UNKNOWN",
+        [dashboard, runtimeDashboard],
+    );
+
+    const decisions: OperationalDecision[] = useMemo(
+        () =>
+            dashboard?.operational_decisions
+            ?? runtimeDashboard.operational_decisions
+            ?? [],
+        [dashboard, runtimeDashboard],
+    );
+
+    const zones = useMemo(
+        () =>
+            dashboard?.dashboard_view?.layout?.zones
+            ?? [],
+        [dashboard],
+    );
+
+    const milkZone = useMemo(
+        () =>
+            zones.find((zone) => zone.zone_id === "milk"),
+        [zones],
+    );
+
+    const herdZone = useMemo(
+        () =>
+            zones.find((zone) => zone.zone_id === "herd"),
+        [zones],
+    );
+
+    const eventCount =
+        runtimeDashboard.event_count
+        ?? dashboard?.event_count
+        ?? 0;
+
+    if (loading && !dashboard) {
         return (
             <div className="command-center">
                 <h1 className="command-header">
                     DairyOS Command Center
                 </h1>
-                <p>
-                    {error}
-                </p>
+
+                <div className="panel">
+                    <p>Loading operational picture…</p>
+                </div>
             </div>
         );
     }
 
-    if(!dashboard){
+    if (error && !dashboard) {
         return (
             <div className="command-center">
                 <h1 className="command-header">
                     DairyOS Command Center
                 </h1>
-                <p>
-                    Loading operational picture...
-                </p>
+
+                <div className="panel">
+                    <strong>Unable to load live dashboard.</strong>
+                    <p>{error}</p>
+
+                    <button
+                        type="button"
+                        onClick={() => void loadDashboard()}
+                    >
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }
 
-    const runtimeDashboard =
-        dashboard.dashboard
-        ??
-        {};
-
-    const operationalState =
-        dashboard.operational_state
-        ??
-        {};
-
-    const milkZone =
-        dashboard.dashboard_view.layout.zones.find(
-            zone => zone.zone_id === "milk"
-        );
-
-    const herdZone =
-        dashboard.dashboard_view.layout.zones.find(
-            zone => zone.zone_id === "herd"
-        );
+    if (!dashboard) {
+        return null;
+    }
 
     return (
         <div className="command-center">
-            <h1 className="command-header">
-                DairyOS Command Center
-            </h1>
+            <div className="command-header-row">
+                <div>
+                    <h1 className="command-header">
+                        DairyOS Command Center
+                    </h1>
+
+                    <p className="command-subtitle">
+                        Live operational picture for Trident Dairies
+                    </p>
+                </div>
+
+                <div className="command-live-status">
+                    <span>
+                        {loading ? "Refreshing…" : "Live"}
+                    </span>
+
+                    {lastUpdated && (
+                        <small>
+                            Updated {lastUpdated}
+                        </small>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => void loadDashboard()}
+                        disabled={loading}
+                    >
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            {error && (
+                <div className="panel command-refresh-warning">
+                    <strong>Dashboard refresh warning</strong>
+                    <span>{error}</span>
+                </div>
+            )}
 
             <div className="summary-grid">
                 <div className="panel">
                     <StatusCard
                         title="Farm Status"
-                        value={
-                            dashboard.farm_status
-                        }
+                        value={farmStatus}
                     />
                 </div>
 
                 <div className="panel">
                     <StatusCard
                         title="System Health"
-                        value={
-                            dashboard.health
-                        }
+                        value={systemHealth}
                     />
                 </div>
 
                 <div className="panel">
                     <StatusCard
                         title="Operational Events"
-                        value={
-                            runtimeDashboard.event_count
-                            ??
-                            dashboard.event_count
-                        }
+                        value={eventCount}
                     />
                 </div>
             </div>
@@ -139,56 +253,40 @@ function CommandCenter() {
             <div className="operational-grid">
                 <div className="panel">
                     <ProductionCard
-                        milk={
-                            runtimeDashboard.milk
-                        }
-                        widgets={
-                            milkZone?.widgets
-                        }
+                        milk={runtimeDashboard.milk}
+                        widgets={milkZone?.widgets}
                     />
                 </div>
 
                 <div className="panel">
                     <HerdCard
-                        animals={
-                            operationalState.animals
-                        }
-                        widgets={
-                            herdZone?.widgets
-                        }
+                        animals={operationalState.animals}
+                        widgets={herdZone?.widgets}
                     />
                 </div>
 
                 <div className="panel">
                     <FeedCard
-                        feed={
-                            runtimeDashboard.feed
-                        }
+                        feed={runtimeDashboard.feed}
                     />
                 </div>
 
                 <div className="panel">
                     <FreshnessCard
-                        freshness={
-                            runtimeDashboard.freshness
-                        }
+                        freshness={runtimeDashboard.freshness}
                     />
                 </div>
             </div>
 
             <div className="panel attention-panel">
                 <AttentionPanel
-                    decisions={
-                        dashboard.operational_decisions
-                    }
+                    decisions={decisions}
                 />
             </div>
 
             <div className="panel">
                 <OperationalAreas
-                    state={
-                        operationalState
-                    }
+                    state={operationalState}
                 />
             </div>
         </div>

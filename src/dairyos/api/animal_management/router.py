@@ -52,6 +52,8 @@ def serialize_animal(
             if animal.date_of_birth
             else None
         ),
+        "dam_id": getattr(animal, "dam_id", None),
+        "sire_id": getattr(animal, "sire_id", None),
         "lifecycle_status":
             animal.lifecycle_status,
         "status":
@@ -146,6 +148,8 @@ def create_animal(
         "breed",
         "sex",
         "date_of_birth",
+        "dam_id",
+        "sire_id",
         "lifecycle_status",
         "status",
         "is_currently_milking",

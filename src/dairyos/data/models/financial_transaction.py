@@ -48,6 +48,31 @@ class FinancialTransaction(Base):
     )
 
 
+    currency = Column(
+        String,
+        default="PKR",
+        nullable=False
+    )
+
+
+    animal_id = Column(
+        String,
+        nullable=True
+    )
+
+
+    milk_sale_id = Column(
+        String,
+        nullable=True
+    )
+
+
+    feed_record_id = Column(
+        String,
+        nullable=True
+    )
+
+
     status = Column(
         String,
         default="RECORDED"
