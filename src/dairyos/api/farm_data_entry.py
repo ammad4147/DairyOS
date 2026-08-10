@@ -680,4 +680,3 @@ def list_financial_entries(
         "financial",
     )
 
-

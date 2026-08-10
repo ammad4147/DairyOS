@@ -1,0 +1,119 @@
+﻿.animal-financial {
+    margin-top: 18px;
+    border: 1px solid #dfe7e1;
+    border-radius: 14px;
+    background: #fff;
+    padding: 20px;
+}
+
+.financial-heading span {
+    color: #657267;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+
+.financial-heading h3 {
+    margin: 5px 0 0;
+    font-size: 19px;
+}
+
+.financial-heading p {
+    margin: 5px 0 0;
+    color: #657267;
+    font-size: 13px;
+}
+
+.financial-cards {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.financial-cards > div {
+    border: 1px solid #e1e8e2;
+    border-radius: 10px;
+    padding: 13px;
+}
+
+.financial-cards span {
+    display: block;
+    color: #657267;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.financial-cards strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 17px;
+}
+
+.financial-cards .financial-net {
+    border-color: #b9d5c0;
+}
+
+.financial-meta {
+    display: flex;
+    gap: 18px;
+    margin: 14px 0;
+    color: #657267;
+    font-size: 12px;
+}
+
+.financial-table-wrap {
+    overflow-x: auto;
+}
+
+.financial-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.financial-table-wrap th,
+.financial-table-wrap td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #edf1ed;
+    text-align: left;
+    font-size: 12px;
+}
+
+.financial-table-wrap th {
+    color: #657267;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.financial-animal-link {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #166534;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.financial-empty {
+    padding: 20px 5px;
+    color: #657267;
+    font-size: 13px;
+}
+
+@media (max-width: 1000px) {
+    .financial-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 650px) {
+    .financial-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .financial-meta {
+        flex-direction: column;
+        gap: 5px;
+    }
+}

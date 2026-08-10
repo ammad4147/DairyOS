@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import "./AnimalPassport.css";
+import AnimalFinancialDynamics from "./AnimalFinancialDynamics";
 
 type RecordData = Record<string, unknown>;
 
@@ -455,6 +456,13 @@ function AnimalPassport({
                 </div>
             </div>
 
+            <AnimalFinancialDynamics
+                animalId={animalId}
+                finance={finance}
+                descendants={descendants}
+                onOpenAnimal={onOpenAnimal}
+            />
+
             <section className="passport-panel passport-wide">
                 <div className="passport-section-heading">
                     <span>LIFECYCLE</span>
@@ -666,6 +674,13 @@ function AnimalPassport({
                     </div>
                 </section>
             </div>
+
+            <AnimalFinancialDynamics
+                animalId={animalId}
+                finance={finance}
+                descendants={descendants}
+                onOpenAnimal={onOpenAnimal}
+            />
 
             <section className="passport-panel passport-wide">
                 <div className="passport-section-heading">
@@ -917,3 +932,4 @@ function AnimalPassport({
 }
 
 export default AnimalPassport;
+
