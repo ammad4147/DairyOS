@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
+from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
 
 
@@ -92,8 +93,18 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _record(container, input_type: str, payload: dict[str, Any]):
-    operator = str(payload.get("operator") or "API")
+def _record(
+    container,
+    input_type: str,
+    payload: dict[str, Any],
+    authenticated_user: dict[str, Any] | None = None,
+):
+    supplied_operator = str(payload.get("operator") or "API")
+    operator = (
+        str(authenticated_user["sub"])
+        if authenticated_user is not None
+        else supplied_operator
+    )
 
     canonical_payload = {
         **payload,
@@ -130,7 +141,11 @@ def _list_by_type(container, input_type: str):
 
 
 @router.post("/milk")
-def record_milk_entry(entry: MilkEntryRequest, container=Depends(get_container)):
+def record_milk_entry(
+    entry: MilkEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
     total = entry.morning_yield + entry.afternoon_yield + entry.evening_yield
     return _record(
         container,
@@ -141,6 +156,7 @@ def record_milk_entry(entry: MilkEntryRequest, container=Depends(get_container))
             "total_yield": total,
             "status": "RECORDED",
         },
+        authenticated_user,
     )
 
 
@@ -150,11 +166,16 @@ def list_milk_entries(container=Depends(get_container)):
 
 
 @router.post("/feed")
-def record_feed_entry(entry: FeedEntryRequest, container=Depends(get_container)):
+def record_feed_entry(
+    entry: FeedEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
     return _record(
         container,
         "feeding",
         {**entry.model_dump(), "status": "RECORDED"},
+        authenticated_user,
     )
 
 
@@ -164,11 +185,15 @@ def list_feed_entries(container=Depends(get_container)):
 
 
 @router.post("/health-observations")
-def record_health_observation(entry: HealthEntryRequest, container=Depends(get_container)):
+def record_health_observation(
+    entry: HealthEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
     payload = entry.model_dump()
     payload["observation"] = entry.observation or entry.symptom or "Observation recorded"
     payload["status"] = "OPEN"
-    return _record(container, "animal_health", payload)
+    return _record(container, "animal_health", payload, authenticated_user)
 
 
 @router.get("/health-observations")
@@ -177,8 +202,12 @@ def list_health_observations(container=Depends(get_container)):
 
 
 @router.post("/breeding")
-def record_breeding_entry(entry: BreedingEntryRequest, container=Depends(get_container)):
-    return _record(container, "breeding", entry.model_dump())
+def record_breeding_entry(
+    entry: BreedingEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    return _record(container, "breeding", entry.model_dump(), authenticated_user)
 
 
 @router.get("/breeding")
@@ -187,8 +216,12 @@ def list_breeding_entries(container=Depends(get_container)):
 
 
 @router.post("/workforce")
-def record_workforce_entry(entry: WorkforceEntryRequest, container=Depends(get_container)):
-    return _record(container, "workforce", entry.model_dump())
+def record_workforce_entry(
+    entry: WorkforceEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    return _record(container, "workforce", entry.model_dump(), authenticated_user)
 
 
 @router.get("/workforce")
@@ -197,8 +230,12 @@ def list_workforce_entries(container=Depends(get_container)):
 
 
 @router.post("/inventory")
-def record_inventory_entry(entry: InventoryEntryRequest, container=Depends(get_container)):
-    return _record(container, "inventory", entry.model_dump())
+def record_inventory_entry(
+    entry: InventoryEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    return _record(container, "inventory", entry.model_dump(), authenticated_user)
 
 
 @router.get("/inventory")
@@ -207,8 +244,12 @@ def list_inventory_entries(container=Depends(get_container)):
 
 
 @router.post("/equipment")
-def record_equipment_entry(entry: EquipmentEntryRequest, container=Depends(get_container)):
-    return _record(container, "equipment", entry.model_dump())
+def record_equipment_entry(
+    entry: EquipmentEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    return _record(container, "equipment", entry.model_dump(), authenticated_user)
 
 
 @router.get("/equipment")
@@ -217,8 +258,12 @@ def list_equipment_entries(container=Depends(get_container)):
 
 
 @router.post("/financial")
-def record_financial_entry(entry: FinancialEntryRequest, container=Depends(get_container)):
-    return _record(container, "financial", entry.model_dump())
+def record_financial_entry(
+    entry: FinancialEntryRequest,
+    container=Depends(get_container),
+    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    return _record(container, "financial", entry.model_dump(), authenticated_user)
 
 
 @router.get("/financial")
