@@ -31,6 +31,14 @@ export interface DashboardView {
     layout?: {
         zones?: DashboardZone[];
     };
+    owner_attention?: OperationalDecision[];
+    farm_timeline?: Array<Record<string, unknown>>;
+    quick_actions?: Array<{
+        id?: string;
+        title?: string;
+        [key: string]: unknown;
+    }>;
+    animal_spotlight?: unknown[];
 }
 
 export interface DashboardMilkSummary {
@@ -38,6 +46,36 @@ export interface DashboardMilkSummary {
     events?: number;
     last_operator?: string | null;
     last_shift?: string | null;
+
+    yesterday_litres?: number;
+    previous_day_litres?: number;
+    seven_day_average_litres?: number;
+    seven_day_total_litres?: number;
+    thirty_day_average_litres?: number;
+    trend?: string | number | null;
+    trend_percent?: number | null;
+    trend_direction?: string | null;
+    morning_litres?: number;
+    afternoon_litres?: number;
+    evening_litres?: number;
+    current_shift_litres?: number;
+    current_shift?: string | null;
+    production_status?: string | null;
+
+    history?: Array<{
+        date?: string;
+        litres?: number;
+        value?: number;
+        [key: string]: unknown;
+    }>;
+
+    trend_history?: Array<{
+        date?: string;
+        litres?: number;
+        value?: number;
+        [key: string]: unknown;
+    }>;
+
     [key: string]: unknown;
 }
 
@@ -45,6 +83,8 @@ export interface DashboardFeedSummary {
     today_kg?: number;
     events?: number;
     last_feed_type?: string | null;
+    efficiency?: number | null;
+    feed_efficiency?: number | null;
     [key: string]: unknown;
 }
 
