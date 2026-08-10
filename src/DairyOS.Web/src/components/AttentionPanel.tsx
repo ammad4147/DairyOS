@@ -1,76 +1,82 @@
-import React from "react";
+﻿import React from "react";
+
+interface Decision {
+    priority?: string;
+    title?: string;
+    action?: string;
+    animal_id?: string;
+    details?: Record<string, unknown>;
+    owner_action_required?: boolean;
+}
 
 interface Props {
-
-    decisions: any[];
-
+    decisions: Decision[];
+    onOpenAnimal?: (animalId: string) => void;
 }
 
-
-function AttentionPanel(
-    {
-        decisions
-    }: Props
-) {
-
+function AttentionPanel({
+    decisions,
+    onOpenAnimal,
+}: Props) {
+    if (decisions.length === 0) {
+        return (
+            <div className="attention-empty">
+                No pending attention items.
+            </div>
+        );
+    }
 
     return (
+        <div className="attention-list">
+            {decisions.slice(0, 8).map(
+                (decision, index) => {
+                    const animalId = decision.animal_id;
 
-        <div>
+                    return (
+                        <div
+                            className="attention-item"
+                            key={`${animalId ?? "farm"}-${index}`}
+                        >
+                            <div className="attention-item-top">
+                                <span
+                                    className={`attention-priority ${String(
+                                        decision.priority ?? "normal",
+                                    ).toLowerCase()}`}
+                                >
+                                    {decision.priority ?? "normal"}
+                                </span>
 
-            <h2>
-                Attention Required
-            </h2>
-
-
-            {
-                decisions.length === 0
-
-                ?
-
-                <p>
-                    No pending attention items
-                </p>
-
-                :
-
-                decisions.map(
-                    (
-                        decision,
-                        index
-                    ) => (
-
-                        <div key={index}>
+                                {animalId && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            onOpenAnimal?.(animalId)
+                                        }
+                                    >
+                                        {animalId}
+                                    </button>
+                                )}
+                            </div>
 
                             <strong>
-                                {
-                                    decision
-                                    .priority
-                                }
+                                {decision.title
+                                    ?? decision.action
+                                    ?? "Operational attention"}
                             </strong>
 
-                            <p>
-                                {
-                                    decision
-                                    .title
-                                }
-                            </p>
-
-
+                            {decision.action
+                                && decision.title
+                                && (
+                                    <p>
+                                        {decision.action}
+                                    </p>
+                                )}
                         </div>
-
-                    )
-                )
-
-            }
-
-
+                    );
+                },
+            )}
         </div>
-
     );
-
 }
 
-
 export default AttentionPanel;
-

@@ -1,0 +1,351 @@
+﻿.animal-passport {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.passport-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.passport-back {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.passport-back:hover {
+    background: #f8fafc;
+}
+
+.passport-live {
+    color: #166534;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.passport-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px;
+    border: 1px solid #d9e2ec;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.passport-eyebrow,
+.passport-section-heading span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.passport-header h2 {
+    margin: 5px 0;
+    color: #0f172a;
+    font-size: 28px;
+}
+
+.passport-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.passport-status {
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.passport-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.passport-summary > div,
+.financial-summary > div {
+    padding: 15px;
+    border: 1px solid #d9e2ec;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.passport-summary span,
+.financial-summary span,
+.passport-fields span,
+.lineage-links span,
+.calves-heading span {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.passport-summary strong,
+.financial-summary strong {
+    display: block;
+    margin-top: 5px;
+    color: #0f172a;
+    font-size: 18px;
+}
+
+.passport-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.passport-panel {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid #d9e2ec;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.passport-wide {
+    width: 100%;
+}
+
+.passport-section-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 15px;
+}
+
+.passport-section-heading strong {
+    color: #0f172a;
+    font-size: 18px;
+}
+
+.passport-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.passport-fields div {
+    padding: 10px;
+    border-radius: 9px;
+    background: #f8fafc;
+}
+
+.passport-fields strong {
+    display: block;
+    margin-top: 4px;
+    color: #334155;
+    overflow-wrap: anywhere;
+}
+
+.lineage-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.lineage-links > div {
+    padding: 12px;
+    border-radius: 9px;
+    background: #f8fafc;
+}
+
+.lineage-links button,
+.calf-list button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #1d4ed8;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.calves-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.calf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 9px;
+}
+
+.calf-list button {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    text-align: left;
+}
+
+.calf-list button:hover {
+    background: #eff6ff;
+}
+
+.calf-list span {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.passport-lineage-note {
+    margin-top: 13px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.passport-record-table {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.passport-record-table > div {
+    display: grid;
+    grid-template-columns: 1.5fr 0.7fr 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.passport-record-table span {
+    color: #64748b;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.passport-record-table strong {
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.passport-record-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.passport-record-list > div {
+    display: grid;
+    grid-template-columns: 0.7fr 1.5fr 1fr;
+    gap: 10px;
+    padding: 11px;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.passport-record-list span,
+.passport-record-list small {
+    color: #64748b;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.passport-record-list strong {
+    color: #0f172a;
+    font-size: 12px;
+}
+
+.passport-alert {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid #fed7aa;
+    border-radius: 9px;
+    background: #fff7ed;
+    color: #c2410c;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.financial-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.passport-empty {
+    padding: 15px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 9px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.passport-loading,
+.passport-error {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 7px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #475569;
+}
+
+.passport-error p {
+    margin: 0;
+    color: #64748b;
+}
+
+@media (max-width: 1000px) {
+    .passport-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .passport-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .passport-topbar,
+    .passport-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .passport-summary,
+    .passport-fields,
+    .lineage-links,
+    .financial-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .passport-record-table > div,
+    .passport-record-list > div {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}

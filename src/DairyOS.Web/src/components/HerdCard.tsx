@@ -8,6 +8,7 @@ import type {
 interface Props {
     animals?: Record<string, OperationalAnimalState>;
     widgets?: DashboardWidget[];
+    onOpenAnimal?: (animalId: string) => void;
 }
 
 function normaliseStatus(value: unknown): string {
@@ -20,6 +21,7 @@ function normaliseStatus(value: unknown): string {
 function HerdCard({
     animals = {},
     widgets = [],
+    onOpenAnimal,
 }: Props) {
     const animalList = useMemo(
         () => Object.entries(animals),
@@ -130,10 +132,29 @@ function HerdCard({
                     <div className="herd-lifecycle-list">
                         {orderedCounts.map(
                             ([status, count]) => (
-                                <div key={status}>
+                                <button
+                                    type="button"
+                                    className="herd-category-row"
+                                    key={status}
+                                    onClick={() => {
+                                        const match =
+                                            animalList.find(
+                                                ([, animal]) =>
+                                                    normaliseStatus(
+                                                        animal.lifecycle?.status
+                                                        ?? animal.lifecycle?.lifecycle_status
+                                                        ?? animal.status,
+                                                    ) === status,
+                                            );
+
+                                        if (match && onOpenAnimal) {
+                                            onOpenAnimal(match[0]);
+                                        }
+                                    }}
+                                >
                                     <span>{status}</span>
                                     <strong>{count}</strong>
-                                </div>
+                                </button>
                             ),
                         )}
                     </div>
@@ -143,6 +164,35 @@ function HerdCard({
                     </div>
                 )}
             </div>
+
+            {animalList.length > 0 && (
+                <div className="herd-animal-list">
+                    <div className="section-label">
+                        Animal register
+                    </div>
+
+                    {animalList.slice(0, 8).map(
+                        ([animalId, animal]) => (
+                            <button
+                                type="button"
+                                key={animalId}
+                                onClick={() =>
+                                    onOpenAnimal?.(animalId)
+                                }
+                            >
+                                <strong>{animalId}</strong>
+                                <span>
+                                    {normaliseStatus(
+                                        animal.lifecycle?.status
+                                        ?? animal.lifecycle?.lifecycle_status
+                                        ?? animal.status,
+                                    )}
+                                </span>
+                            </button>
+                        ),
+                    )}
+                </div>
+            )}
 
             {widgets.length > 0 && (
                 <div className="herd-widgets">
