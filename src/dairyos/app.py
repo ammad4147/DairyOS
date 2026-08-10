@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from dairyos.application.application_runtime import ApplicationRuntime
@@ -68,4 +68,10 @@ app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 @app.get("/", include_in_schema=False)
 def root():
-    return FileResponse(WEB_DIR / "index.html")
+    """Serve the operator UI with its authentication bridge loaded first."""
+
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    bridge = '<script src="/ui/ui_auth.js"></script>'
+    if bridge not in html:
+        html = html.replace("</head>", f"    {bridge}\n</head>", 1)
+    return HTMLResponse(content=html)
