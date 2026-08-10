@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
-import AnimalPassport from "./components/AnimalPassport";`r`nimport MilkRecording from "./components/MilkRecording";
+import AnimalPassport from "./components/AnimalPassport";
+import MilkRecording from "./components/MilkRecording";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 
@@ -144,7 +145,7 @@ const entryConfigs: Record<
             },
             {
                 name: "temperature_c",
-                label: "Temperature (°C)",
+                label: "Temperature (Â°C)",
                 type: "number",
                 step: "0.1",
             },
@@ -656,7 +657,7 @@ function App() {
                             )
                         }
                     >
-                        ☰
+                        â˜°
                     </button>
 
                     <div className="brand-mark">
@@ -844,4 +845,3 @@ function App() {
 }
 
 export default App;
-
