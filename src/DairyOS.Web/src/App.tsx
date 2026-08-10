@@ -4,6 +4,7 @@ import CommandCenter from "./components/CommandCenter";
 import AnimalPassport from "./components/AnimalPassport";
 import MilkRecording from "./components/MilkRecording";
 import HealthVaccination from "./components/HealthVaccination";
+import ReproductionManagement from "./components/ReproductionManagement";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 
@@ -818,6 +819,12 @@ function App() {
                                 />
                             ) : view === "health" ? (
                                 <HealthVaccination
+                                    onOpenAnimal={
+                                        openAnimal
+                                    }
+                                />
+                            ) : view === "breeding" ? (
+                                <ReproductionManagement
                                     onOpenAnimal={
                                         openAnimal
                                     }
