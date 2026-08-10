@@ -139,6 +139,22 @@ def get_current_user(
     return _decode_token(credentials.credentials)
 
 
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> dict[str, Any] | None:
+    """Return the authenticated operator when a bearer token is supplied.
+
+    Existing farm-floor forms remain backward compatible while authenticated
+    clients gain authoritative server-side operator attribution. A supplied but
+    invalid bearer token is still rejected rather than silently falling back to
+    an operator value supplied by the client.
+    """
+
+    if credentials is None:
+        return None
+    return _decode_token(credentials.credentials)
+
+
 @router.get("/me")
 def current_user(user: dict[str, Any] = Depends(get_current_user)):
     """Return the authenticated operator identity and role."""
