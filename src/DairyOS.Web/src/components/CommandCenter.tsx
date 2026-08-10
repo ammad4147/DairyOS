@@ -1,8 +1,4 @@
-﻿import React, {
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 
 import type {
     DashboardResponse,
@@ -11,19 +7,13 @@ import type {
     OperationalState,
 } from "../models/dashboard";
 
-import {
-    getDashboard,
-} from "../api/dashboardClient";
+import { getDashboard } from "../api/dashboardClient";
 
 import "./CommandCenter.css";
-
-import StatusCard from "./StatusCard";
-import AttentionPanel from "./AttentionPanel";
-import OperationalAreas from "./OperationalAreas";
 import ProductionCard from "./ProductionCard";
 import HerdCard from "./HerdCard";
 import FeedCard from "./FeedCard";
-import FreshnessCard from "./FreshnessCard";
+import AttentionPanel from "./AttentionPanel";
 
 function CommandCenter() {
     const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -37,7 +27,6 @@ function CommandCenter() {
 
         try {
             const payload = await getDashboard();
-
             setDashboard(payload);
             setLastUpdated(new Date().toLocaleTimeString());
         } catch (requestError) {
@@ -74,42 +63,12 @@ function CommandCenter() {
         [dashboard, runtimeDashboard],
     );
 
-    const farmStatus = useMemo(() => {
-        const value =
-            dashboard?.farm_status
-            ?? runtimeDashboard.farm_status
-            ?? "UNKNOWN";
-
-        if (typeof value === "string") {
-            return value;
-        }
-
-        if (value && typeof value === "object") {
-            return String(
-                value.status
-                ?? value.state
-                ?? value.farm_status
-                ?? "UNKNOWN",
-            );
-        }
-
-        return "UNKNOWN";
-    }, [dashboard, runtimeDashboard]);
-
-    const systemHealth = String(
-        dashboard?.health
-        ?? runtimeDashboard.health
-        ?? "UNKNOWN",
-    );
-
     const decisions: OperationalDecision[] =
         dashboard?.operational_decisions
         ?? runtimeDashboard.operational_decisions
         ?? [];
 
-    const zones =
-        dashboard?.dashboard_view?.layout?.zones
-        ?? [];
+    const zones = dashboard?.dashboard_view?.layout?.zones ?? [];
 
     const milkZone = zones.find((zone) => zone.zone_id === "milk");
     const herdZone = zones.find((zone) => zone.zone_id === "herd");
@@ -118,31 +77,26 @@ function CommandCenter() {
         dashboard?.dashboard_view?.owner_attention
         ?? [];
 
-    const eventCount =
-        runtimeDashboard.event_count
-        ?? dashboard?.event_count
-        ?? 0;
-
     const quickActions =
         dashboard?.dashboard_view?.quick_actions
         ?? [];
 
     if (loading && !dashboard) {
         return (
-            <div className="command-center">
+            <main className="command-center">
                 <div className="farm-loading">
-                    Loading live farm operations…
+                    Loading farm operations…
                 </div>
-            </div>
+            </main>
         );
     }
 
     if (error && !dashboard) {
         return (
-            <div className="command-center">
+            <main className="command-center">
                 <div className="farm-error">
                     <div>
-                        <strong>Unable to load the live farm picture.</strong>
+                        <strong>Unable to load live farm operations.</strong>
                         <p>{error}</p>
                     </div>
 
@@ -153,13 +107,24 @@ function CommandCenter() {
                         Retry
                     </button>
                 </div>
-            </div>
+            </main>
         );
     }
 
     if (!dashboard) {
         return null;
     }
+
+    const attentionItems =
+        ownerAttention.length > 0
+            ? ownerAttention
+            : decisions.filter(
+                (decision) =>
+                    decision.owner_action_required
+                    || ["critical", "high", "medium"].includes(
+                        String(decision.priority).toLowerCase(),
+                    ),
+            );
 
     return (
         <main className="command-center">
@@ -172,7 +137,7 @@ function CommandCenter() {
                     <h1>Farm Operations</h1>
 
                     <p>
-                        Live operating picture, decisions and farm performance.
+                        Current production, herd, feeding and actionable farm notifications.
                     </p>
                 </div>
 
@@ -182,9 +147,7 @@ function CommandCenter() {
                         {loading ? "Refreshing" : "Live"}
 
                         {lastUpdated && (
-                            <small>
-                                {lastUpdated}
-                            </small>
+                            <small>{lastUpdated}</small>
                         )}
                     </div>
 
@@ -206,30 +169,6 @@ function CommandCenter() {
                 </div>
             )}
 
-            <section className="farm-status-strip">
-                <div className="farm-status-main">
-                    <span>Farm status</span>
-                    <strong>{farmStatus}</strong>
-                </div>
-
-                <div>
-                    <span>System</span>
-                    <strong>{systemHealth}</strong>
-                </div>
-
-                <div>
-                    <span>Operational events</span>
-                    <strong>{eventCount}</strong>
-                </div>
-
-                <div>
-                    <span>Owner attention</span>
-                    <strong>{ownerAttention.length || decisions.filter(
-                        (decision) => decision.owner_action_required,
-                    ).length}</strong>
-                </div>
-            </section>
-
             <section className="farm-primary-grid">
                 <div className="farm-panel farm-panel-large">
                     <ProductionCard
@@ -248,23 +187,19 @@ function CommandCenter() {
 
             <section className="farm-secondary-grid">
                 <div className="farm-panel">
-                    <FeedCard
-                        feed={runtimeDashboard.feed}
-                    />
+                    <FeedCard feed={runtimeDashboard.feed} />
                 </div>
 
-                <div className="farm-panel">
-                    <FreshnessCard
-                        freshness={runtimeDashboard.freshness}
-                    />
-                </div>
+                <div className="farm-panel attention-panel">
+                    <div className="panel-heading">
+                        <div>
+                            <span className="card-eyebrow">NOTIFICATIONS</span>
+                            <h2>Attention Required</h2>
+                        </div>
+                    </div>
 
-                <div className="farm-panel">
-                    <StatusCard
-                        title="Health decisions"
-                        value={decisions.filter(
-                            (decision) => String(decision.type).toLowerCase() === "health",
-                        ).length}
+                    <AttentionPanel
+                        decisions={attentionItems}
                     />
                 </div>
             </section>
@@ -285,42 +220,16 @@ function CommandCenter() {
                                 key={String(action.id ?? index)}
                                 className="quick-action"
                             >
-                                {String(action.title ?? action.id ?? "Action")}
+                                {String(
+                                    action.title
+                                    ?? action.id
+                                    ?? "Action",
+                                )}
                             </button>
                         ))}
                     </div>
                 </section>
             )}
-
-            <section className="farm-panel attention-panel">
-                <div className="panel-heading">
-                    <div>
-                        <span className="card-eyebrow">DECISIONS</span>
-                        <h2>Attention Required</h2>
-                    </div>
-                </div>
-
-                <AttentionPanel
-                    decisions={
-                        ownerAttention.length > 0
-                            ? ownerAttention
-                            : decisions
-                    }
-                />
-            </section>
-
-            <section className="farm-panel">
-                <div className="panel-heading">
-                    <div>
-                        <span className="card-eyebrow">OPERATIONS</span>
-                        <h2>Operational Areas</h2>
-                    </div>
-                </div>
-
-                <OperationalAreas
-                    state={operationalState}
-                />
-            </section>
         </main>
     );
 }
