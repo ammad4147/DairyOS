@@ -5,6 +5,7 @@ import AnimalPassport from "./components/AnimalPassport";
 import MilkRecording from "./components/MilkRecording";
 import HealthVaccination from "./components/HealthVaccination";
 import ReproductionManagement from "./components/ReproductionManagement";
+import TMRLifeCycleManager from "./components/TMRLifeCycleManager";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 
@@ -829,6 +830,8 @@ function App() {
                                         openAnimal
                                     }
                                 />
+                            ) : view === "feed" ? (
+                                <TMRLifeCycleManager />
                             ) : (
                                 <OperationalModule
                                     title={
