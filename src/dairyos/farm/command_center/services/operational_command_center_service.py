@@ -58,7 +58,7 @@ class OperationalCommandCenterService:
         decision_payload = self._sync_decisions(recommendations)
         action_payload = self._sync_actions()
 
-        active_decisions = sum(1 for item in self._decisions.values() if item.status != "COMPLETED")
+        active_decisions = len(decision_payload)
         open_actions = sum(
             1 for item in self.operational_action_service.get_actions()
             if item.status.status not in {"CLOSED", "VERIFIED"}
