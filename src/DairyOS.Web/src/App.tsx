@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
 import AnimalPassport from "./components/AnimalPassport";
 import MilkRecording from "./components/MilkRecording";
+import HealthVaccination from "./components/HealthVaccination";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 
@@ -145,7 +146,7 @@ const entryConfigs: Record<
             },
             {
                 name: "temperature_c",
-                label: "Temperature (Â°C)",
+                label: "Temperature (Ã‚Â°C)",
                 type: "number",
                 step: "0.1",
             },
@@ -657,7 +658,7 @@ function App() {
                             )
                         }
                     >
-                        â˜°
+                        Ã¢ËœÂ°
                     </button>
 
                     <div className="brand-mark">
@@ -815,6 +816,12 @@ function App() {
                                         openAnimal
                                     }
                                 />
+                            ) : view === "health" ? (
+                                <HealthVaccination
+                                    onOpenAnimal={
+                                        openAnimal
+                                    }
+                                />
                             ) : (
                                 <OperationalModule
                                     title={
@@ -845,3 +852,4 @@ function App() {
 }
 
 export default App;
+
