@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +11,7 @@ from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.milk.services.milk_recording_intelligence_service import MilkRecordingIntelligenceService
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
@@ -475,6 +476,35 @@ def record_feed_entry(
     )
 
 
+
+@router.get("/milk/intelligence")
+def milk_recording_intelligence(
+    threshold_percent: float = 20.0,
+    container=Depends(get_container),
+):
+    rf = getattr(
+        container,
+        "repository_factory",
+        None,
+    )
+
+    if rf is None:
+        rf = RepositoryFactory.create()
+
+    service = MilkRecordingIntelligenceService(
+        rf.milk()
+    )
+
+    return service.dashboard(
+        threshold_percent=max(
+            1.0,
+            min(
+                100.0,
+                threshold_percent,
+            ),
+        )
+    )
+
 @router.get("/feed")
 def list_feed_entries(
     container=Depends(get_container),
@@ -649,4 +679,5 @@ def list_financial_entries(
         container,
         "financial",
     )
+
 

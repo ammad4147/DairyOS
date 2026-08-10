@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
-import AnimalPassport from "./components/AnimalPassport";
+import AnimalPassport from "./components/AnimalPassport";`r`nimport MilkRecording from "./components/MilkRecording";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 
@@ -808,6 +808,12 @@ function App() {
                                         openAnimal
                                     }
                                 />
+                            ) : view === "milk" ? (
+                                <MilkRecording
+                                    onOpenAnimal={
+                                        openAnimal
+                                    }
+                                />
                             ) : (
                                 <OperationalModule
                                     title={
@@ -838,3 +844,4 @@ function App() {
 }
 
 export default App;
+

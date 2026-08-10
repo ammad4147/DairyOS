@@ -794,8 +794,8 @@
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
     "created_at": "2026-08-03T13:05:59.508458+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:17.988394+00:00",
-    "last_updated": "2026-08-10T20:01:17.993809+00:00"
+    "last_event_timestamp": "2026-08-10T21:49:04.227857+00:00",
+    "last_updated": "2026-08-10T21:49:04.233364+00:00"
   },
   {
     "animal_id": "COW-DECISION-001",
@@ -1149,9 +1149,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.703791+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.703820+00:00",
-    "last_updated": "2026-08-10T20:01:16.707205+00:00"
+    "created_at": "2026-08-10T21:49:02.960896+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:02.960926+00:00",
+    "last_updated": "2026-08-10T21:49:02.964279+00:00"
   },
   {
     "animal_id": "TEST-COW-DUP",
@@ -1190,9 +1190,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.716301+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.716323+00:00",
-    "last_updated": "2026-08-10T20:01:16.718291+00:00"
+    "created_at": "2026-08-10T21:49:02.973740+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:02.973803+00:00",
+    "last_updated": "2026-08-10T21:49:02.975684+00:00"
   },
   {
     "animal_id": "TEST-COW-A2",
@@ -1231,9 +1231,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.733638+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.733658+00:00",
-    "last_updated": "2026-08-10T20:01:16.735055+00:00"
+    "created_at": "2026-08-10T21:49:02.991099+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:02.991117+00:00",
+    "last_updated": "2026-08-10T21:49:02.992480+00:00"
   },
   {
     "animal_id": "TEST-COW-MILKING",
@@ -1272,9 +1272,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.757209+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.757228+00:00",
-    "last_updated": "2026-08-10T20:01:16.758837+00:00"
+    "created_at": "2026-08-10T21:49:03.015035+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:03.015055+00:00",
+    "last_updated": "2026-08-10T21:49:03.016707+00:00"
   },
   {
     "animal_id": "TEST-COW-FREQ",
@@ -1313,9 +1313,9 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.770920+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.770940+00:00",
-    "last_updated": "2026-08-10T20:01:16.772260+00:00"
+    "created_at": "2026-08-10T21:49:03.028914+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:03.028932+00:00",
+    "last_updated": "2026-08-10T21:49:03.030418+00:00"
   },
   {
     "animal_id": "TEST-COW-FREQ-BAD",
@@ -1354,8 +1354,8 @@
     "attention_reason": [],
     "intelligence_attention_required": false,
     "intelligence_attention_reason": [],
-    "created_at": "2026-08-10T20:01:16.787268+00:00",
-    "last_event_timestamp": "2026-08-10T20:01:16.787289+00:00",
-    "last_updated": "2026-08-10T20:01:16.788703+00:00"
+    "created_at": "2026-08-10T21:49:03.045362+00:00",
+    "last_event_timestamp": "2026-08-10T21:49:03.045380+00:00",
+    "last_updated": "2026-08-10T21:49:03.046991+00:00"
   }
 ]
