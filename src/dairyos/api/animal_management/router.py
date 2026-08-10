@@ -1,41 +1,36 @@
-from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from enum import Enum
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.domain.commands import Command
-from dairyos.data.models.animal import Animal
 
 
 router = APIRouter()
 
 
 class LifecycleStatus(str, Enum):
-
     CALF = "CALF"
     HEIFER = "HEIFER"
+    CLOSE_UP = "CLOSE_UP"
     LACTATING = "LACTATING"
     DRY = "DRY"
+    SICK = "SICK"
+    CULLED = "CULLED"
 
 
 class MilkingFrequency(str, Enum):
-
     ONCE_DAILY = "ONCE_DAILY"
     TWICE_DAILY = "TWICE_DAILY"
     THRICE_DAILY = "THRICE_DAILY"
 
 
-def animal_repository(
-    container,
-):
-
+def animal_repository(container):
     return container.animal_repository
 
 
-def serialize_animal(
-    animal,
-):
-
+def serialize_animal(animal):
     if animal is None:
         return None
 
@@ -49,47 +44,45 @@ def serialize_animal(
         "sex": animal.sex,
         "date_of_birth": (
             animal.date_of_birth.isoformat()
-            if animal.date_of_birth
-            else None
+            if animal.date_of_birth else None
         ),
         "dam_id": getattr(animal, "dam_id", None),
         "sire_id": getattr(animal, "sire_id", None),
-        "lifecycle_status":
-            animal.lifecycle_status,
-        "status":
-            animal.status,
-        "is_currently_milking":
-            animal.is_currently_milking,
-        "milking_frequency":
-            animal.milking_frequency,
-        "production_group":
-            animal.production_group,
-        "location":
-            animal.location,
-        "active":
-            animal.active,
+        "lifecycle_status": animal.lifecycle_status,
+        "status": animal.status,
+        "is_currently_milking": animal.is_currently_milking,
+        "milking_frequency": animal.milking_frequency,
+        "production_group": animal.production_group,
+        "location": animal.location,
+        "active": animal.active,
         "created_at": (
             animal.created_at.isoformat()
-            if animal.created_at
-            else None
+            if animal.created_at else None
         ),
         "updated_at": (
             animal.updated_at.isoformat()
-            if animal.updated_at
-            else None
+            if animal.updated_at else None
         ),
     }
 
 
-def get_animal_record(
-    container,
-    animal_id,
-):
+def get_animal_record(container, animal_id):
+    return animal_repository(container).get_by_animal_id(animal_id)
 
-    return (
-        animal_repository(container)
-        .get_by_animal_id(animal_id)
-    )
+
+def _record_operational_event(container, input_type, payload, actor):
+    gateway = getattr(container, "input_gateway", None)
+
+    if gateway is not None:
+        gateway.record(
+            input_type=input_type,
+            payload={
+                **payload,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "operator": actor,
+            },
+            actor=actor,
+        )
 
 
 @router.post("/animals")
@@ -97,26 +90,17 @@ def create_animal(
     payload: dict,
     container=Depends(get_container),
 ):
-
-    animal_id = payload.get(
-        "animal_id"
-    )
+    animal_id = payload.get("animal_id")
 
     if not animal_id:
-
         raise HTTPException(
             status_code=422,
             detail="animal_id required",
         )
 
-    repository = animal_repository(
-        container
-    )
+    repository = animal_repository(container)
 
-    if repository.exists(
-        animal_id
-    ):
-
+    if repository.exists(animal_id):
         raise HTTPException(
             status_code=409,
             detail="Animal already exists",
@@ -128,13 +112,8 @@ def create_animal(
     )
 
     try:
-
-        LifecycleStatus(
-            lifecycle_status
-        )
-
+        LifecycleStatus(lifecycle_status)
     except ValueError:
-
         raise HTTPException(
             status_code=422,
             detail="Invalid lifecycle status",
@@ -165,56 +144,39 @@ def create_animal(
         if key in allowed_fields
     }
 
-    animal = Animal(
-        **animal_payload
+    animal = repository.save(
+        __import__(
+            "dairyos.data.models.animal",
+            fromlist=["Animal"],
+        ).Animal(**animal_payload)
     )
 
-    saved = repository.save(
-        animal
-    )
-
-    if payload.get(
-        "milking_frequency"
-    ):
-
+    if payload.get("milking_frequency"):
         repository.set_milking_frequency(
             animal_id=animal_id,
-            new_frequency=payload[
-                "milking_frequency"
-            ],
+            new_frequency=payload["milking_frequency"],
             changed_by=None,
             reason="initial",
         )
+        animal = repository.get_by_animal_id(animal_id)
 
-        saved = repository.get_by_animal_id(
-            animal_id
+    try:
+        container.operations.handle_command(
+            Command(
+                name="CreateAnimal",
+                payload={
+                    **payload,
+                    "active": True,
+                    "created_at": datetime.now(
+                        timezone.utc
+                    ).isoformat(),
+                },
+            )
         )
+    except Exception:
+        pass
 
-    event_payload = {
-        **payload,
-        "active": True,
-        "created_at":
-            datetime.now(
-                timezone.utc
-            ).isoformat(),
-    }
-
-    event = container.operations.handle_command(
-        Command(
-            name="CreateAnimal",
-            payload=event_payload,
-        )
-    )
-
-    if event:
-
-        return serialize_animal(
-            saved
-        )
-
-    return serialize_animal(
-        saved
-    )
+    return serialize_animal(animal)
 
 
 @router.get("/animals")
@@ -222,29 +184,16 @@ def list_animals(
     currently_milking: bool = False,
     container=Depends(get_container),
 ):
+    repository = animal_repository(container)
 
-    repository = animal_repository(
-        container
+    animals = (
+        repository.currently_milking_animals()
+        if currently_milking
+        else repository.get_all()
     )
 
-    if currently_milking:
-
-        animals = (
-            repository
-            .currently_milking_animals()
-        )
-
-    else:
-
-        animals = (
-            repository
-            .get_all()
-        )
-
     return [
-        serialize_animal(
-            animal
-        )
+        serialize_animal(animal)
         for animal in animals
     ]
 
@@ -254,80 +203,113 @@ def get_animal(
     animal_id: str,
     container=Depends(get_container),
 ):
-
-    animal = get_animal_record(
-        container,
-        animal_id,
-    )
+    animal = get_animal_record(container, animal_id)
 
     if not animal:
-
         raise HTTPException(
             status_code=404,
             detail="Animal not found",
         )
 
-    return serialize_animal(
-        animal
-    )
+    return serialize_animal(animal)
 
 
 @router.get("/animals/current/milking")
 def list_milking_animals(
     container=Depends(get_container),
 ):
-
-    repository = animal_repository(
-        container
-    )
-
     return [
-        serialize_animal(
-            animal
-        )
-        for animal in (
-            repository
-            .currently_milking_animals()
-        )
+        serialize_animal(animal)
+        for animal in animal_repository(
+            container
+        ).currently_milking_animals()
     ]
 
 
-@router.post(
-    "/animals/{animal_id}/milking-frequency"
-)
-def change_milking_frequency(
+@router.patch("/animals/{animal_id}/lifecycle")
+def change_lifecycle(
     animal_id: str,
     payload: dict,
     container=Depends(get_container),
 ):
-
-    repository = animal_repository(
-        container
-    )
-
-    animal = repository.get_by_animal_id(
-        animal_id
-    )
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
 
     if not animal:
-
         raise HTTPException(
             status_code=404,
             detail="Animal not found",
         )
 
-    frequency = payload.get(
-        "milking_frequency"
-    )
+    lifecycle = str(
+        payload.get("lifecycle_status", "")
+    ).upper()
 
     try:
-
-        MilkingFrequency(
-            frequency
+        LifecycleStatus(lifecycle)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Invalid lifecycle status. "
+                "Allowed: "
+                + ", ".join(item.value for item in LifecycleStatus)
+            ),
         )
 
-    except ValueError:
+    previous = animal.lifecycle_status
 
+    animal.lifecycle_status = lifecycle
+    animal.status = payload.get(
+        "status",
+        lifecycle,
+    )
+    animal.production_group = payload.get(
+        "production_group",
+        getattr(animal, "production_group", None),
+    )
+    animal.is_currently_milking = (
+        lifecycle == LifecycleStatus.LACTATING.value
+    )
+    animal.updated_at = datetime.now(timezone.utc)
+
+    updated = repository.save(animal)
+
+    _record_operational_event(
+        container,
+        "animal_lifecycle",
+        {
+            "animal_id": animal_id,
+            "previous_status": previous,
+            "lifecycle_status": lifecycle,
+            "reason": payload.get("reason"),
+        },
+        str(payload.get("operator") or "API"),
+    )
+
+    return serialize_animal(updated)
+
+
+@router.post("/animals/{animal_id}/milking-frequency")
+def change_milking_frequency(
+    animal_id: str,
+    payload: dict,
+    container=Depends(get_container),
+):
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
+
+    if not animal:
+        raise HTTPException(
+            status_code=404,
+            detail="Animal not found",
+        )
+
+    frequency = payload.get("milking_frequency")
+
+    try:
+        MilkingFrequency(frequency)
+    except ValueError:
         raise HTTPException(
             status_code=422,
             detail="Invalid milking frequency",
@@ -336,17 +318,11 @@ def change_milking_frequency(
     updated = repository.set_milking_frequency(
         animal_id=animal_id,
         new_frequency=frequency,
-        changed_by=payload.get(
-            "changed_by"
-        ),
-        reason=payload.get(
-            "reason"
-        ),
+        changed_by=payload.get("changed_by"),
+        reason=payload.get("reason"),
     )
 
-    return serialize_animal(
-        updated
-    )
+    return serialize_animal(updated)
 
 
 @router.get(
@@ -356,51 +332,119 @@ def milking_frequency_history(
     animal_id: str,
     container=Depends(get_container),
 ):
-
-    repository = animal_repository(
-        container
-    )
-
-    animal = repository.get_by_animal_id(
-        animal_id
-    )
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
 
     if not animal:
-
         raise HTTPException(
             status_code=404,
             detail="Animal not found",
         )
 
-    history = (
-        repository
-        .get_milking_frequency_history(
-            animal_id
-        )
-    )
-
     return [
         {
-            "milking_frequency":
-                record.milking_frequency,
-
-            "changed_by":
-                record.changed_by,
-
-            "reason":
-                record.reason,
-
+            "milking_frequency": record.milking_frequency,
+            "changed_by": record.changed_by,
+            "reason": record.reason,
             "effective_from": (
                 record.effective_from.isoformat()
-                if record.effective_from
-                else None
+                if record.effective_from else None
             ),
-
             "effective_to": (
                 record.effective_to.isoformat()
-                if record.effective_to
-                else None
+                if record.effective_to else None
             ),
         }
-        for record in history
+        for record in repository.get_milking_frequency_history(
+            animal_id
+        )
     ]
+
+
+@router.post("/animals/{animal_id}/vaccinations")
+def record_vaccination(
+    animal_id: str,
+    payload: dict,
+    container=Depends(get_container),
+):
+    animal = get_animal_record(container, animal_id)
+
+    if not animal:
+        raise HTTPException(
+            status_code=404,
+            detail="Animal not found",
+        )
+
+    vaccine = str(
+        payload.get("vaccine")
+        or payload.get("vaccination")
+        or ""
+    ).strip()
+
+    if not vaccine:
+        raise HTTPException(
+            status_code=422,
+            detail="vaccine required",
+        )
+
+    administered = payload.get(
+        "administered_date"
+    ) or datetime.now(
+        timezone.utc
+    ).date().isoformat()
+
+    record = {
+        "animal_id": animal_id,
+        "vaccine": vaccine,
+        "dose": payload.get("dose"),
+        "administered_date": administered,
+        "next_due_date": payload.get(
+            "next_due_date"
+        ),
+        "batch_number": payload.get(
+            "batch_number"
+        ),
+        "veterinarian": payload.get(
+            "veterinarian"
+        ),
+        "notes": payload.get("notes"),
+        "status": "COMPLETED",
+    }
+
+    _record_operational_event(
+        container,
+        "vaccination",
+        record,
+        str(payload.get("operator") or "API"),
+    )
+
+    return record
+
+
+@router.get("/animals/{animal_id}/vaccinations")
+def list_vaccinations(
+    animal_id: str,
+    container=Depends(get_container),
+):
+    animal = get_animal_record(container, animal_id)
+
+    if not animal:
+        raise HTTPException(
+            status_code=404,
+            detail="Animal not found",
+        )
+
+    records = []
+
+    for event in container.event_journal.all_events():
+        if (
+            event.name == "OperationalInputReceived"
+            and event.payload.get("input_type")
+            == "vaccination"
+            and str(
+                event.payload.get("animal_id")
+            ) == animal_id
+        ):
+            records.append(event.payload)
+
+    return records
