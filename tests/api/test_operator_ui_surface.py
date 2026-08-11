@@ -1,16 +1,22 @@
+"""
+DairyOS Operator Cockpit UI contract tests.
+
+Version: 0.2.0
+Date: 2026-08-11
+Purpose: lock the five-prime-part dashboard information architecture,
+persistent exception rail, customization controls, and live domain entry surface.
+"""
+
 from fastapi.testclient import TestClient
 
 from dairyos.app import app
 
 
-DOMAIN_TABS = {
+DOMAIN_ENDPOINTS = {
     "milk": "/farm/milk",
     "feed": "/farm/feed",
     "health-observations": "/farm/health-observations",
     "breeding": "/farm/breeding",
-    "workforce": "/farm/workforce",
-    "inventory": "/farm/inventory",
-    "equipment": "/farm/equipment",
     "financial": "/farm/financial",
 }
 
@@ -19,19 +25,20 @@ def test_operator_dashboard_is_reachable(client: TestClient):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "DairyOS" in response.text
-    assert "Command Center" in response.text
+    html = response.text
+
+    assert "DairyOS" in html
+    assert "Today at a glance" in html
+    assert "Exceptions & attention — always visible" in html
+
     for label in (
-        "Milk",
-        "Feeding",
-        "Health",
-        "Breeding",
-        "Workforce",
-        "Inventory",
-        "Equipment",
-        "Finance",
+        "Herd Management",
+        "Milk Records",
+        "Health & Vaccination",
+        "Feed Management",
+        "Financials",
     ):
-        assert label in response.text
+        assert label in html
 
 
 def test_operator_ui_static_entrypoint_is_reachable(client: TestClient):
@@ -41,22 +48,64 @@ def test_operator_ui_static_entrypoint_is_reachable(client: TestClient):
     assert response.headers["content-type"].startswith("text/html")
 
 
-def test_operator_domain_tabs_have_real_rendering_contract(client: TestClient):
-    response = client.get("/")
-    html = response.text
+def test_dashboard_has_non_hideable_exception_and_customization_contract(
+    client: TestClient,
+):
+    html = client.get("/").text
 
-    assert "function ensureDomainPage(domain)" in html
-    assert "async function openTab(id)" in html
-    assert "async function loadDomain(domain)" in html
+    assert "global-alert-rail" in html
+    assert "Exceptions & attention — always visible" in html
+    assert "function renderAlerts()" in html
+    assert "function customize(id)" in html
+    assert "function resetSection(id)" in html
+    assert "function resetDashboard()" in html
+    assert "dairyos.dashboard.widgets" in html
 
-    for domain, endpoint in DOMAIN_TABS.items():
-        assert f"['{domain}'" in html or f"['{domain}'," in html
-        assert f"{domain}:{{" in html or f"'{domain}':{{" in html
+
+def test_dashboard_preserves_five_prime_sections_as_permanent_structure(
+    client: TestClient,
+):
+    html = client.get("/").text
+
+    assert "const PRIME=[" in html
+    assert "id:'herd'" in html
+    assert "id:'milk'" in html
+    assert "id:'health'" in html
+    assert "id:'feed'" in html
+    assert "id:'finance'" in html
+    assert "prime-section full" in html
+    assert "The section itself can never disappear." in html
+
+
+def test_dashboard_has_operational_drill_down_and_domain_navigation(
+    client: TestClient,
+):
+    html = client.get("/").text
+
+    for domain in ("herd", "milk", "health", "feed", "finance", "breeding"):
+        assert f"openPage('{domain}')" in html
+
+    for endpoint in DOMAIN_ENDPOINTS.values():
         assert endpoint in html
-        assert f"ensureDomainPage(id)" in html
+
+    assert "Record event" in html
+    assert "Record milk" in html
+    assert "Record feed" in html
 
 
-def test_operational_presentation_and_api_surface_are_reachable(client: TestClient):
+def test_dashboard_has_evidence_based_analytics_boundaries(client: TestClient):
+    html = client.get("/").text
+
+    assert "No forecast is invented" in html
+    assert "not yet computable" in html
+    assert "No synthetic values" not in html or "measured quality data" in html
+    assert "evidence-based" in html
+    assert "does not fabricate animal records" in html
+
+
+def test_operational_presentation_and_api_surface_are_reachable(
+    client: TestClient,
+):
     for path in (
         "/health",
         "/readiness",
@@ -69,7 +118,9 @@ def test_operational_presentation_and_api_surface_are_reachable(client: TestClie
         assert response.headers["content-type"].startswith("application/json")
 
 
-def test_all_operational_data_entry_workflows_are_usable(client: TestClient):
+def test_all_current_operational_data_entry_workflows_are_usable(
+    client: TestClient,
+):
     payloads = {
         "/farm/milk": {
             "animal_id": "UI-001",
@@ -91,21 +142,6 @@ def test_all_operational_data_entry_workflows_are_usable(client: TestClient):
         "/farm/breeding": {
             "animal_id": "UI-001",
             "event_type": "HEAT_OBSERVED",
-            "operator": "UI-Test",
-        },
-        "/farm/workforce": {
-            "worker_id": "W-001",
-            "activity": "Milking",
-            "operator": "UI-Test",
-        },
-        "/farm/inventory": {
-            "item": "Feed",
-            "quantity": 100,
-            "operator": "UI-Test",
-        },
-        "/farm/equipment": {
-            "equipment_id": "EQ-001",
-            "activity": "Inspection",
             "operator": "UI-Test",
         },
         "/farm/financial": {
