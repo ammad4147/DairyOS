@@ -34,9 +34,6 @@ from dairyos.runtime.persistent_event_journal import (
 )
 
 from dairyos.farm.operations.repositories.adapters import (
-    MemoryMilkRepository,
-    MemoryFeedRepository,
-    MemoryHealthRepository,
     MemoryBreedingRepository,
 )
 
@@ -1274,3 +1271,4 @@ class ApplicationRuntime:
             "learning_signals": snapshot.learning_signals,
             "owner_attention_required": snapshot.owner_attention_required,
         }
+
