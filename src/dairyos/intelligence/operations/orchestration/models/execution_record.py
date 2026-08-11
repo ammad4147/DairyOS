@@ -4,20 +4,21 @@ from dataclasses import dataclass
 @dataclass
 class ExecutionRecord:
     """
-    Represents operational execution tracking.
+    Legacy execution outcome / compatibility projection.
 
-    Future extensions:
+    ExecutionRecord is intentionally NOT an execution aggregate.
+    It has no lifecycle authority and must never be used as the source
+    of truth for operational execution state.
 
-    - execution timestamps
-    - evidence capture
-    - completion verification
+    The authoritative source is:
+
+        dairyos.operations.execution.models.OperationalExecution
+
+    This DTO exists for existing orchestration callers and integrations
+    that require a compact historical/result representation.
     """
 
-
     action_type: str
-
     performed_by: str
-
     execution_status: str
-
     notes: str
