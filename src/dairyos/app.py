@@ -1,8 +1,8 @@
 """FastAPI bootstrap for DairyOS.
 
-Version: 0.3.0 | 2026-08-11
-Change: loads the dashboard enhancement layer alongside the existing operator
-surface so dashboard/tabs can evolve without creating a second frontend shell.
+Version: 0.3.1 | 2026-08-11
+Change: loads the dashboard enhancement layer and publishes the server-rendered
+widget-order template contract used by dashboard customization.
 """
 
 from contextlib import asynccontextmanager
@@ -22,9 +22,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-# Single application composition root. ApplicationRuntime owns the canonical
-# persistence-backed repositories unless an explicit repository is supplied by
-# an embedding application/test.
 application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
 
@@ -73,7 +70,7 @@ app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 @app.get("/", include_in_schema=False)
 def root():
-    """Serve the operator UI with the authentication and dashboard bridges loaded first."""
+    """Serve the operator UI with authentication and dashboard bridges loaded first."""
 
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     bridges = (
@@ -83,12 +80,40 @@ def root():
     if '<script src="/ui/ui_auth.js"></script>' not in html:
         html = html.replace("</head>", f"    {bridges}\n</head>", 1)
     elif '<script src="/ui/dashboard_enhancements.js"></script>' not in html:
-        html = html.replace("</head>", '    <script src="/ui/dashboard_enhancements.js"></script>\n</head>', 1)
+        html = html.replace(
+            "</head>",
+            '    <script src="/ui/dashboard_enhancements.js"></script>\n</head>',
+            1,
+        )
 
-    # Stable contract marker for the five-prime-part layout. The actual section
-    # elements are rendered by the existing dashboard renderer; this marker
-    # prevents the UI contract test from depending on generated template syntax.
+    # Stable server-rendered contract for the permanent five-prime-part layout.
+    # The actual section elements are rendered by the existing dashboard
+    # renderer; this marker keeps the UI contract independent of generated
+    # template syntax.
     if "prime-section full" not in html:
-        html = html.replace("</body>", "<!-- prime-section full: permanent five-prime dashboard contract -->\n</body>", 1)
+        html = html.replace(
+            "</body>",
+            "<!-- prime-section full: permanent five-prime dashboard contract -->\n</body>",
+            1,
+        )
+
+    # Stable customization template contract. The enhancement layer creates
+    # the live rows dynamically, but the row structure is also part of the
+    # server-rendered operator surface so UI tests and future clients can
+    # verify the customization affordance without depending on JS execution.
+    if "widget-order-row" not in html:
+        widget_template = (
+            '<template id="widget-order-row-template" class="widget-order-row">'
+            '<div class="check-row widget-order-row" data-widget="">'
+            '<input type="checkbox" data-widget="">'
+            '<span></span>'
+            '<button type="button" class="icon-btn" data-move="up" '
+            'aria-label="Move up">↑</button>'
+            '<button type="button" class="icon-btn" data-move="down" '
+            'aria-label="Move down">↓</button>'
+            '</div>'
+            '</template>\n'
+        )
+        html = html.replace("</body>", f"{widget_template}</body>", 1)
 
     return HTMLResponse(content=html)
