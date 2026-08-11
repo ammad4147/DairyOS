@@ -9,13 +9,12 @@ class CommandExecution:
     """
     Legacy command-dispatch compatibility DTO.
 
-    CommandExecution does not own operational execution state.
-    The canonical execution aggregate is
+    CommandExecution is not an execution aggregate and does not own the
+    operational execution lifecycle. The authoritative aggregate is
     ``dairyos.operations.execution.models.OperationalExecution``.
 
-    ``status`` remains available only for backward compatibility with
-    command/intelligence callers while lifecycle changes are delegated to
-    the canonical execution tracker.
+    ``status`` is retained only as a legacy command-facing projection.
+    Actual lifecycle transitions are performed on the canonical aggregate.
     """
 
     execution_id: str
@@ -23,3 +22,8 @@ class CommandExecution:
     assigned_to: str
     status: ExecutionStatus
     created_at: datetime
+
+    @property
+    def canonical_execution(self):
+        """Return the authoritative OperationalExecution, when attached."""
+        return getattr(self, "_canonical_execution", None)

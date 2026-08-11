@@ -12,20 +12,30 @@ class ExecutionTrackingService:
     """
     Compatibility facade for the legacy command-execution tracker.
 
-    The legacy CommandExecution object is no longer an independent
-    execution state machine. Lifecycle changes are delegated to the
-    canonical OperationalExecution aggregate.
+    CommandExecution remains a compatibility DTO only.
+
+    The authoritative lifecycle is always performed against
+    dairyos.operations.execution.models.OperationalExecution.
     """
 
-    def __init__(self, execution_service=None, tracking_service=None):
-        self.execution_service = execution_service or OperationalExecutionService()
+    def __init__(
+        self,
+        execution_service=None,
+        tracking_service=None,
+    ):
+        self.execution_service = (
+            execution_service
+            or OperationalExecutionService()
+        )
+
         self.tracking_service = (
             tracking_service
             or OperationalExecutionTrackingService()
         )
 
     def _canonical(self, execution):
-        canonical = getattr(execution, "_canonical_execution", None)
+        canonical = execution.canonical_execution
+
         if canonical is not None:
             return canonical
 
@@ -33,26 +43,54 @@ class ExecutionTrackingService:
             action_id=execution.command_id,
             assigned_to=execution.assigned_to,
         )
+
         execution._canonical_execution = canonical
+
         return canonical
 
     def start(self, execution):
+        """
+        Start the canonical operational execution.
+
+        IN_PROGRESS remains only the legacy command-facing projection.
+        """
         canonical = self._canonical(execution)
-        self.tracking_service.start(canonical)
+
+        self.tracking_service.start(
+            canonical,
+        )
+
         execution.status = ExecutionStatus.IN_PROGRESS
+
         return execution
 
     def complete(self, execution):
+        """
+        Complete the canonical operational execution.
+
+        COMPLETED on CommandExecution is only a compatibility projection.
+        """
         canonical = self._canonical(execution)
-        self.tracking_service.complete(canonical)
+
+        self.tracking_service.complete(
+            canonical,
+        )
+
         execution.status = ExecutionStatus.COMPLETED
+
         return execution
 
     def failed(self, execution):
-        # Failure remains a compatibility result in the legacy DTO. The
-        # canonical aggregate is deliberately not given a competing FAILED
-        # lifecycle state. Preserve the caller-visible legacy status while
-        # keeping actual execution authority in OperationalExecution.
+        """
+        Preserve the legacy failure result without creating a competing
+        canonical FAILED execution lifecycle.
+
+        OperationalExecution remains the authoritative execution state.
+        Failure is retained here only as a compatibility/outcome value for
+        legacy command callers.
+        """
         self._canonical(execution)
+
         execution.status = ExecutionStatus.FAILED
+
         return execution
