@@ -4,20 +4,32 @@ from dataclasses import dataclass
 @dataclass
 class ExecutionPlan:
     """
-    Represents an execution plan generated
-    from a workflow.
+    Intelligence planning artifact.
 
-    Future extensions:
+    ExecutionPlan answers how proposed work should be prepared and
+    coordinated. It is not the record of work actually performed.
 
-    - scheduling
-    - optimization
-    - dependencies
+    The architectural hand-off is:
+
+        Recommendation / decision
+                |
+                v
+          ExecutionPlan
+                |
+          approved / accepted
+                v
+        OperationalAction
+                |
+                v
+          Assignment
+                |
+                v
+      OperationalExecution
+
+    Only OperationalExecution owns the operational execution lifecycle.
     """
 
     workflow_type: str
-
     objective: str
-
     priority: str
-
     status: str
