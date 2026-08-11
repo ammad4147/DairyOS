@@ -109,6 +109,28 @@ class EnterpriseRuntimeBootstrap:
 
     The ApplicationRuntime is supplied by the canonical application
     composition root. This class does not construct an application graph.
+
+    Enterprise operational-event infrastructure is composed here and
+    then explicitly injected into the already-created farm operations
+    runtime.
+
+    Canonical event path:
+
+        FarmOperationEvent
+                |
+                v
+        FarmOperationsRuntime
+                |
+                v
+        OperationsEventGateway
+                |
+                v
+        OperationalEventPublisher
+                |
+        +-------+-------+
+        |       |       |
+        v       v       v
+       Store   Bus  Dispatcher
     """
 
     def __init__(
@@ -162,6 +184,10 @@ class EnterpriseRuntimeBootstrap:
             dispatcher=self.event_dispatcher,
         )
 
+        self.application_runtime.farm_operations_runtime.operational_event_publisher = (
+            self.event_publisher
+        )
+
         self.application_runtime.execution_tracking_service.event_publisher = (
             self.event_publisher
         )
@@ -198,7 +224,9 @@ class EnterpriseRuntimeBootstrap:
             event_publisher=self.event_publisher,
         )
 
-        self.workflow_intelligence_runtime = WorkflowIntelligenceRuntime()
+        self.workflow_intelligence_runtime = (
+            WorkflowIntelligenceRuntime()
+        )
 
         self.operational_status = OperationalStatusGateway(
             runtime=self.platform_runtime,
