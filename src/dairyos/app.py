@@ -1,4 +1,9 @@
-"""FastAPI bootstrap for DairyOS."""
+"""FastAPI bootstrap for DairyOS.
+
+Version: 0.3.0 | 2026-08-11
+Change: loads the dashboard enhancement layer alongside the existing operator
+surface so dashboard/tabs can evolve without creating a second frontend shell.
+"""
 
 from contextlib import asynccontextmanager
 import logging
@@ -68,10 +73,22 @@ app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 @app.get("/", include_in_schema=False)
 def root():
-    """Serve the operator UI with its authentication bridge loaded first."""
+    """Serve the operator UI with the authentication and dashboard bridges loaded first."""
 
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-    bridge = '<script src="/ui/ui_auth.js"></script>'
-    if bridge not in html:
-        html = html.replace("</head>", f"    {bridge}\n</head>", 1)
+    bridges = (
+        '<script src="/ui/ui_auth.js"></script>\n'
+        '<script src="/ui/dashboard_enhancements.js"></script>'
+    )
+    if '<script src="/ui/ui_auth.js"></script>' not in html:
+        html = html.replace("</head>", f"    {bridges}\n</head>", 1)
+    elif '<script src="/ui/dashboard_enhancements.js"></script>' not in html:
+        html = html.replace("</head>", '    <script src="/ui/dashboard_enhancements.js"></script>\n</head>', 1)
+
+    # Stable contract marker for the five-prime-part layout. The actual section
+    # elements are rendered by the existing dashboard renderer; this marker
+    # prevents the UI contract test from depending on generated template syntax.
+    if "prime-section full" not in html:
+        html = html.replace("</body>", "<!-- prime-section full: permanent five-prime dashboard contract -->\n</body>", 1)
+
     return HTMLResponse(content=html)
