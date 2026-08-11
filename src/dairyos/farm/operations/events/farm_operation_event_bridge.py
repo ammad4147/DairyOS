@@ -9,18 +9,44 @@ from dairyos.platform.events.models.operational_event import (
 
 class FarmOperationEventBridge:
     """
-    Translates farm-domain operational events
-    into enterprise OperationalEvents.
+    Canonical translation boundary from the farm-operation domain
+    into the enterprise OperationalEvent model.
 
-    Farm operations remain isolated from
-    platform event infrastructure.
+    Architectural contract:
+
+        FarmOperationEvent
+                |
+                v
+        FarmOperationEventBridge
+                |
+                v
+        OperationalEvent
+
+    This class owns the ONE canonical implementation of farm-event
+    to enterprise-event translation.
+
+    It does not:
+    - publish events
+    - persist events
+    - invoke subscribers
+    - own farm operational state
+    - own business workflow rules
     """
-
 
     def adapt(
         self,
         event: FarmOperationEvent,
     ) -> OperationalEvent:
+        """
+        Translate one FarmOperationEvent into one OperationalEvent.
+
+        The source FarmOperationEvent remains unchanged.
+        """
+
+        if event is None:
+            raise ValueError(
+                "FarmOperationEvent is required"
+            )
 
         entity_type = (
             "animal"
@@ -28,26 +54,21 @@ class FarmOperationEventBridge:
             else "farm_operation"
         )
 
-
         entity_id = (
             event.animal_id
             if event.animal_id is not None
             else event.event_id
         )
 
+        payload = dict(
+            event.payload
+        )
 
         return OperationalEvent(
-
             event_type=event.event_type,
-
             entity_type=entity_type,
-
             entity_id=entity_id,
-
             actor=event.operator,
-
-            payload=event.payload,
-
+            payload=payload,
             timestamp=event.timestamp,
-
         )

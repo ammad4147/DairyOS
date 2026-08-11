@@ -32,10 +32,6 @@ from dairyos.farm.operations.events.farm_operation_event_bus import (
     FarmOperationEventBus,
 )
 
-from dairyos.farm.operations.events.farm_operation_event_bridge import (
-    FarmOperationEventBridge,
-)
-
 
 class FarmOperationsRuntime:
     """
@@ -48,14 +44,21 @@ class FarmOperationsRuntime:
 
         Producers publish events.
 
-        FarmOperationEventBus owns fan-out.
+        FarmOperationEventBus owns farm-domain fan-out.
+
+        OperationsEventGateway owns enterprise-event translation
+        and publication.
 
         Subscribers own projection/application behavior.
 
-    FarmOperationsRuntime therefore MUST NOT depend on
-    FarmOperationalStateService or invoke projections directly.
+    FarmOperationsRuntime therefore MUST NOT:
 
-    Manual data entry remains the source of truth.
+    - depend on FarmOperationalStateService
+    - invoke projections directly
+    - translate FarmOperationEvent into OperationalEvent itself
+    - publish OperationalEvent independently of the gateway
+
+    Manual farm data entry remains the source of truth.
     """
 
     def __init__(
@@ -70,7 +73,6 @@ class FarmOperationsRuntime:
         event_bus=None,
         operational_event_publisher=None,
     ):
-
         self.milk_service = (
             milk_service
             if milk_service is not None
@@ -101,26 +103,28 @@ class FarmOperationsRuntime:
             else MemoryBreedingRepository()
         )
 
+        self.operational_event_publisher = (
+            operational_event_publisher
+        )
+
         self.event_gateway = (
             event_gateway
             if event_gateway is not None
-            else OperationsEventGateway()
+            else OperationsEventGateway(
+                operational_event_publisher=(
+                    operational_event_publisher
+                )
+            )
         )
 
-        self.event_repository = event_repository
+        self.event_repository = (
+            event_repository
+        )
 
         self.event_bus = (
             event_bus
             if event_bus is not None
             else FarmOperationEventBus()
-        )
-
-        self.operational_event_publisher = (
-            operational_event_publisher
-        )
-
-        self.event_bridge = (
-            FarmOperationEventBridge()
         )
 
         self.events = []
@@ -131,8 +135,8 @@ class FarmOperationsRuntime:
         event,
     ):
         """
-        Publish one FarmOperationEvent through the single
-        operational event pipeline.
+        Publish one FarmOperationEvent through the canonical
+        farm-operation event pipeline.
 
         Ordering:
 
@@ -140,14 +144,18 @@ class FarmOperationsRuntime:
             2. Runtime event collection
             3. Operational event repository
             4. Shared FarmOperationEventBus
-            5. Enterprise operational-event publisher
+            5. Enterprise event publication is owned by the gateway
 
-        Projection behavior is owned exclusively by event-bus
-        subscribers.
+        There is intentionally NO second bridge or publisher here.
         """
 
         timeline_event = (
-            self.event_gateway.publish(event)
+            self.event_gateway.publish(
+                event,
+                operational_event_publisher=(
+                    self.operational_event_publisher
+                ),
+            )
         )
 
         self.events.append(
@@ -163,18 +171,6 @@ class FarmOperationsRuntime:
             event
         )
 
-        if self.operational_event_publisher is not None:
-
-            operational_event = (
-                self.event_bridge.adapt(
-                    event
-                )
-            )
-
-            self.operational_event_publisher.publish(
-                operational_event
-            )
-
         return timeline_event
 
     def create_activity(
@@ -182,7 +178,6 @@ class FarmOperationsRuntime:
         activity_type,
         metadata=None,
     ):
-
         activity = OperationalActivity(
             activity_id=(
                 f"ACT-{len(self.activities) + 1}"
@@ -202,7 +197,6 @@ class FarmOperationsRuntime:
         activity_id,
         operator,
     ):
-
         activity = self._find_activity(
             activity_id
         )
@@ -235,7 +229,6 @@ class FarmOperationsRuntime:
         self,
         activity_id,
     ):
-
         activity = self._find_activity(
             activity_id
         )
@@ -266,7 +259,6 @@ class FarmOperationsRuntime:
         self,
         activity_id,
     ):
-
         activity = self._find_activity(
             activity_id
         )
@@ -297,7 +289,6 @@ class FarmOperationsRuntime:
         self,
         activity_id,
     ):
-
         activity = self._find_activity(
             activity_id
         )
@@ -327,7 +318,6 @@ class FarmOperationsRuntime:
     def get_active_activities(
         self,
     ):
-
         return [
             activity
             for activity in self.activities
@@ -338,9 +328,7 @@ class FarmOperationsRuntime:
         self,
         activity_id,
     ):
-
         for activity in self.activities:
-
             if activity.activity_id == activity_id:
                 return activity
 
@@ -358,7 +346,6 @@ class FarmOperationsRuntime:
         animal_group=None,
         shift=None,
     ):
-
         if animal_id is None:
             animal_id = animal_group
 
@@ -418,7 +405,6 @@ class FarmOperationsRuntime:
         cost,
         operator,
     ):
-
         record = FeedRecord(
             animal_group=animal_group,
             feed_type=feed_type,
@@ -458,7 +444,6 @@ class FarmOperationsRuntime:
         severity,
         reported_by,
     ):
-
         record = HealthObservation(
             animal_id=animal_id,
             observation=observation,
@@ -496,7 +481,6 @@ class FarmOperationsRuntime:
         result,
         technician,
     ):
-
         record = BreedingRecord(
             animal_id=animal_id,
             event_type=event_type,
@@ -534,7 +518,6 @@ class FarmOperationsRuntime:
         value,
         operator="",
     ):
-
         event = FarmOperationEvent(
             event_type="workforce_activity_recorded",
             animal_id=None,
@@ -613,5 +596,4 @@ class FarmOperationsRuntime:
     def get_events(
         self,
     ):
-
         return self.events

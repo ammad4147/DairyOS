@@ -1,73 +1,119 @@
-from dairyos.farm.operations.models.farm_operation_event import (
+﻿from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
 
 
 class ExecutionFarmEventAdapter:
     """
-    Converts execution lifecycle domain events
-    into FarmOperationEvents.
+    Compatibility adapter from execution domain events to the
+    farm-operation event boundary.
 
-    Domain execution events remain owned by
-    execution services.
+    Architectural contract:
 
-    FarmOperationEvent becomes the operational
-    runtime integration boundary.
+        Execution domain event
+                |
+                v
+        ExecutionFarmEventAdapter
+                |
+                v
+        FarmOperationEvent
+
+    The adapter is intentionally thin.
+
+    It does not:
+    - own execution state
+    - mutate execution objects
+    - publish events
+    - perform lifecycle transitions
+    - invoke subscribers
+    - duplicate execution lifecycle rules
+
+    The authoritative execution lifecycle path remains:
+
+        ExecutionTrackingService
+                |
+                v
+        ExecutionEventBridge
+                |
+                v
+        OperationalEvent
+                |
+                v
+        ExecutionEventSubscriber
+                |
+                v
+        ExecutionLifecycleEventHandler
+                |
+                v
+        ExecutionLifecycleBridge
     """
 
+    SYSTEM_OPERATOR = "SYSTEM"
 
-    def adapt(
-        self,
-        event,
-    ) -> FarmOperationEvent:
+    ACTOR_FIELDS = (
+        "completed_by",
+        "verified_by",
+        "started_by",
+        "acknowledged_by",
+        "assigned_to",
+    )
 
-        payload = dict(
-            event.payload
-        )
+    def adapt(self, event) -> FarmOperationEvent:
+        """
+        Convert an execution domain event into a FarmOperationEvent.
 
+        Event payload is copied so the source event is never mutated.
 
-        execution_id = (
-            payload.get(
-                "execution_id"
-            )
-        )
+        Execution events do not currently carry an animal identity at
+        this boundary, therefore animal_id remains None.
+        """
 
-
-        operator = (
-
-            payload.get(
-                "completed_by"
-            )
-
-            or payload.get(
-                "verified_by"
+        if event is None:
+            raise ValueError(
+                "ExecutionFarmEventAdapter requires an event"
             )
 
-            or payload.get(
-                "started_by"
+        event_name = getattr(event, "name", None)
+
+        if not event_name:
+            raise ValueError(
+                "Execution event requires name"
             )
 
-            or payload.get(
-                "acknowledged_by"
-            )
+        raw_payload = getattr(event, "payload", None)
 
-            or payload.get(
-                "assigned_to"
-            )
+        if raw_payload is None:
+            payload = {}
+        else:
+            try:
+                payload = dict(raw_payload)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "Execution event payload must be mapping-compatible"
+                ) from exc
 
-            or "SYSTEM"
-
-        )
-
+        operator = self._resolve_operator(payload)
 
         return FarmOperationEvent(
-
-            event_type=event.name,
-
+            event_type=event_name,
             animal_id=None,
-
             operator=operator,
-
             payload=payload,
-
         )
+
+    @classmethod
+    def _resolve_operator(cls, payload: dict) -> str:
+        """
+        Resolve the attributable actor from the execution event payload.
+
+        The first populated actor field wins. SYSTEM is used only when
+        the execution event contains no attributable actor.
+        """
+
+        for field_name in cls.ACTOR_FIELDS:
+            value = payload.get(field_name)
+
+            if value is not None and str(value).strip():
+                return str(value)
+
+        return cls.SYSTEM_OPERATOR
