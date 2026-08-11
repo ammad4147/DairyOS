@@ -1,62 +1,66 @@
-from dairyos.platform.autonomy.execution.models.action_plan import ActionPlan
-from dairyos.platform.autonomy.execution.services.execution_service import ExecutionService
-from dairyos.operations.execution.models.operational_execution import OperationalExecution
+from dairyos.operations.execution.models.operational_execution import (
+    OperationalExecution,
+)
+
+from dairyos.platform.autonomy.execution.services.execution_service import (
+    ExecutionService,
+)
 
 
-def test_action_plan_accepts_only_planning_states():
-    valid_states = {
-        "draft",
-        "pending_approval",
-        "approved",
-        "rejected",
-    }
-
-    for status in valid_states:
-        plan = ActionPlan(
-            title="Test action",
-            description="Test description",
-            assigned_to="operator",
-            priority="high",
-            status=status,
-        )
-
-        assert plan.status == status
-
-
-def test_action_plan_rejects_operational_execution_states():
-    operational_states = {
-        OperationalExecution.CREATED,
-        OperationalExecution.ASSIGNED,
-        OperationalExecution.ACKNOWLEDGED,
-        OperationalExecution.STARTED,
-        OperationalExecution.COMPLETED,
-        OperationalExecution.VERIFIED,
-        OperationalExecution.CLOSED,
-    }
-
-    for status in operational_states:
-        try:
-            ActionPlan(
-                title="Test action",
-                description="Test description",
-                assigned_to="operator",
-                priority="high",
-                status=status,
-            )
-        except ValueError:
-            pass
-        else:
-            raise AssertionError(
-                f"ActionPlan incorrectly accepted execution state {status!r}"
-            )
-
-
-def test_autonomy_completion_changes_only_canonical_execution():
+def test_action_plan_approval_creates_canonical_execution_boundary():
     service = ExecutionService()
 
     plan = service.create_plan(
-        title="Inspect animals",
-        description="Veterinary inspection",
+        title="Inspect affected animals",
+        description="Veterinary review",
+        assigned_to="veterinarian",
+        priority="high",
+    )
+
+    assert plan.status == service.PLAN_DRAFT
+
+    service.approve(plan)
+
+    assert plan.status == service.PLAN_APPROVED
+
+    execution = service.get_execution(plan)
+
+    assert execution is not None
+    assert isinstance(execution, OperationalExecution)
+    assert execution.action_id.startswith("AUTONOMY-ACTION-")
+    assert execution.assigned_to == "veterinarian"
+    assert execution.status == execution.ASSIGNED
+
+
+def test_action_plan_does_not_own_operational_execution_lifecycle():
+    service = ExecutionService()
+
+    plan = service.create_plan(
+        title="Review health conditions",
+        description="Inspect affected animals",
+        assigned_to="veterinarian",
+        priority="high",
+    )
+
+    service.approve(plan)
+
+    assert not hasattr(plan, "start")
+    assert not hasattr(plan, "complete")
+    assert not hasattr(plan, "verify")
+    assert not hasattr(plan, "close")
+
+    execution = service.get_execution(plan)
+
+    assert execution is not None
+    assert execution.status == execution.ASSIGNED
+
+
+def test_action_plan_completion_returns_canonical_execution():
+    service = ExecutionService()
+
+    plan = service.create_plan(
+        title="Complete veterinary inspection",
+        description="Inspect affected animals",
         assigned_to="veterinarian",
         priority="high",
     )
@@ -65,30 +69,15 @@ def test_autonomy_completion_changes_only_canonical_execution():
 
     execution = service.complete(
         plan,
-        actor="veterinarian",
         notes="Inspection completed",
+        actor="veterinarian",
     )
 
-    assert plan.status == "approved"
-    assert execution.status == OperationalExecution.COMPLETED
-    assert service.get_execution(plan) is execution
+    assert isinstance(execution, OperationalExecution)
+    assert execution.status == execution.COMPLETED
+    assert execution.completed_by == "veterinarian"
+    assert execution.completed_at is not None
+    assert execution.notes == "Inspection completed"
 
-
-def test_autonomy_completion_is_idempotent_on_canonical_execution():
-    service = ExecutionService()
-
-    plan = service.create_plan(
-        title="Inspect animals",
-        description="Veterinary inspection",
-        assigned_to="veterinarian",
-        priority="high",
-    )
-
-    service.approve(plan)
-
-    first = service.complete(plan)
-    second = service.complete(plan)
-
-    assert plan.status == "approved"
-    assert first is second
-    assert second.status == OperationalExecution.COMPLETED
+    # The plan remains a planning/approval artifact.
+    assert plan.status == service.PLAN_APPROVED

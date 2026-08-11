@@ -94,13 +94,13 @@ class OrchestrationService:
             action
               |
               v
-            OperationalExecution
+        OperationalExecution
               |
               v
-            ExecutionTrackingService
+        ExecutionTrackingService
               |
               v
-            ExecutionRecord projection
+        ExecutionRecord projection
         """
 
         execution = self.execution_service.create_execution(

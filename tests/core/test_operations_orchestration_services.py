@@ -82,7 +82,6 @@ def test_execution_record_is_projection_not_execution_authority():
     assert record.execution_status == "completed"
     assert canonical.status == canonical.COMPLETED
 
-    # The record has no lifecycle transition API.
     assert not hasattr(record, "start")
     assert not hasattr(record, "complete")
     assert not hasattr(record, "verify")
