@@ -1,4 +1,4 @@
-from dairyos.milk.models.milk_entry import (
+﻿from dairyos.milk.models.milk_entry import (
     MilkEntry,
 )
 
@@ -57,6 +57,8 @@ class FarmOperationsRuntime:
     - invoke projections directly
     - translate FarmOperationEvent into OperationalEvent itself
     - publish OperationalEvent independently of the gateway
+    - duplicate enterprise persistence when the enterprise publisher
+      has already accepted the event
 
     Manual farm data entry remains the source of truth.
     """
@@ -140,13 +142,27 @@ class FarmOperationsRuntime:
 
         Ordering:
 
-            1. Timeline gateway
-            2. Runtime event collection
-            3. Operational event repository
-            4. Shared FarmOperationEventBus
-            5. Enterprise event publication is owned by the gateway
+            1. OperationsEventGateway
+               - timeline integration
+               - enterprise event translation
+               - enterprise publisher invocation
 
-        There is intentionally NO second bridge or publisher here.
+            2. Runtime event collection
+
+            3. Compatibility persistence fallback when no enterprise
+               publisher is configured
+
+            4. FarmOperationEventBus farm-domain fan-out
+
+        Enterprise publication is never performed directly here.
+
+        When an OperationalEventPublisher is configured, it owns
+        enterprise persistence. The runtime therefore does not call
+        event_repository.add() a second time.
+
+        When no enterprise publisher is configured, the existing
+        event_repository remains available as a compatibility
+        persistence path.
         """
 
         timeline_event = (
@@ -162,7 +178,10 @@ class FarmOperationsRuntime:
             event
         )
 
-        if self.event_repository is not None:
+        if (
+            self.operational_event_publisher is None
+            and self.event_repository is not None
+        ):
             self.event_repository.add(
                 event
             )
