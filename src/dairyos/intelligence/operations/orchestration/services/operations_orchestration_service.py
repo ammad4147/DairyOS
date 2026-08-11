@@ -17,6 +17,7 @@ from dairyos.intelligence.operations.orchestration.models.action_outcome import 
 from dairyos.operations.execution.services.operational_execution_service import (
     OperationalExecutionService,
 )
+
 from dairyos.operations.execution.services.execution_tracking_service import (
     ExecutionTrackingService,
 )
@@ -24,16 +25,29 @@ from dairyos.operations.execution.services.execution_tracking_service import (
 
 class OperationsOrchestrationService:
     """
-    Coordinates operational intelligence flow.
+    Coordinates the operational intelligence flow.
 
     Decisions, actions, assignments, and outcomes remain orchestration
-    concerns. Actual execution lifecycle is delegated to the canonical
-    OperationalExecution aggregate.
+    responsibilities.
+
+    Actual execution lifecycle belongs exclusively to
+    OperationalExecution.
     """
 
-    def __init__(self, execution_service=None, tracking_service=None):
-        self.execution_service = execution_service or OperationalExecutionService()
-        self.tracking_service = tracking_service or ExecutionTrackingService()
+    def __init__(
+        self,
+        execution_service=None,
+        tracking_service=None,
+    ):
+        self.execution_service = (
+            execution_service
+            or OperationalExecutionService()
+        )
+
+        self.tracking_service = (
+            tracking_service
+            or ExecutionTrackingService()
+        )
 
     def create_assignment(
         self,
@@ -54,20 +68,27 @@ class OperationsOrchestrationService:
         performed_by: str,
         notes: str,
     ) -> ExecutionRecord:
+        """
+        Compatibility operation.
+
+        ExecutionRecord is produced only after canonical
+        OperationalExecution has been completed.
+        """
+
         execution = self.execution_service.create_execution(
             action_id=action.action_type,
             assigned_to=performed_by,
         )
+
         self.tracking_service.complete(
             execution,
             notes=notes,
             actor=performed_by,
         )
 
-        return ExecutionRecord(
-            action_type=action.action_type,
+        return ExecutionRecord.from_execution(
+            execution=execution,
             performed_by=performed_by,
-            execution_status=execution.status.lower(),
             notes=notes,
         )
 

@@ -17,6 +17,7 @@ from dairyos.intelligence.operations.orchestration.models.action_outcome import 
 from dairyos.operations.execution.services.operational_execution_service import (
     OperationalExecutionService,
 )
+
 from dairyos.operations.execution.services.execution_tracking_service import (
     ExecutionTrackingService,
 )
@@ -26,14 +27,29 @@ class OrchestrationService:
     """
     Coordinates operational actions generated from intelligence decisions.
 
-    Action creation and assignment remain orchestration responsibilities.
-    Execution is delegated to the canonical OperationalExecution path.
-    ExecutionRecord is retained only as a compatibility/result DTO.
+    Responsibilities:
+
+        decision -> action -> assignment
+
+    Execution is handed to the canonical OperationalExecution path.
+
+    ExecutionRecord is only a historical/outcome projection.
     """
 
-    def __init__(self, execution_service=None, tracking_service=None):
-        self.execution_service = execution_service or OperationalExecutionService()
-        self.tracking_service = tracking_service or ExecutionTrackingService()
+    def __init__(
+        self,
+        execution_service=None,
+        tracking_service=None,
+    ):
+        self.execution_service = (
+            execution_service
+            or OperationalExecutionService()
+        )
+
+        self.tracking_service = (
+            tracking_service
+            or ExecutionTrackingService()
+        )
 
     def create_action(
         self,
@@ -69,20 +85,38 @@ class OrchestrationService:
         performed_by: str,
         notes: str,
     ) -> ExecutionRecord:
+        """
+        Compatibility operation.
+
+        The actual execution is created and completed through the
+        canonical OperationalExecution aggregate.
+
+            action
+              |
+              v
+            OperationalExecution
+              |
+              v
+            ExecutionTrackingService
+              |
+              v
+            ExecutionRecord projection
+        """
+
         execution = self.execution_service.create_execution(
             action_id=action_type,
             assigned_to=performed_by,
         )
+
         self.tracking_service.complete(
             execution,
             notes=notes,
             actor=performed_by,
         )
 
-        return ExecutionRecord(
-            action_type=action_type,
+        return ExecutionRecord.from_execution(
+            execution=execution,
             performed_by=performed_by,
-            execution_status=execution.status.lower(),
             notes=notes,
         )
 

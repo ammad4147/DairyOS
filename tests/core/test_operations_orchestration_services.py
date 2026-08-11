@@ -16,7 +16,6 @@ from dairyos.intelligence.operations.orchestration.services.outcome_processor im
 
 
 def test_action_orchestrator_creates_action():
-
     service = ActionOrchestrator()
 
     action = service.create_action(
@@ -31,9 +30,7 @@ def test_action_orchestrator_creates_action():
     assert action.source_decision == "herd_intelligence"
 
 
-
 def test_assignment_service_assigns_action():
-
     service = AssignmentService()
 
     assignment = service.assign(
@@ -47,9 +44,7 @@ def test_assignment_service_assigns_action():
     assert assignment.status == "assigned"
 
 
-
-def test_execution_tracker_records_execution():
-
+def test_execution_tracker_records_canonical_execution():
     service = ExecutionTracker()
 
     record = service.record_execution(
@@ -61,10 +56,40 @@ def test_execution_tracker_records_execution():
     assert record.action_type == "feeding_adjustment"
     assert record.execution_status == "completed"
 
+    canonical = record.canonical_execution
+
+    assert canonical is not None
+    assert canonical.action_id == "feeding_adjustment"
+    assert canonical.assigned_to == "farm_manager"
+    assert canonical.status == canonical.COMPLETED
+    assert canonical.completed_by == "farm_manager"
+    assert canonical.completed_at is not None
+    assert canonical.notes == "Completed morning adjustment"
+
+
+def test_execution_record_is_projection_not_execution_authority():
+    service = ExecutionTracker()
+
+    record = service.record_execution(
+        action_type="health_check",
+        performed_by="veterinarian",
+        notes="Inspection completed",
+    )
+
+    canonical = record.canonical_execution
+
+    assert canonical is not None
+    assert record.execution_status == "completed"
+    assert canonical.status == canonical.COMPLETED
+
+    # The record has no lifecycle transition API.
+    assert not hasattr(record, "start")
+    assert not hasattr(record, "complete")
+    assert not hasattr(record, "verify")
+    assert not hasattr(record, "close")
 
 
 def test_outcome_processor_creates_feedback():
-
     service = OutcomeProcessor()
 
     outcome = service.process(
