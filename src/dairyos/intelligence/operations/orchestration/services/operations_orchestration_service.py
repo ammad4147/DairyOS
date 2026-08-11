@@ -67,7 +67,7 @@ class OperationsOrchestrationService:
         return ExecutionRecord(
             action_type=action.action_type,
             performed_by=performed_by,
-            execution_status=execution.status,
+            execution_status=execution.status.lower(),
             notes=notes,
         )
 
