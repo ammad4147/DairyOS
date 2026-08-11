@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS PostgreSQL database initialization.
 
 Sprint-038
@@ -53,6 +53,14 @@ from dairyos.data.database.models.operational_state_model import (
 
 from dairyos.data.database.models.event_journal_model import (
     EventJournalModel,
+)
+
+from dairyos.data.models.treatment_record import (
+    TreatmentRecord,
+)
+
+from dairyos.data.models.drug_withdrawal_reference import (
+    DrugWithdrawalReference,
 )
 
 

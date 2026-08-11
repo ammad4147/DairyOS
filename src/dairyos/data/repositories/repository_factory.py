@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
@@ -36,6 +36,14 @@ from dairyos.data.repositories.health_observation_repository import (
 
 from dairyos.data.repositories.database_operational_state_repository import (
     DatabaseOperationalStateRepository,
+)
+
+from dairyos.data.repositories.treatment_repository import (
+    TreatmentRepository,
+)
+
+from dairyos.data.repositories.drug_withdrawal_reference_repository import (
+    DrugWithdrawalReferenceRepository,
 )
 
 from dairyos.data.database.session import (
@@ -138,6 +146,16 @@ class RepositoryFactory:
 
     def operational_state(self):
         return DatabaseOperationalStateRepository(
+            session=self._session,
+        )
+
+    def treatment(self):
+        return TreatmentRepository(
+            session=self._session,
+        )
+
+    def drug_reference(self):
+        return DrugWithdrawalReferenceRepository(
             session=self._session,
         )
 

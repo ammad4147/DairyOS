@@ -175,4 +175,26 @@ class InputCatalog:
                 ],
             ),
 
+
+
+            OperationalInputDefinition(
+                input_type=OperationalInputType.TREATMENT.value,
+                name="Treatment Entry",
+                description=(
+                    "Veterinary treatment records driving the "
+                    "milk-withdrawal safety check."
+                ),
+
+                required_fields=[
+                    "animal_id",
+                    "medicine",
+                ],
+
+                analytics_enabled=True,
+
+                notification_enabled=True,
+
+                governance_required=True,
+            ),
+
         ]

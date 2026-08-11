@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +11,12 @@ from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.milk.services.milk_recording_intelligence_service import MilkRecordingIntelligenceService
+
+from dairyos.operations.intelligence.services.withdrawal_service import (
+    WithdrawalPeriod,
+)
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
@@ -54,6 +59,29 @@ class HealthEntryRequest(BaseEntryRequest):
     symptom: str | None = None
     temperature_c: float | None = None
     severity: str = "NORMAL"
+
+
+class TreatmentEntryRequest(BaseEntryRequest):
+    animal_id: str
+    medicine: str
+    diagnosis: str | None = None
+    dose: str | None = None
+    treated_by: str | None = None
+    #
+    # Optional explicit override. Required when `medicine` is not
+    # (yet) in the maintained drug reference table -- see
+    # record_treatment() below for exactly how this is resolved.
+    #
+    milk_withdrawal_days: float | None = None
+    notes: str | None = None
+
+
+class DrugReferenceEntryRequest(BaseEntryRequest):
+    medicine: str
+    milk_withdrawal_days: float
+    meat_withdrawal_days: float | None = None
+    notes: str | None = None
+    verified: bool = False
 
 
 class BreedingEntryRequest(BaseEntryRequest):
@@ -549,6 +577,284 @@ def list_health_observations(
         container,
         "animal_health",
     )
+
+
+@router.post("/treatments")
+def record_treatment(
+    entry: TreatmentEntryRequest,
+    container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
+):
+    """
+    Record a veterinary treatment and open its milk-withdrawal period.
+
+    This is the fix for the core Tier 1a safety defect: previously
+    there was no endpoint that called
+    `WithdrawalService.add_period()`, so the "SAFETY ALERT" check in
+    `record_milk_entry()` above could never actually trigger.
+
+    Withdrawal days resolution, in order:
+      1. The maintained drug reference table (`/farm/drug-reference`),
+         matched case-insensitively on `medicine`.
+      2. An explicit `milk_withdrawal_days` on this request.
+
+    If neither is available the request is rejected (422/400) rather
+    than silently recording a treatment with a zero-day, unsafe
+    withdrawal period. A per-treatment override is captured on the
+    treatment record for audit purposes but is deliberately NOT
+    written back into the shared reference table -- one operator's
+    guess for one animal must not silently become the farm-wide
+    default for that drug.
+    """
+
+    operator = _operator(
+        entry.model_dump(),
+        current_user,
+    )
+
+    rf = getattr(container, "repository_factory", None)
+    if rf is None:
+        rf = RepositoryFactory.create()
+
+    reference = None
+    reference_repo = getattr(container, "drug_reference_repository", None)
+    if reference_repo is not None:
+        reference = reference_repo.find_by_medicine(entry.medicine)
+
+    withdrawal_source = "reference_table"
+    withdrawal_days = None
+
+    if reference is not None:
+        withdrawal_days = float(reference.milk_withdrawal_days)
+        if entry.milk_withdrawal_days is not None:
+            # Never let an override shorten a known reference period --
+            # only allow it to extend the withhold as an extra safety
+            # margin.
+            withdrawal_days = max(
+                withdrawal_days,
+                float(entry.milk_withdrawal_days),
+            )
+            if withdrawal_days > float(reference.milk_withdrawal_days):
+                withdrawal_source = "override_extended"
+    elif entry.milk_withdrawal_days is not None:
+        withdrawal_days = float(entry.milk_withdrawal_days)
+        withdrawal_source = "manual_override"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown medicine '{entry.medicine}': not found in the "
+                "drug reference table (see GET/POST /farm/drug-reference) "
+                "and no milk_withdrawal_days was supplied on this "
+                "treatment. Add the drug to the reference table from its "
+                "product label, or supply milk_withdrawal_days explicitly "
+                "for this treatment, before recording it."
+            ),
+        )
+
+    if withdrawal_days < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="milk_withdrawal_days cannot be negative.",
+        )
+
+    treated_at = datetime.now(timezone.utc)
+    withdrawal_until = treated_at + timedelta(days=withdrawal_days)
+
+    treatment_repo = getattr(container, "treatment_repository", None)
+    if treatment_repo is None:
+        treatment_repo = rf.treatment()
+
+    record = TreatmentRecord(
+        animal_id=entry.animal_id,
+        diagnosis=entry.diagnosis,
+        medicine=entry.medicine,
+        dose=entry.dose,
+        treated_by=entry.treated_by or operator,
+        treated_at=treated_at,
+        milk_withdrawal_days=withdrawal_days,
+        milk_withdrawal_until=withdrawal_until,
+        withdrawal_source=withdrawal_source,
+        notes=entry.notes,
+    )
+
+    try:
+        treatment_repo.add(record)
+    except Exception as exc:
+        try:
+            rf.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Treatment persistence failed: "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        ) from exc
+
+    withdrawal_svc = getattr(container, "withdrawal_service", None)
+    if withdrawal_svc is not None:
+        withdrawal_svc.add_period(
+            WithdrawalPeriod(
+                treatment_id=str(record.id),
+                animal_id=entry.animal_id,
+                start_time=treated_at,
+                end_time=withdrawal_until,
+            )
+        )
+
+    canonical_payload = {
+        **entry.model_dump(),
+        "operator": operator,
+        "treatment_id": record.id,
+        "treated_at": treated_at.isoformat(),
+        "milk_withdrawal_days": withdrawal_days,
+        "milk_withdrawal_until": withdrawal_until.isoformat(),
+        "withdrawal_source": withdrawal_source,
+        "status": "RECORDED",
+    }
+
+    event = container.input_gateway.record(
+        input_type="treatment",
+        payload=canonical_payload,
+        actor=operator,
+    )
+
+    event_payload = dict(getattr(event, "payload", {}) or {})
+
+    return {**canonical_payload, **event_payload}
+
+
+@router.get("/treatments")
+def list_treatments(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "treatment",
+    )
+
+
+@router.get("/withdrawals/active")
+def list_active_withdrawals(
+    container=Depends(get_container),
+):
+    """
+    Currently-withheld animals, for the milking parlour / dashboard.
+
+    Reads the live in-memory WithdrawalService (the same source of
+    truth `record_milk_entry()` checks), not just the treatment log,
+    so this reflects exactly which animals are unsafe to ship milk
+    from right now.
+    """
+
+    treatment_repo = getattr(container, "treatment_repository", None)
+    withdrawal_svc = getattr(container, "withdrawal_service", None)
+
+    if treatment_repo is None or withdrawal_svc is None:
+        return []
+
+    now = datetime.now(timezone.utc)
+    active = []
+
+    for record in treatment_repo.get_all():
+        if withdrawal_svc.is_withdrawn(str(record.id), at=now):
+            active.append(
+                {
+                    "treatment_id": record.id,
+                    "animal_id": record.animal_id,
+                    "medicine": record.medicine,
+                    "treated_at": (
+                        record.treated_at.isoformat()
+                        if record.treated_at
+                        else None
+                    ),
+                    "milk_withdrawal_until": (
+                        record.milk_withdrawal_until.isoformat()
+                        if record.milk_withdrawal_until
+                        else None
+                    ),
+                }
+            )
+
+    return active
+
+
+@router.get("/drug-reference")
+def list_drug_reference(
+    container=Depends(get_container),
+):
+    reference_repo = getattr(container, "drug_reference_repository", None)
+    if reference_repo is None:
+        return []
+
+    return [
+        {
+            "id": row.id,
+            "medicine": row.medicine,
+            "milk_withdrawal_days": row.milk_withdrawal_days,
+            "meat_withdrawal_days": row.meat_withdrawal_days,
+            "notes": row.notes,
+            "verified": row.verified,
+            "updated_by": row.updated_by,
+            "updated_at": (
+                row.updated_at.isoformat()
+                if row.updated_at
+                else None
+            ),
+        }
+        for row in reference_repo.get_all()
+    ]
+
+
+@router.post("/drug-reference")
+def upsert_drug_reference(
+    entry: DrugReferenceEntryRequest,
+    container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
+):
+    """
+    Add or update an entry in the maintained drug withdrawal reference
+    table. Ships empty by design -- see
+    `data/models/drug_withdrawal_reference.py` for why. Farm
+    management should populate this from actual product labels.
+    """
+
+    operator = _operator(
+        entry.model_dump(),
+        current_user,
+    )
+
+    reference_repo = getattr(container, "drug_reference_repository", None)
+    if reference_repo is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Drug reference repository is not available.",
+        )
+
+    record = reference_repo.upsert(
+        medicine=entry.medicine,
+        milk_withdrawal_days=entry.milk_withdrawal_days,
+        meat_withdrawal_days=entry.meat_withdrawal_days,
+        notes=entry.notes,
+        verified=entry.verified,
+        updated_by=operator,
+    )
+
+    return {
+        "id": record.id,
+        "medicine": record.medicine,
+        "milk_withdrawal_days": record.milk_withdrawal_days,
+        "meat_withdrawal_days": record.meat_withdrawal_days,
+        "notes": record.notes,
+        "verified": record.verified,
+        "updated_by": record.updated_by,
+    }
 
 
 @router.post("/breeding")

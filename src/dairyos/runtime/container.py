@@ -64,6 +64,11 @@ class RuntimeContainer:
         self.feed_repository = runtime.feed_repository
         self.health_repository = runtime.health_repository
         self.breeding_repository = runtime.breeding_repository
+        self.treatment_repository = runtime.treatment_repository
+        self.drug_reference_repository = (
+            runtime.drug_reference_repository
+        )
+        self.withdrawal_service = runtime.withdrawal_service
         self.operational_event_repository = (
             runtime.operational_event_repository
         )

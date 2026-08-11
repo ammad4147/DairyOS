@@ -1,4 +1,4 @@
-﻿from enum import Enum
+from enum import Enum
 
 
 class OperationalInputType(str, Enum):
@@ -21,3 +21,5 @@ class OperationalInputType(str, Enum):
     FINANCIAL = "financial"
 
     EQUIPMENT = "equipment"
+
+    TREATMENT = "treatment"

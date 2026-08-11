@@ -139,7 +139,7 @@ class OperationalCommandCenterService:
     def _create_decision(self, key, recommendation):
         priority = str(recommendation.get("priority", "NORMAL")).upper()
         details = recommendation.get("details")
-        description = details if isinstance(details, str) else str(details or recommendation.get("action", "Review operational condition"))
+        description = self._describe(recommendation, details)
         decision_id = "DEC-" + hashlib.sha1(repr(key).encode("utf-8")).hexdigest()[:10].upper()
         return OperationalDecision(
             decision_id=decision_id,
@@ -165,6 +165,45 @@ class OperationalCommandCenterService:
             )
             self._decision_actions[key] = action.action_id
         return [self._serialize(item) for item in self.operational_action_service.get_actions()]
+
+    @staticmethod
+    def _describe(recommendation, details):
+        """Render a human-readable, owner-facing description.
+
+        `details` frequently arrives as a raw dict (a health observation, an
+        exception payload, an inventory/financial signal). Falling back to
+        `str(details)` produced Python dict reprs in the operator UI; this
+        extracts the identifying fields instead so the persistent exception
+        rail stays readable.
+        """
+        if isinstance(details, str) and details.strip():
+            return details.strip()
+
+        if isinstance(details, dict):
+            animal_id = details.get("animal_id")
+            label = (
+                details.get("observation")
+                or details.get("symptom")
+                or details.get("message")
+                or details.get("description")
+                or details.get("inventory_type")
+                or details.get("financial_id")
+            )
+            severity = details.get("severity")
+
+            parts = []
+            if animal_id:
+                parts.append(f"Animal {animal_id}")
+            if label:
+                parts.append(str(label))
+            if severity:
+                parts.append(f"severity: {severity}")
+
+            if parts:
+                return " — ".join(parts)
+
+        fallback = recommendation.get("title") or recommendation.get("action")
+        return str(fallback or "Review operational condition")
 
     @staticmethod
     def _condition_key(recommendation):

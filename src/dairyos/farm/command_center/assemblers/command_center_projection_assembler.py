@@ -37,14 +37,7 @@ class CommandCenterProjectionAssembler:
                 else farm_status.attention_queue
             ),
             decisions=command_center.decisions,
-            actions=(
-                command_center.execution
-                if isinstance(
-                    command_center.execution,
-                    list,
-                )
-                else []
-            ),
+            actions=self._actions(command_center.execution),
             confidence={
                 "operational_score": command_center.health.get(
                     "operational_score",
@@ -55,3 +48,21 @@ class CommandCenterProjectionAssembler:
                 ),
             },
         )
+
+    @staticmethod
+    def _actions(execution):
+        """Extract the operator-facing actions list from `execution`.
+
+        `OperationalCommandCenterService.snapshot()` produces
+        `execution={"actions": [...], "count": ..., "open": ...}`; earlier
+        code here only accepted a bare list, so the "actions" key was
+        silently dropped and the API always reported an empty list even
+        when real, actionable items existed. Both shapes are accepted so
+        neither current nor future execution producers regress.
+        """
+        if isinstance(execution, dict):
+            actions = execution.get("actions", [])
+            return actions if isinstance(actions, list) else []
+        if isinstance(execution, list):
+            return execution
+        return []

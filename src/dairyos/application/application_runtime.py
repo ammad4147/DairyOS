@@ -1,4 +1,4 @@
-﻿"""
+"""
 Application Runtime
 ===================
 
@@ -21,6 +21,11 @@ from __future__ import annotations
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
+)
+
+from dairyos.operations.intelligence.services.withdrawal_service import (
+    WithdrawalPeriod,
+    WithdrawalService,
 )
 
 from dairyos.dashboard.services.dashboard_projection_service import (
@@ -313,6 +318,9 @@ class ApplicationRuntime:
         feed_repository=None,
         health_repository=None,
         breeding_repository=None,
+        treatment_repository=None,
+        drug_reference_repository=None,
+        withdrawal_service=None,
         operational_event_repository=None,
         operational_state_repository=None,
         user_repository=None,
@@ -400,6 +408,18 @@ class ApplicationRuntime:
             breeding_repository
             if breeding_repository is not None
             else self._repository_factory.breeding()
+        )
+
+        self._treatment_repository = (
+            treatment_repository
+            if treatment_repository is not None
+            else self._repository_factory.treatment()
+        )
+
+        self._drug_reference_repository = (
+            drug_reference_repository
+            if drug_reference_repository is not None
+            else self._repository_factory.drug_reference()
         )
 
         self._user_repository = (
@@ -863,6 +883,54 @@ class ApplicationRuntime:
             CommandCenterProjectionService()
         )
 
+        # ------------------------------------------------------------------
+        # Treatment / milk-withdrawal safety
+        # ------------------------------------------------------------------
+        #
+        # WithdrawalService itself is in-memory only (see its module
+        # docstring); TreatmentRecord rows are the durable source of
+        # truth. Every active/recent period is replayed into it here so
+        # a restart never silently "forgets" that an animal is under
+        # withdrawal.
+
+        self._withdrawal_service = (
+            withdrawal_service
+            if withdrawal_service is not None
+            else WithdrawalService()
+        )
+
+        self._hydrate_withdrawal_periods()
+
+    def _hydrate_withdrawal_periods(self):
+        """Replay persisted treatments into the in-memory WithdrawalService.
+
+        Safe to call more than once: WithdrawalService.add_period() keys
+        on treatment_id, so re-adding the same record is idempotent.
+        """
+
+        try:
+            records = self._treatment_repository.get_all()
+        except Exception:
+            # Persistence layer not reachable (e.g. an in-memory test
+            # double with no rows yet) â€” nothing to hydrate.
+            return
+
+        for record in records:
+            end_time = getattr(record, "milk_withdrawal_until", None)
+            start_time = getattr(record, "treated_at", None)
+
+            if end_time is None or start_time is None:
+                continue
+
+            self._withdrawal_service.add_period(
+                WithdrawalPeriod(
+                    treatment_id=str(record.id),
+                    animal_id=record.animal_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            )
+
     # ======================================================================
     # Event / recovery
     # ======================================================================
@@ -1015,6 +1083,18 @@ class ApplicationRuntime:
     @property
     def breeding_repository(self):
         return self._breeding_repository
+
+    @property
+    def treatment_repository(self):
+        return self._treatment_repository
+
+    @property
+    def drug_reference_repository(self):
+        return self._drug_reference_repository
+
+    @property
+    def withdrawal_service(self):
+        return self._withdrawal_service
 
     @property
     def operational_event_repository(self):
