@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from .operational_schedule_state import OperationalScheduleState
@@ -24,6 +24,128 @@ def _serialize(value):
     return value
 
 
+def _normalise_key(value, fallback):
+
+    if value is None:
+        return fallback
+
+    if isinstance(value, str):
+
+        value = value.strip()
+
+        if not value:
+            return fallback
+
+        if value.lower() in {
+            "null",
+            "none",
+        }:
+            return fallback
+
+    return value
+
+
+def _merge_state_values(target, source):
+
+    if not isinstance(target, dict) or not isinstance(source, dict):
+        return source
+
+    numeric_fields = {
+        "litres",
+        "animals_milked",
+        "quantity_kg",
+    }
+
+    list_fields = {
+        "unique_animal_ids",
+        "operators",
+    }
+
+    for key, value in source.items():
+
+        if key in numeric_fields:
+
+            target[key] = (
+                target.get(key, 0) or 0
+            ) + (
+                value or 0
+            )
+
+        elif key in list_fields:
+
+            existing = target.get(key)
+
+            if not isinstance(existing, list):
+                existing = []
+
+            incoming = value
+
+            if not isinstance(incoming, list):
+                incoming = []
+
+            for item in incoming:
+
+                if item not in existing:
+                    existing.append(item)
+
+            target[key] = existing
+
+        elif key in {
+            "last_timestamp",
+            "updated_at",
+        }:
+
+            existing = target.get(key)
+
+            if existing is None or (
+                value is not None
+                and str(value) > str(existing)
+            ):
+                target[key] = value
+
+        elif key not in target or target[key] is None:
+
+            target[key] = value
+
+    return target
+
+
+def _normalise_mapping(mapping, fallback):
+
+    if not isinstance(mapping, dict):
+        return {}
+
+    normalised = {}
+
+    for key, value in mapping.items():
+
+        normalised_key = _normalise_key(
+            key,
+            fallback,
+        )
+
+        if normalised_key in normalised:
+
+            existing = normalised[normalised_key]
+
+            if isinstance(existing, dict) and isinstance(value, dict):
+
+                normalised[normalised_key] = _merge_state_values(
+                    existing,
+                    value,
+                )
+
+            else:
+
+                normalised[normalised_key] = value
+
+        else:
+
+            normalised[normalised_key] = value
+
+    return normalised
+
+
 @dataclass
 class FarmOperationalState:
 
@@ -31,72 +153,58 @@ class FarmOperationalState:
 
     operational_date: str
 
-
     created_at: datetime = field(
         default_factory=lambda:
             datetime.now(timezone.utc)
     )
 
-
     active_operations: dict = field(
         default_factory=dict
     )
-
 
     animals: dict = field(
         default_factory=dict
     )
 
-
     milk_status: dict = field(
         default_factory=dict
     )
-
 
     feeding_status: dict = field(
         default_factory=dict
     )
 
-
     health_state: dict = field(
         default_factory=dict
     )
-
 
     health_alerts: list = field(
         default_factory=list
     )
 
-
     breeding_status: dict = field(
         default_factory=dict
     )
-
 
     workforce_status: dict = field(
         default_factory=dict
     )
 
-
     inventory_status: dict = field(
         default_factory=dict
     )
-
 
     equipment_status: dict = field(
         default_factory=dict
     )
 
-
     financial_status: dict = field(
         default_factory=dict
     )
 
-
     operational_freshness: dict = field(
         default_factory=dict
     )
-
 
     milk_production_summary: dict = field(
         default_factory=lambda: {
@@ -109,21 +217,17 @@ class FarmOperationalState:
         }
     )
 
-
     open_tasks: list = field(
         default_factory=list
     )
-
 
     completed_tasks: list = field(
         default_factory=list
     )
 
-
     heads_up_notifications: list = field(
         default_factory=list
     )
-
 
     exceptions: list = field(
         default_factory=list
@@ -135,8 +239,6 @@ class FarmOperationalState:
 
     schedule_state: OperationalScheduleState | None = None
 
-
-
     def __post_init__(self):
 
         if self.schedule_state is None:
@@ -144,6 +246,31 @@ class FarmOperationalState:
             self.schedule_state = OperationalScheduleState(
                 schedule_date=self.operational_date
             )
+
+        self.milk_status = _normalise_mapping(
+            self.milk_status,
+            "GENERAL",
+        )
+
+        self.feeding_status = _normalise_mapping(
+            self.feeding_status,
+            "GENERAL",
+        )
+
+        self.workforce_status = _normalise_mapping(
+            self.workforce_status,
+            "GENERAL",
+        )
+
+        self.inventory_status = _normalise_mapping(
+            self.inventory_status,
+            "inventory",
+        )
+
+        self.financial_status = _normalise_mapping(
+            self.financial_status,
+            "GENERAL",
+        )
 
     def record_lifecycle_event(
         self,
@@ -154,12 +281,10 @@ class FarmOperationalState:
         if animal_id is None:
             return None
 
-
         current = self.animals.setdefault(
             animal_id,
             {}
         )
-
 
         current["lifecycle"] = {
 
@@ -190,7 +315,6 @@ class FarmOperationalState:
 
         }
 
-
         return current["lifecycle"]
 
     def record_animal(
@@ -203,7 +327,6 @@ class FarmOperationalState:
 
         return self.animals[animal_id]
 
-
     def get_animal(
         self,
         animal_id,
@@ -213,7 +336,6 @@ class FarmOperationalState:
             animal_id
         )
 
-
     def list_animals(
         self,
     ):
@@ -222,13 +344,17 @@ class FarmOperationalState:
             self.animals.values()
         )
 
-
     def start_operation(
         self,
         operation_type,
         operator=None,
         metadata=None,
     ):
+
+        operation_type = _normalise_key(
+            operation_type,
+            "GENERAL",
+        )
 
         self.active_operations[operation_type] = {
 
@@ -248,12 +374,15 @@ class FarmOperationalState:
 
         return self.active_operations[operation_type]
 
-
-
     def complete_operation(
         self,
         operation_type,
     ):
+
+        operation_type = _normalise_key(
+            operation_type,
+            "GENERAL",
+        )
 
         operation = self.active_operations.get(
             operation_type
@@ -269,14 +398,17 @@ class FarmOperationalState:
 
         return operation
 
-
-
     def record_freshness(
         self,
         area,
         timestamp=None,
         source=None,
     ):
+
+        area = _normalise_key(
+            area,
+            "GENERAL",
+        )
 
         self.operational_freshness[area] = {
 
@@ -289,8 +421,6 @@ class FarmOperationalState:
 
         }
 
-
-
     def record_milk_activity(
         self,
         shift,
@@ -299,6 +429,11 @@ class FarmOperationalState:
         animal_id=None,
         timestamp=None,
     ):
+
+        shift = _normalise_key(
+            shift,
+            "GENERAL",
+        )
 
         entry = self.milk_status.setdefault(
 
@@ -328,66 +463,90 @@ class FarmOperationalState:
 
         )
 
-
         entry["litres"] += litres
 
-        if "unique_animal_ids" not in entry or not isinstance(entry["unique_animal_ids"], list):
-            entry["unique_animal_ids"] = list(entry.get("unique_animal_ids") or [])
+        if (
+            "unique_animal_ids" not in entry
+            or not isinstance(
+                entry["unique_animal_ids"],
+                list,
+            )
+        ):
 
-        if animal_id:
-            str_id = str(animal_id)
-            if str_id not in entry["unique_animal_ids"]:
-                entry["unique_animal_ids"].append(str_id)
-            entry["animals_milked"] = len(entry["unique_animal_ids"])
-        else:
-            entry["animals_milked"] += 1
-
-
-        if operator and operator not in entry["operators"]:
-
-            entry["operators"].append(
-                operator
+            entry["unique_animal_ids"] = list(
+                entry.get(
+                    "unique_animal_ids"
+                ) or []
             )
 
+        if animal_id:
+
+            str_id = str(
+                animal_id
+            )
+
+            if str_id not in entry[
+                "unique_animal_ids"
+            ]:
+
+                entry[
+                    "unique_animal_ids"
+                ].append(
+                    str_id
+                )
+
+            entry["animals_milked"] = len(
+                entry[
+                    "unique_animal_ids"
+                ]
+            )
+
+        else:
+
+            entry["animals_milked"] += 1
+
+        if operator and operator not in entry[
+            "operators"
+        ]:
+
+            entry[
+                "operators"
+            ].append(
+                operator
+            )
 
         entry["last_timestamp"] = (
             timestamp
             or datetime.now(timezone.utc)
         )
 
-
         entry["status"] = "completed"
-
 
         self.milk_production_summary[
             "total_litres_today"
         ] += litres
 
-
         self.milk_production_summary[
             "milking_events_count"
         ] += 1
 
-
         self.milk_production_summary[
             "last_milking_time"
-        ] = entry["last_timestamp"]
-
+        ] = entry[
+            "last_timestamp"
+        ]
 
         self.milk_production_summary[
             "last_operator"
         ] = operator
 
-
         self.milk_production_summary[
             "last_shift"
         ] = shift
 
-
         self.milk_production_summary[
             "last_animal_id"
         ] = animal_id
-
 
         return entry
 
@@ -396,6 +555,11 @@ class FarmOperationalState:
         feed_type,
         quantity_kg,
     ):
+
+        feed_type = _normalise_key(
+            feed_type,
+            "GENERAL",
+        )
 
         entry = self.feeding_status.setdefault(
 
@@ -412,15 +576,11 @@ class FarmOperationalState:
 
         )
 
-
         entry["quantity_kg"] += quantity_kg
 
         entry["status"] = "completed"
 
-
         return entry
-
-
 
     def add_health_alert(
         self,
@@ -445,17 +605,13 @@ class FarmOperationalState:
 
         }
 
-
         self.health_alerts.append(
             record
         )
 
-
         self.health_state[animal_id] = record
 
-
         return record
-
 
     def record_reproductive_event(
         self,
@@ -466,25 +622,20 @@ class FarmOperationalState:
         if animal_id is None:
             return None
 
-
         existing = self.breeding_status.setdefault(
             animal_id,
             {}
         )
 
-
         existing.update(
             details
         )
 
-
         existing["animal_id"] = animal_id
-
 
         existing["updated_at"] = (
             datetime.now(timezone.utc)
         )
-
 
         return existing
 
@@ -506,10 +657,7 @@ class FarmOperationalState:
 
         }
 
-
         return self.breeding_status[animal_id]
-
-
 
     def record_workforce_activity(
         self,
@@ -517,11 +665,14 @@ class FarmOperationalState:
         value,
     ):
 
+        metric_type = _normalise_key(
+            metric_type,
+            "GENERAL",
+        )
+
         self.workforce_status[metric_type] = value
 
         return value
-
-
 
     def record_inventory_status(
         self,
@@ -530,8 +681,10 @@ class FarmOperationalState:
         details,
     ):
 
-        key = inventory_type
-
+        key = _normalise_key(
+            inventory_type,
+            "inventory",
+        )
 
         self.inventory_status[key] = {
 
@@ -551,16 +704,16 @@ class FarmOperationalState:
 
         }
 
-
         return self.inventory_status[key]
-
-
 
     def record_equipment_status(
         self,
         equipment_id,
         details,
     ):
+
+        if equipment_id is None:
+            equipment_id = "GENERAL"
 
         self.equipment_status[equipment_id] = {
 
@@ -571,10 +724,7 @@ class FarmOperationalState:
 
         }
 
-
         return self.equipment_status[equipment_id]
-
-
 
     def record_financial_activity(
         self,
@@ -582,11 +732,14 @@ class FarmOperationalState:
         details,
     ):
 
+        financial_type = _normalise_key(
+            financial_type,
+            "GENERAL",
+        )
+
         self.financial_status[financial_type] = details
 
         return details
-
-
 
     def record_open_task(
         self,
@@ -597,8 +750,6 @@ class FarmOperationalState:
             task
         )
 
-
-
     def record_completed_task(
         self,
         task,
@@ -607,8 +758,6 @@ class FarmOperationalState:
         self.completed_tasks.append(
             task
         )
-
-
 
     def milk_total(
         self,
@@ -625,8 +774,6 @@ class FarmOperationalState:
 
         )
 
-
-
     def feed_total(
         self,
     ):
@@ -642,8 +789,6 @@ class FarmOperationalState:
 
         )
 
-
-
     def health_status(
         self,
     ):
@@ -654,8 +799,6 @@ class FarmOperationalState:
 
         return "NORMAL"
 
-
-
     def health_alert_count(
         self,
     ):
@@ -663,8 +806,6 @@ class FarmOperationalState:
         return len(
             self.health_alerts
         )
-
-
 
     def operational_status(
         self,
@@ -676,8 +817,6 @@ class FarmOperationalState:
 
         return "normal"
 
-
-
     def heads_up_count(
         self,
     ):
@@ -685,8 +824,6 @@ class FarmOperationalState:
         return len(
             self.heads_up_notifications
         )
-
-
 
     def record_event(
         self,
@@ -708,12 +845,11 @@ class FarmOperationalState:
                     None,
                 )
                 or getattr(
-                     event,
-                     "name",
-                     None,
+                    event,
+                    "name",
+                    None,
                 )
             )
-
 
             if event_type:
 
@@ -727,8 +863,14 @@ class FarmOperationalState:
 
                 event_type = (
                     event_type
-                    .replace("-", "_")
-                    .replace(" ", "_")
+                    .replace(
+                        "-",
+                        "_",
+                    )
+                    .replace(
+                        " ",
+                        "_",
+                    )
                     .lower()
                 )
 
@@ -738,30 +880,36 @@ class FarmOperationalState:
                 {},
             )
 
-
         animal_id = (
-            getattr(event, "animal_id", None)
+            getattr(
+                event,
+                "animal_id",
+                None,
+            )
             or event_payload.get(
                 "animal_id"
             )
         )
 
-
         if event_type == "activity_started":
 
             self.start_operation(
-                event_payload.get("activity_type"),
-                event_payload.get("operator"),
+                event_payload.get(
+                    "activity_type"
+                ),
+                event_payload.get(
+                    "operator"
+                ),
                 event_payload,
             )
-
 
         elif event_type == "activity_completed":
 
             self.complete_operation(
-                event_payload.get("activity_type")
+                event_payload.get(
+                    "activity_type"
+                )
             )
-
 
         elif event_type == "animal_created":
 
@@ -769,7 +917,6 @@ class FarmOperationalState:
                 animal_id,
                 event_payload,
             )
-
 
         elif event_type in (
             "milk_recorded",
@@ -802,7 +949,6 @@ class FarmOperationalState:
 
             )
 
-
         elif event_type in (
             "feed_recorded",
             "feed_distributed",
@@ -821,7 +967,6 @@ class FarmOperationalState:
 
             )
 
-
         elif event_type in (
             "health_recorded",
             "health_observation_recorded",
@@ -839,7 +984,6 @@ class FarmOperationalState:
                 ),
             )
 
-
         elif event_type in (
             "breeding_recorded",
             "breeding_activity_recorded",
@@ -856,6 +1000,7 @@ class FarmOperationalState:
                 animal_id,
                 {
                     **event_payload,
+
                     "operator":
                         getattr(
                             event,
@@ -872,7 +1017,6 @@ class FarmOperationalState:
                 },
             )
 
-
         elif event_type in (
             "heat_detected",
             "insemination_recorded",
@@ -883,6 +1027,7 @@ class FarmOperationalState:
                 animal_id,
                 {
                     **event_payload,
+
                     "event_type":
                         event_type,
 
@@ -902,23 +1047,31 @@ class FarmOperationalState:
                 },
             )
 
-
         elif event_type == "workforce_activity_recorded":
 
             self.record_workforce_activity(
-                event_payload.get("metric_type"),
-                event_payload.get("value"),
+                event_payload.get(
+                    "metric_type"
+                ),
+                event_payload.get(
+                    "value"
+                ),
             )
-
 
         elif event_type == "inventory_status_recorded":
 
             self.record_inventory_status(
-                event_payload.get("inventory_type"),
-                event_payload.get("item"),
-                event_payload.get("details", {}),
+                event_payload.get(
+                    "inventory_type"
+                ),
+                event_payload.get(
+                    "item"
+                ),
+                event_payload.get(
+                    "details",
+                    {},
+                ),
             )
-
 
         elif event_type == "equipment_status_recorded":
 
@@ -938,8 +1091,10 @@ class FarmOperationalState:
                 )
 
                 if operator:
-                    equipment_details["operator"] = operator
 
+                    equipment_details[
+                        "operator"
+                    ] = operator
 
             self.record_equipment_status(
                 event_payload.get(
@@ -947,7 +1102,6 @@ class FarmOperationalState:
                 ),
                 equipment_details,
             )
-
 
         elif event_type in (
             "financial_status_recorded",
@@ -958,15 +1112,23 @@ class FarmOperationalState:
         ):
 
             self.record_financial_activity(
+
                 event_payload.get(
                     "financial_type"
+                )
+                or event_payload.get(
+                    "transaction_type"
+                )
+                or event_payload.get(
+                    "type"
                 ),
+
                 event_payload.get(
                     "details",
                     {},
                 ),
-            )
 
+            )
 
         elif event_type == "task_created":
 
@@ -974,13 +1136,11 @@ class FarmOperationalState:
                 event_payload
             )
 
-
         elif event_type == "task_completed":
 
             self.record_completed_task(
                 event_payload
             )
-
 
         if event_type not in (
             "activity_started",
@@ -1031,9 +1191,7 @@ class FarmOperationalState:
                 }
             )
 
-
         return self
-
 
     def summary(
         self,
@@ -1084,4 +1242,3 @@ class FarmOperationalState:
                 self.animals,
 
         })
-
