@@ -1,11 +1,11 @@
 """
 DairyOS Operator Cockpit UI contract tests.
 
-Version: 0.3.1
+Version: 0.4.0
 Date: 2026-08-11
 Purpose: lock the five-prime-part dashboard information architecture,
-persistent exception rail, customization/reorder controls, role-aware
-persistence bridge, and live domain entry surface.
+persistent exception rail, customization/reorder controls, live domain cockpit,
+role-aware persistence bridge, and live domain entry surface.
 """
 
 from fastapi.testclient import TestClient
@@ -62,6 +62,7 @@ def test_dashboard_has_non_hideable_exception_and_customization_contract(
     assert "function resetDashboard()" in html
     assert "dairyos.dashboard.widgets" in html
     assert "/ui/dashboard_enhancements.js" in html
+    assert "/ui/dashboard_live.js" in html
     assert "widget-order-row" in html
     assert "Move up" in html
     assert "Move down" in html
@@ -81,6 +82,34 @@ def test_dashboard_preserves_five_prime_sections_as_permanent_structure(
     assert "prime-section full" in html
     assert "The section itself can never disappear." in html
     assert "function sectionCard(s,body)" in html
+
+
+def test_dashboard_live_cockpit_has_five_domain_and_evidence_contract(
+    client: TestClient,
+):
+    html = client.get("/").text
+
+    assert "Live operating picture" in html or "/ui/dashboard_live.js" in html
+    live_js = client.get("/ui/dashboard_live.js")
+    assert live_js.status_code == 200
+    source = live_js.text
+
+    for endpoint in DOMAIN_ENDPOINTS.values():
+        assert endpoint in source
+
+    for domain in (
+        "Herd Management",
+        "Milk Records",
+        "Health & Vaccination",
+        "Feed Management",
+        "Financials",
+        "Breeding & Reproduction",
+    ):
+        assert domain in source
+
+    assert "No synthetic values" in source
+    assert "Forecasts are withheld" in source
+    assert "Open breeding" in source
 
 
 def test_dashboard_has_operational_drill_down_and_domain_navigation(
