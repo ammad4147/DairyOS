@@ -14,22 +14,26 @@ from dairyos.intelligence.operations.orchestration.models.action_outcome import 
     ActionOutcome,
 )
 
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
+)
+from dairyos.operations.execution.services.execution_tracking_service import (
+    ExecutionTrackingService,
+)
+
 
 class OperationsOrchestrationService:
     """
-    Coordinates operational intelligence execution flow.
+    Coordinates operational intelligence flow.
 
-    Converts intelligence decisions into
-    trackable operational activities.
-
-    Future extensions:
-
-    - autonomous dispatching
-    - approval workflows
-    - execution monitoring
-    - learning feedback integration
+    Decisions, actions, assignments, and outcomes remain orchestration
+    concerns. Actual execution lifecycle is delegated to the canonical
+    OperationalExecution aggregate.
     """
 
+    def __init__(self, execution_service=None, tracking_service=None):
+        self.execution_service = execution_service or OperationalExecutionService()
+        self.tracking_service = tracking_service or ExecutionTrackingService()
 
     def create_assignment(
         self,
@@ -37,7 +41,6 @@ class OperationsOrchestrationService:
         assigned_to: str,
         assigned_role: str,
     ) -> ActionAssignment:
-
         return ActionAssignment(
             action_type=action.action_type,
             assigned_to=assigned_to,
@@ -45,21 +48,28 @@ class OperationsOrchestrationService:
             status="assigned",
         )
 
-
     def record_execution(
         self,
         action: OperationalAction,
         performed_by: str,
         notes: str,
     ) -> ExecutionRecord:
+        execution = self.execution_service.create_execution(
+            action_id=action.action_type,
+            assigned_to=performed_by,
+        )
+        self.tracking_service.complete(
+            execution,
+            notes=notes,
+            actor=performed_by,
+        )
 
         return ExecutionRecord(
             action_type=action.action_type,
             performed_by=performed_by,
-            execution_status="completed",
+            execution_status=execution.status,
             notes=notes,
         )
-
 
     def create_outcome(
         self,
@@ -68,7 +78,6 @@ class OperationsOrchestrationService:
         success: bool,
         feedback: str,
     ) -> ActionOutcome:
-
         return ActionOutcome(
             action_type=action.action_type,
             result=result,
