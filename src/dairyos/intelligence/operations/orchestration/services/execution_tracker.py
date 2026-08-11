@@ -42,6 +42,6 @@ class ExecutionTracker:
         return ExecutionRecord(
             action_type=action_type,
             performed_by=performed_by,
-            execution_status=execution.status,
+            execution_status=execution.status.lower(),
             notes=notes,
         )
