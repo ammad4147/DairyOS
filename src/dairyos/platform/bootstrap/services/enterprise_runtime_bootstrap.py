@@ -107,12 +107,8 @@ class EnterpriseRuntimeBootstrap:
     """
     Enterprise DairyOS runtime bootstrap coordinator.
 
-    The ApplicationRuntime is supplied by the canonical application
-    composition root. This class does not construct an application graph.
-
     Enterprise operational-event infrastructure is composed here and
-    then explicitly injected into the already-created farm operations
-    runtime.
+    connected to the application's existing operational-event repository.
 
     Canonical event path:
 
@@ -127,10 +123,18 @@ class EnterpriseRuntimeBootstrap:
                 v
         OperationalEventPublisher
                 |
-        +-------+-------+
-        |       |       |
-        v       v       v
-       Store   Bus  Dispatcher
+                v
+            EventStore
+                |
+                v
+        OperationalEventRepository
+                |
+                v
+            PostgreSQL
+
+    The EventBus and EventDispatcher remain downstream enterprise
+    integration mechanisms and are not independently invoked by the
+    farm runtime.
     """
 
     def __init__(
@@ -168,7 +172,11 @@ class EnterpriseRuntimeBootstrap:
 
         self.observability_service = ObservabilityService()
 
-        self.event_store = EventStore()
+        self.event_store = EventStore(
+            repository=(
+                self.application_runtime.operational_event_repository
+            )
+        )
 
         self.event_bus = EventBus()
 
