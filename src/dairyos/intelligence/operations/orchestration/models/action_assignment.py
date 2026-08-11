@@ -4,21 +4,18 @@ from dataclasses import dataclass
 @dataclass
 class ActionAssignment:
     """
-    Represents assignment ownership
-    for an operational action.
+    Represents ownership of an operational action.
 
-    Future extensions:
+    Assignment answers:
 
-    - workload balancing
-    - staff availability
-    - role permissions
+        "WHO should do it?"
+
+    Assignment does not own completion or execution progress. Once an
+    assigned action is dispatched, the canonical OperationalExecution
+    aggregate owns the execution lifecycle.
     """
 
-
     action_type: str
-
     assigned_to: str
-
     assigned_role: str
-
     status: str
