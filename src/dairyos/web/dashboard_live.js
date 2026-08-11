@@ -271,7 +271,7 @@
 
     root.innerHTML = `
       <div class="live-cockpit-head">
-        <div><div class="live-cockpit-title">Live operating picture</div><div class="live-cockpit-meta">Persisted records · no synthetic values · ${state.loadedAt ? state.loadedAt.toLocaleTimeString() : "not refreshed"}</div></div>
+        <div><div class="live-cockpit-title">Live operating picture</div><div class="live-cockpit-meta">Persisted records · No synthetic values · ${state.loadedAt ? state.loadedAt.toLocaleTimeString() : "not refreshed"}</div></div>
         <div class="live-cockpit-meta">${fmt(exceptionCount)} exception signals</div>
       </div>
       <div class="live-grid">
