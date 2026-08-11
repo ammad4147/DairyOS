@@ -1,88 +1,552 @@
+/*
+ * DairyOS Dashboard styles — complete replacement
+ * Version: 1.0.0 | 2026-08-12
+ * Purpose: Spacious operator dashboard matching the approved layout.
+ * Compact exception icons, prominent At a Glance metrics, restrained cards,
+ * clickable navigation surfaces, and responsive behavior.
+ * Currency: PKR.
+ *
+ * PowerShell deployment/rollback:
+ * $t='D:\DairyOS\src\DairyOS.Web\src\components\CommandCenter.css';$b='D:\DairyOS\_backups';New-Item -ItemType Directory -Force $b|Out-Null;Copy-Item $t (Join-Path $b ('CommandCenter.css_'+(Get-Date -Format yyyyMMdd_HHmmss)+'.bak')) -Force
+ * Rollback: Copy-Item (Get-ChildItem 'D:\DairyOS\_backups\CommandCenter.css_*.bak'|Sort-Object LastWriteTime -Descending|Select-Object -First 1).FullName $t -Force
+ */
+
 .command-center {
-
-    padding: 24px;
-
     display: flex;
-
     flex-direction: column;
+    gap: 18px;
+    width: 100%;
+    max-width: 1540px;
+    margin: 0 auto;
+}
 
+.dashboard-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 20px;
-
 }
 
-
-.command-header {
-
+.dashboard-title-row h2 {
+    margin: 0;
     font-size: 28px;
-
-    font-weight: bold;
-
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #0f172a;
 }
 
-
-
-.summary-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            3,
-            1fr
-        );
-
-    gap: 16px;
-
+.dashboard-title-row p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 13px;
 }
 
-
-
-.operational-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            2,
-            1fr
-        );
-
-    gap: 16px;
-
+.dashboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-
-
-.panel {
-
-    border: 1px solid #ddd;
-
+.farm-selector,
+.refresh-button {
+    min-height: 38px;
+    border: 1px solid #dbe4ee;
     border-radius: 10px;
-
-    padding: 16px;
-
-    background: white;
-
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
+.farm-selector {
+    min-width: 188px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
 
+.farm-selector span {
+    color: #64748b;
+    font-size: 16px;
+}
 
-.attention-panel {
+.refresh-button {
+    width: 38px;
+    padding: 0;
+    cursor: pointer;
+    font-size: 18px;
+}
 
+.refresh-button:hover,
+.farm-selector:hover {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+}
+
+.dashboard-section,
+.dashboard-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 3px 14px rgba(15, 23, 42, 0.035);
+}
+
+.dashboard-section {
+    padding: 18px 20px;
+}
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.section-heading h3,
+.card-heading h3 {
+    margin: 0;
+    color: #172033;
+    font-size: 16px;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+}
+
+.section-hint,
+.card-heading p {
+    display: block;
+    margin-top: 4px;
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.updated-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.updated-indicator span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+}
+
+/* Small, low-profile exception controls: the attention area must not dominate. */
+.compact-section {
+    padding-bottom: 15px;
+}
+
+.exception-strip {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(70px, 1fr));
+    gap: 9px;
+}
+
+.exception-icon {
+    position: relative;
+    min-width: 0;
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #edf2f7;
+    border-radius: 11px;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.exception-icon:hover {
+    transform: translateY(-1px);
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+}
+
+.exception-glyph {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+}
+
+.exception-label {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.exception-count {
+    position: absolute;
+    top: 5px;
+    right: 7px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.exception-icon.red .exception-glyph { background: #fff1f2; color: #ef4444; }
+.exception-icon.orange .exception-glyph { background: #fff7ed; color: #f97316; }
+.exception-icon.blue .exception-glyph { background: #eff6ff; color: #2563eb; }
+.exception-icon.green .exception-glyph { background: #f0fdf4; color: #16a34a; }
+.exception-icon.purple .exception-glyph { background: #faf5ff; color: #9333ea; }
+.exception-icon.amber .exception-glyph { background: #fffbeb; color: #d97706; }
+.exception-icon.cyan .exception-glyph { background: #ecfeff; color: #0891b2; }
+.exception-icon.emerald .exception-glyph { background: #ecfdf5; color: #059669; }
+.exception-icon.more .exception-glyph { background: #f1f5f9; color: #64748b; }
+
+/* Quick access is navigation only; actual entry forms remain inside their domains. */
+.quick-access-section {
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+.quick-access-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.quick-access-button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 11px;
+    border: 1px solid #e5eaf0;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #1e293b;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.quick-access-button:hover {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.quick-access-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #2563eb;
+}
+
+.quick-access-arrow {
+    margin-left: auto;
+    color: #94a3b8;
+}
+
+/* The visual priority requested by the operator: At a Glance gets the space. */
+.glance-section {
+    padding: 20px;
+}
+
+.glance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.glance-card {
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 16px 17px;
+    border: 1px solid #e8edf3;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    text-align: left;
+    transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.glance-card:hover {
+    transform: translateY(-1px);
+    border-color: #bfdbfe;
+    box-shadow: 0 5px 16px rgba(37, 99, 235, 0.08);
+}
+
+.glance-card.attention {
+    background: #fffafa;
+}
+
+.glance-card.positive {
+    background: #fbfffc;
+}
+
+.glance-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.glance-value {
+    margin-top: 6px;
+    color: #0f172a;
+    font-size: 27px;
+    line-height: 1;
+    letter-spacing: -0.035em;
+}
+
+.glance-card.attention .glance-value {
+    color: #dc2626;
+}
+
+.glance-card.positive .glance-value {
+    color: #15803d;
+}
+
+.glance-detail {
+    margin-top: 6px;
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.glance-link {
     margin-top: 10px;
-
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: 800;
 }
 
+.dashboard-lower-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
+    gap: 14px;
+}
 
+.dashboard-card {
+    padding: 18px 20px;
+}
 
-@media(max-width:900px){
+.card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eef2f6;
+}
 
-    .summary-grid,
-    .operational-grid {
+.card-heading button {
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+}
 
-        grid-template-columns:
-            1fr;
+.status-badge {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 10px;
+    font-weight: 800;
+}
 
+.activity-list,
+.status-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-row,
+.status-list button {
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background: transparent;
+    color: #1e293b;
+    text-align: left;
+    cursor: pointer;
+}
+
+.activity-row:hover,
+.status-list button:hover {
+    background: #f8fafc;
+}
+
+.activity-icon {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.activity-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.activity-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+.activity-copy small {
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.activity-arrow {
+    margin-left: auto;
+    color: #94a3b8;
+    font-size: 20px;
+}
+
+.status-list button {
+    justify-content: space-between;
+    padding: 0 2px;
+}
+
+.status-list button span {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.status-list button strong {
+    color: #0f172a;
+    font-size: 12px;
+}
+
+.empty-state {
+    padding: 28px 8px;
+    color: #94a3b8;
+    text-align: center;
+    font-size: 11px;
+}
+
+.dashboard-loading,
+.dashboard-error {
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 30px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #64748b;
+}
+
+.dashboard-error h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 17px;
+}
+
+.dashboard-error p {
+    margin: 5px 0 0;
+    font-size: 12px;
+}
+
+.dashboard-error button {
+    border: 1px solid #bfdbfe;
+    border-radius: 9px;
+    padding: 8px 12px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+@media (max-width: 1150px) {
+    .exception-strip {
+        grid-template-columns: repeat(5, minmax(70px, 1fr));
     }
 
+    .quick-access-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .exception-strip {
+        grid-template-columns: repeat(3, minmax(70px, 1fr));
+    }
+
+    .glance-grid,
+    .dashboard-lower-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .dashboard-section,
+    .dashboard-card {
+        border-radius: 11px;
+        padding: 14px;
+    }
+
+    .exception-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .quick-access-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .glance-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .glance-card {
+        min-height: 118px;
+        padding: 13px;
+    }
+
+    .glance-value {
+        font-size: 22px;
+    }
+
+    .farm-selector {
+        min-width: 160px;
+    }
 }
