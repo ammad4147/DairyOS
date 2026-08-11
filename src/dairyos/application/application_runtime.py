@@ -381,19 +381,19 @@ class ApplicationRuntime:
         self._milk_repository = (
             milk_repository
             if milk_repository is not None
-            else MemoryMilkRepository()
+            else self._repository_factory.milk()
         )
 
         self._feed_repository = (
             feed_repository
             if feed_repository is not None
-            else MemoryFeedRepository()
+            else self._repository_factory.feed()
         )
 
         self._health_repository = (
             health_repository
             if health_repository is not None
-            else MemoryHealthRepository()
+            else self._repository_factory.health()
         )
 
         self._breeding_repository = (
