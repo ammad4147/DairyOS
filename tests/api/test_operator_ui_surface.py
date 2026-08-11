@@ -1,10 +1,11 @@
 """
 DairyOS Operator Cockpit UI contract tests.
 
-Version: 0.2.0
+Version: 0.3.1
 Date: 2026-08-11
 Purpose: lock the five-prime-part dashboard information architecture,
-persistent exception rail, customization controls, and live domain entry surface.
+persistent exception rail, customization/reorder controls, role-aware
+persistence bridge, and live domain entry surface.
 """
 
 from fastapi.testclient import TestClient
@@ -60,6 +61,10 @@ def test_dashboard_has_non_hideable_exception_and_customization_contract(
     assert "function resetSection(id)" in html
     assert "function resetDashboard()" in html
     assert "dairyos.dashboard.widgets" in html
+    assert "/ui/dashboard_enhancements.js" in html
+    assert "widget-order-row" in html
+    assert "Move up" in html
+    assert "Move down" in html
 
 
 def test_dashboard_preserves_five_prime_sections_as_permanent_structure(
@@ -75,6 +80,7 @@ def test_dashboard_preserves_five_prime_sections_as_permanent_structure(
     assert "id:'finance'" in html
     assert "prime-section full" in html
     assert "The section itself can never disappear." in html
+    assert "function sectionCard(s,body)" in html
 
 
 def test_dashboard_has_operational_drill_down_and_domain_navigation(
