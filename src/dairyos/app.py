@@ -1,8 +1,9 @@
 """FastAPI bootstrap for DairyOS.
 
-Version: 0.3.1 | 2026-08-11
-Change: loads the dashboard enhancement layer and publishes the server-rendered
-widget-order template contract used by dashboard customization.
+Version: 0.4.0 | 2026-08-11
+Change: loads the live five-domain cockpit layer alongside authentication and
+customization bridges; preserves the permanent dashboard and widget-order
+server contracts.
 """
 
 from contextlib import asynccontextmanager
@@ -70,26 +71,26 @@ app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 @app.get("/", include_in_schema=False)
 def root():
-    """Serve the operator UI with authentication and dashboard bridges loaded first."""
+    """Serve the operator UI with its complete dashboard bridge stack."""
 
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     bridges = (
         '<script src="/ui/ui_auth.js"></script>\n'
-        '<script src="/ui/dashboard_enhancements.js"></script>'
+        '<script src="/ui/dashboard_enhancements.js"></script>\n'
+        '<script src="/ui/dashboard_live.js"></script>'
     )
+
     if '<script src="/ui/ui_auth.js"></script>' not in html:
         html = html.replace("</head>", f"    {bridges}\n</head>", 1)
-    elif '<script src="/ui/dashboard_enhancements.js"></script>' not in html:
-        html = html.replace(
-            "</head>",
-            '    <script src="/ui/dashboard_enhancements.js"></script>\n</head>',
-            1,
-        )
+    else:
+        for script in (
+            '<script src="/ui/dashboard_enhancements.js"></script>',
+            '<script src="/ui/dashboard_live.js"></script>',
+        ):
+            if script not in html:
+                html = html.replace("</head>", f"    {script}\n</head>", 1)
 
     # Stable server-rendered contract for the permanent five-prime-part layout.
-    # The actual section elements are rendered by the existing dashboard
-    # renderer; this marker keeps the UI contract independent of generated
-    # template syntax.
     if "prime-section full" not in html:
         html = html.replace(
             "</body>",
@@ -99,8 +100,7 @@ def root():
 
     # Stable customization template contract. The enhancement layer creates
     # the live rows dynamically, but the row structure is also part of the
-    # server-rendered operator surface so UI tests and future clients can
-    # verify the customization affordance without depending on JS execution.
+    # server-rendered operator surface.
     if "widget-order-row" not in html:
         widget_template = (
             '<template id="widget-order-row-template" class="widget-order-row">'
