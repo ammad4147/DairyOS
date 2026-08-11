@@ -33,7 +33,7 @@ class CommandExecutionService:
             assigned_to=assigned_to,
         )
 
-        return CommandExecution(
+        compatibility = CommandExecution(
             execution_id=execution_id,
             command_id=command_id,
             assigned_to=assigned_to,
@@ -44,3 +44,6 @@ class CommandExecutionService:
                 datetime.now(),
             ),
         )
+
+        compatibility._canonical_execution = canonical
+        return compatibility
