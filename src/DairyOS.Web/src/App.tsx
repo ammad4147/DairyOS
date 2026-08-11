@@ -1,3 +1,18 @@
+/*
+ * DairyOS Web App — complete replacement
+ * Version: 1.0.1 | 2026-08-12
+ * Purpose: Wire the redesigned Dashboard navigation into the existing domain
+ * tabs without duplicating domain entry forms on the dashboard. Dashboard
+ * quick access, exception icons, and At a Glance cards navigate to the
+ * corresponding operational tab. Animal access remains the primary herd
+ * entry point.
+ * Currency: PKR.
+ *
+ * PowerShell deployment/rollback:
+ * $t='D:\DairyOS\src\DairyOS.Web\src\App.tsx';$b='D:\DairyOS\_backups';New-Item -ItemType Directory -Force $b|Out-Null;Copy-Item $t (Join-Path $b ('App.tsx_'+(Get-Date -Format yyyyMMdd_HHmmss)+'.bak')) -Force
+ * Rollback: Copy-Item (Get-ChildItem 'D:\DairyOS\_backups\App.tsx_*.bak'|Sort-Object LastWriteTime -Descending|Select-Object -First 1).FullName $t -Force
+ */
+
 import React, { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
@@ -158,10 +173,10 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
 };
 
 const navigation: NavigationItem[] = [
-    { id: "command", label: "Command Center", description: "Live farm operational picture" },
+    { id: "command", label: "Dashboard", description: "Live farm operational picture" },
     { id: "animals", label: "Animals", description: "Herd, lifecycle and animal records", endpoint: "/farm/animals", mode: "cards" },
     { id: "milk", label: "Milk", description: "Milk production records", endpoint: "/farm/milk", mode: "entries", entry: entryConfigs.milk },
-    { id: "feed", label: "Feed", description: "Feeding activity and quantities", endpoint: "/farm/feed", mode: "entries", entry: entryConfigs.feed },
+    { id: "feed", label: "Feeding", description: "Feeding activity and quantities", endpoint: "/farm/feed", mode: "entries", entry: entryConfigs.feed },
     { id: "health", label: "Health", description: "Health observations and attention", endpoint: "/farm/health-observations", mode: "entries", entry: entryConfigs.health },
     { id: "breeding", label: "Breeding", description: "Reproduction events and reproductive history", endpoint: "/farm/breeding", mode: "entries", entry: entryConfigs.breeding },
     { id: "workforce", label: "Workforce", description: "Workforce activity and accountability", endpoint: "/farm/workforce", mode: "entries", entry: entryConfigs.workforce },
@@ -216,6 +231,7 @@ function App() {
     const selectView = (nextView: ViewId) => {
         setView(nextView);
         setMobileNavOpen(false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     return (
@@ -236,6 +252,7 @@ function App() {
                         <span>System {systemHealth}</span>
                     </div>
                     <div className="status-pill"><span>Farm</span><strong>{farmStatus}</strong></div>
+                    <div className="status-pill"><span>Currency</span><strong>PKR</strong></div>
                 </div>
             </header>
 
@@ -259,25 +276,26 @@ function App() {
                 {mobileNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
 
                 <main className="dairyos-main">
-                    <div className="page-heading">
-                        <div>
-                            <div className="breadcrumb">DairyOS / {activeNavigation.label}</div>
-                            <h1>{activeNavigation.label}</h1>
-                            <p>{activeNavigation.description}</p>
-                        </div>
-                        <div className="page-meta">Live API view</div>
-                    </div>
-
                     {view === "command" ? (
-                        <CommandCenter />
+                        <CommandCenter onNavigate={selectView} />
                     ) : (
-                        <OperationalModule
-                            title={activeNavigation.label}
-                            endpoint={activeNavigation.endpoint ?? "/dashboard"}
-                            selector={activeNavigation.selector}
-                            mode={activeNavigation.mode ?? "state"}
-                            entry={activeNavigation.entry}
-                        />
+                        <>
+                            <div className="page-heading">
+                                <div>
+                                    <div className="breadcrumb">DairyOS / {activeNavigation.label}</div>
+                                    <h1>{activeNavigation.label}</h1>
+                                    <p>{activeNavigation.description}</p>
+                                </div>
+                                <div className="page-meta">Live API view</div>
+                            </div>
+                            <OperationalModule
+                                title={activeNavigation.label}
+                                endpoint={activeNavigation.endpoint ?? "/dashboard"}
+                                selector={activeNavigation.selector}
+                                mode={activeNavigation.mode ?? "state"}
+                                entry={activeNavigation.entry}
+                            />
+                        </>
                     )}
                 </main>
             </div>
