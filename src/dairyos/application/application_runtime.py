@@ -1,4 +1,4 @@
-"""
+﻿"""
 Application Runtime
 ===================
 
@@ -618,7 +618,13 @@ class ApplicationRuntime:
         self._execution_tracking_service = (
             execution_tracking_service
             if execution_tracking_service is not None
-            else ExecutionTrackingService()
+            else ExecutionTrackingService(
+                event_publisher=self._farm_operation_event_bus
+            )
+        )
+
+        self._farm_operation_event_bus.subscribe(
+            self._execution_event_subscriber
         )
 
         # ------------------------------------------------------------------
