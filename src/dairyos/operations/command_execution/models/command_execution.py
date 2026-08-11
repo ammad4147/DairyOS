@@ -7,7 +7,15 @@ from .execution_status import ExecutionStatus
 @dataclass
 class CommandExecution:
     """
-    Tracks execution of an operational command.
+    Legacy command-dispatch compatibility DTO.
+
+    CommandExecution does not own operational execution state.
+    The canonical execution aggregate is
+    ``dairyos.operations.execution.models.OperationalExecution``.
+
+    ``status`` remains available only for backward compatibility with
+    command/intelligence callers while lifecycle changes are delegated to
+    the canonical execution tracker.
     """
 
     execution_id: str
