@@ -1,9 +1,9 @@
 """FastAPI bootstrap for DairyOS.
 
-Version: 0.4.0 | 2026-08-11
-Change: loads the live five-domain cockpit layer alongside authentication and
-customization bridges; preserves the permanent dashboard and widget-order
-server contracts.
+Version: 0.4.1 | 2026-08-11
+Change: loads the live milk-intelligence bridge alongside the existing
+five-domain cockpit, authentication and customization bridges; preserves the
+permanent dashboard and widget-order server contracts.
 """
 
 from contextlib import asynccontextmanager
@@ -18,14 +18,9 @@ from fastapi.staticfiles import StaticFiles
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
-
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
-
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -36,9 +31,7 @@ async def lifespan(_app: FastAPI):
     finally:
         container.shutdown()
 
-
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5174"],
@@ -68,52 +61,37 @@ app.include_router(system_router)
 WEB_DIR = Path(__file__).resolve().parent / "web"
 app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
-
 @app.get("/", include_in_schema=False)
 def root():
     """Serve the operator UI with its complete dashboard bridge stack."""
-
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     bridges = (
         '<script src="/ui/ui_auth.js"></script>\n'
         '<script src="/ui/dashboard_enhancements.js"></script>\n'
-        '<script src="/ui/dashboard_live.js"></script>'
+        '<script src="/ui/dashboard_live.js"></script>\n'
+        '<script src="/ui/dashboard_milk_intelligence.js"></script>'
     )
-
     if '<script src="/ui/ui_auth.js"></script>' not in html:
         html = html.replace("</head>", f"    {bridges}\n</head>", 1)
     else:
         for script in (
             '<script src="/ui/dashboard_enhancements.js"></script>',
             '<script src="/ui/dashboard_live.js"></script>',
+            '<script src="/ui/dashboard_milk_intelligence.js"></script>',
         ):
             if script not in html:
                 html = html.replace("</head>", f"    {script}\n</head>", 1)
-
-    # Stable server-rendered contract for the permanent five-prime-part layout.
     if "prime-section full" not in html:
-        html = html.replace(
-            "</body>",
-            "<!-- prime-section full: permanent five-prime dashboard contract -->\n</body>",
-            1,
-        )
-
-    # Stable customization template contract. The enhancement layer creates
-    # the live rows dynamically, but the row structure is also part of the
-    # server-rendered operator surface.
+        html = html.replace("</body>", "<!-- prime-section full: permanent five-prime dashboard contract -->\n</body>", 1)
     if "widget-order-row" not in html:
         widget_template = (
             '<template id="widget-order-row-template" class="widget-order-row">'
             '<div class="check-row widget-order-row" data-widget="">'
             '<input type="checkbox" data-widget="">'
             '<span></span>'
-            '<button type="button" class="icon-btn" data-move="up" '
-            'aria-label="Move up">↑</button>'
-            '<button type="button" class="icon-btn" data-move="down" '
-            'aria-label="Move down">↓</button>'
-            '</div>'
-            '</template>\n'
+            '<button type="button" class="icon-btn" data-move="up" aria-label="Move up">↑</button>'
+            '<button type="button" class="icon-btn" data-move="down" aria-label="Move down">↓</button>'
+            '</div></template>\n'
         )
         html = html.replace("</body>", f"{widget_template}</body>", 1)
-
     return HTMLResponse(content=html)
