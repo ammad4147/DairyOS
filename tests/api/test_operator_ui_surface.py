@@ -71,10 +71,19 @@ def test_active_shell_uses_live_domain_endpoints():
 def test_active_shell_uses_meaningful_domain_choices():
     source = _active_shell()
     for value in (
-        "COW", "Sahiwal", "LACTATING", "THRICE_DAILY", "MORNING",
-        "Silage", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
+        "CATTLE", "BUFFALO", "LACTATING", "THRICE_DAILY", "MORNING",
+        "SILAGE", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
     ):
         assert value in source
+
+    # Master/reference-data fields must remain source-backed rather than
+    # embedding farm-specific values such as a particular breed in the UI.
+    assert 'source: "breeds"' in source
+    assert 'source: "animals"' in source
+    assert 'source: "workers"' in source
+    assert 'source: "inventory"' in source
+    assert 'source: "equipment"' in source
+    assert 'source: "locations"' in source
 
 
 def test_operational_presentation_and_api_surface_are_reachable(client: TestClient):
