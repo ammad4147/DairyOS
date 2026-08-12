@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 
 
 def test_heat_stress_intelligence_reports_no_data_without_observations(client):
-    response = client.get("/farm/heat-stress/intelligence?farm_id=HEAT-EMPTY")
+    farm_id = f"HEAT-EMPTY-{uuid4().hex}"
+    response = client.get(f"/farm/heat-stress/intelligence?farm_id={farm_id}")
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["data_status"] == "NO_ENVIRONMENTAL_OBSERVATION"
@@ -11,6 +13,7 @@ def test_heat_stress_intelligence_reports_no_data_without_observations(client):
 
 
 def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
+    farm_id = f"HEAT-LIVE-{uuid4().hex}"
     timestamps = [
         "2026-08-12T08:00:00+00:00",
         "2026-08-12T10:00:00+00:00",
@@ -21,7 +24,7 @@ def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
         response = client.post(
             "/farm/heat-stress/intelligence/observations",
             json={
-                "farm_id": "HEAT-LIVE",
+                "farm_id": farm_id,
                 "temperature_c": temperature_c,
                 "humidity_pct": humidity_pct,
                 "observed_at": observed_at,
@@ -31,7 +34,7 @@ def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
         assert response.status_code == 200, response.text
         assert response.json()["data_status"] == "PERSISTED"
 
-    overview = client.get("/farm/heat-stress/intelligence?farm_id=HEAT-LIVE&days=7")
+    overview = client.get(f"/farm/heat-stress/intelligence?farm_id={farm_id}&days=7")
     assert overview.status_code == 200, overview.text
     body = overview.json()
     assert body["data_status"] == "LIVE_PERSISTED"
@@ -45,10 +48,11 @@ def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
 
 
 def test_heat_stress_intelligence_survives_repository_reload(client):
+    farm_id = f"HEAT-RESTART-{uuid4().hex}"
     response = client.post(
         "/farm/heat-stress/intelligence/observations",
         json={
-            "farm_id": "HEAT-RESTART",
+            "farm_id": farm_id,
             "temperature_c": 33.0,
             "humidity_pct": 80.0,
             "observed_at": datetime(2026, 8, 12, 9, tzinfo=timezone.utc).isoformat(),
@@ -57,7 +61,7 @@ def test_heat_stress_intelligence_survives_repository_reload(client):
     assert response.status_code == 200, response.text
 
     # A new request obtains a fresh RepositoryFactory/session and must read the persisted projection.
-    reloaded = client.get("/farm/heat-stress/intelligence?farm_id=HEAT-RESTART&days=7")
+    reloaded = client.get(f"/farm/heat-stress/intelligence?farm_id={farm_id}&days=7")
     assert reloaded.status_code == 200, reloaded.text
     body = reloaded.json()
     assert body["data_status"] == "LIVE_PERSISTED"
