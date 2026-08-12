@@ -139,10 +139,11 @@ The persistence invariant is implemented, but R-002 is **not closed** until the 
 ### R-002 implementation checkpoints
 
 - `48985bcd342efe7dcc466ae305b73c958349f6b3` — milk repository animal identity enforcement
-- `bdde d1655ad85211a6a6069e4bf51c95d516f01f` — RepositoryFactory composition
+- `bded1655ad85211a6a6069e4bf51c95d516f01f` — RepositoryFactory composition
 - `f8059ff61fddd8538d91c65d9411f7381c1c049b` — focused traceability tests
+- `ebbfa33bd5502609636a762a527bae36462c8769` — audit register update
 
-> Note: the second SHA above is recorded with the exact GitHub value in the commit history; whitespace in this document is not an execution reference. The current branch tip is authoritative.
+**Current branch tip:** `ebbfa33bd5502609636a762a527bae36462c8769`
 
 ## 7. Audit-control rules
 
@@ -158,4 +159,4 @@ The persistence invariant is implemented, but R-002 is **not closed** until the 
 
 ## 8. Next action
 
-Continue R-002 verification across the persistent animal history/projection, milk intelligence, and authoritative React/Vite UI paths. Do not close R-002 until the representative animal-to-milk-to-UI chain is demonstrated end-to-end.
+Reconcile `D:\DairyOS` to the current R-002 checkpoint and execute the focused traceability tests. Then continue verification across the persistent animal history/projection, milk intelligence, and authoritative React/Vite UI paths. Do not close R-002 until the representative animal-to-milk-to-UI chain is demonstrated end-to-end.
