@@ -7,6 +7,7 @@ logical database backup in Python.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -134,3 +135,24 @@ def restore_backup(backup_directory: str | Path) -> None:
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip() or "unknown pg_restore error"
         raise BackupError(f"pg_restore failed: {detail}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="DairyOS PostgreSQL disaster recovery tool")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    backup_parser = subparsers.add_parser("backup", help="create a verified database backup")
+    backup_parser.add_argument("destination", type=Path)
+    restore_parser = subparsers.add_parser("restore", help="verify and restore a backup")
+    restore_parser.add_argument("backup_directory", type=Path)
+    args = parser.parse_args(argv)
+
+    if args.command == "backup":
+        print(create_backup(args.destination))
+    else:
+        restore_backup(args.backup_directory)
+        print("DairyOS database restore completed successfully.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
