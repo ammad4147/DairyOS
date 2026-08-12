@@ -4,9 +4,8 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from urllib.parse import urlsplit
 
-from sqlalchemy.engine import URL, make_url
+from sqlalchemy.engine import make_url
 
 
 class PostgreSQLBackupError(RuntimeError):
@@ -48,7 +47,14 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     args, env = _connection_args(database_url)
-    command = [_tool("pg_dump"), "--format=custom", "--no-owner", *args, "--file", str(destination)]
+    command = [
+        _tool("pg_dump"),
+        "--format=custom",
+        "--no-owner",
+        *args,
+        "--file",
+        str(destination),
+    ]
     completed = subprocess.run(command, env=env, capture_output=True, text=True)
     if completed.returncode != 0:
         destination.unlink(missing_ok=True)
@@ -59,7 +65,7 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
 
 
 def restore_backup(database_url: str, backup: str | Path) -> None:
-    """Restore a custom-format backup into an existing empty PostgreSQL database."""
+    """Restore a custom-format backup into an existing PostgreSQL database."""
     backup = Path(backup)
     if not backup.is_file() or backup.stat().st_size == 0:
         raise PostgreSQLBackupError(f"Backup artifact does not exist or is empty: {backup}")
