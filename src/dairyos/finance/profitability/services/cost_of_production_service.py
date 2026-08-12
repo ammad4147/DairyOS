@@ -93,7 +93,7 @@ class CostOfProductionService:
             "period_days": days,
             "from": cutoff.isoformat(),
             "to": now.isoformat(),
-            "data_status": "LIVE_PERSISTED_DATA" if milk else "NO_DATA",
+            "data_status": "LIVE_PERSISTED_DATA",
             "milk_litres": round(production_litres, 3),
             "expense_count": len(expenses),
             "income_count": len(income),
