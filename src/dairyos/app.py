@@ -34,6 +34,7 @@ from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.health import router as health_router
 from dairyos.api.operations import router as operations_router
 from dairyos.api.system import router as system_router
+from dairyos.api.workforce import router as workforce_router
 
 app.include_router(auth_router)
 app.include_router(command_router)
@@ -43,6 +44,7 @@ app.include_router(animal_router, prefix="/farm")
 app.include_router(health_router)
 app.include_router(operations_router)
 app.include_router(system_router)
+app.include_router(workforce_router)
 
 
 @app.on_event("startup")
