@@ -119,6 +119,27 @@ class InputCatalog:
 
 
             OperationalInputDefinition(
+                input_type=OperationalInputType.ANIMAL_LIFECYCLE.value,
+                name="Animal Lifecycle Entry",
+                description="Animal lifecycle-status changes supporting herd and youngstock management.",
+
+                required_fields=[
+                    "animal_id",
+                    "lifecycle_status",
+                ],
+
+                optional_fields=[
+                    "previous_status",
+                    "reason",
+                    "operator",
+                ],
+
+                governance_required=True,
+            ),
+
+
+
+            OperationalInputDefinition(
                 input_type=OperationalInputType.WORKFORCE.value,
                 name="Workforce Entry",
                 description="Farm workforce operational records.",
