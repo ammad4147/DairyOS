@@ -1,8 +1,8 @@
 """Operator UI and operational API contract tests.
 
 The authoritative operator surface is the React/Vite application under
-``src/DairyOS.Web``. FastAPI is the API/runtime surface and must not serve
-or validate the retired static dashboard.
+``src/DairyOS.Web``. FastAPI is the API/runtime surface and does not serve the
+retired static operator UI.
 """
 
 from pathlib import Path
@@ -44,8 +44,12 @@ def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
 def test_active_operator_shell_contains_approved_navigation():
     source = _active_shell()
     assert "DairyOSShell" in source
-    for label in ("Dashboard", "Animals", "Milk", "Feeding", "Health", "Breeding", "Workforce", "Inventory", "Equipment", "Finance", "Analytics", "Alerts", "Settings"):
-        assert f'label: "{label}"' in source or f'label="{label}"' in source
+    for label in (
+        "Dashboard", "Animals", "Milk", "Feeding", "Health", "Breeding",
+        "Workforce", "Inventory", "Equipment", "Finance", "Analytics",
+        "Alerts", "Settings",
+    ):
+        assert f'label: "{label}"' in source or f'<span>{label}</span>' in source
 
 
 def test_active_shell_preserves_approved_dashboard_contract():
@@ -55,7 +59,7 @@ def test_active_shell_preserves_approved_dashboard_contract():
     assert "Herd Composition" in source
     assert "Milk Production" in source
     assert "Quick Access" in source
-    assert "Settings" in source
+    assert "SettingsPage" in source
 
 
 def test_active_shell_uses_live_domain_endpoints():
@@ -66,7 +70,10 @@ def test_active_shell_uses_live_domain_endpoints():
 
 def test_active_shell_uses_meaningful_domain_choices():
     source = _active_shell()
-    for value in ("CATTLE", "FEMALE", "LACTATING", "THRICE_DAILY", "MORNING", "SILAGE", "PREGNANCY", "EXPENSE", "CASH", "BANK"):
+    for value in (
+        "CATTLE", "FEMALE", "LACTATING", "THRICE_DAILY", "MORNING",
+        "SILAGE", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
+    ):
         assert value in source
 
 
@@ -90,7 +97,16 @@ def test_unknown_animal_id_is_rejected_before_operational_write(client: TestClie
 
 
 def test_all_current_operational_data_entry_workflows_are_usable(client: TestClient):
-    animal_response = client.post("/farm/animals", json={"animal_type": "CATTLE", "sex": "FEMALE", "lifecycle_status": "LACTATING", "breed": "HOLSTEIN", "date_of_birth": "2022-01-01"})
+    animal_response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "CATTLE",
+            "sex": "FEMALE",
+            "lifecycle_status": "LACTATING",
+            "breed": "HOLSTEIN",
+            "date_of_birth": "2022-01-01",
+        },
+    )
     assert animal_response.status_code in (200, 201), animal_response.text
     animal_id = animal_response.json()["animal_id"]
     payloads = {
