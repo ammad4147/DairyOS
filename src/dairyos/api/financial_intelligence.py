@@ -7,31 +7,21 @@ from collections import defaultdict
 from fastapi import APIRouter, Query
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
 
 
 @router.get("/cost-of-production")
 def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
-    cutoff = datetime.utcnow() - timedelta(days=days)
     factory = RepositoryFactory.create()
     try:
-        milk = [x for x in factory.milk().get_all() if x.production_date >= cutoff]
-        transactions = [x for x in factory.finance().get_all() if x.transaction_date >= cutoff and x.transaction_type == "EXPENSE"]
-        litres = sum(float(x.total_yield or 0) for x in milk)
-        by_category = defaultdict(float)
-        for item in transactions:
-            by_category[str(item.category or "UNCLASSIFIED").upper()] += float(item.amount or 0)
-        total = sum(by_category.values())
-        return {
-            "period_days": days,
-            "data_status": "LIVE_PERSISTED",
-            "milk_litres": round(litres, 3),
-            "total_recorded_operating_expense": round(total, 2),
-            "cost_per_litre": round(total / litres, 4) if litres else None,
-            "by_category": {k: round(v, 2) for k, v in sorted(by_category.items())},
-            "quality": "COMPLETE_FOR_RECORDED_EXPENSES_AND_MILK" if litres else "INSUFFICIENT_MILK_DATA",
-        }
+        service = CostOfProductionService()
+        return service.evaluate(
+            factory.milk().get_all(),
+            factory.finance().get_all(),
+            days=days,
+        )
     finally:
         factory.close()
 
