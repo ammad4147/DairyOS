@@ -37,6 +37,35 @@ def test_reproduction_overview_reads_persisted_breeding_records(client, register
     assert any(row["animal_id"] == registered_animal for row in body["records"])
 
 
+def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, registered_animal):
+    for event_type, result in (
+        ("heat_detected", "detected"),
+        ("insemination", "completed"),
+        ("pregnancy_diagnosis", "pregnant"),
+        ("pregnancy_confirmed", "confirmed"),
+        ("calving", "completed"),
+    ):
+        response = client.post(
+            "/farm/breeding",
+            json={
+                "animal_id": registered_animal,
+                "event_type": event_type,
+                "technician": "Dr Vet",
+                "result": result,
+                "operator": "Dr Vet",
+            },
+        )
+        assert response.status_code == 200, response.text
+
+    body = client.get("/farm/reproduction/overview").json()
+    assert body["heat_detections"] == 1
+    assert body["inseminations"] == 1
+    assert body["pregnancy_checks"] == 1
+    assert body["confirmed_pregnancies"] == 2
+    assert body["calvings"] == 1
+    assert body["conception_rate_percent"] == 100.0
+
+
 def test_animal_reproduction_history_uses_permanent_animal_id(client, registered_animal):
     response = client.post(
         "/farm/breeding",
