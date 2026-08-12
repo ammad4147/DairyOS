@@ -46,7 +46,10 @@ class RepositoryFactory:
         return FarmRepository(session=self._session)
 
     def milk(self):
-        return MilkProductionRepository(session=self._session)
+        return MilkProductionRepository(
+            session=self._session,
+            animal_repository=self.animal(),
+        )
 
     def finance(self):
         return FinancialRepository(session=self._session)
