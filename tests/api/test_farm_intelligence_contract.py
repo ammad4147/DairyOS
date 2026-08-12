@@ -15,6 +15,9 @@ def test_cross_domain_operational_capability_routes_are_registered():
         "/farm/heat-stress/observations",
         "/farm/welfare/kpis",
         "/farm/sops",
+        "/farm/finance/cost-of-production",
+        "/farm/finance/reconciliation",
+        "/farm/reference-data",
     }
     assert expected <= paths
 
@@ -27,6 +30,7 @@ def test_backup_and_recovery_utility_exists():
     runbook = root / "docs" / "operations" / "DISASTER_RECOVERY.md"
     assert utility.exists()
     assert runbook.exists()
-    assert "pg_dump" in utility.read_text(encoding="utf-8")
-    assert "pg_restore" in utility.read_text(encoding="utf-8")
+    utility_text = utility.read_text(encoding="utf-8")
+    assert "pg_dump" in utility_text
+    assert "pg_restore" in utility_text
     assert "Recovery acceptance criteria" in runbook.read_text(encoding="utf-8")
