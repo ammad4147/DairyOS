@@ -59,6 +59,15 @@ def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_
     assert body["revenue_per_litre"] == 75.0
     assert body["margin_after_recorded_operating_cost"] == -750.0
 
+    assert body["cost_domain_amounts"]["FEED"] >= 1200.0
+    assert body["cost_domain_amounts"]["HEALTH"] >= 300.0
+    assert "FEED" in body["covered_cost_domains"]
+    assert "HEALTH" in body["covered_cost_domains"]
+    assert "LABOUR" in body["missing_cost_domains"]
+    assert "UTILITIES" in body["missing_cost_domains"]
+    assert body["cost_data_completeness"] == "PARTIAL"
+    assert body["quality"] == "PARTIAL_PERSISTED_COST_COVERAGE"
+
 
 def test_cost_of_production_does_not_invent_metrics_without_persisted_inputs(client):
     response = client.get("/farm/finance/cost-of-production?days=30")
@@ -70,3 +79,14 @@ def test_cost_of_production_does_not_invent_metrics_without_persisted_inputs(cli
     assert body["cost_per_litre"] is None
     assert body["revenue_per_litre"] is None
     assert body["margin_after_recorded_operating_cost"] is None
+    assert body["covered_cost_domains"] == []
+    assert set(body["missing_cost_domains"]) == {
+        "FEED",
+        "LABOUR",
+        "HEALTH",
+        "BREEDING",
+        "UTILITIES",
+        "EQUIPMENT",
+        "OTHER_OPERATING",
+    }
+    assert body["cost_data_completeness"] == "INSUFFICIENT"
