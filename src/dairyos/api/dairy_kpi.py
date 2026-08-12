@@ -167,11 +167,12 @@ def _overview(factory, start, end):
     expense_categories = cost.get("expense_by_category", {})
 
     interval_metrics = _interval_metrics(breeding)
+    conception_rate = _conception_rate(inseminations, pregnancy_checks)
     covered = {
         "milk_per_cow_day": average_milk_per_animal_day is not None,
         "herd_average": average_milk_per_animal_day is not None,
         "peak_daily_milk": bool(daily_totals),
-        "conception_rate": _conception_rate(inseminations, pregnancy_checks) is not None,
+        "conception_rate": conception_rate is not None,
         "calving_interval": interval_metrics["calving_interval_days"] is not None,
         "days_open": interval_metrics["days_open"] is not None,
         "feed_conversion": feed_per_liter is not None,
@@ -184,9 +185,14 @@ def _overview(factory, start, end):
         "persistency": False,
     }
 
+    # A standard dairy KPI dataset is anchored by persisted milk production.
+    # Other operational records may exist independently, but must not make an
+    # otherwise empty KPI period appear to contain a live dairy dataset.
+    has_kpi_anchor_data = bool(milk)
+
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat(), "days": (end - start).days},
-        "data_status": "LIVE_PERSISTED_DATA" if any((milk, feed, health, breeding, treatments, finance)) else "NO_DATA",
+        "data_status": "LIVE_PERSISTED_DATA" if has_kpi_anchor_data else "NO_DATA",
         "record_counts": {
             "animals": len(animals), "milk": len(milk), "feed": len(feed),
             "health": len(health), "breeding": len(breeding),
@@ -207,7 +213,7 @@ def _overview(factory, start, end):
             "inseminations": len(inseminations) if inseminations else None,
             "pregnancy_checks": len(pregnancy_checks) if pregnancy_checks else None,
             "confirmed_pregnancies": len(confirmed_pregnancies) if confirmed_pregnancies else None,
-            "conception_rate_percent": _conception_rate(inseminations, pregnancy_checks),
+            "conception_rate_percent": conception_rate,
             **interval_metrics,
             "feed_cost_per_litre": round(float(expense_categories.get("FEED", 0)) / milk_total, 4) if covered["feed_cost_per_litre"] else None,
             "labour_cost_per_litre": round(float(expense_categories.get("LABOUR", 0)) / milk_total, 4) if covered["labour_per_litre"] else None,
