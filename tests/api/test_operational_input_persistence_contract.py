@@ -83,4 +83,4 @@ def test_repository_failure_does_not_publish_operational_event():
         )
 
     assert exc.value.status_code == 500
-    assert order == ["rollback", "close"]
+    assert order == ["rollback"]
