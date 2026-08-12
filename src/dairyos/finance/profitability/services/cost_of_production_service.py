@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class CostOfProductionService:
@@ -29,15 +29,32 @@ class CostOfProductionService:
         "OTHER_OPERATING": {"OTHER", "GENERAL", "OPERATING", "OTHER OPERATING"},
     }
 
+    @staticmethod
+    def _as_utc(value: datetime | None) -> datetime | None:
+        """Normalize persisted naive/aware timestamps to UTC before comparison."""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
     def evaluate(self, milk_records, financial_records, days: int = 30, now: datetime | None = None):
         if days < 1:
             raise ValueError("days must be positive")
 
-        now = now or datetime.utcnow()
+        now = self._as_utc(now or datetime.now(timezone.utc))
         cutoff = now - timedelta(days=days)
 
-        milk = [row for row in milk_records if row.production_date >= cutoff]
-        finance = [row for row in financial_records if row.transaction_date >= cutoff]
+        milk = [
+            row for row in milk_records
+            if (timestamp := self._as_utc(getattr(row, "production_date", None))) is not None
+            and timestamp >= cutoff
+        ]
+        finance = [
+            row for row in financial_records
+            if (timestamp := self._as_utc(getattr(row, "transaction_date", None))) is not None
+            and timestamp >= cutoff
+        ]
 
         production_litres = sum(
             max(0.0, float(row.total_yield or 0.0))
@@ -76,7 +93,7 @@ class CostOfProductionService:
             "period_days": days,
             "from": cutoff.isoformat(),
             "to": now.isoformat(),
-            "data_status": "LIVE_PERSISTED_DATA",
+            "data_status": "LIVE_PERSISTED_DATA" if milk else "NO_DATA",
             "milk_litres": round(production_litres, 3),
             "expense_count": len(expenses),
             "income_count": len(income),
