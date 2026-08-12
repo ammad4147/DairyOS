@@ -141,18 +141,17 @@ def get_current_user(
 
 def get_optional_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> dict[str, Any] | None:
-    """Return the authenticated operator when a bearer token is supplied.
+) -> dict[str, Any]:
+    """Return the authenticated operator identity for farm write routes.
 
-    Existing farm-floor forms remain backward compatible while authenticated
-    clients gain authoritative server-side operator attribution. A supplied but
-    invalid bearer token is still rejected rather than silently falling back to
-    an operator value supplied by the client.
+    The historical name is retained so existing route wiring remains stable.
+    Farm operational writes are no longer allowed to proceed anonymously: the
+    server must authenticate the operator before accepting an operational
+    record. The client-supplied ``operator`` field therefore cannot establish
+    attribution by itself.
     """
 
-    if credentials is None:
-        return None
-    return _decode_token(credentials.credentials)
+    return get_current_user(credentials)
 
 
 @router.get("/me")
