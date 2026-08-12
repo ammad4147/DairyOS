@@ -43,11 +43,12 @@ class WelfareKPIService:
         health_animals = {getattr(r, "animal_id", None) for r in health if getattr(r, "animal_id", None)}
         treatment_animals = {getattr(r, "animal_id", None) for r in treatments_in_period if getattr(r, "animal_id", None)}
 
-        # The current Animal model does not expose an authoritative mortality
-        # event stream here. Do not infer mortality from inactive animals.
         mortality_rate = None
-        morbidity_rate = round((len(health_animals) / denominator) * 100, 2) if denominator else None
-        treatment_rate = round((len(treatment_animals) / denominator) * 100, 2) if denominator else None
+        evidence_count = len(health) + len(treatments_in_period)
+        has_health_denominator = bool(denominator) and bool(health)
+        has_treatment_denominator = bool(denominator) and bool(treatments_in_period)
+        morbidity_rate = round((len(health_animals) / denominator) * 100, 2) if has_health_denominator else None
+        treatment_rate = round((len(treatment_animals) / denominator) * 100, 2) if has_treatment_denominator else None
 
         severity_counts = Counter(
             str(getattr(r, "severity", "NORMAL") or "NORMAL").upper()
@@ -61,7 +62,6 @@ class WelfareKPIService:
             "lameness_rate_percent": False,
             "body_condition_score": False,
         }
-        evidence_count = len(health) + len(treatments_in_period)
 
         return {
             "period": {"start": start.isoformat(), "end": end.isoformat(), "days": (end - start).days},
@@ -80,9 +80,7 @@ class WelfareKPIService:
             },
             "health_severity_counts": dict(severity_counts),
             "coverage": available,
-            "unsupported_metrics": [
-                name for name, covered in available.items() if not covered
-            ],
+            "unsupported_metrics": [name for name, covered in available.items() if not covered],
             "provenance": "PERSISTED_ANIMAL_HEALTH_AND_TREATMENT_RECORDS",
         }
 
