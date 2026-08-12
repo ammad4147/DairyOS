@@ -1,0 +1,48 @@
+[
+  {
+    "input_type": "animal_lifecycle",
+    "payload": {
+      "animal_id": "AN-CEED1A3B369449F3849A92BD995E21D5",
+      "previous_status": "LACTATING",
+      "lifecycle_status": "LACTATING",
+      "reason": null,
+      "timestamp": "2026-08-12T17:02:11.378073+00:00",
+      "operator": "Farm Operator",
+      "input_type": "animal_lifecycle",
+      "source": "farm_operator",
+      "actor": "Farm Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Farm Operator",
+    "event_id": "d45dda6e-71e4-4b00-90f9-956290240a17",
+    "timestamp": "2026-08-12T17:02:11.378093+00:00"
+  },
+  {
+    "input_type": "milk_production",
+    "payload": {
+      "animal_id": "TEST-COW-100",
+      "total_yield": 30.0,
+      "input_type": "milk_production",
+      "source": "farm_operator",
+      "actor": "TEST"
+    },
+    "source": "farm_operator",
+    "actor": "TEST",
+    "event_id": "0d47b1b5-c760-4fe2-8244-56d2ad698934",
+    "timestamp": "2026-08-12T17:02:12.022544+00:00"
+  },
+  {
+    "input_type": "feeding",
+    "payload": {
+      "feed_type": "TMR",
+      "quantity_kg": 40.0,
+      "input_type": "feeding",
+      "source": "farm_operator",
+      "actor": "TEST"
+    },
+    "source": "farm_operator",
+    "actor": "TEST",
+    "event_id": "a4fdbdc0-a523-4fb3-ad42-c4821a3f18ba",
+    "timestamp": "2026-08-12T17:02:12.062698+00:00"
+  }
+]

@@ -34,7 +34,14 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://localhost:5174"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517[3-9]",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
