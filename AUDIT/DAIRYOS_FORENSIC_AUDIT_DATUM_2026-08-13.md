@@ -34,8 +34,8 @@ A standalone endpoint, UI control, class, test, or documentation statement is no
 
 | ID | Finding | Priority | Status |
 |---|---|---:|---|
-| F-016 | Operational input persistence/event ordering is not coherent across repository-backed domains | P0/P1 | REMEDIATION R-001 |
-| F-005 | Animal -> milk -> history -> authoritative UI traceability requires end-to-end proof | P1 | OPEN |
+| F-016 | Operational input persistence/event ordering is not coherent across repository-backed domains | P0/P1 | CLOSED — R-001 |
+| F-005 | Animal -> milk -> history -> authoritative UI traceability requires end-to-end proof | P1 | REMEDIATION R-002 — IN PROGRESS |
 | F-004 | Lifetime animal passport does not yet converge all relevant history | P1 | OPEN |
 | F-017 | Operator attribution is not consistently server-authoritative | P1 | OPEN |
 | F-018 | Frontend/API deployment configuration contains environment-coupled API addressing | P1 | OPEN |
@@ -84,14 +84,67 @@ The test asserts:
 
 ### R-001 checkpoint
 
-**Implementation commits:**
+**Accepted checkpoint:** `2388ae1c62428b0ff7be063aaa0477c3b4d47d8a`
 
-- `7fa3a1fb16389dd170030529228d18cf8316c634` — persistence ordering implementation
-- `7baceaf320fa6e5ad8e90c0a969f4fb1580711ee` — persistence ordering contract tests
+**Verification:** `2 passed, 178 warnings` in `0.03s`.
 
-**Status:** IMPLEMENTED — pending local test execution and reconciliation.
+**Status:** CLOSED.
 
-## 6. Audit-control rules
+## 6. R-002 — Animal-to-milk traceability
+
+### Finding
+
+The persistent `Animal` repository provides the authoritative permanent `animal_id`. The milk persistence model also stores `animal_id`, but prior to R-002 the milk repository accepted an arbitrary string without enforcing that it resolved to an existing Animal.
+
+That allowed a potential orphan relationship:
+
+`MilkProduction.animal_id -> no persistent Animal`
+
+The farm-entry API contract itself is intentionally preserved; the invariant belongs at the persistence boundary.
+
+### Required invariant
+
+`milk persistence -> existing permanent Animal.animal_id`
+
+No orphan animal-level milk record may be persisted.
+
+### R-002 implementation completed so far
+
+`src/dairyos/data/repositories/milk_production_repository.py` now:
+
+- requires a non-empty permanent `animal_id`;
+- resolves the ID through the authoritative Animal repository when composed by `RepositoryFactory`;
+- rejects unknown IDs before persistence;
+- exposes `get_by_animal_id()` for animal-scoped persistent milk history.
+
+`src/dairyos/data/repositories/repository_factory.py` now composes the milk repository with the same-session Animal repository, preserving a single persistence boundary.
+
+Focused tests were added:
+
+`tests/data/test_milk_production_animal_traceability.py`
+
+The tests prove:
+
+1. unknown Animal IDs are rejected and no milk record is stored;
+2. an existing permanent Animal ID is accepted and can be retrieved through animal-scoped milk history.
+
+### R-002 current status
+
+**Status:** PARTIAL / IN PROGRESS.
+
+The persistence invariant is implemented, but R-002 is **not closed** until the complete representative chain is verified:
+
+`created Animal -> generated permanent ID -> milk event -> persistent milk record -> animal history/projection -> milk intelligence -> authoritative UI`
+
+### R-002 implementation checkpoints
+
+- `48985bcd342efe7dcc466ae305b73c958349f6b3` — milk repository animal identity enforcement
+- `bdde d1655ad85211a6a6069e4bf51c95d516f01f` — RepositoryFactory composition
+- `f8059ff61fddd8538d91c65d9411f7381c1c049b` — focused traceability tests
+
+> Note: the second SHA above is recorded with the exact GitHub value in the commit history; whitespace in this document is not an execution reference. The current branch tip is authoritative.
+
+## 7. Audit-control rules
 
 - No cosmetic UI work ahead of operational-path verification.
 - No synthetic values presented as live operational data.
@@ -103,6 +156,6 @@ The test asserts:
 - GitHub `recovery-execution` is the controlled remediation source.
 - `D:\DairyOS` must match every accepted GitHub checkpoint exactly.
 
-## 7. Next action
+## 8. Next action
 
-Reconcile `D:\DairyOS` to the R-001 checkpoint and execute the focused contract test. Then continue the fresh forensic remediation queue from the next confirmed finding.
+Continue R-002 verification across the persistent animal history/projection, milk intelligence, and authoritative React/Vite UI paths. Do not close R-002 until the representative animal-to-milk-to-UI chain is demonstrated end-to-end.
