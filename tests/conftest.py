@@ -21,14 +21,15 @@ from dairyos.farm.operations.state.farm_operational_state_service import (
 def _reset_test_persistence() -> None:
     """Isolate API tests from durable operational records created by earlier tests.
 
-    DairyOS intentionally uses real persisted SQL repositories. The test
-    fixture therefore clears every mutable SQL repository consumed by the KPI
-    and cost engines before each test. Cleanup uses the same long-lived
-    application session as the runtime so its transaction state cannot retain
-    rows deleted through a second session.
+    DairyOS intentionally uses real persisted SQL repositories. The reset is
+    performed after the application runtime has started so the cleanup targets
+    the exact repository/session composition used by the API under test. This
+    also removes any operational rows that runtime startup may have restored
+    or initialized before the test begins.
     """
 
-    session = container.repository_factory.session
+    factory = container.repository_factory
+    session = factory.session
     session.rollback()
 
     try:
@@ -50,7 +51,6 @@ def _reset_test_persistence() -> None:
 def client(tmp_path):
     journal = PersistentEventJournal()
     journal.clear()
-    _reset_test_persistence()
 
     container.event_journal = journal
     container.animal_operational_state_repository = AnimalOperationalStateRepository(
@@ -66,9 +66,12 @@ def client(tmp_path):
     container.operations = None
     container.dashboard = None
 
-    print("FIXTURE RESET:", container.event_journal.count(), flush=True)
-
     with TestClient(app) as c:
+        # Reset only after RuntimeContainer.start() has installed the active
+        # repository factory, preventing stale-session cleanup from leaving
+        # persisted KPI inputs visible to the next test.
+        _reset_test_persistence()
+        print("FIXTURE RESET:", container.event_journal.count(), flush=True)
         print("AFTER STARTUP:", container.event_journal.count(), flush=True)
         yield c
 
