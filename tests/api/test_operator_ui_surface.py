@@ -1,17 +1,19 @@
-"""
-DairyOS Operator Cockpit UI contract tests.
+"""Operator UI and operational API contract tests.
 
-Version: 0.4.0
-Date: 2026-08-11
-Purpose: lock the five-prime-part dashboard information architecture,
-persistent exception rail, customization/reorder controls, live domain cockpit,
-role-aware persistence bridge, and live domain entry surface.
+The authoritative operator surface is the React/Vite application under
+``src/DairyOS.Web``.  FastAPI is the API/runtime surface and must not serve
+or validate the retired static dashboard.
 """
+
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from dairyos.app import app
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WEB_ROOT = REPO_ROOT / "src" / "DairyOS.Web" / "src"
+APP_TSX = WEB_ROOT / "App.tsx"
+SHELL_TSX = WEB_ROOT / "ui" / "DairyOSShell.tsx"
 
 DOMAIN_ENDPOINTS = {
     "milk": "/farm/milk",
@@ -22,120 +24,80 @@ DOMAIN_ENDPOINTS = {
 }
 
 
-def test_operator_dashboard_is_reachable(client: TestClient):
+def _active_shell() -> str:
+    assert APP_TSX.exists(), f"Active frontend entrypoint missing: {APP_TSX}"
+    assert SHELL_TSX.exists(), f"Active operator shell missing: {SHELL_TSX}"
+    return APP_TSX.read_text(encoding="utf-8") + "\n" + SHELL_TSX.read_text(encoding="utf-8")
+
+
+def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
     response = client.get("/")
 
     assert response.status_code == 200
-    html = response.text
+    body = response.json()
+    assert body["system"] == "DairyOS"
+    assert body["surface"] == "api"
+    assert body["operator_ui"]["application"] == "DairyOS.Web"
+    assert body["operator_ui"]["technology"] == "React/Vite"
+    assert body["operator_ui"]["authoritative"] is True
+    assert body["legacy_static_ui"]["served"] is False
 
-    assert "DairyOS" in html
-    assert "Today at a glance" in html
-    assert "Exceptions & attention — always visible" in html
 
+def test_active_operator_shell_contains_approved_navigation():
+    source = _active_shell()
+
+    assert 'DairyOSShell' in source
     for label in (
-        "Herd Management",
-        "Milk Records",
-        "Health & Vaccination",
-        "Feed Management",
-        "Financials",
+        'Dashboard',
+        'Animals',
+        'Milk',
+        'Feeding',
+        'Health',
+        'Breeding',
+        'Workforce',
+        'Inventory',
+        'Equipment',
+        'Finance',
+        'Analytics',
+        'Alerts',
+        'Settings',
     ):
-        assert label in html
+        assert f'label: "{label}"' in source or f'label="{label}"' in source
 
 
-def test_operator_ui_static_entrypoint_is_reachable(client: TestClient):
-    response = client.get("/ui/")
+def test_active_shell_preserves_approved_dashboard_contract():
+    source = _active_shell()
 
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/html")
-
-
-def test_dashboard_has_non_hideable_exception_and_customization_contract(
-    client: TestClient,
-):
-    html = client.get("/").text
-
-    assert "global-alert-rail" in html
-    assert "Exceptions & attention — always visible" in html
-    assert "function renderAlerts()" in html
-    assert "function customize(id)" in html
-    assert "function resetSection(id)" in html
-    assert "function resetDashboard()" in html
-    assert "dairyos.dashboard.widgets" in html
-    assert "/ui/dashboard_enhancements.js" in html
-    assert "/ui/dashboard_live.js" in html
-    assert "widget-order-row" in html
-    assert "Move up" in html
-    assert "Move down" in html
+    assert 'type Period = "7d" | "month" | "year" | "custom"' in source
+    assert 'type FinanceView = "cash" | "bank" | "monthly" | "quarterly" | "yearly"' in source
+    assert 'Herd Composition' in source
+    assert 'Milk Production' in source
+    assert 'Quick Access' in source
+    assert 'Settings' in source
 
 
-def test_dashboard_preserves_five_prime_sections_as_permanent_structure(
-    client: TestClient,
-):
-    html = client.get("/").text
-
-    assert "const PRIME=[" in html
-    assert "id:'herd'" in html
-    assert "id:'milk'" in html
-    assert "id:'health'" in html
-    assert "id:'feed'" in html
-    assert "id:'finance'" in html
-    assert "prime-section full" in html
-    assert "The section itself can never disappear." in html
-    assert "function sectionCard(s,body)" in html
-
-
-def test_dashboard_live_cockpit_has_five_domain_and_evidence_contract(
-    client: TestClient,
-):
-    html = client.get("/").text
-
-    assert "Live operating picture" in html or "/ui/dashboard_live.js" in html
-    live_js = client.get("/ui/dashboard_live.js")
-    assert live_js.status_code == 200
-    source = live_js.text
-
+def test_active_shell_uses_live_domain_endpoints():
+    source = _active_shell()
     for endpoint in DOMAIN_ENDPOINTS.values():
         assert endpoint in source
 
-    for domain in (
-        "Herd Management",
-        "Milk Records",
-        "Health & Vaccination",
-        "Feed Management",
-        "Financials",
-        "Breeding & Reproduction",
+
+def test_active_shell_uses_meaningful_domain_choices():
+    source = _active_shell()
+
+    for value in (
+        'CATTLE',
+        'FEMALE',
+        'LACTATING',
+        'THRICE_DAILY',
+        'MORNING',
+        'SILAGE',
+        'PREGNANCY',
+        'EXPENSE',
+        'CASH',
+        'BANK',
     ):
-        assert domain in source
-
-    assert "No synthetic values" in source
-    assert "Forecasts are withheld" in source
-    assert "Open breeding" in source
-
-
-def test_dashboard_has_operational_drill_down_and_domain_navigation(
-    client: TestClient,
-):
-    html = client.get("/").text
-
-    for domain in ("herd", "milk", "health", "feed", "finance", "breeding"):
-        assert f"openPage('{domain}')" in html
-
-    for endpoint in DOMAIN_ENDPOINTS.values():
-        assert endpoint in html
-
-    assert "Record event" in html
-    assert "Record milk" in html
-    assert "Record feed" in html
-
-
-def test_dashboard_has_evidence_based_analytics_boundaries(client: TestClient):
-    html = client.get("/").text
-
-    assert "No forecast is invented" in html
-    assert "not yet computable" in html
-    assert "No synthetic values" not in html or "measured quality data" in html
-    assert "evidence-based" in html
-    assert "does not fabricate animal records" in html
+        assert value in source
 
 
 def test_operational_presentation_and_api_surface_are_reachable(
@@ -156,26 +118,40 @@ def test_operational_presentation_and_api_surface_are_reachable(
 def test_all_current_operational_data_entry_workflows_are_usable(
     client: TestClient,
 ):
+    animal_response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "CATTLE",
+            "sex": "FEMALE",
+            "lifecycle_status": "LACTATING",
+            "breed": "HOLSTEIN",
+            "date_of_birth": "2022-01-01",
+        },
+    )
+    assert animal_response.status_code in (200, 201), animal_response.text
+    animal_id = animal_response.json()["animal_id"]
+
     payloads = {
         "/farm/milk": {
-            "animal_id": "UI-001",
+            "animal_id": animal_id,
             "morning_yield": 8,
             "afternoon_yield": 7,
             "evening_yield": 6,
             "operator": "UI-Test",
         },
         "/farm/feed": {
-            "feed_type": "TMR",
+            "feed_type": "SILAGE",
             "quantity_kg": 25,
+            "animal_id": animal_id,
             "operator": "UI-Test",
         },
         "/farm/health-observations": {
-            "animal_id": "UI-001",
+            "animal_id": animal_id,
             "observation": "Normal",
             "operator": "UI-Test",
         },
         "/farm/breeding": {
-            "animal_id": "UI-001",
+            "animal_id": animal_id,
             "event_type": "HEAT_OBSERVED",
             "operator": "UI-Test",
         },
@@ -188,7 +164,7 @@ def test_all_current_operational_data_entry_workflows_are_usable(
 
     for path, payload in payloads.items():
         response = client.post(path, json=payload)
-        assert response.status_code == 200, (path, response.text)
+        assert response.status_code in (200, 201), (path, response.text)
 
         read_response = client.get(path)
         assert read_response.status_code == 200, (path, read_response.text)
