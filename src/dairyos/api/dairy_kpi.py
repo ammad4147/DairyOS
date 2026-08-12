@@ -103,7 +103,7 @@ def _overview(factory, start, end):
     ]
     health = [
         r for r in factory.health().get_all()
-        if _in_period(r, start, end, "timestamp", "observation_date", "created_at")
+        if _in_period(r, start, end, "observed_at", "timestamp", "observation_date", "created_at")
     ]
     breeding = [
         r for r in factory.breeding().get_all()
