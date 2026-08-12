@@ -147,6 +147,14 @@ def _record(
     payload: dict[str, Any],
     current_user: dict[str, Any] | None = None,
 ):
+    """Persist domain data before publishing the operational input event.
+
+    Repository-backed inputs therefore cannot advertise an accepted
+    operational event when their domain record failed to persist. Inputs
+    without a domain repository (workforce/inventory/equipment) remain
+    authoritative through the durable operational-input repository/event
+    stream.
+    """
     operator = _operator(payload, current_user)
 
     canonical_payload = {
@@ -154,14 +162,6 @@ def _record(
         "operator": operator,
         "timestamp": payload.get("timestamp") or _timestamp(),
     }
-
-    event = container.input_gateway.record(
-        input_type=input_type,
-        payload=canonical_payload,
-        actor=operator,
-    )
-
-    event_payload = dict(getattr(event, "payload", {}) or {})
 
     rf = getattr(container, "repository_factory", None)
     owns_factory = False
@@ -242,6 +242,13 @@ def _record(
                 finance_repo.save(transaction)
             else:
                 finance_repo.add(transaction)
+
+        event = container.input_gateway.record(
+            input_type=input_type,
+            payload=canonical_payload,
+            actor=operator,
+        )
+        event_payload = dict(getattr(event, "payload", {}) or {})
 
     except Exception as exc:
         try:
