@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
-from dairyos.api.auth import _operator
-from dairyos.app import app
+from dairyos.api.app import app
 
 
 client = TestClient(app)
@@ -22,6 +21,8 @@ def test_farm_write_requires_authenticated_operator():
 
 
 def test_authenticated_claim_overrides_client_operator_identity():
+    from dairyos.api.farm_data_entry import _operator
+
     operator = _operator(
         {"operator": "forged-operator"},
         {"sub": "authenticated-operator", "role": "admin"},
