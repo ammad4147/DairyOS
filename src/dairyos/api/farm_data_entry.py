@@ -4,14 +4,10 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
-from dairyos.api.auth import get_optional_current_user
+from dairyos.api.auth import get_current_user, get_optional_current_user
 from dairyos.api.dependencies import get_container
 
-
-router = APIRouter(
-    prefix="/farm",
-    tags=["Farm Data Entry"],
-)
+router = APIRouter(prefix="/farm", tags=["Farm Data Entry"])
 
 
 class BaseEntryRequest(BaseModel):
@@ -52,7 +48,7 @@ class BreedingEntryRequest(BaseEntryRequest):
 
 
 class WorkforceEntryRequest(BaseEntryRequest):
-    worker_id: str
+    worker_id: str | None = None
     activity: str
     task: str | None = None
     status: str | None = None
@@ -105,21 +101,17 @@ def _record(
         if authenticated_user is not None
         else supplied_operator
     )
-
     canonical_payload = {
         **payload,
         "operator": operator,
         "timestamp": payload.get("timestamp") or _timestamp(),
     }
-
     event = container.input_gateway.record(
         input_type=input_type,
         payload=canonical_payload,
         actor=operator,
     )
-
     event_payload = dict(getattr(event, "payload", {}) or {})
-
     return {
         **canonical_payload,
         **event_payload,
@@ -129,14 +121,12 @@ def _record(
 
 def _list_by_type(container, input_type: str):
     records = []
-
     for event in container.event_journal.all_events():
         if (
             event.name == "OperationalInputReceived"
             and event.payload.get("input_type") == input_type
         ):
             records.append(event.payload)
-
     return records
 
 
@@ -150,12 +140,7 @@ def record_milk_entry(
     return _record(
         container,
         "milk_production",
-        {
-            **entry.model_dump(),
-            "litres": total,
-            "total_yield": total,
-            "status": "RECORDED",
-        },
+        {**entry.model_dump(), "litres": total, "total_yield": total, "status": "RECORDED"},
         authenticated_user,
     )
 
@@ -171,12 +156,7 @@ def record_feed_entry(
     container=Depends(get_container),
     authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
 ):
-    return _record(
-        container,
-        "feeding",
-        {**entry.model_dump(), "status": "RECORDED"},
-        authenticated_user,
-    )
+    return _record(container, "feeding", {**entry.model_dump(), "status": "RECORDED"}, authenticated_user)
 
 
 @router.get("/feed")
@@ -219,9 +199,14 @@ def list_breeding_entries(container=Depends(get_container)):
 def record_workforce_entry(
     entry: WorkforceEntryRequest,
     container=Depends(get_container),
-    authenticated_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    authenticated_user: dict[str, Any] = Depends(get_current_user),
 ):
-    return _record(container, "workforce", entry.model_dump(), authenticated_user)
+    payload = entry.model_dump()
+    payload["worker_id"] = authenticated_user["sub"]
+    payload["worker_name"] = authenticated_user["name"]
+    payload["worker_role"] = authenticated_user["role"]
+    payload["farm_id"] = authenticated_user["farm_id"]
+    return _record(container, "workforce", payload, authenticated_user)
 
 
 @router.get("/workforce")
