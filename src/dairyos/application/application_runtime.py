@@ -632,10 +632,16 @@ class ApplicationRuntime:
             )
         )
 
+        self._farm_operation_event_bus.subscribe(
+            self._execution_event_subscriber
+        )
+
         self._execution_tracking_service = (
             execution_tracking_service
             if execution_tracking_service is not None
-            else ExecutionTrackingService()
+            else ExecutionTrackingService(
+                event_publisher=self._farm_operation_event_bus
+            )
         )
 
         # ------------------------------------------------------------------
@@ -906,7 +912,7 @@ class ApplicationRuntime:
             records = self._treatment_repository.get_all()
         except Exception:
             # Persistence layer not reachable (e.g. an in-memory test
-            # double with no rows yet) Ã¢â‚¬â€ nothing to hydrate.
+            # double with no rows yet) — nothing to hydrate.
             return
 
         for record in records:
