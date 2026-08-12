@@ -36,7 +36,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://localhost:5174"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding"}
+ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records"}
 
 
 @app.middleware("http")
@@ -78,6 +78,7 @@ from dairyos.api.operations import router as operations_router
 from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reproduction_management import router as reproduction_management_router
 from dairyos.api.youngstock_management import router as youngstock_management_router
+from dairyos.api.feed_management import router as feed_management_router
 from dairyos.api.system import router as system_router
 
 app.include_router(auth_router)
@@ -96,6 +97,7 @@ app.include_router(operations_router)
 app.include_router(reference_data_router)
 app.include_router(reproduction_management_router)
 app.include_router(youngstock_management_router)
+app.include_router(feed_management_router)
 app.include_router(system_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
