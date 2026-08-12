@@ -18,6 +18,8 @@ class OperationalInputType(str, Enum):
 
     YOUNGSTOCK_GROWTH = "youngstock_growth"
 
+    YOUNGSTOCK_WEANING = "youngstock_weaning"
+
     WORKFORCE = "workforce"
 
     INVENTORY = "inventory"
