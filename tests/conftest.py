@@ -4,8 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dairyos.app import app, container
-from dairyos.data.database.session import create_application_session
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
@@ -18,21 +19,31 @@ from dairyos.farm.operations.state.farm_operational_state_service import (
 
 
 def _reset_test_persistence() -> None:
-    """Isolate API tests from durable records created by earlier tests.
+    """Isolate API tests from durable operational records created by earlier tests.
 
-    The application intentionally uses real persisted SQL data. The test
-    client fixture therefore must clear mutable operational tables before
-    each test; otherwise a cost-of-production test can accidentally include
-    financial or milk records created by an unrelated earlier test.
+    DairyOS intentionally uses real persisted SQL repositories. The test
+    fixture therefore clears every mutable SQL repository consumed by the KPI
+    and cost engines before each test. Cleanup uses the same long-lived
+    application session as the runtime so its transaction state cannot retain
+    rows deleted through a second session.
     """
 
-    session = create_application_session()
+    session = container.repository_factory.session
+    session.rollback()
+
     try:
-        session.query(FinancialTransaction).delete(synchronize_session=False)
-        session.query(MilkProduction).delete(synchronize_session=False)
+        for model in (
+            FinancialTransaction,
+            MilkProduction,
+            FeedRecord,
+            HealthObservation,
+        ):
+            session.query(model).delete(synchronize_session=False)
         session.commit()
-    finally:
-        session.close()
+        session.expire_all()
+    except Exception:
+        session.rollback()
+        raise
 
 
 @pytest.fixture()
