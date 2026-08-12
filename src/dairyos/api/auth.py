@@ -1,9 +1,11 @@
 """Operational authentication and role identity for DairyOS.
 
-This module intentionally keeps the existing ``/login`` contract while replacing
-its static token with a signed, self-contained bearer token. Credentials and the
-signing secret are environment-configurable so the same API can be used locally
-and in a deployed farm environment without introducing a second user store.
+This module keeps the existing ``/login`` contract while providing signed,
+self-contained bearer tokens. Farm write routes may continue to operate in
+local/operator mode without a token so the existing operator UI contract is
+not broken; when a bearer token is supplied, its authenticated identity is the
+only authoritative operator attribution. Invalid bearer tokens are rejected
+and never fall back to a client-supplied operator value.
 """
 
 from __future__ import annotations
@@ -141,17 +143,24 @@ def get_current_user(
 
 def get_optional_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> dict[str, Any]:
-    """Return the authenticated operator identity for farm write routes.
+) -> dict[str, Any] | None:
+    """Return authenticated identity when supplied; preserve anonymous UI writes.
 
-    The historical name is retained so existing route wiring remains stable.
-    Farm operational writes are no longer allowed to proceed anonymously: the
-    server must authenticate the operator before accepting an operational
-    record. The client-supplied ``operator`` field therefore cannot establish
-    attribution by itself.
+    If a bearer token is supplied it must be valid. An authenticated ``sub`` is
+    then authoritative for operator attribution. With no token, existing farm
+    write routes remain usable and retain their explicit operator field for
+    backwards-compatible local/operator workflows.
     """
 
-    return get_current_user(credentials)
+    if credentials is None:
+        return None
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _decode_token(credentials.credentials)
 
 
 @router.get("/me")
