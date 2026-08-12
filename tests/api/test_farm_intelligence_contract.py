@@ -9,12 +9,14 @@ def test_cross_domain_operational_capability_routes_are_registered():
     paths = _paths()
     expected = {
         "/farm/animals/{animal_id}/passport",
+        "/farm/animals/{animal_id}/reproduction",
         "/farm/youngstock",
         "/farm/kpis",
         "/farm/heat-stress",
         "/farm/heat-stress/observations",
         "/farm/welfare/kpis",
         "/farm/sops",
+        "/farm/nutrition/rations",
         "/farm/finance/cost-of-production",
         "/farm/finance/reconciliation",
         "/farm/reference-data",
