@@ -44,10 +44,7 @@ def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
 def test_active_operator_shell_contains_approved_navigation():
     source = _active_shell()
     assert "DairyOSShell" in source
-    for label in (
-        "Dashboard", "Animals", "Milk", "Feeding", "Health", "Breeding",
-        "Workforce", "Inventory", "Equipment", "Finance", "Analytics", "Alerts", "Settings",
-    ):
+    for label in ("Dashboard", "Animals", "Milk", "Feeding", "Health", "Breeding", "Workforce", "Inventory", "Equipment", "Finance", "Analytics", "Alerts", "Settings"):
         assert f'label: "{label}"' in source or f'label="{label}"' in source
 
 
@@ -69,10 +66,7 @@ def test_active_shell_uses_live_domain_endpoints():
 
 def test_active_shell_uses_meaningful_domain_choices():
     source = _active_shell()
-    for value in (
-        "CATTLE", "FEMALE", "LACTATING", "THRICE_DAILY", "MORNING", "SILAGE",
-        "PREGNANCY", "EXPENSE", "CASH", "BANK",
-    ):
+    for value in ("CATTLE", "FEMALE", "LACTATING", "THRICE_DAILY", "MORNING", "SILAGE", "PREGNANCY", "EXPENSE", "CASH", "BANK"):
         assert value in source
 
 
@@ -88,7 +82,7 @@ def test_unknown_animal_id_is_rejected_before_operational_write(client: TestClie
         ("/farm/milk", {"animal_id": "NOT-A-REAL-ANIMAL", "morning_yield": 1}),
         ("/farm/health-observations", {"animal_id": "NOT-A-REAL-ANIMAL", "observation": "test"}),
         ("/farm/treatments", {"animal_id": "NOT-A-REAL-ANIMAL", "medicine": "test", "milk_withdrawal_days": 1}),
-        ("/farm/breeding", {"animal_id": "NOT-A-REAL-ANIMAL", "event_type": "HEAT_OBSERVED"}),
+        ("/farm/breeding", {"animal_id": "NOT-A-REAL-ANIMAL", "event_type": "heat_detected"}),
     ):
         response = client.post(path, json=payload)
         assert response.status_code == 422, (path, response.text)
@@ -96,27 +90,16 @@ def test_unknown_animal_id_is_rejected_before_operational_write(client: TestClie
 
 
 def test_all_current_operational_data_entry_workflows_are_usable(client: TestClient):
-    animal_response = client.post(
-        "/farm/animals",
-        json={
-            "animal_type": "CATTLE",
-            "sex": "FEMALE",
-            "lifecycle_status": "LACTATING",
-            "breed": "HOLSTEIN",
-            "date_of_birth": "2022-01-01",
-        },
-    )
+    animal_response = client.post("/farm/animals", json={"animal_type": "CATTLE", "sex": "FEMALE", "lifecycle_status": "LACTATING", "breed": "HOLSTEIN", "date_of_birth": "2022-01-01"})
     assert animal_response.status_code in (200, 201), animal_response.text
     animal_id = animal_response.json()["animal_id"]
-
     payloads = {
         "/farm/milk": {"animal_id": animal_id, "morning_yield": 8, "afternoon_yield": 7, "evening_yield": 6, "operator": "UI-Test"},
         "/farm/feed": {"feed_type": "SILAGE", "quantity_kg": 25, "animal_id": animal_id, "operator": "UI-Test"},
         "/farm/health-observations": {"animal_id": animal_id, "observation": "Normal", "operator": "UI-Test"},
-        "/farm/breeding": {"animal_id": animal_id, "event_type": "HEAT_OBSERVED", "operator": "UI-Test"},
+        "/farm/breeding": {"animal_id": animal_id, "event_type": "heat_detected", "operator": "UI-Test"},
         "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "operator": "UI-Test"},
     }
-
     for path, payload in payloads.items():
         response = client.post(path, json=payload)
         assert response.status_code in (200, 201), (path, response.text)
