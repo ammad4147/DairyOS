@@ -1,7 +1,7 @@
-"""Operator UI and operational API contract tests.
+"""Authoritative operator UI and operational API contract tests.
 
 The authoritative operator surface is the React/Vite application under
-``src/DairyOS.Web``. FastAPI is the API/runtime surface and does not serve the
+``src/DairyOS.Web``. FastAPI is the API/runtime surface and must not expose the
 retired static operator UI.
 """
 
@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = REPO_ROOT / "src" / "DairyOS.Web" / "src"
 APP_TSX = WEB_ROOT / "App.tsx"
 SHELL_TSX = WEB_ROOT / "ui" / "DairyOSShell.tsx"
+FASTAPI_APP = REPO_ROOT / "src" / "dairyos" / "app.py"
+LEGACY_UI_ENTRYPOINT = REPO_ROOT / "src" / "dairyos" / "web" / "index.html"
 
 DOMAIN_ENDPOINTS = {
     "milk": "/farm/milk",
@@ -39,6 +41,16 @@ def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
     assert body["operator_ui"]["technology"] == "React/Vite"
     assert body["operator_ui"]["authoritative"] is True
     assert body["legacy_static_ui"]["served"] is False
+
+
+def test_legacy_static_operator_surface_is_retired(client: TestClient):
+    assert not LEGACY_UI_ENTRYPOINT.exists()
+    response = client.get("/ui/")
+    assert response.status_code == 404
+    source = FASTAPI_APP.read_text(encoding="utf-8")
+    assert "StaticFiles" not in source
+    assert "WEB_DIR" not in source
+    assert "app.mount(\"/ui\"" not in source
 
 
 def test_active_operator_shell_contains_approved_navigation():
@@ -76,8 +88,6 @@ def test_active_shell_uses_meaningful_domain_choices():
     ):
         assert value in source
 
-    # Master/reference-data fields must remain source-backed rather than
-    # embedding farm-specific values such as a particular breed in the UI.
     assert 'source: "breeds"' in source
     assert 'source: "animals"' in source
     assert 'source: "workers"' in source
