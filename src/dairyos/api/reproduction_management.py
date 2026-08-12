@@ -33,6 +33,40 @@ def _serialize(record):
     }
 
 
+def _event_type(record) -> str:
+    """Normalize UI/API reproduction event vocabulary for KPI projections."""
+    return str(getattr(record, "event_type", "")).strip().lower().replace("-", "_")
+
+
+def _is_insemination(record) -> bool:
+    return _event_type(record) in {"insemination", "service"}
+
+
+def _is_pregnancy_check(record) -> bool:
+    return _event_type(record) in {
+        "pregnancy_check",
+        "pregnancy_diagnosis",
+        "pregnancy",
+    }
+
+
+def _is_confirmed_pregnancy(record) -> bool:
+    event = _event_type(record)
+    result = str(getattr(record, "result", "")).strip().lower()
+    return event == "pregnancy_confirmed" or (
+        _is_pregnancy_check(record)
+        and result in {"pregnant", "confirmed", "positive", "yes"}
+    )
+
+
+def _is_calving(record) -> bool:
+    return _event_type(record) in {"calving", "calved", "parturition"}
+
+
+def _is_heat_detection(record) -> bool:
+    return _event_type(record) in {"heat_detection", "heat_detected", "heat", "oestrus", "estrus"}
+
+
 def _conception_rate(inseminations, pregnancy_checks):
     """Return conception rate only for inseminations with a documented outcome.
 
@@ -66,12 +100,7 @@ def _conception_rate(inseminations, pregnancy_checks):
         if not candidates:
             continue
         matched = candidates[-1]
-        outcomes[matched.record_id] = str(check.result).lower() in {
-            "pregnant",
-            "confirmed",
-            "positive",
-            "yes",
-        }
+        outcomes[matched.record_id] = _is_confirmed_pregnancy(check)
 
     if not outcomes:
         return None
@@ -83,18 +112,12 @@ def _management(records):
     cutoff = now - timedelta(days=365)
     recent = [r for r in records if r.timestamp is None or r.timestamp >= cutoff]
 
-    event_counts = Counter(str(r.event_type).lower() for r in recent)
-    inseminations = [r for r in recent if str(r.event_type).lower() in {"insemination", "service"}]
-    pregnancy_checks = [
-        r for r in recent
-        if str(r.event_type).lower() in {"pregnancy_check", "pregnancy-check", "pregnancy"}
-    ]
-    confirmed = [
-        r for r in pregnancy_checks
-        if str(r.result).lower() in {"pregnant", "confirmed", "positive", "yes"}
-    ]
-    calvings = [r for r in recent if str(r.event_type).lower() in {"calving", "calved", "parturition"}]
-    heat_events = [r for r in recent if str(r.event_type).lower() in {"heat_detection", "heat", "oestrus", "estrus"}]
+    event_counts = Counter(_event_type(r) for r in recent)
+    inseminations = [r for r in recent if _is_insemination(r)]
+    pregnancy_checks = [r for r in recent if _is_pregnancy_check(r)]
+    confirmed = [r for r in recent if _is_confirmed_pregnancy(r)]
+    calvings = [r for r in recent if _is_calving(r)]
+    heat_events = [r for r in recent if _is_heat_detection(r)]
 
     return {
         "period": {
