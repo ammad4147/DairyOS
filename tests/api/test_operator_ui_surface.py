@@ -71,8 +71,8 @@ def test_active_shell_uses_live_domain_endpoints():
 def test_active_shell_uses_meaningful_domain_choices():
     source = _active_shell()
     for value in (
-        "CATTLE", "FEMALE", "LACTATING", "THRICE_DAILY", "MORNING",
-        "SILAGE", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
+        "COW", "Sahiwal", "LACTATING", "THRICE_DAILY", "MORNING",
+        "Silage", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
     ):
         assert value in source
 
@@ -87,7 +87,7 @@ def test_operational_presentation_and_api_surface_are_reachable(client: TestClie
 def test_unknown_animal_id_is_rejected_before_operational_write(client: TestClient):
     for path, payload in (
         ("/farm/milk", {"animal_id": "NOT-A-REAL-ANIMAL", "morning_yield": 1}),
-        ("/farm/health-observations", {"animal_id": "NOT-A-REAL-ANIMAL", "observation": "test"}),
+        ("/farm/health-observations", {"animal_id": "NOT-A-REAL-ANIMAL", "symptom": "test"}),
         ("/farm/treatments", {"animal_id": "NOT-A-REAL-ANIMAL", "medicine": "test", "milk_withdrawal_days": 1}),
         ("/farm/breeding", {"animal_id": "NOT-A-REAL-ANIMAL", "event_type": "heat_detected"}),
     ):
@@ -100,21 +100,21 @@ def test_all_current_operational_data_entry_workflows_are_usable(client: TestCli
     animal_response = client.post(
         "/farm/animals",
         json={
-            "animal_type": "CATTLE",
-            "sex": "FEMALE",
+            "animal_type": "COW",
+            "breed": "Sahiwal",
             "lifecycle_status": "LACTATING",
-            "breed": "HOLSTEIN",
-            "date_of_birth": "2022-01-01",
+            "is_currently_milking": True,
+            "milking_frequency": "THRICE_DAILY",
         },
     )
-    assert animal_response.status_code in (200, 201), animal_response.text
+    assert animal_response.status_code == 200, animal_response.text
     animal_id = animal_response.json()["animal_id"]
     payloads = {
         "/farm/milk": {"animal_id": animal_id, "morning_yield": 8, "afternoon_yield": 7, "evening_yield": 6, "operator": "UI-Test"},
-        "/farm/feed": {"feed_type": "SILAGE", "quantity_kg": 25, "animal_id": animal_id, "operator": "UI-Test"},
-        "/farm/health-observations": {"animal_id": animal_id, "observation": "Normal", "operator": "UI-Test"},
-        "/farm/breeding": {"animal_id": animal_id, "event_type": "heat_detected", "operator": "UI-Test"},
-        "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "operator": "UI-Test"},
+        "/farm/feed": {"feed_type": "Silage", "quantity_kg": 25, "group_or_pen": "Pen A", "operator": "UI-Test"},
+        "/farm/health-observations": {"animal_id": animal_id, "symptom": "Normal", "severity": "LOW", "operator": "UI-Test"},
+        "/farm/breeding": {"animal_id": animal_id, "event_type": "insemination", "technician": "Dr Vet", "result": "completed", "operator": "UI-Test"},
+        "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "category": "Feed", "payment_method": "CASH", "operator": "UI-Test"},
     }
     for path, payload in payloads.items():
         response = client.post(path, json=payload)
