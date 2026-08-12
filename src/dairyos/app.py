@@ -73,6 +73,7 @@ from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.financial_intelligence import router as financial_intelligence_router
 from dairyos.api.farm_planning import router as farm_planning_router
 from dairyos.api.health import router as health_router
+from dairyos.api.milk_traceability import router as milk_traceability_router
 from dairyos.api.operations import router as operations_router
 from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.system import router as system_router
@@ -88,6 +89,7 @@ app.include_router(farm_intelligence_router)
 app.include_router(financial_intelligence_router)
 app.include_router(farm_planning_router)
 app.include_router(health_router)
+app.include_router(milk_traceability_router)
 app.include_router(operations_router)
 app.include_router(reference_data_router)
 app.include_router(system_router)
