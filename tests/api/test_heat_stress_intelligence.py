@@ -19,7 +19,7 @@ def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
         "2026-08-12T10:00:00+00:00",
         "2026-08-12T12:00:00+00:00",
     ]
-    observations = [(25.0, 50.0), (30.0, 70.0), (32.0, 75.0)]
+    observations = [(20.0, 50.0), (30.0, 70.0), (32.0, 75.0)]
     for observed_at, (temperature_c, humidity_pct) in zip(timestamps, observations):
         response = client.post(
             "/farm/heat-stress/intelligence/observations",
