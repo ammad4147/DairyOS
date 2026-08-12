@@ -140,6 +140,35 @@ class InputCatalog:
 
 
             OperationalInputDefinition(
+                input_type=OperationalInputType.YOUNGSTOCK_GROWTH.value,
+                name="Youngstock Growth Entry",
+                description="Persisted calf and youngstock growth measurements supporting growth monitoring and weaning management.",
+
+                required_fields=[
+                    "animal_id",
+                    "weight_kg",
+                ],
+
+                optional_fields=[
+                    "height_cm",
+                    "body_condition_score",
+                    "measurement_date",
+                    "operator",
+                    "notes",
+                ],
+
+                analytics_enabled=True,
+
+                notification_enabled=True,
+
+                governance_required=True,
+
+                normalization_enabled=True,
+            ),
+
+
+
+            OperationalInputDefinition(
                 input_type=OperationalInputType.WORKFORCE.value,
                 name="Workforce Entry",
                 description="Farm workforce operational records.",
