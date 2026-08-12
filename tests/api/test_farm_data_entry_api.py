@@ -1,11 +1,11 @@
 from dairyos.api.app import app
 
 
-def test_record_milk_entry(client):
+def test_record_milk_entry(client, registered_animal):
     response = client.post(
         "/farm/milk",
         json={
-            "animal_id": "TEST-COW-001",
+            "animal_id": registered_animal,
             "morning_yield": 8.0,
             "afternoon_yield": 7.5,
             "evening_yield": 6.5,
@@ -15,17 +15,17 @@ def test_record_milk_entry(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["animal_id"] == "TEST-COW-001"
+    assert body["animal_id"] == registered_animal
     assert body["total_yield"] == 22.0
     assert body["status"] == "RECORDED"
     assert body["operator"] == "Milking Operator"
 
 
-def test_list_milk_entries(client):
+def test_list_milk_entries(client, registered_animal):
     client.post(
         "/farm/milk",
         json={
-            "animal_id": "TEST-COW-002",
+            "animal_id": registered_animal,
             "morning_yield": 5.0,
             "operator": "Milking Operator",
         },
@@ -63,11 +63,11 @@ def test_list_feed_entries(client):
     assert isinstance(response.json(), list)
 
 
-def test_record_health_observation(client):
+def test_record_health_observation(client, registered_animal):
     response = client.post(
         "/farm/health-observations",
         json={
-            "animal_id": "TEST-COW-001",
+            "animal_id": registered_animal,
             "symptom": "Lethargy",
             "temperature_c": 39.9,
             "severity": "ELEVATED",
@@ -77,7 +77,7 @@ def test_record_health_observation(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["animal_id"] == "TEST-COW-001"
+    assert body["animal_id"] == registered_animal
     assert body["severity"] == "ELEVATED"
     assert body["status"] == "OPEN"
     assert body["operator"] == "Dr Vet"
@@ -90,11 +90,11 @@ def test_list_health_observations(client):
     assert isinstance(response.json(), list)
 
 
-def test_record_breeding_entry(client):
+def test_record_breeding_entry(client, registered_animal):
     response = client.post(
         "/farm/breeding",
         json={
-            "animal_id": "COW-001",
+            "animal_id": registered_animal,
             "event_type": "insemination",
             "technician": "Dr Vet",
             "result": "completed",
@@ -104,7 +104,7 @@ def test_record_breeding_entry(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["animal_id"] == "COW-001"
+    assert body["animal_id"] == registered_animal
     assert body["event_type"] == "insemination"
     assert body["operator"] == "Dr Vet"
 
