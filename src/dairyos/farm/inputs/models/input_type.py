@@ -10,6 +10,8 @@ class OperationalInputType(str, Enum):
 
     FEEDING = "feeding"
 
+    FEED_RATION = "feed_ration"
+
     ANIMAL_HEALTH = "animal_health"
 
     BREEDING = "breeding"
