@@ -84,6 +84,7 @@ from dairyos.api.farm_planning import router as farm_planning_router
 from dairyos.api.health import router as health_router
 from dairyos.api.milk_traceability import router as milk_traceability_router
 from dairyos.api.operations import router as operations_router
+from dairyos.api.tab_state import router as tab_state_router
 from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reproduction_management import router as reproduction_management_router
 from dairyos.api.youngstock_management import router as youngstock_management_router
@@ -106,6 +107,7 @@ app.include_router(farm_planning_router)
 app.include_router(health_router)
 app.include_router(milk_traceability_router)
 app.include_router(operations_router)
+app.include_router(tab_state_router)
 app.include_router(reference_data_router)
 app.include_router(reproduction_management_router)
 app.include_router(youngstock_management_router)
