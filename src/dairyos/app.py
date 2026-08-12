@@ -36,7 +36,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://localhost:5174"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records"}
+ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
 
 @app.middleware("http")
@@ -71,6 +71,7 @@ from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
+from dairyos.api.animal_welfare import router as animal_welfare_router
 from dairyos.api.financial_intelligence import router as financial_intelligence_router
 from dairyos.api.farm_planning import router as farm_planning_router
 from dairyos.api.health import router as health_router
@@ -92,6 +93,7 @@ app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
 app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
+app.include_router(animal_welfare_router)
 app.include_router(financial_intelligence_router)
 app.include_router(farm_planning_router)
 app.include_router(health_router)
