@@ -64,6 +64,7 @@ def client(tmp_path):
     container.farm_operational_state_service = FarmOperationalStateService(
         animal_projection=container.animal_event_projection
     )
+    container.operational_input_repository.clear()
     container.started = False
     container.operations = None
     container.dashboard = None
