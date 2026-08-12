@@ -1,16 +1,11 @@
 from dairyos.app import app
 
 
-def test_reject_treatment_for_unknown_drug_without_override(client):
-    """
-    Tier 1a safety contract: an unknown medicine with no explicit
-    withdrawal days must be rejected, never silently recorded with a
-    zero-day (unsafe) withdrawal period.
-    """
+def test_reject_treatment_for_unknown_drug_without_override(client, registered_animal):
     response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-001",
+            "animal_id": registered_animal,
             "medicine": "Totally-Unlisted-Drug-XYZ",
             "diagnosis": "Mastitis",
             "operator": "Dr Vet",
@@ -21,11 +16,11 @@ def test_reject_treatment_for_unknown_drug_without_override(client):
     assert "Unknown medicine" in response.json()["detail"]
 
 
-def test_record_treatment_with_explicit_withdrawal_days(client):
+def test_record_treatment_with_explicit_withdrawal_days(client, registered_animal):
     response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-002",
+            "animal_id": registered_animal,
             "medicine": "Manual-Override-Drug",
             "diagnosis": "Mastitis",
             "milk_withdrawal_days": 4,
@@ -36,20 +31,18 @@ def test_record_treatment_with_explicit_withdrawal_days(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["animal_id"] == "TEST-WD-002"
+    assert body["animal_id"] == registered_animal
     assert body["milk_withdrawal_days"] == 4
     assert body["withdrawal_source"] == "manual_override"
     assert body["milk_withdrawal_until"]
     assert body["treatment_id"]
 
 
-def test_treatment_opens_active_withdrawal_and_blocks_milk_entry(client):
-    animal_id = "TEST-WD-003"
-
+def test_treatment_opens_active_withdrawal_and_blocks_milk_entry(client, registered_animal):
     treatment_response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": animal_id,
+            "animal_id": registered_animal,
             "medicine": "Blocking-Drug",
             "diagnosis": "Respiratory infection",
             "milk_withdrawal_days": 5,
@@ -61,12 +54,12 @@ def test_treatment_opens_active_withdrawal_and_blocks_milk_entry(client):
     active = client.get("/farm/withdrawals/active")
     assert active.status_code == 200
     active_ids = [row["animal_id"] for row in active.json()]
-    assert animal_id in active_ids
+    assert registered_animal in active_ids
 
     milk_response = client.post(
         "/farm/milk",
         json={
-            "animal_id": animal_id,
+            "animal_id": registered_animal,
             "morning_yield": 8.0,
             "operator": "Milking Operator",
         },
@@ -79,11 +72,11 @@ def test_treatment_opens_active_withdrawal_and_blocks_milk_entry(client):
     assert "SAFETY ALERT" in milk_body["safety_message"]
 
 
-def test_milk_entry_not_blocked_for_untreated_animal(client):
+def test_milk_entry_not_blocked_for_untreated_animal(client, registered_animal):
     response = client.post(
         "/farm/milk",
         json={
-            "animal_id": "TEST-WD-004-CLEAN",
+            "animal_id": registered_animal,
             "morning_yield": 6.0,
             "operator": "Milking Operator",
         },
@@ -95,11 +88,11 @@ def test_milk_entry_not_blocked_for_untreated_animal(client):
     assert body["withdrawal_warning"] is False
 
 
-def test_list_treatments(client):
+def test_list_treatments(client, registered_animal):
     client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-005",
+            "animal_id": registered_animal,
             "medicine": "List-Test-Drug",
             "milk_withdrawal_days": 2,
             "operator": "Dr Vet",
@@ -113,11 +106,11 @@ def test_list_treatments(client):
     assert len(response.json()) >= 1
 
 
-def test_negative_withdrawal_days_rejected(client):
+def test_negative_withdrawal_days_rejected(client, registered_animal):
     response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-006",
+            "animal_id": registered_animal,
             "medicine": "Negative-Days-Drug",
             "milk_withdrawal_days": -1,
             "operator": "Dr Vet",
@@ -151,7 +144,7 @@ def test_drug_reference_upsert_and_list(client):
     assert "Reference-Test-Drug" in names
 
 
-def test_treatment_uses_drug_reference_table_when_medicine_known(client):
+def test_treatment_uses_drug_reference_table_when_medicine_known(client, registered_animal):
     client.post(
         "/farm/drug-reference",
         json={
@@ -164,8 +157,8 @@ def test_treatment_uses_drug_reference_table_when_medicine_known(client):
     response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-007",
-            "medicine": "known-reference-drug",  # case-insensitive match
+            "animal_id": registered_animal,
+            "medicine": "known-reference-drug",
             "operator": "Dr Vet",
         },
     )
@@ -176,7 +169,7 @@ def test_treatment_uses_drug_reference_table_when_medicine_known(client):
     assert body["withdrawal_source"] == "reference_table"
 
 
-def test_treatment_override_only_extends_reference_period(client):
+def test_treatment_override_only_extends_reference_period(client, registered_animal):
     client.post(
         "/farm/drug-reference",
         json={
@@ -186,11 +179,10 @@ def test_treatment_override_only_extends_reference_period(client):
         },
     )
 
-    # Attempt to SHORTEN below the reference value -- must not be honored.
     shorten_response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-008",
+            "animal_id": registered_animal,
             "medicine": "Extend-Test-Drug",
             "milk_withdrawal_days": 1,
             "operator": "Dr Vet",
@@ -199,11 +191,10 @@ def test_treatment_override_only_extends_reference_period(client):
     assert shorten_response.status_code == 200
     assert shorten_response.json()["milk_withdrawal_days"] == 3
 
-    # Extending it further IS honored.
     extend_response = client.post(
         "/farm/treatments",
         json={
-            "animal_id": "TEST-WD-009",
+            "animal_id": registered_animal,
             "medicine": "Extend-Test-Drug",
             "milk_withdrawal_days": 10,
             "operator": "Dr Vet",
