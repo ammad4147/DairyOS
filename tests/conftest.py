@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dairyos.app import app, container
+from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
@@ -22,10 +23,10 @@ def _reset_test_persistence() -> None:
     """Isolate API tests from durable operational records created by earlier tests.
 
     DairyOS intentionally uses real persisted SQL repositories. The reset is
-    performed after the application runtime has started so the cleanup targets
-    the exact repository/session composition used by the API under test. This
-    also removes any operational rows that runtime startup may have restored
-    or initialized before the test begins.
+    performed after the application runtime has started so cleanup targets the
+    exact repository/session composition used by the API under test. Every
+    persisted repository consumed by the KPI and cost engines is cleared,
+    including the operational breeding repository.
     """
 
     factory = container.repository_factory
@@ -38,6 +39,7 @@ def _reset_test_persistence() -> None:
             MilkProduction,
             FeedRecord,
             HealthObservation,
+            BreedingRecordModel,
         ):
             session.query(model).delete(synchronize_session=False)
         session.commit()
