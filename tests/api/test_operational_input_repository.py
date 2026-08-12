@@ -50,3 +50,25 @@ def test_operational_input_repository_deduplicates_event_identity(tmp_path):
 
     assert len(repository.list_all()) == 1
     assert len(repository.find_by_type("health_observation")) == 1
+
+
+def test_operational_input_api_record_is_visible_after_repository_reopen(
+    client,
+    registered_animal,
+):
+    response = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "morning_yield": 8.0,
+            "operator": "Milking Operator",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    reopened = OperationalInputRepository()
+    records = reopened.find_by_type("milk_production")
+
+    assert records
+    assert records[-1].payload["animal_id"] == registered_animal
+    assert records[-1].payload["morning_yield"] == 8.0
