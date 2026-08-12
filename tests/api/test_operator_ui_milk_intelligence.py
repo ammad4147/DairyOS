@@ -1,6 +1,12 @@
 from fastapi.testclient import TestClient
 
+from pathlib import Path
+
 from dairyos.app import app
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SHELL = REPO_ROOT / "src" / "DairyOS.Web" / "src" / "ui" / "DairyOSShell.tsx"
 
 
 def test_milk_intelligence_endpoint_is_reachable(client: TestClient):
@@ -21,14 +27,14 @@ def test_milk_intelligence_endpoint_is_reachable(client: TestClient):
         assert key in payload
 
 
-def test_milk_intelligence_bridge_is_loaded_by_operator_root(client: TestClient):
-    response = client.get("/")
+def test_milk_intelligence_is_represented_by_active_operator_shell(client: TestClient):
+    root = client.get("/")
+    assert root.status_code == 200
+    body = root.json()
+    assert body["operator_ui"]["authoritative"] is True
+    assert body["legacy_static_ui"]["served"] is False
 
-    assert response.status_code == 200
-    assert "/ui/dashboard_milk_intelligence.js" in response.text
-    assert "Evidence-based milk intelligence" in client.get(
-        "/ui/dashboard_milk_intelligence.js"
-    ).text
-    assert "No synthetic values" in client.get(
-        "/ui/dashboard_live.js"
-    ).text
+    source = SHELL.read_text(encoding="utf-8")
+    assert "animal yield alerts above 20% drop" in source
+    assert "Open alerts" in source
+    assert "/farm/milk/intelligence" in source or "/farm/milk" in source
