@@ -15,7 +15,9 @@ def _login(client: TestClient, monkeypatch) -> str:
     return response.json()["access_token"]
 
 
-def test_authenticated_data_entry_uses_server_identity(client: TestClient, monkeypatch):
+def test_authenticated_data_entry_uses_server_identity(
+    client: TestClient, monkeypatch, registered_animal
+):
     token = _login(client, monkeypatch)
 
     response = client.post(
@@ -23,7 +25,7 @@ def test_authenticated_data_entry_uses_server_identity(client: TestClient, monke
         headers={"Authorization": f"Bearer {token}"},
         json={
             "operator": "spoofed-client-value",
-            "animal_id": "A-001",
+            "animal_id": registered_animal,
             "morning_yield": 10,
             "afternoon_yield": 8,
             "evening_yield": 7,
@@ -37,12 +39,14 @@ def test_authenticated_data_entry_uses_server_identity(client: TestClient, monke
     assert payload["total_yield"] == 25
 
 
-def test_unauthenticated_data_entry_preserves_legacy_operator_contract(client: TestClient):
+def test_unauthenticated_data_entry_preserves_operator_contract(
+    client: TestClient, registered_animal
+):
     response = client.post(
         "/farm/milk",
         json={
             "operator": "UI Operator",
-            "animal_id": "A-002",
+            "animal_id": registered_animal,
             "morning_yield": 5,
             "afternoon_yield": 4,
             "evening_yield": 3,
@@ -53,13 +57,15 @@ def test_unauthenticated_data_entry_preserves_legacy_operator_contract(client: T
     assert response.json()["operator"] == "UI Operator"
 
 
-def test_invalid_bearer_token_cannot_fall_back_to_client_operator(client: TestClient):
+def test_invalid_bearer_token_cannot_fall_back_to_client_operator(
+    client: TestClient, registered_animal
+):
     response = client.post(
         "/farm/milk",
         headers={"Authorization": "Bearer invalid.token"},
         json={
             "operator": "spoofed-client-value",
-            "animal_id": "A-003",
+            "animal_id": registered_animal,
             "morning_yield": 1,
         },
     )
