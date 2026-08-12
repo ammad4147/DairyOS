@@ -24,6 +24,11 @@ class DatabaseBreedingRepository(
 ):
     """
     SQLAlchemy implementation of breeding persistence.
+
+    A successful save is a durable operational write.  Commit here, as
+    the other operational repositories do, so a subsequent repository
+    session (including the lifetime Animal Passport projection) can
+    observe the breeding record immediately.
     """
 
     def __init__(
@@ -31,7 +36,6 @@ class DatabaseBreedingRepository(
         session,
     ):
         self.session = session
-
 
     def save(
         self,
@@ -47,15 +51,14 @@ class DatabaseBreedingRepository(
         )
 
         self.session.add(model)
-        self.session.flush()
+        self.session.commit()
+        self.session.refresh(model)
 
         return record
-
 
     def get_all(
         self,
     ) -> list[BreedingRecord]:
-
         rows = (
             self.session
             .query(BreedingRecordModel)
