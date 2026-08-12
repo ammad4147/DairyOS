@@ -5,7 +5,6 @@ FastAPI is the API/runtime surface and deliberately does not serve the
 retired static operator UI. This prevents tests, operators and production
 traffic from accidentally using two different dashboard implementations.
 """
-
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -18,7 +17,6 @@ from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-
 application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
 
@@ -51,6 +49,7 @@ from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.health import router as health_router
 from dairyos.api.operations import router as operations_router
+from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.system import router as system_router
 
 app.include_router(auth_router)
@@ -62,6 +61,7 @@ app.include_router(animal_router, prefix="/farm")
 app.include_router(farm_intelligence_router)
 app.include_router(health_router)
 app.include_router(operations_router)
+app.include_router(reference_data_router)
 app.include_router(system_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
@@ -69,20 +69,17 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 
 @app.get("/", include_in_schema=False)
 def root():
-    """Expose the API/root contract without resurrecting the retired UI."""
-    return JSONResponse(
-        {
-            "system": "DairyOS",
-            "surface": "api",
-            "operator_ui": {
-                "application": "DairyOS.Web",
-                "technology": "React/Vite",
-                "url": FRONTEND_URL,
-                "authoritative": True,
-            },
-            "legacy_static_ui": {
-                "served": False,
-                "reason": "Retired; the React/Vite operator shell is authoritative.",
-            },
-        }
-    )
+    return JSONResponse({
+        "system": "DairyOS",
+        "surface": "api",
+        "operator_ui": {
+            "application": "DairyOS.Web",
+            "technology": "React/Vite",
+            "url": FRONTEND_URL,
+            "authoritative": True,
+        },
+        "legacy_static_ui": {
+            "served": False,
+            "reason": "Retired; the React/Vite operator shell is authoritative.",
+        },
+    })
