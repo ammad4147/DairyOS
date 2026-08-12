@@ -17,11 +17,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from dairyos.application.identity.models.authorization_role import AuthorizationRole
-from dairyos.application.identity.repositories.sqlalchemy_user_repository import (
-    SqlAlchemyUserRepository,
-)
-from dairyos.data.database.session import get_session
-
+from dairyos.application.identity.repositories.sqlalchemy_user_repository import SqlAlchemyUserRepository
+from dairyos.data.database.session import SessionLocal, get_session
 
 router = APIRouter(tags=["Authentication"])
 TOKEN_TTL_SECONDS = 8 * 60 * 60
@@ -146,9 +143,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_session)):
     account = SqlAlchemyUserRepository(db).get_by_username(
         farm_id=payload.farm_id, username=payload.username
     )
-    if account is None or not account.active or not _verify_password(
-        payload.password, account.password_hash
-    ):
+    if account is None or not account.active or not _verify_password(payload.password, account.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -166,9 +161,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_session)):
 @router.post("/users")
 def create_user(
     payload: UserCreateRequest,
-    current_user: dict[str, Any] = Depends(
-        require_roles(AuthorizationRole.OWNER, AuthorizationRole.MANAGER)
-    ),
+    current_user: dict[str, Any] = Depends(require_roles(AuthorizationRole.OWNER, AuthorizationRole.MANAGER)),
     db: Session = Depends(get_session),
 ):
     if payload.farm_id != current_user["farm_id"]:
@@ -193,3 +186,29 @@ def create_user(
 @router.get("/me")
 def me(current_user: dict[str, Any] = Depends(get_current_user)):
     return current_user
+
+
+def ensure_bootstrap_owner() -> None:
+    """Create the first owner only when explicit bootstrap variables are supplied."""
+    farm_id = os.getenv("DAIRYOS_BOOTSTRAP_FARM_ID")
+    username = os.getenv("DAIRYOS_BOOTSTRAP_USERNAME")
+    password = os.getenv("DAIRYOS_BOOTSTRAP_PASSWORD")
+    if not all((farm_id, username, password)):
+        return
+    if len(password) < 12:
+        raise RuntimeError("DAIRYOS_BOOTSTRAP_PASSWORD must contain at least 12 characters")
+
+    db = SessionLocal()
+    try:
+        repo = SqlAlchemyUserRepository(db)
+        if repo.list_for_farm(farm_id):
+            return
+        repo.create(
+            farm_id=farm_id,
+            username=username,
+            display_name=username,
+            password_hash=_hash_password(password),
+            role=AuthorizationRole.OWNER,
+        )
+    finally:
+        db.close()
