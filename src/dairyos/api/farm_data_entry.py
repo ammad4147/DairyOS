@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +13,16 @@ from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
+from dairyos.data.models.milking_session_record import MilkingSessionRecord
 from dairyos.milk.models.milking_session import MilkingSession
+from dairyos.milk.models.milking_session_ledger import (
+    MilkingSessionSkipReason,
+    MilkingSessionStatus,
+)
+from dairyos.milk.services.milk_session_sequence_service import (
+    MilkSessionSequenceService,
+    SequenceViolation,
+)
 from dairyos.milk.services.milk_recording_intelligence_service import (
     MilkRecordingIntelligenceService,
 )
@@ -43,11 +52,19 @@ class BaseEntryRequest(BaseModel):
 
 
 class MilkEntryRequest(BaseEntryRequest):
+    """A governed milk entry.
+
+    The yields are ``None`` by default rather than ``0.0``. An operator who
+    enters only a morning figure has not asserted that the evening yield was
+    zero, and the record must not claim they did.
+    """
+
     animal_id: str
-    morning_yield: float = 0.0
-    afternoon_yield: float = 0.0
-    evening_yield: float = 0.0
+    morning_yield: float | None = None
+    afternoon_yield: float | None = None
+    evening_yield: float | None = None
     milking_session: MilkingSession
+    production_date: date | None = None
 
 
 class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
@@ -60,10 +77,23 @@ class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
     """
 
     animal_id: str
-    morning_yield: float = 0.0
-    afternoon_yield: float = 0.0
-    evening_yield: float = 0.0
+    morning_yield: float | None = None
+    afternoon_yield: float | None = None
+    evening_yield: float | None = None
     milking_session: MilkingSession | None = None
+    production_date: date | None = None
+
+    @property
+    def session_attributed(self) -> bool:
+        """Whether the caller actually named a milking session.
+
+        An entry that never named one carries no position in the day, so
+        there is nothing to sequence it against. Blocking such callers would
+        only push them back into guessing a session -- which is the failure
+        this work exists to remove.
+        """
+
+        return self.milking_session is not None
 
     def to_governed_request(self) -> MilkEntryRequest:
         payload = self.model_dump()
@@ -71,6 +101,15 @@ class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
             payload["milking_session"] = MilkingSession.MORNING
 
         return MilkEntryRequest.model_validate(payload)
+
+
+class MilkNotMilkedRequest(BaseEntryRequest):
+    """Declare that a whole milking session did not happen."""
+
+    milking_session: MilkingSession
+    reason: MilkingSessionSkipReason
+    operational_date: date | None = None
+    notes: str | None = None
 
 
 class FeedEntryRequest(BaseEntryRequest):
@@ -157,6 +196,91 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def _optional_float(value) -> float | None:
+    """Preserve the difference between "not entered" and "entered zero"."""
+
+    if value is None or value == "":
+        return None
+
+    return float(value)
+
+
+def _as_date(value) -> date | None:
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    if isinstance(value, date):
+        return value
+
+    return date.fromisoformat(str(value)[:10])
+
+
+def _production_datetime(payload: dict[str, Any]) -> datetime | None:
+    """The day the milk was produced, as stated by the operator."""
+
+    produced_on = _as_date(payload.get("production_date"))
+
+    if produced_on is None:
+        return None
+
+    return datetime(produced_on.year, produced_on.month, produced_on.day)
+
+
+def _sequence_service(container):
+    """The sequencing service, or None when no ledger boundary exists.
+
+    Test doubles and legacy compositions may not expose the ledger. Sequencing
+    is an integrity guard, not a hard dependency of milk recording.
+    """
+
+    factory = getattr(container, "repository_factory", None)
+    accessor = getattr(factory, "milking_session_ledger", None)
+
+    if accessor is None:
+        return None
+
+    return MilkSessionSequenceService(accessor())
+
+
+def _settle_session(
+    container,
+    *,
+    operational_date: date,
+    milking_session: str,
+    status: str,
+    reason: str | None = None,
+    notes: str | None = None,
+    recorded_by: str | None = None,
+):
+    """State what happened to a session, if the farm has not already.
+
+    Idempotent: the second animal of a morning milking must not attempt a
+    second ledger row.
+    """
+
+    factory = getattr(container, "repository_factory", None)
+    accessor = getattr(factory, "milking_session_ledger", None)
+
+    if accessor is None:
+        return None
+
+    return accessor().settle(
+        operational_date=operational_date,
+        milking_session=str(milking_session),
+        status=str(status),
+        reason=reason,
+        notes=notes,
+        recorded_by=recorded_by,
+    )
+
+
 def _operator(
     payload: dict[str, Any],
     current_user: dict[str, Any] | None,
@@ -201,21 +325,50 @@ def _record(
             production = MilkProduction(
                 animal_id=str(payload.get("animal_id")),
                 milking_session=str(payload.get("milking_session")),
-                morning_yield=float(payload.get("morning_yield", 0.0)),
-                afternoon_yield=float(payload.get("afternoon_yield", 0.0)),
-                evening_yield=float(payload.get("evening_yield", 0.0)),
-                total_yield=float(
-                    payload.get(
-                        "total_yield",
-                        payload.get("litres", 0.0),
-                    )
+                morning_yield=_optional_float(payload.get("morning_yield")),
+                afternoon_yield=_optional_float(
+                    payload.get("afternoon_yield")
                 ),
+                evening_yield=_optional_float(payload.get("evening_yield")),
+                session_ledger=bool(payload.get("session_ledger", False)),
                 status=payload.get("status", "RECORDED"),
             )
-            if hasattr(milk_repo, "save"):
+
+            produced_at = _production_datetime(payload)
+            if produced_at is not None:
+                production.production_date = produced_at
+
+            declared_total = _optional_float(
+                payload.get(
+                    "total_yield",
+                    payload.get("litres"),
+                )
+            )
+            if declared_total is not None:
+                production.total_yield = declared_total
+            else:
+                production.calculate_total()
+
+            if production.session_ledger and hasattr(
+                milk_repo,
+                "upsert_ledger_day",
+            ):
+                milk_repo.upsert_ledger_day(production)
+            elif hasattr(milk_repo, "save"):
                 milk_repo.save(production)
             else:
                 milk_repo.add(production)
+
+        elif input_type == "milking_session_not_milked":
+            ledger = rf.milking_session_ledger()
+            ledger.settle(
+                operational_date=_as_date(payload.get("operational_date")),
+                milking_session=str(payload.get("milking_session")),
+                status=MilkingSessionStatus.NOT_MILKED.value,
+                reason=str(payload.get("reason")),
+                notes=payload.get("notes"),
+                recorded_by=operator,
+            )
 
         elif input_type == "feeding":
             feed_repo = rf.feed()
@@ -343,11 +496,36 @@ def record_milk_entry(
 ):
     governed_entry = entry.to_governed_request()
 
-    total = (
-        governed_entry.morning_yield
-        + governed_entry.afternoon_yield
-        + governed_entry.evening_yield
-    )
+    # An entry that never named a session has no position in the day, so it
+    # is neither sequenced nor admitted to the ledger.
+    sequenced = entry.session_attributed
+    operational_date = governed_entry.production_date or _today()
+
+    if sequenced:
+        sequence = _sequence_service(container)
+        if sequence is not None:
+            try:
+                sequence.assert_can_record(
+                    operational_date,
+                    governed_entry.milking_session.value,
+                )
+            except SequenceViolation as violation:
+                raise HTTPException(
+                    status_code=409,
+                    detail=violation.as_operator_guidance(),
+                ) from violation
+
+    entered = [
+        value
+        for value in (
+            governed_entry.morning_yield,
+            governed_entry.afternoon_yield,
+            governed_entry.evening_yield,
+        )
+        if value is not None
+    ]
+    total = sum(entered) if entered else None
+
     status = "RECORDED"
     withdrawal_warning = False
     safety_message = None
@@ -371,21 +549,147 @@ def record_milk_entry(
     payload = {
         **governed_entry.model_dump(),
         "milking_session": governed_entry.milking_session.value,
+        "production_date": operational_date.isoformat(),
         "litres": total,
         "total_yield": total,
         "status": status,
         "withdrawal_warning": withdrawal_warning,
+        "session_ledger": sequenced,
     }
 
     if safety_message:
         payload["safety_message"] = safety_message
 
-    return _record(
+    result = _record(
         container,
         "milk_production",
         payload,
         current_user,
     )
+
+    if sequenced:
+        settled = _settle_session(
+            container,
+            operational_date=operational_date,
+            milking_session=governed_entry.milking_session.value,
+            status=MilkingSessionStatus.RECORDED.value,
+            recorded_by=_operator(payload, current_user),
+        )
+        if settled is not None:
+            result["session_record_id"] = settled.session_record_id
+
+    return result
+
+
+@router.post("/milk/not-milked")
+def declare_session_not_milked(
+    entry: MilkNotMilkedRequest,
+    container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
+):
+    """Record that a whole milking session did not happen.
+
+    Without this route the sequencing interlock would have no honest exit: an
+    operator whose parlour lost power would either be blocked out of the rest
+    of the day or would invent a zero. A declared skip is a fact the farm can
+    later explain; an invented zero is not.
+    """
+
+    if (
+        entry.reason is MilkingSessionSkipReason.OTHER
+        and not (entry.notes or "").strip()
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "A reason of OTHER requires notes explaining why the "
+                "milking did not happen."
+            ),
+        )
+
+    operational_date = entry.operational_date or _today()
+    session_value = entry.milking_session.value
+
+    sequence = _sequence_service(container)
+    if sequence is not None:
+        existing = sequence.ledger.get_for(operational_date, session_value)
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "MILKING_SESSION_ALREADY_SETTLED",
+                    "message": (
+                        f"The {session_value} session for "
+                        f"{operational_date.isoformat()} is already "
+                        f"recorded as {existing.status}."
+                    ),
+                    "operational_date": operational_date.isoformat(),
+                    "milking_session": session_value,
+                    "status": existing.status,
+                    "session_record_id": existing.session_record_id,
+                },
+            )
+
+        try:
+            sequence.assert_can_record(operational_date, session_value)
+        except SequenceViolation as violation:
+            raise HTTPException(
+                status_code=409,
+                detail=violation.as_operator_guidance(),
+            ) from violation
+
+    payload = {
+        **entry.model_dump(),
+        "milking_session": session_value,
+        "reason": entry.reason.value,
+        "operational_date": operational_date.isoformat(),
+        "status": MilkingSessionStatus.NOT_MILKED.value,
+    }
+
+    result = _record(
+        container,
+        "milking_session_not_milked",
+        payload,
+        current_user,
+    )
+
+    if sequence is not None:
+        settled = sequence.ledger.get_for(operational_date, session_value)
+        if settled is not None:
+            result["session_record_id"] = settled.session_record_id
+
+    return result
+
+
+@router.get("/milk/next-session")
+def next_milking_session(
+    operational_date: date | None = None,
+    container=Depends(get_container),
+):
+    """What the farm still owes a statement about today.
+
+    The operator UI reads this to open on the right session instead of asking
+    the operator to remember where the day got to.
+    """
+
+    sequence = _sequence_service(container)
+    target = operational_date or _today()
+
+    if sequence is None:
+        return {
+            "operational_date": target.isoformat(),
+            "sequencing_active": False,
+            "next_session": None,
+            "observed_sessions": [],
+            "settled_sessions": [],
+        }
+
+    state = sequence.session_state(target)
+    state["sequencing_active"] = sequence.ledger.has_any()
+
+    return state
 
 
 @router.get("/milk")

@@ -46,6 +46,27 @@ def _record_date(record, *names):
     return None
 
 
+def _has_entered_yield(record) -> bool:
+    """Whether an operator actually entered a figure for this record.
+
+    G1.6 made the yield columns nullable precisely so this question has an
+    answer: NULL means nobody entered anything, 0.0 means someone looked and
+    recorded zero. Only the second is an observation.
+    """
+
+    if getattr(record, "total_yield", None) is not None:
+        return True
+
+    return any(
+        getattr(record, field, None) is not None
+        for field in (
+            "morning_yield",
+            "afternoon_yield",
+            "evening_yield",
+        )
+    )
+
+
 def _in_period(record, start, end, *date_fields):
     timestamp = _record_date(record, *date_fields)
     return timestamp is not None and start <= timestamp < end
@@ -143,6 +164,12 @@ def _overview(factory, start, end):
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
     production_by_animal_day = defaultdict(float)
     for record in milk:
+        # An animal-day with nothing entered is not an observation of zero
+        # milk, and must not sit in the denominator of the herd average --
+        # that is how a missed entry becomes an apparent production drop.
+        if not _has_entered_yield(record):
+            continue
+
         timestamp = _record_date(record, "production_date")
         if timestamp is not None:
             production_by_animal_day[(record.animal_id, timestamp.date())] += float(getattr(record, "total_yield", 0.0) or 0.0)

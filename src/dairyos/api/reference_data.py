@@ -15,6 +15,12 @@ GOVERNED = {
     "sexes": ["FEMALE", "MALE"],
     "lifecycle_statuses": ["CALF", "HEIFER", "LACTATING", "DRY", "SOLD", "DECEASED"],
     "milking_frequencies": ["TWICE_DAILY", "THRICE_DAILY"],
+    "milking_sessions": ["MORNING", "AFTERNOON", "EVENING"],
+    "milking_session_statuses": ["RECORDED", "NOT_MILKED"],
+    "milking_session_skip_reasons": [
+        "EQUIPMENT_FAILURE", "POWER_OUTAGE", "LABOUR_UNAVAILABLE", "WEATHER",
+        "HERD_MOVEMENT", "VETERINARY_HOLD", "OTHER",
+    ],
     "feed_types": [
         "SILAGE", "VANDA", "WHEAT_STRAW", "SOYBEAN_MEAL", "MOLASSES",
         "MINERAL_MIXTURE", "BYPASS_FAT", "ANIONIC_SALTS", "TOXIN_BINDER", "AMINO_ACIDS",

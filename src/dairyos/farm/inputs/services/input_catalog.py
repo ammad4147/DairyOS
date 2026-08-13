@@ -18,6 +18,17 @@ class InputCatalog:
                 analytics_enabled=True, notification_enabled=True, governance_required=True, normalization_enabled=True,
             ),
             OperationalInputDefinition(
+                input_type=OperationalInputType.MILKING_SESSION_NOT_MILKED.value,
+                name="Milking Session Not Milked",
+                description=(
+                    "Herd-level declaration that a whole milking session did not take place, "
+                    "with a governed reason. Recorded once per session rather than once per animal."
+                ),
+                required_fields=["milking_session", "reason", "operational_date"],
+                optional_fields=["notes", "operator"],
+                analytics_enabled=True, notification_enabled=True, governance_required=True,
+            ),
+            OperationalInputDefinition(
                 input_type=OperationalInputType.FEEDING.value,
                 name="Feed Consumption Entry",
                 description="Animal feeding operational records.",

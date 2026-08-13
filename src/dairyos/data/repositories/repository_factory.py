@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from dairyos.data.repositories.animal_repository import AnimalRepository
 from dairyos.data.repositories.farm_repository import FarmRepository
 from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
+from dairyos.data.repositories.milking_session_record_repository import (
+    MilkingSessionRecordRepository,
+)
 from dairyos.data.repositories.financial_repository import FinancialRepository
 from dairyos.farm.operations.repositories.adapters.database_breeding_repository import DatabaseBreedingRepository
 from dairyos.data.repositories.operational_event_repository import OperationalEventRepository
@@ -50,6 +53,9 @@ class RepositoryFactory:
             session=self._session,
             animal_repository=self.animal(),
         )
+
+    def milking_session_ledger(self):
+        return MilkingSessionRecordRepository(session=self._session)
 
     def finance(self):
         return FinancialRepository(session=self._session)

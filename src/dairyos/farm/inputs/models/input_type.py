@@ -8,6 +8,8 @@ class OperationalInputType(str, Enum):
 
     MILK_PRODUCTION = "milk_production"
 
+    MILKING_SESSION_NOT_MILKED = "milking_session_not_milked"
+
     FEEDING = "feeding"
 
     FEED_RATION = "feed_ration"

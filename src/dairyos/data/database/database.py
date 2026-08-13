@@ -43,6 +43,10 @@ from dairyos.data.models.milk_production import (
     MilkProduction,
 )
 
+from dairyos.data.models.milking_session_record import (
+    MilkingSessionRecord,
+)
+
 from dairyos.data.database.models.operational_event_model import (
     OperationalEventModel,
 )
