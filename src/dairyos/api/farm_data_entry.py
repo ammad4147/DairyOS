@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +14,9 @@ from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.milk.models.milking_session import MilkingSession
-from dairyos.milk.services.milk_recording_intelligence_service import MilkRecordingIntelligenceService
+from dairyos.milk.services.milk_recording_intelligence_service import (
+    MilkRecordingIntelligenceService,
+)
 
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
@@ -179,7 +181,12 @@ def _record(
                 morning_yield=float(payload.get("morning_yield", 0.0)),
                 afternoon_yield=float(payload.get("afternoon_yield", 0.0)),
                 evening_yield=float(payload.get("evening_yield", 0.0)),
-                total_yield=float(payload.get("total_yield", payload.get("litres", 0.0))),
+                total_yield=float(
+                    payload.get(
+                        "total_yield",
+                        payload.get("litres", 0.0),
+                    )
+                ),
                 status=payload.get("status", "RECORDED"),
             )
             if hasattr(milk_repo, "save"):
@@ -208,7 +215,10 @@ def _record(
                 animal_id=str(payload.get("animal_id")),
                 observation=payload.get("observation"),
                 symptom=payload.get("symptom"),
-                temperature=(payload.get("temperature_c") or payload.get("temperature")),
+                temperature=(
+                    payload.get("temperature_c")
+                    or payload.get("temperature")
+                ),
                 temperature_c=payload.get("temperature_c"),
                 reported_by=operator,
                 severity=payload.get("severity", "NORMAL"),
@@ -225,17 +235,26 @@ def _record(
                 animal_id=str(payload.get("animal_id")),
                 event_type=str(payload.get("event_type")),
                 result=str(payload.get("result") or "RECORDED"),
-                technician=str(payload.get("technician") or operator),
+                technician=str(
+                    payload.get("technician") or operator
+                ),
             )
             breeding_repo.save(record)
 
         elif input_type == "financial":
             finance_repo = rf.financial()
             transaction = FinancialTransaction(
-                transaction_type=payload.get("transaction_type", "EXPENSE"),
+                transaction_type=payload.get(
+                    "transaction_type",
+                    "EXPENSE",
+                ),
                 category=(payload.get("category") or "GENERAL"),
                 amount=float(payload.get("amount", 0.0)),
-                reference=payload.get("counterparty") or payload.get("notes") or "",
+                reference=(
+                    payload.get("counterparty")
+                    or payload.get("notes")
+                    or ""
+                ),
                 status=payload.get("status", "RECORDED"),
                 animal_id=payload.get("animal_id"),
                 currency=payload.get("currency", "PKR"),
@@ -250,7 +269,9 @@ def _record(
             payload=canonical_payload,
             actor=operator,
         )
-        event_payload = dict(getattr(event, "payload", {}) or {})
+        event_payload = dict(
+            getattr(event, "payload", {}) or {}
+        )
 
     except Exception as exc:
         try:
@@ -259,7 +280,10 @@ def _record(
             pass
         raise HTTPException(
             status_code=500,
-            detail=f"Operational input persistence failed: {type(exc).__name__}: {exc}",
+            detail=(
+                "Operational input persistence failed: "
+                f"{type(exc).__name__}: {exc}"
+            ),
         ) from exc
     finally:
         if owns_factory:
@@ -268,14 +292,20 @@ def _record(
     return {
         **canonical_payload,
         **event_payload,
-        "status": canonical_payload.get("status", "RECORDED"),
+        "status": canonical_payload.get(
+            "status",
+            "RECORDED",
+        ),
     }
 
 
 def _list_by_type(container, input_type: str):
     records = []
     for event in container.event_journal.all_events():
-        if event.name == "OperationalInputReceived" and event.payload.get("input_type") == input_type:
+        if (
+            event.name == "OperationalInputReceived"
+            and event.payload.get("input_type") == input_type
+        ):
             records.append(event.payload)
     return records
 
@@ -284,17 +314,34 @@ def _list_by_type(container, input_type: str):
 def record_milk_entry(
     entry: MilkEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    total = entry.morning_yield + entry.afternoon_yield + entry.evening_yield
+    total = (
+        entry.morning_yield
+        + entry.afternoon_yield
+        + entry.evening_yield
+    )
     status = "RECORDED"
     withdrawal_warning = False
     safety_message = None
-    withdrawal_svc = getattr(container, "withdrawal_service", None)
-    if withdrawal_svc and withdrawal_svc.is_animal_withdrawn(entry.animal_id):
+
+    withdrawal_svc = getattr(
+        container,
+        "withdrawal_service",
+        None,
+    )
+
+    if withdrawal_svc and withdrawal_svc.is_animal_withdrawn(
+        entry.animal_id
+    ):
         status = "WITHHELD"
         withdrawal_warning = True
-        safety_message = f"SAFETY ALERT: Animal {entry.animal_id} is under active treatment withdrawal. Milk must be withheld!"
+        safety_message = (
+            f"SAFETY ALERT: Animal {entry.animal_id} is under "
+            "active treatment withdrawal. Milk must be withheld!"
+        )
 
     payload = {
         **entry.model_dump(),
@@ -304,107 +351,219 @@ def record_milk_entry(
         "status": status,
         "withdrawal_warning": withdrawal_warning,
     }
+
     if safety_message:
         payload["safety_message"] = safety_message
-    return _record(container, "milk_production", payload, current_user)
+
+    return _record(
+        container,
+        "milk_production",
+        payload,
+        current_user,
+    )
 
 
 @router.get("/milk")
-def list_milk_entries(container=Depends(get_container)):
-    return _list_by_type(container, "milk_production")
+def list_milk_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "milk_production",
+    )
 
 
 @router.post("/feed")
 def record_feed_entry(
     entry: FeedEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "feeding", {**entry.model_dump(), "status": "RECORDED"}, current_user)
+    return _record(
+        container,
+        "feeding",
+        {
+            **entry.model_dump(),
+            "status": "RECORDED",
+        },
+        current_user,
+    )
 
 
 @router.get("/milk/intelligence")
-def milk_recording_intelligence(threshold_percent: float = 20.0, container=Depends(get_container)):
-    rf = getattr(container, "repository_factory", None)
+def milk_recording_intelligence(
+    threshold_percent: float = 20.0,
+    container=Depends(get_container),
+):
+    rf = getattr(
+        container,
+        "repository_factory",
+        None,
+    )
     owns_factory = False
+
     if rf is None:
         rf = RepositoryFactory.create()
         owns_factory = True
+
     try:
-        service = MilkRecordingIntelligenceService(rf.milk())
-        return service.dashboard(threshold_percent=max(1.0, min(100.0, threshold_percent)))
+        service = MilkRecordingIntelligenceService(
+            rf.milk()
+        )
+        return service.dashboard(
+            threshold_percent=max(
+                1.0,
+                min(100.0, threshold_percent),
+            )
+        )
     finally:
         if owns_factory:
             rf.close()
 
 
 @router.get("/feed")
-def list_feed_entries(container=Depends(get_container)):
-    return _list_by_type(container, "feeding")
+def list_feed_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "feeding",
+    )
 
 
 @router.post("/health-observations")
 def record_health_observation(
     entry: HealthEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
     payload = entry.model_dump()
-    payload["observation"] = entry.observation or entry.symptom or "Observation recorded"
+    payload["observation"] = (
+        entry.observation
+        or entry.symptom
+        or "Observation recorded"
+    )
     payload["status"] = "OPEN"
-    return _record(container, "animal_health", payload, current_user)
+
+    return _record(
+        container,
+        "animal_health",
+        payload,
+        current_user,
+    )
 
 
 @router.get("/health-observations")
-def list_health_observations(container=Depends(get_container)):
-    return _list_by_type(container, "animal_health")
+def list_health_observations(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "animal_health",
+    )
 
 
 @router.post("/treatments")
 def record_treatment(
     entry: TreatmentEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    operator = _operator(entry.model_dump(), current_user)
-    rf = getattr(container, "repository_factory", None)
+    operator = _operator(
+        entry.model_dump(),
+        current_user,
+    )
+
+    rf = getattr(
+        container,
+        "repository_factory",
+        None,
+    )
     owns_factory = False
+
     if rf is None:
         rf = RepositoryFactory.create()
         owns_factory = True
 
     try:
         reference = None
-        reference_repo = getattr(container, "drug_reference_repository", None)
+        reference_repo = getattr(
+            container,
+            "drug_reference_repository",
+            None,
+        )
+
         if reference_repo is not None:
-            reference = reference_repo.find_by_medicine(entry.medicine)
+            reference = reference_repo.find_by_medicine(
+                entry.medicine
+            )
 
         withdrawal_source = "reference_table"
         withdrawal_days = None
+
         if reference is not None:
-            withdrawal_days = float(reference.milk_withdrawal_days)
+            withdrawal_days = float(
+                reference.milk_withdrawal_days
+            )
+
             if entry.milk_withdrawal_days is not None:
-                withdrawal_days = max(withdrawal_days, float(entry.milk_withdrawal_days))
-                if withdrawal_days > float(reference.milk_withdrawal_days):
+                withdrawal_days = max(
+                    withdrawal_days,
+                    float(entry.milk_withdrawal_days),
+                )
+
+                if (
+                    withdrawal_days
+                    > float(reference.milk_withdrawal_days)
+                ):
                     withdrawal_source = "override_extended"
+
         elif entry.milk_withdrawal_days is not None:
-            withdrawal_days = float(entry.milk_withdrawal_days)
+            withdrawal_days = float(
+                entry.milk_withdrawal_days
+            )
             withdrawal_source = "manual_override"
+
         else:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Unknown medicine '{entry.medicine}': not found in the drug reference table "
-                    "and no milk_withdrawal_days was supplied on this treatment."
+                    f"Unknown medicine '{entry.medicine}': "
+                    "not found in the drug reference table "
+                    "and no milk_withdrawal_days was supplied "
+                    "on this treatment."
                 ),
             )
 
         if withdrawal_days < 0:
-            raise HTTPException(status_code=400, detail="milk_withdrawal_days cannot be negative.")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "milk_withdrawal_days cannot be negative."
+                ),
+            )
 
         treated_at = datetime.now(timezone.utc)
-        withdrawal_until = treated_at + timedelta(days=withdrawal_days)
-        treatment_repo = getattr(container, "treatment_repository", None) or rf.treatment()
+        withdrawal_until = (
+            treated_at
+            + timedelta(days=withdrawal_days)
+        )
+
+        treatment_repo = (
+            getattr(
+                container,
+                "treatment_repository",
+                None,
+            )
+            or rf.treatment()
+        )
+
         record = TreatmentRecord(
             animal_id=entry.animal_id,
             diagnosis=entry.diagnosis,
@@ -417,15 +576,24 @@ def record_treatment(
             withdrawal_source=withdrawal_source,
             notes=entry.notes,
         )
+
         treatment_repo.add(record)
-        withdrawal_svc = getattr(container, "withdrawal_service", None)
+
+        withdrawal_svc = getattr(
+            container,
+            "withdrawal_service",
+            None,
+        )
+
         if withdrawal_svc is not None:
-            withdrawal_svc.add_period(WithdrawalPeriod(
-                treatment_id=str(record.id),
-                animal_id=entry.animal_id,
-                start_time=treated_at,
-                end_time=withdrawal_until,
-            ))
+            withdrawal_svc.add_period(
+                WithdrawalPeriod(
+                    treatment_id=str(record.id),
+                    animal_id=entry.animal_id,
+                    start_time=treated_at,
+                    end_time=withdrawal_until,
+                )
+            )
 
         canonical_payload = {
             **entry.model_dump(),
@@ -433,83 +601,178 @@ def record_treatment(
             "treatment_id": record.id,
             "treated_at": treated_at.isoformat(),
             "milk_withdrawal_days": withdrawal_days,
-            "milk_withdrawal_until": withdrawal_until.isoformat(),
+            "milk_withdrawal_until": (
+                withdrawal_until.isoformat()
+            ),
             "withdrawal_source": withdrawal_source,
             "status": "RECORDED",
         }
-        event = container.input_gateway.record(input_type="treatment", payload=canonical_payload, actor=operator)
-        event_payload = dict(getattr(event, "payload", {}) or {})
-        return {**canonical_payload, **event_payload}
+
+        event = container.input_gateway.record(
+            input_type="treatment",
+            payload=canonical_payload,
+            actor=operator,
+        )
+
+        event_payload = dict(
+            getattr(event, "payload", {}) or {}
+        )
+
+        return {
+            **canonical_payload,
+            **event_payload,
+        }
+
     finally:
         if owns_factory:
             rf.close()
 
 
 @router.get("/treatments")
-def list_treatments(container=Depends(get_container)):
-    return _list_by_type(container, "treatment")
+def list_treatments(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "treatment",
+    )
 
 
 @router.get("/withdrawals/active")
-def list_active_withdrawals(container=Depends(get_container)):
-    treatment_repo = getattr(container, "treatment_repository", None)
-    withdrawal_svc = getattr(container, "withdrawal_service", None)
-    if treatment_repo is None or withdrawal_svc is None:
+def list_active_withdrawals(
+    container=Depends(get_container),
+):
+    treatment_repo = getattr(
+        container,
+        "treatment_repository",
+        None,
+    )
+    withdrawal_svc = getattr(
+        container,
+        "withdrawal_service",
+        None,
+    )
+
+    if (
+        treatment_repo is None
+        or withdrawal_svc is None
+    ):
         return []
+
     now = datetime.now(timezone.utc)
     active = []
+
     for record in treatment_repo.get_all():
-        if withdrawal_svc.is_withdrawn(str(record.id), at=now):
-            active.append({
-                "treatment_id": record.id,
-                "animal_id": record.animal_id,
-                "medicine": record.medicine,
-                "treated_at": record.treated_at.isoformat() if record.treated_at else None,
-                "milk_withdrawal_until": record.milk_withdrawal_until.isoformat() if record.milk_withdrawal_until else None,
-            })
+        if withdrawal_svc.is_withdrawn(
+            str(record.id),
+            at=now,
+        ):
+            active.append(
+                {
+                    "treatment_id": record.id,
+                    "animal_id": record.animal_id,
+                    "medicine": record.medicine,
+                    "treated_at": (
+                        record.treated_at.isoformat()
+                        if record.treated_at
+                        else None
+                    ),
+                    "milk_withdrawal_until": (
+                        record.milk_withdrawal_until.isoformat()
+                        if record.milk_withdrawal_until
+                        else None
+                    ),
+                }
+            )
+
     return active
 
 
 @router.get("/drug-reference")
-def list_drug_reference(container=Depends(get_container)):
-    reference_repo = getattr(container, "drug_reference_repository", None)
+def list_drug_reference(
+    container=Depends(get_container),
+):
+    reference_repo = getattr(
+        container,
+        "drug_reference_repository",
+        None,
+    )
+
     if reference_repo is None:
         return []
-    return [{
-        "id": row.id,
-        "medicine": row.medicine,
-        "milk_withdrawal_days": row.milk_withdrawal_days,
-        "meat_withdrawal_days": row.meat_withdrawal_days,
-        "notes": row.notes,
-        "verified": row.verified,
-        "updated_by": row.updated_by,
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-    } for row in reference_repo.get_all()]
+
+    return [
+        {
+            "id": row.id,
+            "medicine": row.medicine,
+            "milk_withdrawal_days": (
+                row.milk_withdrawal_days
+            ),
+            "meat_withdrawal_days": (
+                row.meat_withdrawal_days
+            ),
+            "notes": row.notes,
+            "verified": row.verified,
+            "updated_by": row.updated_by,
+            "updated_at": (
+                row.updated_at.isoformat()
+                if row.updated_at
+                else None
+            ),
+        }
+        for row in reference_repo.get_all()
+    ]
 
 
 @router.post("/drug-reference")
 def upsert_drug_reference(
     entry: DrugReferenceEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    operator = _operator(entry.model_dump(), current_user)
-    reference_repo = getattr(container, "drug_reference_repository", None)
+    operator = _operator(
+        entry.model_dump(),
+        current_user,
+    )
+
+    reference_repo = getattr(
+        container,
+        "drug_reference_repository",
+        None,
+    )
+
     if reference_repo is None:
-        raise HTTPException(status_code=500, detail="Drug reference repository is not available.")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Drug reference repository is not available."
+            ),
+        )
+
     record = reference_repo.upsert(
         medicine=entry.medicine,
-        milk_withdrawal_days=entry.milk_withdrawal_days,
-        meat_withdrawal_days=entry.meat_withdrawal_days,
+        milk_withdrawal_days=(
+            entry.milk_withdrawal_days
+        ),
+        meat_withdrawal_days=(
+            entry.meat_withdrawal_days
+        ),
         notes=entry.notes,
         verified=entry.verified,
         updated_by=operator,
     )
+
     return {
         "id": record.id,
         "medicine": record.medicine,
-        "milk_withdrawal_days": record.milk_withdrawal_days,
-        "meat_withdrawal_days": record.meat_withdrawal_days,
+        "milk_withdrawal_days": (
+            record.milk_withdrawal_days
+        ),
+        "meat_withdrawal_days": (
+            record.meat_withdrawal_days
+        ),
         "notes": record.notes,
         "verified": record.verified,
         "updated_by": record.updated_by,
@@ -520,67 +783,127 @@ def upsert_drug_reference(
 def record_breeding_entry(
     entry: BreedingEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "breeding", entry.model_dump(), current_user)
+    return _record(
+        container,
+        "breeding",
+        entry.model_dump(),
+        current_user,
+    )
 
 
 @router.get("/breeding")
-def list_breeding_entries(container=Depends(get_container)):
-    return _list_by_type(container, "breeding")
+def list_breeding_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "breeding",
+    )
 
 
 @router.post("/workforce")
 def record_workforce_entry(
     entry: WorkforceEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "workforce", entry.model_dump(), current_user)
+    return _record(
+        container,
+        "workforce",
+        entry.model_dump(),
+        current_user,
+    )
 
 
 @router.get("/workforce")
-def list_workforce_entries(container=Depends(get_container)):
-    return _list_by_type(container, "workforce")
+def list_workforce_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "workforce",
+    )
 
 
 @router.post("/inventory")
 def record_inventory_entry(
     entry: InventoryEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "inventory", entry.model_dump(), current_user)
+    return _record(
+        container,
+        "inventory",
+        entry.model_dump(),
+        current_user,
+    )
 
 
 @router.get("/inventory")
-def list_inventory_entries(container=Depends(get_container)):
-    return _list_by_type(container, "inventory")
+def list_inventory_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "inventory",
+    )
 
 
 @router.post("/equipment")
 def record_equipment_entry(
     entry: EquipmentEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "equipment", entry.model_dump(), current_user)
+    return _record(
+        container,
+        "equipment",
+        entry.model_dump(),
+        current_user,
+    )
 
 
 @router.get("/equipment")
-def list_equipment_entries(container=Depends(get_container)):
-    return _list_by_type(container, "equipment")
+def list_equipment_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "equipment",
+    )
 
 
 @router.post("/financial")
 def record_financial_entry(
     entry: FinancialEntryRequest,
     container=Depends(get_container),
-    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    current_user: dict[str, Any] | None = Depends(
+        get_optional_current_user
+    ),
 ):
-    return _record(container, "financial", entry.model_dump(), current_user)
+    return _record(
+        container,
+        "financial",
+        entry.model_dump(),
+        current_user,
+    )
 
 
 @router.get("/financial")
-def list_financial_entries(container=Depends(get_container)):
-    return _list_by_type(container, "financial")
+def list_financial_entries(
+    container=Depends(get_container),
+):
+    return _list_by_type(
+        container,
+        "financial",
+    )
