@@ -4,7 +4,6 @@ from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
-from dairyos.domain.commands import Command
 
 
 router = APIRouter()
@@ -83,100 +82,6 @@ def _record_operational_event(container, input_type, payload, actor):
             },
             actor=actor,
         )
-
-
-@router.post("/animals")
-def create_animal(
-    payload: dict,
-    container=Depends(get_container),
-):
-    animal_id = payload.get("animal_id")
-
-    if not animal_id:
-        raise HTTPException(
-            status_code=422,
-            detail="animal_id required",
-        )
-
-    repository = animal_repository(container)
-
-    if repository.exists(animal_id):
-        raise HTTPException(
-            status_code=409,
-            detail="Animal already exists",
-        )
-
-    lifecycle_status = payload.get(
-        "lifecycle_status",
-        "HEIFER",
-    )
-
-    try:
-        LifecycleStatus(lifecycle_status)
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail="Invalid lifecycle status",
-        )
-
-    allowed_fields = {
-        "animal_id",
-        "animal_type",
-        "ear_tag",
-        "rfid",
-        "breed",
-        "sex",
-        "date_of_birth",
-        "dam_id",
-        "sire_id",
-        "lifecycle_status",
-        "status",
-        "is_currently_milking",
-        "milking_frequency",
-        "production_group",
-        "location",
-        "active",
-    }
-
-    animal_payload = {
-        key: value
-        for key, value in payload.items()
-        if key in allowed_fields
-    }
-
-    animal = repository.save(
-        __import__(
-            "dairyos.data.models.animal",
-            fromlist=["Animal"],
-        ).Animal(**animal_payload)
-    )
-
-    if payload.get("milking_frequency"):
-        repository.set_milking_frequency(
-            animal_id=animal_id,
-            new_frequency=payload["milking_frequency"],
-            changed_by=None,
-            reason="initial",
-        )
-        animal = repository.get_by_animal_id(animal_id)
-
-    try:
-        container.operations.handle_command(
-            Command(
-                name="CreateAnimal",
-                payload={
-                    **payload,
-                    "active": True,
-                    "created_at": datetime.now(
-                        timezone.utc
-                    ).isoformat(),
-                },
-            )
-        )
-    except Exception:
-        pass
-
-    return serialize_animal(animal)
 
 
 @router.get("/animals")
@@ -309,7 +214,7 @@ def change_milking_frequency(
 
     try:
         MilkingFrequency(frequency)
-    except ValueError:
+    except (ValueError, TypeError):
         raise HTTPException(
             status_code=422,
             detail="Invalid milking frequency",
