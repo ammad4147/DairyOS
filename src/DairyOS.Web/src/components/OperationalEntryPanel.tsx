@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
     listAnimals,
@@ -46,13 +46,27 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
     );
 
     useEffect(() => {
-        if (!hasAnimalField) return;
+        if (!hasAnimalField) {
+            setAnimals([]);
+            return;
+        }
 
+        let active = true;
         setLoadingAnimals(true);
         listAnimals<OperationalEntry[]>()
-            .then(setAnimals)
-            .catch(() => setAnimals([]))
-            .finally(() => setLoadingAnimals(false));
+            .then((items) => {
+                if (active) setAnimals(Array.isArray(items) ? items : []);
+            })
+            .catch(() => {
+                if (active) setAnimals([]);
+            })
+            .finally(() => {
+                if (active) setLoadingAnimals(false);
+            });
+
+        return () => {
+            active = false;
+        };
     }, [hasAnimalField]);
 
     useEffect(() => {
@@ -85,9 +99,15 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
 
                 if (!value) continue;
 
-                payload[field.name] = field.type === "number"
-                    ? Number(value)
-                    : value;
+                if (field.type === "number") {
+                    const numericValue = Number(value);
+                    if (!Number.isFinite(numericValue)) {
+                        throw new Error(`${field.label} must be a valid number.`);
+                    }
+                    payload[field.name] = numericValue;
+                } else {
+                    payload[field.name] = value;
+                }
             }
 
             await recordOperationalEntry(config.endpoint, payload);
@@ -118,7 +138,10 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
 
             <form className="entry-form" onSubmit={submit}>
                 {config.fields.map((field) => (
-                    <label className={`entry-field ${field.type === "textarea" ? "wide" : ""}`} key={field.name}>
+                    <label
+                        className={`entry-field ${field.type === "textarea" ? "wide" : ""}`}
+                        key={field.name}
+                    >
                         <span>
                             {field.label}
                             {field.required && <b> *</b>}
@@ -140,14 +163,16 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
                                 onChange={(event) => setValue(field.name, event.target.value)}
                             >
                                 <option value="">
-                                    {loadingAnimals ? "Loading animalsΓÇª" : "Select animal"}
+                                    {loadingAnimals ? "Loading animals..." : "Select animal"}
                                 </option>
                                 {animals.map((animal) => {
                                     const animalId = String(animal.animal_id ?? animal.id ?? "");
                                     const earTag = String(animal.ear_tag ?? "");
+                                    if (!animalId) return null;
+
                                     return (
                                         <option key={animalId} value={animalId}>
-                                            {animalId}{earTag ? ` ΓÇö ${earTag}` : ""}
+                                            {animalId}{earTag ? ` — ${earTag}` : ""}
                                         </option>
                                     );
                                 })}
@@ -158,9 +183,11 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
                                 required={field.required}
                                 onChange={(event) => setValue(field.name, event.target.value)}
                             >
-                                <option value="">SelectΓÇª</option>
+                                <option value="">Select...</option>
                                 {(field.options ?? []).map((option) => (
-                                    <option key={option} value={option}>{option}</option>
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
                                 ))}
                             </select>
                         ) : (
@@ -178,7 +205,7 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
 
                 <div className="entry-actions">
                     <button type="submit" disabled={saving}>
-                        {saving ? "RecordingΓÇª" : "Record Entry"}
+                        {saving ? "Recording..." : "Record Entry"}
                     </button>
                     {message && <span className="entry-success">{message}</span>}
                     {error && <span className="entry-error">{error}</span>}
