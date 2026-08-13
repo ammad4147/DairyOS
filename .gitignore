@@ -53,17 +53,16 @@ RepositoryTree_ASCII.txt
 # Database backups
 backups/
 
-# Runtime database files
-*.db
-
-# Database backups
-backups/
-
 # Local SQLite database (not version controlled)
 dairyos.db
 
 # Legacy recovery archive
 dairyos_legacy_root/
+
+# Canonical source-tree guardrail
+# The authoritative Python package lives under src/dairyos.
+# Do not allow recovered root-level scaffolding back into the working tree.
+/dairyos/
 
 src/DairyOS.Web/node_modules/
 .aider*
