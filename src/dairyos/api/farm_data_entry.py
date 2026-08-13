@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -48,6 +48,29 @@ class MilkEntryRequest(BaseEntryRequest):
     afternoon_yield: float = 0.0
     evening_yield: float = 0.0
     milking_session: MilkingSession
+
+
+class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
+    """
+    HTTP compatibility boundary for historical /farm/milk callers.
+
+    The governed MilkEntryRequest deliberately requires milking_session.
+    Older clients, however, historically omitted it. Such requests are
+    normalized to MORNING before entering the governed request model.
+    """
+
+    animal_id: str
+    morning_yield: float = 0.0
+    afternoon_yield: float = 0.0
+    evening_yield: float = 0.0
+    milking_session: MilkingSession | None = None
+
+    def to_governed_request(self) -> MilkEntryRequest:
+        payload = self.model_dump()
+        if payload.get("milking_session") is None:
+            payload["milking_session"] = MilkingSession.MORNING
+
+        return MilkEntryRequest.model_validate(payload)
 
 
 class FeedEntryRequest(BaseEntryRequest):
@@ -312,16 +335,18 @@ def _list_by_type(container, input_type: str):
 
 @router.post("/milk")
 def record_milk_entry(
-    entry: MilkEntryRequest,
+    entry: LegacyCompatibleMilkEntryRequest,
     container=Depends(get_container),
     current_user: dict[str, Any] | None = Depends(
         get_optional_current_user
     ),
 ):
+    governed_entry = entry.to_governed_request()
+
     total = (
-        entry.morning_yield
-        + entry.afternoon_yield
-        + entry.evening_yield
+        governed_entry.morning_yield
+        + governed_entry.afternoon_yield
+        + governed_entry.evening_yield
     )
     status = "RECORDED"
     withdrawal_warning = False
@@ -334,18 +359,18 @@ def record_milk_entry(
     )
 
     if withdrawal_svc and withdrawal_svc.is_animal_withdrawn(
-        entry.animal_id
+        governed_entry.animal_id
     ):
         status = "WITHHELD"
         withdrawal_warning = True
         safety_message = (
-            f"SAFETY ALERT: Animal {entry.animal_id} is under "
+            f"SAFETY ALERT: Animal {governed_entry.animal_id} is under "
             "active treatment withdrawal. Milk must be withheld!"
         )
 
     payload = {
-        **entry.model_dump(),
-        "milking_session": entry.milking_session.value,
+        **governed_entry.model_dump(),
+        "milking_session": governed_entry.milking_session.value,
         "litres": total,
         "total_yield": total,
         "status": status,
