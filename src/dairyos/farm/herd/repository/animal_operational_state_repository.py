@@ -1,4 +1,5 @@
 import json
+from dairyos.platform.paths import resolve_storage_file
 from pathlib import Path
 
 from dairyos.farm.herd.models.animal_operational_state import (
@@ -26,8 +27,8 @@ class AnimalOperationalStateRepository:
         self.storage_path = (
             Path(storage_path)
             if storage_path
-            else Path(
-                "data/storage/animal_operational_states.json"
+            else resolve_storage_file(
+                "animal_operational_states.json"
             )
         )
 

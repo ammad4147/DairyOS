@@ -1,5 +1,6 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./AnimalRegistry.css";
+import { API_BASE_URL as API } from "../config/api";
 
 type Animal = {
     id: number | string;
@@ -55,7 +56,6 @@ type Props = {
     ) => void;
 };
 
-const API = "http://localhost:8000";
 
 const initialForm = {
     animal_type: "COW",
@@ -943,7 +943,7 @@ function AnimalRegistry({ onNavigate }: Props) {
                                                 {formatDate(event.timestamp)}
                                             </span>
                                             <strong>
-                                                {event.domain}
+                                                {domainLabel(event.domain)}
                                             </strong>
                                         </div>
                                     ))}

@@ -20,6 +20,9 @@ dependencies = [
   "uvicorn>=0.35"
 ]
 
+[project.scripts]
+dairyos-server = "dairyos.server:main"
+
 [tool.black]
 line-length=88
 

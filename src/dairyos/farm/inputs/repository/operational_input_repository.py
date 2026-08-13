@@ -1,4 +1,5 @@
 import json
+from dairyos.platform.paths import resolve_storage_file
 from datetime import date, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -22,7 +23,7 @@ class OperationalInputRepository:
         self.storage_path = (
             Path(storage_path)
             if storage_path
-            else Path("data/storage/operational_inputs.json")
+            else resolve_storage_file("operational_inputs.json")
         )
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         self._records = []

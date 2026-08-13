@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_DAIRYOS_API_URL ?? "http://localhost:8000";
+import { API_BASE_URL as API } from "../config/api";
 
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`${API}${path}`, { headers: { Accept: "application/json" } });

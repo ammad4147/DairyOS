@@ -1,3 +1,5 @@
+import { apiUrl } from "../config/api";
+
 export interface OperationalEntry {
     [key: string]: unknown;
 }
@@ -29,7 +31,7 @@ export interface HealthEntryRequest extends OperationalEntry {
 }
 
 export async function postRequest<T>(url: string, payload: unknown): Promise<T> {
-    const response = await fetch(`http://localhost:8000${url}`, {
+    const response = await fetch(apiUrl(url), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -50,7 +52,7 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
 }
 
 export async function getRequest<T>(url: string): Promise<T> {
-    const response = await fetch(`http://localhost:8000${url}`);
+    const response = await fetch(apiUrl(url));
     if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
     }

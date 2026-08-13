@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./OperationalModule.css";
 import OperationalEntryPanel, { type OperationalEntryConfig } from "./OperationalEntryPanel";
+import { API_BASE_URL as API } from "../config/api";
 
 type Mode = "cards" | "entries" | "decisions" | "state";
 type Props = { title: string; endpoint: string; selector?: string; mode: Mode; entry?: OperationalEntryConfig };
 type Row = Record<string, any>;
-const API = "http://localhost:8000";
 const n = (v: any) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const txt = (v: any) => v === null || v === undefined || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
 const timeOf = (r: Row) => new Date(r.timestamp ?? r.date ?? r.created_at ?? 0).getTime();
@@ -94,7 +94,7 @@ function PeriodBar({ finance, period, setPeriod, from, to, setFrom, setTo }: { f
     return <div className="period-bar"><div><strong>{finance ? "Finance view" : "Production period"}</strong><span>{finance ? "Choose the balance or reconciliation window." : "Choose the production window; calculations use recorded milk events."}</span></div><div className="period-controls">{options.map(([key, name]) => <button key={key} type="button" className={period === key ? "selected" : ""} onClick={() => setPeriod(key)}>{name}</button>)}{period === "custom" && <><input type="date" value={from} onChange={e => setFrom(e.target.value)} /><input type="date" value={to} onChange={e => setTo(e.target.value)} /></>}</div></div>;
 }
 
-function ModuleSummary({ title, rows, isMilk, isFinance, isAnimals, financeState }: { title: string; rows: Row[]; isMilk: boolean; isFinance: boolean; isAnimals: boolean; financeState: Row }) {
+function ModuleSummary({ rows, isMilk, isFinance, isAnimals, financeState }: { title: string; rows: Row[]; isMilk: boolean; isFinance: boolean; isAnimals: boolean; financeState: Row }) {
     if (isAnimals) {
         const milking = rows.filter(r => r.is_currently_milking === true || /milk/i.test(String(r.lifecycle_status ?? ""))).length;
         return <div className="module-summary"><Summary label="Animals in view" value={rows.length} /><Summary label="Milking" value={milking || "—"} /><Summary label="Dry / other" value={rows.length && milking ? rows.length - milking : "—"} /><Summary label="Source" value="Live registry" /></div>;

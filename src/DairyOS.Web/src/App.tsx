@@ -13,13 +13,14 @@
  * Rollback: Copy-Item (Get-ChildItem 'D:\DairyOS\_backups\App.tsx_*.bak'|Sort-Object LastWriteTime -Descending|Select-Object -First 1).FullName $t -Force
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
 import AnimalRegistry from "./components/AnimalRegistry";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 import "./App.css";
+import { apiUrl } from "./config/api";
 
 type ViewId =
     | "command"
@@ -197,7 +198,7 @@ function App() {
     useEffect(() => {
         let cancelled = false;
 
-        fetch("http://localhost:8000/health")
+        fetch(apiUrl("/health"))
             .then((response) => {
                 if (!response.ok) throw new Error("Health check failed");
                 return response.json() as Promise<{ status?: string }>;
@@ -209,7 +210,7 @@ function App() {
                 if (!cancelled) setSystemHealth("OFFLINE");
             });
 
-        fetch("http://localhost:8000/operations/dashboard")
+        fetch(apiUrl("/operations/dashboard"))
             .then((response) => {
                 if (!response.ok) throw new Error("Operations dashboard failed");
                 return response.json() as Promise<{ farm_status?: string }>;
