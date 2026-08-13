@@ -2,7 +2,15 @@ from dairyos.app import app
 
 
 def _paths() -> set[str]:
-    return {route.path for route in app.routes}
+    """Every publicly registered route path.
+
+    ``app.routes`` is not a usable source here: since FastAPI 0.140 an
+    ``include_router`` call appends an ``_IncludedRouter`` wrapper rather than
+    flattening the sub-router's routes, so the included paths are absent and
+    the wrappers carry no ``path`` attribute at all. The generated OpenAPI
+    document is the version-stable view of what is actually mounted.
+    """
+    return set(app.openapi()["paths"])
 
 
 def test_cross_domain_operational_capability_routes_are_registered():
