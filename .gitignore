@@ -69,3 +69,5 @@ src/DairyOS.Web/node_modules/
 
 # Sprint-038 temporary persistence audit artifacts
 _sprint038_persistence_audit/
+
+data/storage/*.json
