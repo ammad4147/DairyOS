@@ -1,5 +1,5 @@
-/*
- * DairyOS Web App — complete replacement
+﻿/*
+ * DairyOS Web App â€” complete replacement
  * Version: 1.0.1 | 2026-08-12
  * Purpose: Wire the redesigned Dashboard navigation into the existing domain
  * tabs without duplicating domain entry forms on the dashboard. Dashboard
@@ -16,6 +16,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import CommandCenter from "./components/CommandCenter";
+import AnimalRegistry from "./components/AnimalRegistry";
 import OperationalModule from "./components/OperationalModule";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 import "./App.css";
@@ -78,7 +79,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         title: "Record Feed Activity",
         description: "Record feed consumption with quantity, location or animal attribution.",
         fields: [
-            { name: "feed_type", label: "Feed Type", type: "text", required: true, placeholder: "Silage, TMR, hay…" },
+            { name: "feed_type", label: "Feed Type", type: "text", required: true, placeholder: "Silage, TMR, hayâ€¦" },
             { name: "quantity_kg", label: "Quantity (kg)", type: "number", required: true, step: "0.01" },
             { name: "group_or_pen", label: "Group / Pen", type: "text", placeholder: "Pen A" },
             { name: "animal_id", label: "Animal (optional)", type: "animal" },
@@ -93,7 +94,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
             animalField,
             { name: "observation", label: "Observation", type: "textarea", required: true, placeholder: "What did you observe?" },
             { name: "symptom", label: "Symptom", type: "text", placeholder: "Optional symptom" },
-            { name: "temperature_c", label: "Temperature (°C)", type: "number", step: "0.1" },
+            { name: "temperature_c", label: "Temperature (Â°C)", type: "number", step: "0.1" },
             { name: "severity", label: "Severity", type: "select", required: true, options: ["NORMAL", "ELEVATED", "HIGH", "CRITICAL"] },
             operatorField,
         ],
@@ -106,7 +107,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
             animalField,
             { name: "event_type", label: "Event", type: "select", required: true, options: ["heat_detected", "insemination", "pregnancy_diagnosis", "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving", "abortion", "stillbirth", "postpartum_observation"] },
             { name: "technician", label: "Technician", type: "text", placeholder: "Dr Vet" },
-            { name: "result", label: "Result", type: "text", placeholder: "Completed / confirmed / negative…" },
+            { name: "result", label: "Result", type: "text", placeholder: "Completed / confirmed / negativeâ€¦" },
             { name: "semen_or_bull", label: "Semen / Bull", type: "text" },
             { name: "notes", label: "Notes", type: "textarea" },
             operatorField,
@@ -118,7 +119,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         description: "Record who performed an activity, what was done and its completion status.",
         fields: [
             { name: "worker_id", label: "Worker ID", type: "text", required: true, placeholder: "WORKER-001" },
-            { name: "activity", label: "Activity", type: "text", required: true, placeholder: "Milking, feeding, cleaning…" },
+            { name: "activity", label: "Activity", type: "text", required: true, placeholder: "Milking, feeding, cleaningâ€¦" },
             { name: "task", label: "Task", type: "text" },
             { name: "status", label: "Status", type: "select", options: ["ASSIGNED", "IN_PROGRESS", "COMPLETED", "MISSED"] },
             { name: "hours", label: "Hours", type: "number", step: "0.25" },
@@ -132,10 +133,10 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         title: "Record Inventory Movement",
         description: "Record stock receipts, consumption, transfers, wastage or adjustments.",
         fields: [
-            { name: "item", label: "Item", type: "text", required: true, placeholder: "Silage, medicine, semen…" },
+            { name: "item", label: "Item", type: "text", required: true, placeholder: "Silage, medicine, semenâ€¦" },
             { name: "quantity", label: "Quantity", type: "number", required: true, step: "0.01" },
             { name: "movement_type", label: "Movement", type: "select", options: ["PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT"] },
-            { name: "unit", label: "Unit", type: "text", placeholder: "kg, L, doses…" },
+            { name: "unit", label: "Unit", type: "text", placeholder: "kg, L, dosesâ€¦" },
             { name: "location", label: "Location", type: "text" },
             { name: "supplier", label: "Supplier", type: "text" },
             { name: "notes", label: "Notes", type: "textarea" },
@@ -148,7 +149,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         description: "Record inspection, maintenance, breakdown and operating status.",
         fields: [
             { name: "equipment_id", label: "Equipment ID", type: "text", required: true, placeholder: "MILKER-001" },
-            { name: "activity", label: "Activity", type: "text", required: true, placeholder: "Inspection, maintenance, breakdown…" },
+            { name: "activity", label: "Activity", type: "text", required: true, placeholder: "Inspection, maintenance, breakdownâ€¦" },
             { name: "status", label: "Status", type: "select", options: ["OPERATIONAL", "WARNING", "OUT_OF_SERVICE", "MAINTENANCE"] },
             { name: "running_hours", label: "Running Hours", type: "number", step: "0.1" },
             { name: "location", label: "Location", type: "text" },
@@ -163,7 +164,7 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         fields: [
             { name: "transaction_type", label: "Transaction Type", type: "select", required: true, options: ["INCOME", "EXPENSE", "RECEIPT", "PAYMENT", "OWNER_WITHDRAWAL", "LOAN_PAYMENT"] },
             { name: "amount", label: "Amount (PKR)", type: "number", required: true, step: "0.01" },
-            { name: "category", label: "Category", type: "text", placeholder: "Feed, milk sale, labour…" },
+            { name: "category", label: "Category", type: "text", placeholder: "Feed, milk sale, labourâ€¦" },
             { name: "payment_method", label: "Payment Method", type: "select", options: ["CASH", "BANK", "MOBILE", "CREDIT"] },
             { name: "counterparty", label: "Counterparty", type: "text" },
             { name: "notes", label: "Notes", type: "textarea" },
@@ -238,7 +239,7 @@ function App() {
         <div className="dairyos-shell">
             <header className="dairyos-topbar">
                 <div className="brand-block">
-                    <button className="mobile-menu-button" type="button" aria-label="Toggle navigation" onClick={() => setMobileNavOpen((open) => !open)}>☰</button>
+                    <button className="mobile-menu-button" type="button" aria-label="Toggle navigation" onClick={() => setMobileNavOpen((open) => !open)}>â˜°</button>
                     <div className="brand-mark">D</div>
                     <div>
                         <div className="brand-name">DairyOS</div>
@@ -276,9 +277,12 @@ function App() {
                 {mobileNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
 
                 <main className="dairyos-main">
-                    {view === "command" ? (
-                        <CommandCenter onNavigate={selectView} />
-                    ) : (
+                     {view === "command" ? (
+                         <CommandCenter onNavigate={selectView} />
+                     ) : view === "animals" ? (
+                         <AnimalRegistry onNavigate={selectView} />
+                     ) : (
+
                         <>
                             <div className="page-heading">
                                 <div>
@@ -304,3 +308,4 @@ function App() {
 }
 
 export default App;
+
