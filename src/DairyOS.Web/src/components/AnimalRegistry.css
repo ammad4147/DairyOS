@@ -406,10 +406,38 @@ font-size: 13px;
 overflow-wrap: anywhere;
 }
 
-.animal-passport-json {
+.animal-passport-alerts {
+display: grid;
+gap: 10px;
+margin-bottom: 18px;
+}
+
+.animal-alert {
+padding: 12px 14px;
+border-radius: 10px;
+font-size: 13px;
+font-weight: 600;
+}
+
+.animal-alert.critical {
+border: 1px solid rgba(220, 38, 38, 0.35);
+background: rgba(220, 38, 38, 0.08);
+}
+
+.animal-passport-section {
 border: 1px solid rgba(127, 127, 127, 0.18);
 border-radius: 10px;
 overflow: hidden;
+margin-top: 16px;
+}
+
+.animal-passport-section h4 {
+margin: 0;
+padding: 12px 14px;
+font-size: 14px;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+border-bottom: 1px solid rgba(127, 127, 127, 0.12);
 }
 
 .animal-passport-row {
@@ -498,4 +526,5 @@ padding: 16px;
 
 
 }
+
 

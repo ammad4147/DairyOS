@@ -23,8 +23,30 @@ type Animal = {
     updated_at?: string | null;
 };
 
+type PassportRecord = {
+    [key: string]: any;
+};
+
 type Passport = {
-    [key: string]: unknown;
+    animal?: PassportRecord;
+
+    history?: {
+        milk?: PassportRecord[];
+        feed?: PassportRecord[];
+        health?: PassportRecord[];
+        breeding?: PassportRecord[];
+        treatments?: PassportRecord[];
+        finance?: PassportRecord[];
+        operational_events?: PassportRecord[];
+    };
+
+    timeline?: Array<{
+        domain: string;
+        timestamp: string;
+        record: PassportRecord;
+    }>;
+
+    record_counts?: Record<string, number>;
 };
 
 type Props = {
@@ -61,10 +83,55 @@ function display(value: unknown): string {
     }
 
     if (typeof value === "object") {
-        return JSON.stringify(value);
+        return "Recorded";
     }
 
     return String(value);
+}
+
+function formatDate(value: unknown): string {
+    if (!value) {
+        return "Unavailable";
+    }
+
+    const parsed = new Date(String(value));
+
+    if (Number.isNaN(parsed.getTime())) {
+        return String(value);
+    }
+
+    return parsed.toLocaleString();
+}
+
+
+function getOperatorAlerts(passport: Passport): string[] {
+    const alerts: string[] = [];
+
+    const health = passport.history?.health ?? [];
+
+    health.forEach((item) => {
+        if (
+            String(item.severity).toUpperCase() === "CRITICAL"
+        ) {
+            alerts.push(
+                `${item.observation ?? "Health event"} requires attention`
+            );
+        }
+    });
+
+    return alerts;
+}
+
+function domainLabel(domain: string): string {
+    const labels: Record<string,string> = {
+        milk: "Milk Production",
+        feed: "Feeding",
+        health: "Health Observation",
+        breeding: "Breeding",
+        operational_events: "Farm Event"
+    };
+
+    return labels[domain] ?? domain;
 }
 
 function AnimalRegistry({ onNavigate }: Props) {
@@ -777,20 +844,109 @@ function AnimalRegistry({ onNavigate }: Props) {
                                     </div>
                                 </div>
 
-                                <div className="animal-passport-json">
-                                    {Object.entries(passport).map(
-                                        ([key, value]) => (
+                                <div className="animal-passport-alerts">
+    {getOperatorAlerts(passport).map(
+        (alert) => (
+            <div
+                key={alert}
+                className="animal-alert critical"
+            >
+                ⚠ {alert}
+            </div>
+        )
+    )}
+</div>
+
+<div className="animal-passport-section">
+    <h4>Milk</h4>
+    {(passport.history?.milk ?? []).map(
+        (record) => (
+            <div
+                key={String(record.id)}
+                className="animal-passport-row"
+            >
+                <span>
+                    {formatDate(record.production_date)}
+                </span>
+                <strong>
+                    {record.total_yield ?? 0} L
+                </strong>
+            </div>
+        )
+    )}
+</div>
+
+<div className="animal-passport-section">
+    <h4>Feed</h4>
+    {(passport.history?.feed ?? []).map(
+        (record) => (
+            <div
+                key={String(record.id)}
+                className="animal-passport-row"
+            >
+                <span>{record.feed_type}</span>
+                <strong>
+                    {record.quantity_kg ?? 0} kg
+                </strong>
+            </div>
+        )
+    )}
+</div>
+
+<div className="animal-passport-section">
+    <h4>Health</h4>
+    {(passport.history?.health ?? []).map(
+        (record) => (
+            <div
+                key={String(record.id)}
+                className="animal-passport-row"
+            >
+                <span>{record.observation}</span>
+                <strong>{record.severity}</strong>
+            </div>
+        )
+    )}
+</div>
+
+                                <div className="animal-passport-section">
+                                    <h4>Breeding</h4>
+
+                                    {(passport.history?.breeding ?? []).length === 0 ? (
+                                        <div className="animal-passport-row">
+                                            <span>Status</span>
+                                            <strong>No breeding records</strong>
+                                        </div>
+                                    ) : (
+                                        (passport.history?.breeding ?? []).map((record) => (
                                             <div
-                                                key={key}
+                                                key={String(record.id)}
                                                 className="animal-passport-row"
                                             >
-                                                <span>{key}</span>
+                                                <span>Breeding Event</span>
                                                 <strong>
-                                                    {display(value)}
+                                                    {display(record)}
                                                 </strong>
                                             </div>
-                                        )
+                                        ))
                                     )}
+                                </div>
+
+                                <div className="animal-passport-section">
+                                    <h4>Timeline</h4>
+
+                                    {(passport.timeline ?? []).map((event, index) => (
+                                        <div
+                                            key={`${event.domain}-${index}`}
+                                            className="animal-passport-row"
+                                        >
+                                            <span>
+                                                {formatDate(event.timestamp)}
+                                            </span>
+                                            <strong>
+                                                {event.domain}
+                                            </strong>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ) : (
@@ -806,3 +962,11 @@ function AnimalRegistry({ onNavigate }: Props) {
 }
 
 export default AnimalRegistry;
+
+
+
+
+
+
+
+

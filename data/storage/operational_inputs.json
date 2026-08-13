@@ -1,5 +1,23 @@
 [
   {
+    "input_type": "animal_lifecycle",
+    "payload": {
+      "animal_id": "AN-C5FE77E05D844CFAA71288641DA81351",
+      "previous_status": "LACTATING",
+      "lifecycle_status": "LACTATING",
+      "reason": null,
+      "timestamp": "2026-08-13T14:10:40.575168+00:00",
+      "operator": "Farm Operator",
+      "input_type": "animal_lifecycle",
+      "source": "farm_operator",
+      "actor": "Farm Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Farm Operator",
+    "event_id": "5138949c-3a3c-4f69-9937-e617e2a55c8e",
+    "timestamp": "2026-08-13T14:10:40.575189+00:00"
+  },
+  {
     "input_type": "milk_production",
     "payload": {
       "animal_id": "TEST-COW-100",
@@ -10,8 +28,8 @@
     },
     "source": "farm_operator",
     "actor": "TEST",
-    "event_id": "50047460-25fe-4276-a2e9-2db383666774",
-    "timestamp": "2026-08-13T10:59:35.573657+00:00"
+    "event_id": "b3e09a9e-d06b-4242-954f-c469b5f10a83",
+    "timestamp": "2026-08-13T14:10:41.262819+00:00"
   },
   {
     "input_type": "feeding",
@@ -24,7 +42,89 @@
     },
     "source": "farm_operator",
     "actor": "TEST",
-    "event_id": "78ba3e96-432f-4462-a749-4563c2a856e5",
-    "timestamp": "2026-08-13T10:59:35.734812+00:00"
+    "event_id": "ce0c0fcc-f1dc-46f7-9b69-6ad622055973",
+    "timestamp": "2026-08-13T14:10:41.304888+00:00"
+  },
+  {
+    "input_type": "milk_production",
+    "payload": {
+      "operator": "Test Operator",
+      "animal_id": "AN-AF50C00814634B019A425764C16F7F6A",
+      "morning_yield": 25.0,
+      "afternoon_yield": 0.0,
+      "evening_yield": 0.0,
+      "milking_session": "MORNING",
+      "litres": 25.0,
+      "total_yield": 25.0,
+      "status": "RECORDED",
+      "withdrawal_warning": false,
+      "timestamp": "2026-08-13T15:59:20.216882+00:00",
+      "input_type": "milk_production",
+      "source": "farm_operator",
+      "actor": "Test Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Test Operator",
+    "event_id": "21e199c3-9bf1-4730-bfe0-ee845b9ba68c",
+    "timestamp": "2026-08-13T15:59:20.231127+00:00"
+  },
+  {
+    "input_type": "feeding",
+    "payload": {
+      "operator": "Test Operator",
+      "feed_type": "Silage",
+      "quantity_kg": 25.0,
+      "group_or_pen": null,
+      "animal_id": "AN-AF50C00814634B019A425764C16F7F6A",
+      "status": "RECORDED",
+      "timestamp": "2026-08-13T16:00:29.696617+00:00",
+      "input_type": "feeding",
+      "source": "farm_operator",
+      "actor": "Test Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Test Operator",
+    "event_id": "436b545b-f18f-4bc3-949d-38b4588f6566",
+    "timestamp": "2026-08-13T16:00:29.708699+00:00"
+  },
+  {
+    "input_type": "animal_health",
+    "payload": {
+      "operator": "Test Operator",
+      "animal_id": "AN-AF50C00814634B019A425764C16F7F6A",
+      "observation": "Routine Health Check",
+      "symptom": "None",
+      "temperature_c": null,
+      "severity": "NORMAL",
+      "status": "OPEN",
+      "timestamp": "2026-08-13T16:01:37.213356+00:00",
+      "input_type": "animal_health",
+      "source": "farm_operator",
+      "actor": "Test Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Test Operator",
+    "event_id": "3e2c12ff-96b5-43f6-a215-dcd74feab6cc",
+    "timestamp": "2026-08-13T16:01:37.227334+00:00"
+  },
+  {
+    "input_type": "animal_health",
+    "payload": {
+      "operator": "Test Operator",
+      "animal_id": "AN-AF50C00814634B019A425764C16F7F6A",
+      "observation": "heat_detected",
+      "symptom": null,
+      "temperature_c": null,
+      "severity": "CRITICAL",
+      "status": "OPEN",
+      "timestamp": "2026-08-13T16:02:09.331043+00:00",
+      "input_type": "animal_health",
+      "source": "farm_operator",
+      "actor": "Test Operator"
+    },
+    "source": "farm_operator",
+    "actor": "Test Operator",
+    "event_id": "45b59ad2-c0d5-48e1-ba9f-d30d3721bbd7",
+    "timestamp": "2026-08-13T16:02:09.338369+00:00"
   }
 ]
