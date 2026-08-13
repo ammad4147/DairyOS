@@ -13,6 +13,7 @@ from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
+from dairyos.milk.models.milking_session import MilkingSession
 from dairyos.milk.services.milk_recording_intelligence_service import MilkRecordingIntelligenceService
 
 from dairyos.operations.intelligence.services.withdrawal_service import (
@@ -44,7 +45,7 @@ class MilkEntryRequest(BaseEntryRequest):
     morning_yield: float = 0.0
     afternoon_yield: float = 0.0
     evening_yield: float = 0.0
-    milking_session: str | None = None
+    milking_session: MilkingSession
 
 
 class FeedEntryRequest(BaseEntryRequest):
@@ -174,6 +175,7 @@ def _record(
             milk_repo = rf.milk()
             production = MilkProduction(
                 animal_id=str(payload.get("animal_id")),
+                milking_session=str(payload.get("milking_session")),
                 morning_yield=float(payload.get("morning_yield", 0.0)),
                 afternoon_yield=float(payload.get("afternoon_yield", 0.0)),
                 evening_yield=float(payload.get("evening_yield", 0.0)),
@@ -296,6 +298,7 @@ def record_milk_entry(
 
     payload = {
         **entry.model_dump(),
+        "milking_session": entry.milking_session.value,
         "litres": total,
         "total_yield": total,
         "status": status,
