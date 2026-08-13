@@ -30,6 +30,15 @@ class MilkProduction(Base):
     )
 
 
+    # The selected milking session is now persisted with the production
+    # record.  It is nullable only for legacy rows created before G3.1;
+    # all new API writes require a governed session value.
+    milking_session = Column(
+        String,
+        nullable=True
+    )
+
+
     morning_yield = Column(
         Float,
         default=0.0
