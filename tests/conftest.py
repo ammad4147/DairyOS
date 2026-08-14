@@ -12,6 +12,7 @@ from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
+from dairyos.data.models.user import User
 from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
@@ -45,6 +46,7 @@ def _reset_test_persistence() -> None:
             FeedRecord,
             HealthObservation,
             InventoryTransaction,
+            User,
             BreedingRecordModel,
             # The session ledger MUST be cleared alongside MilkProduction.
             # Sequencing reads the ledger, so a row left behind by one test

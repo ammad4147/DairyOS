@@ -96,6 +96,19 @@ GOVERNED = {
     "inventory_movement_types": [
         "PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT",
     ],
+    # Added 2026-08-14 (D3, identity/RBAC rebuild). The five pre-existing
+    # "identity" trees each defined their own overlapping role vocabulary
+    # (application/identity, core/identity, core/models/role.py,
+    # operations/users, platform/identity) but had zero live callers in
+    # api/ -- none of it was ever reachable. This is the one role
+    # vocabulary the new dairyos.data.models.user.User table and
+    # dairyos.api.auth actually enforce. OWNER: full access, including
+    # creating/managing other users. MANAGER: day-to-day farm operation.
+    # MILKER: operational data entry only. The pre-existing single
+    # env-var-configured admin account (DAIRYOS_ADMIN_ROLE) is untouched by
+    # this list -- it is a legacy fallback identity, not a governed role,
+    # and may still carry an arbitrary string for backward compatibility.
+    "auth_roles": ["OWNER", "MANAGER", "MILKER"],
 }
 
 

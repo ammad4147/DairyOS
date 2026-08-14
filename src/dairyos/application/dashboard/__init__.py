@@ -1,3 +1,0 @@
-"""
-Operational dashboard application module.
-"""

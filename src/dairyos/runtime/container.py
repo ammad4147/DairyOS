@@ -78,8 +78,6 @@ class RuntimeContainer:
         self.operational_input_repository = (
             runtime.operational_input_repository
         )
-        self.user_repository = runtime.user_repository
-
         self.farm_operation_event_bus = (
             runtime.farm_operation_event_bus
         )

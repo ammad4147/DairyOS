@@ -118,10 +118,6 @@ from dairyos.farm.day.runtime.farm_day_runtime import (
     FarmDayRuntime,
 )
 
-from dairyos.application.identity.repositories.adapters.memory_user_repository import (
-    MemoryUserRepository,
-)
-
 from dairyos.operations.command.services.operations_command_service import (
     OperationsCommandService,
 )
@@ -323,7 +319,6 @@ class ApplicationRuntime:
         withdrawal_service=None,
         operational_event_repository=None,
         operational_state_repository=None,
-        user_repository=None,
         operational_input_repository=None,
         animal_operational_state_repository=None,
         operations_command_service=None,
@@ -420,12 +415,6 @@ class ApplicationRuntime:
             drug_reference_repository
             if drug_reference_repository is not None
             else self._repository_factory.drug_reference()
-        )
-
-        self._user_repository = (
-            user_repository
-            if user_repository is not None
-            else MemoryUserRepository()
         )
 
         self._operational_input_repository = (
@@ -1115,14 +1104,6 @@ class ApplicationRuntime:
     @property
     def animal_intelligence_service(self):
         return self._animal_intelligence_service
-
-    # ======================================================================
-    # Identity
-    # ======================================================================
-
-    @property
-    def user_repository(self):
-        return self._user_repository
 
     # ======================================================================
     # Input subsystem

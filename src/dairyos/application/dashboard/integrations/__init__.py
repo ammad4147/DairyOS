@@ -1,3 +1,0 @@
-"""
-Dashboard domain integration adapters.
-"""
