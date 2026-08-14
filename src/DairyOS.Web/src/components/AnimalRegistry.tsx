@@ -145,6 +145,35 @@ function AnimalRegistry({ onNavigate }: Props) {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [form, setForm] = useState(initialForm);
+    const [referenceData, setReferenceData] = useState<{
+        lifecycle_statuses: string[];
+        milking_frequencies: string[];
+    }>({ lifecycle_statuses: [], milking_frequencies: [] });
+
+    const loadReferenceData = useCallback(async () => {
+        try {
+            const response = await fetch(`${API}/farm/reference-data`);
+
+            if (!response.ok) {
+                throw new Error(`Reference data request failed (${response.status})`);
+            }
+
+            const payload = await response.json();
+            const governed = payload?.governed ?? {};
+
+            setReferenceData({
+                lifecycle_statuses: Array.isArray(governed.lifecycle_statuses)
+                    ? governed.lifecycle_statuses
+                    : [],
+                milking_frequencies: Array.isArray(governed.milking_frequencies)
+                    ? governed.milking_frequencies
+                    : [],
+            });
+        } catch {
+            // Non-fatal: dropdowns fall back to empty and the operator sees
+            // "Not specified" only. The registry list itself still loads.
+        }
+    }, []);
 
     const loadAnimals = useCallback(async () => {
         setLoading(true);
@@ -177,7 +206,8 @@ function AnimalRegistry({ onNavigate }: Props) {
 
     useEffect(() => {
         void loadAnimals();
-    }, [loadAnimals]);
+        void loadReferenceData();
+    }, [loadAnimals, loadReferenceData]);
 
     const openPassport = async (animal: Animal) => {
         setSelected(animal);
@@ -608,14 +638,16 @@ function AnimalRegistry({ onNavigate }: Props) {
                                             )
                                         }
                                     >
-                                        <option value="CALF">CALF</option>
-                                        <option value="HEIFER">HEIFER</option>
-                                        <option value="CLOSE_UP">CLOSE_UP</option>
-                                        <option value="LACTATING">
-                                            LACTATING
-                                        </option>
-                                        <option value="DRY">DRY</option>
-                                        <option value="SICK">SICK</option>
+                                        {referenceData.lifecycle_statuses.map(
+                                            (status) => (
+                                                <option
+                                                    key={status}
+                                                    value={status}
+                                                >
+                                                    {status}
+                                                </option>
+                                            )
+                                        )}
                                     </select>
                                 </label>
 
@@ -689,15 +721,16 @@ function AnimalRegistry({ onNavigate }: Props) {
                                         <option value="">
                                             Not specified
                                         </option>
-                                        <option value="ONCE_DAILY">
-                                            ONCE_DAILY
-                                        </option>
-                                        <option value="TWICE_DAILY">
-                                            TWICE_DAILY
-                                        </option>
-                                        <option value="THRICE_DAILY">
-                                            THRICE_DAILY
-                                        </option>
+                                        {referenceData.milking_frequencies.map(
+                                            (frequency) => (
+                                                <option
+                                                    key={frequency}
+                                                    value={frequency}
+                                                >
+                                                    {frequency}
+                                                </option>
+                                            )
+                                        )}
                                     </select>
                                 </label>
 

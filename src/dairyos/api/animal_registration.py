@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.reference_data import GOVERNED
 from dairyos.domain.commands import Command
 
 
@@ -49,17 +50,26 @@ def register_animal(
         raise HTTPException(status_code=422, detail="animal_type required")
 
     lifecycle_status = payload.get("lifecycle_status", "HEIFER")
-    allowed_lifecycle = {
-        "CALF",
-        "HEIFER",
-        "CLOSE_UP",
-        "LACTATING",
-        "DRY",
-        "SICK",
-        "CULLED",
-    }
+    allowed_lifecycle = set(GOVERNED["lifecycle_statuses"])
     if lifecycle_status not in allowed_lifecycle:
-        raise HTTPException(status_code=422, detail="Invalid lifecycle status")
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Invalid lifecycle status. Allowed: "
+                + ", ".join(sorted(allowed_lifecycle))
+            ),
+        )
+
+    milking_frequency = payload.get("milking_frequency")
+    allowed_frequency = set(GOVERNED["milking_frequencies"])
+    if milking_frequency and milking_frequency not in allowed_frequency:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Invalid milking frequency. Allowed: "
+                + ", ".join(sorted(allowed_frequency))
+            ),
+        )
 
     allowed_fields = {
         "animal_type",

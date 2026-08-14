@@ -1,28 +1,20 @@
 ﻿from datetime import datetime, timezone
-from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.reference_data import GOVERNED
 
 
 router = APIRouter()
 
-
-class LifecycleStatus(str, Enum):
-    CALF = "CALF"
-    HEIFER = "HEIFER"
-    CLOSE_UP = "CLOSE_UP"
-    LACTATING = "LACTATING"
-    DRY = "DRY"
-    SICK = "SICK"
-    CULLED = "CULLED"
-
-
-class MilkingFrequency(str, Enum):
-    ONCE_DAILY = "ONCE_DAILY"
-    TWICE_DAILY = "TWICE_DAILY"
-    THRICE_DAILY = "THRICE_DAILY"
+# Reconciled 2026-08-14: validate against the same governed lists advertised
+# at GET /farm/reference-data instead of keeping a separate literal set here
+# (that drift — SOLD/DECEASED advertised but rejected, CLOSE_UP/SICK
+# accepted but not advertised — is what this fixes). See
+# dairyos.api.reference_data.GOVERNED for the single source of truth.
+ALLOWED_LIFECYCLE_STATUSES = set(GOVERNED["lifecycle_statuses"])
+ALLOWED_MILKING_FREQUENCIES = set(GOVERNED["milking_frequencies"])
 
 
 def animal_repository(container):
@@ -150,15 +142,13 @@ def change_lifecycle(
         payload.get("lifecycle_status", "")
     ).upper()
 
-    try:
-        LifecycleStatus(lifecycle)
-    except ValueError:
+    if lifecycle not in ALLOWED_LIFECYCLE_STATUSES:
         raise HTTPException(
             status_code=422,
             detail=(
                 "Invalid lifecycle status. "
                 "Allowed: "
-                + ", ".join(item.value for item in LifecycleStatus)
+                + ", ".join(sorted(ALLOWED_LIFECYCLE_STATUSES))
             ),
         )
 
@@ -174,7 +164,7 @@ def change_lifecycle(
         getattr(animal, "production_group", None),
     )
     animal.is_currently_milking = (
-        lifecycle == LifecycleStatus.LACTATING.value
+        lifecycle == "LACTATING"
     )
     animal.updated_at = datetime.now(timezone.utc)
 
@@ -212,12 +202,13 @@ def change_milking_frequency(
 
     frequency = payload.get("milking_frequency")
 
-    try:
-        MilkingFrequency(frequency)
-    except (ValueError, TypeError):
+    if frequency not in ALLOWED_MILKING_FREQUENCIES:
         raise HTTPException(
             status_code=422,
-            detail="Invalid milking frequency",
+            detail=(
+                "Invalid milking frequency. Allowed: "
+                + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES))
+            ),
         )
 
     updated = repository.set_milking_frequency(
