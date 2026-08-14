@@ -6,7 +6,6 @@ static operator UI. Animal-linked operational writes are checked against the
 persisted Animal Register before they reach domain handlers.
 """
 from contextlib import asynccontextmanager
-from datetime import date
 import json
 import logging
 import os
@@ -18,9 +17,6 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
-from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
-from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -52,8 +48,6 @@ ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatme
 
 @app.middleware("http")
 async def enforce_animal_identity(request, call_next):
-    body = None
-    payload = {}
     if request.method == "POST" and request.url.path in ANIMAL_LINKED_POSTS:
         body = await request.body()
         try:
@@ -72,39 +66,13 @@ async def enforce_animal_identity(request, call_next):
         async def receive():
             return {"type": "http.request", "body": body, "more_body": False}
         request._receive = receive
-
-    response = await call_next(request)
-
-    # Derived monitoring never blocks the persisted milk fact. The write has
-    # already succeeded; these observers only raise traceable findings.
-    if (
-        response.status_code < 300
-        and request.method == "POST"
-        and request.url.path == "/farm/milk"
-        and payload.get("animal_id")
-        and payload.get("milking_session")
-    ):
-        try:
-            raw_date = payload.get("production_date")
-            operational_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else date.today()
-            MilkCycleMonitoringService().monitor(
-                animal_id=str(payload["animal_id"]),
-                milking_session=str(payload["milking_session"]),
-                production_date=operational_date,
-            )
-            MilkHerdDailyDropMonitoringService().monitor(operational_date)
-            MilkReconciliationService().reconcile(operational_date)
-        except Exception:
-            logging.exception("Milk post-write monitoring failed after a successful milk write.")
-
-    return response
+    return await call_next(request)
 
 
 from dairyos.api.auth import router as auth_router
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.farm_data_entry import router as farm_router
-from dairyos.api.milk_production_analytics import router as milk_production_analytics_router
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.animal_passport import router as animal_passport_router
@@ -130,7 +98,6 @@ app.include_router(auth_router)
 app.include_router(command_router)
 app.include_router(dashboard_router)
 app.include_router(farm_router)
-app.include_router(milk_production_analytics_router)
 app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
