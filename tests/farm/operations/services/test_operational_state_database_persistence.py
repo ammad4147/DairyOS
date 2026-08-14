@@ -96,3 +96,5 @@ def test_database_operational_state_persistence():
 
 
     session_two.close()
+
+    engine.dispose()
