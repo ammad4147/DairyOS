@@ -8,7 +8,7 @@ import {
 
 import "./OperationalEntryPanel.css";
 
-type FieldType = "text" | "number" | "textarea" | "select" | "animal";
+type FieldType = "text" | "number" | "textarea" | "select" | "animal" | "date";
 
 export type EntryField = {
     name: string;
@@ -192,7 +192,13 @@ function OperationalEntryPanel({ config, onSaved }: Props) {
                             </select>
                         ) : (
                             <input
-                                type={field.type === "number" ? "number" : "text"}
+                                type={
+                                    field.type === "number"
+                                        ? "number"
+                                        : field.type === "date"
+                                          ? "date"
+                                          : "text"
+                                }
                                 value={values[field.name] ?? ""}
                                 placeholder={field.placeholder}
                                 required={field.required}

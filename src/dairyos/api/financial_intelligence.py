@@ -7,6 +7,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Query
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
@@ -39,8 +40,17 @@ def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|qua
     factory = RepositoryFactory.create()
     try:
         records = [x for x in factory.finance().get_all() if x.transaction_date >= start]
-        income = sum(float(x.amount or 0) for x in records if x.transaction_type == "INCOME")
-        expenses = sum(float(x.amount or 0) for x in records if x.transaction_type == "EXPENSE")
+        income = sum(float(x.amount or 0) for x in records if classifier.is_income(x))
+        expenses = sum(float(x.amount or 0) for x in records if classifier.is_expense(x))
+        # Real money out that is not a farm cost -- owner drawings and loan
+        # repayments. Reported separately rather than folded into expenses
+        # (which would inflate cost per litre) or dropped entirely, which is
+        # what happened before 2026-08-14: these types matched neither bucket
+        # and contributed nothing to any total.
+        non_operating = sum(
+            float(x.amount or 0) for x in records if classifier.is_cash_movement_only(x)
+        )
+        unclassified = [x for x in records if not classifier.is_known_type(x)]
         return {
             "period": period,
             "from": start.isoformat(),
@@ -49,8 +59,27 @@ def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|qua
             "income": round(income, 2),
             "expenses": round(expenses, 2),
             "net_movement": round(income - expenses, 2),
+            "non_operating_outflows": round(non_operating, 2),
+            "net_cash_movement": round(income - expenses - non_operating, 2),
             "transaction_count": len(records),
-            "accounting_note": "Account-level cash/bank balances are reported only when persisted account data exists; this endpoint never infers account location from transaction text.",
+            # An unrecognised transaction type must never vanish into a total
+            # that then looks complete.
+            "unclassified_transaction_count": len(unclassified),
+            "unclassified_transaction_types": sorted(
+                {
+                    classifier.normalize_transaction_type(x.transaction_type)
+                    for x in unclassified
+                }
+            ),
+            "accounting_note": (
+                "net_movement is operating income less operating expenses. Owner "
+                "withdrawals and loan repayments are real cash outflows but not farm "
+                "costs, so they are reported as non_operating_outflows and excluded "
+                "from expenses; net_cash_movement includes them. Account-level "
+                "cash/bank balances are reported only when persisted account data "
+                "exists; this endpoint never infers account location from "
+                "transaction text."
+            ),
         }
     finally:
         factory.close()

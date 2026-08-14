@@ -190,6 +190,10 @@ class FinancialEntryRequest(BaseEntryRequest):
     payment_method: str | None = None
     counterparty: str | None = None
     notes: str | None = None
+    # Optional so an entry can carry the date the money actually moved, not
+    # the moment it was typed in. Left unset it still defaults to now, which
+    # is what every historical row did.
+    transaction_date: date | None = None
 
 
 def _timestamp() -> str:
@@ -231,6 +235,22 @@ def _production_datetime(payload: dict[str, Any]) -> datetime | None:
         return None
 
     return datetime(produced_on.year, produced_on.month, produced_on.day)
+
+
+def _transaction_datetime(payload: dict[str, Any]) -> datetime | None:
+    """The day the money moved, as stated by the operator.
+
+    Returns None when no date was supplied, leaving the model default to
+    stamp the entry time -- which is what every row written before this
+    field existed did.
+    """
+
+    moved_on = _as_date(payload.get("transaction_date"))
+
+    if moved_on is None:
+        return None
+
+    return datetime(moved_on.year, moved_on.month, moved_on.day)
 
 
 def _sequence_service(container):
@@ -424,17 +444,30 @@ def _record(
                     "transaction_type",
                     "EXPENSE",
                 ),
-                category=(payload.get("category") or "GENERAL"),
+                category=(payload.get("category") or "OTHER_OPERATING"),
                 amount=float(payload.get("amount", 0.0)),
+                # `reference` keeps its previous meaning so existing readers
+                # are unaffected; counterparty and notes are now ALSO stored
+                # in their own columns instead of one overwriting the other.
                 reference=(
                     payload.get("counterparty")
                     or payload.get("notes")
                     or ""
                 ),
+                payment_method=payload.get("payment_method"),
+                counterparty=payload.get("counterparty"),
+                notes=payload.get("notes"),
                 status=payload.get("status", "RECORDED"),
                 animal_id=payload.get("animal_id"),
                 currency=payload.get("currency", "PKR"),
             )
+
+            # The date the money actually moved, when the operator supplied
+            # one. Left unset, the model default stamps "now" -- the only
+            # behaviour available before this field existed.
+            moved_on = _transaction_datetime(payload)
+            if moved_on is not None:
+                transaction.transaction_date = moved_on
             if hasattr(finance_repo, "save"):
                 finance_repo.save(transaction)
             else:
@@ -1220,10 +1253,18 @@ def record_financial_entry(
         get_optional_current_user
     ),
 ):
+    payload = entry.model_dump()
+
+    # The payload is written to the durable event journal as JSON, which
+    # cannot carry a date object. Serialised here for the same reason and in
+    # the same way the milk endpoint serialises production_date.
+    if entry.transaction_date is not None:
+        payload["transaction_date"] = entry.transaction_date.isoformat()
+
     return _record(
         container,
         "financial",
-        entry.model_dump(),
+        payload,
         current_user,
     )
 

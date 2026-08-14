@@ -165,6 +165,11 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         fields: [
             { name: "transaction_type", label: "Transaction Type", type: "select", required: true, options: ["INCOME", "EXPENSE", "RECEIPT", "PAYMENT", "OWNER_WITHDRAWAL", "LOAN_PAYMENT"] },
             { name: "amount", label: "Amount (PKR)", type: "number", required: true, step: "0.01" },
+            // Optional. Left blank, the backend stamps today -- which is what
+            // every entry did before this field existed. Set it to record the
+            // day the money actually moved, so a purchase entered late lands
+            // in the right period at month end.
+            { name: "transaction_date", label: "Date of Transaction", type: "date" },
             { name: "category", label: "Category", type: "text", placeholder: "Feed, milk sale, labourâ€¦" },
             { name: "payment_method", label: "Payment Method", type: "select", options: ["CASH", "BANK", "MOBILE", "CREDIT"] },
             { name: "counterparty", label: "Counterparty", type: "text" },

@@ -62,11 +62,27 @@ GOVERNED = {
         "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving",
         "abortion", "stillbirth", "postpartum_observation",
     ],
-    "financial_transaction_types": ["INCOME", "EXPENSE"],
+    # Reconciled 2026-08-14 (Phase 1). The operator UI has always offered
+    # all six of these (src/DairyOS.Web/src/App.tsx entryConfigs.finance),
+    # but this list advertised only INCOME and EXPENSE and every report
+    # recognised only those two -- so the other four were persisted, counted,
+    # and then contributed nothing to any total. How each is treated in
+    # reporting is defined in ONE place:
+    # dairyos.finance.classification.transaction_classifier.
+    "financial_transaction_types": [
+        "INCOME", "EXPENSE", "RECEIPT", "PAYMENT",
+        "OWNER_WITHDRAWAL", "LOAN_PAYMENT",
+    ],
     "financial_categories": [
         "MILK_SALES", "FEED", "HEALTH", "BREEDING", "LABOUR", "UTILITIES", "EQUIPMENT", "OTHER_OPERATING",
     ],
-    "payment_types": ["CASH", "BANK", "TRANSFER", "CARD", "OTHER"],
+    # Reconciled 2026-08-14 to match what the operator UI actually offers
+    # (CASH/BANK/MOBILE/CREDIT). The previous list advertised TRANSFER, CARD
+    # and OTHER -- none of which any form has ever offered -- while omitting
+    # MOBILE and CREDIT, which operators do use. As of this release the
+    # value is persisted (financial_transactions.payment_method); before it,
+    # payment method was accepted by the API and silently discarded.
+    "payment_types": ["CASH", "BANK", "MOBILE", "CREDIT"],
     "workforce_roles": ["VETERINARIAN", "HERDSMAN", "MILKER", "FEEDER", "MANAGER", "ADMIN"],
     "equipment_states": ["AVAILABLE", "IN_USE", "MAINTENANCE", "OUT_OF_SERVICE"],
 }
