@@ -6,6 +6,7 @@ static operator UI. Animal-linked operational writes are checked against the
 persisted Animal Register before they reach domain handlers.
 """
 from contextlib import asynccontextmanager
+from datetime import date
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -48,6 +50,8 @@ ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatme
 
 @app.middleware("http")
 async def enforce_animal_identity(request, call_next):
+    body = None
+    payload = {}
     if request.method == "POST" and request.url.path in ANIMAL_LINKED_POSTS:
         body = await request.body()
         try:
@@ -66,7 +70,30 @@ async def enforce_animal_identity(request, call_next):
         async def receive():
             return {"type": "http.request", "body": body, "more_body": False}
         request._receive = receive
-    return await call_next(request)
+
+    response = await call_next(request)
+
+    # Derived monitoring never blocks the persisted milk fact. The write has
+    # already succeeded; this observer only raises traceable findings.
+    if (
+        response.status_code < 300
+        and request.method == "POST"
+        and request.url.path == "/farm/milk"
+        and payload.get("animal_id")
+        and payload.get("milking_session")
+    ):
+        try:
+            raw_date = payload.get("production_date")
+            operational_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else date.today()
+            MilkCycleMonitoringService().monitor(
+                animal_id=str(payload["animal_id"]),
+                milking_session=str(payload["milking_session"]),
+                production_date=operational_date,
+            )
+        except Exception:
+            logging.exception("Milk cycle monitoring failed after a successful milk write.")
+
+    return response
 
 
 from dairyos.api.auth import router as auth_router
