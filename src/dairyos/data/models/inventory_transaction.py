@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class InventoryTransaction(Base):
@@ -88,6 +89,6 @@ class InventoryTransaction(Base):
 
     recorded_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False,
     )

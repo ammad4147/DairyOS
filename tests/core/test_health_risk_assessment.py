@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from dairyos.core.time_utils import utcnow
+
 from dairyos.herd.health.services.health_risk_assessment_service import (
     HealthRiskAssessmentService
 )
@@ -30,7 +32,7 @@ def test_high_health_risk_detection():
 
         "Milking System",
 
-        datetime.utcnow()
+        utcnow()
 
     )
 
@@ -66,7 +68,7 @@ def test_recommended_checks_created():
 
         "Milking System",
 
-        datetime.utcnow()
+        utcnow()
 
     )
 
@@ -98,7 +100,7 @@ def test_clinical_observation_increases_risk():
 
         "Veterinarian",
 
-        datetime.utcnow(),
+        utcnow(),
 
         "Possible mastitis"
 
@@ -138,7 +140,7 @@ def test_health_alert_creation():
 
         "Feed System",
 
-        datetime.utcnow()
+        utcnow()
 
     )
 

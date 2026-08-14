@@ -4,6 +4,7 @@ from sqlalchemy import func
 
 from ..models.milk_production import MilkProduction
 from ..models.animal import Animal
+from dairyos.core.time_utils import utcnow
 
 
 class MilkProductionRepository:
@@ -128,7 +129,7 @@ class MilkProductionRepository:
                 setattr(existing, field, value)
 
         existing.milking_session = production.milking_session
-        existing.recorded_at = datetime_type.utcnow()
+        existing.recorded_at = utcnow()
 
         # A withdrawal hold on any session withholds the animal-day. Losing
         # that on the next session's entry would put withheld milk back into

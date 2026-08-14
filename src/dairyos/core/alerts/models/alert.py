@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 @dataclass
@@ -11,4 +12,4 @@ class Alert:
 
     priority: str
 
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = field(default_factory=utcnow)

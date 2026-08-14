@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
+from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
 
@@ -29,7 +30,7 @@ def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
 
 @router.get("/reconciliation")
 def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|quarterly|yearly)$")):
-    now = datetime.utcnow()
+    now = utcnow()
     if period == "monthly":
         start = datetime(now.year, now.month, 1)
     elif period == "quarterly":

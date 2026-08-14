@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm", tags=["farm-intelligence"])
 
@@ -97,7 +98,7 @@ def animal_passport(animal_id: str):
 def youngstock():
     factory = _factory()
     try:
-        today = datetime.utcnow().date()
+        today = utcnow().date()
         result = []
         for animal in factory.animal().get_all():
             if animal.lifecycle_status not in {"CALF", "HEIFER"}:
@@ -120,7 +121,7 @@ def youngstock():
 
 @router.get("/kpis")
 def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = utcnow() - timedelta(days=days)
     factory = _factory()
     try:
         animals = factory.animal().get_all()
@@ -140,7 +141,7 @@ def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
         return {
             "period_days": days,
             "from": cutoff.isoformat(),
-            "to": datetime.utcnow().isoformat(),
+            "to": utcnow().isoformat(),
             "data_status": "LIVE_PERSISTED",
             "values": {
                 "herd_size": len(active),
@@ -177,7 +178,7 @@ def record_heat_stress(observation: HeatStressObservation):
     try:
         model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == observation.farm_id).first()
         if model is None:
-            model = OperationalStateModel(farm_id=observation.farm_id, operational_date=datetime.utcnow().date(), state_payload={}, created_at=datetime.utcnow())
+            model = OperationalStateModel(farm_id=observation.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         history = list(payload.get("heat_stress_observations", []))
@@ -205,7 +206,7 @@ def heat_stress_status(farm_id: str = "DEFAULT"):
 
 @router.get("/welfare/kpis")
 def welfare_kpis(days: int = Query(default=30, ge=1, le=366)):
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = utcnow() - timedelta(days=days)
     factory = _factory()
     try:
         animals = factory.animal().get_all()
@@ -237,7 +238,7 @@ def upsert_sop(protocol: SOPProtocol):
     try:
         model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == protocol.farm_id).first()
         if model is None:
-            model = OperationalStateModel(farm_id=protocol.farm_id, operational_date=datetime.utcnow().date(), state_payload={}, created_at=datetime.utcnow())
+            model = OperationalStateModel(farm_id=protocol.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         protocols = [p for p in payload.get("sop_protocols", []) if p.get("protocol_id") != protocol.protocol_id]

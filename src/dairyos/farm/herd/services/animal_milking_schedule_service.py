@@ -1,4 +1,5 @@
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 class AnimalMilkingScheduleService:
@@ -80,6 +81,6 @@ class AnimalMilkingScheduleService:
                 ),
 
             "generated_at":
-                datetime.utcnow(),
+                utcnow(),
 
         }

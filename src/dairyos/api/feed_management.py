@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
+from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm/feed", tags=["feed-nutrition"])
 
@@ -127,7 +128,7 @@ def record_feed(payload: FeedEntry):
             group_or_pen=payload.group_or_pen,
             feed_type=payload.feed_type,
             quantity_kg=payload.quantity_kg,
-            feeding_date=payload.feeding_date or datetime.utcnow(),
+            feeding_date=payload.feeding_date or utcnow(),
             notes=payload.notes,
             status="RECORDED",
         )

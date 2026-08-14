@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 @dataclass
@@ -12,5 +13,4 @@ class IntelligenceSignal:
     category: str
     message: str
     severity: str = "normal"
-    timestamp: datetime = datetime.utcnow()
-
+    timestamp: datetime = field(default_factory=utcnow)

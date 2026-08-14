@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class FeedRecord(Base):
@@ -37,7 +38,7 @@ class FeedRecord(Base):
 
     feeding_date = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 

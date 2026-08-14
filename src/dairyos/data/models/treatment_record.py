@@ -24,6 +24,7 @@ from sqlalchemy import (
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class TreatmentRecord(Base):
@@ -64,7 +65,7 @@ class TreatmentRecord(Base):
 
     treated_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False,
     )
 

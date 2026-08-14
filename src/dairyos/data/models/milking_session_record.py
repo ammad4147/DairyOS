@@ -23,6 +23,7 @@ from sqlalchemy import (
 )
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class MilkingSessionRecord(Base):
@@ -86,7 +87,7 @@ class MilkingSessionRecord(Base):
 
     recorded_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 

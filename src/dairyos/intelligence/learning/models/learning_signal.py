@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 @dataclass
@@ -23,5 +24,5 @@ class LearningSignal:
     )
 
     created_at: datetime = field(
-        default_factory=datetime.utcnow
+        default_factory=utcnow
     )

@@ -29,6 +29,7 @@ from sqlalchemy import (
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class DrugWithdrawalReference(Base):
@@ -85,7 +86,7 @@ class DrugWithdrawalReference(Base):
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )

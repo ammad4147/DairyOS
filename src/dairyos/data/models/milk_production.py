@@ -28,6 +28,7 @@ from sqlalchemy import (
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class MilkProduction(Base):
@@ -52,7 +53,7 @@ class MilkProduction(Base):
     # When the milk was produced.
     production_date = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 
@@ -61,7 +62,7 @@ class MilkProduction(Base):
     # backfilled record is visibly a backfill.
     recorded_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 

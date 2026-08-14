@@ -4,6 +4,7 @@ from ..models.animal import Animal
 from ..models.animal_milking_schedule_history import (
     AnimalMilkingScheduleHistory,
 )
+from dairyos.core.time_utils import utcnow
 
 
 class AnimalRepository:
@@ -200,7 +201,7 @@ class AnimalRepository:
         if animal is None:
             return None
 
-        now = datetime.utcnow()
+        now = utcnow()
 
         current_history = (
             self.session.query(AnimalMilkingScheduleHistory)

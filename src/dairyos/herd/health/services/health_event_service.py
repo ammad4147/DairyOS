@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ..models.health_event import HealthEvent
+from dairyos.core.time_utils import utcnow
 
 
 
@@ -45,7 +46,7 @@ class HealthEventService:
 
             status="OPEN",
 
-            created_at=datetime.utcnow()
+            created_at=utcnow()
 
         )
 

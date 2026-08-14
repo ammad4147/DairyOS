@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class AnimalMilkingScheduleHistory(Base):
@@ -37,7 +38,7 @@ class AnimalMilkingScheduleHistory(Base):
 
     effective_from = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 

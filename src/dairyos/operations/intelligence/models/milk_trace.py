@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
+from dairyos.core.time_utils import utcnow
 
 @dataclass
 class MilkTrace:
@@ -10,4 +11,4 @@ class MilkTrace:
     volume_liters: float
     tank_id: UUID
     delivery_id: UUID | None = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = field(default_factory=utcnow)

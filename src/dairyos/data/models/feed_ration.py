@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class FeedRation(Base):
@@ -22,4 +23,4 @@ class FeedRation(Base):
     cost_per_kg = Column(Float, nullable=True)
     effective_date = Column(String, nullable=False)
     operator = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)

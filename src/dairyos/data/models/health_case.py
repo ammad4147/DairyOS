@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class HealthCase(Base):
@@ -52,7 +53,7 @@ class HealthCase(Base):
 
     status = Column(String, nullable=False, default="OPEN")
 
-    opened_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    opened_at = Column(DateTime, nullable=False, default=utcnow)
 
     opened_by = Column(String, nullable=True)
 

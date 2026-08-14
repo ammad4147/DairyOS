@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ..models.clinical_examination import ClinicalExamination
+from dairyos.core.time_utils import utcnow
 
 
 class ClinicalExaminationService:
@@ -49,7 +50,7 @@ class ClinicalExaminationService:
 
             examiner,
 
-            datetime.utcnow()
+            utcnow()
 
         )
 

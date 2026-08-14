@@ -27,6 +27,7 @@ from sqlalchemy import (
 )
 
 from dairyos.data.database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class EventJournalModel(Base):
@@ -67,6 +68,6 @@ class EventJournalModel(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False,
     )

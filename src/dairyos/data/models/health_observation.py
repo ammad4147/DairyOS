@@ -9,6 +9,7 @@ from sqlalchemy import (
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class HealthObservation(Base):
@@ -31,7 +32,7 @@ class HealthObservation(Base):
 
     observed_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False,
     )
 

@@ -1,13 +1,14 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
+from dairyos.core.time_utils import utcnow
 
 @dataclass
 class Alert:
     alert_id: str
     message: str
     severity: str
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = field(default_factory=utcnow)
     resolved: bool = False
 
 class AlertService:

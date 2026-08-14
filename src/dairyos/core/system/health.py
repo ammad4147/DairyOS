@@ -1,4 +1,5 @@
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 def system_health():
@@ -7,6 +8,6 @@ def system_health():
 
         "status": "ONLINE",
 
-        "timestamp": datetime.utcnow()
+        "timestamp": utcnow()
 
     }

@@ -11,6 +11,7 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     classify_animal_state,
 )
+from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm", tags=["farm-planning"])
 
@@ -67,7 +68,7 @@ def save_ration(plan: RationPlan):
     try:
         model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == plan.farm_id).first()
         if model is None:
-            model = OperationalStateModel(farm_id=plan.farm_id, operational_date=datetime.utcnow().date(), state_payload={}, created_at=datetime.utcnow())
+            model = OperationalStateModel(farm_id=plan.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         plans = [p for p in payload.get("ration_plans", []) if p.get("plan_id") != plan.plan_id]

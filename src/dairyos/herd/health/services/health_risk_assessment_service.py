@@ -2,6 +2,7 @@ from datetime import datetime
 
 from ..models.correlated_health_signal import CorrelatedHealthSignal
 from ..models.health_alert import HealthAlert
+from dairyos.core.time_utils import utcnow
 
 
 class HealthRiskAssessmentService:
@@ -125,7 +126,7 @@ class HealthRiskAssessmentService:
 
             recommended_checks,
 
-            datetime.utcnow()
+            utcnow()
 
         )
 
@@ -172,6 +173,6 @@ class HealthRiskAssessmentService:
 
             status,
 
-            datetime.utcnow()
+            utcnow()
 
         )

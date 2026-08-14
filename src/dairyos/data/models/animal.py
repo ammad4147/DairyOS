@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
 from datetime import datetime
 
 from ..database.base import Base
+from dairyos.core.time_utils import utcnow
 
 
 class Animal(Base):
@@ -121,13 +122,13 @@ class Animal(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False
     )
 
@@ -181,7 +182,7 @@ class Animal(Base):
         if self.active is None:
             self.active = True
 
-        now = datetime.utcnow()
+        now = utcnow()
 
         if self.created_at is None:
             self.created_at = now
@@ -193,10 +194,10 @@ class Animal(Base):
 
         self.active = False
         self.status = "INACTIVE"
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utcnow()
 
     def activate(self):
 
         self.active = True
         self.status = "ACTIVE"
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utcnow()

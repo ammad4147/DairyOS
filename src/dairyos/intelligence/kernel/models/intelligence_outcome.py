@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 
 @dataclass
@@ -26,5 +27,5 @@ class IntelligenceOutcome:
             priority=priority,
             status="generated",
             recommendation=recommendation,
-            created_at=datetime.utcnow(),
+            created_at=utcnow(),
         )

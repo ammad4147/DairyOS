@@ -274,7 +274,7 @@ def create_user(
 
     if payload.role not in GOVERNED["auth_roles"]:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"role must be one of {GOVERNED['auth_roles']}",
         )
 
