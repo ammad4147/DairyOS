@@ -65,6 +65,16 @@ class EquipmentIntelligenceService:
     ):
         """
         Detect equipment attention conditions.
+
+        Watches for the governed `equipment_states` vocabulary
+        (dairyos.api.reference_data.GOVERNED["equipment_states"] ==
+        AVAILABLE/IN_USE/MAINTENANCE/OUT_OF_SERVICE), not an invented
+        ATTENTION/FAILED/CRITICAL vocabulary the operator UI's governed
+        dropdown can never produce (G9.1, decided 2026-08-13: keep the
+        governed vocabulary, fix the check -- not the other way round).
+        A later pass can add a MAINTENANCE-past-due check once
+        `next_service_due_at` (G9.3) exists; there is no such field yet,
+        so MAINTENANCE alone is not itself an attention condition.
         """
 
         for equipment_id, equipment in (
@@ -84,11 +94,7 @@ class EquipmentIntelligenceService:
                 )
                 and
                 status.upper()
-                in (
-                    "ATTENTION",
-                    "FAILED",
-                    "CRITICAL",
-                )
+                == "OUT_OF_SERVICE"
             ):
 
                 decisions.append(

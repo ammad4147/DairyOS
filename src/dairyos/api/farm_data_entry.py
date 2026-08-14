@@ -334,6 +334,28 @@ def _record(
         "timestamp": payload.get("timestamp") or _timestamp(),
     }
 
+    # Equipment has no domain repository (see docstring above) -- the
+    # projection bridge is the only place this fact lands. It, and
+    # EquipmentIntelligenceService downstream of it, both read
+    # `equipment_status[equipment_id]["operational_status"]` out of a
+    # "details" sub-object (see FarmOperationalState.apply(), the
+    # equipment_status_recorded branch). Nothing upstream of here has ever
+    # built that sub-object -- the real payload's fields sit flat -- so
+    # `event_payload.get("details", {})` has always evaluated to `{}` and
+    # the equipment attention check has been structurally unreachable
+    # regardless of what values it looked for (found 2026-08-14, alongside
+    # the vocabulary mismatch already filed as G9.1). Built here, not in
+    # the state layer, so the state layer's own existing unit tests --
+    # which construct a "details" payload directly -- are untouched.
+    if input_type == "equipment":
+        canonical_payload["details"] = {
+            "operational_status": payload.get("status"),
+            "activity": payload.get("activity"),
+            "running_hours": payload.get("running_hours"),
+            "location": payload.get("location"),
+            "notes": payload.get("notes"),
+        }
+
     rf = getattr(container, "repository_factory", None)
     owns_factory = False
     if rf is None:
