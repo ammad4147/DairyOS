@@ -20,6 +20,7 @@ from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
+from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -92,8 +93,9 @@ async def enforce_animal_identity(request, call_next):
                 production_date=operational_date,
             )
             MilkHerdDailyDropMonitoringService().monitor(operational_date)
+            MilkReconciliationService().reconcile(operational_date)
         except Exception:
-            logging.exception("Milk cycle monitoring failed after a successful milk write.")
+            logging.exception("Milk post-write monitoring failed after a successful milk write.")
 
     return response
 
