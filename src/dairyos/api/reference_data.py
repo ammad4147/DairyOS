@@ -85,6 +85,17 @@ GOVERNED = {
     "payment_types": ["CASH", "BANK", "MOBILE", "CREDIT"],
     "workforce_roles": ["VETERINARIAN", "HERDSMAN", "MILKER", "FEEDER", "MANAGER", "ADMIN"],
     "equipment_states": ["AVAILABLE", "IN_USE", "MAINTENANCE", "OUT_OF_SERVICE"],
+    # Reconciled 2026-08-14 (G8.1, decision confirmed via AskUserQuestion):
+    # the operator UI has always offered these six
+    # (src/DairyOS.Web/src/App.tsx entryConfigs.inventory), but until now
+    # POST /farm/inventory was event-journal-only -- no queryable stock
+    # model existed for a vocabulary to even matter to. Direction is fixed
+    # per type, not left to the reader to infer:
+    # dairyos.data.models.inventory_transaction.InventoryTransaction is the
+    # single source of truth for how each type signs `signed_quantity`.
+    "inventory_movement_types": [
+        "PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT",
+    ],
 }
 
 

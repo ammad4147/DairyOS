@@ -135,8 +135,14 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
         description: "Record stock receipts, consumption, transfers, wastage or adjustments.",
         fields: [
             { name: "item", label: "Item", type: "text", required: true, placeholder: "Silage, medicine, semenâ€¦" },
-            { name: "quantity", label: "Quantity", type: "number", required: true, step: "0.01" },
-            { name: "movement_type", label: "Movement", type: "select", options: ["PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT"] },
+            // For PURCHASE/RECEIPT/CONSUMPTION/WASTAGE enter a positive
+            // quantity -- direction is implied by the movement type.
+            // For TRANSFER/ADJUSTMENT enter a signed quantity yourself
+            // (negative for stock going out or a downward correction).
+            { name: "quantity", label: "Quantity", type: "number", required: true, step: "0.01", placeholder: "Positive, except signed for Transfer/Adjustment" },
+            // Governed (2026-08-14): now required. Without a movement type
+            // the ledger cannot know whether stock went up or down.
+            { name: "movement_type", label: "Movement", type: "select", required: true, options: ["PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT"] },
             { name: "unit", label: "Unit", type: "text", placeholder: "kg, L, dosesâ€¦" },
             { name: "location", label: "Location", type: "text" },
             { name: "supplier", label: "Supplier", type: "text" },

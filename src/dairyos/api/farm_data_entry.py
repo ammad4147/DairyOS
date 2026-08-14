@@ -12,6 +12,7 @@ from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
@@ -495,6 +496,43 @@ def _record(
                 finance_repo.save(transaction)
             else:
                 finance_repo.add(transaction)
+
+        elif input_type == "inventory":
+            inventory_repo = rf.inventory()
+
+            # Direction is fixed per governed movement_type (G8.1, decided
+            # 2026-08-14 via AskUserQuestion), not inferred from the sign of
+            # whatever was submitted -- PURCHASE/RECEIPT always increase
+            # stock, CONSUMPTION/WASTAGE always decrease it. Only
+            # TRANSFER/ADJUSTMENT carry a direction the type name alone
+            # can't imply, so for those two the operator's submitted sign is
+            # authoritative. `record_inventory_entry()` has already
+            # validated the sign/magnitude contract before this runs.
+            movement_type = str(payload.get("movement_type") or "").upper()
+            quantity = float(payload.get("quantity", 0.0))
+
+            if movement_type in ("PURCHASE", "RECEIPT"):
+                signed_quantity = quantity
+            elif movement_type in ("CONSUMPTION", "WASTAGE"):
+                signed_quantity = -quantity
+            else:
+                signed_quantity = quantity
+
+            transaction = InventoryTransaction(
+                item=str(payload.get("item")),
+                movement_type=movement_type,
+                quantity=quantity,
+                signed_quantity=signed_quantity,
+                unit=payload.get("unit"),
+                location=payload.get("location"),
+                supplier=payload.get("supplier"),
+                notes=payload.get("notes"),
+                recorded_by=operator,
+            )
+            if hasattr(inventory_repo, "save"):
+                inventory_repo.save(transaction)
+            else:
+                inventory_repo.add(transaction)
 
         event = container.input_gateway.record(
             input_type=input_type,
@@ -1216,6 +1254,15 @@ def list_workforce_entries(
     )
 
 
+# TRANSFER and ADJUSTMENT are the two movement types whose direction the
+# type name alone can't imply (a transfer can be inbound or outbound; an
+# adjustment can correct stock up or down) -- decided 2026-08-14 via
+# AskUserQuestion. For these two the operator's submitted sign is
+# authoritative; every other governed type has a fixed direction enforced
+# below.
+INVENTORY_SIGNED_BY_OPERATOR = {"TRANSFER", "ADJUSTMENT"}
+
+
 @router.post("/inventory")
 def record_inventory_entry(
     entry: InventoryEntryRequest,
@@ -1224,10 +1271,44 @@ def record_inventory_entry(
         get_optional_current_user
     ),
 ):
+    allowed_movement_types = set(GOVERNED["inventory_movement_types"])
+    movement_type = (entry.movement_type or "").upper()
+
+    if movement_type not in allowed_movement_types:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "movement_type must be one of: "
+                + ", ".join(sorted(allowed_movement_types))
+            ),
+        )
+
+    if movement_type in INVENTORY_SIGNED_BY_OPERATOR:
+        if entry.quantity == 0:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{movement_type} requires a nonzero quantity -- "
+                    "positive for stock coming in, negative for stock "
+                    "going out."
+                ),
+            )
+    elif entry.quantity <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"{movement_type} requires a positive quantity; direction "
+                "is implied by the movement type, not the sign entered."
+            ),
+        )
+
+    payload = entry.model_dump()
+    payload["movement_type"] = movement_type
+
     return _record(
         container,
         "inventory",
-        entry.model_dump(),
+        payload,
         current_user,
     )
 
@@ -1240,6 +1321,39 @@ def list_inventory_entries(
         container,
         "inventory",
     )
+
+
+@router.get("/inventory/balance")
+def inventory_balance(
+    container=Depends(get_container),
+):
+    """Current stock per item, derived from the ledger.
+
+    Deliberately not a separately-maintained running total -- summing the
+    full history on every read is the whole point of G8.1's decision, since
+    a cached total can drift from its own history and nothing would notice.
+
+    No reorder-threshold/low-stock flag here: that needs an item catalog
+    (`InventoryItem`, not yet built -- see the execution roadmap's
+    Inventory remainder) to know what "low" means per item, and inventing a
+    threshold would be exactly the kind of unrequested guess this session's
+    other fixes have been removing, not adding.
+    """
+    rf = getattr(container, "repository_factory", None)
+    owns_factory = False
+    if rf is None:
+        rf = RepositoryFactory.create()
+        owns_factory = True
+    try:
+        balance = rf.inventory().balance_by_item()
+    finally:
+        if owns_factory:
+            rf.close()
+
+    return {
+        "data_status": "LIVE_PERSISTED_DATA",
+        "items": balance,
+    }
 
 
 @router.post("/equipment")
