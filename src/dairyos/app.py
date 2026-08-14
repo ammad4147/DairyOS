@@ -121,6 +121,8 @@ from dairyos.api.youngstock_management import router as youngstock_management_ro
 from dairyos.api.feed_management import router as feed_management_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
+from dairyos.api.operational_findings import router as operational_findings_router
+from dairyos.api.settings import router as settings_router
 
 app.include_router(auth_router)
 app.include_router(command_router)
@@ -145,6 +147,8 @@ app.include_router(youngstock_management_router)
 app.include_router(feed_management_router)
 app.include_router(dairy_kpi_router)
 app.include_router(system_router)
+app.include_router(operational_findings_router)
+app.include_router(settings_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 
