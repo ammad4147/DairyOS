@@ -16,6 +16,7 @@ from dairyos.data.repositories.operational_event_repository import OperationalEv
 from dairyos.data.repositories.feed_record_repository import FeedRecordRepository
 from dairyos.data.repositories.feed_ration_repository import FeedRationRepository
 from dairyos.data.repositories.health_observation_repository import HealthObservationRepository
+from dairyos.data.repositories.health_case_repository import HealthCaseRepository
 from dairyos.data.repositories.database_operational_state_repository import DatabaseOperationalStateRepository
 from dairyos.data.repositories.treatment_repository import TreatmentRepository
 from dairyos.data.repositories.drug_withdrawal_reference_repository import DrugWithdrawalReferenceRepository
@@ -79,6 +80,9 @@ class RepositoryFactory:
 
     def health(self):
         return HealthObservationRepository(session=self._session)
+
+    def health_cases(self):
+        return HealthCaseRepository(session=self._session)
 
     def breeding(self):
         return DatabaseBreedingRepository(session=self._session)

@@ -9,6 +9,7 @@ from dairyos.data.database.models.operational_state_model import OperationalStat
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
+from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
@@ -45,6 +46,7 @@ def _reset_test_persistence() -> None:
             MilkProduction,
             FeedRecord,
             HealthObservation,
+            HealthCase,
             InventoryTransaction,
             User,
             BreedingRecordModel,

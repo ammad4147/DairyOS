@@ -94,3 +94,11 @@ class TreatmentRecord(Base):
         String,
         nullable=True,
     )
+
+    # Nullable link to a HealthCase (G5.1, 2026-08-14). A treatment can
+    # still be recorded standalone (unlinked) exactly as before -- this is
+    # additive, not a required field on the existing write path.
+    health_case_id = Column(
+        Integer,
+        nullable=True,
+    )

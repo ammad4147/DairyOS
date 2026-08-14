@@ -109,6 +109,14 @@ GOVERNED = {
     # this list -- it is a legacy fallback identity, not a governed role,
     # and may still carry an arbitrary string for backward compatibility.
     "auth_roles": ["OWNER", "MANAGER", "MILKER"],
+    # Added 2026-08-14 (G5.1, HealthCase). Before HealthCase existed, health
+    # observations had a `status` field of their own (default "OPEN") but no
+    # status-transition endpoint and no concept of a resolvable case. This is
+    # the governed lifecycle of a HealthCase itself: OPEN when opened,
+    # RESOLVED only via the explicit POST /farm/health-cases/{case_id}/resolve
+    # action -- never inferred from an observation or treatment being
+    # recorded.
+    "health_case_statuses": ["OPEN", "RESOLVED"],
 }
 
 

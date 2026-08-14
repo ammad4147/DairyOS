@@ -11,6 +11,7 @@ from dairyos.api.reference_data import GOVERNED
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
+from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
@@ -127,6 +128,9 @@ class HealthEntryRequest(BaseEntryRequest):
     symptom: str | None = None
     temperature_c: float | None = None
     severity: str = "NORMAL"
+    # Optional link to an open HealthCase (G5.1). An observation can still
+    # be recorded standalone exactly as before -- this is additive.
+    health_case_id: int | None = None
 
 
 class TreatmentEntryRequest(BaseEntryRequest):
@@ -137,6 +141,27 @@ class TreatmentEntryRequest(BaseEntryRequest):
     treated_by: str | None = None
     milk_withdrawal_days: float | None = None
     notes: str | None = None
+    # Optional link to an open HealthCase (G5.1). A treatment can still be
+    # recorded standalone exactly as before -- this is additive. When
+    # linked, the case's withdrawal_until is raised to this treatment's
+    # milk_withdrawal_until if that is later than what the case already has.
+    health_case_id: int | None = None
+
+
+class HealthCaseOpenRequest(BaseEntryRequest):
+    animal_id: str
+    severity: str = "NORMAL"
+    diagnosis: str | None = None
+    notes: str | None = None
+    follow_up_due_at: datetime | None = None
+    # Optionally attach an already-recorded observation to this case at the
+    # moment it's opened, rather than requiring a second call.
+    observation_id: int | None = None
+
+
+class HealthCaseResolveRequest(BaseEntryRequest):
+    resolution: str
+    resolved_by: str | None = None
 
 
 class DrugReferenceEntryRequest(BaseEntryRequest):
@@ -443,6 +468,7 @@ def _record(
                 reported_by=operator,
                 severity=payload.get("severity", "NORMAL"),
                 status=payload.get("status", "OPEN"),
+                health_case_id=payload.get("health_case_id"),
             )
             if hasattr(health_repo, "save"):
                 health_repo.save(observation)
@@ -872,6 +898,22 @@ def record_health_observation(
     )
     payload["status"] = "OPEN"
 
+    if entry.health_case_id is not None:
+        rf = getattr(container, "repository_factory", None)
+        owns_factory = False
+        if rf is None:
+            rf = RepositoryFactory.create()
+            owns_factory = True
+        try:
+            if rf.health_cases().get_by_id(entry.health_case_id) is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"health_case_id {entry.health_case_id} does not exist.",
+                )
+        finally:
+            if owns_factory:
+                rf.close()
+
     return _record(
         container,
         "animal_health",
@@ -987,6 +1029,16 @@ def record_treatment(
             or rf.treatment()
         )
 
+        linked_case = None
+        if entry.health_case_id is not None:
+            case_repo = rf.health_cases()
+            linked_case = case_repo.get_by_id(entry.health_case_id)
+            if linked_case is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"health_case_id {entry.health_case_id} does not exist.",
+                )
+
         record = TreatmentRecord(
             animal_id=entry.animal_id,
             diagnosis=entry.diagnosis,
@@ -998,9 +1050,21 @@ def record_treatment(
             milk_withdrawal_until=withdrawal_until,
             withdrawal_source=withdrawal_source,
             notes=entry.notes,
+            health_case_id=entry.health_case_id,
         )
 
         treatment_repo.add(record)
+
+        # A linked case's withdrawal_until always reflects the LATEST known
+        # withdrawal date across everything wrapped into it -- never a
+        # stale independent value a second treatment could silently
+        # outrun. Never lowered, only raised.
+        if linked_case is not None and (
+            linked_case.withdrawal_until is None
+            or withdrawal_until.replace(tzinfo=None) > linked_case.withdrawal_until
+        ):
+            linked_case.withdrawal_until = withdrawal_until.replace(tzinfo=None)
+            case_repo.add(linked_case)
 
         withdrawal_svc = getattr(
             container,
@@ -1430,3 +1494,242 @@ def list_financial_entries(
         container,
         "financial",
     )
+
+
+# ---------------------------------------------------------------------------
+# Health cases (G5.1). A real status-transition entity wrapping
+# observations[] + diagnosis + treatments[] + withdrawal_until +
+# follow_up_due_at + resolution -- what `HealthObservation` alone never
+# modeled. Resolution is always an explicit operator action, never inferred
+# from a new observation/treatment arriving.
+# ---------------------------------------------------------------------------
+
+
+def _generate_health_case_id(case_repo) -> str:
+    date_prefix = f"HL-{datetime.now(timezone.utc).strftime('%y%m%d')}"
+    sequence = case_repo.count_opened_on(date_prefix) + 1
+    candidate = f"{date_prefix}-{sequence:03d}"
+    # Defends against a concurrent open landing the same sequence number
+    # between the count and the insert -- retry upward rather than risk a
+    # duplicate case_id, since case_id is the operator-facing identifier.
+    while case_repo.get_by_case_id(candidate) is not None:
+        sequence += 1
+        candidate = f"{date_prefix}-{sequence:03d}"
+    return candidate
+
+
+def _health_case_dict(case) -> dict[str, Any]:
+    return {
+        "id": case.id,
+        "case_id": case.case_id,
+        "animal_id": case.animal_id,
+        "severity": case.severity,
+        "diagnosis": case.diagnosis,
+        "notes": case.notes,
+        "status": case.status,
+        "opened_at": case.opened_at.isoformat() if case.opened_at else None,
+        "opened_by": case.opened_by,
+        "follow_up_due_at": (
+            case.follow_up_due_at.isoformat() if case.follow_up_due_at else None
+        ),
+        "withdrawal_until": (
+            case.withdrawal_until.isoformat() if case.withdrawal_until else None
+        ),
+        "resolution": case.resolution,
+        "resolved_at": case.resolved_at.isoformat() if case.resolved_at else None,
+        "resolved_by": case.resolved_by,
+    }
+
+
+def _observation_dict(observation) -> dict[str, Any]:
+    return {
+        "id": observation.id,
+        "animal_id": observation.animal_id,
+        "observed_at": (
+            observation.observed_at.isoformat() if observation.observed_at else None
+        ),
+        "observation": observation.effective_observation,
+        "temperature": observation.effective_temperature,
+        "reported_by": observation.effective_reporter,
+        "severity": observation.severity,
+    }
+
+
+def _treatment_dict(treatment) -> dict[str, Any]:
+    return {
+        "id": treatment.id,
+        "animal_id": treatment.animal_id,
+        "diagnosis": treatment.diagnosis,
+        "medicine": treatment.medicine,
+        "treated_at": treatment.treated_at.isoformat() if treatment.treated_at else None,
+        "milk_withdrawal_until": (
+            treatment.milk_withdrawal_until.isoformat()
+            if treatment.milk_withdrawal_until
+            else None
+        ),
+    }
+
+
+@router.post("/health-cases")
+def open_health_case(
+    entry: HealthCaseOpenRequest,
+    container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    allowed_severities = set(GOVERNED["health_severities"])
+    if entry.severity not in allowed_severities:
+        raise HTTPException(
+            status_code=422,
+            detail="severity must be one of: " + ", ".join(sorted(allowed_severities)),
+        )
+
+    operator = _operator(entry.model_dump(), current_user)
+
+    rf = getattr(container, "repository_factory", None)
+    owns_factory = False
+    if rf is None:
+        rf = RepositoryFactory.create()
+        owns_factory = True
+
+    try:
+        case_repo = rf.health_cases()
+
+        linked_observation = None
+        if entry.observation_id is not None:
+            linked_observation = rf.health().get_by_id(entry.observation_id)
+            if linked_observation is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"observation_id {entry.observation_id} does not exist.",
+                )
+
+        case = HealthCase(
+            case_id=_generate_health_case_id(case_repo),
+            animal_id=entry.animal_id,
+            severity=entry.severity,
+            diagnosis=entry.diagnosis,
+            notes=entry.notes,
+            status="OPEN",
+            opened_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            opened_by=operator,
+            follow_up_due_at=(
+                entry.follow_up_due_at.replace(tzinfo=None)
+                if entry.follow_up_due_at
+                else None
+            ),
+        )
+        case_repo.add(case)
+
+        if linked_observation is not None:
+            linked_observation.health_case_id = case.id
+            rf.health().add(linked_observation)
+
+        # Not routed through container.input_gateway: that path validates
+        # input_type against InputCatalog.definitions(), a shared registry
+        # this session deliberately isn't extending for a resource that
+        # already has its own persisted, directly queryable table (unlike
+        # equipment/inventory/financial, which had no queryable model of
+        # their own and depended on the event journal + bridge to be
+        # readable at all). HealthCase's own opened_at/opened_by/
+        # resolved_at/resolved_by columns are the audit trail.
+        return _health_case_dict(case)
+    finally:
+        if owns_factory:
+            rf.close()
+
+
+@router.get("/health-cases")
+def list_health_cases(
+    animal_id: str | None = None,
+    status: str | None = None,
+    container=Depends(get_container),
+):
+    rf = getattr(container, "repository_factory", None)
+    owns_factory = False
+    if rf is None:
+        rf = RepositoryFactory.create()
+        owns_factory = True
+    try:
+        cases = rf.health_cases().get_all()
+        if animal_id is not None:
+            cases = [c for c in cases if c.animal_id == animal_id]
+        if status is not None:
+            cases = [c for c in cases if c.status == status]
+        return {"cases": [_health_case_dict(c) for c in cases]}
+    finally:
+        if owns_factory:
+            rf.close()
+
+
+@router.get("/health-cases/{case_id}")
+def get_health_case(
+    case_id: str,
+    container=Depends(get_container),
+):
+    rf = getattr(container, "repository_factory", None)
+    owns_factory = False
+    if rf is None:
+        rf = RepositoryFactory.create()
+        owns_factory = True
+    try:
+        case = rf.health_cases().get_by_case_id(case_id)
+        if case is None:
+            raise HTTPException(status_code=404, detail=f"No health case '{case_id}'.")
+
+        observations = [
+            _observation_dict(o)
+            for o in rf.health().get_all()
+            if o.health_case_id == case.id
+        ]
+        treatments = [
+            _treatment_dict(t)
+            for t in rf.treatment().get_all()
+            if getattr(t, "health_case_id", None) == case.id
+        ]
+
+        return {
+            **_health_case_dict(case),
+            "observations": observations,
+            "treatments": treatments,
+        }
+    finally:
+        if owns_factory:
+            rf.close()
+
+
+@router.post("/health-cases/{case_id}/resolve")
+def resolve_health_case(
+    case_id: str,
+    entry: HealthCaseResolveRequest,
+    container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+):
+    operator = _operator(entry.model_dump(), current_user)
+
+    rf = getattr(container, "repository_factory", None)
+    owns_factory = False
+    if rf is None:
+        rf = RepositoryFactory.create()
+        owns_factory = True
+    try:
+        case_repo = rf.health_cases()
+        case = case_repo.get_by_case_id(case_id)
+        if case is None:
+            raise HTTPException(status_code=404, detail=f"No health case '{case_id}'.")
+
+        if case.status == "RESOLVED":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Health case '{case_id}' is already resolved.",
+            )
+
+        case.status = "RESOLVED"
+        case.resolution = entry.resolution
+        case.resolved_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        case.resolved_by = entry.resolved_by or operator
+        case_repo.add(case)
+
+        return _health_case_dict(case)
+    finally:
+        if owns_factory:
+            rf.close()

@@ -97,6 +97,14 @@ class HealthObservation(Base):
         default="OPEN",
     )
 
+    # Nullable link to a HealthCase (G5.1, 2026-08-14). An observation can
+    # still be recorded standalone (unlinked) exactly as before -- this is
+    # additive, not a required field on the existing write path.
+    health_case_id = Column(
+        Integer,
+        nullable=True,
+    )
+
     @property
     def effective_observation(self) -> str | None:
         return self.observation or self.symptom
