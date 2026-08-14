@@ -25,6 +25,13 @@ class MilkProductionTrendIntelligenceService:
     """
 
     def __init__(self, milk_production_repository=None, animal_repository=None):
+        # Older composition code supplied MilkProductionIntelligenceService as
+        # the first constructor argument. That object is no longer the source
+        # of historical trend data, but accepting it harmlessly keeps the
+        # existing dependency graph intact while the trend boundary moves to
+        # persisted dated facts.
+        if milk_production_repository is not None and not hasattr(milk_production_repository, "get_all"):
+            milk_production_repository = None
         self.milk_production_repository = milk_production_repository
         self.animal_repository = animal_repository
 
