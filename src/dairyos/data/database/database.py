@@ -43,6 +43,10 @@ from dairyos.data.models.milk_production import (
     MilkProduction,
 )
 
+from dairyos.data.models.milk_disposition import (
+    MilkDisposition,
+)
+
 from dairyos.data.models.milking_session_record import (
     MilkingSessionRecord,
 )
