@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
 from dairyos.farm.production.services.milk_daily_semantics import (
     expected_sessions,
     missing_sessions,
 )
 from dairyos.farm.production.services.milk_drop_detection_service import detect_drop
+from dairyos.farm.production.services.milk_finding_service import MilkFindingService
 
 
 SESSION_ORDER = {"MORNING": 0, "AFTERNOON": 1, "EVENING": 2}
@@ -33,6 +33,17 @@ class MilkCycleMonitoringService:
             frequency = str(getattr(animal, "milking_frequency", "") or "").upper()
             expected = expected_sessions(frequency)
             if not expected:
+                self._finding(
+                    rf,
+                    severity="HIGH",
+                    title=f"Milking frequency not configured for {animal_id}",
+                    detail=(
+                        f"{animal_id} received a milk entry on {production_date.isoformat()} "
+                        "but has no governed two- or three-session milking frequency."
+                    ),
+                    subject_id=str(animal_id),
+                    dedupe_key=f"MILK_FREQUENCY_MISSING:{animal_id}",
+                )
                 return {"status": "NO_GOVERNED_FREQUENCY"}
 
             rows = rf.milk().get_by_animal_id(str(animal_id))
@@ -68,6 +79,7 @@ class MilkCycleMonitoringService:
                         f"{current_session} was entered on {production_date.isoformat()} "
                         f"but the animal is governed at {frequency}."
                     ),
+                    subject_id=str(animal_id),
                     dedupe_key=f"MILK_UNSCHEDULED_SESSION:{animal_id}:{production_date.isoformat()}:{current_session}",
                 )
                 return {"status": "UNSCHEDULED_SESSION", "frequency": frequency}
@@ -150,9 +162,7 @@ class MilkCycleMonitoringService:
         dedupe_key: str,
         subject_id: str | None = None,
     ):
-        service = OperationalFindingService(rf.operational_findings())
-        return service.raise_or_update(
-            source_module="MILK",
+        return MilkFindingService(rf.operational_findings()).raise_or_update(
             severity=severity,
             title=title,
             detail=detail,
