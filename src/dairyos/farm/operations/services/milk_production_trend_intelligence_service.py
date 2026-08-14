@@ -7,6 +7,7 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence import 
 from dairyos.farm.production.services.milk_daily_semantics import (
     daily_total,
     is_complete,
+    missing_sessions,
     record_date,
 )
 
@@ -17,9 +18,10 @@ SUPPORTED_PERIOD_DAYS = (7, 14, 30, 90, 180, 365)
 class MilkProductionTrendIntelligenceService:
     """Generates a verified daily farm milk-yield series.
 
-    The service has no ``previous_total_litres`` argument. The comparison
-    reference is derived from explicit production dates. Trend analytics do
-    not generate amber/red alerts; those belong to daily drop detection.
+    The comparison reference is derived from explicit production dates. Trend
+    analytics do not generate amber/red alerts; those belong to daily drop
+    detection. Historical frequency changes remain traceable through the
+    animal's milking-schedule history.
     """
 
     def __init__(self, milk_production_repository=None, animal_repository=None):
@@ -69,10 +71,11 @@ class MilkProductionTrendIntelligenceService:
             animal_id = str(animal.animal_id)
             history = histories.get(animal_id, [])
             frequency = self._frequency_on_date(animal, history, target_date)
-            row = rows_by_animal.get(animal_id)
-            if frequency is None:
+            if not frequency:
                 continue
+
             participating += 1
+            row = rows_by_animal.get(animal_id)
             payload = {
                 "animal_id": animal_id,
                 "production_date": target_date,
@@ -86,17 +89,7 @@ class MilkProductionTrendIntelligenceService:
             if row is None or not is_complete(payload, frequency):
                 incomplete.append({
                     "animal_id": animal_id,
-                    "missing": [
-                        session
-                        for session in ("MORNING", "AFTERNOON", "EVENING")
-                        if session in (
-                            "MORNING", "AFTERNOON", "EVENING"
-                        ) and payload.get({
-                            "MORNING": "morning_yield",
-                            "AFTERNOON": "afternoon_yield",
-                            "EVENING": "evening_yield",
-                        }[session]) is None
-                    ],
+                    "missing": list(missing_sessions(payload, frequency)),
                 })
                 continue
             total += daily_total(payload)
@@ -120,7 +113,7 @@ class MilkProductionTrendIntelligenceService:
         milk_repo, animal_repo, owned_factory = self._repositories()
         try:
             records = milk_repo.get_all()
-            animals = animal_repo.currently_milking_animals()
+            animals = animal_repo.get_all()
             histories = {
                 str(animal.animal_id): animal_repo.get_milking_frequency_history(
                     animal.animal_id
@@ -128,29 +121,25 @@ class MilkProductionTrendIntelligenceService:
                 for animal in animals
             }
 
-            snapshots = []
-            for offset in range(period_days - 1, -1, -1):
-                target = reference_date - timedelta(days=offset)
-                snapshots.append(
-                    self._daily_snapshot(
-                        target,
-                        records,
-                        animals,
-                        histories,
-                    )
+            snapshots = [
+                self._daily_snapshot(
+                    reference_date - timedelta(days=offset),
+                    records,
+                    animals,
+                    histories,
                 )
+                for offset in range(period_days - 1, -1, -1)
+            ]
 
-            current = next(
-                snapshot
-                for snapshot in snapshots
-                if snapshot["date"] == reference_date.isoformat()
-            )
+            current = snapshots[-1]
+            prior = snapshots[-2] if len(snapshots) >= 2 else None
             prior_date = (reference_date - timedelta(days=1)).isoformat()
-            prior = next(
-                snapshot for snapshot in snapshots if snapshot["date"] == prior_date
-            )
 
-            comparison_status = "COMPARED" if current["complete"] and prior["complete"] else "NO_COMPARISON"
+            comparison_status = (
+                "COMPARED"
+                if prior is not None and current["complete"] and prior["complete"]
+                else "NO_COMPARISON"
+            )
             variance = None
             percentage = None
             if comparison_status == "COMPARED":
@@ -163,13 +152,17 @@ class MilkProductionTrendIntelligenceService:
             if len(complete_series) >= 2:
                 first = complete_series[0]["total_litres"]
                 last = complete_series[-1]["total_litres"]
-                direction = "INCREASING" if last > first else "DECREASING" if last < first else "STABLE"
+                direction = (
+                    "INCREASING" if last > first
+                    else "DECREASING" if last < first
+                    else "STABLE"
+                )
 
             return MilkProductionTrendIntelligence(
                 reference_date=reference_date.isoformat(),
                 last_date=prior_date,
                 current_total_litres=current["total_litres"] if current["complete"] else None,
-                last_date_total_litres=prior["total_litres"] if prior["complete"] else None,
+                last_date_total_litres=prior["total_litres"] if prior and prior["complete"] else None,
                 variance_litres=variance,
                 variance_percentage=percentage,
                 comparison_status=comparison_status,
