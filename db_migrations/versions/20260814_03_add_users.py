@@ -41,22 +41,49 @@ def _has_table(name: str) -> bool:
     return name in _inspector().get_table_names()
 
 
+def _existing_columns(name: str) -> set[str]:
+    return {c["name"] for c in _inspector().get_columns(name)}
+
+
+_EXPECTED_COLUMNS = {
+    "username": sa.Column("username", sa.String(), nullable=True),
+    "password_hash": sa.Column("password_hash", sa.String(), nullable=True),
+    "password_salt": sa.Column("password_salt", sa.String(), nullable=True),
+    "role": sa.Column("role", sa.String(), nullable=True),
+    "active": sa.Column("active", sa.Boolean(), nullable=True, server_default=sa.true()),
+    "created_at": sa.Column("created_at", sa.DateTime(), nullable=True),
+}
+
+
 def upgrade() -> None:
-    # No-op on a database that has never created the table (a fresh install
-    # builds it from the model metadata, already carrying this shape).
-    if _has_table(TABLE):
+    if not _has_table(TABLE):
+        op.create_table(
+            TABLE,
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+            sa.Column("username", sa.String(), nullable=False, unique=True),
+            sa.Column("password_hash", sa.String(), nullable=False),
+            sa.Column("password_salt", sa.String(), nullable=False),
+            sa.Column("role", sa.String(), nullable=False),
+            sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("created_at", sa.DateTime(), nullable=False),
+        )
         return
 
-    op.create_table(
-        TABLE,
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("username", sa.String(), nullable=False, unique=True),
-        sa.Column("password_hash", sa.String(), nullable=False),
-        sa.Column("password_salt", sa.String(), nullable=False),
-        sa.Column("role", sa.String(), nullable=False),
-        sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-    )
+    # A "users" table already existing here is NOT proof it has the right
+    # shape -- "users" is a common enough name that a table can exist for
+    # reasons unrelated to this migration (an earlier session's dropped-code
+    # experiment, a manual create_all() run, etc). Assuming an existing
+    # table already matches would silently strand the app on a schema that
+    # doesn't have the columns dairyos.data.models.user.User actually reads
+    # and writes -- exactly the "absence of the right shape must never
+    # render as success" trap this migration exists to avoid. Instead, add
+    # whatever of the expected columns are missing (nullable, since a
+    # pre-existing table may already have rows with no way to backfill a
+    # real password hash for them).
+    existing = _existing_columns(TABLE)
+    for name, column in _EXPECTED_COLUMNS.items():
+        if name not in existing:
+            op.add_column(TABLE, column.copy())
 
 
 def downgrade() -> None:

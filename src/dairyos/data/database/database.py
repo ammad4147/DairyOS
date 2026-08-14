@@ -67,6 +67,14 @@ from dairyos.data.models.drug_withdrawal_reference import (
     DrugWithdrawalReference,
 )
 
+from dairyos.data.models.inventory_transaction import (
+    InventoryTransaction,
+)
+
+from dairyos.data.models.user import (
+    User,
+)
+
 
 def initialize_database() -> None:
     """
