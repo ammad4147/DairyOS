@@ -1,13 +1,16 @@
 """Operational lifecycle services for reproduction and nutrition planning."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    classify_animal_state,
+)
 
 router = APIRouter(prefix="/farm", tags=["farm-planning"])
 
@@ -33,42 +36,11 @@ def reproductive_status(animal_id: str):
             raise HTTPException(status_code=404, detail="Animal not found")
         events = [x for x in factory.breeding().get_all() if x.animal_id == animal_id]
         events.sort(key=lambda x: x.timestamp or datetime.min)
-        state = "UNKNOWN"
-        last_heat = None
-        last_ai = None
-        pregnancy_result = None
-        calving = None
-        for event in events:
-            kind = str(event.event_type or "").upper()
-            if kind in {"HEAT_DETECTED", "HEAT_OBSERVED"}:
-                state = "HEAT_OBSERVED"
-                last_heat = event.timestamp
-            elif kind in {"AI", "INSEMINATION", "ARTIFICIAL_INSEMINATION"}:
-                state = "INSEMINATED"
-                last_ai = event.timestamp
-            elif kind in {"PREGNANCY_CONFIRMED", "PREGNANCY"} and str(event.result or "").upper() not in {"NEGATIVE", "NO"}:
-                state = "PREGNANT"
-                pregnancy_result = event.result
-            elif kind in {"PREGNANCY_NEGATIVE", "PREGNANCY_DIAGNOSIS"} and str(event.result or "").upper() in {"NEGATIVE", "NO"}:
-                state = "OPEN"
-                pregnancy_result = event.result
-            elif kind == "CALVING":
-                state = "CALVED"
-                calving = event.timestamp
-            elif kind == "DRY_OFF":
-                state = "DRY_OFF"
-        expected_calving = None
-        if last_ai and state in {"INSEMINATED", "PREGNANT"}:
-            expected_calving = (last_ai + timedelta(days=283)).isoformat()
+        classified = classify_animal_state(events)
         return {
             "animal_id": animal_id,
             "data_status": "LIVE_PERSISTED",
-            "state": state,
-            "last_heat": last_heat,
-            "last_insemination": last_ai,
-            "pregnancy_result": pregnancy_result,
-            "expected_calving": expected_calving,
-            "last_calving": calving,
+            **classified,
             "events": [
                 {"event_type": x.event_type, "result": x.result, "timestamp": x.timestamp, "technician": x.technician}
                 for x in events

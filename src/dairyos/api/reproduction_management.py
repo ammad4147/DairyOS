@@ -7,6 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_calving as _is_calving,
+    is_confirmed_pregnancy as _is_confirmed_pregnancy,
+    is_heat_detection as _is_heat_detection,
+    is_insemination as _is_insemination,
+    is_pregnancy_check as _is_pregnancy_check,
+    normalize_event_type,
+)
 
 
 router = APIRouter(
@@ -34,37 +42,9 @@ def _serialize(record):
 
 
 def _event_type(record) -> str:
-    """Normalize UI/API reproduction event vocabulary for KPI projections."""
-    return str(getattr(record, "event_type", "")).strip().lower().replace("-", "_")
-
-
-def _is_insemination(record) -> bool:
-    return _event_type(record) in {"insemination", "service"}
-
-
-def _is_pregnancy_check(record) -> bool:
-    return _event_type(record) in {
-        "pregnancy_check",
-        "pregnancy_diagnosis",
-        "pregnancy",
-    }
-
-
-def _is_confirmed_pregnancy(record) -> bool:
-    event = _event_type(record)
-    result = str(getattr(record, "result", "")).strip().lower()
-    return event == "pregnancy_confirmed" or (
-        _is_pregnancy_check(record)
-        and result in {"pregnant", "confirmed", "positive", "yes"}
-    )
-
-
-def _is_calving(record) -> bool:
-    return _event_type(record) in {"calving", "calved", "parturition"}
-
-
-def _is_heat_detection(record) -> bool:
-    return _event_type(record) in {"heat_detection", "heat_detected", "heat", "oestrus", "estrus"}
+    """Normalize this record's event_type against the shared classifier
+    vocabulary (dairyos.herd.reproduction.services.reproductive_event_classifier)."""
+    return normalize_event_type(getattr(record, "event_type", None))
 
 
 def _conception_rate(inseminations, pregnancy_checks):

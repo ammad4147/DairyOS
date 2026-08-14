@@ -44,8 +44,23 @@ GOVERNED = {
         "MINERAL_MIXTURE", "BYPASS_FAT", "ANIONIC_SALTS", "TOXIN_BINDER", "AMINO_ACIDS",
     ],
     "health_severities": ["NORMAL", "LOW", "MODERATE", "SEVERE", "CRITICAL"],
+    # Reconciled 2026-08-14 (G6.1 breeding classifier unification) to match
+    # what the operator UI's breeding entry form actually sends
+    # (src/DairyOS.Web/src/App.tsx's entryConfigs.breeding options) — the
+    # previous uppercase list here (HEAT_OBSERVED, AI, PREGNANCY_CONFIRMED,
+    # PREGNANCY_NEGATIVE, DRY_OFF, CALVING) was never read by anything and
+    # didn't match real submitted data. See
+    # dairyos.herd.reproduction.services.reproductive_event_classifier for
+    # the single source of truth on how these are classified; that module,
+    # not this list, is authoritative — this list documents the real
+    # vocabulary for reference/future frontend wiring. abortion,
+    # stillbirth and postpartum_observation are accepted by the write path
+    # but not yet classified by any of the three reproduction endpoints
+    # (pre-existing gap, not addressed by this fix).
     "breeding_event_types": [
-        "HEAT_OBSERVED", "AI", "PREGNANCY_CONFIRMED", "PREGNANCY_NEGATIVE", "DRY_OFF", "CALVING",
+        "heat_detected", "insemination", "pregnancy_diagnosis",
+        "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving",
+        "abortion", "stillbirth", "postpartum_observation",
     ],
     "financial_transaction_types": ["INCOME", "EXPENSE"],
     "financial_categories": [

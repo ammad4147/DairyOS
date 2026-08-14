@@ -15,6 +15,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_calving as _is_calving,
+    is_confirmed_pregnancy as _is_confirmed_pregnancy,
+    is_insemination as _is_insemination,
+    is_pregnancy_check as _is_pregnancy_check,
+)
 
 router = APIRouter(prefix="/farm/kpis", tags=["Standard Dairy KPIs"])
 
@@ -96,9 +102,7 @@ def _conception_rate(inseminations, pregnancy_checks):
         if not candidates:
             continue
         matched = candidates[-1]
-        outcomes[getattr(matched, "record_id", id(matched))] = str(
-            getattr(check, "result", "")
-        ).lower() in {"pregnant", "confirmed", "positive", "yes"}
+        outcomes[getattr(matched, "record_id", id(matched))] = _is_confirmed_pregnancy(check)
     if not outcomes:
         return None
     return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
@@ -110,14 +114,14 @@ def _interval_metrics(breeding):
     for record in breeding:
         timestamp = _record_date(record, "timestamp")
         if timestamp is not None:
-            by_animal[record.animal_id].append((timestamp, str(record.event_type).lower()))
+            by_animal[record.animal_id].append((timestamp, record))
 
     calving_intervals = []
     days_open = []
     for events in by_animal.values():
-        events.sort()
-        calvings = [t for t, kind in events if kind == "calving"]
-        services = [t for t, kind in events if kind in {"insemination", "service"}]
+        events.sort(key=lambda item: item[0])
+        calvings = [t for t, record in events if _is_calving(record)]
+        services = [t for t, record in events if _is_insemination(record)]
         for previous, current in zip(calvings, calvings[1:]):
             calving_intervals.append((current - previous).days)
         for calving in calvings:
@@ -148,18 +152,18 @@ def _overview(factory, start, end):
     treatments = [r for r in factory.treatment().get_all() if _in_period(r, start, end, "treated_at")]
     finance = [r for r in factory.finance().get_all() if _in_period(r, start, end, "transaction_date")]
 
-    inseminations = [
-        r for r in breeding
-        if str(getattr(r, "event_type", "")).lower() in {"insemination", "service"}
-    ]
-    pregnancy_checks = [
-        r for r in breeding
-        if str(getattr(r, "event_type", "")).lower() in {"pregnancy_check", "pregnancy-check", "pregnancy"}
-    ]
-    confirmed_pregnancies = [
-        r for r in pregnancy_checks
-        if str(getattr(r, "result", "")).lower() in {"pregnant", "confirmed", "positive", "yes"}
-    ]
+    # Classification delegated to the shared, single-source-of-truth
+    # predicates (dairyos.herd.reproduction.services.
+    # reproductive_event_classifier) so this endpoint agrees with
+    # /farm/reproduction/overview and /farm/animals/{id}/reproduction on
+    # identical underlying BreedingRecord data. Before this fix this
+    # endpoint's own narrower keyword lists never recognized
+    # "pregnancy_diagnosis" or "pregnancy_confirmed" — the operator UI's
+    # actual event-type values — so confirmed_pregnancies/conception_rate
+    # silently undercounted relative to /farm/reproduction/overview.
+    inseminations = [r for r in breeding if _is_insemination(r)]
+    pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
+    confirmed_pregnancies = [r for r in breeding if _is_confirmed_pregnancy(r)]
 
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
     production_by_animal_day = defaultdict(float)
