@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -50,7 +49,35 @@ def milk_analytics(
         as_of_date=production_date,
         period_days=period_days,
     )
-    return trend.summary()
+    rf = RepositoryFactory.create()
+    try:
+        findings = rf.operational_findings().get_open_by_module("MILK")
+        individual_declines = [
+            {
+                "finding_id": finding.finding_id,
+                "animal_id": finding.subject_id,
+                "severity": finding.severity,
+                "title": finding.title,
+                "detail": finding.detail,
+                "status": finding.status,
+                "route": finding.route,
+                "observation_count": finding.observation_count,
+            }
+            for finding in findings
+            if finding.subject_type == "ANIMAL"
+            and finding.dedupe_key
+            and finding.dedupe_key.startswith("MILK_DAILY_DROP:")
+            and finding.severity in {"HIGH", "CRITICAL"}
+        ]
+        result = trend.summary()
+        result.update({
+            "period_options_days": list(SUPPORTED_PERIOD_DAYS),
+            "individual_decline_alert_count": len(individual_declines),
+            "individual_decline_alerts": individual_declines,
+        })
+        return result
+    finally:
+        rf.close()
 
 
 @router.get("/reconciliation")
@@ -135,7 +162,8 @@ def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest):
             )
 
         disposition.amount_received = float(disposition.amount_received or 0.0) + payload.amount
-        disposition.updated_at = __import__("dairyos.core.time_utils", fromlist=["utcnow"]).utcnow()
+        from dairyos.core.time_utils import utcnow
+        disposition.updated_at = utcnow()
 
         transaction = FinancialTransaction(
             transaction_type="RECEIPT",
