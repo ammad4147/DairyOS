@@ -27,10 +27,30 @@ declare global {
     }
 }
 
-/** Ports a Vite dev/preview server occupies; never the API. */
-const DEV_SERVER_PORTS = new Set(["5173", "4173"]);
-
 const DEVELOPMENT_FALLBACK = "http://127.0.0.1:8000";
+
+/**
+ * True for a port a Vite dev/preview server occupies; never the API.
+ *
+ * Vite's default dev port is 5173, but it auto-increments to the next free
+ * port whenever 5173 is already taken (e.g. a leftover `npm run dev` process
+ * from an earlier session) -- landing on 5174, 5176, whatever's free. A
+ * fixed single-port check missed every one of those, silently sending API
+ * calls back to the Vite server itself (a 404, since Vite has no `/dashboard`
+ * route) instead of falling through to `DEVELOPMENT_FALLBACK`. 5173-5179
+ * mirrors the backend's own CORS allow_origin_regex in `app.py`, which
+ * already anticipates this same range for exactly this reason. 4173 is
+ * `vite preview`'s fixed port.
+ */
+function isViteDevServerPort(port: string): boolean {
+    const portNumber = Number(port);
+
+    if (!Number.isInteger(portNumber)) {
+        return false;
+    }
+
+    return (portNumber >= 5173 && portNumber <= 5179) || portNumber === 4173;
+}
 
 function normalise(value: unknown): string | null {
     if (typeof value !== "string") {
@@ -65,7 +85,7 @@ function fromPageOrigin(): string | null {
         return null;
     }
 
-    if (DEV_SERVER_PORTS.has(port)) {
+    if (isViteDevServerPort(port)) {
         return null;
     }
 
