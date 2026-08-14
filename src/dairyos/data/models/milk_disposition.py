@@ -1,0 +1,40 @@
+"""Persisted accounting destination for produced milk litres.
+
+Every complete production date must eventually account for every produced
+litre through SOLD, CALF_FEED, DOMESTIC_USE, WASTAGE or OTHER. A sale records
+its receivable separately from cash receipt; milk sold therefore never implies
+that money has already been received.
+"""
+
+from sqlalchemy import Column, Date, DateTime, Float, Index, Integer, String
+
+from ..database.base import Base
+from dairyos.core.time_utils import utcnow
+
+
+class MilkDisposition(Base):
+    __tablename__ = "milk_dispositions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    production_date = Column(Date, nullable=False, index=True)
+    disposition_type = Column(String, nullable=False)
+    quantity_litres = Column(Float, nullable=False)
+
+    sale_id = Column(String, nullable=True, index=True)
+    counterparty = Column(String, nullable=True)
+    selling_price_per_litre = Column(Float, nullable=True)
+    amount_due = Column(Float, nullable=False, default=0.0)
+    amount_received = Column(Float, nullable=False, default=0.0)
+
+    notes = Column(String, nullable=True)
+    recorded_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_milk_dispositions_date_type", "production_date", "disposition_type"),
+    )
+
+    @property
+    def receivable_outstanding(self) -> float:
+        return max(float(self.amount_due or 0.0) - float(self.amount_received or 0.0), 0.0)
