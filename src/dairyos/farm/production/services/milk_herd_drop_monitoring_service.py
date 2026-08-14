@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import MilkProductionTrendIntelligenceService
+from dairyos.farm.production.services.milk_finding_service import MilkFindingService
 
 
 class MilkHerdDailyDropMonitoringService:
@@ -27,8 +27,7 @@ class MilkHerdDailyDropMonitoringService:
         severity = "HIGH" if percentage >= -20 else "CRITICAL"
         rf = RepositoryFactory.create()
         try:
-            OperationalFindingService(rf.operational_findings()).raise_or_update(
-                source_module="MILK",
+            MilkFindingService(rf.operational_findings()).raise_or_update(
                 severity=severity,
                 title=f"Farm milk yield declined on {production_date.isoformat()}",
                 detail=(
