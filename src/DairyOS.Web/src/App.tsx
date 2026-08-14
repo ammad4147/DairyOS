@@ -170,7 +170,12 @@ const entryConfigs: Record<string, OperationalEntryConfig> = {
             // day the money actually moved, so a purchase entered late lands
             // in the right period at month end.
             { name: "transaction_date", label: "Date of Transaction", type: "date" },
-            { name: "category", label: "Category", type: "text", placeholder: "Feed, milk sale, labourâ€¦" },
+            // Governed (2026-08-14): previously free text while every
+            // report matched on it by exact string, so a typo (or "Feed"
+            // vs "FEED") silently mis-bucketed money into UNCLASSIFIED
+            // with no error shown. Must match
+            // dairyos.api.reference_data.GOVERNED["financial_categories"].
+            { name: "category", label: "Category", type: "select", options: ["MILK_SALES", "FEED", "HEALTH", "BREEDING", "LABOUR", "UTILITIES", "EQUIPMENT", "OTHER_OPERATING"] },
             { name: "payment_method", label: "Payment Method", type: "select", options: ["CASH", "BANK", "MOBILE", "CREDIT"] },
             { name: "counterparty", label: "Counterparty", type: "text" },
             { name: "notes", label: "Notes", type: "textarea" },

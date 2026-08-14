@@ -119,7 +119,7 @@ def test_every_advertised_transaction_type_is_classified(client):
 
 
 def test_receipt_counts_as_income_and_payment_as_expense(client):
-    _record_financial(client, transaction_type="RECEIPT", amount=500.0, category="MILK SALE")
+    _record_financial(client, transaction_type="RECEIPT", amount=500.0, category="MILK_SALES")
     _record_financial(client, transaction_type="PAYMENT", amount=200.0, category="FEED")
 
     body = client.get("/farm/finance/reconciliation?period=yearly").json()
@@ -134,7 +134,7 @@ def test_owner_withdrawal_is_not_a_farm_expense(client):
     Counting it as an expense would inflate cost per litre -- the number
     AA-014 exists to state honestly.
     """
-    _record_financial(client, transaction_type="OWNER_WITHDRAWAL", amount=50000.0, category="DRAWINGS")
+    _record_financial(client, transaction_type="OWNER_WITHDRAWAL", amount=50000.0, category="OTHER_OPERATING")
 
     body = client.get("/farm/finance/reconciliation?period=yearly").json()
     assert body["expenses"] == 0.0
@@ -145,7 +145,7 @@ def test_owner_withdrawal_is_not_a_farm_expense(client):
 
 
 def test_loan_payment_is_not_a_farm_expense(client):
-    _record_financial(client, transaction_type="LOAN_PAYMENT", amount=25000.0, category="FINANCING")
+    _record_financial(client, transaction_type="LOAN_PAYMENT", amount=25000.0, category="OTHER_OPERATING")
 
     body = client.get("/farm/finance/reconciliation?period=yearly").json()
     assert body["expenses"] == 0.0
@@ -166,7 +166,7 @@ def test_owner_withdrawal_does_not_inflate_cost_per_litre(client, registered_ani
 
     _record_financial(client, transaction_type="EXPENSE", amount=1000.0, category="FEED")
     _record_financial(
-        client, transaction_type="OWNER_WITHDRAWAL", amount=9000.0, category="DRAWINGS"
+        client, transaction_type="OWNER_WITHDRAWAL", amount=9000.0, category="OTHER_OPERATING"
     )
 
     body = client.get("/farm/finance/cost-of-production?days=30").json()
@@ -205,3 +205,71 @@ def test_advertised_payment_types_are_accepted_and_persisted(client):
 
     stored = {row.payment_method for row in _ledger_rows()}
     assert stored == set(GOVERNED["payment_types"])
+
+
+# ---------------------------------------------------------------------------
+# Category governance (2026-08-14)
+#
+# category was free text while every report matched on it by exact string.
+# A typo, or "Feed" instead of "FEED", silently mis-bucketed money into
+# UNCLASSIFIED with no error raised anywhere -- the same class of bug as the
+# transaction-type gap above, just on the category axis instead.
+# ---------------------------------------------------------------------------
+
+
+def test_unlisted_category_is_rejected_not_silently_mis_bucketed(client):
+    response = client.post(
+        "/farm/financial",
+        json={
+            "transaction_type": "EXPENSE",
+            "amount": 500.0,
+            "category": "Feed",  # wrong case -- exactly the bug being fixed
+            "operator": "Farm Manager",
+        },
+    )
+    assert response.status_code == 422, response.text
+    assert _ledger_rows() == []
+
+
+def test_every_advertised_category_is_accepted(client):
+    for category in GOVERNED["financial_categories"]:
+        _record_financial(client, category=category)
+
+    stored = {row.category for row in _ledger_rows()}
+    assert stored == set(GOVERNED["financial_categories"])
+
+
+def test_unsupplied_category_still_defaults_to_other_operating(client):
+    """Optional field, unchanged default -- only the supplied case is governed."""
+    _record_financial(client, category=None)
+
+    row = _ledger_rows()[0]
+    assert row.category == "OTHER_OPERATING"
+
+
+def test_milk_sales_category_counts_as_milk_revenue(client):
+    """The concrete vocabulary-drift bug: the governed spelling didn't match.
+
+    GOVERNED["financial_categories"] advertises "MILK_SALES" (underscore),
+    but CostOfProductionService.MILK_REVENUE_CATEGORIES only recognised the
+    older "MILK SALES" (space) spelling -- so an operator picking the exact
+    value the dropdown offered produced a milk_revenue of None.
+    """
+    _record_financial(
+        client, transaction_type="RECEIPT", amount=15000.0, category="MILK_SALES"
+    )
+
+    body = client.get("/farm/finance/cost-of-production?days=30").json()
+    assert body["milk_revenue"] == 15000.0
+
+
+def test_other_operating_category_counts_toward_recorded_expense(client):
+    """Same drift bug, on the cost-domain side: OTHER_OPERATING vs "OTHER OPERATING"."""
+    _record_financial(
+        client, transaction_type="EXPENSE", amount=750.0, category="OTHER_OPERATING"
+    )
+
+    body = client.get("/farm/finance/cost-of-production?days=30").json()
+    assert body["total_recorded_operating_expense"] == 750.0
+    assert body["cost_domain_amounts"]["OTHER_OPERATING"] == 750.0
+    assert "OTHER_OPERATING" not in body["missing_cost_domains"]

@@ -133,7 +133,7 @@ def test_all_current_operational_data_entry_workflows_are_usable(client: TestCli
         "/farm/feed": {"feed_type": "Silage", "quantity_kg": 25, "group_or_pen": "Pen A", "operator": "UI-Test"},
         "/farm/health-observations": {"animal_id": animal_id, "symptom": "Normal", "severity": "LOW", "operator": "UI-Test"},
         "/farm/breeding": {"animal_id": animal_id, "event_type": "insemination", "technician": "Dr Vet", "result": "completed", "operator": "UI-Test"},
-        "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "category": "Feed", "payment_method": "CASH", "operator": "UI-Test"},
+        "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "category": "FEED", "payment_method": "CASH", "operator": "UI-Test"},
     }
     for path, payload in payloads.items():
         response = client.post(path, json=payload)

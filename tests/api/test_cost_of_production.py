@@ -28,7 +28,7 @@ def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_
         json={
             "transaction_type": "EXPENSE",
             "amount": 300.0,
-            "category": "VETERINARY",
+            "category": "HEALTH",
             "operator": "Farm Manager",
         },
     )
@@ -39,7 +39,7 @@ def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_
         json={
             "transaction_type": "INCOME",
             "amount": 750.0,
-            "category": "MILK SALE",
+            "category": "MILK_SALES",
             "operator": "Farm Manager",
         },
     )
@@ -54,7 +54,7 @@ def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_
     assert body["total_recorded_operating_expense"] >= 1500.0
     assert body["cost_per_litre"] == 150.0
     assert body["expense_by_category"]["FEED"] >= 1200.0
-    assert body["expense_by_category"]["VETERINARY"] >= 300.0
+    assert body["expense_by_category"]["HEALTH"] >= 300.0
     assert body["milk_revenue"] >= 750.0
     assert body["revenue_per_litre"] == 75.0
     assert body["margin_after_recorded_operating_cost"] == -750.0

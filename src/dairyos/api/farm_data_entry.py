@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.reference_data import GOVERNED
 
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.feed_record import FeedRecord
@@ -1255,6 +1256,22 @@ def record_financial_entry(
 ):
     payload = entry.model_dump()
 
+    # category was previously free text while every report matched on it by
+    # exact string -- a typo (or "Feed" vs "FEED") silently mis-bucketed
+    # money into UNCLASSIFIED with no error to the operator. Validated
+    # against the governed list the same way lifecycle_status is, at the
+    # only place a new value can enter the ledger. An unset category still
+    # falls back to OTHER_OPERATING in _record(), unchanged.
+
+    allowed_categories = set(GOVERNED["financial_categories"])
+    if entry.category is not None and entry.category not in allowed_categories:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "category must be one of: "
+                + ", ".join(sorted(allowed_categories))
+            ),
+        )
     # The payload is written to the durable event journal as JSON, which
     # cannot carry a date object. Serialised here for the same reason and in
     # the same way the milk endpoint serialises production_date.

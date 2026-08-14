@@ -14,10 +14,21 @@ class CostOfProductionService:
     dairy cost model.
     """
 
+    # MILK_SALES and OTHER_OPERATING are the exact codes
+    # dairyos.api.reference_data.GOVERNED["financial_categories"] advertises
+    # and the only spellings the frontend's governed category dropdown can
+    # send going forward (2026-08-14). The older space-separated synonyms
+    # ("MILK SALES", "OTHER OPERATING", ...) are kept so rows written before
+    # categories were governed still match -- per the "no silent backfill"
+    # principle, historical rows are read as-is, never rewritten. Before
+    # this fix a transaction using the governed spelling silently matched
+    # neither set: a MILK_SALES entry contributed nothing to milk_revenue,
+    # and OTHER_OPERATING contributed nothing to any cost domain.
     MILK_REVENUE_CATEGORIES = {
         "MILK",
         "MILK SALE",
         "MILK SALES",
+        "MILK_SALES",
         "DAIRY SALES",
     }
 
@@ -28,7 +39,7 @@ class CostOfProductionService:
         "BREEDING": {"BREEDING", "REPRODUCTION", "SEMEN"},
         "UTILITIES": {"UTILITIES", "ELECTRICITY", "WATER", "FUEL"},
         "EQUIPMENT": {"EQUIPMENT", "REPAIRS", "MAINTENANCE", "MACHINERY"},
-        "OTHER_OPERATING": {"OTHER", "GENERAL", "OPERATING", "OTHER OPERATING"},
+        "OTHER_OPERATING": {"OTHER", "GENERAL", "OPERATING", "OTHER OPERATING", "OTHER_OPERATING"},
     }
 
     @staticmethod

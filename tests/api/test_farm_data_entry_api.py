@@ -194,7 +194,7 @@ def test_record_financial_entry(client):
         json={
             "transaction_type": "EXPENSE",
             "amount": 25000.0,
-            "category": "Feed",
+            "category": "FEED",
             "payment_method": "BANK",
             "counterparty": "Feed Supplier",
             "operator": "Farm Manager",
