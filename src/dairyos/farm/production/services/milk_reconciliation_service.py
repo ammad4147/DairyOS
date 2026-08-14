@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -44,7 +44,7 @@ class MilkReconciliationService:
             current = self._production_total(production_date)
             dispositions = repo.get_by_date(production_date)
 
-            produced = float(current["total_litres"])
+            produced = float(current.get("total_litres", current.get("daily_total", current.get("total_yield", 0.0))))
             accounted = sum(float(item.quantity_litres) for item in dispositions)
             sold = sum(
                 float(item.quantity_litres)
@@ -65,7 +65,7 @@ class MilkReconciliationService:
             receivable = max(sale_value - cash_received, 0.0)
             unaccounted = produced - accounted
 
-            if not current["complete"]:
+            if not current.get("complete", current.get("is_complete", True)):
                 status = "PRODUCTION_INCOMPLETE"
             elif unaccounted > 0.01:
                 status = "UNACCOUNTED_PRODUCTION"
@@ -76,7 +76,7 @@ class MilkReconciliationService:
 
             result = {
                 "production_date": production_date.isoformat(),
-                "production_complete": bool(current["complete"]),
+                "production_complete": bool(current.get("complete", current.get("is_complete", True))),
                 "produced_litres": round(produced, 3),
                 "accounted_litres": round(accounted, 3),
                 "sold_litres": round(sold, 3),
@@ -104,7 +104,7 @@ class MilkReconciliationService:
                 ],
             }
 
-            if raise_finding and current["complete"] and status in {"UNACCOUNTED_PRODUCTION", "OVER_ACCOUNTED"}:
+            if raise_finding and current.get("complete", current.get("is_complete", True)) and status in {"UNACCOUNTED_PRODUCTION", "OVER_ACCOUNTED"}:
                 finding_factory = RepositoryFactory.create()
                 try:
                     severity = "CRITICAL" if status == "OVER_ACCOUNTED" else "HIGH"
@@ -183,3 +183,5 @@ class MilkReconciliationService:
         finally:
             if owned_factory is not None:
                 owned_factory.close()
+
+

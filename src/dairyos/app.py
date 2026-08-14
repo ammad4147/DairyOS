@@ -1,3 +1,4 @@
+﻿from dairyos.api.milk_production_summary import router as milk_production_summary_router
 """FastAPI application bootstrap for DairyOS.
 
 The operator UI is the React/Vite application under ``src/DairyOS.Web``.
@@ -158,3 +159,6 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 @app.get("/", include_in_schema=False)
 def root():
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
+
+app.include_router(milk_production_summary_router)
+

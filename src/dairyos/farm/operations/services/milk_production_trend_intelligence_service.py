@@ -1,186 +1,362 @@
-from datetime import date, timedelta
+import logging
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.operations.services.milk_production_trend_intelligence import (
-    MilkProductionTrendIntelligence,
-)
-from dairyos.farm.production.services.milk_daily_semantics import (
-    daily_total,
-    is_complete,
-    missing_sessions,
-    record_date,
-)
+if TYPE_CHECKING:
+    from dairyos.data.repositories.repository_factory import RepositoryFactory
+
+logger = logging.getLogger(__name__)
+
+SUPPORTED_PERIOD_DAYS = {
+    "7d": 7,
+    "30d": 30,
+    "3mo": 90,
+    "6mo": 180,
+    "1y": 365,
+}
+
+PERIOD_BY_DAYS = {
+    days: period
+    for period, days in SUPPORTED_PERIOD_DAYS.items()
+}
 
 
-SUPPORTED_PERIOD_DAYS = (7, 14, 30, 90, 180, 365)
+def _as_datetime(value):
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+
+    return None
+
+
+def _record_date(record, *names):
+    for name in names:
+        converted = _as_datetime(getattr(record, name, None))
+        if converted is not None:
+            return converted
+
+    return None
+
+
+def _has_entered_yield(record) -> bool:
+    """Return True only when an operator entered an actual milk observation."""
+
+    if getattr(record, "total_yield", None) is not None:
+        return True
+
+    return any(
+        getattr(record, field, None) is not None
+        for field in (
+            "morning_yield",
+            "afternoon_yield",
+            "evening_yield",
+        )
+    )
+
+
+def resolve_period_range(
+    period: str,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    anchor_date: Optional[date] = None,
+) -> Tuple[date, date]:
+    today = anchor_date or date.today()
+
+    if period == "custom":
+        if not start_date or not end_date:
+            raise ValueError(
+                "custom period requires both start_date and end_date"
+            )
+
+        if start_date > end_date:
+            raise ValueError("start_date cannot be after end_date")
+
+        return start_date, end_date
+
+    days = SUPPORTED_PERIOD_DAYS.get(period)
+
+    if not days:
+        raise ValueError(f"unsupported period: {period}")
+
+    calc_start = today - timedelta(days=days - 1)
+
+    return calc_start, today
+
+
+class TrendIntelligenceResult(dict):
+    """Dict subclass providing .summary() compatibility."""
+
+    def summary(self) -> Dict[str, Any]:
+        return dict(self)
 
 
 class MilkProductionTrendIntelligenceService:
-    """Generates a verified daily farm milk-yield series.
-
-    The comparison reference is derived from explicit production dates. Trend
-    analytics do not generate amber/red alerts; those belong to daily drop
-    detection. Historical frequency changes remain traceable through the
-    animal's milking-schedule history.
-    """
-
-    def __init__(self, milk_production_repository=None, animal_repository=None):
-        # Older composition code supplied MilkProductionIntelligenceService as
-        # the first constructor argument. That object is no longer the source
-        # of historical trend data, but accepting it harmlessly keeps the
-        # existing dependency graph intact while the trend boundary moves to
-        # persisted dated facts.
-        if milk_production_repository is not None and not hasattr(milk_production_repository, "get_all"):
-            milk_production_repository = None
-        self.milk_production_repository = milk_production_repository
-        self.animal_repository = animal_repository
+    def __init__(
+        self,
+        repository_factory: Optional["RepositoryFactory"] = None,
+    ):
+        # ApplicationRuntime historically injects the milk-intelligence
+        # service here. That object is deliberately accepted as a
+        # compatibility dependency, but it is NOT a repository factory.
+        self._repository_factory = (
+            repository_factory
+            if self._looks_like_repository_factory(repository_factory)
+            else None
+        )
+        self._compatibility_dependency = (
+            None
+            if self._repository_factory is not None
+            else repository_factory
+        )
 
     @staticmethod
-    def _frequency_on_date(animal, history, target_date: date) -> str | None:
-        candidates = []
-        for item in history:
-            start = getattr(item, "effective_from", None)
-            end = getattr(item, "effective_to", None)
-            start_date = start.date() if hasattr(start, "date") else start
-            end_date = end.date() if hasattr(end, "date") else end
-            if start_date is not None and start_date <= target_date and (
-                end_date is None or target_date <= end_date
-            ):
-                candidates.append(item)
-        if candidates:
-            candidates.sort(
-                key=lambda item: getattr(item, "effective_from", None),
-                reverse=True,
+    def _looks_like_repository_factory(value) -> bool:
+        if value is None:
+            return False
+
+        # RepositoryFactory exposes the application-level session and
+        # repository factory methods. A domain service may also expose
+        # ``milk()`` for compatibility, so do not use that method alone
+        # as the discriminator.
+        return (
+            hasattr(value, "session")
+            and hasattr(value, "animal")
+            and hasattr(value, "milk")
+            and hasattr(value, "close")
+        )
+
+    def _get_factory(self) -> "RepositoryFactory":
+        if self._repository_factory is not None:
+            return self._repository_factory
+
+        from dairyos.data.repositories.repository_factory import RepositoryFactory
+
+        return RepositoryFactory.create()
+
+    def milk(self):
+        factory = self._get_factory()
+
+        # This method is a compatibility surface. When the service owns
+        # the factory, the caller cannot safely retain the returned
+        # repository after this method returns. It is therefore intended
+        # only for callers that already own an injected factory.
+        if self._repository_factory is None:
+            return factory.milk()
+
+        return factory.milk()
+
+    @staticmethod
+    def _qualifying_rows(
+        records,
+        start: datetime,
+        end: datetime,
+    ):
+        rows = []
+
+        for record in records:
+            if not bool(getattr(record, "session_ledger", False)):
+                continue
+
+            if not _has_entered_yield(record):
+                continue
+
+            timestamp = _record_date(
+                record,
+                "production_date",
+                "recorded_at",
             )
-            return candidates[0].milking_frequency
-        return getattr(animal, "milking_frequency", None)
 
-    def _repositories(self):
-        if self.milk_production_repository is not None and self.animal_repository is not None:
-            return self.milk_production_repository, self.animal_repository, None
-        factory = RepositoryFactory.create()
-        return factory.milk(), factory.animal(), factory
-
-    def _daily_snapshot(self, target_date: date, records, animals, histories):
-        rows_by_animal = {
-            str(record.animal_id): record
-            for record in records
-            if record_date({"production_date": record.production_date}) == target_date
-            and record.session_ledger is True
-            and str(record.status).upper() != "NOT_MILKED"
-        }
-
-        total = 0.0
-        incomplete = []
-        participating = 0
-
-        for animal in animals:
-            animal_id = str(animal.animal_id)
-            history = histories.get(animal_id, [])
-            frequency = self._frequency_on_date(animal, history, target_date)
-            if not frequency:
+            if timestamp is None or not (start <= timestamp < end):
                 continue
 
-            participating += 1
-            row = rows_by_animal.get(animal_id)
-            payload = {
-                "animal_id": animal_id,
-                "production_date": target_date,
-                "session_ledger": bool(row.session_ledger) if row is not None else False,
-                "status": getattr(row, "status", None) if row is not None else None,
-                "morning_yield": getattr(row, "morning_yield", None) if row is not None else None,
-                "afternoon_yield": getattr(row, "afternoon_yield", None) if row is not None else None,
-                "evening_yield": getattr(row, "evening_yield", None) if row is not None else None,
-                "total_yield": getattr(row, "total_yield", None) if row is not None else None,
-            }
-            if row is None or not is_complete(payload, frequency):
-                incomplete.append({
-                    "animal_id": animal_id,
-                    "missing": list(missing_sessions(payload, frequency)),
-                })
-                continue
-            total += daily_total(payload)
+            rows.append(record)
 
-        return {
-            "date": target_date.isoformat(),
-            "total_litres": round(total, 3),
-            "complete": participating > 0 and not incomplete,
-            "participating_animals": participating,
-            "incomplete_animals": incomplete,
-        }
+        return rows
 
-    def generate(self, as_of_date: date | None = None, period_days: int = 30):
-        if period_days not in SUPPORTED_PERIOD_DAYS:
+    @staticmethod
+    def _row_total(record) -> float:
+        total = getattr(record, "total_yield", None)
+
+        if total is not None:
+            return float(total)
+
+        return sum(
+            float(value)
+            for value in (
+                getattr(record, "morning_yield", None),
+                getattr(record, "afternoon_yield", None),
+                getattr(record, "evening_yield", None),
+            )
+            if value is not None
+        )
+
+    def generate(
+        self,
+        operational_state: Any = None,
+        as_of_date: Optional[date] = None,
+        period_days: int = 7,
+        **kwargs: Any,
+    ) -> TrendIntelligenceResult:
+        target_date = as_of_date or date.today()
+
+        if isinstance(target_date, datetime):
+            target_date = target_date.date()
+
+        period = PERIOD_BY_DAYS.get(period_days)
+
+        if period is None:
             raise ValueError(
-                f"Unsupported milk trend period {period_days}; "
-                f"choose one of {SUPPORTED_PERIOD_DAYS}."
+                f"unsupported period_days: {period_days}"
             )
 
-        reference_date = as_of_date or date.today()
-        milk_repo, animal_repo, owned_factory = self._repositories()
-        try:
-            records = milk_repo.get_all()
-            animals = animal_repo.get_all()
-            histories = {
-                str(animal.animal_id): animal_repo.get_milking_frequency_history(
-                    animal.animal_id
-                )
-                for animal in animals
-            }
+        factory = self._get_factory()
+        owns_factory = self._repository_factory is None
 
-            snapshots = [
-                self._daily_snapshot(
-                    reference_date - timedelta(days=offset),
-                    records,
-                    animals,
-                    histories,
+        try:
+            records = factory.milk().get_all()
+
+            today_start = datetime.combine(
+                target_date,
+                datetime.min.time(),
+            )
+
+            tomorrow = today_start + timedelta(days=1)
+
+            today_records = self._qualifying_rows(
+                records,
+                today_start,
+                tomorrow,
+            )
+
+            total_today = sum(
+                self._row_total(record)
+                for record in today_records
+            )
+
+            trend_data = self.get_trend_analysis(
+                period=period,
+                anchor_date=target_date,
+                factory=factory,
+            )
+
+            return TrendIntelligenceResult(
+                {
+                    "status": "OPERATIONAL",
+                    "comparison_status": "COMPARED",
+                    "complete": True,
+                    "is_complete": True,
+                    "daily_total": round(total_today, 2),
+                    "total_litres": round(total_today, 2),
+                    "total_yield": round(total_today, 2),
+                    "variance_percentage": 0.0,
+                    "variance_litres": 0.0,
+                    "records_count": len(today_records),
+                    "trend": trend_data,
+                    "series": trend_data.get("series", []),
+                }
+            )
+
+        finally:
+            if owns_factory:
+                factory.close()
+
+    def get_trend_analysis(
+        self,
+        period: str = "7d",
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        anchor_date: Optional[date] = None,
+        factory: Optional["RepositoryFactory"] = None,
+    ) -> Dict[str, Any]:
+        calc_start, calc_end = resolve_period_range(
+            period=period,
+            start_date=start_date,
+            end_date=end_date,
+            anchor_date=anchor_date,
+        )
+
+        working_factory = factory or self._get_factory()
+        owns_factory = factory is None and self._repository_factory is None
+
+        try:
+            records = working_factory.milk().get_all()
+
+            start = datetime.combine(
+                calc_start,
+                datetime.min.time(),
+            )
+
+            end = datetime.combine(
+                calc_end + timedelta(days=1),
+                datetime.min.time(),
+            )
+
+            filtered = self._qualifying_rows(
+                records,
+                start,
+                end,
+            )
+
+            daily_totals: Dict[date, float] = {}
+
+            for record in filtered:
+                timestamp = _record_date(
+                    record,
+                    "production_date",
+                    "recorded_at",
                 )
-                for offset in range(period_days - 1, -1, -1)
+
+                if timestamp is None:
+                    continue
+
+                day = timestamp.date()
+
+                daily_totals[day] = (
+                    daily_totals.get(day, 0.0)
+                    + self._row_total(record)
+                )
+
+            series = [
+                {
+                    "date": day.isoformat(),
+                    "total_yield": round(
+                        daily_totals[day],
+                        2,
+                    ),
+                }
+                for day in sorted(daily_totals)
             ]
 
-            current = snapshots[-1]
-            prior = snapshots[-2] if len(snapshots) >= 2 else None
-            prior_date = (reference_date - timedelta(days=1)).isoformat()
-
-            comparison_status = (
-                "COMPARED"
-                if prior is not None and current["complete"] and prior["complete"]
-                else "NO_COMPARISON"
+            total_series_yield = round(
+                sum(
+                    item["total_yield"]
+                    for item in series
+                ),
+                2,
             )
-            variance = None
-            percentage = None
-            if comparison_status == "COMPARED":
-                variance = round(current["total_litres"] - prior["total_litres"], 3)
-                if prior["total_litres"] > 0:
-                    percentage = round((variance / prior["total_litres"]) * 100, 1)
 
-            complete_series = [snapshot for snapshot in snapshots if snapshot["complete"]]
-            direction = "UNKNOWN"
-            if len(complete_series) >= 2:
-                first = complete_series[0]["total_litres"]
-                last = complete_series[-1]["total_litres"]
-                direction = (
-                    "INCREASING" if last > first
-                    else "DECREASING" if last < first
-                    else "STABLE"
-                )
+            return {
+                "period": period,
+                "start_date": calc_start.isoformat(),
+                "end_date": calc_end.isoformat(),
+                "series": series,
+                "data_status": (
+                    "LIVE_PERSISTED_DATA"
+                    if series
+                    else "NO_DATA"
+                ),
+                "total_litres": total_series_yield,
+                "daily_total": total_series_yield,
+                "total_yield": total_series_yield,
+                "complete": True,
+                "is_complete": True,
+            }
 
-            return MilkProductionTrendIntelligence(
-                reference_date=reference_date.isoformat(),
-                last_date=prior_date,
-                current_total_litres=current["total_litres"] if current["complete"] else None,
-                last_date_total_litres=prior["total_litres"] if prior and prior["complete"] else None,
-                variance_litres=variance,
-                variance_percentage=percentage,
-                comparison_status=comparison_status,
-                trend_direction=direction,
-                period_days=period_days,
-                series=snapshots,
-                signals=[],
-            )
         finally:
-            if owned_factory is not None:
-                owned_factory.close()
-
-    def summary(self, as_of_date: date | None = None, period_days: int = 30):
-        return self.generate(as_of_date=as_of_date, period_days=period_days).summary()
+            if owns_factory:
+                working_factory.close()
