@@ -15,9 +15,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import CommandCenter from "./components/CommandCenter";
+import MainDashboard from "./components/MainDashboard";
 import AnimalRegistry from "./components/AnimalRegistry";
 import OperationalModule from "./components/OperationalModule";
+import Settings from "./components/Settings";
 import type { OperationalEntryConfig } from "./components/OperationalEntryPanel";
 import "./App.css";
 import { apiUrl } from "./config/api";
@@ -34,7 +35,8 @@ type ViewId =
     | "equipment"
     | "finance"
     | "analytics"
-    | "alerts";
+    | "alerts"
+    | "settings";
 
 type NavigationItem = {
     id: ViewId;
@@ -203,6 +205,7 @@ const navigation: NavigationItem[] = [
     { id: "finance", label: "Finance", description: "Operational financial transactions", endpoint: "/farm/financial", mode: "entries", entry: entryConfigs.finance },
     { id: "analytics", label: "Analytics", description: "Production and operating indicators", endpoint: "/operations/dashboard", mode: "state" },
     { id: "alerts", label: "Alerts & Decisions", description: "Operational decisions requiring attention", endpoint: "/dashboard", selector: "operational_decisions", mode: "decisions" },
+    { id: "settings", label: "Settings", description: "Farm identity and test-data reset" },
 ];
 
 function App() {
@@ -210,9 +213,23 @@ function App() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [systemHealth, setSystemHealth] = useState("CHECKING");
     const [farmStatus, setFarmStatus] = useState("CHECKING");
+    const [farmName, setFarmName] = useState("Trident Dairies");
 
     useEffect(() => {
         let cancelled = false;
+
+        fetch(apiUrl("/settings"))
+            .then((response) => {
+                if (!response.ok) throw new Error("Settings fetch failed");
+                return response.json() as Promise<{ farm_name?: string }>;
+            })
+            .then((payload) => {
+                if (!cancelled && payload.farm_name) setFarmName(payload.farm_name);
+            })
+            .catch(() => {
+                // Keep the default farm name -- Settings being briefly
+                // unreachable must never blank out the header.
+            });
 
         fetch(apiUrl("/health"))
             .then((response) => {
@@ -260,7 +277,7 @@ function App() {
                     <div className="brand-mark">D</div>
                     <div>
                         <div className="brand-name">DairyOS</div>
-                        <div className="brand-subtitle">Trident Dairies</div>
+                        <div className="brand-subtitle">{farmName}</div>
                     </div>
                 </div>
 
@@ -295,9 +312,20 @@ function App() {
 
                 <main className="dairyos-main">
                      {view === "command" ? (
-                         <CommandCenter onNavigate={selectView} />
+                         <MainDashboard onNavigate={selectView} />
                      ) : view === "animals" ? (
                          <AnimalRegistry onNavigate={selectView} />
+                     ) : view === "settings" ? (
+                         <>
+                             <div className="page-heading">
+                                 <div>
+                                     <div className="breadcrumb">DairyOS / {activeNavigation.label}</div>
+                                     <h1>{activeNavigation.label}</h1>
+                                     <p>{activeNavigation.description}</p>
+                                 </div>
+                             </div>
+                             <Settings />
+                         </>
                      ) : (
 
                         <>

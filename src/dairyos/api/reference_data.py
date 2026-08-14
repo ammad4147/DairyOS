@@ -117,6 +117,19 @@ GOVERNED = {
     # action -- never inferred from an observation or treatment being
     # recorded.
     "health_case_statuses": ["OPEN", "RESOLVED"],
+    # Added 2026-08-14 (AA-013 §4, D-UI-5). The Operational Finding entity:
+    # the single lifecycle behind the dashboard action queue, every
+    # section's alert list, and nav count badges. `finding_source_modules`
+    # must stay a subset of the keys in
+    # dairyos.farm.findings.services.operational_finding_service.FINDING_PREFIXES
+    # (the single source of truth for the module->prefix mapping, e.g.
+    # MILK -> AL, HEALTH -> HL); that module, not this list, is
+    # authoritative for prefix allocation.
+    "finding_severities": ["CRITICAL", "HIGH", "MONITORING", "INFORMATION"],
+    "finding_statuses": ["RAISED", "ACKNOWLEDGED", "RESOLVED"],
+    "finding_source_modules": [
+        "MILK", "HEALTH", "BREEDING", "INVENTORY", "EQUIPMENT", "FEED", "WORKFORCE", "FINANCE",
+    ],
 }
 
 

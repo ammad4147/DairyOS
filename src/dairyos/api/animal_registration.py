@@ -4,14 +4,16 @@ The operator supplies animal attributes, but never the permanent Animal ID.
 The ID is generated server-side before persistence and returned to the UI.
 """
 
+import re
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.domain.commands import Command
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
 router = APIRouter(
@@ -20,12 +22,56 @@ router = APIRouter(
 )
 
 
-def _new_animal_id(repository) -> str:
-    """Generate a collision-safe permanent identifier owned by DairyOS."""
-    for _ in range(10):
-        candidate = f"AN-{uuid4().hex.upper()}"
+def _animal_id_prefix(container) -> str:
+    """Farm-branded prefix from Settings (default "TD" for Trident Dairies).
+
+    Reads through the same request-scoped-factory-or-standalone pattern
+    used elsewhere for entities kept out of the composition-root
+    container (OperationalFinding, HealthCase): prefer the running
+    container's own factory when one exists, otherwise open and close a
+    standalone one.
+    """
+    rf = getattr(container, "repository_factory", None)
+    owns = rf is None
+    if owns:
+        rf = RepositoryFactory.create()
+    try:
+        return FarmSettingsService(rf.app_settings()).get_animal_id_prefix()
+    finally:
+        if owns:
+            rf.close()
+
+
+def _new_animal_id(repository, prefix: str) -> str:
+    """Generate a collision-safe, farm-branded permanent identifier.
+
+    2026-08-14: replaces the previous ``AN-{32 hex chars}`` scheme (an
+    operator-illegible random ID) with a short, sequential, farm-branded
+    one -- "TD-001", "TD-002", ... for a farm whose Settings prefix is
+    "TD". The next number is the highest existing sequence under this
+    prefix, plus one -- not ``repository.count()``, which drifts under
+    deletions or a test-data reset -- with a short collision-retry loop
+    for the rare case a concurrent request claims the same number first
+    (the same allocator shape already used for OperationalFinding and
+    HealthCase ids elsewhere in this codebase).
+    """
+    pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
+    try:
+        existing = repository.get_all() or []
+    except Exception:
+        existing = []
+
+    max_seq = 0
+    for animal in existing:
+        match = pattern.match(getattr(animal, "animal_id", None) or "")
+        if match:
+            max_seq = max(max_seq, int(match.group(1)))
+
+    for offset in range(20):
+        candidate = f"{prefix}-{max_seq + offset + 1:03d}"
         if not repository.exists(candidate):
             return candidate
+
     raise HTTPException(
         status_code=500,
         detail="Unable to generate a unique permanent Animal ID",
@@ -90,7 +136,7 @@ def register_animal(
     }
 
     repository = container.animal_repository
-    animal_id = _new_animal_id(repository)
+    animal_id = _new_animal_id(repository, _animal_id_prefix(container))
 
     animal_payload = {
         key: value

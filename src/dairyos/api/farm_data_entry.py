@@ -29,6 +29,12 @@ from dairyos.milk.services.milk_session_sequence_service import (
 from dairyos.milk.services.milk_recording_intelligence_service import (
     MilkRecordingIntelligenceService,
 )
+from dairyos.farm.production.services.milk_drop_detection_service import (
+    detect_drop,
+)
+from dairyos.farm.findings.services.operational_finding_service import (
+    OperationalFindingService,
+)
 
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
@@ -606,6 +612,52 @@ def _list_by_type(container, input_type: str):
     return records
 
 
+def _detect_and_raise_milk_drop(container, *, animal_id: str, session: str, as_of_date) -> None:
+    """Run the same-session drop detector (G3.4) and raise/update an
+    Operational Finding when it fires. Reads via `_list_by_type`, the exact
+    same data `GET /farm/milk` returns, so detection can never disagree with
+    what the operator sees on screen.
+
+    Deliberately swallows its own failures -- a bug in drop detection must
+    never block a legitimate milk record from saving; the record is the
+    source of truth, the finding is a derived convenience.
+    """
+
+    try:
+        records = _list_by_type(container, "milk_production")
+        result = detect_drop(records, animal_id=animal_id, session=session, as_of_date=as_of_date)
+        if result is None or result["severity"] is None:
+            return
+
+        rf = getattr(container, "repository_factory", None)
+        owns_factory = False
+        if rf is None:
+            rf = RepositoryFactory.create()
+            owns_factory = True
+        try:
+            service = OperationalFindingService(rf.operational_findings())
+            service.raise_or_update(
+                source_module="MILK",
+                severity=result["severity"],
+                title=f"{animal_id} production dropped {abs(result['percent']):.0f}%",
+                detail=(
+                    f"{result['previous']:.1f} L -> {result['current']:.1f} L "
+                    f"({session.title()} vs {result['previous_date']} {session.title()})"
+                ),
+                subject_type="ANIMAL",
+                subject_id=str(animal_id),
+                route=f"/farm/animals/{animal_id}",
+                dedupe_key=f"MILK_DROP:{animal_id}:{session}",
+            )
+        finally:
+            if owns_factory:
+                rf.close()
+    except Exception:
+        # See docstring: detection is best-effort and must never surface as
+        # a failure of the milk-record save it's attached to.
+        return
+
+
 @router.post("/milk")
 def record_milk_entry(
     entry: LegacyCompatibleMilkEntryRequest,
@@ -697,6 +749,17 @@ def record_milk_entry(
         )
         if settled is not None:
             result["session_record_id"] = settled.session_record_id
+
+        # G3.4: same-session drop detection (D-UI-2/D-UI-3), only meaningful
+        # for governed ledger entries -- unsequenced/pre-ledger rows are
+        # excluded from detection anyway (see milk_drop_detection_service).
+        if total is not None:
+            _detect_and_raise_milk_drop(
+                container,
+                animal_id=governed_entry.animal_id,
+                session=governed_entry.milking_session.value,
+                as_of_date=operational_date,
+            )
 
     return result
 

@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 import pytest
 
@@ -52,8 +54,9 @@ def test_create_animal_generates_permanent_id():
     assert response.status_code == 200
     body = response.json()
     assert body["system_generated_animal_id"] is True
-    assert body["animal_id"].startswith("AN-")
-    assert len(body["animal_id"]) == 35
+    # Farm-branded short ID (2026-08-14): "TD-001" for this farm's default
+    # Settings prefix, not the old 35-char "AN-{32 hex chars}" scheme.
+    assert re.match(r"^TD-\d{3,}$", body["animal_id"]), body["animal_id"]
     assert body["lifecycle_status"] == "LACTATING"
     assert body["is_currently_milking"] is True
     assert body["milking_frequency"] == "THRICE_DAILY"
