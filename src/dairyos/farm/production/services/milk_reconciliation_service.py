@@ -2,10 +2,10 @@ from datetime import date
 
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
 )
+from dairyos.farm.production.services.milk_finding_service import MilkFindingService
 
 
 VALID_DISPOSITIONS = frozenset({
@@ -30,26 +30,18 @@ class MilkReconciliationService:
         return factory.milk_dispositions(), factory
 
     @staticmethod
-    def _production_total(production_date: date, factory):
+    def _production_total(production_date: date):
         trend = MilkProductionTrendIntelligenceService()
-        # Use the same verified date-completeness semantics as dashboard
-        # production. A seven-day window is sufficient because only the
-        # requested date is consumed here.
         snapshot = trend.generate(as_of_date=production_date, period_days=7).summary()
-        series = snapshot["series"]
-        current = next(item for item in series if item["date"] == production_date.isoformat())
-        return current
+        return next(
+            item for item in snapshot["series"]
+            if item["date"] == production_date.isoformat()
+        )
 
     def reconcile(self, production_date: date, *, raise_finding: bool = True):
         repo, owned_factory = self._repo()
         try:
-            factory = owned_factory
-            if factory is None:
-                # The injected repository already owns the caller's session;
-                # the trend service will open its own read session safely.
-                factory = None
-
-            current = self._production_total(production_date, factory)
+            current = self._production_total(production_date)
             dispositions = repo.get_by_date(production_date)
 
             produced = float(current["total_litres"])
@@ -60,8 +52,16 @@ class MilkReconciliationService:
                 if str(item.disposition_type).upper() == "SOLD"
             )
             non_sale = accounted - sold
-            sale_value = sum(float(item.amount_due or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
-            cash_received = sum(float(item.amount_received or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
+            sale_value = sum(
+                float(item.amount_due or 0.0)
+                for item in dispositions
+                if str(item.disposition_type).upper() == "SOLD"
+            )
+            cash_received = sum(
+                float(item.amount_received or 0.0)
+                for item in dispositions
+                if str(item.disposition_type).upper() == "SOLD"
+            )
             receivable = max(sale_value - cash_received, 0.0)
             unaccounted = produced - accounted
 
@@ -107,10 +107,10 @@ class MilkReconciliationService:
             if raise_finding and current["complete"] and status in {"UNACCOUNTED_PRODUCTION", "OVER_ACCOUNTED"}:
                 finding_factory = RepositoryFactory.create()
                 try:
-                    service = OperationalFindingService(finding_factory.operational_findings())
                     severity = "CRITICAL" if status == "OVER_ACCOUNTED" else "HIGH"
-                    service.raise_or_update(
-                        source_module="MILK",
+                    MilkFindingService(
+                        finding_factory.operational_findings()
+                    ).raise_or_update(
                         severity=severity,
                         title=f"Milk destination reconciliation exception for {production_date.isoformat()}",
                         detail=(
