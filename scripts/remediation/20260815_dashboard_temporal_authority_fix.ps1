@@ -3,13 +3,14 @@ $ErrorActionPreference = "Stop"
 $repo = (Get-Location).Path
 $expectedHead = "35dbd8344d914f722971cc4853cd36f785f412de"
 
-$head = (git -C $repo rev-parse HEAD).Trim()
+$head = [string](git -C $repo rev-parse HEAD)
+$head = $head.Trim()
 if ($head -ne $expectedHead) {
     throw "Refusing to modify repository: expected HEAD $expectedHead, found $head"
 }
 
-$status = (git -C $repo status --porcelain).Trim()
-if ($status) {
+$status = [string](git -C $repo status --porcelain)
+if ($status.Trim()) {
     throw "Refusing to modify repository: working tree is not clean."
 }
 
@@ -115,6 +116,77 @@ $text = $text.Replace('            ? "All sessions settled today"', '           
 $text = $text.Replace('            : `Next session due: ${titleCase(String(nextSession))}`', '            : `Next session for ${operationalDate}: ${titleCase(String(nextSession))}`')
 $text = $text.Replace("<span>Today's Production</span><strong>{todayTotal.toFixed(1)} L</strong>", '<span>Production ({operationalDate})</span><strong>{todayTotal.toFixed(1)} L</strong>')
 
+$oldHealth = @'
+function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
+    const openCases = useApi<{ cases: HealthCase[] }>("/farm/health-cases?status=OPEN", 60_000);
+    const observations = useApi<Row[]>("/farm/health-observations", 60_000);
+
+    if ((openCases.loading && !openCases.data) || (observations.loading && !observations.data)) {
+        return <PanelShell title="Health & Vaccinations" loading />;
+    }
+    if (openCases.error && !openCases.data) {
+        return <PanelShell title="Health & Vaccinations" errorText={openCases.error} onRetry={openCases.reload} />;
+    }
+
+    const cases = openCases.data?.cases ?? [];
+    const today = todayIso();
+    const observedToday = new Set(
+        (Array.isArray(observations.data) ? observations.data : [])
+            .filter((r) => recordDate(r) === today)
+            .map((r) => r.animal_id)
+            .filter(Boolean),
+    ).size;
+'@
+
+$newHealth = @'
+function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
+    const openCases = useApi<{ cases: HealthCase[] }>("/farm/health-cases?status=OPEN", 60_000);
+    const observations = useApi<Row[]>("/farm/health-observations", 60_000);
+    const operational = useApi<NextSessionResponse>("/farm/milk/next-session", 60_000);
+
+    if (
+        (openCases.loading && !openCases.data)
+        || (observations.loading && !observations.data)
+        || (operational.loading && !operational.data)
+    ) {
+        return <PanelShell title="Health & Vaccinations" loading />;
+    }
+    if (openCases.error && !openCases.data) {
+        return <PanelShell title="Health & Vaccinations" errorText={openCases.error} onRetry={openCases.reload} />;
+    }
+    if (operational.error && !operational.data) {
+        return <PanelShell title="Health & Vaccinations" errorText={operational.error} onRetry={operational.reload} />;
+    }
+
+    const cases = openCases.data?.cases ?? [];
+    const operationalDate = operational.data?.operational_date?.slice(0, 10) ?? null;
+    if (!operationalDate) {
+        return (
+            <PanelShell
+                title="Health & Vaccinations"
+                errorText="The farm API did not provide an operational date; observations are not projected against a browser-local date."
+                onRetry={() => { openCases.reload(); observations.reload(); operational.reload(); }}
+            />
+        );
+    }
+
+    const observedOnDate = new Set(
+        (Array.isArray(observations.data) ? observations.data : [])
+            .filter((r) => recordDate(r) === operationalDate)
+            .map((r) => r.animal_id)
+            .filter(Boolean),
+    ).size;
+'@
+
+if (-not $text.Contains($oldHealth)) {
+    Copy-Item -LiteralPath $backup -Destination $target -Force
+    throw "Expected health date block was not found; backup restored."
+}
+$text = $text.Replace($oldHealth, $newHealth)
+$text = $text.Replace('{observedToday} animal{observedToday === 1 ? "" : "s"} observed today', '{observedOnDate} animal{observedOnDate === 1 ? "" : "s"} observed on {operationalDate}')
+$text = $text.Replace('{observedToday} animal{observedToday === 1 ? "" : "s"} observed today', '{observedOnDate} animal{observedOnDate === 1 ? "" : "s"} observed on {operationalDate}')
+$text = $text.Replace('<span>No observations recorded today</span>', '<span>No observations recorded on {operationalDate}</span>')
+
 [System.IO.File]::WriteAllText($target, $text, $utf8)
 
 Write-Host "Dashboard temporal-authority replacement written." -ForegroundColor Green
@@ -126,4 +198,4 @@ Write-Host "  git diff --check"
 Write-Host "  git diff -- src/DairyOS.Web/src/components/MainDashboard.tsx"
 Write-Host ""
 Write-Host "This package intentionally changes only MainDashboard.tsx." -ForegroundColor Yellow
-Write-Host "It removes browser-local 'today/yesterday' as the production date source and anchors the panel to /farm/milk/next-session operational_date." -ForegroundColor Yellow
+Write-Host "Milk and Health dashboard date labels now use the farm operational_date from /farm/milk/next-session; browser-local today/yesterday helpers are removed." -ForegroundColor Yellow
