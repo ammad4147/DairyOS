@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.repositories.repository_factory import RepositoryFactory
