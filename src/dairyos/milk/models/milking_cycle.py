@@ -56,6 +56,8 @@ class MilkingCycle:
             raise ValueError("animal_id is required")
         normalized = normalize_frequency(self.frequency)
         object.__setattr__(self, "frequency", normalized)
+        if self.session_times == DEFAULT_SESSION_TIMES and normalized == MilkingFrequency.TWICE_DAILY:
+            object.__setattr__(self, "session_times", {"MORNING": DEFAULT_SESSION_TIMES["MORNING"], "EVENING": DEFAULT_SESSION_TIMES["EVENING"]})
         required = ["MORNING", "EVENING"]
         if normalized == MilkingFrequency.THRICE_DAILY:
             required.insert(1, "AFTERNOON")
@@ -86,9 +88,7 @@ class MilkingCycle:
                 "milking_frequency": self.frequency.name,
                 "operational_date": operational_date.isoformat(),
                 "shift": session,
-                "scheduled_at": datetime.combine(
-                    operational_date, self.session_times[session], tzinfo=timezone.utc
-                ).isoformat(),
+                "scheduled_at": datetime.combine(operational_date, self.session_times[session], tzinfo=timezone.utc).isoformat(),
                 "status": "EXPECTED",
             }
             for session in self.sessions
@@ -103,9 +103,4 @@ def classify_session_entry(expected_session: dict, recorded_at: datetime) -> dic
     scheduled_at = datetime.fromisoformat(expected_session["scheduled_at"])
     if recorded_at.tzinfo is None:
         recorded_at = recorded_at.replace(tzinfo=timezone.utc)
-    return {
-        **expected_session,
-        "recorded_at": recorded_at.isoformat(),
-        "late": recorded_at > scheduled_at,
-        "status": "RECORDED",
-    }
+    return {**expected_session, "recorded_at": recorded_at.isoformat(), "late": recorded_at > scheduled_at, "status": "RECORDED"}
