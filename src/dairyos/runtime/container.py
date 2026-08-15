@@ -265,6 +265,15 @@ class RuntimeContainer:
 
         self.runtime.restore_state()
 
+        # ApplicationRuntime owns the composition graph, while this
+        # compatibility facade owns the historical RuntimeContainer
+        # recovery surface. Ensure the animal projection is rebuilt when
+        # journal replay did not populate the projection repository.
+        for event in self.event_journal.all_events():
+            animal_id = (getattr(event, "payload", None) or {}).get("animal_id")
+            if animal_id and self.animal_operational_state_repository.get(animal_id) is None:
+                self.animal_event_projection.apply(event)
+
         if self.dashboard is not None:
             self.dashboard.rebuild()
 
