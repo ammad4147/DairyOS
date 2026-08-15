@@ -133,20 +133,26 @@ function useApi<T>(path: string, intervalMs = 60_000) {
 
 type Row = Record<string, any>;
 
-function todayIso() {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function yesterdayIso() {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+function shiftIsoDate(baseIso: string, days: number): string {
+    const [year, month, day] = baseIso.slice(0, 10).split("-").map(Number);
+    const value = new Date(Date.UTC(year, month - 1, day));
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
 }
 
 function recordDate(row: Row): string | null {
     const raw = row.production_date ?? row.observed_at ?? row.timestamp ?? row.created_at;
     if (!raw) return null;
-    const parsed = new Date(raw);
+
+    // Persisted production/observation dates are authoritative calendar dates.
+    // Preserve an ISO date prefix verbatim instead of converting it through the
+    // browser timezone and potentially shifting the farm date by one day.
+    const text = String(raw);
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+        return text.slice(0, 10);
+    }
+
+    const parsed = new Date(text);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
 }
 
@@ -354,10 +360,21 @@ function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
     }
 
     const rows = Array.isArray(milk.data) ? milk.data : [];
-    const today = todayIso();
-    const yesterday = yesterdayIso();
-    const todayLedger = ledgerRows(rows, today);
-    const yesterdayLedger = ledgerRows(rows, yesterday);
+    const operationalDate = session.data?.operational_date?.slice(0, 10) ?? null;
+
+    if (!operationalDate) {
+        return (
+            <PanelShell
+                title="Milk Production"
+                errorText="The farm API did not provide an operational date; production is not projected until the authoritative date is available."
+                onRetry={() => { session.reload(); milk.reload(); }}
+            />
+        );
+    }
+
+    const previousDate = shiftIsoDate(operationalDate, -1);
+    const todayLedger = ledgerRows(rows, operationalDate);
+    const yesterdayLedger = ledgerRows(rows, previousDate);
 
     const sequencingActive = session.data?.sequencing_active ?? false;
     const nextSession = session.data?.next_session ?? null;
@@ -370,7 +387,7 @@ function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
 
     if (dayComplete) {
         headline = {
-            label: `Today ${todayTotal.toFixed(1)} L vs ${yesterdayTotal.toFixed(1)} L yesterday`,
+            label: `${operationalDate} ${todayTotal.toFixed(1)} L vs ${previousDate} ${yesterdayTotal.toFixed(1)} L`,
             value: `${todayTotal.toFixed(1)} L`,
             comparison: formatDelta(todayTotal, yesterdayTotal),
         };
@@ -381,7 +398,7 @@ function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
             const currentSessionTotal = sumLitres(todayLedger.filter((r) => String(r.milking_session ?? "").toUpperCase() === lastSession));
             const priorSessionTotal = sumLitres(yesterdayLedger.filter((r) => String(r.milking_session ?? "").toUpperCase() === lastSession));
             headline = {
-                label: `${titleCase(lastSession)} ${currentSessionTotal.toFixed(1)} L vs ${priorSessionTotal.toFixed(1)} L yesterday ${titleCase(lastSession).toLowerCase()}`,
+                label: `${operationalDate} ${titleCase(lastSession)} ${currentSessionTotal.toFixed(1)} L vs ${previousDate} ${priorSessionTotal.toFixed(1)} L ${titleCase(lastSession).toLowerCase()}`,
                 value: `${currentSessionTotal.toFixed(1)} L`,
                 comparison: formatDelta(currentSessionTotal, priorSessionTotal),
             };
@@ -392,8 +409,8 @@ function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
 
     const sessionLabel = sequencingActive
         ? dayComplete
-            ? "All sessions settled today"
-            : `Next session due: ${titleCase(String(nextSession))}`
+            ? `All sessions settled on ${operationalDate}`
+            : `Next session for ${operationalDate}: ${titleCase(String(nextSession))}`
         : "Session sequencing not active for this farm";
 
     return (
@@ -405,7 +422,7 @@ function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
             <p className="panel-note">{headline.label}</p>
             <p className="panel-note muted">{sessionLabel}</p>
             <div className="panel-kv-row">
-                <div><span>Today's Production</span><strong>{todayTotal.toFixed(1)} L</strong></div>
+                <div><span>Production ({operationalDate})</span><strong>{todayTotal.toFixed(1)} L</strong></div>
                 <div><span>Milk Sold</span><strong className="unavailable">Not tracked yet</strong></div>
             </div>
             <p className="panel-note muted">Drop detection not yet built — production-drop findings will appear here once G3.4 ships.</p>
@@ -477,19 +494,37 @@ type HealthCase = {
 function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
     const openCases = useApi<{ cases: HealthCase[] }>("/farm/health-cases?status=OPEN", 60_000);
     const observations = useApi<Row[]>("/farm/health-observations", 60_000);
+    const operational = useApi<NextSessionResponse>("/farm/milk/next-session", 60_000);
 
-    if ((openCases.loading && !openCases.data) || (observations.loading && !observations.data)) {
+    if (
+        (openCases.loading && !openCases.data)
+        || (observations.loading && !observations.data)
+        || (operational.loading && !operational.data)
+    ) {
         return <PanelShell title="Health & Vaccinations" loading />;
     }
     if (openCases.error && !openCases.data) {
         return <PanelShell title="Health & Vaccinations" errorText={openCases.error} onRetry={openCases.reload} />;
     }
+    if (operational.error && !operational.data) {
+        return <PanelShell title="Health & Vaccinations" errorText={operational.error} onRetry={operational.reload} />;
+    }
 
     const cases = openCases.data?.cases ?? [];
-    const today = todayIso();
-    const observedToday = new Set(
+    const operationalDate = operational.data?.operational_date?.slice(0, 10) ?? null;
+    if (!operationalDate) {
+        return (
+            <PanelShell
+                title="Health & Vaccinations"
+                errorText="The farm API did not provide an operational date; observations are not projected against a browser-local date."
+                onRetry={() => { openCases.reload(); observations.reload(); operational.reload(); }}
+            />
+        );
+    }
+
+    const observedOnDate = new Set(
         (Array.isArray(observations.data) ? observations.data : [])
-            .filter((r) => recordDate(r) === today)
+            .filter((r) => recordDate(r) === operationalDate)
             .map((r) => r.animal_id)
             .filter(Boolean),
     ).size;
@@ -497,15 +532,15 @@ function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
     if (cases.length === 0) {
         return (
             <PanelShell title="Health & Vaccinations" onOpen={() => onNavigate("health")}>
-                {observedToday > 0 ? (
+                {observedOnDate > 0 ? (
                     <div className="panel-status good">
                         <strong>No open cases</strong>
-                        <span>{observedToday} animal{observedToday === 1 ? "" : "s"} observed today</span>
+                        <span>{observedOnDate} animal{observedOnDate === 1 ? "" : "s"} observed on {operationalDate}</span>
                     </div>
                 ) : (
                     <div className="panel-status unknown">
                         <strong>No open cases</strong>
-                        <span>No observations recorded today</span>
+                        <span>No observations recorded on {operationalDate}</span>
                     </div>
                 )}
             </PanelShell>
@@ -516,7 +551,7 @@ function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
         <PanelShell title="Health & Vaccinations" onOpen={() => onNavigate("health")}>
             <div className="panel-status attention">
                 <strong>{cases.length} open case{cases.length === 1 ? "" : "s"}</strong>
-                <span>{observedToday} animal{observedToday === 1 ? "" : "s"} observed today</span>
+                <span>{observedOnDate} animal{observedOnDate === 1 ? "" : "s"} observed on {operationalDate}</span>
             </div>
             <ul className="panel-list">
                 {cases.slice(0, 4).map((c) => (
