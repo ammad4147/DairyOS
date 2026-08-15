@@ -69,7 +69,7 @@ class MilkRecordingIntelligenceService:
             {
                 "date": (start + timedelta(days=index)).isoformat(),
                 "litres": round(
-                    totals[(start + timedelta(days=index))],
+                    totals[(start + timedelta(days=index)).isoformat()],
                     2,
                 ),
             }
