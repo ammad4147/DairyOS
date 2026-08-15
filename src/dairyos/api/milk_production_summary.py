@@ -1,12 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import calendar
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dairy_kpi import _has_entered_yield, _record_date
+from dairyos.api.dependencies import get_container
+from dairyos.api.farm_data_entry import next_milking_session
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
@@ -48,12 +50,48 @@ def _shift_months(day: date, months: int) -> date:
     )
 
 
+def _resolve_operational_date(container) -> date:
+    """Return the farm operational date used by the milk-session UI."""
+
+    state = next_milking_session(
+        container=container,
+    )
+
+    raw = state.get("operational_date")
+
+    if not raw:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The farm API did not provide an operational date; "
+                "milk production reporting is unavailable until the "
+                "authoritative farm date is available."
+            ),
+        )
+
+    try:
+        return date.fromisoformat(str(raw)[:10])
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The farm API returned an invalid operational date; "
+                "milk production reporting is unavailable."
+            ),
+        ) from exc
+
+
 def _resolve_period(
     period: str,
     start_date: date | None,
     end_date: date | None,
+    anchor_date: date | None = None,
 ):
-    today = datetime.now(timezone.utc).date()
+    today = (
+        anchor_date
+        if anchor_date is not None
+        else datetime.now(timezone.utc).date()
+    )
 
     if period not in _PERIOD_LABELS:
         raise HTTPException(
@@ -122,7 +160,7 @@ def _qualifying_rows(
     """
     Only governed, observed milk contributes to section aggregates.
 
-    G1.6 / AA-013 Â§2.3:
+    G1.6 / AA-013 Ã‚Â§2.3:
     - session_ledger=False is pre-ledger history and is excluded;
     - rows with no entered yield are excluded;
     - absence is never converted into zero.
@@ -420,7 +458,9 @@ def milk_production_summary(
     period: str = Query(default="7d"),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
+    container=Depends(get_container),
 ):
+    operational_date = _resolve_operational_date(container)
     (
         start_date_value,
         end_date_exclusive,
@@ -431,6 +471,7 @@ def milk_production_summary(
         period,
         start_date,
         end_date,
+        anchor_date=operational_date,
     )
 
     start = datetime.combine(
@@ -477,20 +518,33 @@ def milk_production_summary(
         current = _period_metrics(current_rows)
         previous = _period_metrics(previous_rows)
 
-        today = datetime.now(
-            timezone.utc
-        ).date()
+        previous_operational_date = (
+            operational_date
+            - timedelta(days=1)
+        )
 
-        yesterday = today - timedelta(days=1)
+        next_operational_date = (
+            operational_date
+            + timedelta(days=1)
+        )
 
         today_start = datetime.combine(
-            today,
+            operational_date,
             datetime.min.time(),
             tzinfo=timezone.utc,
         )
 
-        tomorrow = today_start + timedelta(days=1)
-        yesterday_start = today_start - timedelta(days=1)
+        tomorrow = datetime.combine(
+            next_operational_date,
+            datetime.min.time(),
+            tzinfo=timezone.utc,
+        )
+
+        yesterday_start = datetime.combine(
+            previous_operational_date,
+            datetime.min.time(),
+            tzinfo=timezone.utc,
+        )
 
         today_rows = _qualifying_rows(
             records,
@@ -547,6 +601,7 @@ def milk_production_summary(
         )
 
         return {
+            "operational_date": operational_date.isoformat(),
             "data_status": (
                 "LIVE_PERSISTED_DATA"
                 if current_rows
@@ -672,6 +727,9 @@ def milk_production_summary(
                 ),
             },
             "methodology": {
+                "operational_date_source": (
+                    "GET /farm/milk/next-session authority"
+                ),
                 "source": (
                     "persisted MilkProduction repository "
                     "and OperationalFinding repository"
@@ -705,3 +763,5 @@ def milk_production_summary(
 
     finally:
         factory.close()
+
+

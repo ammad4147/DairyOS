@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import date, datetime, timedelta, timezone
 
 from dairyos.app import container
 from dairyos.data.models.milk_production import MilkProduction
@@ -229,3 +229,61 @@ def test_milk_production_summary_validates_custom_period(client):
         "on or after"
         in response.json()["detail"]
     )
+
+def test_production_summary_uses_same_operational_date_as_next_session(
+    monkeypatch,
+    client,
+):
+    from dairyos.api import farm_data_entry
+
+    authoritative_date = date(2026, 8, 10)
+
+    monkeypatch.setattr(
+        farm_data_entry,
+        "_today",
+        lambda: authoritative_date,
+    )
+
+    next_session = client.get(
+        "/farm/milk/next-session"
+    )
+
+    assert next_session.status_code == 200, (
+        next_session.text
+    )
+
+    next_session_body = next_session.json()
+
+    assert next_session_body[
+        "operational_date"
+    ] == authoritative_date.isoformat()
+
+    summary = client.get(
+        "/farm/milk/production-summary?period=7d"
+    )
+
+    assert summary.status_code == 200, (
+        summary.text
+    )
+
+    summary_body = summary.json()
+
+    assert summary_body[
+        "operational_date"
+    ] == authoritative_date.isoformat()
+
+    assert summary_body[
+        "period"
+    ][
+        "end_date"
+    ] == authoritative_date.isoformat()
+
+    assert summary_body[
+        "period"
+    ][
+        "start_date"
+    ] == (
+        authoritative_date
+        - timedelta(days=6)
+    ).isoformat()
+
