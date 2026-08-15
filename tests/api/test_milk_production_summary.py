@@ -100,11 +100,12 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         evening=6.0,
     )
 
-    # Deliberately pre-ledger: must not contribute to the aggregate.
+    # Deliberately pre-ledger: the Animal ID is valid, but the row is excluded
+    # by the production-summary ledger filter.
     _add_milk(
-        animal_id="LEGACY-001",
+        animal_id="TD-001",
         day=today,
-        session="EVENING",
+        session="LEGACY_EVENING",
         morning=100.0,
         session_ledger=False,
     )
@@ -153,7 +154,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     # Current 7-day period contains today and yesterday.
     # TD-001 = 23 L today + 21 L yesterday = 44 L
     # TD-002 = 15 L today + 17 L yesterday = 32 L
-    # legacy row = excluded
+    # pre-ledger row = excluded
     assert body["kpis"]["total_production_liters"] == 76.0
     assert body["kpis"]["average_per_day_liters"] == 38.0
     assert body["kpis"]["average_per_cow_liters"] == 19.0
