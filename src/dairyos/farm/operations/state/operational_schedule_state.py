@@ -22,11 +22,7 @@ class OperationalScheduleState:
     """
 
     schedule_date: str
-
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
-
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     milking_schedule: list = field(default_factory=list)
     milking_cycles: dict = field(default_factory=dict)
     feeding_schedule: list = field(default_factory=list)
@@ -42,30 +38,16 @@ class OperationalScheduleState:
     def add_milking_session(self, session: dict):
         self.milking_schedule.append(session)
 
-    def configure_milking_cycle(
-        self,
-        animal_id: str,
-        frequency: int | MilkingFrequency,
-        effective_from: str | date,
-        session_times=None,
-    ) -> MilkingCycle:
+    def configure_milking_cycle(self, animal_id: str, frequency: int | MilkingFrequency, effective_from: str | date, session_times=None) -> MilkingCycle:
         """Assign a 2- or 3-times-per-day cycle to an individual animal."""
         if isinstance(effective_from, str):
             effective_from = date.fromisoformat(effective_from)
-        frequency = MilkingFrequency(int(frequency))
         cycle = MilkingCycle(
             animal_id=str(animal_id),
-            frequency=frequency,
+            frequency=MilkingFrequency(int(frequency)),
             effective_from=effective_from,
-            session_times=session_times or None or {},
+            session_times=session_times if session_times is not None else __import__("dairyos.milk.models.milking_cycle", fromlist=["DEFAULT_SESSION_TIMES"]).DEFAULT_SESSION_TIMES.copy(),
         )
-        # The model requires explicit session times; use its defaults when omitted.
-        if not session_times:
-            cycle = MilkingCycle(
-                animal_id=str(animal_id),
-                frequency=frequency,
-                effective_from=effective_from,
-            )
         self.milking_cycles[str(animal_id)] = cycle
         return cycle
 
@@ -95,15 +77,7 @@ class OperationalScheduleState:
             operational_date = date.fromisoformat(operational_date)
         return len(cycle.expected_sessions(operational_date))
 
-    def record_milking_session(
-        self,
-        animal_id: str,
-        operational_date: str | date,
-        shift: str,
-        status: str,
-        reason: str | None = None,
-        recorded_at: datetime | None = None,
-    ) -> dict:
+    def record_milking_session(self, animal_id: str, operational_date: str | date, shift: str, status: str, reason: str | None = None, recorded_at: datetime | None = None) -> dict:
         """Record an outcome against an expected animal/session without creating milk data."""
         if isinstance(operational_date, str):
             operational_date = date.fromisoformat(operational_date)
@@ -112,14 +86,10 @@ class OperationalScheduleState:
             raise ValueError("status must be RECORDED or NOT_MILKED")
         if status == "NOT_MILKED" and not str(reason or "").strip():
             raise ValueError("NOT_MILKED requires a reason")
-
         cycle = self.milking_cycles.get(str(animal_id))
         expected = cycle.expected_session(operational_date, shift) if cycle else None
         if expected is None:
-            raise ValueError(
-                f"no expected milking session for animal {animal_id} on {operational_date.isoformat()} shift {shift}"
-            )
-
+            raise ValueError(f"no expected milking session for animal {animal_id} on {operational_date.isoformat()} shift {shift}")
         recorded_at = recorded_at or datetime.now(timezone.utc)
         if status == "RECORDED":
             outcome = classify_session_entry(expected, recorded_at)
@@ -131,14 +101,10 @@ class OperationalScheduleState:
                 "recorded_at": recorded_at.isoformat(),
                 "late": recorded_at > datetime.fromisoformat(expected["scheduled_at"]),
             }
-
         key = (str(animal_id), operational_date.isoformat(), shift)
         self.completed_milking_sessions = [
             item for item in self.completed_milking_sessions
-            if not (
-                isinstance(item, dict)
-                and (item.get("animal_id"), item.get("operational_date"), item.get("shift")) == key
-            )
+            if not (isinstance(item, dict) and (item.get("animal_id"), item.get("operational_date"), item.get("shift")) == key)
         ]
         self.completed_milking_sessions.append(outcome)
         return outcome
@@ -154,7 +120,7 @@ class OperationalScheduleState:
         for session in self.milking_schedule:
             if animal_id is not None and session.get("animal_id") != str(animal_id):
                 continue
-            if target_date is not None and session.get("operational_date") != target_date:
+            if target_date is not None and session.get("operational_date", self.schedule_date) != target_date:
                 continue
             key = (session.get("animal_id"), session.get("operational_date", self.schedule_date), session.get("shift"))
             if key not in completed_keys:
@@ -201,11 +167,7 @@ class OperationalScheduleState:
             self.completed_tasks.append(task_id)
 
     def pending_feed_sessions(self):
-        return [
-            session.get("feed_type")
-            for session in self.feeding_schedule
-            if session.get("feed_type") not in self.completed_feeding_sessions
-        ]
+        return [session.get("feed_type") for session in self.feeding_schedule if session.get("feed_type") not in self.completed_feeding_sessions]
 
     def evaluate_heads_up(self):
         notifications = []
@@ -218,38 +180,19 @@ class OperationalScheduleState:
                 "message": f"Milking session {session.get('shift')} has not been recorded.",
             })
         for feed_type in self.pending_feed_sessions():
-            notifications.append({
-                "type": "feeding_pending",
-                "feed_type": feed_type,
-                "message": f"Feeding activity {feed_type} has not been recorded.",
-            })
+            notifications.append({"type": "feeding_pending", "feed_type": feed_type, "message": f"Feeding activity {feed_type} has not been recorded."})
         for health in self.health_schedule:
             event_id = health.get("event_id")
             if event_id not in self.completed_health_events:
-                notifications.append({
-                    "type": "health_pending",
-                    "event_id": event_id,
-                    "message": "Scheduled health activity has not been recorded.",
-                    "due_time": health.get("due_time"),
-                })
+                notifications.append({"type": "health_pending", "event_id": event_id, "message": "Scheduled health activity has not been recorded.", "due_time": health.get("due_time")})
         for breeding in self.breeding_schedule:
             event_id = breeding.get("event_id")
             if event_id not in self.completed_breeding_events:
-                notifications.append({
-                    "type": "breeding_pending",
-                    "event_id": event_id,
-                    "message": "Scheduled breeding activity has not been recorded.",
-                    "due_time": breeding.get("due_time"),
-                })
+                notifications.append({"type": "breeding_pending", "event_id": event_id, "message": "Scheduled breeding activity has not been recorded.", "due_time": breeding.get("due_time")})
         for task in self.task_schedule:
             task_id = task.get("task_id")
             if task_id not in self.completed_tasks:
-                notifications.append({
-                    "type": "task_pending",
-                    "task_id": task_id,
-                    "message": "Scheduled task has not been completed.",
-                    "due_time": task.get("due_time"),
-                })
+                notifications.append({"type": "task_pending", "task_id": task_id, "message": "Scheduled task has not been completed.", "due_time": task.get("due_time")})
         return notifications
 
     def summary(self):
