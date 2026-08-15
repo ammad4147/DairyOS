@@ -22,6 +22,7 @@ from dairyos.farm.operations.state.farm_operational_state_service import FarmOpe
 from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
+from dairyos.data.models.milk_production import MilkProduction
 
 
 @pytest.fixture(autouse=True)
@@ -32,6 +33,10 @@ def reset_runtime_state():
 
     session = SessionLocal()
     try:
+        # MilkProduction now has a foreign-key dependency on Animal. Remove
+        # dependent rows before resetting the Animal register so the fixture
+        # remains valid against the canonical schema.
+        session.query(MilkProduction).delete(synchronize_session=False)
         session.query(AnimalMilkingScheduleHistory).delete(synchronize_session=False)
         session.query(Animal).delete(synchronize_session=False)
         session.commit()
