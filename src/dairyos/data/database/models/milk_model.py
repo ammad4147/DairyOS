@@ -7,7 +7,7 @@ class MilkProductionORM(Base):
     __tablename__ = "milk_production_orm"
 
     id = Column(Integer, primary_key=True, index=True)
-    animal_id = Column(String, ForeignKey("animals.animal_id"), index=True, nullable=False)
+    animal_id = Column(String, ForeignKey("animal.animal_id"), index=True, nullable=False)
     quantity_liters = Column(Float, nullable=False)
     morning_yield = Column(Float, nullable=True)
     afternoon_yield = Column(Float, nullable=True)
