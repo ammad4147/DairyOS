@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from ..models.animal import Animal
 from ..models.animal_milking_schedule_history import (
@@ -135,6 +135,34 @@ class AnimalRepository:
             a for a in self.records
             if a.production_group == production_group
         ]
+
+    def find_by_dam(self, dam_id):
+
+        if not dam_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(Animal)
+                .filter(Animal.dam_id == str(dam_id))
+                .all()
+            )
+
+        return [a for a in self.records if getattr(a, "dam_id", None) == str(dam_id)]
+
+    def find_by_sire(self, sire_id):
+
+        if not sire_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(Animal)
+                .filter(Animal.sire_id == str(sire_id))
+                .all()
+            )
+
+        return [a for a in self.records if getattr(a, "sire_id", None) == str(sire_id)]
 
     def active_animals(self):
 

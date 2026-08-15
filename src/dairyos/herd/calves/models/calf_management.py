@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 
 
-
 @dataclass
 class CalfManagement:
-
 
     animal_id: str
 
@@ -17,3 +15,7 @@ class CalfManagement:
     priority: str
 
     action: str
+
+    dam_id: str | None = None
+
+    sire_id: str | None = None

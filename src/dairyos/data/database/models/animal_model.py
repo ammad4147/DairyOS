@@ -25,3 +25,28 @@ class AnimalModel(Base):
         String,
         nullable=False
     )
+
+    lifecycle_status: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )
+
+    ear_tag: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )
+
+    rfid: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )
+
+    dam_id: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )
+
+    sire_id: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )

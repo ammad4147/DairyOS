@@ -54,6 +54,42 @@ class FinancialRepository:
         return None
 
 
+    def get_by_animal_id(self, animal_id):
+
+        if not animal_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(FinancialTransaction)
+                .filter(FinancialTransaction.animal_id == str(animal_id))
+                .all()
+            )
+
+        return [
+            item for item in self.records
+            if str(getattr(item, "animal_id", "")) == str(animal_id)
+        ]
+
+
+    def get_by_milk_sale_id(self, milk_sale_id):
+
+        if not milk_sale_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(FinancialTransaction)
+                .filter(FinancialTransaction.milk_sale_id == str(milk_sale_id))
+                .all()
+            )
+
+        return [
+            item for item in self.records
+            if str(getattr(item, "milk_sale_id", "")) == str(milk_sale_id)
+        ]
+
+
     def exists(self, record_id):
 
         return self.get_by_id(record_id) is not None
@@ -98,7 +134,8 @@ class FinancialRepository:
         return sum(
             item.amount
             for item in self.get_all()
-            if item.transaction_type == "INCOME"
+            if hasattr(item, "is_income") and item.is_income()
+            or (not hasattr(item, "is_income") and getattr(item, "transaction_type", None) in ("INCOME", "RECEIPT"))
         )
 
 
@@ -107,7 +144,8 @@ class FinancialRepository:
         return sum(
             item.amount
             for item in self.get_all()
-            if item.transaction_type == "EXPENSE"
+            if hasattr(item, "is_expense") and item.is_expense()
+            or (not hasattr(item, "is_expense") and getattr(item, "transaction_type", None) in ("EXPENSE", "PAYMENT"))
         )
 
 
@@ -118,3 +156,27 @@ class FinancialRepository:
             -
             self.total_expenses()
         )
+
+
+    def get_animal_profitability(self, animal_id):
+        """Calculate total income, expenses, and net profit for a specific animal."""
+        records = self.get_by_animal_id(animal_id)
+
+        income = sum(
+            item.amount for item in records
+            if hasattr(item, "is_income") and item.is_income()
+            or getattr(item, "transaction_type", None) in ("INCOME", "RECEIPT")
+        )
+
+        expenses = sum(
+            item.amount for item in records
+            if hasattr(item, "is_expense") and item.is_expense()
+            or getattr(item, "transaction_type", None) in ("EXPENSE", "PAYMENT")
+        )
+
+        return {
+            "animal_id": str(animal_id),
+            "total_income": income,
+            "total_expenses": expenses,
+            "net_profit": income - expenses,
+        }

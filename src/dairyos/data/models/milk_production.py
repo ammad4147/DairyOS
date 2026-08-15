@@ -20,6 +20,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     Index,
     Integer,
     String,
@@ -46,7 +47,9 @@ class MilkProduction(Base):
 
     animal_id = Column(
         String,
-        nullable=False
+        ForeignKey("animal.animal_id"),
+        nullable=False,
+        index=True
     )
 
 
