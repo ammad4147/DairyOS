@@ -113,17 +113,17 @@ $text = $text.Replace('label: `${titleCase(lastSession)} ${currentSessionTotal.t
 $text = $text.Replace('headline = { label: "No session recorded yet today", value: "—", comparison: { text: "", tone: "flat" } };', 'headline = { label: `No ${operationalDate} session recorded yet`, value: "—", comparison: { text: "", tone: "flat" } };')
 $text = $text.Replace('            ? "All sessions settled today"', '            ? `All sessions settled on ${operationalDate}`')
 $text = $text.Replace('            : `Next session due: ${titleCase(String(nextSession))}`', '            : `Next session for ${operationalDate}: ${titleCase(String(nextSession))}`')
-$text = $text.Replace('<span>Today\'s Production</span><strong>{todayTotal.toFixed(1)} L</strong>', '<span>Production ({operationalDate})</span><strong>{todayTotal.toFixed(1)} L</strong>')
+$text = $text.Replace("<span>Today's Production</span><strong>{todayTotal.toFixed(1)} L</strong>", '<span>Production ({operationalDate})</span><strong>{todayTotal.toFixed(1)} L</strong>')
 
 [System.IO.File]::WriteAllText($target, $text, $utf8)
 
 Write-Host "Dashboard temporal-authority replacement written." -ForegroundColor Green
 Write-Host "Backup: $backup" -ForegroundColor DarkGray
-Write-Host "" 
+Write-Host ""
 Write-Host "Validation:" -ForegroundColor Cyan
 Write-Host "  npm --prefix src\DairyOS.Web run build"
 Write-Host "  git diff --check"
 Write-Host "  git diff -- src/DairyOS.Web/src/components/MainDashboard.tsx"
-Write-Host "" 
+Write-Host ""
 Write-Host "This package intentionally changes only MainDashboard.tsx." -ForegroundColor Yellow
 Write-Host "It removes browser-local 'today/yesterday' as the production date source and anchors the panel to /farm/milk/next-session operational_date." -ForegroundColor Yellow
