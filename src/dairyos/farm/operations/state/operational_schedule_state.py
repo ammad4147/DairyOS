@@ -77,6 +77,8 @@ class OperationalScheduleState:
         if expected is None:
             raise ValueError(f"no expected milking session for animal {animal_id} on {operational_date.isoformat()} shift {shift}")
         recorded_at = recorded_at or datetime.now(timezone.utc)
+        if recorded_at.tzinfo is None:
+            recorded_at = recorded_at.replace(tzinfo=timezone.utc)
         if status == "RECORDED":
             outcome = classify_session_entry(expected, recorded_at)
         else:
@@ -87,6 +89,29 @@ class OperationalScheduleState:
                 "recorded_at": recorded_at.isoformat(),
                 "late": recorded_at > datetime.fromisoformat(expected["scheduled_at"]),
             }
+
+        completed_keys = {
+            (item.get("animal_id"), item.get("operational_date"), item.get("shift"))
+            for item in self.completed_milking_sessions
+            if isinstance(item, dict)
+        }
+        missed_prior = []
+        for pending in self.pending_milk_sessions(str(animal_id), operational_date):
+            scheduled_at = datetime.fromisoformat(pending["scheduled_at"])
+            if scheduled_at < recorded_at and (pending["animal_id"], pending["operational_date"], pending["shift"]) not in completed_keys:
+                missed_prior.append(pending["shift"])
+        if missed_prior:
+            outcome["missed_prior_sessions"] = missed_prior
+            outcome["notifications"] = [
+                {
+                    "type": "MISSED_MILKING_SESSION",
+                    "animal_id": str(animal_id),
+                    "date": operational_date.isoformat(),
+                    "shift": missed,
+                }
+                for missed in missed_prior
+            ]
+
         key = (str(animal_id), operational_date.isoformat(), shift)
         self.completed_milking_sessions = [
             item for item in self.completed_milking_sessions
