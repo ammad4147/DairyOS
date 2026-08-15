@@ -1,7 +1,7 @@
 import pytest
 from datetime import date, timedelta
 
-from dairyos.platform.api.main import app
+from dairyos.app import app, container
 from dairyos.data.repositories.animal_repository import AnimalRepository
 from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
 from dairyos.data.models.animal import Animal
@@ -11,34 +11,20 @@ from fastapi.testclient import TestClient
 # Use the existing test client approach
 client = TestClient(app)
 
-@pytest.fixture(scope="function")
-def animal_repo(db_session):
-    """Create an animal repository for testing."""
-    return AnimalRepository(session=db_session)
-
-@pytest.fixture(scope="function")
-def milk_repo(db_session):
-    """Create a milk production repository for testing."""
-    return MilkProductionRepository(session=db_session)
-
-def test_animal_milk_traceability_chain(db_session, animal_repo, milk_repo):
+def test_animal_milk_traceability_chain(client, container, registered_animal):
     """Test the complete data chain: Animal -> Milk Record -> Passport -> Intelligence"""
     
-    # 1. Create an animal through the authoritative AnimalRepository
-    animal = Animal(
-        animal_id="TEST-ANIMAL-001",
-        name="Test Animal",
-        status="ACTIVE",
-        lifecycle_status="LACTATING",
-        active=True,
-        is_currently_milking=True,
-        milking_frequency=2
-    )
+    # 1. Verify we have a registered animal
+    assert registered_animal.animal_id == "TEST-ANIMAL-001"
     
-    created_animal = animal_repo.add(animal)
-    assert created_animal.animal_id == "TEST-ANIMAL-001"
+    # 2. Get repository factory from container
+    repository_factory = container.resolve("RepositoryFactory")
     
-    # 2. Persist a distinctive milk record through MilkProductionRepository
+    # 3. Get repositories
+    animal_repo = repository_factory.animals()
+    milk_repo = repository_factory.milk_production()
+    
+    # 4. Create a distinctive milk record through MilkProductionRepository
     # Use a date that's within the 7-day window for intelligence calculations
     production_date = date.today() - timedelta(days=2)
     
@@ -54,16 +40,17 @@ def test_animal_milk_traceability_chain(db_session, animal_repo, milk_repo):
         milking_session="EVENING"
     )
     
+    # 5. Persist the milk record
     saved_record = milk_repo.add(milk_record)
     assert saved_record.total_yield == 37.25
     assert saved_record.animal_id == "TEST-ANIMAL-001"
     
-    # 3. Verify the record can be retrieved directly from repository
+    # 6. Verify the record can be retrieved directly from repository
     retrieved_records = milk_repo.get_by_animal_id("TEST-ANIMAL-001")
     assert len(retrieved_records) == 1
     assert retrieved_records[0].total_yield == 37.25
     
-    # 4. Test the passport endpoint
+    # 7. Test the passport endpoint
     response = client.get("/farm/animals/TEST-ANIMAL-001/passport")
     assert response.status_code == 200
     
@@ -77,7 +64,7 @@ def test_animal_milk_traceability_chain(db_session, animal_repo, milk_repo):
     assert milk_entry["animal_id"] == "TEST-ANIMAL-001"
     assert milk_entry["production_date"] == production_date.isoformat()
     
-    # 5. Test the milk intelligence endpoint
+    # 8. Test the milk intelligence endpoint
     response = client.get("/farm/milk/intelligence")
     assert response.status_code == 200
     
