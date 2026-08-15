@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+﻿from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -612,51 +612,118 @@ def _list_by_type(container, input_type: str):
     return records
 
 
-def _detect_and_raise_milk_drop(container, *, animal_id: str, session: str, as_of_date) -> None:
-    """Run the same-session drop detector (G3.4) and raise/update an
-    Operational Finding when it fires. Reads via `_list_by_type`, the exact
-    same data `GET /farm/milk` returns, so detection can never disagree with
-    what the operator sees on screen.
+def _detect_and_raise_milk_drop(
+    container,
+    *,
+    animal_id: str,
+    session: str,
+    as_of_date,
+) -> None:
+    """Run date-aware individual-animal milk decline detection.
 
-    Deliberately swallows its own failures -- a bug in drop detection must
-    never block a legitimate milk record from saving; the record is the
-    source of truth, the finding is a derived convenience.
+    The denominator is the animal's complete production-date yield.
+    Milking-frequency authority is resolved for the production date,
+    never blindly taken from the animal's current setting.
+
+    Findings remain derived convenience data and therefore never block
+    persistence of the authoritative milk record.
+
+    The boundary accepts either the normal application container or a
+    repository-factory-like object. This preserves isolated service-test
+    composition without changing production wiring.
     """
 
     try:
-        records = _list_by_type(container, "milk_production")
-        result = detect_drop(records, animal_id=animal_id, session=session, as_of_date=as_of_date)
-        if result is None or result["severity"] is None:
-            return
+        rf = getattr(
+            container,
+            "repository_factory",
+            None,
+        )
 
-        rf = getattr(container, "repository_factory", None)
         owns_factory = False
+
+        # Normal application-container composition.
         if rf is None:
-            rf = RepositoryFactory.create()
-            owns_factory = True
+            # Also support a repository-factory-shaped caller directly.
+            if callable(getattr(container, "animal", None)):
+                rf = container
+            else:
+                rf = RepositoryFactory.create()
+                owns_factory = True
+
         try:
-            service = OperationalFindingService(rf.operational_findings())
+            animal = rf.animal().get_by_animal_id(
+                str(animal_id)
+            )
+
+            if animal is None:
+                return
+
+            from dairyos.farm.herd.services.animal_milking_schedule_service import (
+                AnimalMilkingScheduleService,
+            )
+
+            schedule_service = AnimalMilkingScheduleService(
+                repository=rf.animal(),
+            )
+
+            milking_frequency = (
+                schedule_service.get_frequency_for_date(
+                    animal=animal,
+                    operational_date=as_of_date,
+                )
+            )
+
+            records = _list_by_type(
+                container,
+                "milk_production",
+            )
+
+            result = detect_drop(
+                records,
+                animal_id=str(animal_id),
+                session=session,
+                as_of_date=as_of_date,
+                milking_frequency=milking_frequency,
+            )
+
+            if result is None or result.get("severity") is None:
+                return
+
+            service = OperationalFindingService(
+                rf.operational_findings()
+            )
+
             service.raise_or_update(
                 source_module="MILK",
                 severity=result["severity"],
-                title=f"{animal_id} production dropped {abs(result['percent']):.0f}%",
+                title=(
+                    f"{animal_id} production dropped "
+                    f"{abs(result['percent']):.0f}%"
+                ),
                 detail=(
-                    f"{result['previous']:.1f} L -> {result['current']:.1f} L "
-                    f"({session.title()} vs {result['previous_date']} {session.title()})"
+                    f"{result['previous']:.1f} L -> "
+                    f"{result['current']:.1f} L "
+                    f"({session.title()} vs "
+                    f"{result['previous_date']} "
+                    f"{session.title()})"
                 ),
                 subject_type="ANIMAL",
                 subject_id=str(animal_id),
                 route=f"/farm/animals/{animal_id}",
-                dedupe_key=f"MILK_DROP:{animal_id}:{session}",
+                dedupe_key=(
+                    f"MILK_DROP:{animal_id}:{session}"
+                ),
             )
+
         finally:
             if owns_factory:
                 rf.close()
-    except Exception:
-        # See docstring: detection is best-effort and must never surface as
-        # a failure of the milk-record save it's attached to.
-        return
 
+    except Exception:
+        # Milk persistence is authoritative. A derived finding must never
+        # make a valid milk entry fail.
+        return
 
 @router.post("/milk")
 def record_milk_entry(
@@ -1796,3 +1863,4 @@ def resolve_health_case(
     finally:
         if owns_factory:
             rf.close()
+

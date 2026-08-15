@@ -1,4 +1,4 @@
-from dairyos.api.milk_production_summary import router as milk_production_summary_router
+﻿from dairyos.api.milk_production_summary import router as milk_production_summary_router
 """FastAPI application bootstrap for DairyOS.
 
 The operator UI is the React/Vite application under ``src/DairyOS.Web``.
@@ -104,6 +104,7 @@ async def enforce_animal_identity(request, call_next):
 from dairyos.api.auth import router as auth_router
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
+from dairyos.api.equipment_management import router as equipment_router
 from dairyos.api.farm_data_entry import router as farm_router
 from dairyos.api.milk_production_analytics import router as milk_production_analytics_router
 from dairyos.api.animal_registration import router as animal_registration_router
@@ -130,6 +131,7 @@ from dairyos.api.settings import router as settings_router
 app.include_router(auth_router)
 app.include_router(command_router)
 app.include_router(dashboard_router)
+app.include_router(equipment_router)
 app.include_router(farm_router)
 app.include_router(milk_production_analytics_router)
 app.include_router(animal_registration_router)
