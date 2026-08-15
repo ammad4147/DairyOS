@@ -1,6 +1,6 @@
 """Milk-production alert and comparison rules.
 
-All comparisons are date-based.  A comparison is made only between a
+All comparisons are date-based. A comparison is made only between a
 completed date D and the immediately preceding completed date D_prev.
 """
 
@@ -41,7 +41,7 @@ class MilkAlertService:
         return {
             "alert": "LOW_MILK_PRODUCTION",
             "deviation_percentage": round(deviation, 2),
-            "severity": severity,
+            "severity": "HIGH" if severity == "RED" else "MEDIUM",
         }
 
     def determine_completed_dates(
@@ -176,7 +176,6 @@ class MilkAlertService:
 
     def notification_badge(self, alerts: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
         """Build bell counts, deduplicating animal yield alerts by animal/date pair."""
-        alerts = list(alerts)
         animal_keys = set()
         red_animals = set()
         amber_animals = set()
