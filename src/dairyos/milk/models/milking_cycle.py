@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 class MilkingFrequency(int, Enum):
     TWICE_DAILY = 2
+    THRICE_DAILY = 3
     THREE_TIMES_DAILY = 3
 
 
@@ -18,10 +19,34 @@ DEFAULT_SESSION_TIMES = {
 }
 
 
+def normalize_frequency(value) -> MilkingFrequency:
+    if isinstance(value, MilkingFrequency):
+        return value
+    if isinstance(value, int):
+        return MilkingFrequency(value)
+    normalized = str(value).strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "2": MilkingFrequency.TWICE_DAILY,
+        "TWICE": MilkingFrequency.TWICE_DAILY,
+        "TWICE_DAILY": MilkingFrequency.TWICE_DAILY,
+        "2X": MilkingFrequency.TWICE_DAILY,
+        "3": MilkingFrequency.THRICE_DAILY,
+        "THRICE": MilkingFrequency.THRICE_DAILY,
+        "THRICE_DAILY": MilkingFrequency.THRICE_DAILY,
+        "THREE_TIMES": MilkingFrequency.THRICE_DAILY,
+        "THREE_TIMES_DAILY": MilkingFrequency.THRICE_DAILY,
+        "3X": MilkingFrequency.THRICE_DAILY,
+    }
+    try:
+        return aliases[normalized]
+    except KeyError as exc:
+        raise ValueError("milking frequency must be 2 or 3 sessions per day") from exc
+
+
 @dataclass(frozen=True)
 class MilkingCycle:
     animal_id: str
-    frequency: MilkingFrequency
+    frequency: MilkingFrequency | str | int
     effective_from: date
     session_times: Dict[str, time] = field(default_factory=lambda: dict(DEFAULT_SESSION_TIMES))
     active: bool = True
@@ -29,15 +54,15 @@ class MilkingCycle:
     def __post_init__(self):
         if not str(self.animal_id).strip():
             raise ValueError("animal_id is required")
-        if self.frequency not in (MilkingFrequency.TWICE_DAILY, MilkingFrequency.THREE_TIMES_DAILY):
-            raise ValueError("milking frequency must be 2 or 3 sessions per day")
+        normalized = normalize_frequency(self.frequency)
+        object.__setattr__(self, "frequency", normalized)
         required = ["MORNING", "EVENING"]
-        if self.frequency == MilkingFrequency.THREE_TIMES_DAILY:
+        if normalized == MilkingFrequency.THRICE_DAILY:
             required.insert(1, "AFTERNOON")
         missing = [session for session in required if session not in self.session_times]
         if missing:
             raise ValueError(f"missing scheduled milking session times: {', '.join(missing)}")
-        if len(self.session_times) != int(self.frequency):
+        if len(self.session_times) != int(normalized):
             raise ValueError("session_times must contain exactly the configured 2 or 3 sessions")
 
     @property
@@ -58,6 +83,7 @@ class MilkingCycle:
             {
                 "animal_id": self.animal_id,
                 "animal_status": self.animal_status,
+                "milking_frequency": self.frequency.name,
                 "operational_date": operational_date.isoformat(),
                 "shift": session,
                 "scheduled_at": datetime.combine(
@@ -69,10 +95,7 @@ class MilkingCycle:
         ]
 
     def expected_session(self, operational_date: date, session: str) -> Optional[dict]:
-        return next(
-            (item for item in self.expected_sessions(operational_date) if item["shift"] == session),
-            None,
-        )
+        return next((item for item in self.expected_sessions(operational_date) if item["shift"] == session.upper()), None)
 
 
 def classify_session_entry(expected_session: dict, recorded_at: datetime) -> dict:
