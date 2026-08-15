@@ -40,6 +40,18 @@ jobs:
       - name: Run Milk Cycle and intelligence tests
         run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
 
+  frontend-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check Milk dashboard JavaScript
+        run: node --check src/dairyos/web/dashboard_milk_intelligence.js
+
   full-regression:
     runs-on: ubuntu-latest
     services:
