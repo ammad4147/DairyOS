@@ -21,6 +21,7 @@ def test_schedule_generates_date_specific_expected_sessions_per_animal():
     assert len(generated) == 5
     assert {item["animal_id"] for item in generated} == {"A1", "A2"}
     assert all(item["operational_date"] == "2026-08-15" for item in generated)
+    assert all(item["animal_status"] == "MILKING" for item in generated)
 
 
 def test_future_date_does_not_materialise_before_effective_date():
@@ -37,6 +38,19 @@ def test_missed_session_remains_pending_until_explicit_outcome():
     assert len(state.pending_milk_sessions("A1", "2026-08-15")) == 2
     state.record_milking_session("A1", "2026-08-15", "MORNING", "RECORDED", recorded_at=datetime(2026, 8, 15, 6, 10, tzinfo=timezone.utc))
     assert len(state.pending_milk_sessions("A1", "2026-08-15")) == 1
+
+
+def test_next_entry_surfaces_prior_missed_session_notification():
+    state = OperationalScheduleState("2026-08-15")
+    state.configure_milking_cycle("A1", 2, "2026-08-15")
+    state.schedule_milking_cycles_for_date("2026-08-15")
+    outcome = state.record_milking_session(
+        "A1", "2026-08-15", "EVENING", "RECORDED",
+        recorded_at=datetime(2026, 8, 15, 21, 5, tzinfo=timezone.utc),
+    )
+    assert outcome["missed_prior_sessions"] == ["MORNING"]
+    assert outcome["notifications"][0]["type"] == "MISSED_MILKING_SESSION"
+    assert outcome["notifications"][0]["date"] == "2026-08-15"
 
 
 def test_not_milked_requires_reason():
