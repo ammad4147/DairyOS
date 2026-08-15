@@ -6,6 +6,7 @@ from dairyos.milk.models.milking_cycle import (
     MilkingCycle,
     MilkingFrequency,
     classify_session_entry,
+    normalize_frequency,
 )
 
 
@@ -30,12 +31,12 @@ class OperationalScheduleState:
     def add_milking_session(self, session: dict):
         self.milking_schedule.append(session)
 
-    def configure_milking_cycle(self, animal_id: str, frequency: int | MilkingFrequency, effective_from: str | date, session_times=None) -> MilkingCycle:
+    def configure_milking_cycle(self, animal_id: str, frequency: int | str | MilkingFrequency, effective_from: str | date, session_times=None) -> MilkingCycle:
         if isinstance(effective_from, str):
             effective_from = date.fromisoformat(effective_from)
         cycle = MilkingCycle(
             animal_id=str(animal_id),
-            frequency=MilkingFrequency(int(frequency)),
+            frequency=normalize_frequency(frequency),
             effective_from=effective_from,
             session_times=session_times if session_times is not None else DEFAULT_SESSION_TIMES.copy(),
         )
@@ -89,11 +90,9 @@ class OperationalScheduleState:
                 "recorded_at": recorded_at.isoformat(),
                 "late": recorded_at > datetime.fromisoformat(expected["scheduled_at"]),
             }
-
         completed_keys = {
             (item.get("animal_id"), item.get("operational_date"), item.get("shift"))
-            for item in self.completed_milking_sessions
-            if isinstance(item, dict)
+            for item in self.completed_milking_sessions if isinstance(item, dict)
         }
         missed_prior = []
         for pending in self.pending_milk_sessions(str(animal_id), operational_date):
@@ -103,16 +102,10 @@ class OperationalScheduleState:
         if missed_prior:
             outcome["missed_prior_sessions"] = missed_prior
             outcome["notifications"] = [
-                {
-                    "type": "MISSED_MILKING_SESSION",
-                    "animal_id": str(animal_id),
-                    "date": operational_date.isoformat(),
-                    "shift": missed,
-                }
+                {"type": "MISSED_MILKING_SESSION", "animal_id": str(animal_id), "date": operational_date.isoformat(), "shift": missed}
                 for missed in missed_prior
             ]
-
-        key = (str(animal_id), operational_date.isoformat(), shift)
+        key = (str(animal_id), operational_date.isoformat(), shift.upper())
         self.completed_milking_sessions = [
             item for item in self.completed_milking_sessions
             if not (isinstance(item, dict) and (item.get("animal_id"), item.get("operational_date"), item.get("shift")) == key)
@@ -124,8 +117,7 @@ class OperationalScheduleState:
         target_date = operational_date.isoformat() if isinstance(operational_date, date) else operational_date
         completed_keys = {
             (item.get("animal_id"), item.get("operational_date"), item.get("shift"))
-            for item in self.completed_milking_sessions
-            if isinstance(item, dict)
+            for item in self.completed_milking_sessions if isinstance(item, dict)
         }
         completed_legacy = {item for item in self.completed_milking_sessions if isinstance(item, str)}
         pending = []
@@ -144,9 +136,7 @@ class OperationalScheduleState:
     def is_milking_date_complete(self, operational_date: str | date | None = None) -> bool:
         target_date = operational_date.isoformat() if isinstance(operational_date, date) else operational_date or self.schedule_date
         relevant = [s for s in self.milking_schedule if s.get("operational_date", self.schedule_date) == target_date]
-        if not relevant:
-            return False
-        return not self.pending_milk_sessions(operational_date=target_date)
+        return bool(relevant) and not self.pending_milk_sessions(operational_date=target_date)
 
     def add_feeding_schedule(self, feeding: dict):
         self.feeding_schedule.append(feeding)
@@ -186,13 +176,7 @@ class OperationalScheduleState:
     def evaluate_heads_up(self):
         notifications = []
         for session in self.pending_milk_sessions():
-            notifications.append({
-                "type": "milking_pending",
-                "animal_id": session.get("animal_id"),
-                "date": session.get("operational_date", self.schedule_date),
-                "shift": session.get("shift"),
-                "message": f"Milking session {session.get('shift')} has not been recorded.",
-            })
+            notifications.append({"type": "milking_pending", "animal_id": session.get("animal_id"), "date": session.get("operational_date", self.schedule_date), "shift": session.get("shift"), "message": f"Milking session {session.get('shift')} has not been recorded."})
         for feed_type in self.pending_feed_sessions():
             notifications.append({"type": "feeding_pending", "feed_type": feed_type, "message": f"Feeding activity {feed_type} has not been recorded."})
         for health in self.health_schedule:
