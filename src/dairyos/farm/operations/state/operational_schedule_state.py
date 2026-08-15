@@ -1,25 +1,17 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
-from dairyos.milk.models.milking_cycle import MilkingCycle, MilkingFrequency, classify_session_entry
+from dairyos.milk.models.milking_cycle import (
+    DEFAULT_SESSION_TIMES,
+    MilkingCycle,
+    MilkingFrequency,
+    classify_session_entry,
+)
 
 
 @dataclass
 class OperationalScheduleState:
-    """
-    Planned operational schedule state.
-
-    Represents what should happen.
-
-    Does NOT create actual farm data.
-
-    Actual execution remains manually entered.
-
-    Awareness:
-    - Detects missing execution.
-    - Generates heads-up notifications.
-    - Never completes activities automatically.
-    """
+    """Planned operational schedule state; actual execution remains manual."""
 
     schedule_date: str
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -39,27 +31,22 @@ class OperationalScheduleState:
         self.milking_schedule.append(session)
 
     def configure_milking_cycle(self, animal_id: str, frequency: int | MilkingFrequency, effective_from: str | date, session_times=None) -> MilkingCycle:
-        """Assign a 2- or 3-times-per-day cycle to an individual animal."""
         if isinstance(effective_from, str):
             effective_from = date.fromisoformat(effective_from)
         cycle = MilkingCycle(
             animal_id=str(animal_id),
             frequency=MilkingFrequency(int(frequency)),
             effective_from=effective_from,
-            session_times=session_times if session_times is not None else __import__("dairyos.milk.models.milking_cycle", fromlist=["DEFAULT_SESSION_TIMES"]).DEFAULT_SESSION_TIMES.copy(),
+            session_times=session_times if session_times is not None else DEFAULT_SESSION_TIMES.copy(),
         )
         self.milking_cycles[str(animal_id)] = cycle
         return cycle
 
     def schedule_milking_cycles_for_date(self, operational_date: str | date) -> list:
-        """Materialise expected session metadata for configured animals on a date."""
         if isinstance(operational_date, str):
             operational_date = date.fromisoformat(operational_date)
         generated = []
-        existing_keys = {
-            (item.get("animal_id"), item.get("operational_date"), item.get("shift"))
-            for item in self.milking_schedule
-        }
+        existing_keys = {(item.get("animal_id"), item.get("operational_date"), item.get("shift")) for item in self.milking_schedule}
         for cycle in self.milking_cycles.values():
             for session in cycle.expected_sessions(operational_date):
                 key = (session["animal_id"], session["operational_date"], session["shift"])
@@ -78,7 +65,6 @@ class OperationalScheduleState:
         return len(cycle.expected_sessions(operational_date))
 
     def record_milking_session(self, animal_id: str, operational_date: str | date, shift: str, status: str, reason: str | None = None, recorded_at: datetime | None = None) -> dict:
-        """Record an outcome against an expected animal/session without creating milk data."""
         if isinstance(operational_date, str):
             operational_date = date.fromisoformat(operational_date)
         status = str(status).upper()
@@ -116,11 +102,14 @@ class OperationalScheduleState:
             for item in self.completed_milking_sessions
             if isinstance(item, dict)
         }
+        completed_legacy = {item for item in self.completed_milking_sessions if isinstance(item, str)}
         pending = []
         for session in self.milking_schedule:
             if animal_id is not None and session.get("animal_id") != str(animal_id):
                 continue
             if target_date is not None and session.get("operational_date", self.schedule_date) != target_date:
+                continue
+            if session.get("animal_id") is None and session.get("shift") in completed_legacy:
                 continue
             key = (session.get("animal_id"), session.get("operational_date", self.schedule_date), session.get("shift"))
             if key not in completed_keys:
