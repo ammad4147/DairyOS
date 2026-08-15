@@ -1,9 +1,4 @@
-"""Explicit, date-based milking-cycle rules.
-
-A milking cycle belongs to an individual animal.  The cycle frequency is
-strictly two or three sessions per operational date.  The model generates
-expected sessions; it does not create milk production records.
-"""
+"""Explicit, date-based milking-cycle rules."""
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
@@ -49,6 +44,10 @@ class MilkingCycle:
     def sessions(self) -> List[str]:
         return sorted(self.session_times, key=lambda name: self.session_times[name])
 
+    @property
+    def animal_status(self) -> str:
+        return "MILKING" if self.active else "NOT_MILKING"
+
     def applies_to(self, operational_date: date) -> bool:
         return self.active and operational_date >= self.effective_from
 
@@ -58,6 +57,7 @@ class MilkingCycle:
         return [
             {
                 "animal_id": self.animal_id,
+                "animal_status": self.animal_status,
                 "operational_date": operational_date.isoformat(),
                 "shift": session,
                 "scheduled_at": datetime.combine(
@@ -76,7 +76,7 @@ class MilkingCycle:
 
 
 def classify_session_entry(expected_session: dict, recorded_at: datetime) -> dict:
-    """Return the session outcome metadata without creating a milk record."""
+    """Return session outcome metadata without creating a milk production record."""
     scheduled_at = datetime.fromisoformat(expected_session["scheduled_at"])
     if recorded_at.tzinfo is None:
         recorded_at = recorded_at.replace(tzinfo=timezone.utc)
