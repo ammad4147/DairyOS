@@ -69,6 +69,7 @@ class OperationalScheduleState:
         if isinstance(operational_date, str):
             operational_date = date.fromisoformat(operational_date)
         status = str(status).upper()
+        shift = str(shift).upper()
         if status not in {"RECORDED", "NOT_MILKED"}:
             raise ValueError("status must be RECORDED or NOT_MILKED")
         if status == "NOT_MILKED" and not str(reason or "").strip():
@@ -96,6 +97,8 @@ class OperationalScheduleState:
         }
         missed_prior = []
         for pending in self.pending_milk_sessions(str(animal_id), operational_date):
+            if pending.get("shift") == shift:
+                continue
             scheduled_at = datetime.fromisoformat(pending["scheduled_at"])
             if scheduled_at < recorded_at and (pending["animal_id"], pending["operational_date"], pending["shift"]) not in completed_keys:
                 missed_prior.append(pending["shift"])
@@ -105,7 +108,7 @@ class OperationalScheduleState:
                 {"type": "MISSED_MILKING_SESSION", "animal_id": str(animal_id), "date": operational_date.isoformat(), "shift": missed}
                 for missed in missed_prior
             ]
-        key = (str(animal_id), operational_date.isoformat(), shift.upper())
+        key = (str(animal_id), operational_date.isoformat(), shift)
         self.completed_milking_sessions = [
             item for item in self.completed_milking_sessions
             if not (isinstance(item, dict) and (item.get("animal_id"), item.get("operational_date"), item.get("shift")) == key)
