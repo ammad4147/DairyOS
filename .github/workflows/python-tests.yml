@@ -6,7 +6,21 @@ on:
   pull_request:
 
 jobs:
-  pytest:
+  milk-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project and test runner
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
+      - name: Run Milk Cycle and intelligence tests
+        run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
+
+  full-regression:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -37,5 +51,5 @@ jobs:
           python-version: "3.12"
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
-      - name: Run tests
+      - name: Run full regression
         run: pytest -q
