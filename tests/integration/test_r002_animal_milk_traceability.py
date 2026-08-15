@@ -1,59 +1,27 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from datetime import date
+from datetime import date, timedelta
 
-from dairyos.platform.api.app import app
-from dairyos.platform.api.dependencies import get_db
+from dairyos.platform.api.main import app
 from dairyos.data.repositories.animal_repository import AnimalRepository
 from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.milk_production import MilkProduction
-from dairyos.platform.api.routes.farm_routes import router as farm_router
+from fastapi.testclient import TestClient
 
-# Add the farm router to the app for testing
-app.include_router(farm_router)
-
-@pytest.fixture(scope="session")
-def test_db_engine():
-    """Create an in-memory SQLite database for testing."""
-    engine = create_engine("sqlite:///:memory:")
-    return engine
+# Use the existing test client approach
+client = TestClient(app)
 
 @pytest.fixture(scope="function")
-def test_db_session(test_db_engine):
-    """Create a database session for each test."""
-    connection = test_db_engine.connect()
-    transaction = connection.begin()
-    session = sessionmaker(bind=connection)()
-    
-    # Override the dependency
-    def override_get_db():
-        try:
-            yield session
-        finally:
-            session.close()
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    yield session
-    
-    # Clean up
-    transaction.rollback()
-    connection.close()
-    app.dependency_overrides.clear()
-
-@pytest.fixture(scope="function")
-def animal_repo(test_db_session):
+def animal_repo(db_session):
     """Create an animal repository for testing."""
-    return AnimalRepository(session=test_db_session)
+    return AnimalRepository(session=db_session)
 
 @pytest.fixture(scope="function")
-def milk_repo(test_db_session):
+def milk_repo(db_session):
     """Create a milk production repository for testing."""
-    return MilkProductionRepository(session=test_db_session)
+    return MilkProductionRepository(session=db_session)
 
-def test_animal_milk_traceability_chain(test_db_session, animal_repo, milk_repo):
+def test_animal_milk_traceability_chain(db_session, animal_repo, milk_repo):
     """Test the complete data chain: Animal -> Milk Record -> Passport -> Intelligence"""
     
     # 1. Create an animal through the authoritative AnimalRepository
@@ -71,9 +39,12 @@ def test_animal_milk_traceability_chain(test_db_session, animal_repo, milk_repo)
     assert created_animal.animal_id == "TEST-ANIMAL-001"
     
     # 2. Persist a distinctive milk record through MilkProductionRepository
+    # Use a date that's within the 7-day window for intelligence calculations
+    production_date = date.today() - timedelta(days=2)
+    
     milk_record = MilkProduction(
         animal_id="TEST-ANIMAL-001",
-        production_date=date(2023, 1, 15),
+        production_date=production_date,
         morning_yield=15.5,
         afternoon_yield=12.0,
         evening_yield=9.75,
@@ -93,9 +64,6 @@ def test_animal_milk_traceability_chain(test_db_session, animal_repo, milk_repo)
     assert retrieved_records[0].total_yield == 37.25
     
     # 4. Test the passport endpoint
-    from fastapi.testclient import TestClient
-    client = TestClient(app)
-    
     response = client.get("/farm/animals/TEST-ANIMAL-001/passport")
     assert response.status_code == 200
     
@@ -107,7 +75,7 @@ def test_animal_milk_traceability_chain(test_db_session, animal_repo, milk_repo)
     milk_entry = passport_data["milk"][0]
     assert milk_entry["total_yield"] == 37.25
     assert milk_entry["animal_id"] == "TEST-ANIMAL-001"
-    assert milk_entry["production_date"] == "2023-01-15"
+    assert milk_entry["production_date"] == production_date.isoformat()
     
     # 5. Test the milk intelligence endpoint
     response = client.get("/farm/milk/intelligence")
