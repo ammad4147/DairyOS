@@ -90,8 +90,12 @@ class MilkCycleMonitoringService:
             } for row in rows]
 
             comparison = detect_drop(
-                records, animal_id=str(animal_id), session=current_session,
-                as_of_date=production_date, milking_frequency=frequency,
+                records,
+                animal_id=str(animal_id),
+                session=current_session,
+                as_of_date=production_date,
+                schedule_service=schedule_service,
+                animal=animal,
             )
 
             if comparison and comparison.get("severity"):
