@@ -95,7 +95,7 @@ CAPABILITIES = {
     },
     "dashboard_read_model": {
         "title": "Main Dashboard Read Model",
-        "status": "EXTEND",
+        "status": "LIVE",
         "authoritative_service": "DashboardProjectionService",
         "route": "/dashboard",
         "depends_on": [
@@ -105,7 +105,7 @@ CAPABILITIES = {
             "health",
             "finance",
         ],
-        "next_dependency": "React presentation consumes backend read models only.",
+        "next_dependency": "No remaining frontend-owned business-truth calculation in the audited dashboard paths.",
     },
 }
 
