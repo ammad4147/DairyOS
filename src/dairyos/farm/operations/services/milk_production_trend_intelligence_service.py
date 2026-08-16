@@ -5,6 +5,10 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
+from dairyos.farm.production.services.milk_daily_semantics import (
+    daily_total,
+    evaluate_sessions,
+)
 
 if TYPE_CHECKING:
     from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -194,25 +198,48 @@ class MilkProductionTrendIntelligenceService:
                 if session in entered:
                     entered[session].append(value)
 
-        missing = [
-            session
-            for session in expected
-            if not entered[session]
-        ]
+        aggregate = {
+            "animal_id": animal_id,
+            "production_date": target_date,
+            "session_ledger": True,
+            "status": "RECORDED",
+            "morning_yield": (
+                sum(entered["MORNING"])
+                if "MORNING" in entered and entered["MORNING"]
+                else None
+            ),
+            "afternoon_yield": (
+                sum(entered["AFTERNOON"])
+                if "AFTERNOON" in entered and entered["AFTERNOON"]
+                else None
+            ),
+            "evening_yield": (
+                sum(entered["EVENING"])
+                if "EVENING" in entered and entered["EVENING"]
+                else None
+            ),
+            "total_yield": None,
+        }
 
-        if missing:
+        semantics = evaluate_sessions(
+            aggregate,
+            frequency,
+        )
+
+        if semantics["missing_sessions"]:
             return {
                 "date": target_date.isoformat(),
                 "animal_id": animal_id,
                 "frequency": frequency,
                 "complete": False,
-                "missing_sessions": missing,
+                "missing_sessions": list(
+                    semantics["missing_sessions"]
+                ),
                 "total_litres": None,
             }
 
-        total = sum(
-            sum(values)
-            for values in entered.values()
+        aggregate["total_yield"] = daily_total(
+            aggregate
         )
 
         return {
@@ -221,7 +248,10 @@ class MilkProductionTrendIntelligenceService:
             "frequency": frequency,
             "complete": True,
             "missing_sessions": [],
-            "total_litres": round(total, 2),
+            "total_litres": round(
+                aggregate["total_yield"],
+                2,
+            ),
         }
 
     def _animal_histories(self, factory, animals):
@@ -553,6 +583,4 @@ class MilkProductionTrendIntelligenceService:
         finally:
             if owns_factory:
                 working_factory.close()
-
-
 
