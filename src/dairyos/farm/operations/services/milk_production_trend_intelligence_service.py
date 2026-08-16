@@ -627,3 +627,4 @@ class MilkProductionTrendIntelligenceService:
         finally:
             if owns_factory:
                 working_factory.close()
+
