@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Iterable, Mapping
 
-from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMilkingScheduleService
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
+from dairyos.farm.production.services.milk_daily_semantics import (
+    evaluate_sessions,
+)
 
 RECORDED = "RECORDED"
 SKIPPED = "SKIPPED"
@@ -55,51 +60,67 @@ class MilkingSessionComplianceService:
         return date.fromisoformat(str(value))
 
     @staticmethod
-    def _recorded_sessions(record) -> set[str]:
-        fields = {"MORNING": "morning_yield", "AFTERNOON": "afternoon_yield", "EVENING": "evening_yield"}
-        return {session for session, field in fields.items() if getattr(record, field, None) is not None}
+    def _record_to_dict(record):
+        if record is None:
+            return None
 
-    def evaluate(self, *, animal, operational_date: date | datetime | str, record=None, skipped_sessions: Iterable[str] | None = None) -> SessionCompliance:
+        return {
+            "animal_id": getattr(record, "animal_id", None),
+            "production_date": getattr(record, "production_date", None),
+            "session_ledger": getattr(record, "session_ledger", False),
+            "status": getattr(record, "status", None),
+            "morning_yield": getattr(record, "morning_yield", None),
+            "afternoon_yield": getattr(record, "afternoon_yield", None),
+            "evening_yield": getattr(record, "evening_yield", None),
+            "total_yield": getattr(record, "total_yield", None),
+        }
+
+    def evaluate(
+        self,
+        *,
+        animal,
+        operational_date: date | datetime | str,
+        record=None,
+        skipped_sessions: Iterable[str] | None = None,
+    ) -> SessionCompliance:
         op_date = self._as_date(operational_date)
-        snapshot = self.schedule_service.get_schedule_snapshot(animal, operational_date=op_date)
-        expected = snapshot.expected_sessions
-        skipped = {str(value).strip().upper() for value in (skipped_sessions or ())}
-        recorded = self._recorded_sessions(record) if record is not None else set()
-        withheld = set()
-        if record is not None and str(getattr(record, "status", "")).upper() == WITHHELD:
-            withheld = recorded & set(expected)
 
-        states = {}
-        for session in expected:
-            if session in withheld:
-                states[session] = WITHHELD
-            elif session in recorded:
-                states[session] = RECORDED
-            elif session in skipped:
-                states[session] = SKIPPED
-            else:
-                states[session] = MISSING
+        snapshot = self.schedule_service.get_schedule_snapshot(
+            animal,
+            operational_date=op_date,
+        )
 
-        completed = tuple(session for session in expected if states[session] in {RECORDED, SKIPPED, WITHHELD})
-        skipped_expected = tuple(session for session in expected if states[session] == SKIPPED)
-        missing = tuple(session for session in expected if states[session] == MISSING)
-        withheld_expected = tuple(session for session in expected if states[session] == WITHHELD)
-        percentage = None if not expected else round((len(completed) / len(expected)) * 100, 1)
-
-        if not expected:
-            status = "NO_GOVERNED_FREQUENCY"
-        elif missing:
-            status = "INCOMPLETE"
-        elif withheld_expected:
-            status = "COMPLETE_WITH_WITHHELD"
-        else:
-            status = "COMPLETE"
+        semantics = evaluate_sessions(
+            self._record_to_dict(record),
+            snapshot.milking_frequency,
+            skipped_sessions=skipped_sessions,
+        )
 
         return SessionCompliance(
-            animal_id=str(animal.animal_id), operational_date=op_date,
+            animal_id=str(animal.animal_id),
+            operational_date=op_date,
             effective_frequency=snapshot.milking_frequency,
-            expected_sessions=expected, session_states=states,
-            completed_sessions=completed, skipped_sessions=skipped_expected,
-            missing_sessions=missing, withheld_sessions=withheld_expected,
-            compliance_percentage=percentage, status=status,
+            expected_sessions=tuple(
+                semantics["expected_sessions"]
+            ),
+            session_states=dict(
+                semantics["session_states"]
+            ),
+            completed_sessions=tuple(
+                semantics["completed_sessions"]
+            ),
+            skipped_sessions=tuple(
+                semantics["skipped_sessions"]
+            ),
+            missing_sessions=tuple(
+                semantics["missing_sessions"]
+            ),
+            withheld_sessions=tuple(
+                semantics["withheld_sessions"]
+            ),
+            compliance_percentage=semantics[
+                "compliance_percentage"
+            ],
+            status=semantics["status"],
         )
+
