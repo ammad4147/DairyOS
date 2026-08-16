@@ -1,19 +1,10 @@
-"""Shared date-based semantics for governed milk production.
-
-The milk domain has two separate questions:
-
-* interval compliance: did an individual animal supply the expected session
-  entries for a date?
-* daily comparison: once that animal/date is complete, what was its total
-  yield compared with the immediately preceding date?
-
-This module contains only deterministic helpers so the same definition is
-used by alerts, trend analytics and dashboard projections.
-"""
+"""Shared date-based semantics for governed milk production."""
 
 from __future__ import annotations
 
 from datetime import date, datetime
+
+from .animal_milking_schedule_service import FREQUENCY_SESSIONS
 
 
 SESSION_FIELDS = {
@@ -22,15 +13,14 @@ SESSION_FIELDS = {
     "EVENING": "evening_yield",
 }
 
-FREQUENCY_SESSIONS = {
-    "TWICE_DAILY": ("MORNING", "EVENING"),
-    "THRICE_DAILY": ("MORNING", "AFTERNOON", "EVENING"),
-}
-
 
 def expected_sessions(frequency: str | None) -> tuple[str, ...]:
-    """Return the governed sessions for one animal's milking frequency."""
+    """Return governed sessions from the central schedule vocabulary.
 
+    This helper remains for compatibility with existing callers. Historical
+    date interpretation belongs to AnimalMilkingScheduleService; callers
+    answering an animal/date question must resolve the frequency there first.
+    """
     if frequency is None:
         return ()
     return FREQUENCY_SESSIONS.get(str(frequency).strip().upper(), ())
@@ -71,7 +61,6 @@ def is_complete(record: dict, frequency: str | None) -> bool:
     not a production row and therefore cannot make an animal's milk day
     complete; that fact is handled by the session ledger separately.
     """
-
     if record.get("session_ledger") is not True:
         return False
     if str(record.get("status", "")).upper() == "NOT_MILKED":
