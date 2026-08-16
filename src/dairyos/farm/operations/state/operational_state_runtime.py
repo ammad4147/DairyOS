@@ -1,7 +1,8 @@
-﻿from datetime import date
-
 from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 
@@ -28,9 +29,14 @@ class OperationalStateRuntime:
         self,
         farm_id="TRIDENT-DAIRIES",
         repository=None,
+        operational_date_authority=None,
     ):
         self.farm_id = farm_id
         self.repository = repository
+        self.operational_date_authority = (
+            operational_date_authority
+            or OperationalDateAuthority()
+        )
         self.current_state = None
 
     def initialize(
@@ -38,7 +44,10 @@ class OperationalStateRuntime:
         operational_date=None,
     ):
         if operational_date is None:
-            operational_date = str(date.today())
+            operational_date = (
+                self.operational_date_authority
+                .current_date_string()
+            )
 
         if self.repository is not None:
             existing_state = self.repository.get_current(
@@ -54,8 +63,6 @@ class OperationalStateRuntime:
                     self.current_state = existing_state
                     return self.current_state
 
-                # A persisted state belongs to a previous
-                # operational day. Start a fresh daily state.
                 self.current_state = FarmOperationalState(
                     farm_id=self.farm_id,
                     operational_date=operational_date,
@@ -77,18 +84,24 @@ class OperationalStateRuntime:
     def ensure_state(
         self,
     ):
-        today = str(date.today())
+        current_date = (
+            self.operational_date_authority
+            .current_date_string()
+        )
 
         if self.current_state is None:
             return self.initialize(
-                operational_date=today
+                operational_date=current_date
             )
 
-        if str(
-            self.current_state.operational_date
-        ) != today:
+        if (
+            str(
+                self.current_state.operational_date
+            )
+            != current_date
+        ):
             return self.initialize(
-                operational_date=today
+                operational_date=current_date
             )
 
         return self.current_state
