@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dependencies import get_container
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
@@ -158,8 +159,8 @@ def _overview(factory, start, end):
     # /farm/reproduction/overview and /farm/animals/{id}/reproduction on
     # identical underlying BreedingRecord data. Before this fix this
     # endpoint's own narrower keyword lists never recognized
-    # "pregnancy_diagnosis" or "pregnancy_confirmed" — the operator UI's
-    # actual event-type values — so confirmed_pregnancies/conception_rate
+    # "pregnancy_diagnosis" or "pregnancy_confirmed" Ã¢â‚¬â€ the operator UI's
+    # actual event-type values Ã¢â‚¬â€ so confirmed_pregnancies/conception_rate
     # silently undercounted relative to /farm/reproduction/overview.
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
@@ -273,7 +274,12 @@ def _overview(factory, start, end):
 @router.get("/overview")
 @router.get("")
 def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), container=Depends(get_container)):
-    end = datetime.now(timezone.utc)
+    operational_date = OperationalDateAuthority().current_date()
+    end = datetime.combine(
+        operational_date + timedelta(days=1),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
     start = end - timedelta(days=days)
     factory, owns_factory = _fresh_factory(container)
     try:

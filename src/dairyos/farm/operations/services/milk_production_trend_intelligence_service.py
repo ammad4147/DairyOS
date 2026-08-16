@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.farm.production.services.milk_daily_semantics import (
     daily_total,
     evaluate_sessions,
@@ -59,7 +62,10 @@ def resolve_period_range(
     end_date: Optional[date] = None,
     anchor_date: Optional[date] = None,
 ) -> Tuple[date, date]:
-    today = anchor_date or date.today()
+    today = (
+        anchor_date
+        or OperationalDateAuthority().current_date()
+    )
 
     if period == "custom":
         if not start_date or not end_date:
@@ -327,7 +333,10 @@ class MilkProductionTrendIntelligenceService:
         period_days: int = 7,
         **kwargs: Any,
     ) -> TrendIntelligenceResult:
-        target_date = as_of_date or date.today()
+        target_date = (
+            as_of_date
+            or OperationalDateAuthority().current_date()
+        )
 
         if isinstance(target_date, datetime):
             target_date = target_date.date()
@@ -583,4 +592,3 @@ class MilkProductionTrendIntelligenceService:
         finally:
             if owns_factory:
                 working_factory.close()
-

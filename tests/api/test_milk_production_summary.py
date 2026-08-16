@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 from dairyos.app import container
+from dairyos.api.farm_data_entry import next_milking_session
 from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.operational_finding import OperationalFinding
@@ -87,7 +88,12 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     assert animal_2_response.status_code == 200, animal_2_response.text
     animal_2_id = animal_2_response.json()["animal_id"]
 
-    today = datetime.now(timezone.utc).date()
+    operational_state = next_milking_session(
+        container=container
+    )
+    today = date.fromisoformat(
+        operational_state["operational_date"]
+    )
 
     history_start = datetime.combine(
         today - timedelta(days=30),

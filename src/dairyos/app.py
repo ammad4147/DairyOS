@@ -22,6 +22,7 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -90,7 +91,7 @@ async def enforce_animal_identity(request, call_next):
             operational_date = (
                 date.fromisoformat(str(raw_date)[:10])
                 if raw_date
-                else date.today()
+                else OperationalDateAuthority().current_date()
             )
 
             individual_result = MilkCycleMonitoringService().monitor(

@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
@@ -44,7 +45,7 @@ def _youngstock_animals(container):
 
 
 def _serialize(animal, growth: list[dict[str, Any]], weaning: list[dict[str, Any]]):
-    today = date.today()
+    today = OperationalDateAuthority().current_date()
     age_days = None
     if animal.date_of_birth:
         age_days = max(0, (today - animal.date_of_birth).days)
@@ -133,7 +134,7 @@ def record_growth(animal_id: str, payload: dict[str, Any], container=Depends(get
     if lifecycle not in YOUNGSTOCK_STATUSES:
         raise HTTPException(status_code=409, detail="Growth recording is restricted to calf/youngstock")
 
-    measured_at = payload.get("measured_at") or date.today().isoformat()
+    measured_at = payload.get("measured_at") or OperationalDateAuthority().current_date().isoformat()
     weight_kg = payload.get("weight_kg")
     if weight_kg is None or float(weight_kg) <= 0:
         raise HTTPException(status_code=422, detail="weight_kg must be greater than zero")
@@ -158,7 +159,7 @@ def record_weaning(animal_id: str, payload: dict[str, Any], container=Depends(ge
     if lifecycle != "CALF":
         raise HTTPException(status_code=409, detail="Weaning can only be recorded for a CALF")
 
-    weaned_at = payload.get("weaned_at") or date.today().isoformat()
+    weaned_at = payload.get("weaned_at") or OperationalDateAuthority().current_date().isoformat()
     record = {
         "animal_id": animal_id,
         "weaned_at": weaned_at,
@@ -184,3 +185,4 @@ def weaning_history(animal_id: str, container=Depends(get_container)):
     if animal is None:
         raise HTTPException(status_code=404, detail="Animal not found")
     return _event_records(container, WEANING_EVENT, animal_id)
+
