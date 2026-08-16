@@ -1,4 +1,4 @@
-﻿from .animal import Animal
+from .animal import Animal
 from .animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from .farm import Farm
 from .milk_production import MilkProduction
@@ -18,3 +18,5 @@ __all__ = [
     "FeedRation",
     "HealthObservation",
 ]
+
+from dairyos.data.models.cmp_scenario import CMPScenario

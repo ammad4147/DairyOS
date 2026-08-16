@@ -123,6 +123,7 @@ from dairyos.api.milk_production_analytics import router as milk_production_anal
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.analytics import router as analytics_router
+from dairyos.api.cmp import router as cmp_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
@@ -152,6 +153,7 @@ app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
 app.include_router(analytics_router)
+app.include_router(cmp_router)
 app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
