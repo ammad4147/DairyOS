@@ -15,6 +15,7 @@ VALID_DISPOSITIONS = frozenset(
         "SOLD",
         "CALF_FEED",
         "DOMESTIC_USE",
+        "WITHHELD",
         "WASTAGE",
         "OTHER",
     }
@@ -146,6 +147,17 @@ class MilkReconciliationService:
                         ),
                         3,
                     ),
+                    "withheld_litres": round(
+                        sum(
+                            float(item.quantity_litres)
+                            for item in dispositions
+                            if str(
+                                item.disposition_type
+                            ).upper()
+                            == "WITHHELD"
+                        ),
+                        3,
+                    ),
                     "non_sale_accounted_litres": round(
                         sum(
                             float(item.quantity_litres)
@@ -264,6 +276,17 @@ class MilkReconciliationService:
                 ),
                 "sold_litres": round(
                     sold,
+                    3,
+                ),
+                "withheld_litres": round(
+                    sum(
+                        float(item.quantity_litres)
+                        for item in dispositions
+                        if str(
+                            item.disposition_type
+                        ).upper()
+                        == "WITHHELD"
+                    ),
                     3,
                 ),
                 "non_sale_accounted_litres": round(

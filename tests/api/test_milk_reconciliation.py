@@ -718,3 +718,158 @@ def test_incomplete_production_never_creates_finding(
 
     assert result["status"] == "PRODUCTION_INCOMPLETE"
     assert findings.rows == []
+def test_complete_withheld_milk_is_accounted_separately(
+    monkeypatch,
+):
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository(
+        [
+            _sold(
+                production_date,
+                60.0,
+            ),
+            _non_sale(
+                production_date,
+                "WITHHELD",
+                15.0,
+            ),
+            _non_sale(
+                production_date,
+                "WASTAGE",
+                5.0,
+            ),
+        ]
+    )
+    findings = FakeFindingRepository()
+
+    _patch_trend(
+        monkeypatch,
+        complete=True,
+        daily_total=80.0,
+    )
+    _patch_factory(
+        monkeypatch,
+        repo,
+        findings,
+    )
+
+    result = _service(repo).reconcile(
+        production_date,
+        raise_finding=True,
+    )
+
+    assert result["production_complete"] is True
+    assert result["produced_litres"] == 80.0
+    assert result["sold_litres"] == 60.0
+    assert result["withheld_litres"] == 15.0
+    assert result["non_sale_accounted_litres"] == 20.0
+    assert result["accounted_litres"] == 80.0
+    assert result["unaccounted_litres"] == 0.0
+    assert result["over_accounted_litres"] == 0.0
+    assert result["status"] == "RECONCILED"
+    assert findings.rows == []
+
+
+def test_withheld_milk_does_not_mask_unaccounted_production(
+    monkeypatch,
+):
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository(
+        [
+            _sold(
+                production_date,
+                60.0,
+            ),
+            _non_sale(
+                production_date,
+                "WITHHELD",
+                15.0,
+            ),
+        ]
+    )
+    findings = FakeFindingRepository()
+
+    _patch_trend(
+        monkeypatch,
+        complete=True,
+        daily_total=80.0,
+    )
+    _patch_factory(
+        monkeypatch,
+        repo,
+        findings,
+    )
+
+    result = _service(repo).reconcile(
+        production_date,
+        raise_finding=True,
+    )
+
+    assert result["produced_litres"] == 80.0
+    assert result["sold_litres"] == 60.0
+    assert result["withheld_litres"] == 15.0
+    assert result["accounted_litres"] == 75.0
+    assert result["unaccounted_litres"] == 5.0
+    assert result["status"] == "UNACCOUNTED_PRODUCTION"
+    assert len(findings.rows) == 1
+
+
+def test_incomplete_day_with_withheld_disposition_remains_incomplete(
+    monkeypatch,
+):
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository(
+        [
+            _non_sale(
+                production_date,
+                "WITHHELD",
+                15.0,
+            ),
+        ]
+    )
+    findings = FakeFindingRepository()
+
+    _patch_trend(
+        monkeypatch,
+        complete=False,
+        daily_total=None,
+    )
+    _patch_factory(
+        monkeypatch,
+        repo,
+        findings,
+    )
+
+    result = _service(repo).reconcile(
+        production_date,
+        raise_finding=True,
+    )
+
+    assert result["production_complete"] is False
+    assert result["produced_litres"] is None
+    assert result["withheld_litres"] == 15.0
+    assert result["status"] == "PRODUCTION_INCOMPLETE"
+    assert findings.rows == []
+
+
+def test_withheld_disposition_is_valid():
+    production_date = date(2026, 8, 15)
+
+    service = _service(
+        FakeDispositionRepository()
+    )
+
+    disposition = service.record_disposition(
+        production_date=production_date,
+        disposition_type="WITHHELD",
+        quantity_litres=7.5,
+        recorded_by="Operator",
+    )
+
+    assert disposition.disposition_type == "WITHHELD"
+    assert disposition.quantity_litres == 7.5
+    assert disposition.sale_id is None
+    assert disposition.amount_due == 0.0
