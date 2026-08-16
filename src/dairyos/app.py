@@ -122,6 +122,7 @@ from dairyos.api.farm_data_entry import router as farm_router
 from dairyos.api.milk_production_analytics import router as milk_production_analytics_router
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
+from dairyos.api.analytics import router as analytics_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
@@ -150,6 +151,7 @@ app.include_router(milk_production_analytics_router)
 app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
+app.include_router(analytics_router)
 app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
@@ -176,6 +178,3 @@ def root():
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
 
 app.include_router(milk_production_summary_router)
-
-
-
