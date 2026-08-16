@@ -1,103 +1,492 @@
-"""Farm settings service (AA-013 §17 Settings, 2026-08-14).
+"""Farm settings service.
 
-Backs two concrete, currently-shipped settings while the full
-roles/preferences Settings section (AA-013 §17) is still pending:
-
-- Farm identity (``farm_name``, ``animal_id_prefix``) -- the short,
-  farm-branded Animal ID scheme. Default is "Trident Dairies" / "TD",
-  matching this farm, but both are editable so the same code works for
-  any farm and survives a rename.
-- Reset protection (``reset_protected``, ``reset_password_hash``) --
-  gates ``POST /settings/reset-test-data``. Off by default (this farm is
-  still in build-out, per the 2026-08-14 decision); an operator turns it
-  on, once, from Settings before going live.
-
-Password hashing mirrors ``dairyos.api.auth``'s salted PBKDF2-HMAC-SHA256
-scheme (200k iterations) rather than importing it directly -- that
-function lives in the API layer, and a farm settings service reaching
-into an API module would invert the dependency direction the rest of
-this codebase uses (services are called by API routers, never the other
-way around).
+Settings are persisted through the authoritative ``app_settings`` key/value
+repository. They configure farm identity, operational-date interpretation,
+dashboard defaults and reset protection. They never replace domain facts.
 """
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import secrets
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 
 DEFAULT_FARM_NAME = "Trident Dairies"
 DEFAULT_ANIMAL_ID_PREFIX = "TD"
+DEFAULT_TIMEZONE = "Asia/Karachi"
+DEFAULT_OPERATIONAL_DATE_CONVENTION = "FARM_LOCAL_DATE"
+DEFAULT_DASHBOARD_TREND_PERIOD = "7d"
+DEFAULT_DASHBOARD_CARD_VISIBILITY = {
+    "milk": True,
+    "herd": True,
+    "health": True,
+    "finance": True,
+    "analytics": True,
+}
+DEFAULT_ALERT_PREFERENCES = {}
 _PBKDF2_ITERATIONS = 200_000
 
 
-def _hash_password(password: str, salt: str | None = None) -> str:
+def _hash_password(
+    password: str,
+    salt: str | None = None,
+) -> str:
     salt = salt or secrets.token_hex(16)
+
     derived = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt.encode("utf-8"), _PBKDF2_ITERATIONS
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        _PBKDF2_ITERATIONS,
     )
+
     return f"{salt}${derived.hex()}"
 
 
-def _verify_password(password: str, stored: str) -> bool:
+def _verify_password(
+    password: str,
+    stored: str,
+) -> bool:
     try:
         salt, _ = stored.split("$", 1)
     except (ValueError, AttributeError):
         return False
-    candidate = _hash_password(password, salt=salt)
-    return hmac.compare_digest(candidate, stored)
+
+    candidate = _hash_password(
+        password,
+        salt=salt,
+    )
+
+    return hmac.compare_digest(
+        candidate,
+        stored,
+    )
+
+
+def _json_loads(
+    value,
+    default,
+):
+    if not value:
+        return default
+
+    try:
+        loaded = json.loads(value)
+
+        return (
+            loaded
+            if isinstance(loaded, type(default))
+            else default
+        )
+    except (
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
+        return default
 
 
 class FarmSettingsService:
     def __init__(self, repository):
         self.repository = repository
 
-    # -- Farm identity ----------------------------------------------------
+    # ------------------------------------------------------------------
+    # Farm identity
+    # ------------------------------------------------------------------
+
+    def get_farm_name(self) -> str:
+        value = self.repository.get(
+            "farm_name",
+            DEFAULT_FARM_NAME,
+        )
+
+        value = str(value or "").strip()
+
+        return value or DEFAULT_FARM_NAME
+
+    def get_animal_id_prefix(self) -> str:
+        prefix = self.repository.get(
+            "animal_id_prefix",
+            DEFAULT_ANIMAL_ID_PREFIX,
+        )
+
+        prefix = str(
+            prefix or ""
+        ).strip().upper()
+
+        return prefix or DEFAULT_ANIMAL_ID_PREFIX
+
+    # ------------------------------------------------------------------
+    # Operational date authority
+    # ------------------------------------------------------------------
+
+    def get_timezone(self) -> str:
+        timezone_name = str(
+            self.repository.get(
+                "timezone",
+                DEFAULT_TIMEZONE,
+            )
+            or DEFAULT_TIMEZONE
+        ).strip()
+
+        try:
+            ZoneInfo(timezone_name)
+        except (
+            ZoneInfoNotFoundError,
+            ValueError,
+        ):
+            return DEFAULT_TIMEZONE
+
+        return timezone_name
+
+    def get_timezone_info(self):
+        return ZoneInfo(
+            self.get_timezone()
+        )
+
+    def get_operational_date_convention(self) -> str:
+        convention = str(
+            self.repository.get(
+                "operational_date_convention",
+                DEFAULT_OPERATIONAL_DATE_CONVENTION,
+            )
+            or DEFAULT_OPERATIONAL_DATE_CONVENTION
+        ).strip().upper()
+
+        if convention != DEFAULT_OPERATIONAL_DATE_CONVENTION:
+            return DEFAULT_OPERATIONAL_DATE_CONVENTION
+
+        return convention
+
+    def get_operational_date(self):
+        """Return the current farm operational date.
+
+        The system's configured farm timezone determines the calendar date.
+        This is deliberately date-only; no UI-relative 'today/yesterday'
+        marker is persisted or returned.
+        """
+        return datetime.now(
+            timezone.utc
+        ).astimezone(
+            self.get_timezone_info()
+        ).date()
+
+    # ------------------------------------------------------------------
+    # Dashboard / UI preferences
+    # ------------------------------------------------------------------
+
+    def get_dashboard_preferences(self) -> dict:
+        trend_period = str(
+            self.repository.get(
+                "dashboard_default_trend_period",
+                DEFAULT_DASHBOARD_TREND_PERIOD,
+            )
+            or DEFAULT_DASHBOARD_TREND_PERIOD
+        ).strip()
+
+        if trend_period not in {
+            "7d",
+            "30d",
+            "3mo",
+            "6mo",
+            "1y",
+        }:
+            trend_period = DEFAULT_DASHBOARD_TREND_PERIOD
+
+        visibility = _json_loads(
+            self.repository.get(
+                "dashboard_card_visibility"
+            ),
+            {},
+        )
+
+        merged_visibility = dict(
+            DEFAULT_DASHBOARD_CARD_VISIBILITY
+        )
+        merged_visibility.update(
+            {
+                key: bool(value)
+                for key, value in visibility.items()
+                if key in DEFAULT_DASHBOARD_CARD_VISIBILITY
+            }
+        )
+
+        return {
+            "default_trend_period": trend_period,
+            "card_visibility": merged_visibility,
+        }
+
+    def get_alert_preferences(self) -> dict:
+        return _json_loads(
+            self.repository.get(
+                "alert_preferences"
+            ),
+            dict(DEFAULT_ALERT_PREFERENCES),
+        )
+
+    # ------------------------------------------------------------------
+    # Public settings read model
+    # ------------------------------------------------------------------
 
     def get_public_settings(self) -> dict:
         return {
-            "farm_name": self.repository.get("farm_name", DEFAULT_FARM_NAME),
+            "farm_name": self.get_farm_name(),
             "animal_id_prefix": self.get_animal_id_prefix(),
+            "timezone": self.get_timezone(),
+            "operational_date_convention": (
+                self.get_operational_date_convention()
+            ),
+            "current_operational_date": (
+                self.get_operational_date().isoformat()
+            ),
+            "dashboard": self.get_dashboard_preferences(),
+            "alerts": self.get_alert_preferences(),
             "reset_protected": self.is_reset_protected(),
         }
 
-    def get_animal_id_prefix(self) -> str:
-        prefix = self.repository.get("animal_id_prefix", DEFAULT_ANIMAL_ID_PREFIX)
-        prefix = (prefix or "").strip().upper()
-        return prefix or DEFAULT_ANIMAL_ID_PREFIX
+    # ------------------------------------------------------------------
+    # Mutation
+    # ------------------------------------------------------------------
 
-    def update_identity(self, *, farm_name: str | None = None, animal_id_prefix: str | None = None,
-                         updated_by: str | None = None) -> dict:
+    def update_identity(
+        self,
+        *,
+        farm_name: str | None = None,
+        animal_id_prefix: str | None = None,
+        updated_by: str | None = None,
+    ) -> dict:
         if farm_name is not None:
             farm_name = farm_name.strip()
+
             if not farm_name:
-                raise ValueError("farm_name cannot be blank")
-            self.repository.set("farm_name", farm_name, updated_by=updated_by)
+                raise ValueError(
+                    "farm_name cannot be blank"
+                )
+
+            self.repository.set(
+                "farm_name",
+                farm_name,
+                updated_by=updated_by,
+            )
 
         if animal_id_prefix is not None:
-            prefix = animal_id_prefix.strip().upper()
-            if not (1 <= len(prefix) <= 6) or not prefix.isalpha():
-                raise ValueError("animal_id_prefix must be 1-6 letters (e.g. \"TD\")")
-            self.repository.set("animal_id_prefix", prefix, updated_by=updated_by)
+            prefix = (
+                animal_id_prefix
+                .strip()
+                .upper()
+            )
+
+            if not (
+                1 <= len(prefix) <= 6
+            ) or not prefix.isalpha():
+                raise ValueError(
+                    "animal_id_prefix must be 1-6 letters (e.g. \"TD\")"
+                )
+
+            self.repository.set(
+                "animal_id_prefix",
+                prefix,
+                updated_by=updated_by,
+            )
 
         return self.get_public_settings()
 
-    # -- Reset protection ---------------------------------------------------
+    def update_operational_settings(
+        self,
+        *,
+        timezone_name: str | None = None,
+        operational_date_convention: str | None = None,
+        updated_by: str | None = None,
+    ) -> dict:
+        if timezone_name is not None:
+            timezone_name = timezone_name.strip()
+
+            try:
+                ZoneInfo(timezone_name)
+            except (
+                ZoneInfoNotFoundError,
+                ValueError,
+            ) as exc:
+                raise ValueError(
+                    f"Unknown IANA timezone: {timezone_name}"
+                ) from exc
+
+            self.repository.set(
+                "timezone",
+                timezone_name,
+                updated_by=updated_by,
+            )
+
+        if operational_date_convention is not None:
+            convention = (
+                operational_date_convention
+                .strip()
+                .upper()
+            )
+
+            if (
+                convention
+                != DEFAULT_OPERATIONAL_DATE_CONVENTION
+            ):
+                raise ValueError(
+                    "operational_date_convention must be "
+                    "FARM_LOCAL_DATE"
+                )
+
+            self.repository.set(
+                "operational_date_convention",
+                convention,
+                updated_by=updated_by,
+            )
+
+        return self.get_public_settings()
+
+    def update_dashboard_preferences(
+        self,
+        *,
+        default_trend_period: str | None = None,
+        card_visibility: dict | None = None,
+        updated_by: str | None = None,
+    ) -> dict:
+        if default_trend_period is not None:
+            trend_period = (
+                default_trend_period
+                .strip()
+            )
+
+            if trend_period not in {
+                "7d",
+                "30d",
+                "3mo",
+                "6mo",
+                "1y",
+            }:
+                raise ValueError(
+                    "default_trend_period must be one of "
+                    "7d, 30d, 3mo, 6mo, 1y"
+                )
+
+            self.repository.set(
+                "dashboard_default_trend_period",
+                trend_period,
+                updated_by=updated_by,
+            )
+
+        if card_visibility is not None:
+            if not isinstance(
+                card_visibility,
+                dict,
+            ):
+                raise ValueError(
+                    "card_visibility must be an object"
+                )
+
+            normalized = {
+                key: bool(value)
+                for key, value in card_visibility.items()
+                if key in DEFAULT_DASHBOARD_CARD_VISIBILITY
+            }
+
+            self.repository.set(
+                "dashboard_card_visibility",
+                json.dumps(
+                    normalized,
+                    sort_keys=True,
+                ),
+                updated_by=updated_by,
+            )
+
+        return self.get_public_settings()
+
+    def update_alert_preferences(
+        self,
+        *,
+        preferences: dict,
+        updated_by: str | None = None,
+    ) -> dict:
+        if not isinstance(
+            preferences,
+            dict,
+        ):
+            raise ValueError(
+                "alert preferences must be an object"
+            )
+
+        self.repository.set(
+            "alert_preferences",
+            json.dumps(
+                preferences,
+                sort_keys=True,
+            ),
+            updated_by=updated_by,
+        )
+
+        return self.get_public_settings()
+
+    # ------------------------------------------------------------------
+    # Reset protection
+    # ------------------------------------------------------------------
 
     def is_reset_protected(self) -> bool:
-        return self.repository.get("reset_protected", "false") == "true"
+        return (
+            self.repository.get(
+                "reset_protected",
+                "false",
+            )
+            == "true"
+        )
 
-    def set_reset_protection(self, *, enabled: bool, password: str | None = None,
-                              updated_by: str | None = None) -> dict:
+    def set_reset_protection(
+        self,
+        *,
+        enabled: bool,
+        password: str | None = None,
+        updated_by: str | None = None,
+    ) -> dict:
         if enabled:
-            if not password or len(password) < 4:
-                raise ValueError("A password of at least 4 characters is required to enable reset protection")
-            self.repository.set("reset_password_hash", _hash_password(password), updated_by=updated_by)
-        self.repository.set("reset_protected", "true" if enabled else "false", updated_by=updated_by)
+            if (
+                not password
+                or len(password) < 4
+            ):
+                raise ValueError(
+                    "A password of at least 4 characters is required "
+                    "to enable reset protection"
+                )
+
+            self.repository.set(
+                "reset_password_hash",
+                _hash_password(password),
+                updated_by=updated_by,
+            )
+
+        self.repository.set(
+            "reset_protected",
+            "true" if enabled else "false",
+            updated_by=updated_by,
+        )
+
         return self.get_public_settings()
 
-    def verify_reset_password(self, password: str | None) -> bool:
-        stored = self.repository.get("reset_password_hash")
-        if not stored or not password:
+    def verify_reset_password(
+        self,
+        password: str | None,
+    ) -> bool:
+        stored = self.repository.get(
+            "reset_password_hash"
+        )
+
+        if (
+            not stored
+            or not password
+        ):
             return False
-        return _verify_password(password, stored)
+
+        return _verify_password(
+            password,
+            stored,
+        )
+

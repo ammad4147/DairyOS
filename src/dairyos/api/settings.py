@@ -47,6 +47,23 @@ class UpdateIdentityRequest(BaseModel):
     updated_by: str = Field(default="UI Operator")
 
 
+class UpdateOperationalSettingsRequest(BaseModel):
+    timezone: str | None = None
+    operational_date_convention: str | None = None
+    updated_by: str = Field(default="UI Operator")
+
+
+class UpdateDashboardPreferencesRequest(BaseModel):
+    default_trend_period: str | None = None
+    card_visibility: dict | None = None
+    updated_by: str = Field(default="UI Operator")
+
+
+class UpdateAlertPreferencesRequest(BaseModel):
+    preferences: dict
+    updated_by: str = Field(default="UI Operator")
+
+
 class ResetProtectionRequest(BaseModel):
     enabled: bool
     password: str | None = None
@@ -81,6 +98,71 @@ def update_identity(payload: UpdateIdentityRequest):
     finally:
         rf.close()
 
+
+@router.put("/operational")
+def update_operational_settings(
+    payload: UpdateOperationalSettingsRequest,
+):
+    service, rf = _service()
+
+    try:
+        return service.update_operational_settings(
+            timezone_name=payload.timezone,
+            operational_date_convention=(
+                payload.operational_date_convention
+            ),
+            updated_by=payload.updated_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    finally:
+        rf.close()
+
+
+@router.put("/dashboard")
+def update_dashboard_preferences(
+    payload: UpdateDashboardPreferencesRequest,
+):
+    service, rf = _service()
+
+    try:
+        return service.update_dashboard_preferences(
+            default_trend_period=(
+                payload.default_trend_period
+            ),
+            card_visibility=payload.card_visibility,
+            updated_by=payload.updated_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    finally:
+        rf.close()
+
+
+@router.put("/alerts")
+def update_alert_preferences(
+    payload: UpdateAlertPreferencesRequest,
+):
+    service, rf = _service()
+
+    try:
+        return service.update_alert_preferences(
+            preferences=payload.preferences,
+            updated_by=payload.updated_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    finally:
+        rf.close()
 
 @router.post("/reset-protection")
 def set_reset_protection(payload: ResetProtectionRequest):
@@ -153,3 +235,4 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
     container.dashboard = None
 
     return {"status": "reset", "tables_cleared": tables}
+

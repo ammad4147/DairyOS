@@ -231,9 +231,22 @@ def _timestamp() -> str:
 
 
 def _today() -> date:
-    return datetime.now(timezone.utc).date()
+    """Return the configured farm-local operational date."""
+    from dairyos.data.repositories.repository_factory import (
+        RepositoryFactory,
+    )
+    from dairyos.farm.settings.services.farm_settings_service import (
+        FarmSettingsService,
+    )
 
+    factory = RepositoryFactory.create()
 
+    try:
+        return FarmSettingsService(
+            factory.app_settings()
+        ).get_operational_date()
+    finally:
+        factory.close()
 def _optional_float(value) -> float | None:
     """Preserve the difference between "not entered" and "entered zero"."""
 
@@ -1736,9 +1749,3 @@ def resolve_health_case(
     finally:
         if owns_factory:
             rf.close()
-
-
-
-
-
-

@@ -158,3 +158,89 @@ def test_reset_after_wipe_new_animal_starts_at_one(client, registered_animal):
 
     created = client.post("/farm/animals", json={"animal_type": "COW", "lifecycle_status": "HEIFER"}).json()
     assert created["animal_id"] == "TD-001"
+def test_operational_settings_are_persisted(client):
+    response = client.put(
+        "/settings/operational",
+        json={
+            "timezone": "UTC",
+            "operational_date_convention": "FARM_LOCAL_DATE",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    body = response.json()
+
+    assert body["timezone"] == "UTC"
+    assert (
+        body["operational_date_convention"]
+        == "FARM_LOCAL_DATE"
+    )
+    assert body["current_operational_date"]
+
+
+def test_invalid_operational_timezone_is_rejected(client):
+    response = client.put(
+        "/settings/operational",
+        json={
+            "timezone": "NOT/A_REAL_TIMEZONE",
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
+def test_dashboard_preferences_are_persisted(client):
+    response = client.put(
+        "/settings/dashboard",
+        json={
+            "default_trend_period": "30d",
+            "card_visibility": {
+                "milk": True,
+                "finance": False,
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    body = response.json()
+
+    assert (
+        body["dashboard"]["default_trend_period"]
+        == "30d"
+    )
+    assert (
+        body["dashboard"]["card_visibility"]["finance"]
+        is False
+    )
+
+
+def test_invalid_dashboard_period_is_rejected(client):
+    response = client.put(
+        "/settings/dashboard",
+        json={
+            "default_trend_period": "today",
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
+def test_alert_preferences_are_persisted(client):
+    response = client.put(
+        "/settings/alerts",
+        json={
+            "preferences": {
+                "show_milk_findings": True,
+            }
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    assert (
+        response.json()["alerts"]["show_milk_findings"]
+        is True
+    )
+
