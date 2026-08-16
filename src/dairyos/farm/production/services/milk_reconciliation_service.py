@@ -387,6 +387,7 @@ class MilkReconciliationService:
                 item.receivable_outstanding
             ),
             "notes": item.notes,
+            "recorded_by": item.recorded_by,
         }
 
     def record_disposition(
@@ -446,6 +447,39 @@ class MilkReconciliationService:
         repo, owned_factory = self._repo()
 
         try:
+
+            # A complete production day establishes the hard upper bound
+            # for all milk dispositions allocated against that date.
+            production_basis = self._production_total(
+                production_date
+            )
+
+            if production_basis.get("complete"):
+                produced_litres = float(
+                    production_basis["daily_total"]
+                )
+
+                already_accounted = sum(
+                    float(item.quantity_litres)
+                    for item in repo.get_by_date(
+                        production_date
+                    )
+                )
+
+                proposed_total = (
+                    already_accounted
+                    + float(quantity_litres)
+                )
+
+                if proposed_total > produced_litres + 0.01:
+                    raise ValueError(
+                        "Milk disposition quantity exceeds available production "
+                        f"for {production_date.isoformat()}: "
+                        f"already accounted {already_accounted:.3f} L, "
+                        f"requested {float(quantity_litres):.3f} L, "
+                        f"produced {produced_litres:.3f} L."
+                    )
+
             if (
                 disposition_type == "SOLD"
                 and repo.get_by_sale_id(sale_id) is not None

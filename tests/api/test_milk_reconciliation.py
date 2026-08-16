@@ -873,3 +873,131 @@ def test_withheld_disposition_is_valid():
     assert disposition.quantity_litres == 7.5
     assert disposition.sale_id is None
     assert disposition.amount_due == 0.0
+def test_disposition_quantity_must_not_over_allocate_known_production(
+    monkeypatch,
+):
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository(
+        [
+            _sold(
+                production_date,
+                60.0,
+            ),
+            _non_sale(
+                production_date,
+                "WITHHELD",
+                15.0,
+            ),
+        ]
+    )
+
+    _patch_trend(
+        monkeypatch,
+        complete=True,
+        daily_total=80.0,
+    )
+
+    _patch_factory(
+        monkeypatch,
+        repo,
+        FakeFindingRepository(),
+    )
+
+    service = _service(repo)
+
+    with pytest.raises(
+        ValueError,
+        match="exceeds available production",
+    ):
+        service.record_disposition(
+            production_date=production_date,
+            disposition_type="WASTAGE",
+            quantity_litres=6.0,
+            recorded_by="Operator",
+        )
+
+
+def test_non_sale_disposition_retains_recorded_by_in_serialized_traceability(
+    monkeypatch,
+):
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository(
+        [
+            _non_sale(
+                production_date,
+                "WITHHELD",
+                15.0,
+            ),
+        ]
+    )
+
+    service = _service(repo)
+
+    item = service.record_disposition(
+        production_date=production_date,
+        disposition_type="WITHHELD",
+        quantity_litres=5.0,
+        notes="Treatment withdrawal",
+        recorded_by="Milking Operator",
+    )
+
+    payload = service._serialize_disposition(item)
+
+    assert payload["disposition_type"] == "WITHHELD"
+    assert payload["quantity_litres"] == 5.0
+    assert payload["recorded_by"] == "Milking Operator"
+    assert payload["notes"] == "Treatment withdrawal"
+
+
+def test_non_sale_disposition_cannot_carry_sale_metadata():
+    service = _service(
+        FakeDispositionRepository()
+    )
+
+    item = service.record_disposition(
+        production_date=date(2026, 8, 15),
+        disposition_type="WITHHELD",
+        quantity_litres=5.0,
+        sale_id="ILLEGAL-SALE",
+        counterparty="Buyer",
+        selling_price_per_litre=225.0,
+        recorded_by="Operator",
+    )
+
+    assert item.sale_id is None
+    assert item.counterparty is None
+    assert item.selling_price_per_litre is None
+    assert item.amount_due == 0.0
+
+
+def test_duplicate_non_sale_dispositions_are_not_silently_collapsed():
+    production_date = date(2026, 8, 15)
+
+    repo = FakeDispositionRepository()
+
+    service = _service(repo)
+
+    first = service.record_disposition(
+        production_date=production_date,
+        disposition_type="WITHHELD",
+        quantity_litres=5.0,
+        recorded_by="Operator-1",
+    )
+
+    second = service.record_disposition(
+        production_date=production_date,
+        disposition_type="WITHHELD",
+        quantity_litres=5.0,
+        recorded_by="Operator-2",
+    )
+
+    assert first is not second
+    assert len(repo.rows) == 2
+    assert repo.rows[0] is first
+    assert repo.rows[1] is second
+    assert repo.rows[0].quantity_litres == 5.0
+    assert repo.rows[1].quantity_litres == 5.0
+    assert repo.rows[0].recorded_by == "Operator-1"
+    assert repo.rows[1].recorded_by == "Operator-2"
