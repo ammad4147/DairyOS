@@ -17,6 +17,18 @@ def _has_entered_yield(record: dict) -> bool:
     ) or record.get("total_yield") is not None
 
 
+def _previous_production_row(eligible: list[dict], as_of_date: date):
+    """Return the immediately preceding recorded production date, not merely yesterday."""
+    prior = [
+        record for record in eligible
+        if (production_date := record_date(record)) is not None
+        and production_date < as_of_date
+    ]
+    if not prior:
+        return None
+    return max(prior, key=lambda record: record_date(record))
+
+
 def detect_drop(
     records: list[dict],
     *,
@@ -28,13 +40,11 @@ def detect_drop(
     schedule_service=None,
     animal=None,
 ) -> dict | None:
-    """Compare one animal's complete daily yield with the prior date.
+    """Compare an animal's complete daily yield with its immediately preceding production date.
 
-    When ``schedule_service`` and ``animal`` are supplied, effective frequency
-    is resolved from the authoritative schedule for ``as_of_date``. The same
-    resolver is also used for the immediately preceding production date.
-    Legacy explicit-frequency arguments remain accepted for compatibility, but
-    new callers must use the schedule service for historical correctness.
+    The authoritative path resolves the effective frequency independently for
+    the current and immediately preceding production dates. Explicit frequency
+    arguments remain compatibility inputs for legacy callers only.
     """
     current_frequency = milking_frequency
     previous_frequency = milking_frequency
@@ -43,8 +53,6 @@ def detect_drop(
         if animal is None:
             raise ValueError("animal is required when schedule_service is supplied")
         current_frequency = schedule_service.get_frequency_for_date(animal, as_of_date)
-        previous_date = date.fromordinal(as_of_date.toordinal() - 1)
-        previous_frequency = schedule_service.get_frequency_for_date(animal, previous_date)
     elif expected_sessions is not None:
         expected = tuple(expected_sessions)
         current_frequency = (
@@ -83,13 +91,24 @@ def detect_drop(
             "missing_sessions": list(current_missing),
         }
 
-    previous_date = date.fromordinal(as_of_date.toordinal() - 1)
-    previous_row = next(
-        (record for record in eligible if record_date(record) == previous_date),
-        None,
-    )
+    previous_row = _previous_production_row(eligible, as_of_date)
+    if previous_row is None:
+        return {
+            "severity": None,
+            "status": "NO_COMPARABLE_PRIOR_DATE",
+            "current": daily_total(current_row),
+            "previous": None,
+            "percent": None,
+            "current_date": as_of_date.isoformat(),
+            "previous_date": None,
+            "missing_sessions": [],
+        }
 
-    if previous_row is None or not is_complete(previous_row, previous_frequency):
+    previous_date = record_date(previous_row)
+    if schedule_service is not None:
+        previous_frequency = schedule_service.get_frequency_for_date(animal, previous_date)
+
+    if not is_complete(previous_row, previous_frequency):
         return {
             "severity": None,
             "status": "NO_COMPARABLE_PRIOR_DATE",
