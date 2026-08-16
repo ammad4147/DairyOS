@@ -1,4 +1,4 @@
-﻿from dairyos.api.milk_production_summary import router as milk_production_summary_router
+from dairyos.api.milk_production_summary import router as milk_production_summary_router
 """FastAPI application bootstrap for DairyOS.
 
 The operator UI is the React/Vite application under ``src/DairyOS.Web``.
@@ -87,19 +87,32 @@ async def enforce_animal_identity(request, call_next):
     ):
         try:
             raw_date = payload.get("production_date")
-            operational_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else date.today()
-            MilkCycleMonitoringService().monitor(
+            operational_date = (
+                date.fromisoformat(str(raw_date)[:10])
+                if raw_date
+                else date.today()
+            )
+
+            individual_result = MilkCycleMonitoringService().monitor(
                 animal_id=str(payload["animal_id"]),
                 milking_session=str(payload["milking_session"]),
                 production_date=operational_date,
             )
-            MilkHerdDailyDropMonitoringService().monitor(operational_date)
-            MilkReconciliationService().reconcile(operational_date)
+
+            herd_result = MilkHerdDailyDropMonitoringService().monitor(
+                operational_date
+            )
+
+            MilkReconciliationService().reconcile(
+                operational_date
+            )
+
         except Exception:
-            logging.exception("Milk post-write monitoring failed after a successful milk write.")
+            logging.exception(
+                "Milk post-write monitoring failed after a successful milk write."
+            )
 
     return response
-
 
 from dairyos.api.auth import router as auth_router
 from dairyos.api.command_center import router as command_router
@@ -163,4 +176,6 @@ def root():
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
 
 app.include_router(milk_production_summary_router)
+
+
 

@@ -3,8 +3,12 @@ from __future__ import annotations
 from datetime import date
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import MilkProductionTrendIntelligenceService
-from dairyos.farm.production.services.milk_finding_service import MilkFindingService
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
+    MilkProductionTrendIntelligenceService,
+)
+from dairyos.farm.production.services.milk_finding_service import (
+    MilkFindingService,
+)
 
 
 class MilkHerdDailyDropMonitoringService:
@@ -21,18 +25,28 @@ class MilkHerdDailyDropMonitoringService:
             return result
 
         percentage = result["variance_percentage"]
+
         if percentage is None or percentage > -10:
             return result
 
         severity = "HIGH" if percentage >= -20 else "CRITICAL"
+
         rf = RepositoryFactory.create()
+
         try:
-            MilkFindingService(rf.operational_findings()).raise_or_update(
+            MilkFindingService(
+                rf.operational_findings()
+            ).raise_or_update(
                 severity=severity,
-                title=f"Farm milk yield declined on {production_date.isoformat()}",
+                title=(
+                    f"Farm milk yield declined on "
+                    f"{production_date.isoformat()}"
+                ),
                 detail=(
-                    f"{result['last_date']}: {result['last_date_total_litres']:.1f} L -> "
-                    f"{result['reference_date']}: {result['current_total_litres']:.1f} L "
+                    f"{result['prior_date']}: "
+                    f"{result['prior_total_litres']:.1f} L -> "
+                    f"{production_date.isoformat()}: "
+                    f"{result['daily_total']:.1f} L "
                     f"({abs(percentage):.1f}% decline)."
                 ),
                 subject_type="FARM",

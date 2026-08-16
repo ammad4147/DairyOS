@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -28,9 +28,6 @@ from dairyos.milk.services.milk_session_sequence_service import (
 )
 from dairyos.milk.services.milk_recording_intelligence_service import (
     MilkRecordingIntelligenceService,
-)
-from dairyos.farm.production.services.milk_drop_detection_service import (
-    detect_drop,
 )
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
@@ -612,119 +609,6 @@ def _list_by_type(container, input_type: str):
     return records
 
 
-def _detect_and_raise_milk_drop(
-    container,
-    *,
-    animal_id: str,
-    session: str,
-    as_of_date,
-) -> None:
-    """Run date-aware individual-animal milk decline detection.
-
-    The denominator is the animal's complete production-date yield.
-    Milking-frequency authority is resolved for the production date,
-    never blindly taken from the animal's current setting.
-
-    Findings remain derived convenience data and therefore never block
-    persistence of the authoritative milk record.
-
-    The boundary accepts either the normal application container or a
-    repository-factory-like object. This preserves isolated service-test
-    composition without changing production wiring.
-    """
-
-    try:
-        rf = getattr(
-            container,
-            "repository_factory",
-            None,
-        )
-
-        owns_factory = False
-
-        # Normal application-container composition.
-        if rf is None:
-            # Also support a repository-factory-shaped caller directly.
-            if callable(getattr(container, "animal", None)):
-                rf = container
-            else:
-                rf = RepositoryFactory.create()
-                owns_factory = True
-
-        try:
-            animal = rf.animal().get_by_animal_id(
-                str(animal_id)
-            )
-
-            if animal is None:
-                return
-
-            from dairyos.farm.herd.services.animal_milking_schedule_service import (
-                AnimalMilkingScheduleService,
-            )
-
-            schedule_service = AnimalMilkingScheduleService(
-                repository=rf.animal(),
-            )
-
-            milking_frequency = (
-                schedule_service.get_frequency_for_date(
-                    animal=animal,
-                    operational_date=as_of_date,
-                )
-            )
-
-            records = _list_by_type(
-                container,
-                "milk_production",
-            )
-
-            result = detect_drop(
-                records,
-                animal_id=str(animal_id),
-                session=session,
-                as_of_date=as_of_date,
-                milking_frequency=milking_frequency,
-            )
-
-            if result is None or result.get("severity") is None:
-                return
-
-            service = OperationalFindingService(
-                rf.operational_findings()
-            )
-
-            service.raise_or_update(
-                source_module="MILK",
-                severity=result["severity"],
-                title=(
-                    f"{animal_id} production dropped "
-                    f"{abs(result['percent']):.0f}%"
-                ),
-                detail=(
-                    f"{result['previous']:.1f} L -> "
-                    f"{result['current']:.1f} L "
-                    f"({session.title()} vs "
-                    f"{result['previous_date']} "
-                    f"{session.title()})"
-                ),
-                subject_type="ANIMAL",
-                subject_id=str(animal_id),
-                route=f"/farm/animals/{animal_id}",
-                dedupe_key=(
-                    f"MILK_DROP:{animal_id}:{session}"
-                ),
-            )
-
-        finally:
-            if owns_factory:
-                rf.close()
-
-    except Exception:
-        # Milk persistence is authoritative. A derived finding must never
-        # make a valid milk entry fail.
-        return
-
 @router.post("/milk")
 def record_milk_entry(
     entry: LegacyCompatibleMilkEntryRequest,
@@ -816,17 +700,6 @@ def record_milk_entry(
         )
         if settled is not None:
             result["session_record_id"] = settled.session_record_id
-
-        # G3.4: same-session drop detection (D-UI-2/D-UI-3), only meaningful
-        # for governed ledger entries -- unsequenced/pre-ledger rows are
-        # excluded from detection anyway (see milk_drop_detection_service).
-        if total is not None:
-            _detect_and_raise_milk_drop(
-                container,
-                animal_id=governed_entry.animal_id,
-                session=governed_entry.milking_session.value,
-                as_of_date=operational_date,
-            )
 
     return result
 
@@ -1863,4 +1736,9 @@ def resolve_health_case(
     finally:
         if owns_factory:
             rf.close()
+
+
+
+
+
 

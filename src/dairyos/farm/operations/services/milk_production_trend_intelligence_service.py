@@ -141,7 +141,15 @@ class MilkProductionTrendIntelligenceService:
 
     @classmethod
     def _frequency_for_date(cls, animal, histories, target_date: date):
-        day_start = datetime.combine(target_date, datetime.min.time())
+        if not histories:
+            return cls._normalize_frequency(
+                getattr(animal, "milking_frequency", None)
+            )
+
+        day_start = datetime.combine(
+            target_date,
+            datetime.min.time(),
+        )
         day_end = day_start + timedelta(days=1)
 
         candidates = []
@@ -159,19 +167,29 @@ class MilkProductionTrendIntelligenceService:
 
             if (
                 effective_from < day_end
-                and (effective_to is None or effective_to > day_start)
+                and (
+                    effective_to is None
+                    or effective_to > day_start
+                )
             ):
-                candidates.append((effective_from, history))
+                candidates.append(
+                    (effective_from, history)
+                )
 
         if candidates:
-            candidates.sort(key=lambda item: item[0], reverse=True)
+            candidates.sort(
+                key=lambda item: item[0],
+                reverse=True,
+            )
             return cls._normalize_frequency(
-                getattr(candidates[0][1], "milking_frequency", None)
+                getattr(
+                    candidates[0][1],
+                    "milking_frequency",
+                    None,
+                )
             )
 
-        return cls._normalize_frequency(
-            getattr(animal, "milking_frequency", None)
-        )
+        return None
 
     @staticmethod
     def _record_session_values(record):

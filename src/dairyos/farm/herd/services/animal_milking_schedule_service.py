@@ -28,6 +28,17 @@ class MilkingScheduleSnapshot:
     changed_by: str | None = None
     reason: str | None = None
 
+    def __getitem__(self, key: str):
+        if key == "operational_date":
+            return (
+                self.operational_date.isoformat()
+                if self.operational_date is not None
+                else None
+            )
+        if key == "expected_sessions":
+            return list(self.expected_sessions)
+        return getattr(self, key)
+
 
 class AnimalMilkingScheduleService:
     """Single authority for interpreting an animal's milking schedule.
@@ -115,13 +126,13 @@ class AnimalMilkingScheduleService:
 
         record = self._resolve_record(animal, normalized, records)
         if record is None:
-            return None
+            return str(current).strip().upper() if current else None
         frequency = getattr(record, "milking_frequency", None)
         return str(frequency).strip().upper() if frequency else None
 
-    def get_expected_sessions(self, animal, operational_date=None, history: Iterable[Any] | None = None) -> tuple[str, ...]:
+    def get_expected_sessions(self, animal, operational_date=None, history: Iterable[Any] | None = None) -> list[str]:
         frequency = self.get_frequency_for_date(animal, operational_date, history)
-        return FREQUENCY_MAP.get(frequency, ())
+        return list(FREQUENCY_MAP.get(frequency, ()))
 
     def get_schedule_snapshot(self, animal, operational_date=None, history: Iterable[Any] | None = None) -> MilkingScheduleSnapshot:
         normalized = self._as_operational_date(operational_date)
