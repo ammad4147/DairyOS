@@ -16,7 +16,6 @@ type DashboardReadModel = {
 
 const n = (v: any) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const txt = (v: any) => v === null || v === undefined || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
-const timeOf = (r: Row) => new Date(r.production_date ?? r.timestamp ?? r.date ?? r.created_at ?? 0).getTime();
 const label = (v: string) => v.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
 const statusClass = (v: any) => /critical|failed|error|overdue|out_of_service|missed|negative/i.test(String(v)) ? "danger" : /warning|watch|pending|open|due|elevated|maintenance/i.test(String(v)) ? "warning" : "good";
 
@@ -49,7 +48,10 @@ function periodStart(period: string, operationalDate: string | null): number {
 
 function inPeriod(r: Row, period: string, from: string, to: string, operationalDate: string | null) {
     const date = recordDate(r);
-    if (period === "custom") return Boolean(from && to && date) && date >= from && date <= to;
+    if (period === "custom") {
+        if (!from || !to || !date) return false;
+        return date >= from && date <= to;
+    }
     if (period === "all") return true;
     if (!date) return false;
     const start = periodStart(period, operationalDate);
