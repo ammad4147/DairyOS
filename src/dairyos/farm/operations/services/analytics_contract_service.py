@@ -174,7 +174,7 @@ ANALYSIS_CONTRACTS = {
             "THI observations",
             "complete daily milk production",
         ],
-        "endpoint": "/farm/intelligence/heat-stress",
+        "endpoint": "/farm/heat-stress/intelligence",
     },
 }
 

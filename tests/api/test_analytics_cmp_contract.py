@@ -22,7 +22,7 @@ def test_analytics_catalog_is_backend_authoritative():
         assert contract["completeness_requirements"], name
 
 
-def test_analytics_routes_are_registered():
+def test_available_analytics_use_registered_live_routes():
     routes = {
         route.path
         for route in app.routes
@@ -35,9 +35,19 @@ def test_analytics_routes_are_registered():
         if contract["status"] != "AVAILABLE":
             continue
 
-        assert contract["endpoint"] in routes, (
-            f"{name}: {contract['endpoint']}"
+        endpoint = contract["endpoint"]
+
+        assert endpoint
+        assert endpoint in routes, (
+            f"{name}: {endpoint}"
         )
+
+
+def test_thi_contract_matches_live_heat_stress_route():
+    contract = AnalyticsContractService.catalog()["analyses"]["thi"]
+
+    assert contract["status"] == "AVAILABLE"
+    assert contract["endpoint"] == "/farm/heat-stress/intelligence"
 
 
 def test_reconciled_contract_exposes_analytics_and_cmp():
@@ -69,6 +79,7 @@ def test_analytics_api_exposes_contract_catalog():
     assert body["frontend_calculation_authority"] is False
     assert "yield" in body["analyses"]
     assert "sales" in body["analyses"]
+    assert "thi" in body["analyses"]
 
 
 def test_cmp_routes_are_registered():
