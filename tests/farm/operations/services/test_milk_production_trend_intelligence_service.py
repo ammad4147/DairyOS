@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 from types import SimpleNamespace
 
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
@@ -214,4 +214,106 @@ def test_frequency_history_controls_expected_sessions_for_date():
 
     assert result["complete"] is True
     assert result["daily_total"] == 15.0
+def test_herd_day_is_incomplete_when_one_governed_milking_animal_is_missing_a_session():
+    records = [
+        row("A1", DAY, "MORNING", morning=10.0),
+        row("A1", DAY, "EVENING", evening=8.0),
+        row("A2", DAY, "MORNING", morning=7.0),
+    ]
 
+    service = MilkProductionTrendIntelligenceService(
+        FakeFactory(
+            [
+                animal("A1", frequency="TWICE_DAILY"),
+                animal("A2", frequency="TWICE_DAILY"),
+            ],
+            records,
+        )
+    )
+
+    result = service.generate(
+        as_of_date=DAY,
+        period_days=7,
+    )
+
+    assert result["complete"] is False
+    assert result["daily_total"] is None
+    assert result["comparison_status"] == "NO_COMPARISON"
+
+
+def test_active_non_milking_animal_does_not_block_complete_herd_day():
+    milk_animal = animal(
+        animal_id="A1",
+        frequency="TWICE_DAILY",
+    )
+
+    dry_animal = SimpleNamespace(
+        animal_id="A2",
+        milking_frequency=None,
+        is_currently_milking=False,
+        active=True,
+    )
+
+    records = [
+        row("A1", DAY, "MORNING", morning=10.0),
+        row("A1", DAY, "EVENING", evening=8.0),
+    ]
+
+    service = MilkProductionTrendIntelligenceService(
+        FakeFactory(
+            [milk_animal, dry_animal],
+            records,
+        )
+    )
+
+    result = service.generate(
+        as_of_date=DAY,
+        period_days=7,
+    )
+
+    assert result["complete"] is True
+    assert result["daily_total"] == 18.0
+def test_historical_schedule_governs_milking_participation_for_date():
+    historical_date = DAY.replace(day=14)
+
+    records = [
+        row("A1", historical_date, "MORNING", morning=10.0),
+        row("A1", historical_date, "EVENING", evening=8.0),
+        row("A2", historical_date, "MORNING", morning=7.0),
+    ]
+
+    histories = {
+        "A1": [
+            history(
+                "TWICE_DAILY",
+                historical_date.replace(day=1),
+                None,
+            )
+        ],
+        "A2": [
+            history(
+                "TWICE_DAILY",
+                historical_date.replace(day=1),
+                None,
+            )
+        ],
+    }
+
+    service = MilkProductionTrendIntelligenceService(
+        FakeFactory(
+            [
+                animal("A1", frequency="TWICE_DAILY"),
+                animal("A2", frequency="TWICE_DAILY"),
+            ],
+            records,
+            histories=histories,
+        )
+    )
+
+    result = service.generate(
+        as_of_date=historical_date,
+        period_days=7,
+    )
+
+    assert result["complete"] is False
+    assert result["daily_total"] is None

@@ -165,8 +165,8 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         evening=6.0,
     )
 
-    # Deliberately pre-ledger: the Animal ID is valid, but the row is excluded
-    # by the production-summary ledger filter.
+    # Deliberately pre-ledger: the Animal ID is valid, but the row is
+    # excluded by the production-summary ledger filter.
     _add_milk(
         animal_id=animal_1_id,
         day=today,
@@ -183,6 +183,19 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         morning=10.0,
         afternoon=4.0,
         evening=6.0,
+    )
+
+    # Animal 2 is also governed to milk on the comparison date. An explicit
+    # zero is therefore required for a complete herd-day; NULL would mean the
+    # animal's production was not entered and would correctly make the day
+    # incomplete.
+    _add_milk(
+        animal_id=animal_2_id,
+        day=eight_days_ago,
+        session="EVENING",
+        morning=0.0,
+        afternoon=0.0,
+        evening=0.0,
     )
 
     finding_id = (
@@ -351,4 +364,3 @@ def test_production_summary_uses_same_operational_date_as_next_session(
         authoritative_date
         - timedelta(days=6)
     ).isoformat()
-

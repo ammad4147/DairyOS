@@ -13,6 +13,8 @@ from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.operational_finding import OperationalFinding
 from dairyos.data.models.app_setting import AppSetting
+from dairyos.data.models.animal import Animal
+from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.milk_production import MilkProduction
@@ -76,6 +78,14 @@ def _reset_test_persistence() -> None:
             # falsely mark it under withdrawal -- confirmed by exactly
             # this failure mode while adding that change.
             TreatmentRecord,
+            # Milking schedule history references Animal and therefore must
+            # be removed before the Animal Register itself.
+            AnimalMilkingScheduleHistory,
+            # Animal Register must also be isolated between API tests.
+            # Herd-level milk completeness treats active milking animals
+            # as governed participants, so stale animals from prior tests
+            # would otherwise contaminate herd-day calculations.
+            Animal,
         ):
             session.query(model).delete(synchronize_session=False)
 
@@ -118,6 +128,19 @@ def client(tmp_path):
         # repository factory, preventing stale-session cleanup from leaving
         # persisted KPI inputs visible to the next test.
         _reset_test_persistence()
+
+        # TreatmentRecord is the durable withdrawal source of truth, while
+        # WithdrawalService is an in-memory projection created at runtime
+        # startup. Recreate it after persistence reset so deleted treatments
+        # cannot leak withdrawal state into the next test.
+        from dairyos.operations.intelligence.services.withdrawal_service import (
+            WithdrawalService,
+        )
+
+        withdrawal_service = WithdrawalService()
+        container.runtime._withdrawal_service = withdrawal_service
+        container.withdrawal_service = withdrawal_service
+
         print("FIXTURE RESET:", container.event_journal.count(), flush=True)
         print("AFTER STARTUP:", container.event_journal.count(), flush=True)
         yield c

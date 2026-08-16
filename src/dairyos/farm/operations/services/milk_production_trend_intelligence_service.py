@@ -276,6 +276,56 @@ class MilkProductionTrendIntelligenceService:
 
         return result
 
+    @staticmethod
+    def _governed_milking_animals(
+        animals,
+        histories_by_animal,
+        schedule_service,
+        operational_date,
+    ):
+        """Return animals governed to produce milk on the supplied date."""
+        governed = []
+
+        for animal in animals:
+            if not bool(getattr(animal, "active", True)):
+                continue
+
+            animal_id = str(
+                getattr(animal, "animal_id", "")
+            )
+
+            history = list(
+                histories_by_animal.get(
+                    animal_id,
+                    [],
+                )
+            )
+
+            # When there is no historical schedule, the current
+            # milking flag is the compatibility participation signal.
+            if (
+                not history
+                and not bool(
+                    getattr(
+                        animal,
+                        "is_currently_milking",
+                        False,
+                    )
+                )
+            ):
+                continue
+
+            frequency = schedule_service.get_frequency_for_date(
+                animal,
+                operational_date,
+                history=history,
+            )
+
+            if frequency in AnimalMilkingScheduleService.FREQUENCY_MAP:
+                governed.append(animal)
+
+        return governed
+
     def _complete_daily_totals(
         self,
         records,
@@ -285,13 +335,21 @@ class MilkProductionTrendIntelligenceService:
         end_date,
     ):
         daily_totals = {}
-
         current = start_date
 
+        schedule_service = self._schedule_service
+
         while current <= end_date:
+            governed_animals = self._governed_milking_animals(
+                animals,
+                histories_by_animal,
+                schedule_service,
+                current,
+            )
+
             complete_animals = []
 
-            for animal in animals:
+            for animal in governed_animals:
                 animal_id = str(
                     getattr(animal, "animal_id", "")
                 )
@@ -299,14 +357,23 @@ class MilkProductionTrendIntelligenceService:
                 snapshot = self._daily_animal_snapshot(
                     records,
                     animal,
-                    histories_by_animal.get(animal_id, []),
+                    histories_by_animal.get(
+                        animal_id,
+                        [],
+                    ),
                     current,
                 )
 
                 if snapshot and snapshot["complete"]:
                     complete_animals.append(snapshot)
 
-            if complete_animals:
+            # A herd day is authoritative only when every governed
+            # milking animal has a complete daily production snapshot.
+            if (
+                governed_animals
+                and len(complete_animals)
+                == len(governed_animals)
+            ):
                 daily_totals[current] = round(
                     sum(
                         item["total_litres"]
