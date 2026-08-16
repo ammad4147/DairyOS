@@ -126,7 +126,7 @@ class AnimalMilkingScheduleService:
 
         record = self._resolve_record(animal, normalized, records)
         if record is None:
-            return str(current).strip().upper() if current else None
+            return None
         frequency = getattr(record, "milking_frequency", None)
         return str(frequency).strip().upper() if frequency else None
 
@@ -171,3 +171,6 @@ class AnimalMilkingScheduleService:
             expected_sessions=(),
             source="NO_EFFECTIVE_SCHEDULE",
         )
+
+
+

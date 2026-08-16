@@ -52,11 +52,11 @@ def test_expected_sessions_are_derived_from_resolved_frequency():
     history = [_history("TD-002", "THRICE_DAILY", datetime(2026, 8, 1, 8, 0))]
     service = AnimalMilkingScheduleService(FakeRepository(history))
 
-    assert service.get_expected_sessions(animal, date(2026, 8, 2)) == (
+    assert service.get_expected_sessions(animal, date(2026, 8, 2)) == [
         "MORNING",
         "AFTERNOON",
         "EVENING",
-    )
+    ]
 
 
 def test_current_frequency_is_not_used_for_history_when_history_exists():
@@ -72,10 +72,10 @@ def test_current_frequency_fallback_is_used_only_without_history():
     service = AnimalMilkingScheduleService(FakeRepository([]))
 
     assert service.get_frequency_for_date(animal, date(2020, 1, 1)) == "TWICE_DAILY"
-    assert service.get_expected_sessions(animal, date(2020, 1, 1)) == (
+    assert service.get_expected_sessions(animal, date(2020, 1, 1)) == [
         "MORNING",
         "EVENING",
-    )
+    ]
 
 
 def test_snapshot_exposes_historical_provenance():
@@ -96,3 +96,5 @@ def test_snapshot_exposes_historical_provenance():
     )
     assert snapshot.changed_by == "operator"
     assert snapshot.reason == "test"
+
+

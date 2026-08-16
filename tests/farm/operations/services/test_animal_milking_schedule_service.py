@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
@@ -84,19 +84,14 @@ def test_change_date_uses_new_frequency():
     ]
 
 
-def test_date_before_history_falls_back_to_current_frequency():
+def test_date_before_history_has_no_effective_schedule():
     service = AnimalMilkingScheduleService()
 
     assert service.get_expected_sessions(
         _animal("THRICE_DAILY"),
         operational_date=date(2026, 8, 10),
         history=_history(),
-    ) == [
-        "MORNING",
-        "AFTERNOON",
-        "EVENING",
-    ]
-
+    ) == []
 
 def test_effective_to_is_exclusive():
     service = AnimalMilkingScheduleService()
@@ -182,3 +177,5 @@ def test_schedule_snapshot_reports_date_aware_schedule():
         "MORNING",
         "EVENING",
     ]
+
+
