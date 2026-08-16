@@ -1,6 +1,7 @@
-﻿from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from dairyos.app import container
+from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.operational_finding import OperationalFinding
 
@@ -60,12 +61,70 @@ def test_milk_production_summary_returns_explicit_no_data(client):
 def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_rows(
     client,
 ):
+    animal_1_response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
+            "milking_frequency": "THRICE_DAILY",
+        },
+    )
+    assert animal_1_response.status_code == 200, animal_1_response.text
+    animal_1_id = animal_1_response.json()["animal_id"]
+
+    animal_2_response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
+            "milking_frequency": "THRICE_DAILY",
+        },
+    )
+    assert animal_2_response.status_code == 200, animal_2_response.text
+    animal_2_id = animal_2_response.json()["animal_id"]
+
     today = datetime.now(timezone.utc).date()
+
+    history_start = datetime.combine(
+        today - timedelta(days=30),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
+
+    historical_schedule_1 = AnimalMilkingScheduleHistory(
+        animal_id=animal_1_id,
+        milking_frequency="THRICE_DAILY",
+        effective_from=history_start,
+        effective_to=datetime.now(timezone.utc),
+        changed_by="summary-test",
+        reason="Seed historical schedule for date-aware summary validation",
+    )
+
+    historical_schedule_2 = AnimalMilkingScheduleHistory(
+        animal_id=animal_2_id,
+        milking_frequency="THRICE_DAILY",
+        effective_from=history_start,
+        effective_to=datetime.now(timezone.utc),
+        changed_by="summary-test",
+        reason="Seed historical schedule for date-aware summary validation",
+    )
+
+    container.repository_factory.session.add_all(
+        [
+            historical_schedule_1,
+            historical_schedule_2,
+        ]
+    )
+    container.repository_factory.session.commit()
     yesterday = today - timedelta(days=1)
     eight_days_ago = today - timedelta(days=8)
 
     _add_milk(
-        animal_id="TD-001",
+        animal_id=animal_1_id,
         day=today,
         session="EVENING",
         morning=10.0,
@@ -74,7 +133,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     )
 
     _add_milk(
-        animal_id="TD-001",
+        animal_id=animal_1_id,
         day=yesterday,
         session="EVENING",
         morning=9.0,
@@ -83,7 +142,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     )
 
     _add_milk(
-        animal_id="TD-002",
+        animal_id=animal_2_id,
         day=today,
         session="EVENING",
         morning=6.0,
@@ -92,7 +151,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     )
 
     _add_milk(
-        animal_id="TD-002",
+        animal_id=animal_2_id,
         day=yesterday,
         session="EVENING",
         morning=7.0,
@@ -103,7 +162,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     # Deliberately pre-ledger: the Animal ID is valid, but the row is excluded
     # by the production-summary ledger filter.
     _add_milk(
-        animal_id="TD-001",
+        animal_id=animal_1_id,
         day=today,
         session="LEGACY_EVENING",
         morning=100.0,
@@ -112,7 +171,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
 
     # This belongs to the immediately preceding 7-day comparison period.
     _add_milk(
-        animal_id="TD-001",
+        animal_id=animal_1_id,
         day=eight_days_ago,
         session="EVENING",
         morning=10.0,
@@ -134,7 +193,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         detail="Test finding",
         status="ACKNOWLEDGED",
         subject_type="ANIMAL",
-        subject_id="TD-001",
+        subject_id=animal_1_id,
     )
 
     container.repository_factory.session.add(finding)
@@ -195,13 +254,13 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         for row in animal["rows"]
     }
 
-    assert by_id["TD-001"]["today_liters"] == 8.0
-    assert by_id["TD-001"]["previous_liters"] == 7.0
-    assert by_id["TD-001"]["status"] == "GOOD"
+    assert by_id[animal_1_id]["today_liters"] == 8.0
+    assert by_id[animal_1_id]["previous_liters"] == 7.0
+    assert by_id[animal_1_id]["status"] == "GOOD"
 
-    assert by_id["TD-002"]["today_liters"] == 5.0
-    assert by_id["TD-002"]["previous_liters"] == 6.0
-    assert by_id["TD-002"]["status"] == "AMBER"
+    assert by_id[animal_2_id]["today_liters"] == 5.0
+    assert by_id[animal_2_id]["previous_liters"] == 6.0
+    assert by_id[animal_2_id]["status"] == "AMBER"
 
 
 def test_milk_production_summary_validates_custom_period(client):
