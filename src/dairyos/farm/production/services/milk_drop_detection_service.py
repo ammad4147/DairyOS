@@ -1,14 +1,4 @@
-"""Date-based individual-animal milk decline detection.
-
-The alert denominator is deliberately the animal's COMPLETE daily yield on
-one production date versus that same animal's complete daily yield on the
-immediately preceding production date. It is not a session comparison, a
-command-view snapshot, or a farm-total comparison.
-
-The function remains pure over record-shaped dictionaries. Callers supply the
-animal's governed milking frequency so completeness is evaluated against the
-animal's actual two- or three-session cycle.
-"""
+"""Date-based individual-animal milk decline detection."""
 
 from datetime import date
 
@@ -35,27 +25,34 @@ def detect_drop(
     as_of_date: date,
     milking_frequency: str | None = None,
     expected_sessions: tuple[str, ...] | None = None,
+    schedule_service=None,
+    animal=None,
 ) -> dict | None:
     """Compare one animal's complete daily yield with the prior date.
 
-    ``session`` is retained as a compatibility argument for existing callers,
-    but it is deliberately ignored for the comparison denominator.
-
-    Returns ``None`` when the current date is incomplete, the immediately
-    preceding date is absent/incomplete, or the prior total is not positive.
-    Otherwise returns the two date totals, percentage movement, and any
-    missing-session information for the current date.
-
-    Severity:
-        decline < 10%       -> None
-        10% <= decline <= 20% -> HIGH (amber)
-        decline > 20%       -> CRITICAL (red)
+    When ``schedule_service`` and ``animal`` are supplied, effective frequency
+    is resolved from the authoritative schedule for ``as_of_date``. The same
+    resolver is also used for the immediately preceding production date.
+    Legacy explicit-frequency arguments remain accepted for compatibility, but
+    new callers must use the schedule service for historical correctness.
     """
+    current_frequency = milking_frequency
+    previous_frequency = milking_frequency
 
-    frequency = milking_frequency
-    if expected_sessions is not None:
+    if schedule_service is not None:
+        if animal is None:
+            raise ValueError("animal is required when schedule_service is supplied")
+        current_frequency = schedule_service.get_frequency_for_date(animal, as_of_date)
+        previous_date = date.fromordinal(as_of_date.toordinal() - 1)
+        previous_frequency = schedule_service.get_frequency_for_date(animal, previous_date)
+    elif expected_sessions is not None:
         expected = tuple(expected_sessions)
-        frequency = "THRICE_DAILY" if len(expected) == 3 else "TWICE_DAILY" if len(expected) == 2 else None
+        current_frequency = (
+            "THRICE_DAILY" if len(expected) == 3
+            else "TWICE_DAILY" if len(expected) == 2
+            else None
+        )
+        previous_frequency = current_frequency
 
     eligible = [
         record
@@ -73,8 +70,8 @@ def detect_drop(
     if current_row is None:
         return None
 
-    current_missing = missing_sessions(current_row, frequency)
-    if not is_complete(current_row, frequency):
+    current_missing = missing_sessions(current_row, current_frequency)
+    if not is_complete(current_row, current_frequency):
         return {
             "severity": None,
             "status": "INCOMPLETE",
@@ -92,7 +89,7 @@ def detect_drop(
         None,
     )
 
-    if previous_row is None or not is_complete(previous_row, frequency):
+    if previous_row is None or not is_complete(previous_row, previous_frequency):
         return {
             "severity": None,
             "status": "NO_COMPARABLE_PRIOR_DATE",
