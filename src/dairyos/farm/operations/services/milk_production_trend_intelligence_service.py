@@ -2,6 +2,10 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
+
 if TYPE_CHECKING:
     from dairyos.data.repositories.repository_factory import RepositoryFactory
 
@@ -16,11 +20,6 @@ SUPPORTED_PERIOD_DAYS = {
 }
 
 PERIOD_BY_DAYS = {days: period for period, days in SUPPORTED_PERIOD_DAYS.items()}
-
-EXPECTED_SESSIONS = {
-    "TWICE_DAILY": ("MORNING", "EVENING"),
-    "THRICE_DAILY": ("MORNING", "AFTERNOON", "EVENING"),
-}
 
 
 def _as_datetime(value):
@@ -94,7 +93,7 @@ class MilkProductionTrendIntelligenceService:
             if self._repository_factory is not None
             else repository_factory
         )
-
+        self._schedule_service = AnimalMilkingScheduleService()
     @staticmethod
     def _looks_like_repository_factory(value) -> bool:
         if value is None:
@@ -117,80 +116,6 @@ class MilkProductionTrendIntelligenceService:
 
     def milk(self):
         return self._get_factory().milk()
-
-    @staticmethod
-    def _normalize_frequency(value):
-        if value is None:
-            return None
-
-        if isinstance(value, int):
-            return {
-                2: "TWICE_DAILY",
-                3: "THRICE_DAILY",
-            }.get(value)
-
-        normalized = str(value).strip().upper()
-
-        if normalized in {"2", "TWICE", "TWICE_DAILY"}:
-            return "TWICE_DAILY"
-
-        if normalized in {"3", "THRICE", "THRICE_DAILY"}:
-            return "THRICE_DAILY"
-
-        return None
-
-    @classmethod
-    def _frequency_for_date(cls, animal, histories, target_date: date):
-        if not histories:
-            return cls._normalize_frequency(
-                getattr(animal, "milking_frequency", None)
-            )
-
-        day_start = datetime.combine(
-            target_date,
-            datetime.min.time(),
-        )
-        day_end = day_start + timedelta(days=1)
-
-        candidates = []
-
-        for history in histories:
-            effective_from = _as_datetime(
-                getattr(history, "effective_from", None)
-            )
-            effective_to = _as_datetime(
-                getattr(history, "effective_to", None)
-            )
-
-            if effective_from is None:
-                continue
-
-            if (
-                effective_from < day_end
-                and (
-                    effective_to is None
-                    or effective_to > day_start
-                )
-            ):
-                candidates.append(
-                    (effective_from, history)
-                )
-
-        if candidates:
-            candidates.sort(
-                key=lambda item: item[0],
-                reverse=True,
-            )
-            return cls._normalize_frequency(
-                getattr(
-                    candidates[0][1],
-                    "milking_frequency",
-                    None,
-                )
-            )
-
-        return None
-
     @staticmethod
     def _record_session_values(record):
         """Return entered session yields without treating NULL as zero."""
@@ -218,21 +143,24 @@ class MilkProductionTrendIntelligenceService:
 
         return {}
 
-    @classmethod
     def _daily_animal_snapshot(
-        cls,
+        self,
         records,
         animal,
         histories,
         target_date,
     ):
         animal_id = str(getattr(animal, "animal_id", ""))
-        frequency = cls._frequency_for_date(
+        frequency = self._schedule_service.get_frequency_for_date(
             animal,
-            histories,
             target_date,
+            history=histories,
         )
-        expected = EXPECTED_SESSIONS.get(frequency)
+        expected = self._schedule_service.get_expected_sessions(
+            animal,
+            target_date,
+            history=histories,
+        )
 
         if not expected:
             return None
@@ -262,7 +190,7 @@ class MilkProductionTrendIntelligenceService:
             if status == "NOT_MILKED":
                 continue
 
-            for session, value in cls._record_session_values(record).items():
+            for session, value in self._record_session_values(record).items():
                 if session in entered:
                     entered[session].append(value)
 
@@ -312,9 +240,8 @@ class MilkProductionTrendIntelligenceService:
 
         return result
 
-    @classmethod
     def _complete_daily_totals(
-        cls,
+        self,
         records,
         animals,
         histories_by_animal,
@@ -333,7 +260,7 @@ class MilkProductionTrendIntelligenceService:
                     getattr(animal, "animal_id", "")
                 )
 
-                snapshot = cls._daily_animal_snapshot(
+                snapshot = self._daily_animal_snapshot(
                     records,
                     animal,
                     histories_by_animal.get(animal_id, []),
@@ -355,7 +282,6 @@ class MilkProductionTrendIntelligenceService:
             current += timedelta(days=1)
 
         return daily_totals
-
     @staticmethod
     def _eligible_animals(factory):
         return [
@@ -627,4 +553,6 @@ class MilkProductionTrendIntelligenceService:
         finally:
             if owns_factory:
                 working_factory.close()
+
+
 
