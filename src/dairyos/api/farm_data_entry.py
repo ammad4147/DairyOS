@@ -662,25 +662,19 @@ def record_milk_entry(
     ]
     total = sum(entered) if entered else None
 
+    # Milk production state is governed independently from veterinary treatment state.
+    #
+    # Veterinary treatment remains a health-domain fact. Whether an animal
+    # belongs to the active milk population is governed by the veterinary
+    # NonMilkingDirective, not by treatment withdrawal periods.
+    #
+    # Therefore a valid milk entry is always RECORDED here. Non-milking
+    # directives remove zero-expected animals from the governed population;
+    # MILK_SEPARATELY remains a veterinary/operational instruction for milk
+    # handling outside the normal sale-milk herd.
     status = "RECORDED"
     withdrawal_warning = False
     safety_message = None
-
-    withdrawal_svc = getattr(
-        container,
-        "withdrawal_service",
-        None,
-    )
-
-    if withdrawal_svc and withdrawal_svc.is_animal_withdrawn(
-        governed_entry.animal_id
-    ):
-        status = "WITHHELD"
-        withdrawal_warning = True
-        safety_message = (
-            f"SAFETY ALERT: Animal {governed_entry.animal_id} is under "
-            "active treatment withdrawal. Milk must be withheld!"
-        )
 
     payload = {
         **governed_entry.model_dump(),

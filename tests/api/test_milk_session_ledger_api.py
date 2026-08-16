@@ -258,10 +258,10 @@ def test_a_later_session_never_nulls_an_earlier_one(client, registered_animal):
 # The withdrawal interlock survives all of the above
 # ----------------------------------------------------------------------
 
-def test_withheld_status_survives_a_later_session_on_the_same_day(
+def test_treatment_does_not_change_milk_entry_status(
     client, registered_animal
 ):
-    client.post(
+    treatment_response = client.post(
         "/farm/treatments",
         json={
             "animal_id": registered_animal,
@@ -271,13 +271,31 @@ def test_withheld_status_survives_a_later_session_on_the_same_day(
         },
     )
 
-    withheld = _record_milk(
-        client, registered_animal, "MORNING", morning_yield=9.0
+    assert treatment_response.status_code == 200
+
+    morning = _record_milk(
+        client,
+        registered_animal,
+        "MORNING",
+        morning_yield=9.0,
     )
-    assert withheld.json()["status"] == "WITHHELD"
 
-    _record_milk(client, registered_animal, "EVENING", evening_yield=7.0)
+    assert morning.status_code == 200
+    assert morning.json()["status"] == "RECORDED"
+    assert morning.json().get("withdrawal_warning") in {False, None}
 
-    # Merging the evening figure must not quietly return withheld milk to the
-    # saleable total.
-    assert _milk_rows(registered_animal)[0].status == "WITHHELD"
+    evening = _record_milk(
+        client,
+        registered_animal,
+        "EVENING",
+        evening_yield=7.0,
+    )
+
+    assert evening.status_code == 200
+    assert evening.json()["status"] == "RECORDED"
+
+    row = _milk_rows(registered_animal)[0]
+    assert row.status == "RECORDED"
+    assert row.morning_yield == 9.0
+    assert row.evening_yield == 7.0
+    assert row.total_yield == 16.0

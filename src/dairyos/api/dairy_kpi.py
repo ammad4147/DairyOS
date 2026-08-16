@@ -159,8 +159,8 @@ def _overview(factory, start, end):
     # /farm/reproduction/overview and /farm/animals/{id}/reproduction on
     # identical underlying BreedingRecord data. Before this fix this
     # endpoint's own narrower keyword lists never recognized
-    # "pregnancy_diagnosis" or "pregnancy_confirmed" Ã¢â‚¬â€ the operator UI's
-    # actual event-type values Ã¢â‚¬â€ so confirmed_pregnancies/conception_rate
+    # "pregnancy_diagnosis" or "pregnancy_confirmed" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the operator UI's
+    # actual event-type values ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so confirmed_pregnancies/conception_rate
     # silently undercounted relative to /farm/reproduction/overview.
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
@@ -258,8 +258,8 @@ def _overview(factory, start, end):
                 "milk_per_cow_day": "persisted milk litres divided by animal-days with milk records",
                 "peak_daily_milk": "maximum aggregate litres across persisted animal/day milk records",
                 "treatment_rate": "distinct treated animals divided by active animals for the period",
-                "feed_cost_per_litre": "persisted FEED expense divided by persisted non-withheld milk litres",
-                "labour_per_litre": "persisted LABOUR expense divided by persisted non-withheld milk litres",
+                "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
+                "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
             },
         },
         "methodology": {

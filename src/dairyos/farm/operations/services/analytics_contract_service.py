@@ -24,7 +24,7 @@ ANALYSIS_CONTRACTS = {
             "complete daily milk litres",
             "effective frequency",
             "expected sessions",
-            "recorded/skipped/missing/withheld sessions",
+            "recorded/skipped/missing sessions",
         ],
         "endpoint": "/farm/milk/analytics",
     },

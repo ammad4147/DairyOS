@@ -7,14 +7,13 @@ from dairyos.core.time_utils import utcnow
 
 class Animal(Base):
     """
-    Operational livestock master record — the atomic unit every other
-    domain entity (milk, health, reproduction, finance) attaches to.
+    Persistent animal master record.
 
-    Replaces the previous in-memory dataclass with a real, persistent
-    model. Field names and semantics (status/active, activate/deactivate)
-    are preserved from the original for compatibility; lifecycle_status
-    and milking_frequency are new fields required to drive the
-    measurement-schedule engine.
+    Non-milking directives are animal/herd-state facts. They do not belong
+    to the milk disposition domain.
+
+    ``non_milking_directive`` determines whether the animal is currently
+    outside the active milking herd.
     """
 
     __tablename__ = "animal"
@@ -72,18 +71,11 @@ class Animal(Base):
         nullable=True
     )
 
-    # CALF, HEIFER, LACTATING, DRY, SOLD, DECEASED. Nullable at the
-    # schema level (some construction paths, e.g. legacy direct
-    # Animal(...) calls, don't set it) but required by the
-    # animal_management API layer, which is the intended entry point
-    # for real data — see VALID_LIFECYCLE_STATUSES in that router.
     lifecycle_status = Column(
         String,
         nullable=True
     )
 
-    # Legacy free-text status field, kept for compatibility with
-    # existing code/tests that reference it directly.
     status = Column(
         String,
         default="ACTIVE",
@@ -96,9 +88,6 @@ class Animal(Base):
         nullable=False
     )
 
-    # TWICE_DAILY or THRICE_DAILY — the CURRENT frequency, mirrored here
-    # for fast lookups. The authoritative history lives in
-    # AnimalMilkingScheduleHistory (see below).
     milking_frequency = Column(
         String,
         nullable=True
@@ -120,6 +109,47 @@ class Animal(Base):
         nullable=False
     )
 
+    # ------------------------------------------------------------------
+    # Veterinary non-milking directive state
+    # ------------------------------------------------------------------
+
+    non_milking_directive = Column(
+        String,
+        nullable=False,
+        default="NONE",
+        server_default="NONE",
+        index=True,
+    )
+
+    non_milking_since = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    non_milking_until = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    non_milking_reason = Column(
+        String,
+        nullable=True,
+    )
+
+    non_milking_changed_by = Column(
+        String,
+        nullable=True,
+    )
+
+    # Captures whether the animal belonged to the active milking herd
+    # immediately before a non-milking directive was imposed.
+    non_milking_restore_to_milking = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+
     created_at = Column(
         DateTime,
         default=utcnow,
@@ -139,21 +169,6 @@ class Animal(Base):
         status=None,
         **kwargs,
     ):
-        """
-        Explicit constructor to preserve backward compatibility with
-        existing code that constructs Animal(animal_id, animal_type,
-        status) positionally, as the previous dataclass allowed.
-
-        Also sets Python-side defaults for fields that have a
-        database-level `default=` (active, lifecycle_status, status,
-        created_at, updated_at). SQLAlchemy's Column(default=...) only
-        applies at INSERT time; code that reads these attributes
-        before the object is added to a session and committed would
-        otherwise see None, which silently breaks the "active is
-        True by default" contract the previous dataclass guaranteed
-        immediately on construction.
-        """
-
         super().__init__(**kwargs)
 
         if animal_id is not None:
@@ -167,20 +182,17 @@ class Animal(Base):
         elif self.status is None:
             self.status = "ACTIVE"
 
-        # lifecycle_status is intentionally NOT defaulted here.
-        # Per the data model, a farm's animal classification should
-        # be an explicit choice, not a silent default that could mask
-        # a real data-entry omission. The API layer (animal_management
-        # router) enforces this by requiring it on creation; this
-        # model-level constructor simply doesn't second-guess that by
-        # inventing a value when used directly (e.g. in tests that
-        # construct Animal() without it).
-
         if self.is_currently_milking is None:
             self.is_currently_milking = False
 
         if self.active is None:
             self.active = True
+
+        if self.non_milking_directive is None:
+            self.non_milking_directive = "NONE"
+
+        if self.non_milking_restore_to_milking is None:
+            self.non_milking_restore_to_milking = False
 
         now = utcnow()
 
@@ -191,13 +203,11 @@ class Animal(Base):
             self.updated_at = now
 
     def deactivate(self):
-
         self.active = False
         self.status = "INACTIVE"
         self.updated_at = utcnow()
 
     def activate(self):
-
         self.active = True
         self.status = "ACTIVE"
         self.updated_at = utcnow()

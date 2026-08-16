@@ -17,13 +17,13 @@ SESSION_FIELDS = {
 RECORDED = "RECORDED"
 SKIPPED = "SKIPPED"
 MISSING = "MISSING"
-WITHHELD = "WITHHELD"
 
 
 def expected_sessions(frequency: str | None) -> tuple[str, ...]:
     """Return governed sessions for an already-resolved frequency."""
     if frequency is None:
         return ()
+
     return FREQUENCY_MAP.get(
         str(frequency).strip().upper(),
         (),
@@ -62,7 +62,12 @@ def evaluate_sessions(
     frequency: str | None,
     skipped_sessions=(),
 ) -> dict:
-    """Resolve one animal/date session state without turning NULL into zero."""
+    """Resolve one animal/date session state without turning NULL into zero.
+
+    Veterinary non-milking directives are intentionally outside this function.
+    Animals governed to produce zero milk are excluded from the milk population
+    before session completeness is evaluated.
+    """
     expected = expected_sessions(frequency)
 
     skipped = {
@@ -74,17 +79,10 @@ def evaluate_sessions(
         entered_sessions(record or {})
     )
 
-    status = str(
-        (record or {}).get("status", "")
-        or ""
-    ).upper()
-
     states = {}
 
     for session in expected:
-        if session in entered and status == WITHHELD:
-            states[session] = WITHHELD
-        elif session in entered:
+        if session in entered:
             states[session] = RECORDED
         elif session in skipped:
             states[session] = SKIPPED
@@ -97,7 +95,6 @@ def evaluate_sessions(
         if states[session] in {
             RECORDED,
             SKIPPED,
-            WITHHELD,
         }
     )
 
@@ -113,18 +110,10 @@ def evaluate_sessions(
         if states[session] == MISSING
     )
 
-    withheld_expected = tuple(
-        session
-        for session in expected
-        if states[session] == WITHHELD
-    )
-
     if not expected:
         status_name = "NO_GOVERNED_FREQUENCY"
     elif missing:
         status_name = "INCOMPLETE"
-    elif withheld_expected:
-        status_name = "COMPLETE_WITH_WITHHELD"
     else:
         status_name = "COMPLETE"
 
@@ -143,7 +132,6 @@ def evaluate_sessions(
         "completed_sessions": completed,
         "skipped_sessions": skipped_expected,
         "missing_sessions": missing,
-        "withheld_sessions": withheld_expected,
         "compliance_percentage": compliance_percentage,
         "status": status_name,
     }
@@ -170,6 +158,7 @@ def is_complete(
         record,
         frequency,
     )
+
     return (
         bool(result["expected_sessions"])
         and not result["missing_sessions"]
@@ -187,4 +176,3 @@ def daily_total(record: dict) -> float:
         for field in SESSION_FIELDS.values()
         if record.get(field) is not None
     )
-

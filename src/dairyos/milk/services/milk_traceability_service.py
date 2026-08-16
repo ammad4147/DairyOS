@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict
 
 
 @dataclass
@@ -13,7 +13,6 @@ class MilkTraceabilityBatch:
     )
     animal_ids: List[str] = field(default_factory=list)
     total_litres: float = 0.0
-    withheld_count: int = 0
     status: str = "IN_TANK"
     delivery_ticket_id: str | None = None
 
@@ -21,7 +20,14 @@ class MilkTraceabilityBatch:
 class MilkTraceabilityService:
     """
     End-to-end milk traceability chain:
-    Cow Milking Entry -> Milking Shift -> Bulk Tank Batch -> Tanker Delivery Dispatch
+
+        Cow Milking Entry
+            -> Milking Shift
+            -> Bulk Tank Batch
+            -> Tanker Delivery Dispatch
+
+    Veterinary non-milking directives are population/animal-state facts and
+    are intentionally outside this traceability accounting object.
     """
 
     def __init__(self):
@@ -46,16 +52,15 @@ class MilkTraceabilityService:
         batch_id: str,
         animal_id: str,
         litres: float,
-        is_withheld: bool = False,
     ) -> MilkTraceabilityBatch | None:
         batch = self._batches.get(batch_id)
+
         if not batch:
             return None
-        if is_withheld:
-            batch.withheld_count += 1
-        else:
-            batch.animal_ids.append(animal_id)
-            batch.total_litres += litres
+
+        batch.animal_ids.append(animal_id)
+        batch.total_litres += litres
+
         return batch
 
     def dispatch_delivery(
@@ -64,14 +69,21 @@ class MilkTraceabilityService:
         delivery_ticket_id: str,
     ) -> MilkTraceabilityBatch | None:
         batch = self._batches.get(batch_id)
+
         if not batch:
             return None
+
         batch.delivery_ticket_id = delivery_ticket_id
         batch.status = "DISPATCHED"
+
         return batch
 
-    def trace_animal(self, animal_id: str) -> List[MilkTraceabilityBatch]:
+    def trace_animal(
+        self,
+        animal_id: str,
+    ) -> List[MilkTraceabilityBatch]:
         return [
-            batch for batch in self._batches.values()
+            batch
+            for batch in self._batches.values()
             if animal_id in batch.animal_ids
         ]

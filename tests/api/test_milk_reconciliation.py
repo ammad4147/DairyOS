@@ -718,7 +718,7 @@ def test_incomplete_production_never_creates_finding(
 
     assert result["status"] == "PRODUCTION_INCOMPLETE"
     assert findings.rows == []
-def test_complete_withheld_milk_is_accounted_separately(
+def test_complete_wastage_is_accounted_separately(
     monkeypatch,
 ):
     production_date = date(2026, 8, 15)
@@ -731,12 +731,12 @@ def test_complete_withheld_milk_is_accounted_separately(
             ),
             _non_sale(
                 production_date,
-                "WITHHELD",
+                "WASTAGE",
                 15.0,
             ),
             _non_sale(
                 production_date,
-                "WASTAGE",
+                "DOMESTIC_USE",
                 5.0,
             ),
         ]
@@ -762,7 +762,6 @@ def test_complete_withheld_milk_is_accounted_separately(
     assert result["production_complete"] is True
     assert result["produced_litres"] == 80.0
     assert result["sold_litres"] == 60.0
-    assert result["withheld_litres"] == 15.0
     assert result["non_sale_accounted_litres"] == 20.0
     assert result["accounted_litres"] == 80.0
     assert result["unaccounted_litres"] == 0.0
@@ -770,8 +769,7 @@ def test_complete_withheld_milk_is_accounted_separately(
     assert result["status"] == "RECONCILED"
     assert findings.rows == []
 
-
-def test_withheld_milk_does_not_mask_unaccounted_production(
+def test_non_sale_milk_does_not_mask_unaccounted_production(
     monkeypatch,
 ):
     production_date = date(2026, 8, 15)
@@ -784,7 +782,7 @@ def test_withheld_milk_does_not_mask_unaccounted_production(
             ),
             _non_sale(
                 production_date,
-                "WITHHELD",
+                "WASTAGE",
                 15.0,
             ),
         ]
@@ -809,14 +807,12 @@ def test_withheld_milk_does_not_mask_unaccounted_production(
 
     assert result["produced_litres"] == 80.0
     assert result["sold_litres"] == 60.0
-    assert result["withheld_litres"] == 15.0
     assert result["accounted_litres"] == 75.0
     assert result["unaccounted_litres"] == 5.0
     assert result["status"] == "UNACCOUNTED_PRODUCTION"
     assert len(findings.rows) == 1
 
-
-def test_incomplete_day_with_withheld_disposition_remains_incomplete(
+def test_incomplete_day_with_non_sale_disposition_remains_incomplete(
     monkeypatch,
 ):
     production_date = date(2026, 8, 15)
@@ -825,7 +821,7 @@ def test_incomplete_day_with_withheld_disposition_remains_incomplete(
         [
             _non_sale(
                 production_date,
-                "WITHHELD",
+                "WASTAGE",
                 15.0,
             ),
         ]
@@ -850,29 +846,27 @@ def test_incomplete_day_with_withheld_disposition_remains_incomplete(
 
     assert result["production_complete"] is False
     assert result["produced_litres"] is None
-    assert result["withheld_litres"] == 15.0
     assert result["status"] == "PRODUCTION_INCOMPLETE"
     assert findings.rows == []
 
-
-def test_withheld_disposition_is_valid():
+def test_withheld_disposition_is_rejected():
     production_date = date(2026, 8, 15)
 
     service = _service(
         FakeDispositionRepository()
     )
 
-    disposition = service.record_disposition(
-        production_date=production_date,
-        disposition_type="WITHHELD",
-        quantity_litres=7.5,
-        recorded_by="Operator",
-    )
+    with pytest.raises(
+        ValueError,
+        match="Unknown milk disposition",
+    ):
+        service.record_disposition(
+            production_date=production_date,
+            disposition_type="WITHHELD",
+            quantity_litres=7.5,
+            recorded_by="Operator",
+        )
 
-    assert disposition.disposition_type == "WITHHELD"
-    assert disposition.quantity_litres == 7.5
-    assert disposition.sale_id is None
-    assert disposition.amount_due == 0.0
 def test_disposition_quantity_must_not_over_allocate_known_production(
     monkeypatch,
 ):
@@ -886,7 +880,7 @@ def test_disposition_quantity_must_not_over_allocate_known_production(
             ),
             _non_sale(
                 production_date,
-                "WITHHELD",
+                "WASTAGE",
                 15.0,
             ),
         ]
@@ -917,7 +911,6 @@ def test_disposition_quantity_must_not_over_allocate_known_production(
             recorded_by="Operator",
         )
 
-
 def test_non_sale_disposition_retains_recorded_by_in_serialized_traceability(
     monkeypatch,
 ):
@@ -927,7 +920,7 @@ def test_non_sale_disposition_retains_recorded_by_in_serialized_traceability(
         [
             _non_sale(
                 production_date,
-                "WITHHELD",
+                "WASTAGE",
                 15.0,
             ),
         ]
@@ -937,19 +930,18 @@ def test_non_sale_disposition_retains_recorded_by_in_serialized_traceability(
 
     item = service.record_disposition(
         production_date=production_date,
-        disposition_type="WITHHELD",
+        disposition_type="WASTAGE",
         quantity_litres=5.0,
-        notes="Treatment withdrawal",
+        notes="Damaged milk batch",
         recorded_by="Milking Operator",
     )
 
     payload = service._serialize_disposition(item)
 
-    assert payload["disposition_type"] == "WITHHELD"
+    assert payload["disposition_type"] == "WASTAGE"
     assert payload["quantity_litres"] == 5.0
     assert payload["recorded_by"] == "Milking Operator"
-    assert payload["notes"] == "Treatment withdrawal"
-
+    assert payload["notes"] == "Damaged milk batch"
 
 def test_non_sale_disposition_cannot_carry_sale_metadata():
     service = _service(
@@ -958,7 +950,7 @@ def test_non_sale_disposition_cannot_carry_sale_metadata():
 
     item = service.record_disposition(
         production_date=date(2026, 8, 15),
-        disposition_type="WITHHELD",
+        disposition_type="WASTAGE",
         quantity_litres=5.0,
         sale_id="ILLEGAL-SALE",
         counterparty="Buyer",
@@ -971,7 +963,6 @@ def test_non_sale_disposition_cannot_carry_sale_metadata():
     assert item.selling_price_per_litre is None
     assert item.amount_due == 0.0
 
-
 def test_duplicate_non_sale_dispositions_are_not_silently_collapsed():
     production_date = date(2026, 8, 15)
 
@@ -981,14 +972,14 @@ def test_duplicate_non_sale_dispositions_are_not_silently_collapsed():
 
     first = service.record_disposition(
         production_date=production_date,
-        disposition_type="WITHHELD",
+        disposition_type="WASTAGE",
         quantity_litres=5.0,
         recorded_by="Operator-1",
     )
 
     second = service.record_disposition(
         production_date=production_date,
-        disposition_type="WITHHELD",
+        disposition_type="WASTAGE",
         quantity_litres=5.0,
         recorded_by="Operator-2",
     )
@@ -1001,3 +992,5 @@ def test_duplicate_non_sale_dispositions_are_not_silently_collapsed():
     assert repo.rows[1].quantity_litres == 5.0
     assert repo.rows[0].recorded_by == "Operator-1"
     assert repo.rows[1].recorded_by == "Operator-2"
+
+

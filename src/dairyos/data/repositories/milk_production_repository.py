@@ -131,11 +131,10 @@ class MilkProductionRepository:
         existing.milking_session = production.milking_session
         existing.recorded_at = utcnow()
 
-        # A withdrawal hold on any session withholds the animal-day. Losing
-        # that on the next session's entry would put withheld milk back into
-        # the saleable total.
-        if str(production.status) == "WITHHELD":
-            existing.status = "WITHHELD"
+        # Veterinary non-milking decisions are not encoded in milk rows.
+        # Animals with zero expected milk are removed from the governed
+        # production population by NonMilkingDirective.
+        existing.status = "RECORDED"
 
         existing.calculate_total()
 

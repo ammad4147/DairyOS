@@ -1,4 +1,5 @@
 """Authoritative session-compliance read model for one animal/date."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,7 +16,7 @@ from dairyos.farm.production.services.milk_daily_semantics import (
 RECORDED = "RECORDED"
 SKIPPED = "SKIPPED"
 MISSING = "MISSING"
-WITHHELD = "WITHHELD"
+
 
 @dataclass(frozen=True)
 class SessionCompliance:
@@ -27,7 +28,6 @@ class SessionCompliance:
     completed_sessions: tuple[str, ...]
     skipped_sessions: tuple[str, ...]
     missing_sessions: tuple[str, ...]
-    withheld_sessions: tuple[str, ...]
     compliance_percentage: float | None
     status: str
 
@@ -41,22 +41,27 @@ class SessionCompliance:
             "completed_sessions": list(self.completed_sessions),
             "skipped_sessions": list(self.skipped_sessions),
             "missing_sessions": list(self.missing_sessions),
-            "withheld_sessions": list(self.withheld_sessions),
             "compliance_percentage": self.compliance_percentage,
             "status": self.status,
         }
 
+
 class MilkingSessionComplianceService:
     """Resolve expected sessions and admissible outcomes for an animal/date."""
+
     def __init__(self, animal_repository):
-        self.schedule_service = AnimalMilkingScheduleService(animal_repository)
+        self.schedule_service = AnimalMilkingScheduleService(
+            animal_repository
+        )
 
     @staticmethod
     def _as_date(value: date | datetime | str) -> date:
         if isinstance(value, datetime):
             return value.date()
+
         if isinstance(value, date):
             return value
+
         return date.fromisoformat(str(value))
 
     @staticmethod
@@ -115,12 +120,8 @@ class MilkingSessionComplianceService:
             missing_sessions=tuple(
                 semantics["missing_sessions"]
             ),
-            withheld_sessions=tuple(
-                semantics["withheld_sessions"]
-            ),
             compliance_percentage=semantics[
                 "compliance_percentage"
             ],
             status=semantics["status"],
         )
-

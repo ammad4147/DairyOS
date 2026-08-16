@@ -120,6 +120,7 @@ from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.equipment_management import router as equipment_router
 from dairyos.api.farm_data_entry import router as farm_router
+from dairyos.api.veterinary_non_milking import router as veterinary_non_milking_router
 from dairyos.api.milk_production_analytics import router as milk_production_analytics_router
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
@@ -149,6 +150,7 @@ app.include_router(command_router)
 app.include_router(dashboard_router)
 app.include_router(equipment_router)
 app.include_router(farm_router)
+app.include_router(veterinary_non_milking_router)
 app.include_router(milk_production_analytics_router)
 app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
