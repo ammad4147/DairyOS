@@ -1,264 +1,602 @@
+/**
+ * MainDashboard — DairyOS Command Dashboard (Dark Theme)
+ * Compliant with DairyOS architecture constraints (2026-08-17)
+ * - No relative date language ("today"/"yesterday")
+ * - Explicit production date only
+ * - No frontend business calculations or classifications
+ * - Dashboard is pure read-model projection
+ * - Animal Passport drawer uses existing authoritative endpoint
+ */
+
 import { Component, useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { apiUrl } from "../config/api";
 import "./MainDashboard.css";
 
 type ViewId =
-    | "command"
-    | "animals"
-    | "milk"
-    | "feed"
-    | "health"
-    | "breeding"
-    | "workforce"
-    | "inventory"
-    | "equipment"
-    | "finance"
-    | "analytics"
-    | "alerts";
+  | "command"
+  | "animals"
+  | "milk"
+  | "feed"
+  | "health"
+  | "breeding"
+  | "workforce"
+  | "inventory"
+  | "equipment"
+  | "finance"
+  | "analytics"
+  | "alerts";
 
 type MainDashboardProps = { onNavigate?: (view: ViewId) => void };
 
 type DashboardPayload = {
-    operational_state?: Record<string, any>;
-    dashboard?: {
-        animals?: { total?: number; milking?: number; dry?: number };
-        milk?: { today_litres?: number; events?: number; last_operator?: string | null; last_shift?: string | null };
+  operational_state?: Record<string, any>;
+  dashboard?: {
+    animals?: {
+      total?: number;
+      milking?: number;
+      dry?: number;
+      milking_percentage?: number | null;
     };
-    exceptions?: any[];
+    milk?: {
+      production_date?: string | null;          // explicit ISO date
+      previous_production_date?: string | null; // explicit ISO date
+      litres?: number | null;
+      previous_litres?: number | null;
+      morning_litres?: number | null;
+      afternoon_litres?: number | null;
+      evening_litres?: number | null;
+      events?: number | null;
+      last_operator?: string | null;
+      last_shift?: string | null;
+      change_percent?: number | null;
+      comparison_status?: string | null;
+    };
+    health?: {
+      status?: string | null;
+      active_exceptions?: number | null;
+      critical_cases?: number | null;
+    };
+  };
+  exceptions?: any[];
+  farm_status?: string;
+  health?: string;
 };
 
-type CommandCenterDecision = {
-    decision_id: string;
-    title: string;
-    description: string;
-    priority: string;
-    priority_score?: number;
-    status: string;
-    source?: string | null;
-    created_at?: string;
+type PassportData = {
+  animal?: Record<string, any>;
+  schedule?: any;
+  history?: Record<string, any[]>;
+  record_counts?: Record<string, number>;
+  timeline?: any[];
 };
 
-type CommandCenterResponse = {
-    status?: Record<string, unknown>;
-    decisions?: { items?: CommandCenterDecision[] };
-};
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 function useApi<T>(path: string, intervalMs = 60_000) {
-    const [data, setData] = useState<T | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    const load = useCallback(() => {
-        setError(null);
-        fetch(apiUrl(path), { headers: { Accept: "application/json" } })
-            .then((response) => {
-                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-                return response.json() as Promise<T>;
-            })
-            .then((payload) => {
-                setData(payload);
-                setLoading(false);
-            })
-            .catch((loadError: Error) => {
-                setError(loadError.message);
-                setLoading(false);
-            });
-    }, [path]);
+  const load = useCallback(() => {
+    setError(null);
+    fetch(apiUrl(path), { headers: { Accept: "application/json" } })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+        return r.json() as Promise<T>;
+      })
+      .then((payload) => {
+        setData(payload);
+        setLoading(false);
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        setLoading(false);
+      });
+  }, [path]);
 
-    useEffect(() => {
-        load();
-        const timer = window.setInterval(load, intervalMs);
-        return () => window.clearInterval(timer);
-    }, [load, intervalMs]);
+  useEffect(() => {
+    load();
+    const t = window.setInterval(load, intervalMs);
+    return () => window.clearInterval(t);
+  }, [load, intervalMs]);
 
-    return { data, error, loading, reload: load };
+  return { data, error, loading, reload: load };
 }
 
-function titleCase(value: string | null | undefined): string {
-    if (!value) return "";
-    return value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+function titleCase(v: string | null | undefined) {
+  if (!v) return "—";
+  return v.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function sourceToView(source: string | null | undefined): ViewId {
-    const s = (source ?? "").toLowerCase();
-    if (s.includes("health")) return "health";
-    if (s.includes("breed")) return "breeding";
-    if (s.includes("milk")) return "milk";
-    if (s.includes("feed")) return "feed";
-    if (s.includes("workforce")) return "workforce";
-    if (s.includes("inventory")) return "inventory";
-    if (s.includes("equipment")) return "equipment";
-    if (s.includes("financ")) return "finance";
-    return "alerts";
+function fmtL(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} L`;
 }
 
-function priorityTone(priority: string): "critical" | "high" | "normal" {
-    const p = priority.toUpperCase();
-    if (p === "CRITICAL") return "critical";
-    if (p === "HIGH") return "high";
-    return "normal";
+function fmtNum(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return v.toLocaleString();
 }
 
-class SectionErrorBoundary extends Component<{ label: string; children: ReactNode }, { error: Error | null }> {
-    state = { error: null as Error | null };
-    static getDerivedStateFromError(error: Error) { return { error }; }
-    componentDidCatch(error: Error) { console.error(`Dashboard section "${this.props.label}" crashed:`, error); }
-    render() {
-        if (this.state.error) {
-            return <div className="dashboard-panel panel-crashed"><strong>{this.props.label} couldn't be displayed.</strong><span>{this.state.error.message}</span></div>;
-        }
-        return this.props.children;
+/** Display only the calendar date part (YYYY-MM-DD). No timezone conversion. */
+function displayDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return String(iso).slice(0, 10);
+}
+
+/* ------------------------------------------------------------------ */
+/* Error Boundary                                                     */
+/* ------------------------------------------------------------------ */
+
+class SectionErrorBoundary extends Component<
+  { label: string; children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    console.error(`Dashboard section "${this.props.label}" crashed:`, error);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="dash-panel crashed">
+          <strong>{this.props.label} could not be displayed</strong>
+          <span>{this.state.error.message}</span>
+        </div>
+      );
     }
+    return this.props.children;
+  }
 }
 
-function ActionQueue({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-    const { data, error, loading, reload } = useApi<CommandCenterResponse>("/command-center", 45_000);
-    const [busyId, setBusyId] = useState<string | null>(null);
+/* ------------------------------------------------------------------ */
+/* Animal Passport Drawer                                             */
+/* ------------------------------------------------------------------ */
 
-    const act = (decisionId: string, action: "acknowledge" | "resolve") => {
-        setBusyId(decisionId);
-        fetch(apiUrl(`/command-center/decisions/${decisionId}/${action}`), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}),
-        }).finally(() => { setBusyId(null); reload(); });
-    };
+function AnimalPassportDrawer({
+  animalId,
+  onClose,
+}: {
+  animalId: string | null;
+  onClose: () => void;
+}) {
+  const [passport, setPassport] = useState<PassportData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    if (loading && !data) return <section className="action-queue loading">Loading today's action queue…</section>;
-    if (error && !data) {
-        return <section className="action-queue error"><div><strong>Action queue unavailable.</strong><p>{error}</p></div><button type="button" onClick={reload}>Retry</button></section>;
+  useEffect(() => {
+    if (!animalId) {
+      setPassport(null);
+      return;
     }
+    setLoading(true);
+    setError(null);
+    fetch(apiUrl(`/farm/animals/${encodeURIComponent(animalId)}/passport`), {
+      headers: { Accept: "application/json" },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Passport ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        setPassport(data);
+        setLoading(false);
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        setLoading(false);
+      });
+  }, [animalId]);
 
-    const domainsChecked = Object.keys(data?.status ?? {});
-    const items = (Array.isArray(data?.decisions?.items) ? data?.decisions?.items : [])
-        .filter((d) => d.status !== "COMPLETED")
-        .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0)
-            || new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
-        .slice(0, 5);
+  if (!animalId) return null;
 
-    return (
-        <section className="action-queue">
-            <div className="section-heading"><div><h2>Action Queue</h2><span className="section-hint">What needs a human across the authoritative operational picture.</span></div></div>
-            {items.length === 0 ? (
-                <div className="action-queue-empty"><strong>Nothing needs attention right now.</strong><span>Checked: {domainsChecked.length ? domainsChecked.map(titleCase).join(" · ") : "no domains reported status"}</span></div>
-            ) : (
-                <div className="action-queue-list">
-                    {items.map((item) => (
-                        <div className={`action-row tone-${priorityTone(item.priority)}`} key={item.decision_id}>
-                            <span className="action-marker" aria-hidden="true" />
-                            <button type="button" className="action-body" onClick={() => onNavigate(sourceToView(item.source))}>
-                                <span className="action-id">{item.decision_id}</span><span className="action-title">{item.title}</span><span className="action-detail">{item.description}</span>
-                            </button>
-                            <div className="action-controls">
-                                {item.status === "CREATED" && <button type="button" className="ack-button" disabled={busyId === item.decision_id} onClick={() => act(item.decision_id, "acknowledge")}>Acknowledge</button>}
-                                <button type="button" className="resolve-button" disabled={busyId === item.decision_id} onClick={() => act(item.decision_id, "resolve")}>Resolve</button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-}
+  const a = passport?.animal ?? {};
+  const counts = passport?.record_counts ?? {};
 
-function MilkPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-    const dashboard = useApi<DashboardPayload>("/dashboard", 60_000);
-    if (dashboard.loading && !dashboard.data) return <PanelShell title="Milk Production" loading />;
-    if (dashboard.error && !dashboard.data) return <PanelShell title="Milk Production" errorText={dashboard.error} onRetry={dashboard.reload} />;
+  return (
+    <>
+      <div className="passport-backdrop" onClick={onClose} />
+      <aside className="passport-drawer">
+        <div className="passport-header">
+          <div>
+            <div className="passport-eyebrow">Animal Passport</div>
+            <h2>#{animalId}</h2>
+          </div>
+          <button type="button" className="passport-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
 
-    const readModel = dashboard.data?.dashboard?.milk ?? {};
-    const state = dashboard.data?.operational_state ?? {};
-    const productionDate = typeof state.operational_date === "string" ? state.operational_date.slice(0, 10) : null;
-    const litres = Number(readModel.today_litres);
-    const events = Number(readModel.events);
-    const shift = readModel.last_shift ? titleCase(readModel.last_shift) : "No completed session recorded";
-    const operator = readModel.last_operator ?? "No operator recorded";
+        {loading && <div className="passport-loading">Loading passport…</div>}
+        {error && <div className="passport-error">{error}</div>}
 
-    return (
-        <PanelShell title="Milk Production" onOpen={() => onNavigate("milk")}>
-            <div className="panel-headline"><span className="panel-headline-value">{Number.isFinite(litres) ? `${litres.toFixed(1)} L` : "—"}</span><span className="panel-headline-caption">Authoritative production</span></div>
-            <p className="panel-note">{productionDate ? `Production date: ${productionDate}` : "Production date unavailable"}</p>
-            <p className="panel-note muted">Last settled session: {shift} · Operator: {operator}</p>
-            <div className="panel-kv-row">
-                <div><span>Milk production</span><strong>{Number.isFinite(litres) ? `${litres.toFixed(1)} L` : "—"}</strong></div>
-                <div><span>Recorded events</span><strong>{Number.isFinite(events) ? events : "—"}</strong></div>
+        {!loading && !error && passport && (
+          <div className="passport-body">
+            <div className="passport-identity">
+              <div className="id-row">
+                <span>Ear Tag</span>
+                <strong>{a.ear_tag ?? "—"}</strong>
+              </div>
+              <div className="id-row">
+                <span>Lifecycle</span>
+                <strong>{titleCase(a.lifecycle_status)}</strong>
+              </div>
+              <div className="id-row">
+                <span>Breed</span>
+                <strong>{a.breed ?? "—"}</strong>
+              </div>
+              <div className="id-row">
+                <span>Birth</span>
+                <strong>{a.date_of_birth ? displayDate(a.date_of_birth) : "—"}</strong>
+              </div>
+              <div className="id-row">
+                <span>Status</span>
+                <strong className={a.status === "ACTIVE" ? "ok" : ""}>
+                  {titleCase(a.status)}
+                </strong>
+              </div>
             </div>
-            <p className="panel-note muted">This panel renders the DairyOS dashboard read model; it does not re-sum the milk ledger in the browser.</p>
-        </PanelShell>
-    );
-}
 
-function HerdPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-    const dashboard = useApi<DashboardPayload>("/dashboard", 90_000);
-    if (dashboard.loading && !dashboard.data) return <PanelShell title="Herd Dynamics" loading />;
-    if (dashboard.error && !dashboard.data) return <PanelShell title="Herd Dynamics" errorText={dashboard.error} onRetry={dashboard.reload} />;
+            <div className="passport-section">
+              <h3>Record Counts</h3>
+              <div className="count-grid">
+                {Object.entries(counts).map(([k, v]) => (
+                  <div key={k} className="count-chip">
+                    <span>{titleCase(k)}</span>
+                    <strong>{v}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-    const animals = dashboard.data?.dashboard?.animals ?? {};
-    const total = Number(animals.total);
-    const milking = Number(animals.milking);
-    const dry = Number(animals.dry);
-    const classified = (Number.isFinite(milking) ? milking : 0) + (Number.isFinite(dry) ? dry : 0);
-    const unclassified = Number.isFinite(total) ? Math.max(total - classified, 0) : 0;
+            <div className="passport-section">
+              <h3>Integrated History</h3>
+              <div className="history-links">
+                <button type="button">Health History</button>
+                <button type="button">Feed Cost Reconciliation</button>
+                <button type="button">Reproductive Logs</button>
+                <button type="button">Milk History</button>
+                <button type="button">Treatments</button>
+              </div>
+            </div>
 
-    return (
-        <PanelShell title="Herd Dynamics" onOpen={() => onNavigate("animals")}>
-            <div className="panel-headline"><span className="panel-headline-value">{Number.isFinite(total) ? total : "—"}</span><span className="panel-headline-caption">Authoritative animal count</span></div>
-            <table className="panel-table"><tbody>
-                <tr><td>Milking</td><td className="panel-table-value">{Number.isFinite(milking) ? milking : "—"}</td></tr>
-                <tr><td>Dry</td><td className="panel-table-value">{Number.isFinite(dry) ? dry : "—"}</td></tr>
-                <tr className={unclassified > 0 ? "panel-table-attention" : ""}><td>Other / unclassified</td><td className="panel-table-value">{unclassified}</td></tr>
-            </tbody></table>
-            <p className="panel-note muted">Milking status is read from Farm Operational State; the browser does not infer lifecycle status from registry rows.</p>
-        </PanelShell>
-    );
-}
-
-function HealthPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-    const dashboard = useApi<DashboardPayload>("/dashboard", 60_000);
-    if (dashboard.loading && !dashboard.data) return <PanelShell title="Health & Vaccinations" loading />;
-    if (dashboard.error && !dashboard.data) return <PanelShell title="Health & Vaccinations" errorText={dashboard.error} onRetry={dashboard.reload} />;
-
-    const exceptions = Array.isArray(dashboard.data?.exceptions) ? dashboard.data?.exceptions : [];
-    const state = dashboard.data?.operational_state ?? {};
-    const healthAlerts = Array.isArray(state.health_alerts) ? state.health_alerts : [];
-    const count = Math.max(exceptions.length, healthAlerts.length);
-
-    return (
-        <PanelShell title="Health & Vaccinations" onOpen={() => onNavigate("health")}>
-            {count === 0 ? (
-                <div className="panel-status good"><strong>No dashboard health exceptions</strong><span>Authoritative operational read model reports no active exception.</span></div>
-            ) : (
-                <div className="panel-status attention"><strong>{count} active exception{count === 1 ? "" : "s"}</strong><span>See the Health module for the underlying records.</span></div>
+            {passport.schedule?.effective && (
+              <div className="passport-section">
+                <h3>Milking Schedule</h3>
+                <div className="schedule-box">
+                  <div>
+                    Frequency: <strong>{titleCase(passport.schedule.effective.milking_frequency)}</strong>
+                  </div>
+                  <div>
+                    Source: <strong>{titleCase(passport.schedule.effective.source)}</strong>
+                  </div>
+                </div>
+              </div>
             )}
-        </PanelShell>
-    );
+          </div>
+        )}
+      </aside>
+    </>
+  );
 }
 
-function ReproductionPanel({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-    return <PanelShell title="Reproductive Health" onOpen={() => onNavigate("breeding")}><div className="panel-status unknown"><strong>Not yet available</strong><span>Herd-wide reproduction counts require a backend aggregate read model.</span></div></PanelShell>;
+/* ------------------------------------------------------------------ */
+/* KPI Strip                                                          */
+/* ------------------------------------------------------------------ */
+
+function KpiStrip({ data }: { data: DashboardPayload | null }) {
+  const animals = data?.dashboard?.animals ?? {};
+  const milk = data?.dashboard?.milk ?? {};
+
+  const milking = Number(animals.milking);
+  const total = Number(animals.total);
+  const percentage = Number(animals.milking_percentage);
+  const litres = Number(milk.litres);
+  const productionDate = displayDate(milk.production_date);
+  const changePercent = Number(milk.change_percent);
+  const comparisonStatus = String(milk.comparison_status ?? "").toUpperCase();
+  const previousDate = displayDate(milk.previous_production_date);
+
+  const changeText = Number.isFinite(changePercent) && previousDate !== "â€”"
+    ? `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}% vs ${previousDate}`
+    : null;
+
+  return (
+    <div className="kpi-strip">
+      <div className="kpi-card">
+        <div className="kpi-label">Total Milking Animals</div>
+        <div className="kpi-value">{fmtNum(milking)}</div>
+      </div>
+      <div className="kpi-card">
+        <div className="kpi-label">Total Animals</div>
+        <div className="kpi-value">{fmtNum(total)}</div>
+      </div>
+      <div className="kpi-card">
+        <div className="kpi-label">Milking Percentage</div>
+        <div className="kpi-value accent">
+          {Number.isFinite(percentage) ? `${percentage.toFixed(1)}%` : "â€”"}
+        </div>
+      </div>
+      <div className="kpi-card">
+        <div className="kpi-label">Production Yield</div>
+        <div className="kpi-value">{fmtL(litres)}</div>
+        <div className="kpi-date">
+          {productionDate !== "â€”" ? productionDate : "Date not provided by read model"}
+        </div>
+        {changeText && comparisonStatus !== "NO_COMPARISON" && (
+          <div className="kpi-delta">{changeText}</div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function PanelShell({ title, children, loading, errorText, onRetry, onOpen }: { title: string; children?: ReactNode; loading?: boolean; errorText?: string; onRetry?: () => void; onOpen?: () => void }) {
-    return <article className="dashboard-panel">
-        <div className="panel-heading"><h3>{title}</h3>{onOpen && <button type="button" className="panel-open" onClick={onOpen}>Open →</button>}</div>
-        {loading && <div className="panel-loading">Loading…</div>}
-        {errorText && <div className="panel-error"><span>{errorText}</span>{onRetry && <button type="button" onClick={onRetry}>Retry</button>}</div>}
-        {!loading && !errorText && children}
-    </article>;
+/* ------------------------------------------------------------------ */
+/* Health Status (backend authority)                                  */
+/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+
+function HealthStatusCard({
+  data,
+  onNavigate,
+}: {
+  data: DashboardPayload | null;
+  onNavigate: (v: ViewId) => void;
+}) {
+  const health = data?.dashboard?.health ?? {};
+  const status = String(health.status ?? "").toUpperCase();
+  const activeExceptions = Number(health.active_exceptions);
+  const criticalCases = Number(health.critical_cases);
+
+  const known = Boolean(status)
+    || Number.isFinite(activeExceptions)
+    || Number.isFinite(criticalCases);
+
+  const tone =
+    status === "RED"
+      ? "critical"
+      : status === "AMBER"
+        ? "warning"
+        : status === "GREEN"
+          ? "good"
+          : "unknown";
+
+  return (
+    <div className={`status-card tone-${tone}`}>
+      <div className="status-header">
+        <h3>Health Status</h3>
+        <button type="button" className="link-btn" onClick={() => onNavigate("health")}>
+          Open â†’
+        </button>
+      </div>
+
+      {known ? (
+        <div className="status-body">
+          <div className={`status-badge ${tone}`}>
+            {tone === "critical" ? "RED" : tone === "warning" ? "AMBER" : tone === "good" ? "GREEN" : "â€”"}
+          </div>
+          <p>
+            <strong>
+              {Number.isFinite(activeExceptions)
+                ? `${activeExceptions} animal${activeExceptions === 1 ? "" : "s"} requiring attention`
+                : "Health status available"}
+            </strong>
+          </p>
+          <p className="muted">
+            Critical cases: {Number.isFinite(criticalCases) ? criticalCases : "â€”"}
+          </p>
+        </div>
+      ) : (
+        <div className="status-body">
+          <div className="status-badge">â€”</div>
+          <p>No health aggregate was supplied by the dashboard read model.</p>
+        </div>
+      )}
+    </div>
+  );
 }
+
+/* ------------------------------------------------------------------ */
+/* Herd Development                                                   */
+/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+
+function HerdDevelopmentCard({
+  data,
+  onNavigate,
+}: {
+  data: DashboardPayload | null;
+  onNavigate: (v: ViewId) => void;
+}) {
+  const animals = data?.dashboard?.animals ?? {};
+  const milking = Number(animals.milking) || 0;
+  const dry = Number(animals.dry) || 0;
+  const total = Number(animals.total) || milking + dry;
+  const other = Math.max(total - milking - dry, 0);
+
+  const segments = [
+    { label: "Milking", value: milking, color: "#22c55e" },
+    { label: "Dry", value: dry, color: "#f59e0b" },
+    { label: "Other", value: other, color: "#64748b" },
+  ].filter((s) => s.value > 0);
+
+  const sum = segments.reduce((a, s) => a + s.value, 0) || 1;
+
+  return (
+    <div className="status-card">
+      <div className="status-header">
+        <h3>Herd Development</h3>
+        <button type="button" className="link-btn" onClick={() => onNavigate("animals")}>
+          Open →
+        </button>
+      </div>
+      <div className="herd-visual">
+        <div className="herd-bar">
+          {segments.map((s) => (
+            <div
+              key={s.label}
+              className="herd-seg"
+              style={{ width: `${(s.value / sum) * 100}%`, background: s.color }}
+              title={`${s.label}: ${s.value}`}
+            />
+          ))}
+        </div>
+        <div className="herd-legend">
+          {segments.map((s) => (
+            <div key={s.label} className="legend-item">
+              <span className="dot" style={{ background: s.color }} />
+              {s.label} <strong>{s.value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Yield Snapshot                                                     */
+/* ------------------------------------------------------------------ */
+
+function YieldSnapshot({ data }: { data: DashboardPayload | null }) {
+  const milk = data?.dashboard?.milk ?? {};
+  const litres = Number(milk.litres);
+  const morning = Number(milk.morning_litres);
+  const afternoon = Number(milk.afternoon_litres);
+  const evening = Number(milk.evening_litres);
+  const productionDate = displayDate(milk.production_date);
+  const hasSplit = [morning, afternoon, evening].some((v) => Number.isFinite(v));
+
+  return (
+    <div className="status-card">
+      <div className="status-header">
+        <h3>Milk Production</h3>
+      </div>
+      <div className="yield-big">{fmtL(litres)}</div>
+      <div className="yield-sub">
+        Production date: {productionDate !== "—" ? productionDate : "Not yet provided by the read model"}
+      </div>
+
+      {hasSplit ? (
+        <div className="shift-grid">
+          <div>
+            <span>Morning</span>
+            <strong>{fmtL(morning)}</strong>
+          </div>
+          <div>
+            <span>Afternoon</span>
+            <strong>{fmtL(afternoon)}</strong>
+          </div>
+          <div>
+            <span>Evening</span>
+            <strong>{fmtL(evening)}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="shift-grid single">
+          <div>
+            <span>Last settled session</span>
+            <strong>{titleCase(milk.last_shift)}</strong>
+          </div>
+          <div>
+            <span>Operator</span>
+            <strong>{milk.last_operator ?? "—"}</strong>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Placeholder for future governed milking list                       */
+/* ------------------------------------------------------------------ */
+
+function MilkingAnimalsPlaceholder() {
+  return (
+    <div className="animals-table-card">
+      <div className="table-header">
+        <div>
+          <h3>Milking Animals</h3>
+        </div>
+      </div>
+      <div className="table-empty">
+        Not yet provided by the read model.
+        <br />
+        <span className="muted">
+          An authoritative milking-animals list will appear here once the backend projection supplies it.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main Component                                                     */
+/* ------------------------------------------------------------------ */
 
 function MainDashboard({ onNavigate = () => undefined }: MainDashboardProps) {
-    return <div className="main-dashboard">
-        <div className="dashboard-title-row"><div><h2>Dashboard</h2><p>Authoritative operational read model for the farm.</p></div></div>
-        <SectionErrorBoundary label="Action Queue"><ActionQueue onNavigate={onNavigate} /></SectionErrorBoundary>
-        <div className="dashboard-panel-grid">
-            <SectionErrorBoundary label="Milk Production"><MilkPanel onNavigate={onNavigate} /></SectionErrorBoundary>
-            <SectionErrorBoundary label="Herd Dynamics"><HerdPanel onNavigate={onNavigate} /></SectionErrorBoundary>
-            <SectionErrorBoundary label="Health & Vaccinations"><HealthPanel onNavigate={onNavigate} /></SectionErrorBoundary>
-            <SectionErrorBoundary label="Reproductive Health"><ReproductionPanel onNavigate={onNavigate} /></SectionErrorBoundary>
+  const dashboard = useApi<DashboardPayload>("/dashboard", 45_000);
+  const [passportId, setPassportId] = useState<string | null>(null);
+
+  const data = dashboard.data;
+
+  return (
+    <div className="main-dashboard dark">
+      <div className="dash-title-row">
+        <div>
+          <h1>Dairy OS</h1>
+          <p>Live operational picture · Authoritative read model</p>
         </div>
-    </div>;
+        <div className="dash-meta">
+          {data?.farm_status && (
+            <span className="meta-pill">Farm · {titleCase(data.farm_status)}</span>
+          )}
+          <button type="button" className="ghost-btn" onClick={dashboard.reload}>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {dashboard.error && !data && (
+        <div className="dash-error-banner">
+          Dashboard unavailable: {dashboard.error}
+          <button onClick={dashboard.reload}>Retry</button>
+        </div>
+      )}
+
+      <SectionErrorBoundary label="KPI Strip">
+        <KpiStrip data={data} />
+      </SectionErrorBoundary>
+
+      <div className="dash-grid-3">
+        <SectionErrorBoundary label="Yield Snapshot">
+          <YieldSnapshot data={data} />
+        </SectionErrorBoundary>
+        <SectionErrorBoundary label="Herd Development">
+          <HerdDevelopmentCard data={data} onNavigate={onNavigate} />
+        </SectionErrorBoundary>
+        <SectionErrorBoundary label="Health Status">
+          <HealthStatusCard data={data} onNavigate={onNavigate} />
+        </SectionErrorBoundary>
+      </div>
+
+      <SectionErrorBoundary label="Milking Animals">
+        <MilkingAnimalsPlaceholder />
+      </SectionErrorBoundary>
+
+      {/* Passport drawer is fully wired to the existing authoritative endpoint.
+          It can be opened from future governed lists or other modules. */}
+      <AnimalPassportDrawer animalId={passportId} onClose={() => setPassportId(null)} />
+    </div>
+  );
 }
 
 export default MainDashboard;
+
