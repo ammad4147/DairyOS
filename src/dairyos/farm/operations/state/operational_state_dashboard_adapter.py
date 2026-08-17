@@ -50,6 +50,14 @@ class OperationalStateDashboardAdapter:
         )
 
     @property
+    def operational_date(self):
+        return getattr(
+            self.state,
+            "operational_date",
+            None,
+        )
+
+    @property
     def animals_source(self):
         animals = getattr(
             self.state,
@@ -89,6 +97,16 @@ class OperationalStateDashboardAdapter:
         )
 
     @property
+    def milking_percentage(self):
+        if self.animals_count <= 0:
+            return None
+
+        return round(
+            (self.milking_animals / self.animals_count) * 100,
+            1,
+        )
+
+    @property
     def dry_animals(self):
         return len(
             [
@@ -119,6 +137,48 @@ class OperationalStateDashboardAdapter:
         )
 
         return len(animal_ids)
+
+    @property
+    def health_active_exceptions(self):
+        return self.animals_needing_attention
+
+    @property
+    def health_critical_cases(self):
+        critical = 0
+
+        for alert in getattr(
+            self.state,
+            "health_alerts",
+            [],
+        ):
+            severity = str(
+                alert.get("severity", "")
+            ).upper()
+            if severity == "CRITICAL":
+                critical += 1
+
+        for exception in getattr(
+            self.state,
+            "exceptions",
+            [],
+        ):
+            severity = str(
+                exception.get("severity", "")
+                if isinstance(exception, dict)
+                else getattr(exception, "severity", "")
+            ).upper()
+            if severity == "CRITICAL":
+                critical += 1
+
+        return critical
+
+    @property
+    def health_status(self):
+        if self.health_critical_cases > 0:
+            return "RED"
+        if self.health_active_exceptions > 0:
+            return "AMBER"
+        return "GREEN"
 
     @property
     def milk_today(self):
@@ -155,6 +215,25 @@ class OperationalStateDashboardAdapter:
         )
 
     @property
+    def milk_session_litres(self):
+        milk_status = getattr(
+            self.state,
+            "milk_status",
+            {},
+        )
+
+        result = {}
+        for session in ("MORNING", "AFTERNOON", "EVENING"):
+            entry = milk_status.get(session)
+            if entry is None:
+                entry = milk_status.get(session.lower())
+
+            if isinstance(entry, dict):
+                result[session] = entry.get("litres")
+
+        return result
+
+    @property
     def feed_today(self):
         if hasattr(
             self.state,
@@ -183,11 +262,7 @@ class OperationalStateDashboardAdapter:
         ):
             return len(self.state.feeding_status)
 
-        return getattr(
-            self.state,
-            "feed_events",
-            0,
-        )
+        return getattr(self.state, "feed_events", 0)
 
     @property
     def last_operator(self):
