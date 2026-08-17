@@ -26,6 +26,9 @@ from dairyos.milk.services.milk_session_sequence_service import (
     MilkSessionSequenceService,
     SequenceViolation,
 )
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
 from dairyos.milk.services.milk_recording_intelligence_service import (
     MilkRecordingIntelligenceService,
 )
@@ -297,10 +300,11 @@ def _transaction_datetime(payload: dict[str, Any]) -> datetime | None:
 
 
 def _sequence_service(container):
-    """The sequencing service, or None when no ledger boundary exists.
+    """Build the milk session sequencing service.
 
-    Test doubles and legacy compositions may not expose the ledger. Sequencing
-    is an integrity guard, not a hard dependency of milk recording.
+    The service remains the historical return contract used by existing API
+    callers. The authoritative animal/date schedule is supplied separately
+    by the /farm/milk write path when enforcing a specific animal's session.
     """
 
     factory = getattr(container, "repository_factory", None)
@@ -309,7 +313,16 @@ def _sequence_service(container):
     if accessor is None:
         return None
 
-    return MilkSessionSequenceService(accessor())
+    return MilkSessionSequenceService(
+        accessor(),
+        schedule_service=(
+            AnimalMilkingScheduleService(
+                repository=getattr(factory, "animal")()
+            )
+            if getattr(factory, "animal", None) is not None
+            else None
+        ),
+    )
 
 
 def _settle_session(
@@ -639,11 +652,24 @@ def record_milk_entry(
 
     if sequenced:
         sequence = _sequence_service(container)
+
         if sequence is not None:
+            factory = getattr(container, "repository_factory", None)
+            animal_accessor = getattr(factory, "animal", None)
+
+            animal = (
+                animal_accessor().get_by_animal_id(
+                    str(governed_entry.animal_id)
+                )
+                if animal_accessor is not None
+                else None
+            )
+
             try:
                 sequence.assert_can_record(
                     operational_date,
                     governed_entry.milking_session.value,
+                    animal=animal,
                 )
             except SequenceViolation as violation:
                 raise HTTPException(

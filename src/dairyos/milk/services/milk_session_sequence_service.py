@@ -26,6 +26,9 @@ from __future__ import annotations
 from datetime import date as date_type, datetime as datetime_type
 
 from dairyos.milk.models.milking_session import MilkingSession
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
 
 
 # The order the farm day runs in.
@@ -124,8 +127,14 @@ class SequenceViolation(Exception):
 class MilkSessionSequenceService:
     """Decides whether a milking session may be recorded yet."""
 
-    def __init__(self, ledger_repository):
+    def __init__(
+        self,
+        ledger_repository,
+        *,
+        schedule_service=None,
+    ):
         self.ledger = ledger_repository
+        self.schedule_service = schedule_service
 
     # ------------------------------------------------------------------
     # Which sessions this farm actually runs
@@ -149,17 +158,49 @@ class MilkSessionSequenceService:
         self,
         operational_date,
         milking_session: str,
+        *,
+        animal=None,
     ) -> list[str]:
-        """Observed sessions earlier in the day that are still unsettled."""
+        """Earlier unsettled sessions for the governed animal/date.
+
+        When an animal and schedule service are supplied, the effective
+        animal/date schedule is authoritative. The legacy farm-wide observed
+        session model remains available for callers that do not provide an
+        animal.
+        """
 
         operational_date = _as_date(operational_date)
-        milking_session = str(milking_session)
+        milking_session = str(milking_session).upper()
 
         if not self._is_sequenced(operational_date, milking_session):
             return []
 
-        position = SESSION_ORDER.index(milking_session)
         settled = self.ledger.settled_sessions_on(operational_date)
+
+        if self.schedule_service is not None and animal is not None:
+            expected = tuple(
+                self.schedule_service.get_expected_sessions(
+                    animal,
+                    operational_date,
+                )
+            )
+
+            # An effective animal/date schedule is authoritative whenever
+            # one exists. Historical dates without an effective schedule
+            # retain the established ledger sequencing compatibility path.
+            if expected:
+                if milking_session not in expected:
+                    return []
+
+                position = expected.index(milking_session)
+
+                return [
+                    session
+                    for session in expected[:position]
+                    if session not in settled
+                ]
+
+        position = SESSION_ORDER.index(milking_session)
 
         return [
             session
@@ -205,12 +246,19 @@ class MilkSessionSequenceService:
     # Enforcement
     # ------------------------------------------------------------------
 
-    def assert_can_record(self, operational_date, milking_session: str) -> None:
+    def assert_can_record(
+        self,
+        operational_date,
+        milking_session: str,
+        *,
+        animal=None,
+    ) -> None:
         """Raise ``SequenceViolation`` if an earlier session is outstanding."""
 
         outstanding = self.outstanding_before(
             operational_date,
             milking_session,
+            animal=animal,
         )
 
         if outstanding:

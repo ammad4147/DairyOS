@@ -136,7 +136,10 @@ def test_other_animals_are_never_compared():
     assert result["status"] == "NO_COMPARABLE_PRIOR_DATE"
 
 
-def test_recording_complete_daily_milk_raises_a_real_drop_finding(client, registered_animal):
+def test_recording_complete_daily_milk_raises_a_real_drop_finding(
+    client,
+    registered_animal,
+):
     frequency_response = client.post(
         f"/farm/animals/{registered_animal}/milking-frequency",
         json={
@@ -154,7 +157,7 @@ def test_recording_complete_daily_milk_raises_a_real_drop_finding(client, regist
             "animal_id": registered_animal,
             "milking_session": "MORNING",
             "morning_yield": 10.0,
-            "production_date": "2026-08-16",
+            "production_date": "2026-08-17",
             "operator": "Tester",
         },
     )
@@ -166,7 +169,7 @@ def test_recording_complete_daily_milk_raises_a_real_drop_finding(client, regist
             "animal_id": registered_animal,
             "milking_session": "EVENING",
             "evening_yield": 10.0,
-            "production_date": "2026-08-16",
+            "production_date": "2026-08-17",
             "operator": "Tester",
         },
     )
@@ -178,7 +181,7 @@ def test_recording_complete_daily_milk_raises_a_real_drop_finding(client, regist
             "animal_id": registered_animal,
             "milking_session": "MORNING",
             "morning_yield": 4.0,
-            "production_date": "2026-08-17",
+            "production_date": "2026-08-18",
             "operator": "Tester",
         },
     )
@@ -190,14 +193,25 @@ def test_recording_complete_daily_milk_raises_a_real_drop_finding(client, regist
             "animal_id": registered_animal,
             "milking_session": "EVENING",
             "evening_yield": 4.0,
-            "production_date": "2026-08-17",
+            "production_date": "2026-08-18",
             "operator": "Tester",
         },
     )
     assert second_evening.status_code == 200, second_evening.text
 
-    findings = client.get("/farm/findings", params={"module": "MILK"}).json()["findings"]
-    matching = [f for f in findings if f["subject_id"] == registered_animal and f["severity"] == "CRITICAL"]
-    assert matching, "expected a MILK finding after a complete daily 60% drop"
-    assert registered_animal in matching[0]["title"]
+    findings = client.get(
+        "/farm/findings",
+        params={"module": "MILK"},
+    ).json()["findings"]
 
+    matching = [
+        finding
+        for finding in findings
+        if finding["subject_id"] == registered_animal
+        and finding["severity"] == "CRITICAL"
+    ]
+
+    assert matching, (
+        "expected a MILK finding after a complete daily 60% drop"
+    )
+    assert registered_animal in matching[0]["title"]

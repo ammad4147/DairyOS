@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MainDashboard — DairyOS Command Dashboard (Dark Theme)
  * Compliant with DairyOS architecture constraints (2026-08-17)
  * - No relative date language ("today"/"yesterday")
@@ -8,7 +8,7 @@
  * - Animal Passport drawer uses existing authoritative endpoint
  */
 
-import { Component, useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { apiUrl } from "../config/api";
 import "./MainDashboard.css";
@@ -36,6 +36,7 @@ type DashboardPayload = {
       total?: number;
       milking?: number;
       dry?: number;
+      milking_percentage?: number | null;
     };
     milk?: {
       production_date?: string | null;          // explicit ISO date
@@ -48,6 +49,13 @@ type DashboardPayload = {
       events?: number | null;
       last_operator?: string | null;
       last_shift?: string | null;
+      change_percent?: number | null;
+      comparison_status?: string | null;
+    };
+    health?: {
+      status?: string | null;
+      active_exceptions?: number | null;
+      critical_cases?: number | null;
     };
   };
   exceptions?: any[];
@@ -286,24 +294,18 @@ function KpiStrip({ data }: { data: DashboardPayload | null }) {
   const animals = data?.dashboard?.animals ?? {};
   const milk = data?.dashboard?.milk ?? {};
 
-  const total = Number(animals.total);
   const milking = Number(animals.milking);
-  const pct =
-    Number.isFinite(total) && total > 0 && Number.isFinite(milking)
-      ? ((milking / total) * 100).toFixed(1)
-      : null;
-
+  const total = Number(animals.total);
+  const percentage = Number(animals.milking_percentage);
   const litres = Number(milk.litres);
-  const previousLitres = Number(milk.previous_litres);
   const productionDate = displayDate(milk.production_date);
+  const changePercent = Number(milk.change_percent);
+  const comparisonStatus = String(milk.comparison_status ?? "").toUpperCase();
   const previousDate = displayDate(milk.previous_production_date);
 
-  let changeText: string | null = null;
-  if (Number.isFinite(litres) && Number.isFinite(previousLitres) && previousLitres > 0) {
-    const pctChange = ((litres - previousLitres) / previousLitres) * 100;
-    const sign = pctChange >= 0 ? "+" : "";
-    changeText = `${sign}${pctChange.toFixed(1)}% vs ${previousDate}`;
-  }
+  const changeText = Number.isFinite(changePercent) && previousDate !== "â€”"
+    ? `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}% vs ${previousDate}`
+    : null;
 
   return (
     <div className="kpi-strip">
@@ -317,20 +319,27 @@ function KpiStrip({ data }: { data: DashboardPayload | null }) {
       </div>
       <div className="kpi-card">
         <div className="kpi-label">Milking Percentage</div>
-        <div className="kpi-value accent">{pct != null ? `${pct}%` : "—"}</div>
+        <div className="kpi-value accent">
+          {Number.isFinite(percentage) ? `${percentage.toFixed(1)}%` : "â€”"}
+        </div>
       </div>
       <div className="kpi-card">
         <div className="kpi-label">Production Yield</div>
         <div className="kpi-value">{fmtL(litres)}</div>
-        <div className="kpi-date">{productionDate !== "—" ? productionDate : "Date not provided by read model"}</div>
-        {changeText && <div className="kpi-delta">{changeText}</div>}
+        <div className="kpi-date">
+          {productionDate !== "â€”" ? productionDate : "Date not provided by read model"}
+        </div>
+        {changeText && comparisonStatus !== "NO_COMPARISON" && (
+          <div className="kpi-delta">{changeText}</div>
+        )}
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Health Status (safe terminology)                                   */
+/* Health Status (backend authority)                                  */
+/* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
 
 function HealthStatusCard({
@@ -340,39 +349,53 @@ function HealthStatusCard({
   data: DashboardPayload | null;
   onNavigate: (v: ViewId) => void;
 }) {
-  const exceptions = Array.isArray(data?.exceptions) ? data!.exceptions! : [];
-  const state = data?.operational_state ?? {};
-  const healthAlerts = Array.isArray(state.health_alerts) ? state.health_alerts : [];
-  const count = Math.max(exceptions.length, healthAlerts.length);
+  const health = data?.dashboard?.health ?? {};
+  const status = String(health.status ?? "").toUpperCase();
+  const activeExceptions = Number(health.active_exceptions);
+  const criticalCases = Number(health.critical_cases);
 
-  const tone = count === 0 ? "good" : count >= 5 ? "critical" : "warning";
+  const known = Boolean(status)
+    || Number.isFinite(activeExceptions)
+    || Number.isFinite(criticalCases);
+
+  const tone =
+    status === "RED"
+      ? "critical"
+      : status === "AMBER"
+        ? "warning"
+        : status === "GREEN"
+          ? "good"
+          : "unknown";
 
   return (
     <div className={`status-card tone-${tone}`}>
       <div className="status-header">
         <h3>Health Status</h3>
         <button type="button" className="link-btn" onClick={() => onNavigate("health")}>
-          Open →
+          Open â†’
         </button>
       </div>
-      {count === 0 ? (
-        <div className="status-body">
-          <div className="status-badge good">GREEN</div>
-          <p>No health exceptions reported by the authoritative operational state.</p>
-        </div>
-      ) : (
+
+      {known ? (
         <div className="status-body">
           <div className={`status-badge ${tone}`}>
-            {tone === "critical" ? "RED" : "AMBER"}
+            {tone === "critical" ? "RED" : tone === "warning" ? "AMBER" : tone === "good" ? "GREEN" : "â€”"}
           </div>
           <p>
             <strong>
-              {count} animal{count === 1 ? "" : "s"} requiring attention
+              {Number.isFinite(activeExceptions)
+                ? `${activeExceptions} animal${activeExceptions === 1 ? "" : "s"} requiring attention`
+                : "Health status available"}
             </strong>
           </p>
           <p className="muted">
-            Detailed classification (including any governed sick status) is provided by the Health domain.
+            Critical cases: {Number.isFinite(criticalCases) ? criticalCases : "â€”"}
           </p>
+        </div>
+      ) : (
+        <div className="status-body">
+          <div className="status-badge">â€”</div>
+          <p>No health aggregate was supplied by the dashboard read model.</p>
         </div>
       )}
     </div>
@@ -381,6 +404,7 @@ function HealthStatusCard({
 
 /* ------------------------------------------------------------------ */
 /* Herd Development                                                   */
+/* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
 
 function HerdDevelopmentCard({
@@ -575,3 +599,4 @@ function MainDashboard({ onNavigate = () => undefined }: MainDashboardProps) {
 }
 
 export default MainDashboard;
+
