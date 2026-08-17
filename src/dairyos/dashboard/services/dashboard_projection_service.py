@@ -1,4 +1,4 @@
-﻿from dataclasses import asdict
+from dataclasses import asdict
 
 from dairyos.dashboard.assemblers.dashboard_projection_assembler import (
     DashboardProjectionAssembler,
@@ -88,10 +88,23 @@ class DashboardProjectionService:
         heads_up_notifications=None,
         operational_decisions=None,
         decision_summary=None,
+        milk_read_model=None,
     ):
         """Build the established dashboard dictionary for existing clients."""
 
         state = self._dashboard_state(farm_state)
+        milk_read_model = milk_read_model or {}
+        milk_trend = milk_read_model.get(
+            "production_trend",
+            {},
+        ) or {}
+        shift_production = (
+            milk_read_model.get("group_yield", {})
+            or {}
+        ).get(
+            "shift_production",
+            {},
+        ) or {}
 
         return {
             "system": "DairyOS",
@@ -101,12 +114,57 @@ class DashboardProjectionService:
                 "total": state.animals_count,
                 "milking": state.milking_animals,
                 "dry": state.dry_animals,
+                "milking_percentage": state.milking_percentage,
             },
             "milk": {
-                "today_litres": state.milk_today,
+                "production_date": (
+                    str(state.operational_date)
+                    if state.operational_date is not None
+                    else None
+                ),
+                "litres": milk_read_model.get(
+                    "total_litres",
+                    state.milk_today,
+                ),
+                "today_litres": milk_read_model.get(
+                    "total_litres",
+                    state.milk_today,
+                ),
+                "previous_production_date": milk_trend.get(
+                    "prior_date"
+                ),
+                "previous_litres": milk_trend.get(
+                    "prior_total_litres"
+                ),
+                "change_percent": milk_trend.get(
+                    "variance_percentage"
+                ),
+                "comparison_status": milk_read_model.get(
+                    "production_trend",
+                    {},
+                ).get(
+                    "comparison_status"
+                ) if isinstance(milk_read_model.get("production_trend"), dict) else None,
+                "morning_litres": shift_production.get(
+                    "MORNING",
+                    shift_production.get("morning"),
+                ),
+                "afternoon_litres": shift_production.get(
+                    "AFTERNOON",
+                    shift_production.get("afternoon"),
+                ),
+                "evening_litres": shift_production.get(
+                    "EVENING",
+                    shift_production.get("evening"),
+                ),
                 "events": state.milk_events,
                 "last_operator": state.last_operator,
                 "last_shift": state.last_shift,
+            },
+            "health": {
+                "status": state.health_status,
+                "active_exceptions": state.health_active_exceptions,
+                "critical_cases": state.health_critical_cases,
             },
             "feed": {
                 "today_kg": state.feed_today,
@@ -149,12 +207,15 @@ class DashboardProjectionService:
             self._decisions(container)
         )
 
+        milk_read_model = self._milk_read_model(container)
+
         return self.project_compatibility_dashboard(
             farm_state=farm_state,
             event_journal=container.event_journal,
             heads_up_notifications=heads_up_notifications,
             operational_decisions=operational_decisions,
             decision_summary=decision_summary,
+            milk_read_model=milk_read_model,
         )
 
     def project_api_contract(
@@ -178,21 +239,19 @@ class DashboardProjectionService:
             exceptions=farm_state.exceptions,
         )
 
+        compatibility_dashboard = (
+            self.project_compatibility_dashboard_from_container(
+                container
+            )
+        )
+
         return {
             "system": "DairyOS",
             "module": "Farm Command Center",
-            "health": (
-                "GREEN"
-                if not farm_state.exceptions
-                else "AMBER"
-            ),
+            "health": compatibility_dashboard["health"]["status"],
             "farm_status": farm_state.operational_status(),
             "operational_state": farm_state.summary(),
-            "dashboard": (
-                self.project_compatibility_dashboard_from_container(
-                    container
-                )
-            ),
+            "dashboard": compatibility_dashboard,
             "dashboard_view": asdict(dashboard_view),
             "operational_decisions": operational_decisions,
             "operational_decision_summary": decision_summary,
@@ -214,6 +273,23 @@ class DashboardProjectionService:
         return OperationalStateDashboardAdapter(
             farm_state
         )
+
+    @staticmethod
+    def _milk_read_model(container):
+        """Read existing authoritative milk intelligence without recalculating it here."""
+        service = getattr(
+            container,
+            "daily_milk_production_command_view_service",
+            None,
+        )
+
+        if service is None:
+            return {}
+
+        try:
+            return service.summary()
+        except Exception:
+            return {}
 
     @staticmethod
     def _heads_up_notifications(
@@ -398,4 +474,3 @@ class DashboardProjectionService:
         farm_state,
     ):
         return []
-
