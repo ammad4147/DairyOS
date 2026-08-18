@@ -5,10 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
-from .manager import LifecycleError, LifecycleManager, UninstallMode, PURGE_CONFIRMATION
+from .manager import (
+    PURGE_CONFIRMATION,
+    LifecycleError,
+    LifecycleManager,
+    UninstallMode,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,7 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Install, validate, back up, recover, upgrade, and uninstall DairyOS safely.",
     )
     parser.add_argument("--install-root", required=True, help="DairyOS runtime/install directory")
-    parser.add_argument("--data-root", default=None, help="Farm data directory; defaults to the platform data root")
+    parser.add_argument(
+        "--data-root",
+        default=None,
+        help="Farm data directory; defaults to the platform data root",
+    )
     parser.add_argument("--database-url", default=None, help="PostgreSQL SQLAlchemy URL")
 
     sub = parser.add_subparsers(dest="command", required=True)
@@ -33,6 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     rollback = sub.add_parser("rollback")
     rollback.add_argument("backup")
 
+    upgrade = sub.add_parser("upgrade")
+    upgrade.add_argument(
+        "package",
+        help="Package/path passed to pip install --upgrade",
+    )
+
     uninstall = sub.add_parser("uninstall")
     uninstall.add_argument(
         "--mode",
@@ -44,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-backup-before-purge",
         action="store_true",
         help="Do not create the automatic pre-purge backup",
+    )
+    uninstall.add_argument(
+        "--keep-runtime",
+        action="store_true",
+        help="Manage data only and leave the installation directory for the caller to remove",
     )
 
     return parser
@@ -83,6 +104,21 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, indent=2, default=str))
             return 0
 
+        if args.command == "upgrade":
+            def upgrade_action() -> None:
+                completed = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--upgrade", args.package],
+                    check=False,
+                )
+                if completed.returncode != 0:
+                    raise LifecycleError(
+                        f"pip upgrade failed with exit code {completed.returncode}"
+                    )
+
+            backup = manager.upgrade(upgrade_action)
+            print(f"UPGRADED; pre-upgrade backup retained at: {backup}")
+            return 0
+
         if args.command == "uninstall":
             mode = UninstallMode(args.mode)
             if mode is UninstallMode.PURGE_DATA and args.confirm != PURGE_CONFIRMATION:
@@ -91,6 +127,16 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 2
+
+            if args.keep_runtime:
+                if mode is UninstallMode.PURGE_DATA:
+                    if not args.no_backup_before_purge:
+                        manager.backup(label="pre-purge")
+                    if manager.data_root.exists():
+                        shutil.rmtree(manager.data_root, ignore_errors=False)
+                print(f"DATA OPERATION COMPLETE: {mode.value}")
+                return 0
+
             manager.uninstall(
                 mode,
                 confirmation=args.confirm,
