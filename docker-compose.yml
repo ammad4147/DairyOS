@@ -1,18 +1,41 @@
 services:
+  db:
+    image: postgres:16
+    container_name: dairyos_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dairyos}
+      POSTGRES_USER: ${POSTGRES_USER:-dairyos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - dairyos_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dairyos} -d ${POSTGRES_DB:-dairyos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   api:
-
     build: .
-
     container_name: dairyos_application
-
     restart: always
-
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-
-      DAIRYOS_DATABASE_PATH: /app/dairyos.db
-
-
+      DAIRYOS_ENV: production
+      DAIRYOS_DATA_DIR: /var/lib/dairyos
+      DAIRYOS_DB_HOST: db
+      DAIRYOS_DB_PORT: 5432
+      DAIRYOS_DB_NAME: ${POSTGRES_DB:-dairyos}
+      DAIRYOS_DB_USER: ${POSTGRES_USER:-dairyos}
+      DAIRYOS_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      DAIRYOS_AUTH_SECRET: ${DAIRYOS_AUTH_SECRET:?set DAIRYOS_AUTH_SECRET in .env}
     ports:
-
       - "8000:8000"
+    volumes:
+      - dairyos_farm_data:/var/lib/dairyos
+
+volumes:
+  dairyos_postgres_data:
+  dairyos_farm_data:
