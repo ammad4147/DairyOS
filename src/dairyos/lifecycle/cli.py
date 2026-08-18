@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +14,7 @@ from .manager import (
     LifecycleManager,
     UninstallMode,
 )
+from .purge import purge_data_after_backup
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -130,10 +130,12 @@ def main(argv: list[str] | None = None) -> int:
 
             if args.keep_runtime:
                 if mode is UninstallMode.PURGE_DATA:
-                    if not args.no_backup_before_purge:
-                        manager.backup(label="pre-purge")
-                    if manager.data_root.exists():
-                        shutil.rmtree(manager.data_root, ignore_errors=False)
+                    backup = purge_data_after_backup(
+                        manager,
+                        create_backup=not args.no_backup_before_purge,
+                    )
+                    if backup:
+                        print(f"PURGE BACKUP: {backup}")
                 print(f"DATA OPERATION COMPLETE: {mode.value}")
                 return 0
 
