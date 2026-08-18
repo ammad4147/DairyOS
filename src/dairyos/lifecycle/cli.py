@@ -15,6 +15,7 @@ from .manager import (
     UninstallMode,
 )
 from .purge import purge_data_after_backup
+from .restore import restore_snapshot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -95,17 +96,19 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "restore":
-            manager.restore(args.backup)
+            restore_snapshot(manager, args.backup)
             print(f"RESTORED: {args.backup}")
             return 0
 
         if args.command == "rollback":
-            result = manager.rollback(args.backup)
+            restore_snapshot(manager, args.backup)
+            result = manager.validate(require_database=bool(manager.database_url))
             print(json.dumps(result, indent=2, default=str))
             return 0
 
         if args.command == "upgrade":
-            def upgrade_action() -> None:
+            backup = manager.backup(label="pre-upgrade")
+            try:
                 completed = subprocess.run(
                     [sys.executable, "-m", "pip", "install", "--upgrade", args.package],
                     check=False,
@@ -114,8 +117,11 @@ def main(argv: list[str] | None = None) -> int:
                     raise LifecycleError(
                         f"pip upgrade failed with exit code {completed.returncode}"
                     )
-
-            backup = manager.upgrade(upgrade_action)
+                manager.install()
+                manager.validate(require_database=bool(manager.database_url))
+            except Exception:
+                restore_snapshot(manager, backup)
+                raise
             print(f"UPGRADED; pre-upgrade backup retained at: {backup}")
             return 0
 
