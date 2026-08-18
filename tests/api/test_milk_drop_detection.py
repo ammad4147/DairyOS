@@ -138,18 +138,27 @@ def test_other_animals_are_never_compared():
 
 def test_recording_complete_daily_milk_raises_a_real_drop_finding(
     client,
-    registered_animal,
 ):
-    frequency_response = client.post(
-        f"/farm/animals/{registered_animal}/milking-frequency",
+    # This E2E scenario is about historical daily milk completeness and the
+    # resulting drop finding. The animal must therefore already be governed by
+    # TWICE_DAILY for both historical production dates. Using the live
+    # milking-frequency change endpoint here would correctly timestamp the
+    # schedule change at test execution time, making 2026-08-17 fall before
+    # the effective_from boundary. That would test schedule-history semantics,
+    # not milk-drop detection, and would invalidate the intended scenario.
+    animal_response = client.post(
+        "/farm/animals",
         json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
             "milking_frequency": "TWICE_DAILY",
-            "changed_by": "test",
-            "reason": "Configure twice-daily milk-drop detection test",
+            "ear_tag": "TEST-MILK-DROP",
         },
     )
-    assert frequency_response.status_code == 200, frequency_response.text
-    assert frequency_response.json()["milking_frequency"] == "TWICE_DAILY"
+    assert animal_response.status_code == 200, animal_response.text
+    registered_animal = animal_response.json()["animal_id"]
 
     first_morning = client.post(
         "/farm/milk",
