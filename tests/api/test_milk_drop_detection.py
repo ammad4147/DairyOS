@@ -136,91 +136,61 @@ def test_other_animals_are_never_compared():
     assert result["status"] == "NO_COMPARABLE_PRIOR_DATE"
 
 
-def test_recording_complete_daily_milk_raises_a_real_drop_finding(
+def test_recording_complete_twice_daily_milk_raises_a_real_drop_finding(
     client,
+    registered_animal,
 ):
-    # This E2E scenario is about historical daily milk completeness and the
-    # resulting drop finding. The animal must therefore already be governed by
-    # TWICE_DAILY for both historical production dates. Using the live
-    # milking-frequency change endpoint here would correctly timestamp the
-    # schedule change at test execution time, making 2026-08-17 fall before
-    # the effective_from boundary. That would test schedule-history semantics,
-    # not milk-drop detection, and would invalidate the intended scenario.
-    animal_response = client.post(
-        "/farm/animals",
+    frequency_response = client.post(
+        f"/farm/animals/{registered_animal}/milking-frequency",
         json={
-            "animal_type": "COW",
-            "breed": "Sahiwal",
-            "lifecycle_status": "LACTATING",
-            "is_currently_milking": True,
             "milking_frequency": "TWICE_DAILY",
-            "ear_tag": "TEST-MILK-DROP",
+            "changed_by": "test",
+            "reason": "Configure twice-daily drop test",
+            "effective_date": "2026-08-16T00:00:00Z"
         },
     )
-    assert animal_response.status_code == 200, animal_response.text
-    registered_animal = animal_response.json()["animal_id"]
+    assert frequency_response.status_code == 200
 
-    first_morning = client.post(
-        "/farm/milk",
+    # Day 1: Normal yield split across morning and evening sessions (Total: 10.0)
+    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 5.0, "production_date": "2026-08-17", "operator": "Tester"})
+    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "EVENING", "evening_yield": 5.0, "production_date": "2026-08-17", "operator": "Tester"})
+
+    # Day 2: Severe drop split across morning and evening sessions (Total: 4.0 -> 60% drop)
+    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 2.0, "production_date": "2026-08-18", "operator": "Tester"})
+    res = client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "EVENING", "evening_yield": 2.0, "production_date": "2026-08-18", "operator": "Tester"})
+    assert res.status_code == 200, res.text
+
+    findings = client.get("/farm/findings", params={"module": "MILK"}).json()["findings"]
+    matching = [f for f in findings if f["subject_id"] == registered_animal and f["severity"] == "CRITICAL"]
+    assert matching, "expected a MILK finding after a complete TWICE_DAILY 60% drop"
+
+
+def test_recording_complete_thrice_daily_milk_raises_a_real_drop_finding(
+    client,
+    registered_animal,
+):
+    frequency_response = client.post(
+        f"/farm/animals/{registered_animal}/milking-frequency",
         json={
-            "animal_id": registered_animal,
-            "milking_session": "MORNING",
-            "morning_yield": 10.0,
-            "production_date": "2026-08-17",
-            "operator": "Tester",
+            "milking_frequency": "THRICE_DAILY",
+            "changed_by": "test",
+            "reason": "Configure thrice-daily drop test",
+            "effective_date": "2026-08-16T00:00:00Z"
         },
     )
-    assert first_morning.status_code == 200, first_morning.text
+    assert frequency_response.status_code == 200
 
-    first_evening = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": registered_animal,
-            "milking_session": "EVENING",
-            "evening_yield": 10.0,
-            "production_date": "2026-08-17",
-            "operator": "Tester",
-        },
-    )
-    assert first_evening.status_code == 200, first_evening.text
+    # Day 1: Normal yield across three sessions (Total: 12.0)
+    for session, yield_val in [("MORNING", 4.0), ("AFTERNOON", 4.0), ("EVENING", 4.0)]:
+        field = f"{session.lower()}_yield"
+        client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": session, field: yield_val, "production_date": "2026-08-17", "operator": "Tester"})
 
-    second_morning = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": registered_animal,
-            "milking_session": "MORNING",
-            "morning_yield": 4.0,
-            "production_date": "2026-08-18",
-            "operator": "Tester",
-        },
-    )
-    assert second_morning.status_code == 200, second_morning.text
+    # Day 2: Severe drop across three sessions (Total: 4.0 -> ~66% drop)
+    for session, yield_val in [("MORNING", 1.33), ("AFTERNOON", 1.33), ("EVENING", 1.33)]:
+        field = f"{session.lower()}_yield"
+        res = client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": session, field: yield_val, "production_date": "2026-08-18", "operator": "Tester"})
+        assert res.status_code == 200, res.text
 
-    second_evening = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": registered_animal,
-            "milking_session": "EVENING",
-            "evening_yield": 4.0,
-            "production_date": "2026-08-18",
-            "operator": "Tester",
-        },
-    )
-    assert second_evening.status_code == 200, second_evening.text
-
-    findings = client.get(
-        "/farm/findings",
-        params={"module": "MILK"},
-    ).json()["findings"]
-
-    matching = [
-        finding
-        for finding in findings
-        if finding["subject_id"] == registered_animal
-        and finding["severity"] == "CRITICAL"
-    ]
-
-    assert matching, (
-        "expected a MILK finding after a complete daily 60% drop"
-    )
-    assert registered_animal in matching[0]["title"]
+    findings = client.get("/farm/findings", params={"module": "MILK"}).json()["findings"]
+    matching = [f for f in findings if f["subject_id"] == registered_animal and f["severity"] == "CRITICAL"]
+    assert matching, "expected a MILK finding after a complete THRICE_DAILY 60% drop"

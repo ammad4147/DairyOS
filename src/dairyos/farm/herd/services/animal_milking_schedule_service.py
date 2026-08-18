@@ -1,4 +1,4 @@
-"""Authoritative animal-specific milking schedule interpretation."""
+﻿"""Authoritative animal-specific milking schedule interpretation."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Iterable
 
-from dairyos.core.time_utils import utcnow
 from dairyos.farm.production.models.non_milking_directive import (
     NonMilkingDirective,
 )
@@ -51,15 +50,9 @@ class AnimalMilkingScheduleService:
 
     Persisted authority is ``AnimalMilkingScheduleHistory``.
 
-    Veterinary non-milking directives overlay the schedule:
-
-    * NONE -> normal schedule applies.
-    * TEMPORARY_NON_MILKING -> zero milk expected.
-    * PERMANENT_NON_MILKING -> zero milk expected.
-    * MILK_SEPARATELY -> milk is still expected, but the animal is outside
-      the active normal milking-herd population. Downstream accounting can
-      therefore classify its milk separately without treating it as a
-      missed session.
+    The automatically-created ``initial`` history row is a baseline/default
+    schedule. An explicitly entered schedule change takes precedence over
+    that baseline when both cover the same operational date.
     """
 
     FREQUENCY_MAP = FREQUENCY_MAP
@@ -106,9 +99,7 @@ class AnimalMilkingScheduleService:
 
         if isinstance(value, str):
             try:
-                return datetime.fromisoformat(
-                    value
-                ).date()
+                return datetime.fromisoformat(value).date()
             except ValueError:
                 try:
                     return date.fromisoformat(value)
@@ -116,6 +107,16 @@ class AnimalMilkingScheduleService:
                     return None
 
         return None
+
+    @staticmethod
+    def _is_initial_schedule(record) -> bool:
+        reason = getattr(record, "reason", None)
+        changed_by = getattr(record, "changed_by", None)
+
+        return (
+            str(reason or "").strip().lower() == "initial"
+            and changed_by in (None, "")
+        )
 
     @staticmethod
     def _directive(animal) -> NonMilkingDirective:
@@ -129,10 +130,6 @@ class AnimalMilkingScheduleService:
             return NonMilkingDirective(str(raw))
         except ValueError:
             return NonMilkingDirective.NONE
-
-    @classmethod
-    def _directive_expects_milk(cls, animal) -> bool:
-        return cls._directive(animal).expects_milk
 
     @classmethod
     def _directive_blocks_expected_milk(cls, animal) -> bool:
@@ -192,6 +189,8 @@ class AnimalMilkingScheduleService:
             reverse=True,
         )
 
+        applicable = []
+
         for record in records:
             effective_from = self._history_date(
                 getattr(
@@ -221,9 +220,24 @@ class AnimalMilkingScheduleService:
             ):
                 continue
 
-            return record
+            applicable.append(record)
 
-        return None
+        if not applicable:
+            return None
+
+        # Explicit operator-entered schedules outrank the automatic
+        # registration baseline when both happen to cover the date. Among
+        # explicit rows the latest effective_from wins.
+        explicit = [
+            record
+            for record in applicable
+            if not self._is_initial_schedule(record)
+        ]
+
+        if explicit:
+            return explicit[0]
+
+        return applicable[0]
 
     def get_frequency_for_date(
         self,
@@ -235,13 +249,7 @@ class AnimalMilkingScheduleService:
             operational_date
         )
 
-        directive = self._directive(animal)
-
-        # Temporary and permanent veterinary non-milking directives mean
-        # there is deliberately no expected milk production.
-        if self._directive_blocks_expected_milk(
-            animal
-        ):
+        if self._directive_blocks_expected_milk(animal):
             return None
 
         current = getattr(
@@ -322,9 +330,7 @@ class AnimalMilkingScheduleService:
 
         directive = self._directive(animal)
 
-        if self._directive_blocks_expected_milk(
-            animal
-        ):
+        if self._directive_blocks_expected_milk(animal):
             return MilkingScheduleSnapshot(
                 animal_id=animal.animal_id,
                 operational_date=normalized,
