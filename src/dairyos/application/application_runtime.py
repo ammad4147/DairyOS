@@ -861,6 +861,7 @@ class ApplicationRuntime:
             OperationalCommandCenterService(
                 operational_state_service=self._operational_state_service,
                 operations_health_service=self._operations_health_service,
+                event_publisher=self.publish_event,
                 attention_queue_service=AttentionQueueService(
                     missing_input_detection_service=(
                         self._missing_input_detection_service
