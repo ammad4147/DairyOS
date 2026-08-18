@@ -214,23 +214,25 @@ class OperationalCommandCenterService:
             normalized = str(details)
         return (str(recommendation.get("type")), str(recommendation.get("action")), str(recommendation.get("animal_id")), normalized)
 
-    @staticmethod
-    def _serialize_decision(decision):
-        return {
-            "decision_id": decision.decision_id,
-            "title": decision.title,
-            "description": decision.description,
-            "priority": decision.priority.level,
-            "priority_score": decision.priority.score,
-            "owner_action_required": decision.owner_action_required,
-            "status": decision.status,
-            "owner": decision.owner,
-            "source": decision.source,
-            "outcome": decision.outcome,
-            "created_at": decision.created_at,
-            "acknowledged_at": decision.acknowledged_at,
-            "completed_at": decision.completed_at,
-        }
+    @classmethod
+    def _serialize_decision(cls, decision):
+        return cls._serialize(
+            {
+                "decision_id": decision.decision_id,
+                "title": decision.title,
+                "description": decision.description,
+                "priority": decision.priority.level,
+                "priority_score": decision.priority.score,
+                "owner_action_required": decision.owner_action_required,
+                "status": decision.status,
+                "owner": decision.owner,
+                "source": decision.source,
+                "outcome": decision.outcome,
+                "created_at": decision.created_at,
+                "acknowledged_at": decision.acknowledged_at,
+                "completed_at": decision.completed_at,
+            }
+        )
 
     @classmethod
     def _serialize(cls, value):
