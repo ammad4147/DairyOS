@@ -50,28 +50,39 @@ if ($Mode -eq "PurgeData") {
         throw "Purge cancelled because the confirmation text did not match exactly."
     }
 
-    $confirmationArgs = @("uninstall", "--mode", "purge-data", "--confirm", "PURGE DAIRYOS DATA")
+    $confirmationArgs = @(
+        "uninstall", "--mode", "purge-data",
+        "--confirm", "PURGE DAIRYOS DATA",
+        "--keep-runtime"
+    )
     if ($NoAutomaticBackup) {
         $confirmationArgs += "--no-backup-before-purge"
     }
 
-    Write-Step "PURGE DATA AND REMOVE RUNTIME"
+    Write-Step "BACKUP, PURGE DATA"
     & $LifecyclePython @common @confirmationArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "DairyOS purge uninstall failed. Existing data was not intentionally purged by this script after a lifecycle error."
+        throw "DairyOS purge data operation failed. Runtime removal was not attempted."
     }
 }
 else {
-    Write-Step "REMOVE RUNTIME; KEEP DATA"
-    & $LifecyclePython @common "uninstall" "--mode" "keep-data"
+    Write-Step "KEEP DATA; PREPARE RUNTIME REMOVAL"
+    & $LifecyclePython @common "uninstall" "--mode" "keep-data" "--keep-runtime"
     if ($LASTEXITCODE -ne 0) {
-        throw "DairyOS keep-data uninstall failed."
+        throw "DairyOS keep-data lifecycle operation failed. Runtime removal was not attempted."
     }
 }
 
+Write-Step "REMOVE RUNTIME"
+if (Test-Path $InstallRoot) {
+    Remove-Item -Recurse -Force $InstallRoot
+}
+
 Write-Host "`nDairyOS uninstall completed in mode: $Mode" -ForegroundColor Green
-Write-Host ""
 if ($Mode -eq "KeepData") {
     Write-Host "Farm data retained at: $DataRoot" -ForegroundColor Green
     Write-Host "A future DairyOS installation can be pointed back to this data directory."
+}
+else {
+    Write-Host "Farm data purge completed. Pre-purge backup remains in the external backup location when enabled." -ForegroundColor Green
 }
