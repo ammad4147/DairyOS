@@ -23,7 +23,8 @@ The journal:
 - preserves event timestamps;
 - reconstructs canonical Event instances for replay;
 - supports controlled test/development clearing;
-- provides journal inspection.
+- provides journal inspection;
+- provides persisted execution-sequence inspection.
 
 The journal does NOT:
 
@@ -46,7 +47,7 @@ from dairyos.runtime.journal_entry import JournalEntry
 
 class PersistentEventJournal:
     """
-    PostgreSQL-backed append-only event journal.
+    PostgreSQL-backed append-only operational event journal.
 
     Each operation owns a short-lived SQLAlchemy session.
     """
@@ -172,6 +173,65 @@ class PersistentEventJournal:
                 }
                 for row in rows
             ]
+
+        finally:
+            session.close()
+
+    def latest_execution_sequence(
+        self,
+    ) -> int:
+        """
+        Return the highest persisted EXE-#### execution number.
+
+        Only OPERATIONAL_EXECUTION_CREATED events are considered.
+        Malformed or legacy identifiers are ignored rather than
+        blocking execution creation.
+        """
+
+        session = self._session_factory()
+
+        try:
+            rows = (
+                session.query(
+                    EventJournalModel
+                )
+                .filter(
+                    EventJournalModel.event_type
+                    == "OPERATIONAL_EXECUTION_CREATED"
+                )
+                .all()
+            )
+
+            highest = 0
+
+            for row in rows:
+                payload = dict(
+                    row.payload or {}
+                )
+
+                execution_id = str(
+                    payload.get(
+                        "execution_id",
+                        "",
+                    )
+                ).strip()
+
+                if not execution_id.startswith("EXE-"):
+                    continue
+
+                sequence_text = execution_id[4:]
+
+                if not sequence_text.isdigit():
+                    continue
+
+                sequence = int(
+                    sequence_text
+                )
+
+                if sequence > highest:
+                    highest = sequence
+
+            return highest
 
         finally:
             session.close()
