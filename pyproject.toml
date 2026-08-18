@@ -23,6 +23,7 @@ dependencies = [
 
 [project.scripts]
 dairyos-server = "dairyos.server:main"
+dairyos-lifecycle = "dairyos.lifecycle.cli:main"
 
 [tool.black]
 line-length=88
