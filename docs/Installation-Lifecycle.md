@@ -20,15 +20,9 @@ Install
 
 The managed farm-data root is controlled by `DAIRYOS_DATA_DIR` and is resolved by `dairyos.platform.paths`. On Windows a conventional default is under `%LOCALAPPDATA%\DairyOS`; the supported production installer sets a farm-wide root under `%PROGRAMDATA%\DairyOS`.
 
-The data root contains:
+The data root contains operational state, configuration, logs and lifecycle metadata. PostgreSQL remains outside the runtime installation directory.
 
-- `storage/` — JSON-backed operational state;
-- `config.json` — farm configuration managed by the lifecycle boundary;
-- `logs/` — application logs;
-- `backups/` — lifecycle backup sets;
-- `lifecycle.json` — installation and upgrade manifest.
-
-The PostgreSQL database remains outside the installation directory. Database backups use the standard PostgreSQL custom dump format through `pg_dump`; restore uses `pg_restore`.
+Lifecycle backups are treated differently from live farm data: normal lifecycle snapshots are written under the managed backup area, while a destructive purge first makes a second copy under the sibling `DairyOS-PurgeBackups` directory so the recovery artifact survives deletion of the live data root.
 
 ## Installation
 
@@ -70,6 +64,6 @@ The operational test suite remains the authoritative application behavior gate.
 PURGE DAIRYOS DATA
 ```
 
-The Windows uninstaller performs a pre-purge backup by default, then removes the data root. The runtime is removed only after the lifecycle data operation succeeds.
+The Windows uninstaller performs a pre-purge backup by default. The runtime is removed only after the lifecycle data operation succeeds. The purge workflow makes the surviving backup copy outside the data root before deleting the live data root.
 
 Never treat a filesystem-level deletion of the runtime directory as equivalent to a data purge. Farm data lives outside the runtime installation boundary by design.
