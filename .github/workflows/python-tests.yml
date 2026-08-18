@@ -40,6 +40,42 @@ jobs:
       - name: Run Milk Cycle and intelligence tests
         run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
 
+  lifecycle-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dairyos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAIRYOS_DB_HOST: localhost
+      DAIRYOS_DB_PORT: "5432"
+      DAIRYOS_DB_NAME: dairyos
+      DAIRYOS_DB_USER: postgres
+      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_ENV: development
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project and test runner
+        run: python -m pip install --upgrade pip && pip install -e . pytest
+      - name: Run installation lifecycle tests
+        run: pytest -q tests/platform/test_lifecycle_manager.py
+      - name: Check Docker Compose configuration
+        run: docker compose config -q
+
   frontend-syntax:
     runs-on: ubuntu-latest
     steps:
