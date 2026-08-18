@@ -57,8 +57,9 @@ if ($majorMinor -lt [version]"3.12") {
     throw "Python 3.12+ is required. Found $pythonVersion"
 }
 
+$HadExistingRuntime = Test-Path $InstallRoot
 New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $InstallRoot ".lifecycle") | Out-Null
+New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 
 $VenvPython = Join-Path $InstallRoot ".venv\Scripts\python.exe"
 $RuntimeBackup = $null
@@ -87,17 +88,14 @@ try {
             throw "Lifecycle backup command completed without producing a backup directory."
         }
 
-        if (Test-Path $InstallRoot) {
-            $RuntimeBackup = Join-Path $DataBackup.FullName "runtime.zip"
-            $runtimeItems = Get-ChildItem $InstallRoot -Force | Where-Object { $_.FullName -ne $DataBackup.FullName }
-            if ($runtimeItems) {
-                Compress-Archive -Path $runtimeItems.FullName -DestinationPath $RuntimeBackup -CompressionLevel Optimal -Force
-            }
+        $RuntimeBackup = Join-Path $DataBackup.FullName "runtime.zip"
+        $runtimeItems = Get-ChildItem $InstallRoot -Force
+        if ($runtimeItems) {
+            Compress-Archive -Path $runtimeItems.FullName -DestinationPath $RuntimeBackup -CompressionLevel Optimal -Force
         }
     }
 
     Write-Step "INSTALL / UPGRADE RUNTIME"
-    New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 
     if (-not (Test-Path $VenvPython)) {
         python -m venv (Join-Path $InstallRoot ".venv")
@@ -115,29 +113,32 @@ try {
         "--install-root", $InstallRoot,
         "--data-root", $DataRoot
     )
-    if ($DatabaseUrl) {
+    if (-not $SkipDatabaseValidation -and $DatabaseUrl) {
         $validateArgs += @("--database-url", $DatabaseUrl)
     }
-    if ($SkipDatabaseValidation) {
-        $env:DAIRYOS_DATA_DIR = $DataRoot
-        & $VenvPython -m dairyos.lifecycle.cli --install-root $InstallRoot --data-root $DataRoot install | Out-Host
-    }
-    else {
-        Invoke-DairyOsLifecycle $validateArgs + @("install")
-        Invoke-DairyOsLifecycle $validateArgs + @("validate")
-    }
+
+    $installArgs = $validateArgs + @("install")
+    Invoke-DairyOsLifecycle $installArgs
+
+    $validateCommandArgs = $validateArgs + @("validate")
+    Invoke-DairyOsLifecycle $validateCommandArgs
 
     Write-Step "WRITE LAUNCHER"
     $launcher = Join-Path $InstallRoot "DairyOS-Server.ps1"
     $launcherContent = @"
 `$ErrorActionPreference = 'Stop'
+`$env:DAIRYOS_ENV = 'production'
 `$env:DAIRYOS_DATA_DIR = '$DataRoot'
-if ('$DatabaseUrl') {
-    `$env:DAIRYOS_DATABASE_URL = '$DatabaseUrl'
+if (-not `$env:DAIRYOS_DATABASE_URL -and (`$env:DAIRYOS_DB_PASSWORD -or `$env:DAIRYOS_DB_HOST)) {
+    Write-Host 'Using DAIRYOS_DB_* environment variables for the production database.'
 }
 & '$VenvPython' -m dairyos.server --host 127.0.0.1 --port 8000
 "@
-    [IO.File]::WriteAllText($launcher, $launcherContent, (New-Object System.Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText(
+        $launcher,
+        $launcherContent,
+        (New-Object System.Text.UTF8Encoding($false))
+    )
 
     Write-Step "INSTALLATION COMPLETE"
     Write-Host "Runtime : $InstallRoot"
@@ -156,7 +157,8 @@ catch {
         if ($DatabaseUrl) {
             $rollbackArgs += @("--database-url", $DatabaseUrl)
         }
-        Invoke-DairyOsLifecycle $rollbackArgs + @("rollback", $DataBackup.FullName)
+        $rollbackCommandArgs = $rollbackArgs + @("rollback", $DataBackup.FullName)
+        Invoke-DairyOsLifecycle $rollbackCommandArgs
 
         if ($RuntimeBackup -and (Test-Path $RuntimeBackup)) {
             Write-Step "ROLLBACK RUNTIME"
@@ -167,8 +169,12 @@ catch {
             Expand-Archive -Path $RuntimeBackup -DestinationPath $InstallRoot -Force
         }
     }
+    elseif (-not $HadExistingRuntime -and (Test-Path $InstallRoot)) {
+        Write-Step "REMOVE PARTIAL FIRST INSTALL"
+        Remove-Item -Recurse -Force $InstallRoot
+    }
     else {
-        Write-Warning "No pre-change data backup was available; no destructive rollback was attempted."
+        Write-Warning "No pre-change runtime/data snapshot was available; no destructive rollback was attempted."
     }
 
     throw
