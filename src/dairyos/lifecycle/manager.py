@@ -339,9 +339,32 @@ def _is_writable(directory: Path) -> bool:
 
 
 def _check_database(database_url: str) -> None:
-    import psycopg
+    """Validate a DairyOS SQLAlchemy database URL using psycopg.
 
-    with psycopg.connect(database_url, connect_timeout=5) as connection:
+    DairyOS exposes PostgreSQL URLs in SQLAlchemy form, for example
+    ``postgresql+psycopg://user:password@host:5432/database``.  psycopg's
+    direct ``connect()`` call expects libpq-style connection information or
+    a plain PostgreSQL URI and therefore does not accept the SQLAlchemy
+    ``+psycopg`` driver suffix.  Parse the canonical URL with SQLAlchemy and
+    pass the resulting connection fields to psycopg explicitly.
+    """
+    import psycopg
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(database_url)
+    connect_args = parsed.translate_connect_args(
+        host="host",
+        port="port",
+        username="user",
+        password="password",
+        database="dbname",
+    )
+
+    # Preserve SQLAlchemy URL query options where they map directly to
+    # libpq/psycopg keyword arguments, such as sslmode or application_name.
+    connect_args.update(parsed.query)
+
+    with psycopg.connect(connect_timeout=5, **connect_args) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
