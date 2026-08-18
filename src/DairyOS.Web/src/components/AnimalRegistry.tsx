@@ -20,6 +20,11 @@ type Animal = {
     production_group?: string | null;
     location?: string | null;
     active?: boolean;
+    non_milking_directive?: string | null;
+    non_milking_reason?: string | null;
+    non_milking_since?: string | null;
+    non_milking_until?: string | null;
+    non_milking_changed_by?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
 };
@@ -30,6 +35,14 @@ type PassportRecord = {
 
 type Passport = {
     animal?: PassportRecord;
+
+    schedule?: {
+        effective?: {
+            milking_frequency?: string | null;
+            expected_sessions?: string[] | null;
+            source?: string | null;
+        } | null;
+    } | null;
 
     history?: {
         milk?: PassportRecord[];
@@ -52,10 +65,20 @@ type Passport = {
 
 type Props = {
     onNavigate: (
-        view: "milk" | "feed" | "health" | "breeding"
+        view: "milk" | "feed" | "health" | "breeding",
     ) => void;
 };
 
+type OperationalMode =
+    | "MILKING"
+    | "NON_MILKING";
+
+type NonMilkingCategory =
+    | "HEALTH"
+    | "DRY_REPRODUCTIVE"
+    | "MILK_SEPARATELY"
+    | "PERMANENT"
+    | "OTHER";
 
 const initialForm = {
     animal_type: "COW",
@@ -66,15 +89,27 @@ const initialForm = {
     date_of_birth: "",
     dam_id: "",
     sire_id: "",
-    lifecycle_status: "HEIFER",
-    is_currently_milking: false,
-    milking_frequency: "",
     production_group: "",
     location: "",
+
+    operational_mode:
+        "MILKING" as OperationalMode,
+
+    milking_frequency:
+        "TWICE_DAILY",
+
+    non_milking_category:
+        "HEALTH" as NonMilkingCategory,
+
+    non_milking_reason: "",
 };
 
 function display(value: unknown): string {
-    if (value === null || value === undefined || value === "") {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
         return "Unavailable";
     }
 
@@ -103,18 +138,82 @@ function formatDate(value: unknown): string {
     return parsed.toLocaleString();
 }
 
+function frequencyLabel(
+    value: string | null | undefined,
+): string {
+    switch (
+        String(value ?? "").toUpperCase()
+    ) {
+        case "TWICE_DAILY":
+            return "2 sessions";
 
-function getOperatorAlerts(passport: Passport): string[] {
+        case "THRICE_DAILY":
+            return "3 sessions";
+
+        default:
+            return "Not set";
+    }
+}
+
+function nonMilkingCategoryLabel(
+    category: NonMilkingCategory | string | null | undefined,
+): string {
+    switch (
+        String(category ?? "").toUpperCase()
+    ) {
+        case "HEALTH":
+            return "Health restriction";
+
+        case "DRY_REPRODUCTIVE":
+            return "Dry / reproductive break";
+
+        case "MILK_SEPARATELY":
+            return "Milk separately";
+
+        case "PERMANENT":
+            return "Permanent non-milking";
+
+        case "OTHER":
+            return "Other operational";
+
+        default:
+            return "Non-milking";
+    }
+}
+
+function directiveForCategory(
+    category: NonMilkingCategory,
+): string {
+    switch (category) {
+        case "MILK_SEPARATELY":
+            return "MILK_SEPARATELY";
+
+        case "PERMANENT":
+            return "PERMANENT_NON_MILKING";
+
+        case "HEALTH":
+        case "DRY_REPRODUCTIVE":
+        case "OTHER":
+        default:
+            return "TEMPORARY_NON_MILKING";
+    }
+}
+
+function getOperatorAlerts(
+    passport: Passport,
+): string[] {
     const alerts: string[] = [];
 
-    const health = passport.history?.health ?? [];
+    const health =
+        passport.history?.health ?? [];
 
     health.forEach((item) => {
         if (
-            String(item.severity).toUpperCase() === "CRITICAL"
+            String(item.severity).toUpperCase() ===
+            "CRITICAL"
         ) {
             alerts.push(
-                `${item.observation ?? "Health event"} requires attention`
+                `${item.observation ?? "Health event"} requires attention`,
             );
         }
     });
@@ -122,117 +221,139 @@ function getOperatorAlerts(passport: Passport): string[] {
     return alerts;
 }
 
-function domainLabel(domain: string): string {
-    const labels: Record<string,string> = {
+function domainLabel(
+    domain: string,
+): string {
+    const labels: Record<
+        string,
+        string
+    > = {
         milk: "Milk Production",
         feed: "Feeding",
         health: "Health Observation",
         breeding: "Breeding",
-        operational_events: "Farm Event"
+        operational_events: "Farm Event",
     };
 
-    return labels[domain] ?? domain;
+    return (
+        labels[domain] ?? domain
+    );
 }
 
-function AnimalRegistry({ onNavigate }: Props) {
-    const [animals, setAnimals] = useState<Animal[]>([]);
-    const [selected, setSelected] = useState<Animal | null>(null);
-    const [passport, setPassport] = useState<Passport | null>(null);
-    const [showEntry, setShowEntry] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [passportLoading, setPassportLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [form, setForm] = useState(initialForm);
-    const [referenceData, setReferenceData] = useState<{
-        lifecycle_statuses: string[];
-        milking_frequencies: string[];
-    }>({ lifecycle_statuses: [], milking_frequencies: [] });
+function AnimalRegistry({
+    onNavigate,
+}: Props) {
+    const [animals, setAnimals] =
+        useState<Animal[]>([]);
 
-    const loadReferenceData = useCallback(async () => {
-        try {
-            const response = await fetch(`${API}/farm/reference-data`);
+    const [selected, setSelected] =
+        useState<Animal | null>(null);
 
-            if (!response.ok) {
-                throw new Error(`Reference data request failed (${response.status})`);
+    const [passport, setPassport] =
+        useState<Passport | null>(null);
+
+    const [showEntry, setShowEntry] =
+        useState(false);
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [passportLoading, setPassportLoading] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+    const [success, setSuccess] =
+        useState("");
+
+    const [form, setForm] =
+        useState(initialForm);
+
+    const loadAnimals = useCallback(
+        async () => {
+            setLoading(true);
+            setError("");
+
+            try {
+                const response =
+                    await fetch(
+                        `${API}/farm/animals`,
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Animal registry request failed (${response.status})`,
+                    );
+                }
+
+                const payload =
+                    await response.json();
+
+                if (
+                    !Array.isArray(
+                        payload,
+                    )
+                ) {
+                    throw new Error(
+                        "Animal registry returned an invalid response",
+                    );
+                }
+
+                setAnimals(payload);
+            } catch (exc) {
+                setError(
+                    exc instanceof Error
+                        ? exc.message
+                        : "Unable to load animal registry",
+                );
+            } finally {
+                setLoading(false);
             }
-
-            const payload = await response.json();
-            const governed = payload?.governed ?? {};
-
-            setReferenceData({
-                lifecycle_statuses: Array.isArray(governed.lifecycle_statuses)
-                    ? governed.lifecycle_statuses
-                    : [],
-                milking_frequencies: Array.isArray(governed.milking_frequencies)
-                    ? governed.milking_frequencies
-                    : [],
-            });
-        } catch {
-            // Non-fatal: dropdowns fall back to empty and the operator sees
-            // "Not specified" only. The registry list itself still loads.
-        }
-    }, []);
-
-    const loadAnimals = useCallback(async () => {
-        setLoading(true);
-        setError("");
-
-        try {
-            const response = await fetch(`${API}/farm/animals`);
-
-            if (!response.ok) {
-                throw new Error(`Animal registry request failed (${response.status})`);
-            }
-
-            const payload = await response.json();
-
-            if (!Array.isArray(payload)) {
-                throw new Error("Animal registry returned an invalid response");
-            }
-
-            setAnimals(payload);
-        } catch (exc) {
-            setError(
-                exc instanceof Error
-                    ? exc.message
-                    : "Unable to load animal registry"
-            );
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+        },
+        [],
+    );
 
     useEffect(() => {
         void loadAnimals();
-        void loadReferenceData();
-    }, [loadAnimals, loadReferenceData]);
+    }, [loadAnimals]);
 
-    const openPassport = async (animal: Animal) => {
+    const openPassport = async (
+        animal: Animal,
+    ) => {
         setSelected(animal);
         setPassport(null);
         setPassportLoading(true);
         setError("");
 
         try {
-            const response = await fetch(
-                `${API}/farm/animals/${encodeURIComponent(animal.animal_id)}/passport`
-            );
+            const response =
+                await fetch(
+                    `${API}/farm/animals/${encodeURIComponent(animal.animal_id)}/passport`,
+                );
 
             if (!response.ok) {
-                throw new Error(`Animal Passport request failed (${response.status})`);
+                throw new Error(
+                    `Animal Passport request failed (${response.status})`,
+                );
             }
 
-            setPassport(await response.json());
+            setPassport(
+                await response.json(),
+            );
         } catch (exc) {
             setError(
                 exc instanceof Error
                     ? exc.message
-                    : "Unable to load Animal Passport"
+                    : "Unable to load Animal Passport",
             );
         } finally {
-            setPassportLoading(false);
+            setPassportLoading(
+                false,
+            );
         }
     };
 
@@ -243,7 +364,7 @@ function AnimalRegistry({ onNavigate }: Props) {
 
     const updateForm = (
         name: keyof typeof initialForm,
-        value: string | boolean
+        value: string,
     ) => {
         setForm((current) => ({
             ...current,
@@ -251,18 +372,52 @@ function AnimalRegistry({ onNavigate }: Props) {
         }));
     };
 
-    const submitAnimal = async (event: React.FormEvent) => {
+    const submitAnimal = async (
+        event: React.FormEvent,
+    ) => {
         event.preventDefault();
+
         setSaving(true);
         setError("");
         setSuccess("");
 
-        const payload: Record<string, unknown> = {
-            animal_type: form.animal_type,
-            lifecycle_status: form.lifecycle_status,
+        const isMilking =
+            form.operational_mode ===
+            "MILKING";
+
+        if (
+            !isMilking &&
+            !form.non_milking_reason.trim()
+        ) {
+            setSaving(false);
+            setError(
+                "A documented reason is required for a non-milking animal.",
+            );
+            return;
+        }
+
+        const payload: Record<
+            string,
+            unknown
+        > = {
+            animal_type:
+                form.animal_type,
+
+            lifecycle_status:
+                isMilking
+                    ? "LACTATING"
+                    : "DRY",
+
             active: true,
-            is_currently_milking: form.is_currently_milking,
+
+            is_currently_milking:
+                isMilking,
         };
+
+        if (isMilking) {
+            payload.milking_frequency =
+                form.milking_frequency;
+        }
 
         const optionalTextFields = [
             "ear_tag",
@@ -272,13 +427,13 @@ function AnimalRegistry({ onNavigate }: Props) {
             "date_of_birth",
             "dam_id",
             "sire_id",
-            "milking_frequency",
             "production_group",
             "location",
         ] as const;
 
         for (const field of optionalTextFields) {
-            const value = form[field];
+            const value =
+                form[field];
 
             if (value) {
                 payload[field] = value;
@@ -286,43 +441,125 @@ function AnimalRegistry({ onNavigate }: Props) {
         }
 
         try {
-            const response = await fetch(`${API}/farm/animals`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
+            const response =
+                await fetch(
+                    `${API}/farm/animals`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+                        body: JSON.stringify(
+                            payload,
+                        ),
+                    },
+                );
 
-            const body = await response.json().catch(() => null);
+            const body =
+                await response
+                    .json()
+                    .catch(
+                        () => null,
+                    );
 
             if (!response.ok) {
                 const detail =
                     body &&
-                    typeof body === "object" &&
+                    typeof body ===
+                        "object" &&
                     "detail" in body
-                        ? String(body.detail)
+                        ? String(
+                              body.detail,
+                          )
                         : `Animal creation failed (${response.status})`;
 
-                throw new Error(detail);
+                throw new Error(
+                    detail,
+                );
             }
 
-            const created = body as Animal;
+            const created =
+                body as Animal;
+
+            /*
+             * Non-milking governance is deliberately applied through the
+             * existing veterinary endpoint rather than by inventing a second
+             * persistence model in the UI.
+             */
+            if (!isMilking) {
+                const directive =
+                    directiveForCategory(
+                        form.non_milking_category,
+                    );
+
+                const documentedReason =
+                    `${nonMilkingCategoryLabel(form.non_milking_category)}: ${form.non_milking_reason.trim()}`;
+
+                const directiveResponse =
+                    await fetch(
+                        `${API}/farm/animals/${encodeURIComponent(created.animal_id)}/non-milking-directive`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                            },
+                            body: JSON.stringify(
+                                {
+                                    directive,
+                                    reason:
+                                        documentedReason,
+                                    changed_by:
+                                        "Operator UI",
+                                },
+                            ),
+                        },
+                    );
+
+                if (
+                    !directiveResponse.ok
+                ) {
+                    const directiveBody =
+                        await directiveResponse
+                            .json()
+                            .catch(
+                                () =>
+                                    null,
+                            );
+
+                    const detail =
+                        directiveBody &&
+                        typeof directiveBody ===
+                            "object" &&
+                        "detail" in
+                            directiveBody
+                            ? String(
+                                  directiveBody.detail,
+                              )
+                            : `Non-milking governance failed (${directiveResponse.status})`;
+
+                    throw new Error(
+                        `Animal ${created.animal_id} was registered, but the non-milking governance step failed: ${detail}`,
+                    );
+                }
+            }
 
             setSuccess(
-                `Animal registered successfully: ${created.animal_id}`
+                isMilking
+                    ? `Animal ${created.animal_id} registered as MILKING · ${frequencyLabel(form.milking_frequency)}.`
+                    : `Animal ${created.animal_id} registered as NON-MILKING · ${nonMilkingCategoryLabel(form.non_milking_category)}.`,
             );
 
             setForm(initialForm);
             setShowEntry(false);
 
             await loadAnimals();
-            await openPassport(created);
         } catch (exc) {
             setError(
                 exc instanceof Error
                     ? exc.message
-                    : "Animal registration failed"
+                    : "Animal registration failed",
             );
         } finally {
             setSaving(false);
@@ -330,16 +567,21 @@ function AnimalRegistry({ onNavigate }: Props) {
     };
 
     const counts = useMemo(() => {
-        const milking = animals.filter(
-            (animal) => animal.is_currently_milking
-        ).length;
+        const milking =
+            animals.filter(
+                (animal) =>
+                    animal.is_currently_milking,
+            ).length;
 
-        const dryOther = animals.length - milking;
+        const nonMilking =
+            animals.length -
+            milking;
 
         return {
-            total: animals.length,
+            total:
+                animals.length,
             milking,
-            dryOther,
+            nonMilking,
         };
     }, [animals]);
 
@@ -350,10 +592,14 @@ function AnimalRegistry({ onNavigate }: Props) {
                     <div className="animal-registry-kicker">
                         LIVE OPERATIONS
                     </div>
+
                     <h2>Animals</h2>
+
                     <p>
-                        Actual records only. Every animal receives a permanent
-                        DairyOS-generated Animal ID.
+                        Each animal has one operational
+                        state: MILKING with a 2- or
+                        3-session plan, or NON-MILKING
+                        with a governed reason.
                     </p>
                 </div>
 
@@ -361,10 +607,14 @@ function AnimalRegistry({ onNavigate }: Props) {
                     <button
                         type="button"
                         className="animal-button secondary"
-                        onClick={() => void loadAnimals()}
+                        onClick={() =>
+                            void loadAnimals()
+                        }
                         disabled={loading}
                     >
-                        {loading ? "Refreshing…" : "Refresh"}
+                        {loading
+                            ? "Refreshing…"
+                            : "Refresh"}
                     </button>
 
                     <button
@@ -373,6 +623,9 @@ function AnimalRegistry({ onNavigate }: Props) {
                         onClick={() => {
                             setError("");
                             setSuccess("");
+                            setForm(
+                                initialForm,
+                            );
                             setShowEntry(true);
                         }}
                     >
@@ -384,26 +637,36 @@ function AnimalRegistry({ onNavigate }: Props) {
             <div className="animal-summary-grid">
                 <div className="animal-summary-card">
                     <span>Animals in view</span>
-                    <strong>{counts.total}</strong>
+                    <strong>
+                        {counts.total}
+                    </strong>
                 </div>
 
                 <div className="animal-summary-card">
                     <span>Milking</span>
                     <strong>
-                        {counts.milking === 0 ? "—" : counts.milking}
+                        {counts.milking ===
+                        0
+                            ? "—"
+                            : counts.milking}
                     </strong>
                 </div>
 
                 <div className="animal-summary-card">
-                    <span>Dry / other</span>
+                    <span>Non-milking</span>
                     <strong>
-                        {counts.dryOther === 0 ? "—" : counts.dryOther}
+                        {counts.nonMilking ===
+                        0
+                            ? "—"
+                            : counts.nonMilking}
                     </strong>
                 </div>
 
                 <div className="animal-summary-card">
                     <span>Source</span>
-                    <strong>Live registry</strong>
+                    <strong>
+                        Live registry
+                    </strong>
                 </div>
             </div>
 
@@ -424,145 +687,222 @@ function AnimalRegistry({ onNavigate }: Props) {
                     <div className="animal-empty">
                         Loading live animal registry…
                     </div>
-                ) : animals.length === 0 ? (
+                ) : animals.length ===
+                  0 ? (
                     <div className="animal-empty">
-                        <strong>No animal records in this view</strong>
+                        <strong>
+                            No animal records in this
+                            view
+                        </strong>
+
                         <span>
-                            The API is available, but no animal has yet been
-                            registered.
+                            The API is available, but no
+                            animal has yet been registered.
                         </span>
+
                         <button
                             type="button"
                             className="animal-button primary"
-                            onClick={() => setShowEntry(true)}
+                            onClick={() =>
+                                setShowEntry(
+                                    true,
+                                )
+                            }
                         >
                             Register the first animal
                         </button>
                     </div>
                 ) : (
                     <div className="animal-grid">
-                        {animals.map((animal) => (
-                            <button
-                                key={animal.animal_id}
-                                type="button"
-                                className="animal-card"
-                                onClick={() => void openPassport(animal)}
-                            >
-                                <div className="animal-card-top">
-                                    <span className="animal-tag">
-                                        {animal.animal_id}
-                                    </span>
+                        {animals.map(
+                            (animal) => {
+                                const milking =
+                                    animal.is_currently_milking ===
+                                    true;
 
-                                    <span
-                                        className={
-                                            animal.active
-                                                ? "animal-status active"
-                                                : "animal-status"
+                                return (
+                                    <button
+                                        key={
+                                            animal.animal_id
+                                        }
+                                        type="button"
+                                        className="animal-card"
+                                        onClick={() =>
+                                            void openPassport(
+                                                animal,
+                                            )
                                         }
                                     >
-                                        {animal.active
-                                            ? "ACTIVE"
-                                            : "INACTIVE"}
-                                    </span>
-                                </div>
+                                        <div className="animal-card-top">
+                                            <span className="animal-tag">
+                                                {
+                                                    animal.animal_id
+                                                }
+                                            </span>
 
-                                <div className="animal-card-title">
-                                    {animal.ear_tag || animal.animal_id}
-                                </div>
+                                            <span
+                                                className={
+                                                    animal.active
+                                                        ? "animal-status active"
+                                                        : "animal-status"
+                                                }
+                                            >
+                                                {animal.active
+                                                    ? "ACTIVE"
+                                                    : "INACTIVE"}
+                                            </span>
+                                        </div>
 
-                                <div className="animal-card-subtitle">
-                                    {display(animal.breed)} ·{" "}
-                                    {display(animal.sex)}
-                                </div>
+                                        <div className="animal-card-title">
+                                            {animal.ear_tag ||
+                                                animal.animal_id}
+                                        </div>
 
-                                <div className="animal-card-data">
-                                    <span>
-                                        Lifecycle
-                                        <strong>
+                                        <div className="animal-card-subtitle">
                                             {display(
-                                                animal.lifecycle_status
+                                                animal.breed,
+                                            )}{" "}
+                                            ·{" "}
+                                            {display(
+                                                animal.sex,
                                             )}
-                                        </strong>
-                                    </span>
+                                        </div>
 
-                                    <span>
-                                        Location
-                                        <strong>
-                                            {display(animal.location)}
-                                        </strong>
-                                    </span>
+                                        <div className="animal-card-data">
+                                            <span>
+                                                Operational
+                                                status
 
-                                    <span>
-                                        Milking
-                                        <strong>
-                                            {animal.is_currently_milking
-                                                ? "Yes"
-                                                : "No"}
-                                        </strong>
-                                    </span>
-                                </div>
+                                                <strong>
+                                                    {milking
+                                                        ? `MILKING · ${frequencyLabel(animal.milking_frequency)}`
+                                                        : `NON-MILKING · ${animal.non_milking_reason || display(animal.lifecycle_status)}`}
+                                                </strong>
+                                            </span>
 
-                                <div className="animal-card-footer">
-                                    Open Animal Passport →
-                                </div>
-                            </button>
-                        ))}
+                                            <span>
+                                                Lifecycle
+
+                                                <strong>
+                                                    {display(
+                                                        animal.lifecycle_status,
+                                                    )}
+                                                </strong>
+                                            </span>
+
+                                            <span>
+                                                Location
+
+                                                <strong>
+                                                    {display(
+                                                        animal.location,
+                                                    )}
+                                                </strong>
+                                            </span>
+                                        </div>
+
+                                        <div className="animal-card-footer">
+                                            Open Animal Passport →
+                                        </div>
+                                    </button>
+                                );
+                            },
+                        )}
                     </div>
                 )}
             </div>
 
             {showEntry && (
                 <div className="animal-modal-backdrop">
-                    <div className="animal-modal" role="dialog" aria-modal="true">
+                    <div
+                        className="animal-modal"
+                        role="dialog"
+                        aria-modal="true"
+                    >
                         <div className="animal-modal-header">
                             <div>
                                 <div className="animal-registry-kicker">
                                     ANIMAL ENTRY
                                 </div>
-                                <h3>Register Animal</h3>
+
+                                <h3>
+                                    Register Animal
+                                </h3>
+
                                 <p>
-                                    Animal ID is generated by DairyOS after
-                                    successful database persistence.
+                                    First decide whether
+                                    the animal is currently
+                                    MILKING or NON-MILKING.
                                 </p>
                             </div>
 
                             <button
                                 type="button"
                                 className="animal-close"
-                                onClick={() => setShowEntry(false)}
+                                onClick={() =>
+                                    setShowEntry(
+                                        false,
+                                    )
+                                }
                             >
                                 ×
                             </button>
                         </div>
 
-                        <form onSubmit={submitAnimal}>
+                        <form
+                            onSubmit={
+                                submitAnimal
+                            }
+                        >
                             <div className="animal-form-grid">
                                 <label>
                                     Animal Type
+
                                     <select
-                                        value={form.animal_type}
-                                        onChange={(event) =>
+                                        value={
+                                            form.animal_type
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "animal_type",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                     >
-                                        <option value="COW">COW</option>
-                                        <option value="HEIFER">HEIFER</option>
-                                        <option value="CALF">CALF</option>
-                                        <option value="BULL">BULL</option>
+                                        <option value="COW">
+                                            COW
+                                        </option>
+                                        <option value="HEIFER">
+                                            HEIFER
+                                        </option>
+                                        <option value="CALF">
+                                            CALF
+                                        </option>
+                                        <option value="BULL">
+                                            BULL
+                                        </option>
                                     </select>
                                 </label>
 
                                 <label>
                                     Ear Tag
+
                                     <input
-                                        value={form.ear_tag}
-                                        onChange={(event) =>
+                                        value={
+                                            form.ear_tag
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "ear_tag",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Physical ear tag"
@@ -571,12 +911,19 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                                 <label>
                                     RFID
+
                                     <input
-                                        value={form.rfid}
-                                        onChange={(event) =>
+                                        value={
+                                            form.rfid
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "rfid",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="RFID / transponder"
@@ -585,12 +932,19 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                                 <label>
                                     Breed
+
                                     <input
-                                        value={form.breed}
-                                        onChange={(event) =>
+                                        value={
+                                            form.breed
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "breed",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Holstein Friesian"
@@ -599,66 +953,67 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                                 <label>
                                     Sex
+
                                     <select
-                                        value={form.sex}
-                                        onChange={(event) =>
+                                        value={
+                                            form.sex
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "sex",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                     >
-                                        <option value="FEMALE">FEMALE</option>
-                                        <option value="MALE">MALE</option>
+                                        <option value="FEMALE">
+                                            FEMALE
+                                        </option>
+                                        <option value="MALE">
+                                            MALE
+                                        </option>
                                     </select>
                                 </label>
 
                                 <label>
                                     Date of Birth
+
                                     <input
                                         type="date"
-                                        value={form.date_of_birth}
-                                        onChange={(event) =>
+                                        value={
+                                            form.date_of_birth
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "date_of_birth",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                     />
                                 </label>
 
                                 <label>
-                                    Lifecycle Status
-                                    <select
-                                        value={form.lifecycle_status}
-                                        onChange={(event) =>
-                                            updateForm(
-                                                "lifecycle_status",
-                                                event.target.value
-                                            )
-                                        }
-                                    >
-                                        {referenceData.lifecycle_statuses.map(
-                                            (status) => (
-                                                <option
-                                                    key={status}
-                                                    value={status}
-                                                >
-                                                    {status}
-                                                </option>
-                                            )
-                                        )}
-                                    </select>
-                                </label>
-
-                                <label>
                                     Production Group
+
                                     <input
-                                        value={form.production_group}
-                                        onChange={(event) =>
+                                        value={
+                                            form.production_group
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "production_group",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Milking group"
@@ -667,26 +1022,229 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                                 <label>
                                     Location
+
                                     <input
-                                        value={form.location}
-                                        onChange={(event) =>
+                                        value={
+                                            form.location
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "location",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Shed / pen"
                                     />
                                 </label>
 
+                                <div
+                                    className="entry-field wide"
+                                    style={{
+                                        gridColumn:
+                                            "1 / -1",
+                                    }}
+                                >
+                                    <span>
+                                        Operational
+                                        Status *
+                                    </span>
+
+                                    <div
+                                        style={{
+                                            display:
+                                                "flex",
+                                            gap: "10px",
+                                            flexWrap:
+                                                "wrap",
+                                        }}
+                                    >
+                                        {(
+                                            [
+                                                [
+                                                    "MILKING",
+                                                    "MILKING",
+                                                ],
+                                                [
+                                                    "NON_MILKING",
+                                                    "NON-MILKING",
+                                                ],
+                                            ] as const
+                                        ).map(
+                                            ([
+                                                value,
+                                                label,
+                                            ]) => (
+                                                <button
+                                                    key={
+                                                        value
+                                                    }
+                                                    type="button"
+                                                    onClick={() =>
+                                                        updateForm(
+                                                            "operational_mode",
+                                                            value,
+                                                        )
+                                                    }
+                                                    style={{
+                                                        padding:
+                                                            "11px 18px",
+                                                        borderRadius:
+                                                            "8px",
+                                                        border:
+                                                            form.operational_mode ===
+                                                            value
+                                                                ? "2px solid #246a48"
+                                                                : "1px solid #d8e3dc",
+                                                        background:
+                                                            form.operational_mode ===
+                                                            value
+                                                                ? "#e8f4ec"
+                                                                : "#fff",
+                                                        fontWeight:
+                                                            800,
+                                                        cursor:
+                                                            "pointer",
+                                                    }}
+                                                >
+                                                    {
+                                                        label
+                                                    }
+                                                </button>
+                                            ),
+                                        )}
+                                    </div>
+                                </div>
+
+                                {form.operational_mode ===
+                                "MILKING" ? (
+                                    <label
+                                        style={{
+                                            gridColumn:
+                                                "1 / -1",
+                                        }}
+                                    >
+                                        Milking Plan *
+
+                                        <select
+                                            value={
+                                                form.milking_frequency
+                                            }
+                                            onChange={(
+                                                event,
+                                            ) =>
+                                                updateForm(
+                                                    "milking_frequency",
+                                                    event
+                                                        .target
+                                                        .value,
+                                                )
+                                            }
+                                        >
+                                            <option value="TWICE_DAILY">
+                                                2 sessions /
+                                                day
+                                            </option>
+
+                                            <option value="THRICE_DAILY">
+                                                3 sessions /
+                                                day
+                                            </option>
+                                        </select>
+                                    </label>
+                                ) : (
+                                    <>
+                                        <label>
+                                            Non-milking
+                                            Category *
+
+                                            <select
+                                                value={
+                                                    form.non_milking_category
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "non_milking_category",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                            >
+                                                <option value="HEALTH">
+                                                    Health
+                                                    restriction
+                                                </option>
+
+                                                <option value="DRY_REPRODUCTIVE">
+                                                    Dry /
+                                                    reproductive
+                                                    break
+                                                </option>
+
+                                                <option value="MILK_SEPARATELY">
+                                                    Milk
+                                                    separately
+                                                </option>
+
+                                                <option value="PERMANENT">
+                                                    Permanent
+                                                    non-milking
+                                                </option>
+
+                                                <option value="OTHER">
+                                                    Other
+                                                    operational
+                                                </option>
+                                            </select>
+                                        </label>
+
+                                        <label>
+                                            Documented
+                                            Reason *
+
+                                            <textarea
+                                                value={
+                                                    form.non_milking_reason
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "non_milking_reason",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                required
+                                                rows={3}
+                                                placeholder="State why this animal is not currently in the normal milking herd."
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
                                 <label>
                                     Dam Animal ID
+
                                     <input
-                                        value={form.dam_id}
-                                        onChange={(event) =>
+                                        value={
+                                            form.dam_id
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "dam_id",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Optional existing Animal ID"
@@ -695,57 +1253,23 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                                 <label>
                                     Sire Animal ID
+
                                     <input
-                                        value={form.sire_id}
-                                        onChange={(event) =>
+                                        value={
+                                            form.sire_id
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             updateForm(
                                                 "sire_id",
-                                                event.target.value
+                                                event
+                                                    .target
+                                                    .value,
                                             )
                                         }
                                         placeholder="Optional existing Animal ID"
                                     />
-                                </label>
-
-                                <label>
-                                    Milking Frequency
-                                    <select
-                                        value={form.milking_frequency}
-                                        onChange={(event) =>
-                                            updateForm(
-                                                "milking_frequency",
-                                                event.target.value
-                                            )
-                                        }
-                                    >
-                                        <option value="">
-                                            Not specified
-                                        </option>
-                                        {referenceData.milking_frequencies.map(
-                                            (frequency) => (
-                                                <option
-                                                    key={frequency}
-                                                    value={frequency}
-                                                >
-                                                    {frequency}
-                                                </option>
-                                            )
-                                        )}
-                                    </select>
-                                </label>
-
-                                <label className="animal-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.is_currently_milking}
-                                        onChange={(event) =>
-                                            updateForm(
-                                                "is_currently_milking",
-                                                event.target.checked
-                                            )
-                                        }
-                                    />
-                                    Currently milking
                                 </label>
                             </div>
 
@@ -753,7 +1277,11 @@ function AnimalRegistry({ onNavigate }: Props) {
                                 <button
                                     type="button"
                                     className="animal-button secondary"
-                                    onClick={() => setShowEntry(false)}
+                                    onClick={() =>
+                                        setShowEntry(
+                                            false,
+                                        )
+                                    }
                                 >
                                     Cancel
                                 </button>
@@ -761,7 +1289,9 @@ function AnimalRegistry({ onNavigate }: Props) {
                                 <button
                                     type="submit"
                                     className="animal-button primary"
-                                    disabled={saving}
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     {saving
                                         ? "Persisting…"
@@ -781,39 +1311,63 @@ function AnimalRegistry({ onNavigate }: Props) {
                                 <div className="animal-registry-kicker">
                                     LIFETIME RECORD
                                 </div>
+
                                 <h3>
                                     Animal Passport —{" "}
-                                    {selected.animal_id}
+                                    {
+                                        selected.animal_id
+                                    }
                                 </h3>
                             </div>
 
                             <button
                                 type="button"
                                 className="animal-close"
-                                onClick={closePassport}
+                                onClick={
+                                    closePassport
+                                }
                             >
                                 ×
                             </button>
                         </div>
 
                         <div className="animal-passport-actions">
-                            <button
-                                type="button"
-                                className="animal-button primary"
-                                onClick={() => {
-                                    closePassport();
-                                    onNavigate("milk");
-                                }}
-                            >
-                                Milk
-                            </button>
+                            {selected.is_currently_milking ? (
+                                <button
+                                    type="button"
+                                    className="animal-button primary"
+                                    onClick={() => {
+                                        closePassport();
+                                        onNavigate(
+                                            "milk",
+                                        );
+                                    }}
+                                >
+                                    Record Milk
+                                </button>
+                            ) : (
+                                <div
+                                    className="animal-message"
+                                    style={{
+                                        margin: 0,
+                                    }}
+                                >
+                                    NON-MILKING —{" "}
+                                    {selected.non_milking_reason ||
+                                        display(
+                                            selected.lifecycle_status,
+                                        )}
+                                </div>
+                            )}
 
                             <button
                                 type="button"
                                 className="animal-button secondary"
                                 onClick={() => {
                                     closePassport();
-                                    onNavigate("feed");
+                                    onNavigate(
+                                        "feed",
+                                    );
                                 }}
                             >
                                 Feed
@@ -824,7 +1378,9 @@ function AnimalRegistry({ onNavigate }: Props) {
                                 className="animal-button secondary"
                                 onClick={() => {
                                     closePassport();
-                                    onNavigate("health");
+                                    onNavigate(
+                                        "health",
+                                    );
                                 }}
                             >
                                 Health
@@ -835,7 +1391,9 @@ function AnimalRegistry({ onNavigate }: Props) {
                                 className="animal-button secondary"
                                 onClick={() => {
                                     closePassport();
-                                    onNavigate("breeding");
+                                    onNavigate(
+                                        "breeding",
+                                    );
                                 }}
                             >
                                 Breeding
@@ -844,147 +1402,286 @@ function AnimalRegistry({ onNavigate }: Props) {
 
                         {passportLoading ? (
                             <div className="animal-empty">
-                                Loading authoritative Animal Passport…
+                                Loading authoritative
+                                Animal Passport…
                             </div>
                         ) : passport ? (
                             <div className="animal-passport">
                                 <div className="animal-passport-identity">
                                     <div>
-                                        <span>Permanent Animal ID</span>
+                                        <span>
+                                            Permanent
+                                            Animal ID
+                                        </span>
                                         <strong>
-                                            {selected.animal_id}
+                                            {
+                                                selected.animal_id
+                                            }
                                         </strong>
                                     </div>
+
                                     <div>
-                                        <span>Lifecycle</span>
+                                        <span>
+                                            Operational
+                                            Status
+                                        </span>
+
+                                        <strong>
+                                            {selected.is_currently_milking
+                                                ? `MILKING · ${frequencyLabel(selected.milking_frequency)}`
+                                                : `NON-MILKING · ${selected.non_milking_reason || "Reason recorded"}`}
+                                        </strong>
+                                    </div>
+
+                                    <div>
+                                        <span>
+                                            Lifecycle
+                                        </span>
+
                                         <strong>
                                             {display(
-                                                selected.lifecycle_status
+                                                selected.lifecycle_status,
                                             )}
                                         </strong>
                                     </div>
+
                                     <div>
-                                        <span>Breed</span>
+                                        <span>
+                                            Breed
+                                        </span>
+
                                         <strong>
-                                            {display(selected.breed)}
+                                            {display(
+                                                selected.breed,
+                                            )}
                                         </strong>
                                     </div>
+
                                     <div>
-                                        <span>Ear Tag</span>
+                                        <span>
+                                            Ear Tag
+                                        </span>
+
                                         <strong>
-                                            {display(selected.ear_tag)}
+                                            {display(
+                                                selected.ear_tag,
+                                            )}
                                         </strong>
                                     </div>
                                 </div>
 
+                                {selected.non_milking_reason && (
+                                    <div className="animal-message">
+                                        <strong>
+                                            Governed
+                                            non-milking
+                                            reason
+                                        </strong>
+                                        <br />
+                                        {
+                                            selected.non_milking_reason
+                                        }
+                                    </div>
+                                )}
+
                                 <div className="animal-passport-alerts">
-    {getOperatorAlerts(passport).map(
-        (alert) => (
-            <div
-                key={alert}
-                className="animal-alert critical"
-            >
-                ⚠ {alert}
-            </div>
-        )
-    )}
-</div>
-
-<div className="animal-passport-section">
-    <h4>Milk</h4>
-    {(passport.history?.milk ?? []).map(
-        (record) => (
-            <div
-                key={String(record.id)}
-                className="animal-passport-row"
-            >
-                <span>
-                    {formatDate(record.production_date)}
-                </span>
-                <strong>
-                    {record.total_yield ?? 0} L
-                </strong>
-            </div>
-        )
-    )}
-</div>
-
-<div className="animal-passport-section">
-    <h4>Feed</h4>
-    {(passport.history?.feed ?? []).map(
-        (record) => (
-            <div
-                key={String(record.id)}
-                className="animal-passport-row"
-            >
-                <span>{record.feed_type}</span>
-                <strong>
-                    {record.quantity_kg ?? 0} kg
-                </strong>
-            </div>
-        )
-    )}
-</div>
-
-<div className="animal-passport-section">
-    <h4>Health</h4>
-    {(passport.history?.health ?? []).map(
-        (record) => (
-            <div
-                key={String(record.id)}
-                className="animal-passport-row"
-            >
-                <span>{record.observation}</span>
-                <strong>{record.severity}</strong>
-            </div>
-        )
-    )}
-</div>
-
-                                <div className="animal-passport-section">
-                                    <h4>Breeding</h4>
-
-                                    {(passport.history?.breeding ?? []).length === 0 ? (
-                                        <div className="animal-passport-row">
-                                            <span>Status</span>
-                                            <strong>No breeding records</strong>
-                                        </div>
-                                    ) : (
-                                        (passport.history?.breeding ?? []).map((record) => (
+                                    {getOperatorAlerts(
+                                        passport,
+                                    ).map(
+                                        (alert) => (
                                             <div
-                                                key={String(record.id)}
-                                                className="animal-passport-row"
+                                                key={alert}
+                                                className="animal-alert critical"
                                             >
-                                                <span>Breeding Event</span>
-                                                <strong>
-                                                    {display(record)}
-                                                </strong>
+                                                ⚠{" "}
+                                                {alert}
                                             </div>
-                                        ))
+                                        ),
                                     )}
                                 </div>
 
                                 <div className="animal-passport-section">
-                                    <h4>Timeline</h4>
+                                    <h4>Milk</h4>
 
-                                    {(passport.timeline ?? []).map((event, index) => (
-                                        <div
-                                            key={`${event.domain}-${index}`}
-                                            className="animal-passport-row"
-                                        >
+                                    {(passport.history
+                                        ?.milk ??
+                                        []
+                                    ).map(
+                                        (
+                                            record,
+                                        ) => (
+                                            <div
+                                                key={String(
+                                                    record.id,
+                                                )}
+                                                className="animal-passport-row"
+                                            >
+                                                <span>
+                                                    {formatDate(
+                                                        record.production_date,
+                                                    )}
+                                                </span>
+
+                                                <strong>
+                                                    {record.total_yield ??
+                                                        0}{" "}
+                                                    L
+                                                </strong>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+
+                                <div className="animal-passport-section">
+                                    <h4>Feed</h4>
+
+                                    {(passport.history
+                                        ?.feed ??
+                                        []
+                                    ).map(
+                                        (
+                                            record,
+                                        ) => (
+                                            <div
+                                                key={String(
+                                                    record.id,
+                                                )}
+                                                className="animal-passport-row"
+                                            >
+                                                <span>
+                                                    {
+                                                        record.feed_type
+                                                    }
+                                                </span>
+
+                                                <strong>
+                                                    {record.quantity_kg ??
+                                                        0}{" "}
+                                                    kg
+                                                </strong>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+
+                                <div className="animal-passport-section">
+                                    <h4>Health</h4>
+
+                                    {(passport.history
+                                        ?.health ??
+                                        []
+                                    ).map(
+                                        (
+                                            record,
+                                        ) => (
+                                            <div
+                                                key={String(
+                                                    record.id,
+                                                )}
+                                                className="animal-passport-row"
+                                            >
+                                                <span>
+                                                    {
+                                                        record.observation
+                                                    }
+                                                </span>
+
+                                                <strong>
+                                                    {
+                                                        record.severity
+                                                    }
+                                                </strong>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+
+                                <div className="animal-passport-section">
+                                    <h4>Breeding</h4>
+
+                                    {(passport.history
+                                        ?.breeding ??
+                                        []).length ===
+                                    0 ? (
+                                        <div className="animal-passport-row">
                                             <span>
-                                                {formatDate(event.timestamp)}
+                                                Status
                                             </span>
+
                                             <strong>
-                                                {domainLabel(event.domain)}
+                                                No breeding
+                                                records
                                             </strong>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        (
+                                            passport
+                                                .history
+                                                ?.breeding ??
+                                            []
+                                        ).map(
+                                            (
+                                                record,
+                                            ) => (
+                                                <div
+                                                    key={String(
+                                                        record.id,
+                                                    )}
+                                                    className="animal-passport-row"
+                                                >
+                                                    <span>
+                                                        Breeding
+                                                        Event
+                                                    </span>
+
+                                                    <strong>
+                                                        {display(
+                                                            record,
+                                                        )}
+                                                    </strong>
+                                                </div>
+                                            ),
+                                        )
+                                    )}
+                                </div>
+
+                                <div className="animal-passport-section">
+                                    <h4>
+                                        Timeline
+                                    </h4>
+
+                                    {(
+                                        passport.timeline ??
+                                        []
+                                    ).map(
+                                        (
+                                            event,
+                                            index,
+                                        ) => (
+                                            <div
+                                                key={`${event.domain}-${index}`}
+                                                className="animal-passport-row"
+                                            >
+                                                <span>
+                                                    {formatDate(
+                                                        event.timestamp,
+                                                    )}
+                                                </span>
+
+                                                <strong>
+                                                    {domainLabel(
+                                                        event.domain,
+                                                    )}
+                                                </strong>
+                                            </div>
+                                        ),
+                                    )}
                                 </div>
                             </div>
                         ) : (
                             <div className="animal-empty">
-                                Animal Passport unavailable.
+                                Animal Passport
+                                unavailable.
                             </div>
                         )}
                     </div>
@@ -995,11 +1692,3 @@ function AnimalRegistry({ onNavigate }: Props) {
 }
 
 export default AnimalRegistry;
-
-
-
-
-
-
-
-

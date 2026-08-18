@@ -211,12 +211,19 @@ def change_milking_frequency(
             ),
         )
 
-    updated = repository.set_milking_frequency(
-        animal_id=animal_id,
-        new_frequency=frequency,
-        changed_by=payload.get("changed_by"),
-        reason=payload.get("reason"),
-    )
+    try:
+        updated = repository.set_milking_frequency(
+            animal_id=animal_id,
+            new_frequency=frequency,
+            changed_by=payload.get("changed_by"),
+            reason=payload.get("reason"),
+            effective_date=payload.get("effective_date"),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
 
     return serialize_animal(updated)
 
@@ -283,11 +290,10 @@ def record_vaccination(
             detail="vaccine required",
         )
 
-    administered = payload.get(
-        "administered_date"
-    ) or datetime.now(
-        timezone.utc
-    ).date().isoformat()
+    administered = (
+        payload.get("administered_date")
+        or datetime.now(timezone.utc).date().isoformat()
+    )
 
     record = {
         "animal_id": animal_id,
