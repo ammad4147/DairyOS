@@ -822,12 +822,22 @@ def declare_session_not_milked(
 @router.get("/milk/next-session")
 def next_milking_session(
     operational_date: date | None = None,
+    animal_id: str | None = None,
     container=Depends(get_container),
 ):
-    """What the farm still owes a statement about today.
+    """Return the next milking session using the strongest available authority.
 
-    The operator UI reads this to open on the right session instead of asking
-    the operator to remember where the day got to.
+    Compatibility behaviour is preserved when ``animal_id`` is omitted:
+    the historical herd-level ledger determines the next session.
+
+    When ``animal_id`` is supplied, the canonical Animal Register plus the
+    effective-dated AnimalMilkingScheduleService determine which sessions
+    belong to that animal on the requested operational date. The herd-level
+    session ledger then determines which of those expected sessions have
+    already been settled.
+
+    This is intentionally animal-specific because AFTERNOON is optional for a
+    TWICE_DAILY animal but mandatory for a THRICE_DAILY animal.
     """
 
     sequence = _sequence_service(container)
@@ -839,12 +849,110 @@ def next_milking_session(
             "sequencing_active": False,
             "next_session": None,
             "observed_sessions": [],
+            "expected_sessions": [],
             "settled_sessions": [],
         }
 
+    # ------------------------------------------------------------------
+    # Animal/date-authoritative path
+    # ------------------------------------------------------------------
+    if animal_id:
+        factory = getattr(container, "repository_factory", None)
+        animal_accessor = getattr(factory, "animal", None)
+
+        if animal_accessor is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Animal Register is unavailable.",
+            )
+
+        animal = animal_accessor().get_by_animal_id(str(animal_id))
+
+        if animal is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "ANIMAL_NOT_FOUND",
+                    "animal_id": str(animal_id),
+                },
+            )
+
+        schedule_service = sequence.schedule_service
+
+        if schedule_service is None:
+            schedule_service = AnimalMilkingScheduleService(
+                repository=animal_accessor()
+            )
+
+        snapshot = schedule_service.get_schedule_snapshot(
+            animal,
+            target,
+        )
+
+        expected = list(snapshot.expected_sessions)
+
+        if not expected:
+            return {
+                "operational_date": target.isoformat(),
+                "animal_id": str(animal_id),
+                "sequencing_active": sequence.ledger.has_any(),
+                "next_session": None,
+                "milking_frequency": snapshot.milking_frequency,
+                "expected_sessions": [],
+                "settled_sessions": sorted(
+                    sequence.ledger.settled_sessions_on(target)
+                ),
+                "schedule_source": snapshot.source,
+                "non_milking_directive": (
+                    snapshot.non_milking_directive
+                ),
+                "status": (
+                    "NON_MILKING"
+                    if snapshot.non_milking_directive
+                    != "NONE"
+                    else "NO_EFFECTIVE_SCHEDULE"
+                ),
+            }
+
+        settled = sequence.ledger.settled_sessions_on(target)
+
+        next_session = next(
+            (
+                session
+                for session in expected
+                if session not in settled
+            ),
+            None,
+        )
+
+        return {
+            "operational_date": target.isoformat(),
+            "animal_id": str(animal_id),
+            "sequencing_active": sequence.ledger.has_any(),
+            "next_session": next_session,
+            "milking_frequency": snapshot.milking_frequency,
+            "expected_sessions": expected,
+            "settled_sessions": [
+                session
+                for session in expected
+                if session in settled
+            ],
+            "schedule_source": snapshot.source,
+            "non_milking_directive": (
+                snapshot.non_milking_directive
+            ),
+            "status": (
+                "DAY_COMPLETE"
+                if next_session is None
+                else "READY"
+            ),
+        }
+
+    # ------------------------------------------------------------------
+    # Existing herd-level compatibility path
+    # ------------------------------------------------------------------
     state = sequence.session_state(target)
     state["sequencing_active"] = sequence.ledger.has_any()
-
     return state
 
 

@@ -1,4 +1,3 @@
-from dairyos.api.milk_production_summary import router as milk_production_summary_router
 """FastAPI application bootstrap for DairyOS.
 
 The operator UI is the React/Vite application under ``src/DairyOS.Web``.
@@ -144,6 +143,7 @@ from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
 from dairyos.api.settings import router as settings_router
+from dairyos.api.milk_production_summary import router as milk_production_summary_router
 
 app.include_router(auth_router)
 app.include_router(command_router)
