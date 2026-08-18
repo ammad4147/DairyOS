@@ -33,6 +33,66 @@ def test_install_creates_managed_data_layout_and_manifest(tmp_path):
     assert (manager.data_root / "backups").is_dir()
     assert (manager.data_root / "logs").is_dir()
 
+def test_database_validation_accepts_sqlalchemy_postgresql_url(monkeypatch):
+    import dairyos.lifecycle.manager as lifecycle_manager
+
+    calls = []
+
+    class FakeCursor:
+        def __enter__(self):
+            calls.append("cursor")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            calls.append("cursor_close")
+
+        def execute(self, statement):
+            calls.append(statement)
+
+        def fetchone(self):
+            calls.append("fetchone")
+            return (1,)
+
+    class FakeConnection:
+        def __enter__(self):
+            calls.append("connect")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            calls.append("close")
+
+        def cursor(self):
+            return FakeCursor()
+
+    def fake_connect(**kwargs):
+        calls.append(("psycopg.connect", kwargs))
+
+        assert kwargs["host"] == "localhost"
+        assert kwargs["port"] == 5432
+        assert kwargs["user"] == "postgres"
+        assert kwargs["password"] == "postgres"
+        assert kwargs["dbname"] == "dairyos"
+        assert kwargs["connect_timeout"] == 5
+
+        return FakeConnection()
+
+    monkeypatch.setattr(
+        "psycopg.connect",
+        fake_connect,
+    )
+
+    lifecycle_manager._check_database(
+        "postgresql+psycopg://postgres:postgres@localhost:5432/dairyos"
+    )
+
+    assert calls[0][0] == "psycopg.connect"
+    assert calls[1] == "connect"
+    assert calls[2] == "cursor"
+    assert calls[3] == "SELECT 1"
+    assert calls[4] == "fetchone"
+    assert calls[5] == "cursor_close"
+    assert calls[6] == "close"
+
 
 def test_validate_passes_without_database_when_database_is_not_configured(tmp_path):
     manager = _manager(tmp_path)
