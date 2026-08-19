@@ -58,6 +58,8 @@ def test_boot_and_pxe_contracts_exist():
 
     assert "menuentry 'DairyOS'" in grub
     assert "menuentry 'DairyOS Recovery'" in grub
+    assert "search --no-floppy --label" in grub
+    assert "root=LABEL=DAIRYOS-ROOT" in grub
     assert "linux /boot/vmlinuz" in grub
 
     assert "preseed/url=" in pxe_grub
@@ -102,11 +104,25 @@ def test_offline_build_stages_complete_application_wheelhouse():
     assert "app-stage/wheelhouse" in build
 
 
+def test_bare_metal_first_boot_provisions_database_and_secrets():
+    firstboot = read("installer/hooks/firstboot.sh")
+    service = read("services/dairyos.service")
+    assert "systemctl start postgresql" in firstboot
+    assert "CREATE ROLE dairyos LOGIN PASSWORD" in firstboot
+    assert "createdb -O dairyos dairyos" in firstboot
+    assert "DAIRYOS_DB_HOST=127.0.0.1" in firstboot
+    assert "DAIRYOS_DB_USER=dairyos" in firstboot
+    assert "DAIRYOS_DB_PASSWORD=$DB_PASSWORD" in firstboot
+    assert "DAIRYOS_AUTH_SECRET=$AUTH_SECRET" in firstboot
+    assert "EnvironmentFile=-/etc/dairyos/dairyos.env" in service
+
+
 def test_systemd_service_uses_persistent_farm_data_path():
     service = read("services/dairyos.service")
-    firstboot = read("services/dairyos-firstboot.service")
+    firstboot_service = read("services/dairyos-firstboot.service")
     assert "After=network-online.target postgresql.service" in service
     assert "Environment=DAIRYOS_DATA_DIR=/var/lib/dairyos" in service
     assert "ReadWritePaths=/var/lib/dairyos" in service
-    assert "ConditionPathExists=/opt/dairyos-os/installer/firstboot.sh" in firstboot
-    assert "ConditionPathExists=!/var/lib/dairyos/.firstboot-complete" in firstboot
+    assert "Requires=postgresql.service" in firstboot_service
+    assert "ConditionPathExists=/opt/dairyos-os/installer/firstboot.sh" in firstboot_service
+    assert "ConditionPathExists=!/var/lib/dairyos/.firstboot-complete" in firstboot_service
