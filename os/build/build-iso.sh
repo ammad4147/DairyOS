@@ -14,12 +14,19 @@ require_cmd() {
 
 require_cmd lb
 require_cmd sha256sum
+require_cmd python3
+require_cmd rsync
 
 mkdir -p "$OUT_DIR" "$WORK_DIR"
-rm -rf "$WORK_DIR/live"
+rm -rf "$WORK_DIR/live" "$WORK_DIR/app-stage"
 mkdir -p "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os"
 mkdir -p "$WORK_DIR/live/config/includes.chroot/etc/systemd/system"
-mkdir -p "$WORK_DIR/live/config/includes.chroot/etc/default"
+mkdir -p "$WORK_DIR/live/config/includes.chroot/opt"
+
+"$OS_ROOT/build/stage-app.sh" "$WORK_DIR/app-stage"
+mkdir -p "$WORK_DIR/live/config/includes.chroot/opt/dairyos"
+cp -a "$WORK_DIR/app-stage/source" "$WORK_DIR/live/config/includes.chroot/opt/dairyos/"
+cp -a "$WORK_DIR/app-stage/wheelhouse" "$WORK_DIR/live/config/includes.chroot/opt/dairyos/"
 
 cd "$WORK_DIR/live"
 
