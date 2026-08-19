@@ -65,6 +65,10 @@ jobs:
       DAIRYOS_DB_USER: postgres
       DAIRYOS_DB_PASSWORD: postgres
       DAIRYOS_ENV: development
+      POSTGRES_DB: dairyos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-compose-password
+      DAIRYOS_AUTH_SECRET: ci-compose-auth-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
