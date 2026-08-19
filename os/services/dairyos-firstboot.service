@@ -1,7 +1,8 @@
 [Unit]
 Description=DairyOS First Boot Provisioning
-After=local-fs.target network-online.target
+After=local-fs.target network-online.target postgresql.service
 Wants=network-online.target
+Requires=postgresql.service
 Before=dairyos.service
 ConditionPathExists=/opt/dairyos-os/installer/firstboot.sh
 ConditionPathExists=!/var/lib/dairyos/.firstboot-complete
