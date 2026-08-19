@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 MODE="dry-run"
 TARGET_DEVICE=""
-DATA_ROOT="/var/lib/dairyos"
 MOUNT_ROOT="/mnt/dairyos"
 MANIFEST_DIR="/opt/dairyos-os"
+DEBIAN_MIRROR="file:///srv/dairyos-debian"
 
 usage() {
   cat <<'EOF'
@@ -15,11 +15,16 @@ Safe default: dry-run. No disk is modified unless all of the following are true:
   --apply
   --target-device /dev/...
 
+Offline deployment is the default: the Debian base repository is expected at
+file:///srv/dairyos-debian. A connected installation may override the mirror
+explicitly with --debian-mirror https://deb.debian.org/debian.
+
 Options:
   --target-device DEVICE   Entire target disk, e.g. /dev/sda or /dev/nvme0n1
-  --apply                   Actually partition and install
-  --dry-run                 Validate only (default)
-  --mount-root PATH         Temporary mount root (default /mnt/dairyos)
+  --debian-mirror URL      Local file mirror or explicitly approved network mirror
+  --apply                  Actually partition and install
+  --dry-run                Validate only (default)
+  --mount-root PATH        Temporary mount root (default /mnt/dairyos)
   --help
 EOF
 }
@@ -57,6 +62,22 @@ validate_target() {
   fi
 }
 
+validate_mirror() {
+  case "$DEBIAN_MIRROR" in
+    file:///*)
+      local path="${DEBIAN_MIRROR#file://}"
+      [[ -d "$path" ]] || { echo "ERROR: offline Debian mirror not found: $path" >&2; exit 27; }
+      ;;
+    https://*|http://*)
+      echo "WARNING: connected mirror selected: $DEBIAN_MIRROR" >&2
+      ;;
+    *)
+      echo "ERROR: unsupported Debian mirror URL: $DEBIAN_MIRROR" >&2
+      exit 28
+      ;;
+  esac
+}
+
 partition_nodes() {
   case "$TARGET_DEVICE" in
     /dev/nvme*|/dev/mmcblk*)
@@ -69,6 +90,7 @@ partition_nodes() {
 run_dry_run() {
   echo "DairyOS installer DRY RUN"
   echo "Target: ${TARGET_DEVICE:-<not supplied>}"
+  echo "Debian mirror: $DEBIAN_MIRROR"
   echo "Partition manifest: ${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
   echo "No disk, filesystem, bootloader, or NVRAM changes will be made."
 }
@@ -98,7 +120,7 @@ apply_install() {
   mount "$LOG_PART" "$MOUNT_ROOT/var/log"
   mount "$DATA_PART" "$MOUNT_ROOT/var/lib/dairyos"
 
-  debootstrap --arch=amd64 trixie "$MOUNT_ROOT" "https://deb.debian.org/debian"
+  debootstrap --arch=amd64 trixie "$MOUNT_ROOT" "$DEBIAN_MIRROR"
 
   cat > "$MOUNT_ROOT/etc/fstab" <<FSTAB
 LABEL=DAIRYOS-ROOT / ext4 defaults,errors=remount-ro 0 1
@@ -147,6 +169,7 @@ FSTAB
 while (($#)); do
   case "$1" in
     --target-device) TARGET_DEVICE="${2:?missing device}"; shift 2 ;;
+    --debian-mirror) DEBIAN_MIRROR="${2:?missing mirror URL}"; shift 2 ;;
     --apply) MODE="apply"; shift ;;
     --dry-run) MODE="dry-run"; shift ;;
     --mount-root) MOUNT_ROOT="${2:?missing path}"; shift 2 ;;
@@ -164,4 +187,5 @@ if [[ "$MODE" == "dry-run" ]]; then
 fi
 
 validate_target
+validate_mirror
 apply_install
