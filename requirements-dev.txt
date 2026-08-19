@@ -5,4 +5,4 @@ black>=25.1
 ruff>=0.12
 mypy>=1.17
 pre-commit>=4.2
-httpx>=0.28
+httpx>=0.28.1
