@@ -6,15 +6,15 @@ from __future__ import annotations
 CAPABILITIES = {
     "farm_identity_settings": {
         "title": "Farm Identity / Settings",
-        "status": "EXTEND",
+        "status": "LIVE",
         "authoritative_service": "FarmSettingsService",
         "route": "/settings",
         "depends_on": [],
-        "next_dependency": "Settings frontend consumes backend-authoritative configuration.",
+        "next_dependency": "Future roles/preferences work must remain backend-authoritative.",
     },
     "animal_passport": {
         "title": "Animal Passport",
-        "status": "EXTEND",
+        "status": "LIVE",
         "authoritative_service": "LifetimeAnimalPassportService",
         "route": "/farm/animals/{animal_id}/passport",
         "depends_on": [
@@ -22,7 +22,7 @@ CAPABILITIES = {
             "AnimalMilkingScheduleService",
             "operational_date",
         ],
-        "next_dependency": "Passport UI must consume the consolidated date-aware read model.",
+        "next_dependency": "Passport UI and historical views must remain consumers of the consolidated date-aware read model.",
     },
     "effective_milking_schedule": {
         "title": "Effective-Dated Milking Schedule",
@@ -83,7 +83,7 @@ CAPABILITIES = {
     },
     "cmp": {
         "title": "Cost of Milk Production / Scenarios",
-        "status": "EXTEND",
+        "status": "LIVE",
         "authoritative_service": "CMPScenarioService",
         "route": "/farm/cmp/scenarios",
         "depends_on": [
@@ -91,7 +91,7 @@ CAPABILITIES = {
             "MilkProductionRepository",
             "FinancialRepository",
         ],
-        "next_dependency": "CMP UI must distinguish actuals from scenario assumptions.",
+        "next_dependency": "CMP UI must continue to distinguish actuals from scenario assumptions.",
     },
     "dashboard_read_model": {
         "title": "Main Dashboard Read Model",
