@@ -84,13 +84,14 @@ if ($wsl) {
         $drive = $normalized.Substring(0,1).ToLower()
         $rest = $normalized.Substring(2)
         $linuxRoot = "/mnt/$drive$rest"
-        $script = @"
+        $script = @'
 set -euo pipefail
-find '$linuxRoot/os' -type f -name '*.sh' -print0 | while IFS= read -r -d '' file; do
-  echo "Checking \$file"
-  bash -n "\$file"
+find '__LINUX_ROOT__/os' -type f -name '*.sh' -print0 | while IFS= read -r -d '' file; do
+  echo "Checking $file"
+  bash -n "$file"
 done
-"@
+'@
+        $script = $script.Replace('__LINUX_ROOT__', $linuxRoot)
         wsl.exe bash -lc $script
     }
 }
