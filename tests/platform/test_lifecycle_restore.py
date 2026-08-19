@@ -6,6 +6,12 @@ from dairyos.lifecycle.manager import LifecycleError, LifecycleManager
 from dairyos.lifecycle.restore import restore_snapshot
 
 
+@pytest.fixture(autouse=True)
+def _isolate_database_environment(monkeypatch):
+    """Keep JSON/file restore tests independent of ambient farm DB configuration."""
+    monkeypatch.delenv("DAIRYOS_DATABASE_URL", raising=False)
+
+
 def test_strict_restore_removes_files_created_after_backup(tmp_path: Path):
     manager = LifecycleManager(
         installation_root=tmp_path / "install",
