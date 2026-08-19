@@ -27,7 +27,7 @@ The four Phase 0 blockers have corresponding implementation artifacts on this br
 - offline wheelhouse for application installation
 - local farm Debian package mirror for air-gapped installation
 
-Debian 13.6 is the point-release baseline recorded by this audit. Debian publishes installer images and SHA256 verification files for Debian 13.6, and the official amd64 netboot tree provides `grubx64.efi`, `linux` and `initrd.gz` assets.
+The repository records Debian 13.6 as the initial point-release baseline. Debian publishes installer images and SHA256 verification files for Debian 13.6, and the official amd64 trixie netboot tree provides `grubx64.efi`, `linux` and `initrd.gz` assets.
 
 ## Safety properties
 
