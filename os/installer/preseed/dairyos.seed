@@ -15,12 +15,20 @@ time/zone string Asia/Karachi
 passwd/root-login boolean false
 passwd/make-user boolean false
 
-### Apt
-apt-setup/use_mirror boolean false
-apt-setup/disable-cdrom-entries boolean true
+### Apt - local farm mirror; no WAN is required for package installation
+apt-setup/use_mirror boolean true
+apt-setup/mirror/country string manual
+apt-setup/mirror/protocol string http
+apt-setup/mirror/http/hostname string 192.168.50.1
+apt-setup/mirror/http/directory string /debian
+apt-setup/disable-cdrom-entries boolean false
+apt-setup/services-select multiselect security, updates
+apt-setup/non-free boolean true
+apt-setup/contrib boolean true
+apt-setup/non-free-firmware boolean true
 
 ### Packages
-pkgsel/include string openssh-server sudo ca-certificates curl wget rsync grub-efi-amd64 grub-pc linux-image-amd64 systemd systemd-timesyncd postgresql
+pkgsel/include string openssh-server sudo ca-certificates curl wget rsync grub-efi-amd64 grub-pc linux-image-amd64 systemd systemd-timesyncd postgresql python3 python3-venv
 pkgsel/upgrade select safe-upgrade
 
 ### Partitioning
