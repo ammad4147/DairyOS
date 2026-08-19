@@ -55,7 +55,6 @@ class LifetimeAnimalPassportService:
         for key, value in list(values.items()):
             if isinstance(value, (datetime, date)):
                 values[key] = value.isoformat()
-
         return values
 
     @staticmethod
@@ -158,23 +157,13 @@ class LifetimeAnimalPassportService:
             "sire_id": getattr(animal, "sire_id", None),
             "lifecycle_status": animal.lifecycle_status,
             "status": animal.status,
-            "is_currently_milking": getattr(
-                animal, "is_currently_milking", False
-            ),
-            "milking_frequency": getattr(
-                animal, "milking_frequency", None
-            ),
-            "production_group": getattr(
-                animal, "production_group", None
-            ),
+            "is_currently_milking": getattr(animal, "is_currently_milking", False),
+            "milking_frequency": getattr(animal, "milking_frequency", None),
+            "production_group": getattr(animal, "production_group", None),
             "location": getattr(animal, "location", None),
             "active": animal.active,
-            "non_milking_directive": getattr(
-                animal, "non_milking_directive", None
-            ),
-            "non_milking_reason": getattr(
-                animal, "non_milking_reason", None
-            ),
+            "non_milking_directive": getattr(animal, "non_milking_directive", None),
+            "non_milking_reason": getattr(animal, "non_milking_reason", None),
             "created_at": (
                 animal.created_at.isoformat()
                 if getattr(animal, "created_at", None)
@@ -209,12 +198,14 @@ class LifetimeAnimalPassportService:
                 else None
             ),
             "status": getattr(parent, "status", None),
-            "lifecycle_status": getattr(
-                parent, "lifecycle_status", None
-            ),
+            "lifecycle_status": getattr(parent, "lifecycle_status", None),
         }
 
-    def _lineage_projection(self, animal: Any, animals: list[Any]) -> dict[str, Any]:
+    def _lineage_projection(
+        self,
+        animal: Any,
+        animals: list[Any],
+    ) -> dict[str, Any]:
         by_id = {
             str(item.animal_id): item
             for item in animals
@@ -414,27 +405,56 @@ class LifetimeAnimalPassportService:
                     "calving_date": start_date.isoformat(),
                     "end_date": end_date.isoformat() if end_date else None,
                     "status": "CURRENT" if current else "COMPLETED",
-                    "days_in_lactation": (as_of_date - start_date).days if current else (next_calving - start_date).days,
+                    "days_in_lactation": (
+                        (as_of_date - start_date).days
+                        if current
+                        else (next_calving - start_date).days
+                    ),
                     "milk_liters": milk_total,
                     "recorded_days": len(entries),
-                    "average_liters_per_recorded_day": round(milk_total / len(entries), 3) if entries else 0.0,
-                    "peak_daily_yield_liters": round(entries[local_peak_date], 3) if local_peak_date else None,
-                    "peak_daily_yield_date": local_peak_date.isoformat() if local_peak_date else None,
+                    "average_liters_per_recorded_day": (
+                        round(milk_total / len(entries), 3)
+                        if entries
+                        else 0.0
+                    ),
+                    "peak_daily_yield_liters": (
+                        round(entries[local_peak_date], 3)
+                        if local_peak_date
+                        else None
+                    ),
+                    "peak_daily_yield_date": (
+                        local_peak_date.isoformat()
+                        if local_peak_date
+                        else None
+                    ),
                 }
             )
 
+        lifetime = {
+            "lactation_count": len(lactations),
+            "lifetime_milk_liters": lifetime_total,
+            "recorded_milk_days": recorded_days,
+            "average_liters_per_recorded_day": (
+                round(lifetime_total / recorded_days, 3)
+                if recorded_days
+                else 0.0
+            ),
+            "peak_daily_yield_liters": (
+                round(peak_yield, 3) if peak_yield is not None else None
+            ),
+            "peak_daily_yield_date": (
+                peak_date.isoformat() if peak_date else None
+            ),
+            "latest_milk_date": (
+                max(daily_totals).isoformat() if daily_totals else None
+            ),
+            "daily_totals_considered": len(daily_totals),
+        }
+
         return {
             "lactations": lactations,
-            "summary": {
-                "lactation_count": len(lactations),
-                "lifetime_milk_liters": lifetime_total,
-                "recorded_milk_days": recorded_days,
-                "average_liters_per_recorded_day": round(lifetime_total / recorded_days, 3) if recorded_days else 0.0,
-                "peak_daily_yield_liters": round(peak_yield, 3) if peak_yield is not None else None,
-                "peak_daily_yield_date": peak_date.isoformat() if peak_date else None,
-                "latest_milk_date": max(daily_totals).isoformat() if daily_totals else None,
-                "daily_totals_considered": len(daily_totals),
-            },
+            "lifetime": lifetime,
+            "summary": dict(lifetime),
         }
 
     @staticmethod
@@ -465,7 +485,9 @@ class LifetimeAnimalPassportService:
         events: list[dict[str, Any]] = []
         for record in breeding:
             event_date = self._record_date(record)
-            normalized = self._normalize_breeding_event_type(getattr(record, "event_type", ""))
+            normalized = self._normalize_breeding_event_type(
+                getattr(record, "event_type", "")
+            )
             if event_date is None or event_date > as_of_date or not normalized:
                 continue
             events.append(
@@ -478,7 +500,9 @@ class LifetimeAnimalPassportService:
                     "record_id": getattr(record, "record_id", None),
                 }
             )
-        events.sort(key=lambda item: (item["event_date"], item["record_id"] or ""))
+        events.sort(
+            key=lambda item: (item["event_date"], item["record_id"] or "")
+        )
         resolver = ReproductiveStateService(_REPRODUCTIVE_POLICY)
         state = resolver.resolve(animal_id, events, as_of_date=as_of_date)
         summary = {
@@ -487,21 +511,57 @@ class LifetimeAnimalPassportService:
             "pregnancy_status": state.pregnancy_status,
             "lactation_number": state.lactation_number,
             "days_in_milk": state.days_in_milk,
-            "last_calving_date": state.last_calving_date.isoformat() if state.last_calving_date else None,
-            "last_heat_date": state.last_heat_date.isoformat() if state.last_heat_date else None,
-            "last_insemination_date": state.last_insemination_date.isoformat() if state.last_insemination_date else None,
-            "pregnancy_confirmed_date": state.pregnancy_confirmed_date.isoformat() if state.pregnancy_confirmed_date else None,
-            "expected_calving_date": state.expected_calving_date.isoformat() if state.expected_calving_date else None,
+            "last_calving_date": (
+                state.last_calving_date.isoformat()
+                if state.last_calving_date
+                else None
+            ),
+            "last_heat_date": (
+                state.last_heat_date.isoformat()
+                if state.last_heat_date
+                else None
+            ),
+            "last_insemination_date": (
+                state.last_insemination_date.isoformat()
+                if state.last_insemination_date
+                else None
+            ),
+            "pregnancy_confirmed_date": (
+                state.pregnancy_confirmed_date.isoformat()
+                if state.pregnancy_confirmed_date
+                else None
+            ),
+            "expected_calving_date": (
+                state.expected_calving_date.isoformat()
+                if state.expected_calving_date
+                else None
+            ),
             "eligible_to_breed": state.eligible_to_breed,
             "days_open": state.days_open,
-            "expected_dry_off_date": state.expected_dry_off_date.isoformat() if state.expected_dry_off_date else None,
+            "expected_dry_off_date": (
+                state.expected_dry_off_date.isoformat()
+                if state.expected_dry_off_date
+                else None
+            ),
             "dry_period_status": state.dry_period_status,
-            "lifetime_calvings": sum(event["event_type"] == "CALVING" for event in events),
-            "lifetime_heat_events": sum(event["event_type"] == "HEAT_DETECTED" for event in events),
-            "lifetime_inseminations": sum(event["event_type"] == "INSEMINATION" for event in events),
-            "pregnancy_confirmations": sum(event["event_type"] == "PREGNANCY_CONFIRMED" for event in events),
-            "pregnancy_losses_or_negative_checks": sum(event["event_type"] == "PREGNANCY_NEGATIVE" for event in events),
-            "dry_off_events": sum(event["event_type"] == "DRY_OFF" for event in events),
+            "lifetime_calvings": sum(
+                event["event_type"] == "CALVING" for event in events
+            ),
+            "lifetime_heat_events": sum(
+                event["event_type"] == "HEAT_DETECTED" for event in events
+            ),
+            "lifetime_inseminations": sum(
+                event["event_type"] == "INSEMINATION" for event in events
+            ),
+            "pregnancy_confirmations": sum(
+                event["event_type"] == "PREGNANCY_CONFIRMED" for event in events
+            ),
+            "pregnancy_losses_or_negative_checks": sum(
+                event["event_type"] == "PREGNANCY_NEGATIVE" for event in events
+            ),
+            "dry_off_events": sum(
+                event["event_type"] == "DRY_OFF" for event in events
+            ),
         }
         lifecycle = [
             {
@@ -517,7 +577,10 @@ class LifetimeAnimalPassportService:
 
     @staticmethod
     def _current_reproductive_api_value(state: Any) -> str:
-        if getattr(state, "last_calving_date", None) is not None and state.last_calving_date == state.as_of_date:
+        if (
+            getattr(state, "last_calving_date", None) is not None
+            and state.last_calving_date == state.as_of_date
+        ):
             return "CALVED"
         if getattr(state, "pregnancy_status", None) == "PREGNANT":
             return "PREGNANT"
@@ -530,15 +593,32 @@ class LifetimeAnimalPassportService:
         return "OPEN"
 
     def _health_projection(self, animal_id: str, as_of_date: date) -> dict[str, Any]:
-        observations = self._for_animal(self._through_date(self.factory.health().get_all(), as_of_date), animal_id)
-        cases = self._through_date(self.factory.health_cases().get_by_animal(animal_id), as_of_date)
-        treatments = self._through_date(self.factory.treatment().get_by_animal(animal_id), as_of_date)
-        open_cases = [case for case in cases if str(getattr(case, "status", "")).upper() == "OPEN"]
+        observations = self._for_animal(
+            self._through_date(self.factory.health().get_all(), as_of_date),
+            animal_id,
+        )
+        cases = self._through_date(
+            self.factory.health_cases().get_by_animal(animal_id),
+            as_of_date,
+        )
+        treatments = self._through_date(
+            self.factory.treatment().get_by_animal(animal_id),
+            as_of_date,
+        )
+        open_cases = [
+            case
+            for case in cases
+            if str(getattr(case, "status", "")).upper() == "OPEN"
+        ]
 
         active_withdrawals: list[dict[str, Any]] = []
         for treatment in treatments:
             withdrawal_until = getattr(treatment, "milk_withdrawal_until", None)
-            withdrawal_date = withdrawal_until.date() if isinstance(withdrawal_until, datetime) else withdrawal_until
+            withdrawal_date = (
+                withdrawal_until.date()
+                if isinstance(withdrawal_until, datetime)
+                else withdrawal_until
+            )
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
                 active_withdrawals.append(
                     {
@@ -546,13 +626,19 @@ class LifetimeAnimalPassportService:
                         "treatment_id": getattr(treatment, "id", None),
                         "medicine": getattr(treatment, "medicine", None),
                         "withdrawal_until": withdrawal_date.isoformat(),
-                        "withdrawal_source": getattr(treatment, "withdrawal_source", None),
+                        "withdrawal_source": getattr(
+                            treatment, "withdrawal_source", None
+                        ),
                     }
                 )
 
         for case in cases:
             withdrawal_until = getattr(case, "withdrawal_until", None)
-            withdrawal_date = withdrawal_until.date() if isinstance(withdrawal_until, datetime) else withdrawal_until
+            withdrawal_date = (
+                withdrawal_until.date()
+                if isinstance(withdrawal_until, datetime)
+                else withdrawal_until
+            )
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
                 active_withdrawals.append(
                     {
@@ -562,15 +648,33 @@ class LifetimeAnimalPassportService:
                     }
                 )
 
-        latest_observation = max(observations, key=lambda item: self._record_date(item) or date.min) if observations else None
+        latest_observation = (
+            max(
+                observations,
+                key=lambda item: self._record_date(item) or date.min,
+            )
+            if observations
+            else None
+        )
         return {
             "summary": {
                 "open_case_count": len(open_cases),
                 "observation_count": len(observations),
                 "treatment_count": len(treatments),
                 "active_withdrawal": bool(active_withdrawals),
-                "latest_observation_date": self._record_date(latest_observation).isoformat() if latest_observation and self._record_date(latest_observation) else None,
-                "latest_observation": ((getattr(latest_observation, "observation", None) or getattr(latest_observation, "symptom", None)) if latest_observation else None),
+                "latest_observation_date": (
+                    self._record_date(latest_observation).isoformat()
+                    if latest_observation and self._record_date(latest_observation)
+                    else None
+                ),
+                "latest_observation": (
+                    (
+                        getattr(latest_observation, "observation", None)
+                        or getattr(latest_observation, "symptom", None)
+                    )
+                    if latest_observation
+                    else None
+                ),
             },
             "open_cases": [
                 {
@@ -578,9 +682,21 @@ class LifetimeAnimalPassportService:
                     "severity": getattr(case, "severity", None),
                     "diagnosis": getattr(case, "diagnosis", None),
                     "status": getattr(case, "status", None),
-                    "opened_at": getattr(case, "opened_at", None).isoformat() if getattr(case, "opened_at", None) else None,
-                    "follow_up_due_at": getattr(case, "follow_up_due_at", None).isoformat() if getattr(case, "follow_up_due_at", None) else None,
-                    "withdrawal_until": getattr(case, "withdrawal_until", None).isoformat() if getattr(case, "withdrawal_until", None) else None,
+                    "opened_at": (
+                        getattr(case, "opened_at", None).isoformat()
+                        if getattr(case, "opened_at", None)
+                        else None
+                    ),
+                    "follow_up_due_at": (
+                        getattr(case, "follow_up_due_at", None).isoformat()
+                        if getattr(case, "follow_up_due_at", None)
+                        else None
+                    ),
+                    "withdrawal_until": (
+                        getattr(case, "withdrawal_until", None).isoformat()
+                        if getattr(case, "withdrawal_until", None)
+                        else None
+                    ),
                     "resolution": getattr(case, "resolution", None),
                 }
                 for case in open_cases
@@ -589,25 +705,46 @@ class LifetimeAnimalPassportService:
         }
 
     def _schedule_projection(self, animal: Any, as_of_date: date | None) -> dict[str, Any]:
-        history = list(self.factory.animal().get_milking_frequency_history(animal.animal_id))
+        history = list(
+            self.factory.animal().get_milking_frequency_history(animal.animal_id)
+        )
         if as_of_date is None:
             snapshot = self.schedule_service.get_schedule_snapshot(animal)
         else:
-            snapshot = self.schedule_service.get_schedule_snapshot(animal, operational_date=as_of_date, history=history)
+            snapshot = self.schedule_service.get_schedule_snapshot(
+                animal,
+                operational_date=as_of_date,
+                history=history,
+            )
         effective_schedule = {
-            "operational_date": snapshot.operational_date.isoformat() if snapshot.operational_date else None,
+            "operational_date": (
+                snapshot.operational_date.isoformat()
+                if snapshot.operational_date
+                else None
+            ),
             "milking_frequency": snapshot.milking_frequency,
             "expected_sessions": list(snapshot.expected_sessions),
             "source": snapshot.source,
             "history_id": snapshot.history_id,
-            "effective_from": snapshot.effective_from.isoformat() if snapshot.effective_from else None,
-            "effective_to": snapshot.effective_to.isoformat() if snapshot.effective_to else None,
+            "effective_from": (
+                snapshot.effective_from.isoformat()
+                if snapshot.effective_from
+                else None
+            ),
+            "effective_to": (
+                snapshot.effective_to.isoformat()
+                if snapshot.effective_to
+                else None
+            ),
             "changed_by": snapshot.changed_by,
             "reason": snapshot.reason,
         }
         return {
             "effective": effective_schedule,
-            "history": [self._serialize_schedule(item) for item in history],
+            "history": [
+                self._serialize_schedule(item)
+                for item in history
+            ],
         }
 
     @staticmethod
@@ -616,13 +753,25 @@ class LifetimeAnimalPassportService:
             "id": getattr(record, "id", None),
             "animal_id": getattr(record, "animal_id", None),
             "milking_frequency": getattr(record, "milking_frequency", None),
-            "effective_from": getattr(record, "effective_from", None).isoformat() if getattr(record, "effective_from", None) else None,
-            "effective_to": getattr(record, "effective_to", None).isoformat() if getattr(record, "effective_to", None) else None,
+            "effective_from": (
+                getattr(record, "effective_from", None).isoformat()
+                if getattr(record, "effective_from", None)
+                else None
+            ),
+            "effective_to": (
+                getattr(record, "effective_to", None).isoformat()
+                if getattr(record, "effective_to", None)
+                else None
+            ),
             "changed_by": getattr(record, "changed_by", None),
             "reason": getattr(record, "reason", None),
         }
 
-    def build(self, animal_id: str, as_of_date: date | None = None) -> dict[str, Any] | None:
+    def build(
+        self,
+        animal_id: str,
+        as_of_date: date | None = None,
+    ) -> dict[str, Any] | None:
         animal = self.factory.animal().get_by_animal_id(animal_id)
         if animal is None:
             return None
@@ -631,17 +780,41 @@ class LifetimeAnimalPassportService:
         all_animals = self.factory.animal().get_all()
         lineage = self._lineage_projection(animal, all_animals)
 
-        milk = self._through_date(self._for_animal(self.factory.milk().get_all(), animal_id), as_of_date)
-        health = self._through_date(self._for_animal(self.factory.health().get_all(), animal_id), as_of_date)
-        breeding = self._through_date(self._for_animal(self.factory.breeding().get_all(), animal_id), as_of_date)
-        treatments = self._through_date(self.factory.treatment().get_by_animal(animal_id), as_of_date)
-        feed = self._through_date(self._for_animal(self.factory.feed().get_all(), animal_id), as_of_date)
-        finance = self._through_date(self._for_animal(self.factory.finance().get_all(), animal_id), as_of_date)
+        milk = self._through_date(
+            self._for_animal(self.factory.milk().get_all(), animal_id),
+            as_of_date,
+        )
+        health = self._through_date(
+            self._for_animal(self.factory.health().get_all(), animal_id),
+            as_of_date,
+        )
+        breeding = self._through_date(
+            self._for_animal(self.factory.breeding().get_all(), animal_id),
+            as_of_date,
+        )
+        treatments = self._through_date(
+            self.factory.treatment().get_by_animal(animal_id),
+            as_of_date,
+        )
+        feed = self._through_date(
+            self._for_animal(self.factory.feed().get_all(), animal_id),
+            as_of_date,
+        )
+        finance = self._through_date(
+            self._for_animal(self.factory.finance().get_all(), animal_id),
+            as_of_date,
+        )
         events = [
             event
             for event in self.factory.operational_events().get_all()
             if self._event_for_animal(event, animal_id)
-            and (as_of_date is None or ((event_date := self._record_date(event)) is not None and event_date <= as_of_date))
+            and (
+                as_of_date is None
+                or (
+                    (event_date := self._record_date(event)) is not None
+                    and event_date <= as_of_date
+                )
+            )
         ]
 
         history = {
@@ -658,16 +831,29 @@ class LifetimeAnimalPassportService:
         timeline = []
         for domain, records in history.items():
             for record in records:
-                timeline.append({"domain": domain, "timestamp": self._record_timestamp(record), "record": record})
+                timeline.append(
+                    {
+                        "domain": domain,
+                        "timestamp": self._record_timestamp(record),
+                        "record": record,
+                    }
+                )
         timeline.sort(key=lambda item: str(item["timestamp"]))
 
         schedule = self._schedule_projection(animal, as_of_date)
         production = self._lactation_projection(milk, breeding, projection_date)
-        reproduction = self._reproductive_projection(animal_id, breeding, projection_date)
-        health_state = self._health_projection(animal_id, projection_date)
+        reproduction = self._reproductive_projection(
+            animal_id,
+            breeding,
+            projection_date,
+        )
+        health_state = self._health_projection(
+            animal_id,
+            projection_date,
+        )
         biological_summary = {
-            "lifetime_milk_liters": production["summary"]["lifetime_milk_liters"],
-            "lactation_count": production["summary"]["lactation_count"],
+            "lifetime_milk_liters": production["lifetime"]["lifetime_milk_liters"],
+            "lactation_count": production["lifetime"]["lactation_count"],
             "lifetime_calvings": reproduction["summary"]["lifetime_calvings"],
             "current_reproductive_status": reproduction["summary"]["current_api_status"],
             "current_pregnancy_status": reproduction["summary"]["pregnancy_status"],
@@ -679,8 +865,16 @@ class LifetimeAnimalPassportService:
         return {
             "animal": self._animal_identity(animal),
             "date_context": {
-                "mode": "CURRENT_STATE" if as_of_date is None else "HISTORICAL_STATE",
-                "operational_date": as_of_date.isoformat() if as_of_date is not None else None,
+                "mode": (
+                    "CURRENT_STATE"
+                    if as_of_date is None
+                    else "HISTORICAL_STATE"
+                ),
+                "operational_date": (
+                    as_of_date.isoformat()
+                    if as_of_date is not None
+                    else None
+                ),
                 "historical_state_basis": (
                     "Persisted domain records through the selected operational date plus effective-dated milking schedule authority."
                     if as_of_date is not None
@@ -698,5 +892,8 @@ class LifetimeAnimalPassportService:
             "schedule": schedule,
             "history": history,
             "timeline": timeline,
-            "record_counts": {domain: len(records) for domain, records in history.items()},
+            "record_counts": {
+                domain: len(records)
+                for domain, records in history.items()
+            },
         }
