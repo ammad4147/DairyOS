@@ -1,0 +1,51 @@
+### Localization
+locale debian-installer/locale string en_US.UTF-8
+keyboard-configuration/xkb-keymap select us
+
+### Network
+netcfg/choose_interface select auto
+netcfg/get_hostname string dairyos-edge
+netcfg/get_domain string dairyos.local
+
+### Clock
+clock-setup/utc boolean true
+time/zone string Asia/Karachi
+
+### Users
+passwd/root-login boolean false
+passwd/make-user boolean false
+
+### Apt - local farm mirror; no WAN is required for package installation
+apt-setup/use_mirror boolean true
+apt-setup/mirror/country string manual
+apt-setup/mirror/protocol string http
+apt-setup/mirror/http/hostname string 192.168.50.1
+apt-setup/mirror/http/directory string /debian
+apt-setup/disable-cdrom-entries boolean false
+apt-setup/services-select multiselect security, updates
+apt-setup/non-free boolean true
+apt-setup/contrib boolean true
+apt-setup/non-free-firmware boolean true
+
+### Packages
+pkgsel/include string openssh-server sudo ca-certificates curl wget rsync grub-efi-amd64 grub-pc linux-image-amd64 systemd systemd-timesyncd postgresql python3 python3-venv
+pkgsel/upgrade select safe-upgrade
+
+### Partitioning
+partman-auto/method string regular
+partman-auto/choose_recipe select dairyos
+partman-auto/expert_recipe string \
+    dairyos :: \
+        512 512 512 fat32 $primary{ } $bootable{ } method{ efi } format{ } mountpoint{ /boot/efi } . \
+        16384 16384 16384 ext4 $primary{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . \
+        4096 4096 4096 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ /var/log } . \
+        4096 4096 4096 linux-swap method{ swap } format{ } . \
+        8192 10000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ /var/lib/dairyos } .
+partman-partitioning/confirm_write_new_label boolean true
+partman/choose_partition select finish
+partman/confirm boolean true
+partman/confirm_nooverwrite boolean true
+
+### Boot loader
+bootloader/append_to_default=false
+finish-install/keep-consoles boolean true
