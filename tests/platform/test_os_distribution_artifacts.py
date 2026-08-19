@@ -124,6 +124,7 @@ def test_bare_metal_first_boot_provisions_database_and_secrets():
 def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
     manifest = yaml.safe_load(read("manifest.yaml"))
     preseed = read("installer/preseed/dairyos.seed")
+    installer = read("installer/install.sh")
     sync_script = read("pxe/mirror/sync-debian.sh")
     nginx = read("pxe/mirror/nginx-dairyos.conf")
 
@@ -131,6 +132,7 @@ def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
     assert manifest["network"]["offline_mirror"]["host"] == "192.168.50.1"
     assert "apt-setup/mirror/http/hostname string 192.168.50.1" in preseed
     assert "apt-setup/mirror/http/directory string /debian" in preseed
+    assert "file:///srv/dairyos-debian" in installer
     assert "debmirror" in sync_script
     assert "/srv" in nginx
     assert "location /debian/" in nginx
