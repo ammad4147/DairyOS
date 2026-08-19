@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dairyos}
       POSTGRES_USER: ${POSTGRES_USER:-dairyos}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - dairyos_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,7 +29,7 @@ services:
       DAIRYOS_DB_PORT: 5432
       DAIRYOS_DB_NAME: ${POSTGRES_DB:-dairyos}
       DAIRYOS_DB_USER: ${POSTGRES_USER:-dairyos}
-      DAIRYOS_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      DAIRYOS_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       DAIRYOS_AUTH_SECRET: ${DAIRYOS_AUTH_SECRET:?set DAIRYOS_AUTH_SECRET in .env}
     ports:
       - "8000:8000"
