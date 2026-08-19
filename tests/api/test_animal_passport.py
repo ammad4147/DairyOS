@@ -222,6 +222,7 @@ def test_lifetime_animal_passport_exposes_current_health_case_and_withdrawal(
     registered_animal,
 ):
     today = date.today()
+    persisted_date = today - timedelta(days=2)
     session = container.repository_factory.session
 
     case = HealthCase(
@@ -230,6 +231,7 @@ def test_lifetime_animal_passport_exposes_current_health_case_and_withdrawal(
         severity="HIGH",
         diagnosis="Mastitis",
         status="OPEN",
+        opened_at=datetime.combine(persisted_date, datetime.min.time()),
     )
     session.add(case)
     session.flush()
@@ -244,6 +246,7 @@ def test_lifetime_animal_passport_exposes_current_health_case_and_withdrawal(
             diagnosis="Mastitis",
             medicine="Test Medicine",
             treated_by="Vet",
+            treated_at=datetime.combine(persisted_date, datetime.min.time()),
             milk_withdrawal_days=5,
             milk_withdrawal_until=withdrawal_until,
             withdrawal_source="reference_table",
