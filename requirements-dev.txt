@@ -2,7 +2,7 @@
 pytest>=8.4
 pytest-cov>=6.2
 black>=25.1
-ruff>=0.12
+ruff>=0.16.3
 mypy>=1.17
 pre-commit>=4.2
 httpx>=0.28
