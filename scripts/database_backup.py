@@ -7,8 +7,8 @@ Usage:
 
 The utility intentionally delegates to PostgreSQL's pg_dump/pg_restore so the
 backup format is native and independently recoverable. It never reports a
-backup as successful unless the command exits successfully and the dump can
-be inspected by pg_restore.
+backup as successful unless the command exits successfully and the dump can be
+inspected by pg_restore.
 """
 from __future__ import annotations
 
@@ -42,7 +42,12 @@ def verify(dump: Path) -> None:
     if not dump.exists() or dump.stat().st_size == 0:
         raise SystemExit(f"Backup does not exist or is empty: {dump}")
     pg_restore = _require("pg_restore")
-    result = subprocess.run([pg_restore, "--list", str(dump)], check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        [pg_restore, "--list", str(dump)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     if not result.stdout.strip():
         raise SystemExit("pg_restore could not enumerate the backup contents")
 
@@ -51,14 +56,32 @@ def restore(dump: Path, target_url: str) -> None:
     verify(dump)
     pg_restore = _require("pg_restore")
     subprocess.run(
-        [pg_restore, "--clean", "--if-exists", "--no-owner", "--dbname", target_url, str(dump)],
+        [
+            pg_restore,
+            "--clean",
+            "--if-exists",
+            "--no-owner",
+            "--dbname",
+            target_url,
+            str(dump),
+        ],
         check=True,
     )
 
 
+def _database_url_from_environment() -> str | None:
+    """Resolve the same explicit URL environment variable used by DairyOS.
+
+    ``DATABASE_URL`` remains supported for generic deployment tooling and
+    backwards compatibility, but the application-specific variable wins
+    whenever both are present.
+    """
+    return os.getenv("DAIRYOS_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="DairyOS PostgreSQL backup/restore utility")
-    parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"))
+    parser.add_argument("--database-url", default=_database_url_from_environment())
     sub = parser.add_subparsers(dest="command", required=True)
 
     backup_parser = sub.add_parser("backup")
@@ -74,7 +97,9 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "backup":
         if not args.database_url:
-            parser.error("backup requires --database-url or DATABASE_URL")
+            parser.error(
+                "backup requires --database-url, DAIRYOS_DATABASE_URL, or DATABASE_URL"
+            )
         backup(args.database_url, args.output)
     elif args.command == "verify":
         verify(args.input)
