@@ -18,6 +18,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
+
 
 def _require(binary: str) -> str:
     path = shutil.which(binary)
@@ -26,12 +28,50 @@ def _require(binary: str) -> str:
     return path
 
 
+def _pg_cli_target(database_url: str) -> tuple[str, dict[str, str]]:
+    """Convert an application/SQLAlchemy URL into a libpq URL and env.
+
+    DairyOS uses ``postgresql+psycopg`` for SQLAlchemy, while PostgreSQL's
+    command-line tools understand the libpq ``postgresql`` scheme. The
+    password is removed from the process argument list and supplied through
+    ``PGPASSWORD`` instead.
+    """
+    url = make_url(database_url)
+
+    if url.drivername in {"postgres", "postgresql"}:
+        normalized = url
+    elif url.drivername.startswith("postgresql+"):
+        normalized = url.set(drivername="postgresql")
+    else:
+        raise ValueError(
+            f"Unsupported database URL driver for PostgreSQL utility: {url.drivername!r}"
+        )
+
+    password = normalized.password
+    cli_url = normalized.set(password=None).render_as_string(hide_password=False)
+
+    env = os.environ.copy()
+    if password is not None:
+        env["PGPASSWORD"] = password
+
+    return cli_url, env
+
+
 def backup(database_url: str, output: Path) -> None:
     pg_dump = _require("pg_dump")
+    cli_url, env = _pg_cli_target(database_url)
     output.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        [pg_dump, "--format=custom", "--no-owner", "--file", str(output), database_url],
+        [
+            pg_dump,
+            "--format=custom",
+            "--no-owner",
+            "--file",
+            str(output),
+            cli_url,
+        ],
         check=True,
+        env=env,
     )
     if not output.exists() or output.stat().st_size == 0:
         raise SystemExit("Backup command completed but produced an empty dump")
@@ -55,6 +95,7 @@ def verify(dump: Path) -> None:
 def restore(dump: Path, target_url: str) -> None:
     verify(dump)
     pg_restore = _require("pg_restore")
+    cli_url, env = _pg_cli_target(target_url)
     subprocess.run(
         [
             pg_restore,
@@ -62,10 +103,11 @@ def restore(dump: Path, target_url: str) -> None:
             "--if-exists",
             "--no-owner",
             "--dbname",
-            target_url,
+            cli_url,
             str(dump),
         ],
         check=True,
+        env=env,
     )
 
 
