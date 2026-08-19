@@ -49,6 +49,10 @@ network:
     - pxe
     - ipxe
   wan_required_for_first_boot: false
+  offline_mirror:
+    protocol: http
+    host: 192.168.50.1
+    path: /debian
 application:
   data_dir: /var/lib/dairyos
   service: dairyos.service
