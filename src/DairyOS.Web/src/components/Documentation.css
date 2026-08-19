@@ -1,0 +1,355 @@
+.documentation {
+    width: 100%;
+    color: #17231d;
+}
+
+.documentation-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.documentation-kicker {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #587064;
+    margin-bottom: 7px;
+}
+
+.documentation-header h1,
+.documentation-search-dialog h2 {
+    margin: 0 0 8px;
+}
+
+.documentation-header p,
+.documentation-search-dialog-header p {
+    margin: 0;
+    color: #617169;
+    max-width: 900px;
+    line-height: 1.55;
+}
+
+.documentation-close {
+    border: 1px solid #ccd8d1;
+    background: #fff;
+    color: #294138;
+    border-radius: 9px;
+    padding: 9px 13px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.documentation-search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.documentation-search-row input,
+.documentation-search-dialog > input {
+    width: 100%;
+    border: 1px solid #cfdad4;
+    border-radius: 10px;
+    background: #fff;
+    padding: 12px 14px;
+    font: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.documentation-search-row input:focus,
+.documentation-search-dialog > input:focus {
+    border-color: #4f8069;
+    box-shadow: 0 0 0 3px rgba(79, 128, 105, 0.12);
+}
+
+.documentation-search-row > span {
+    white-space: nowrap;
+    font-size: 12px;
+    color: #6d7d75;
+}
+
+.documentation-results,
+.documentation-search-results {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.documentation-result {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(150px, 220px) 2fr;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    border: 1px solid #d7e0db;
+    background: #fff;
+    border-radius: 10px;
+    padding: 11px 13px;
+    cursor: pointer;
+    color: #24372e;
+}
+
+.documentation-result:hover,
+.documentation-toc button:hover {
+    border-color: #82a692;
+    background: #f7fbf8;
+}
+
+.documentation-result span,
+.documentation-result small {
+    color: #6b7b73;
+}
+
+.documentation-empty,
+.documentation-search-hint {
+    padding: 16px;
+    border: 1px dashed #cbd7d0;
+    border-radius: 10px;
+    color: #66776e;
+}
+
+.documentation-layout {
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.documentation-nav {
+    position: sticky;
+    top: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.documentation-tabs {
+    display: grid;
+    gap: 6px;
+    background: #eef4f0;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.documentation-tabs button,
+.documentation-toc button {
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.documentation-tabs button {
+    padding: 10px 12px;
+    font-weight: 800;
+    color: #355047;
+}
+
+.documentation-tabs button.selected {
+    background: #fff;
+    border-color: #d0ddd5;
+}
+
+.documentation-toc {
+    display: grid;
+    gap: 4px;
+}
+
+.documentation-toc button {
+    display: grid;
+    gap: 3px;
+    padding: 10px;
+}
+
+.documentation-toc button strong {
+    font-size: 13px;
+    color: #294139;
+}
+
+.documentation-toc button span {
+    font-size: 11px;
+    line-height: 1.4;
+    color: #6b7a72;
+}
+
+.documentation-toc button.selected {
+    background: #e7f2eb;
+    border-color: #b8cfbf;
+}
+
+.documentation-reader {
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #d8e1dc;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 28px rgba(30, 52, 42, 0.05);
+}
+
+.documentation-reader-meta {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.documentation-reader-meta span {
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: #eef4f0;
+    color: #5f7067;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.documentation-reader h2 {
+    margin: 0 0 8px;
+    font-size: 25px;
+}
+
+.documentation-summary {
+    color: #5f6e66;
+    margin-top: 0;
+    line-height: 1.55;
+}
+
+.documentation-body {
+    margin-top: 22px;
+}
+
+.documentation-body h3 {
+    margin: 28px 0 10px;
+    font-size: 19px;
+}
+
+.documentation-body h4 {
+    margin: 22px 0 8px;
+    font-size: 15px;
+}
+
+.documentation-body p,
+.documentation-list-item {
+    line-height: 1.65;
+    color: #394b43;
+    margin: 0 0 9px;
+}
+
+.documentation-list-item {
+    padding-left: 18px;
+    position: relative;
+}
+
+.documentation-list-item:not(.ordered)::before {
+    content: "•";
+    position: absolute;
+    left: 4px;
+}
+
+.documentation-list-item.ordered {
+    padding-left: 3px;
+}
+
+.documentation-diagram {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    margin-top: 28px;
+    padding: 20px;
+    border: 1px dashed #bfd0c6;
+    border-radius: 12px;
+    background: #f8fbf9;
+}
+
+.diagram-layer {
+    width: min(520px, 100%);
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #cbd9d1;
+    border-radius: 9px;
+}
+
+.diagram-layer span {
+    color: #6c7d74;
+    font-size: 12px;
+}
+
+.diagram-arrow {
+    color: #6a7a72;
+    font-weight: 900;
+}
+
+.documentation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(22, 33, 27, 0.56);
+    display: grid;
+    place-items: start center;
+    padding: 7vh 18px 18px;
+}
+
+.documentation-search-dialog {
+    width: min(900px, 100%);
+    background: #f7faf8;
+    border-radius: 14px;
+    box-shadow: 0 28px 70px rgba(10, 20, 15, 0.25);
+    padding: 20px;
+}
+
+.documentation-search-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.documentation-search-results {
+    max-height: 60vh;
+    overflow: auto;
+    margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+    .documentation-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .documentation-nav {
+        position: static;
+    }
+
+    .documentation-toc {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .documentation-header,
+    .documentation-search-row,
+    .documentation-search-dialog-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .documentation-result {
+        grid-template-columns: 1fr;
+    }
+
+    .documentation-toc {
+        grid-template-columns: 1fr;
+    }
+
+    .documentation-reader {
+        padding: 18px;
+    }
+}
