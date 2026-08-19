@@ -20,8 +20,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install YAML test dependency
-        run: python -m pip install --upgrade pip PyYAML pytest
+      - name: Install project and OS test dependencies
+        run: python -m pip install --upgrade pip && pip install -e . PyYAML pytest
 
       - name: Bash syntax validation
         shell: bash
@@ -51,6 +51,7 @@ jobs:
             os/installer/hooks/firstboot.sh
             os/installer/hooks/validate.sh
             os/build/build-iso.sh
+            os/build/stage-app.sh
             os/build/release-manifest.sh
             os/pxe/dnsmasq.conf
             os/pxe/grub.cfg
