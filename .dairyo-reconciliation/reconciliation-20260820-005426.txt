@@ -1,0 +1,52 @@
+﻿Repository root : D:/DairyOS
+Current branch   : audit/os-handover-2026-08-19
+Current HEAD     : 158707f4ed0e24d74ec931a86bd85675242a66ae
+Origin           : https://github.com/ammad4147/DairyOS
+Upstream         : origin/audit/os-handover-2026-08-19
+Worktree dirty   : True
+
+=== PRE-RECONCILIATION STATE ===
+
+Branches:
+* audit/os-handover-2026-08-19 158707f4e [origin/audit/os-handover-2026-08-19] fix: enforce LF line endings for shell scripts
+  main                         aeb5cc98a [origin/main] Merge pull request #15 from ammad4147/feature/lifetime-biological-animal-passport
+
+Remotes:
+origin	https://github.com/ammad4147/DairyOS (fetch)
+origin	https://github.com/ammad4147/DairyOS (push)
+
+Recent commits:
+158707f4e (HEAD -> audit/os-handover-2026-08-19, origin/audit/os-handover-2026-08-19) fix: enforce LF line endings for shell scripts
+c5b5d191d fix: remove PowerShell-sensitive Bash variable expansion
+c6611eb12 fix: prevent PowerShell expansion in WSL bash validation
+b8ef58ae3 docs: keep Phase 1 record authoritative
+fa32dfd83 docs: final synchronized Phase 1 acceptance record
+5c1deca69 docs: finish Phase 1 acceptance record
+43ab2cacf docs: synchronize Phase 1 acceptance record
+3a8539ca2 docs: synchronize Phase 1 acceptance record
+5db17bdc9 test: include offline mirror artifacts in required contract
+837dda669 docs: clarify current OS handover acceptance boundary
+85c40a255 docs: record OS handover Phase 1 implementation status
+71bfe014c test: enforce air-gapped mirror artifacts
+a880accf5 fix: make Windows WSL shell validation cover all OS scripts
+32f9fec34 fix: declare local mirror as air-gap deployment dependency
+c2b5b9099 fix: point unattended installer at local farm mirror
+5e1c5ba03 feat: add local Debian mirror HTTP server config
+92fdf074a feat: add offline Debian mirror synchronization helper
+2e9c8d1bf fix: make local Debian mirror the safe offline install default
+a47bcb1cc test: enforce bare metal database bootstrap contract
+2351c019f fix: order DairyOS first boot after PostgreSQL
+
+Status:
+M src/dairyos/api/farm_planning.py
+ M tools/handover/Invoke-DairyOSAllTests.ps1
+?? 01-Reconcile-DairyOS-Local-With-Remote.ps1
+?? audit-results/
+
+WORKTREE STATE: DIRTY
+
+Local modifications are present.
+Automatic branch movement is therefore prohibited.
+
+No reset, clean, merge, rebase, or checkout was performed.
+

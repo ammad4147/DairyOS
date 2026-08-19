@@ -3,6 +3,10 @@ from __future__ import annotations
 
 from datetime import date
 
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -169,7 +173,7 @@ def _resolve_current_reproductive_state(animal_id, records):
         if event is not None:
             events.append(event)
 
-    as_of_date = utcnow().date()
+    as_of_date = OperationalDateAuthority().current_date()
 
     effective = [
         event
