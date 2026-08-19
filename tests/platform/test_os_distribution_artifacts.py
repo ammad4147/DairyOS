@@ -46,6 +46,8 @@ def test_installer_is_fail_closed_and_has_explicit_disk_apply_gate():
     assert 'sfdisk "$TARGET_DEVICE"' in installer
     assert "grub-install --target=x86_64-efi" in installer
     assert "grub-install --target=i386-pc" in installer
+    assert 'DEBIAN_MIRROR="file:///srv/dairyos-debian"' in installer
+    assert "validate_mirror" in installer
     assert "touch \"$MOUNT_ROOT/.install-in-progress\"" in installer
     assert "touch \"$committed\"" in installer
 
@@ -81,6 +83,8 @@ def test_artifact_integrity_and_first_boot_assets_exist():
         "installer/hooks/validate.sh",
         "services/dairyos.service",
         "services/dairyos-firstboot.service",
+        "pxe/mirror/sync-debian.sh",
+        "pxe/mirror/nginx-dairyos.conf",
     ):
         assert (OS / relative).is_file(), relative
 
@@ -115,6 +119,21 @@ def test_bare_metal_first_boot_provisions_database_and_secrets():
     assert "DAIRYOS_DB_PASSWORD=$DB_PASSWORD" in firstboot
     assert "DAIRYOS_AUTH_SECRET=$AUTH_SECRET" in firstboot
     assert "EnvironmentFile=-/etc/dairyos/dairyos.env" in service
+
+
+def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
+    manifest = yaml.safe_load(read("manifest.yaml"))
+    preseed = read("installer/preseed/dairyos.seed")
+    sync_script = read("pxe/mirror/sync-debian.sh")
+    nginx = read("pxe/mirror/nginx-dairyos.conf")
+
+    assert manifest["network"]["wan_required_for_first_boot"] is False
+    assert manifest["network"]["offline_mirror"]["host"] == "192.168.50.1"
+    assert "apt-setup/mirror/http/hostname string 192.168.50.1" in preseed
+    assert "apt-setup/mirror/http/directory string /debian" in preseed
+    assert "debmirror" in sync_script
+    assert "/srv" in nginx
+    assert "location /debian/" in nginx
 
 
 def test_systemd_service_uses_persistent_farm_data_path():
