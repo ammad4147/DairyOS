@@ -71,6 +71,7 @@ def test_boot_and_pxe_contracts_exist():
 def test_artifact_integrity_and_first_boot_assets_exist():
     for relative in (
         "build/build-iso.sh",
+        "build/stage-app.sh",
         "build/release-manifest.sh",
         "installer/rollback.sh",
         "installer/preseed/dairyos.seed",
@@ -87,6 +88,20 @@ def test_artifact_integrity_and_first_boot_assets_exist():
     assert "DAIRYOS_SIGNING_KEY" in release_builder
 
 
+def test_offline_build_stages_complete_application_wheelhouse():
+    stage = read("build/stage-app.sh")
+    firstboot = read("installer/hooks/firstboot.sh")
+    build = read("build/build-iso.sh")
+
+    assert "pip wheel --wheel-dir" in stage
+    assert "wheelhouse" in stage
+    assert "--no-index" in firstboot
+    assert "--find-links \"$WHEELHOUSE\"" in firstboot
+    assert "pip install --no-index" in firstboot
+    assert '"$OS_ROOT/build/stage-app.sh"' in build
+    assert "app-stage/wheelhouse" in build
+
+
 def test_systemd_service_uses_persistent_farm_data_path():
     service = read("services/dairyos.service")
     firstboot = read("services/dairyos-firstboot.service")
@@ -94,3 +109,4 @@ def test_systemd_service_uses_persistent_farm_data_path():
     assert "Environment=DAIRYOS_DATA_DIR=/var/lib/dairyos" in service
     assert "ReadWritePaths=/var/lib/dairyos" in service
     assert "ConditionPathExists=/opt/dairyos-os/installer/firstboot.sh" in firstboot
+    assert "ConditionPathExists=!/var/lib/dairyos/.firstboot-complete" in firstboot
