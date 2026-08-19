@@ -6,7 +6,6 @@ TARGET_DEVICE=""
 DATA_ROOT="/var/lib/dairyos"
 MOUNT_ROOT="/mnt/dairyos"
 MANIFEST_DIR="/opt/dairyos-os"
-PURGE_CONFIRMATION="PURGE DAIRYOS DATA"
 
 usage() {
   cat <<'EOF'
@@ -31,7 +30,7 @@ require_root() {
 
 require_cmds() {
   local cmd
-  for cmd in sfdisk wipefs mkfs.vfat mkfs.ext4 mkswap mount umount debootstrap chroot grub-install update-initramfs systemctl blkid; do
+  for cmd in sfdisk wipefs mkfs.vfat mkfs.ext4 mkswap mount umount debootstrap chroot grub-install update-initramfs systemctl blkid partprobe blockdev; do
     command -v "$cmd" >/dev/null 2>&1 || {
       echo "ERROR: required command not found: $cmd" >&2
       exit 21
@@ -52,7 +51,7 @@ validate_target() {
     echo "ERROR: target disk must be at least 32 GiB." >&2
     exit 25
   }
-  if [[ -b /dev/disk/by-id/dairyos-install-lock ]]; then
+  if [[ -e /var/lock/dairyos-install.lock ]]; then
     echo "ERROR: installation lock already exists." >&2
     exit 26
   fi
@@ -79,8 +78,9 @@ apply_install() {
   local staged="${MOUNT_ROOT}/.dairyos-install-staged"
   local committed="${MOUNT_ROOT}/.dairyos-install-committed"
   mkdir -p "$MOUNT_ROOT"
+  install -m 0600 /dev/null /var/lock/dairyos-install.lock
   touch "$MOUNT_ROOT/.install-in-progress"
-  trap 'umount -R "$MOUNT_ROOT" 2>/dev/null || true' EXIT
+  trap 'rm -f /var/lock/dairyos-install.lock; umount -R "$MOUNT_ROOT" 2>/dev/null || true' EXIT
 
   wipefs -a "$TARGET_DEVICE"
   sfdisk "$TARGET_DEVICE" < "${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
