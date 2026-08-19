@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from dairyos.api.auth import get_optional_current_user
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.profitability.services.cmp_scenario_service import (
     CMPScenarioService,
@@ -50,16 +51,24 @@ def _serialize(row):
 
 
 @router.post("/scenarios")
-def create_cmp_scenario(payload: CMPScenarioRequest):
+def create_cmp_scenario(
+    payload: CMPScenarioRequest,
+    current_user=Depends(get_optional_current_user),
+):
     factory = RepositoryFactory.create()
 
     try:
         service = CMPScenarioService(factory)
+        created_by = (
+            str(current_user["sub"])
+            if current_user is not None
+            else payload.created_by
+        )
 
         try:
             row, evaluation = service.create(
                 name=payload.name,
-                created_by=payload.created_by,
+                created_by=created_by,
                 period_start=payload.period_start,
                 period_end=payload.period_end,
                 selected_cost_domains=payload.selected_cost_domains,
