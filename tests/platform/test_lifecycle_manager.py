@@ -12,6 +12,12 @@ from dairyos.lifecycle.manager import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_database_environment(monkeypatch):
+    """Keep JSON-only lifecycle tests independent of ambient farm DB configuration."""
+    monkeypatch.delenv("DAIRYOS_DATABASE_URL", raising=False)
+
+
 def _manager(tmp_path: Path) -> LifecycleManager:
     installation_root = tmp_path / "install"
     installation_root.mkdir()
@@ -32,6 +38,7 @@ def test_install_creates_managed_data_layout_and_manifest(tmp_path):
     assert (manager.data_root / "storage").is_dir()
     assert (manager.data_root / "backups").is_dir()
     assert (manager.data_root / "logs").is_dir()
+
 
 def test_database_validation_accepts_sqlalchemy_postgresql_url(monkeypatch):
     import dairyos.lifecycle.manager as lifecycle_manager
