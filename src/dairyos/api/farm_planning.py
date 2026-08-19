@@ -1,17 +1,18 @@
 """Operational lifecycle services for reproduction and nutrition planning."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dairyos.core.time_utils import utcnow
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.herd.reproduction.services.reproductive_event_classifier import (
-    classify_animal_state,
+from dairyos.farm.reproduction.services.reproductive_state_service import (
+    ReproductivePolicy,
+    ReproductiveStateService,
 )
-from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm", tags=["farm-planning"])
 
@@ -29,28 +30,317 @@ class RationPlan(BaseModel):
     farm_id: str = "DEFAULT"
 
 
+REPRODUCTIVE_POLICY = ReproductivePolicy(
+    voluntary_waiting_period_days=60,
+    gestation_days=283,
+    dry_off_days_before_calving=60,
+)
+
+
+def _breeding_record_to_event(record, operational_date: date) -> dict:
+    timestamp = getattr(record, "timestamp", None)
+    return {
+        "animal_id": record.animal_id,
+        "event_type": record.event_type,
+        "event_date": timestamp.date() if timestamp is not None else operational_date,
+        "result": record.result,
+        "technician": record.technician,
+        "record_id": record.record_id,
+    }
+
+
+def _serialize_historical_record(record) -> dict:
+    return {
+        "record_id": record.record_id,
+        "event_type": record.event_type,
+        "result": record.result,
+        "timestamp": record.timestamp,
+        "technician": record.technician,
+    }
+
+
+_REPRODUCTIVE_POLICY = ReproductivePolicy(
+    voluntary_waiting_period_days=60,
+    gestation_days=283,
+    dry_off_days_before_calving=60,
+)
+
+
+def _breeding_record_to_resolver_event(record):
+    """Adapt persisted BreedingRecord facts into resolver facts.
+
+    BreedingRecord remains historical persistence authority. This adapter
+    does not mutate or reinterpret persisted records.
+    """
+    raw_type = str(getattr(record, "event_type", "") or "").strip().lower()
+    result = str(getattr(record, "result", "") or "").strip().lower()
+    timestamp = getattr(record, "timestamp", None)
+
+    if timestamp is None:
+        return None
+
+    negative_results = {
+        "negative",
+        "no",
+        "open",
+        "not_pregnant",
+        "not pregnant",
+    }
+
+    if raw_type in {
+        "insemination",
+        "service",
+        "ai",
+        "artificial_insemination",
+    }:
+        event_type = "INSEMINATION"
+
+    elif raw_type in {
+        "pregnancy_negative",
+    }:
+        event_type = "PREGNANCY_NEGATIVE"
+
+    elif raw_type in {
+        "pregnancy_check",
+        "pregnancy_diagnosis",
+        "pregnancy",
+    }:
+        event_type = (
+            "PREGNANCY_LOST"
+            if result in negative_results
+            else "PREGNANCY_CONFIRMED"
+        )
+
+    elif raw_type == "pregnancy_confirmed":
+        event_type = "PREGNANCY_CONFIRMED"
+
+    elif raw_type in {
+        "heat_detected",
+        "heat_detection",
+        "heat",
+        "oestrus",
+        "estrus",
+    }:
+        event_type = "HEAT_DETECTED"
+
+    elif raw_type in {
+        "calving",
+        "calved",
+        "parturition",
+    }:
+        event_type = "CALVING"
+
+    elif raw_type == "dry_off":
+        event_type = "DRY_OFF"
+
+    else:
+        return None
+
+    return {
+        "animal_id": record.animal_id,
+        "event_type": event_type,
+        "event_date": timestamp,
+        "result": result or None,
+        "source_record_id": getattr(record, "record_id", None),
+    }
+
+
+def _resolve_current_reproductive_state(animal_id, records):
+    """Resolve current reproductive state from persisted historical facts.
+
+    The resolver remains the sole authority for current state.
+    The persisted BreedingRecord collection remains the sole historical
+    fact authority.
+    """
+    from datetime import timedelta
+
+    ordered = sorted(
+        records,
+        key=lambda record: (
+            getattr(record, "timestamp", None)
+            or datetime.min.replace(tzinfo=timezone.utc)
+        ),
+    )
+
+    events = []
+
+    for record in ordered:
+        event = _breeding_record_to_resolver_event(record)
+        if event is not None:
+            events.append(event)
+
+    as_of_date = utcnow().date()
+
+    effective = [
+        event
+        for event in events
+        if event["event_date"].date() <= as_of_date
+    ]
+
+    # Compatibility boundary:
+    # "pregnancy_confirmed" and positive "pregnancy_diagnosis" have historically
+    # been accepted as complete operator facts even when an earlier insemination
+    # was not recorded. The strict resolver still requires chronology, so add
+    # only an ephemeral chronology anchor. Nothing is persisted.
+    for event in list(effective):
+        if event["event_type"] != "PREGNANCY_CONFIRMED":
+            continue
+
+        prior_insemination_exists = any(
+            candidate["event_type"] == "INSEMINATION"
+            and candidate["event_date"] <= event["event_date"]
+            for candidate in effective
+        )
+
+        if not prior_insemination_exists:
+            effective.insert(
+                0,
+                {
+                    "animal_id": animal_id,
+                    "event_type": "INSEMINATION",
+                    "event_date": (
+                        event["event_date"] - timedelta(seconds=1)
+                    ),
+                    "result": "IMPLICIT_CHRONOLOGY_ANCHOR",
+                    "source_record_id": None,
+                    "derived": True,
+                },
+            )
+
+    resolver = ReproductiveStateService(_REPRODUCTIVE_POLICY)
+
+    return resolver.resolve(
+        animal_id,
+        effective,
+        as_of_date=as_of_date,
+    )
+
+
+def _current_state_api_value(state):
+    """Expose the established API vocabulary from the canonical resolver.
+
+    ReproductiveStateService remains authoritative for current reproductive
+    state. This function only adapts the domain result to the established
+    API vocabulary.
+
+    The resolver reports LACTATING on the exact calving date because
+    lactation begins with calving. The historical API contract exposes
+    that exact-day condition as CALVED.
+    """
+    if (
+        getattr(state, "last_calving_date", None) is not None
+        and state.last_calving_date == state.as_of_date
+    ):
+        return "CALVED"
+
+    if state.pregnancy_status == "PREGNANT":
+        return "PREGNANT"
+
+    if state.reproductive_status == "HEAT_DETECTED":
+        return "HEAT_OBSERVED"
+
+    if state.reproductive_status == "BRED":
+        return "INSEMINATED"
+
+    if state.reproductive_status == "LACTATING":
+        return "LACTATING"
+
+    return "OPEN"
 @router.get("/animals/{animal_id}/reproduction")
 def reproductive_status(animal_id: str):
     factory = RepositoryFactory.create()
+
     try:
-        if factory.animal().get_by_animal_id(animal_id) is None:
-            raise HTTPException(status_code=404, detail="Animal not found")
-        events = [x for x in factory.breeding().get_all() if x.animal_id == animal_id]
-        events.sort(key=lambda x: x.timestamp or datetime.min)
-        classified = classify_animal_state(events)
+        animal = factory.animal().get_by_animal_id(animal_id)
+
+        if animal is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Animal not found",
+            )
+
+        records = [
+            record
+            for record in factory.breeding().get_all()
+            if record.animal_id == animal_id
+        ]
+
+        records.sort(
+            key=lambda record: (
+                getattr(record, "timestamp", None)
+                or datetime.min.replace(tzinfo=timezone.utc)
+            )
+        )
+
+        state = _resolve_current_reproductive_state(
+            animal_id,
+            records,
+        )
+
         return {
             "animal_id": animal_id,
             "data_status": "LIVE_PERSISTED",
-            **classified,
+            "state": _current_state_api_value(state),
+            "reproductive_status": state.reproductive_status,
+            "pregnancy_status": state.pregnancy_status,
+            "last_heat": (
+                state.last_heat_date.isoformat()
+                if state.last_heat_date
+                else None
+            ),
+            "last_insemination": (
+                state.last_insemination_date.isoformat()
+                if state.last_insemination_date
+                else None
+            ),
+            "pregnancy_confirmed_date": (
+                state.pregnancy_confirmed_date.isoformat()
+                if state.pregnancy_confirmed_date
+                else None
+            ),
+            "pregnancy_result": (
+                "pregnant"
+                if state.pregnancy_status == "PREGNANT"
+                else None
+            ),
+            "expected_calving": (
+                state.expected_calving_date.isoformat()
+                if state.expected_calving_date
+                else None
+            ),
+            "last_calving": (
+                state.last_calving_date.isoformat()
+                if state.last_calving_date
+                else None
+            ),
+            "lactation_number": state.lactation_number,
+            "days_in_milk": state.days_in_milk,
+            "eligible_to_breed": state.eligible_to_breed,
+            "days_open": state.days_open,
+            "expected_dry_off_date": (
+                state.expected_dry_off_date.isoformat()
+                if state.expected_dry_off_date
+                else None
+            ),
+            "dry_period_status": state.dry_period_status,
             "events": [
-                {"event_type": x.event_type, "result": x.result, "timestamp": x.timestamp, "technician": x.technician}
-                for x in events
+                {
+                    "record_id": record.record_id,
+                    "event_type": record.event_type,
+                    "result": record.result,
+                    "technician": record.technician,
+                    "timestamp": (
+                        record.timestamp.isoformat()
+                        if record.timestamp
+                        else None
+                    ),
+                }
+                for record in records
             ],
         }
+
     finally:
         factory.close()
-
-
 @router.get("/nutrition/rations")
 def list_rations(farm_id: str = "DEFAULT"):
     factory = RepositoryFactory.create()
