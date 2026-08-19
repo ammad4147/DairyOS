@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from scripts.database_backup import _pg_cli_target
+from scripts.database_backup import _pg_cli_target, backup
 
 
 def test_sqlalchemy_postgresql_url_is_normalized_for_libpq():
@@ -42,23 +42,22 @@ def test_pg_cli_target_preserves_environment_without_overwriting_other_values(mo
     assert env["PGPASSWORD"] == "pass"
 
 
-def test_normalized_url_is_accepted_by_postgres_tools(monkeypatch):
-    """The adapter emits a native PostgreSQL scheme for CLI consumers."""
+def test_backup_passes_native_url_without_password(monkeypatch, tmp_path):
+    """The PostgreSQL utility receives a libpq URL, never a SQLAlchemy URL or password."""
     commands: list[list[str]] = []
 
     def fake_run(command, **kwargs):
         commands.append(command)
+        if command[0] == "pg_dump":
+            output = tmp_path / "test-utility.dump"
+            output.write_bytes(b"dump")
         return subprocess.CompletedProcess(command, 0, stdout="toc", stderr="")
 
     monkeypatch.setattr("scripts.database_backup.subprocess.run", fake_run)
     monkeypatch.setattr("scripts.database_backup._require", lambda name: name)
-
-    # Avoid filesystem verification in this unit-level boundary test.
     monkeypatch.setattr("scripts.database_backup.verify", lambda dump: None)
-    from pathlib import Path
-    from scripts.database_backup import backup
 
-    output = Path("backups/test-utility.dump")
+    output = tmp_path / "test-utility.dump"
     backup(
         "postgresql+psycopg://user:secret@localhost:5432/dairyos",
         output,
