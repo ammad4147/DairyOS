@@ -16,7 +16,7 @@ function Invoke-Step {
     Write-Host ""
     Write-Host "=== $Name ===" -ForegroundColor Cyan
     try {
-        & $Action
+        & $Action 2>&1 | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Exit code $LASTEXITCODE" }
         Write-Host "PASS: $Name" -ForegroundColor Green
         return $true
