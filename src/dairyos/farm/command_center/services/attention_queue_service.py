@@ -96,7 +96,7 @@ class AttentionQueueService:
             animal_id = getattr(finding, "subject_id", None)
             title = str(getattr(finding, "title", "Operational finding")).strip() or "Operational finding"
             detail = str(getattr(finding, "detail", "")).strip()
-            message = f"{title}: {detail}" if detail else title
+            message = self._finding_message(title, detail)
 
             key = self._condition_key(area, animal_id, message)
             if key in seen:
@@ -161,6 +161,17 @@ class AttentionQueueService:
         finally:
             if factory is not None:
                 factory.close()
+
+    @staticmethod
+    def _finding_message(title, detail):
+        """Return a stable operator message without duplicating identical text."""
+        normalized_title = " ".join(str(title or "").strip().lower().split())
+        normalized_detail = " ".join(str(detail or "").strip().lower().split())
+
+        if not normalized_detail or normalized_detail == normalized_title:
+            return str(title).strip()
+
+        return f"{str(title).strip()}: {str(detail).strip()}"
 
     @staticmethod
     def _condition_key(area, animal_id, message):
