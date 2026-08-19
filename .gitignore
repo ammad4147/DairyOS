@@ -73,3 +73,5 @@ src/DairyOS.Web/node_modules/
 _sprint038_persistence_audit/
 
 data/storage/*.json
+
+.dairyo-reconciliation/
