@@ -4,13 +4,18 @@ from dairyos.farm.operations.services.reconciled_implementation_contract_service
 )
 
 
-def test_every_live_or_extended_capability_has_a_live_route():
-    route_paths = {
-        route.path
-        for route in app.routes
-        if hasattr(route, "path")
-    }
+def _paths() -> set[str]:
+    """Every publicly registered FastAPI route path.
 
+    FastAPI 0.140+ keeps included routers behind internal route wrappers.
+    The generated OpenAPI document is the stable application-level view of
+    the routes actually mounted on the API.
+    """
+    return set(app.openapi()["paths"])
+
+
+def test_every_live_or_extended_capability_has_a_live_route():
+    paths = _paths()
     catalog = ReconciledImplementationContractService.catalog()
 
     for name, contract in catalog["capabilities"].items():
@@ -21,7 +26,7 @@ def test_every_live_or_extended_capability_has_a_live_route():
             assert route is not None, (
                 f"{name} is {status} but has no authoritative route."
             )
-            assert route in route_paths, (
+            assert route in paths, (
                 f"{name} is {status} but route {route!r} is not registered."
             )
 

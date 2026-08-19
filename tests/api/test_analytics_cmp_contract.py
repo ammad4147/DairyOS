@@ -9,6 +9,16 @@ from dairyos.farm.operations.services.reconciled_implementation_contract_service
 )
 
 
+def _paths() -> set[str]:
+    """Every publicly registered FastAPI route path.
+
+    FastAPI 0.140+ keeps included routers behind internal route wrappers.
+    The generated OpenAPI document is the stable application-level view of
+    the routes actually mounted on the API.
+    """
+    return set(app.openapi()["paths"])
+
+
 def test_analytics_catalog_is_backend_authoritative():
     body = AnalyticsContractService.catalog()
 
@@ -23,12 +33,7 @@ def test_analytics_catalog_is_backend_authoritative():
 
 
 def test_available_analytics_use_registered_live_routes():
-    routes = {
-        route.path
-        for route in app.routes
-        if hasattr(route, "path")
-    }
-
+    paths = _paths()
     catalog = AnalyticsContractService.catalog()
 
     for name, contract in catalog["analyses"].items():
@@ -38,9 +43,7 @@ def test_available_analytics_use_registered_live_routes():
         endpoint = contract["endpoint"]
 
         assert endpoint
-        assert endpoint in routes, (
-            f"{name}: {endpoint}"
-        )
+        assert endpoint in paths, f"{name}: {endpoint}"
 
 
 def test_thi_contract_matches_live_heat_stress_route():
@@ -83,11 +86,7 @@ def test_analytics_api_exposes_contract_catalog():
 
 
 def test_cmp_routes_are_registered():
-    routes = {
-        route.path
-        for route in app.routes
-        if hasattr(route, "path")
-    }
+    paths = _paths()
 
-    assert "/farm/cmp/scenarios" in routes
-    assert "/farm/cmp/scenarios/{scenario_id}" in routes
+    assert "/farm/cmp/scenarios" in paths
+    assert "/farm/cmp/scenarios/{scenario_id}" in paths
