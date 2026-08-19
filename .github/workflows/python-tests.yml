@@ -65,6 +65,10 @@ jobs:
       DAIRYOS_DB_USER: postgres
       DAIRYOS_DB_PASSWORD: postgres
       DAIRYOS_ENV: development
+      POSTGRES_DB: dairyos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-compose-password
+      DAIRYOS_AUTH_SECRET: ci-compose-auth-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,7 +77,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2
       - name: Run installation lifecycle tests
         run: pytest -q tests/platform/test_lifecycle_manager.py
       - name: Check Docker Compose configuration
