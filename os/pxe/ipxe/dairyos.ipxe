@@ -1,0 +1,22 @@
+#!ipxe
+
+echo DairyOS offline network installer
+set server 192.168.50.1
+set base http://${server}/dairyos-pxe
+
+:menu
+menu DairyOS PXE
+item install  Automated Debian installer
+item manual   Manual Debian installer
+choose --default install --timeout 5000 target || goto install
+goto ${target}
+
+:install
+kernel ${base}/linux auto=true priority=critical preseed/url=http://${server}/dairyos/dairyos.seed
+initrd ${base}/initrd.gz
+boot
+
+:manual
+kernel ${base}/linux
+initrd ${base}/initrd.gz
+boot
