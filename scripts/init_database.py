@@ -1,25 +1,9 @@
-from dairyos.data.database.session import engine
-from dairyos.data.database.base import Base
+"""Initialize the DairyOS PostgreSQL schema through the single DB boundary."""
 
-from dairyos.data.models.milk_production import MilkProduction
-from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.data.models.animal import Animal
-from dairyos.data.models.farm import Farm
-
-
-
-def initialize_database():
-
-    print("[*] Creating database tables...")
-
-    Base.metadata.create_all(
-        bind=engine
-    )
-
-    print("[+] Database initialization completed")
-
+from dairyos.data.database.database import initialize_database
 
 
 if __name__ == "__main__":
-
+    print("[*] Creating database tables...")
     initialize_database()
+    print("[+] Database initialization completed")
