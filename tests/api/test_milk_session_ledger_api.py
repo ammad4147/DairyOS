@@ -5,12 +5,42 @@ what it refuses, and whether the refusal tells them how to proceed.
 """
 
 from datetime import date, timedelta
+import pytest
 
 from dairyos.app import container
 
 
 TODAY = date(2026, 8, 13)
 YESTERDAY = TODAY - timedelta(days=1)
+
+
+@pytest.fixture()
+def registered_animal(client):
+    """Explicit TWICE_DAILY animal for this legacy ledger contract.
+
+    This module tests the historical MORNING -> EVENING ledger behaviour.
+    Animal-frequency authority is tested independently for both TWICE_DAILY
+    and THRICE_DAILY animals.
+    """
+    response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
+            "milking_frequency": "TWICE_DAILY",
+            "ear_tag": "LEDGER-TWICE-001",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    body = response.json()
+    assert body["system_generated_animal_id"] is True
+    assert body["milking_frequency"] == "TWICE_DAILY"
+
+    return body["animal_id"]
 
 
 def _milk_rows(animal_id):

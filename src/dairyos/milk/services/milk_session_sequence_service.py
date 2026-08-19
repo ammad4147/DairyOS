@@ -164,19 +164,22 @@ class MilkSessionSequenceService:
         """Earlier unsettled sessions for the governed animal/date.
 
         When an animal and schedule service are supplied, the effective
-        animal/date schedule is authoritative. The legacy farm-wide observed
-        session model remains available for callers that do not provide an
-        animal.
+        animal/date schedule is authoritative even when the shared farm
+        ledger is still empty. This is essential for newly created animals:
+        their first expected session is still MORNING.
+
+        The legacy farm-wide observed-session model remains available for
+        callers that do not provide an animal-specific schedule.
         """
 
         operational_date = _as_date(operational_date)
         milking_session = str(milking_session).upper()
 
-        if not self._is_sequenced(operational_date, milking_session):
-            return []
-
         settled = self.ledger.settled_sessions_on(operational_date)
 
+        # Animal/date authority takes precedence over the legacy farm-wide
+        # sequencing gate. A new animal can legitimately have an empty
+        # shared ledger while still owing its first scheduled session.
         if self.schedule_service is not None and animal is not None:
             expected = tuple(
                 self.schedule_service.get_expected_sessions(
@@ -185,9 +188,6 @@ class MilkSessionSequenceService:
                 )
             )
 
-            # An effective animal/date schedule is authoritative whenever
-            # one exists. Historical dates without an effective schedule
-            # retain the established ledger sequencing compatibility path.
             if expected:
                 if milking_session not in expected:
                     return []
@@ -200,6 +200,14 @@ class MilkSessionSequenceService:
                     if session not in settled
                 ]
 
+        # Legacy farm-wide contract for callers without an effective
+        # animal/date schedule.
+        if not self._is_sequenced(
+            operational_date,
+            milking_session,
+        ):
+            return []
+
         position = SESSION_ORDER.index(milking_session)
 
         return [
@@ -208,6 +216,7 @@ class MilkSessionSequenceService:
             if SESSION_ORDER.index(session) < position
             and session not in settled
         ]
+
 
     def next_outstanding_session(self, operational_date) -> str | None:
         """The next session the farm owes a statement about, if any."""

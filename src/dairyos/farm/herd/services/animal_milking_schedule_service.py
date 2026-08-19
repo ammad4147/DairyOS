@@ -1,4 +1,4 @@
-﻿"""Authoritative animal-specific milking schedule interpretation."""
+"""Authoritative animal-specific milking schedule interpretation."""
 
 from __future__ import annotations
 
@@ -223,6 +223,23 @@ class AnimalMilkingScheduleService:
             applicable.append(record)
 
         if not applicable:
+            # The automatically-created initial row is the animal's baseline
+            # schedule. Its effective_from timestamp is an implementation
+            # timestamp, not a retroactive restriction on the animal's
+            # already-existing operational identity. This matters when the
+            # farm operational date is intentionally backdated relative to
+            # wall-clock creation time. Explicit future schedule changes must
+            # remain strictly date-effective, so only an initial row gets this
+            # baseline treatment.
+            initial = [
+                record
+                for record in records
+                if self._is_initial_schedule(record)
+            ]
+
+            if initial:
+                return initial[0]
+
             return None
 
         # Explicit operator-entered schedules outrank the automatic

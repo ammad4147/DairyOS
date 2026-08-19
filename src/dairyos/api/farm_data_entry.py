@@ -1003,7 +1003,8 @@ def milk_recording_intelligence(
 
     try:
         service = MilkRecordingIntelligenceService(
-            rf.milk()
+            rf.milk(),
+            repository_factory=rf,
         )
         return service.dashboard(
             threshold_percent=max(
