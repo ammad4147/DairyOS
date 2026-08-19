@@ -10,6 +10,8 @@ MARKER="$DATA_ROOT/.firstboot-complete"
 
 mkdir -p "$DATA_ROOT/storage" "$DATA_ROOT/backups" "$DATA_ROOT/logs" "$ENV_DIR" "$APP_ROOT"
 
+[[ -d "$WHEELHOUSE" ]] || { echo "ERROR: offline wheelhouse missing: $WHEELHOUSE" >&2; exit 30; }
+
 if ! getent group dairyos >/dev/null 2>&1; then
   groupadd --system dairyos
 fi
@@ -18,7 +20,6 @@ if ! id -u dairyos >/dev/null 2>&1; then
 fi
 
 python3 -m venv "$APP_ROOT/.venv"
-"$APP_ROOT/.venv/bin/python" -m pip install --no-index --find-links "$WHEELHOUSE" --upgrade pip setuptools wheel
 "$APP_ROOT/.venv/bin/python" -m pip install --no-index --find-links "$WHEELHOUSE" dairyos
 
 if [[ -f "$SOURCE/alembic.ini" ]]; then
