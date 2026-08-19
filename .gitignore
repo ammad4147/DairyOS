@@ -1,4 +1,5 @@
-﻿# Python
+﻿
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -41,6 +42,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+*.backup
 
 # DairyOS generated files
 DairyOS_Project_Structure_Audit.txt
