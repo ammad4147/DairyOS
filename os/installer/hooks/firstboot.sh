@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 DATA_ROOT="/var/lib/dairyos"
 APP_ROOT="/opt/dairyos"
+WHEELHOUSE="$APP_ROOT/wheelhouse"
+SOURCE="$APP_ROOT/source"
 ENV_DIR="/etc/dairyos"
 MARKER="$DATA_ROOT/.firstboot-complete"
 
@@ -14,6 +16,16 @@ fi
 if ! id -u dairyos >/dev/null 2>&1; then
   useradd --system --gid dairyos --home-dir "$DATA_ROOT" --no-create-home dairyos
 fi
+
+python3 -m venv "$APP_ROOT/.venv"
+"$APP_ROOT/.venv/bin/python" -m pip install --no-index --find-links "$WHEELHOUSE" --upgrade pip setuptools wheel
+"$APP_ROOT/.venv/bin/python" -m pip install --no-index --find-links "$WHEELHOUSE" dairyos
+
+if [[ -f "$SOURCE/alembic.ini" ]]; then
+  cd "$SOURCE"
+  DAIRYOS_DATA_DIR="$DATA_ROOT" "$APP_ROOT/.venv/bin/alembic" upgrade head
+fi
+
 chown -R dairyos:dairyos "$DATA_ROOT"
 
 if [[ ! -f "$ENV_DIR/dairyos.env" ]]; then
