@@ -18,7 +18,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 
 
 def _require(binary: str) -> str:
@@ -39,16 +39,23 @@ def _pg_cli_target(database_url: str) -> tuple[str, dict[str, str]]:
     url = make_url(database_url)
 
     if url.drivername in {"postgres", "postgresql"}:
-        normalized = url
+        drivername = "postgresql"
     elif url.drivername.startswith("postgresql+"):
-        normalized = url.set(drivername="postgresql")
+        drivername = "postgresql"
     else:
         raise ValueError(
             f"Unsupported database URL driver for PostgreSQL utility: {url.drivername!r}"
         )
 
-    password = normalized.password
-    cli_url = normalized.set(password=None).render_as_string(hide_password=False)
+    password = url.password
+    cli_url = URL.create(
+        drivername=drivername,
+        username=url.username,
+        host=url.host,
+        port=url.port,
+        database=url.database,
+        query=url.query,
+    ).render_as_string(hide_password=False)
 
     env = os.environ.copy()
     if password is not None:
