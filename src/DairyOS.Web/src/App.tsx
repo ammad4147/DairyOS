@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import MainDashboard from "./components/MainDashboard";
 import AnimalRegistry from "./components/AnimalRegistry";
-import OperationalModule from "./components/OperationalModule";
+import UnifiedOperationalTab from "./components/UnifiedOperationalTab";
 import Settings from "./components/Settings";
 import DocumentationView, {
     DocumentationSearchOverlay,
@@ -37,6 +37,8 @@ type ViewId =
     | "analytics"
     | "alerts"
     | "settings";
+
+type OperationalTabId = Exclude<ViewId, "command" | "settings">;
 
 type NavigationItem = {
     id: ViewId;
@@ -289,8 +291,15 @@ function App() {
                     )}
                     {!['command', 'animals', 'settings'].includes(view) && (
                         <>
-                            <div className="page-heading"><div><div className="breadcrumb">DairyOS / {activeNavigation.label}</div><h1>{activeNavigation.label}</h1><p>{activeNavigation.description}</p></div><div className="page-meta">Live API view</div></div>
-                            <OperationalModule title={activeNavigation.label} endpoint={activeNavigation.endpoint ?? "/dashboard"} selector={activeNavigation.selector} mode={activeNavigation.mode ?? "state"} entry={activeNavigation.entry} />
+                            <div className="page-heading"><div><div className="breadcrumb">DairyOS / {activeNavigation.label}</div><h1>{activeNavigation.label}</h1><p>{activeNavigation.description}</p></div><div className="page-meta">Authoritative tab contract</div></div>
+                            <UnifiedOperationalTab
+                                title={activeNavigation.label}
+                                tabId={activeNavigation.id as OperationalTabId}
+                                endpoint={activeNavigation.endpoint}
+                                selector={activeNavigation.selector}
+                                mode={activeNavigation.mode ?? "state"}
+                                entry={activeNavigation.entry}
+                            />
                         </>
                     )}
                 </main>
