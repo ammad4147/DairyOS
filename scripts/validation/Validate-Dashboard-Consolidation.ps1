@@ -23,6 +23,10 @@ function Invoke-Checked([string]$File, [string[]]$Args) {
     }
 }
 
+function Normalize-WindowsPath([string]$Path) {
+    return ([System.IO.Path]::GetFullPath($Path)).TrimEnd('\').ToLowerInvariant()
+}
+
 Write-Host "DairyOS Dashboard Consolidation Validation"
 Write-Host "Repository: $Repo"
 Write-Host "Target branch: $Branch"
@@ -35,7 +39,7 @@ if (-not (Test-Path -LiteralPath $Repo -PathType Container)) {
 Set-Location -LiteralPath $Repo
 
 $root = (& git rev-parse --show-toplevel).Trim()
-if ($root -ne $Repo.TrimEnd('\')) {
+if ((Normalize-WindowsPath $root) -ne (Normalize-WindowsPath $Repo)) {
     throw "Expected Git root '$Repo' but found '$root'"
 }
 
