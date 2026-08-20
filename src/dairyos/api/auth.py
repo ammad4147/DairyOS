@@ -1,4 +1,4 @@
-"""Operational authentication and role identity for DairyOS.
+﻿"""Operational authentication and role identity for DairyOS.
 
 This module keeps the existing ``/login`` contract while providing signed,
 self-contained bearer tokens. Farm write routes may continue to operate in
@@ -77,9 +77,10 @@ def _configured_role() -> str:
 def _signing_secret() -> bytes:
     secret = os.getenv("DAIRYOS_AUTH_SECRET")
     if not secret:
-        if os.getenv("DAIRYOS_ENV", "development").lower() == "production":
-            raise RuntimeError("DAIRYOS_AUTH_SECRET must be configured in production")
-        secret = "dairyos-development-secret"
+        env = os.getenv("DAIRYOS_ENV", "development").lower()
+        if env in ("production", "staging", "test", "preprod"):
+            raise RuntimeError(f"DAIRYOS_AUTH_SECRET must be explicitly configured in environment '{env}'")
+        secret = "dairyos-development-secret-unsafe-fallback"
     return secret.encode("utf-8")
 
 
@@ -328,3 +329,4 @@ def list_users(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
         }
     finally:
         factory.close()
+

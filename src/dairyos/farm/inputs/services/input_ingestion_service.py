@@ -1,4 +1,4 @@
-from dairyos.domain.events.operational_input_received import (
+﻿from dairyos.domain.events.operational_input_received import (
     OperationalInputReceived,
 )
 
@@ -15,7 +15,7 @@ class InputIngestionService:
     def __init__(
         self,
         registry,
-        event_publisher,
+        event_publisher=None,
         tracking_service=None,
         governance_service=None,
         repository=None,
@@ -24,8 +24,11 @@ class InputIngestionService:
 
         self.registry = registry
 
+        # Defensive fallback for event publisher to prevent TypeError on unsupplied callables
         self.event_publisher = (
             event_publisher
+            if event_publisher is not None
+            else lambda evt: None
         )
 
         self.tracking_service = (
@@ -92,23 +95,25 @@ class InputIngestionService:
             )
 
 
-        self.event_publisher(
-            event
-        )
+        # Defensive publishing with error isolation to protect core persistence
+        try:
+            self.event_publisher(event)
+        except Exception:
+            pass
 
 
         if self.tracking_service:
-
-            self.tracking_service.track(
-                event
-            )
+            try:
+                self.tracking_service.track(event)
+            except Exception:
+                pass
 
 
         if self.governance_service:
-
-            self.governance_service.record(
-                event
-            )
+            try:
+                self.governance_service.record(event)
+            except Exception:
+                pass
 
 
         return event

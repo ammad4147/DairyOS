@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -226,6 +226,9 @@ class CostOfProductionService:
             in self.MILK_REVENUE_CATEGORIES
         )
 
+        # Defensive float safety guard against near-zero volume division distortion
+        valid_volume = production_litres if production_litres > 0.001 else 0.0
+
         return {
             "period_days": days,
             "from": cutoff.isoformat(),
@@ -256,10 +259,10 @@ class CostOfProductionService:
             ),
             "cost_per_litre": (
                 round(
-                    total_expenses / production_litres,
+                    total_expenses / valid_volume,
                     4,
                 )
-                if production_litres
+                if valid_volume > 0
                 else None
             ),
             "expense_by_category": {
@@ -277,10 +280,10 @@ class CostOfProductionService:
             "missing_cost_domains": missing_domains,
             "cost_data_completeness": (
                 "COMPLETE"
-                if production_litres
+                if valid_volume > 0
                 and not missing_domains
                 else "PARTIAL"
-                if production_litres
+                if valid_volume > 0
                 and covered_cost_domains
                 else "INSUFFICIENT"
             ),
@@ -294,11 +297,11 @@ class CostOfProductionService:
             ),
             "revenue_per_litre": (
                 round(
-                    milk_revenue / production_litres,
+                    milk_revenue / valid_volume,
                     4,
                 )
                 if milk_revenue
-                and production_litres
+                and valid_volume > 0
                 else None
             ),
             "margin_after_recorded_operating_cost": (
@@ -315,19 +318,19 @@ class CostOfProductionService:
                         milk_revenue
                         - total_expenses
                     )
-                    / production_litres,
+                    / valid_volume,
                     4,
                 )
                 if milk_revenue
-                and production_litres
+                and valid_volume > 0
                 else None
             ),
             "quality": (
                 "COMPLETE_FOR_DECLARED_COST_DOMAINS"
-                if production_litres
+                if valid_volume > 0
                 and not missing_domains
                 else "PARTIAL_PERSISTED_COST_COVERAGE"
-                if production_litres
+                if valid_volume > 0
                 and covered_cost_domains
                 else "INSUFFICIENT_PERSISTED_COST_OR_PRODUCTION_DATA"
             ),

@@ -1,4 +1,4 @@
-from datetime import date as date_type, datetime as datetime_type
+﻿from datetime import date as date_type, datetime as datetime_type
 
 from sqlalchemy import func
 
@@ -43,6 +43,12 @@ class MilkProductionRepository:
     def add(self, production):
 
         self._ensure_animal_exists(production.animal_id)
+
+        # Veterinary Food Safety Interlock: Block milk production records for animals under active withdrawal
+        if hasattr(production, "withdrawal_blocked") and production.withdrawal_blocked:
+            raise ValueError(
+                f"Milk production rejected for animal_id '{production.animal_id}': animal is under active veterinary withholding."
+            )
 
         if self.session:
             self.session.add(production)
@@ -240,3 +246,4 @@ def _as_date(value):
         return value
 
     return date_type.fromisoformat(str(value)[:10])
+

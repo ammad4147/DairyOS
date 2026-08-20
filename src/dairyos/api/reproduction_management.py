@@ -1,4 +1,4 @@
-"""Persistent reproduction-management projections and operational KPIs."""
+﻿"""Persistent reproduction-management projections and operational KPIs."""
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -23,6 +23,15 @@ router = APIRouter(
 )
 
 
+def _as_utc(value: datetime | None) -> datetime:
+    """Safely normalize naive or aware datetimes to UTC to prevent comparison errors."""
+    if value is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _fresh_factory(container):
     factory = getattr(container, "repository_factory", None)
     if factory is not None:
@@ -42,26 +51,19 @@ def _serialize(record):
 
 
 def _event_type(record) -> str:
-    """Normalize this record's event_type against the shared classifier
-    vocabulary (dairyos.herd.reproduction.services.reproductive_event_classifier)."""
+    """Normalize this record's event_type against the shared classifier vocabulary."""
     return normalize_event_type(getattr(record, "event_type", None))
 
 
 def _conception_rate(inseminations, pregnancy_checks):
-    """Return conception rate only for inseminations with a documented outcome.
-
-    A pregnancy check is matched to the latest insemination for the same animal
-    that occurred on or before the check. Unmatched historical inseminations are
-    excluded from the denominator rather than being treated as failed outcomes.
-    This prevents incomplete historical records from fabricating a low rate.
-    """
+    """Return conception rate only for inseminations with a documented outcome."""
     ordered_inseminations = sorted(
         inseminations,
-        key=lambda record: record.timestamp or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda record: _as_utc(record.timestamp),
     )
     ordered_checks = sorted(
         pregnancy_checks,
-        key=lambda record: record.timestamp or datetime.max.replace(tzinfo=timezone.utc),
+        key=lambda record: _as_utc(record.timestamp),
     )
 
     outcomes = {}
@@ -74,7 +76,7 @@ def _conception_rate(inseminations, pregnancy_checks):
             and (
                 check_time is None
                 or record.timestamp is None
-                or record.timestamp <= check_time
+                or _as_utc(record.timestamp) <= _as_utc(check_time)
             )
         ]
         if not candidates:
@@ -90,7 +92,7 @@ def _conception_rate(inseminations, pregnancy_checks):
 def _management(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=365)
-    recent = [r for r in records if r.timestamp is None or r.timestamp >= cutoff]
+    recent = [r for r in records if r.timestamp is None or _as_utc(r.timestamp) >= cutoff]
 
     event_counts = Counter(_event_type(r) for r in recent)
     inseminations = [r for r in recent if _is_insemination(r)]
@@ -140,7 +142,7 @@ def animal_reproduction_history(animal_id: str, container=Depends(get_container)
                 detail="Unknown Animal ID. Select an existing system-generated permanent Animal ID.",
             )
         records = [r for r in factory.breeding().get_all() if r.animal_id == animal_id]
-        ordered = sorted(records, key=lambda r: r.timestamp or datetime.min.replace(tzinfo=timezone.utc))
+        ordered = sorted(records, key=lambda r: _as_utc(r.timestamp))
         return {
             "animal_id": animal_id,
             "record_count": len(ordered),
