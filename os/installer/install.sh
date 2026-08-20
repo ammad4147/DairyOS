@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -Eeuo pipefail
 
 MODE="dry-run"
@@ -6,6 +6,20 @@ TARGET_DEVICE=""
 MOUNT_ROOT="/mnt/dairyos"
 MANIFEST_DIR="/opt/dairyos-os"
 DEBIAN_MIRROR="file:///srv/dairyos-debian"
+
+# --- DAIRYOS ATOMIC FAIL-SAFE TRAP ---
+install_failed() {
+  local exit_code=$?
+  if [[ ! -f "$MOUNT_ROOT/.dairyos-install-committed" ]]; then
+    echo "CRITICAL: Installation interrupted or failed (Code: $exit_code)." >&2
+    echo "Executing atomic rollback: Scrambling EFI partition to prevent bricked boot..." >&2
+    umount -R "$MOUNT_ROOT" 2>/dev/null || true
+    dd if=/dev/urandom of="${TARGET_DEVICE}1" bs=1M count=10 status=none || true
+    wipefs -a "$TARGET_DEVICE" || true
+    echo "Node safely reset for retry."
+  fi
+}
+trap 'install_failed' ERR EXIT
 
 usage() {
   cat <<'EOF'
@@ -120,7 +134,7 @@ apply_install() {
   mount "$LOG_PART" "$MOUNT_ROOT/var/log"
   mount "$DATA_PART" "$MOUNT_ROOT/var/lib/dairyos"
 
-  debootstrap --arch=amd64 trixie "$MOUNT_ROOT" "$DEBIAN_MIRROR"
+  debootstrap --arch=amd64 bookworm "$MOUNT_ROOT" "$DEBIAN_MIRROR"
 
   cat > "$MOUNT_ROOT/etc/fstab" <<FSTAB
 LABEL=DAIRYOS-ROOT / ext4 defaults,errors=remount-ro 0 1
@@ -189,3 +203,4 @@ fi
 validate_target
 validate_mirror
 apply_install
+

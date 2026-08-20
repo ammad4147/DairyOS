@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -6,7 +6,7 @@ OS_ROOT="$ROOT/os"
 OUT_DIR="${OUT_DIR:-$ROOT/dist/os}"
 WORK_DIR="${WORK_DIR:-/var/tmp/dairyos-os-build}"
 
-DIST="trixie"
+DIST="bookworm"
 ARCH="amd64"
 
 DEBIAN_MIRROR="https://deb.debian.org/debian/"
@@ -81,7 +81,7 @@ lb config \
   --debian-installer live \
   --archive-areas "main contrib non-free-firmware" \
   --apt-indices true \
-  --security true \
+  --security false \
   --mirror-bootstrap "$DEBIAN_MIRROR" \
   --mirror-chroot "$DEBIAN_MIRROR" \
   --mirror-binary "$DEBIAN_MIRROR" \
@@ -159,3 +159,5 @@ echo "ISO    : $FINAL"
 echo "SHA256 : $CHECKSUM"
 echo ""
 sha256sum "$FINAL"
+
+

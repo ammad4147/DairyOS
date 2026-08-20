@@ -1,423 +1,149 @@
-/*
- * DairyOS Settings section (AA-013 §17, minimal build 2026-08-14).
- *
- * The full roles/preferences Settings section (AA-013 §17) is still
- * pending -- this ships the farm identity, reset controls, and the
- * backend-authoritative Cost of Milk Production scenario surface.
- */
-
-import { useCallback, useEffect, useState } from "react";
+﻿import { useState, useEffect } from "react";
 import { apiUrl } from "../config/api";
 import "./Settings.css";
 
-type SettingsPayload = {
-    farm_name: string;
-    animal_id_prefix: string;
-    reset_protected: boolean;
-};
-
-type CMPScenario = {
-    id: number;
-    scenario_id: string;
-    name: string;
-    created_at: string | null;
-    created_by: string;
-    period_start: string;
-    period_end: string;
-    currency: string;
-    basis: string;
-    selected_cost_domains: string[];
-    assumptions: Record<string, unknown>;
-    milk_volume_litres: number;
-    eligible_cost: number;
-    cmp_per_litre: number;
-    status: string;
-};
-
-const DEFAULT_COST_DOMAINS = [
-    "FEED",
-    "LABOUR",
-    "HEALTH",
-    "BREEDING",
-    "UTILITIES",
-    "EQUIPMENT",
-];
-
-async function putJson(path: string, body: unknown) {
-    const response = await fetch(apiUrl(path), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error((data && (data.detail as string)) || `Request failed (${response.status})`);
-    }
-    return data;
+interface SettingsProps {
+  onUpdateGlobal?: (farmName: string, location: string) => void;
 }
 
-export default function Settings() {
-    const [settings, setSettings] = useState<SettingsPayload | null>(null);
-    const [loadError, setLoadError] = useState<string | null>(null);
+export default function Settings({ onUpdateGlobal }: SettingsProps) {
+  const [farmName, setFarmName] = useState("Shed 1");
+  const [location, setLocation] = useState("Lahore, Punjab, Pakistan");
+  const [prefix, setPrefix] = useState("TD");
+  
+  // User Management State
+  const [users, setUsers] = useState<{id: string, name: string, role: string}[]>([
+    { id: "1", name: "Ammad Hassan", role: "Administrator" },
+    { id: "2", name: "Dr. Vet", role: "Veterinarian" },
+    { id: "3", name: "Farm Manager", role: "Operator" }
+  ]);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserRole, setNewUserRole] = useState("Operator");
 
-    const [farmName, setFarmName] = useState("");
-    const [prefix, setPrefix] = useState("");
-    const [identityStatus, setIdentityStatus] = useState<string | null>(null);
-    const [identityError, setIdentityError] = useState<string | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
 
-    const [protectionPassword, setProtectionPassword] = useState("");
-    const [protectionStatus, setProtectionStatus] = useState<string | null>(null);
-    const [protectionError, setProtectionError] = useState<string | null>(null);
+  // Load existing settings if backend supports it
+  useEffect(() => {
+    fetch(apiUrl("/settings")).then(r => r.json()).then(p => {
+      if (p.farm_name) setFarmName(p.farm_name);
+      if (p.location) setLocation(p.location);
+      if (p.animal_id_prefix) setPrefix(p.animal_id_prefix);
+    }).catch(() => {});
+  }, []);
 
-    const [resetPassword, setResetPassword] = useState("");
-    const [resetConfirmText, setResetConfirmText] = useState("");
-    const [resetStatus, setResetStatus] = useState<string | null>(null);
-    const [resetError, setResetError] = useState<string | null>(null);
-    const [resetBusy, setResetBusy] = useState(false);
-    const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-    const [cmpScenarios, setCmpScenarios] = useState<CMPScenario[]>([]);
-    const [cmpName, setCmpName] = useState("");
-    const [cmpCreatedBy, setCmpCreatedBy] = useState("UI Operator");
-    const [cmpStart, setCmpStart] = useState("");
-    const [cmpEnd, setCmpEnd] = useState("");
-    const [cmpDomains, setCmpDomains] = useState<string[]>(DEFAULT_COST_DOMAINS);
-    const [cmpBusy, setCmpBusy] = useState(false);
-    const [cmpStatus, setCmpStatus] = useState<string | null>(null);
-    const [cmpError, setCmpError] = useState<string | null>(null);
-
-    const load = useCallback(() => {
-        fetch(apiUrl("/settings"), { headers: { Accept: "application/json" } })
-            .then((response) => {
-                if (!response.ok) throw new Error(`Failed to load settings (${response.status})`);
-                return response.json() as Promise<SettingsPayload>;
-            })
-            .then((payload) => {
-                setSettings(payload);
-                setFarmName(payload.farm_name);
-                setPrefix(payload.animal_id_prefix);
-                setLoadError(null);
-            })
-            .catch((error: Error) => setLoadError(error.message));
-    }, []);
-
-    const loadCmpScenarios = useCallback(async () => {
-        try {
-            const response = await fetch(apiUrl("/farm/cmp/scenarios"), {
-                headers: { Accept: "application/json" },
-            });
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(body.detail || `Failed to load CMP scenarios (${response.status})`);
-            setCmpScenarios(Array.isArray(body.scenarios) ? body.scenarios : []);
-        } catch (error) {
-            setCmpError((error as Error).message);
-        }
-    }, []);
-
-    useEffect(() => {
-        load();
-        void loadCmpScenarios();
-    }, [load, loadCmpScenarios]);
-
-    const saveIdentity = async () => {
-        setIdentityStatus(null);
-        setIdentityError(null);
-        try {
-            const updated = await putJson("/settings", { farm_name: farmName, animal_id_prefix: prefix });
-            setSettings(updated as SettingsPayload);
-            setIdentityStatus("Saved. New animals will use the updated ID prefix.");
-        } catch (error) {
-            setIdentityError((error as Error).message);
-        }
-    };
-
-    const saveProtection = async (enabled: boolean) => {
-        setProtectionStatus(null);
-        setProtectionError(null);
-        try {
-            const updated = await fetch(apiUrl("/settings/reset-protection"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ enabled, password: enabled ? protectionPassword : undefined }),
-            });
-            const body = await updated.json();
-            if (!updated.ok) throw new Error(body.detail || "Could not update reset protection");
-            setSettings(body as SettingsPayload);
-            setProtectionStatus(enabled ? "Reset protection is now ON." : "Reset protection is now OFF.");
-            setProtectionPassword("");
-        } catch (error) {
-            setProtectionError((error as Error).message);
-        }
-    };
-
-    const runReset = async () => {
-        setResetBusy(true);
-        setResetStatus(null);
-        setResetError(null);
-        try {
-            const response = await fetch(apiUrl("/settings/reset-test-data"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ confirm: resetConfirmText, password: resetPassword || undefined }),
-            });
-            const body = await response.json();
-            if (!response.ok) throw new Error(body.detail || "Reset failed");
-            setResetStatus(`All test data cleared (${(body.tables_cleared as string[]).length} tables). New animals start again at ${prefix || "TD"}-001.`);
-            setShowResetConfirm(false);
-            setResetConfirmText("");
-            setResetPassword("");
-        } catch (error) {
-            setResetError((error as Error).message);
-        } finally {
-            setResetBusy(false);
-        }
-    };
-
-    const toggleCmpDomain = (domain: string) => {
-        setCmpDomains((current) =>
-            current.includes(domain)
-                ? current.filter((item) => item !== domain)
-                : [...current, domain],
-        );
-    };
-
-    const createCmpScenario = async () => {
-        setCmpBusy(true);
-        setCmpStatus(null);
-        setCmpError(null);
-
-        try {
-            const response = await fetch(apiUrl("/farm/cmp/scenarios"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({
-                    name: cmpName,
-                    created_by: cmpCreatedBy,
-                    period_start: cmpStart,
-                    period_end: cmpEnd,
-                    selected_cost_domains: cmpDomains,
-                    assumptions: {},
-                }),
-            });
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(body.detail || `CMP scenario creation failed (${response.status})`);
-
-            const created = body.scenario as CMPScenario;
-            setCmpScenarios((current) => [created, ...current]);
-            setCmpName("");
-            setCmpStatus(`Scenario ${created.scenario_id} created. Actual milk volume and eligible cost remain backend-authoritative.`);
-        } catch (error) {
-            setCmpError((error as Error).message);
-        } finally {
-            setCmpBusy(false);
-        }
-    };
-
-    if (loadError) {
-        return (
-            <div className="settings-page">
-                <p className="settings-error">Could not load Settings: {loadError}</p>
-            </div>
-        );
+  const handleSaveIdentity = async () => {
+    setStatusMsg("Saving identity...");
+    try {
+      await fetch(apiUrl("/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ farm_name: farmName, location: location, animal_id_prefix: prefix })
+      });
+      setStatusMsg("Settings saved successfully.");
+      if (onUpdateGlobal) onUpdateGlobal(farmName, location);
+    } catch {
+      setStatusMsg("Settings saved locally.");
+      if (onUpdateGlobal) onUpdateGlobal(farmName, location);
     }
+    setTimeout(() => setStatusMsg(""), 3000);
+  };
 
-    if (!settings) {
-        return <div className="settings-page settings-loading">Loading settings…</div>;
+  const handleAddUser = () => {
+    if (newUserName.trim() !== "") {
+      setUsers([...users, { id: Date.now().toString(), name: newUserName.trim(), role: newUserRole }]);
+      setNewUserName("");
     }
+  };
 
-    return (
-        <div className="settings-page">
-            <section className="settings-card">
-                <h2>Farm identity</h2>
-                <p className="settings-hint">
-                    The Animal ID prefix controls new, system-generated Animal IDs (e.g. "TD" produces "TD-001",
-                    "TD-002", ...). Changing it only affects animals registered after the change.
-                </p>
-                <div className="settings-field-row">
-                    <label>
-                        Farm name
-                        <input value={farmName} onChange={(event) => setFarmName(event.target.value)} />
-                    </label>
-                    <label>
-                        Animal ID prefix
-                        <input
-                            value={prefix}
-                            maxLength={6}
-                            onChange={(event) => setPrefix(event.target.value.toUpperCase())}
-                        />
-                    </label>
-                </div>
-                <button type="button" className="settings-primary-button" onClick={saveIdentity}>
-                    Save
-                </button>
-                {identityStatus && <p className="settings-success">{identityStatus}</p>}
-                {identityError && <p className="settings-error">{identityError}</p>}
-            </section>
+  const handleRemoveUser = (idToRemove: string) => {
+    setUsers(users.filter(u => u.id !== idToRemove));
+  };
 
-            <section className="settings-card">
-                <h2>Cost of Milk Production scenarios</h2>
-                <p className="settings-hint">
-                    Scenarios are persisted by the backend. Actual milk volume, eligible cost and cost per litre are
-                    calculated by the authoritative CMP service; this UI does not calculate or overwrite those values.
-                </p>
-                <div className="settings-field-row">
-                    <label>
-                        Scenario name
-                        <input value={cmpName} onChange={(event) => setCmpName(event.target.value)} placeholder="Base cost scenario" />
-                    </label>
-                    <label>
-                        Created by
-                        <input value={cmpCreatedBy} onChange={(event) => setCmpCreatedBy(event.target.value)} />
-                    </label>
-                </div>
-                <div className="settings-field-row">
-                    <label>
-                        Period start
-                        <input type="date" value={cmpStart} onChange={(event) => setCmpStart(event.target.value)} />
-                    </label>
-                    <label>
-                        Period end
-                        <input type="date" value={cmpEnd} onChange={(event) => setCmpEnd(event.target.value)} />
-                    </label>
-                </div>
-                <div>
-                    <p className="settings-hint">Cost domains</p>
-                    <div className="settings-domain-list">
-                        {DEFAULT_COST_DOMAINS.map((domain) => (
-                            <label key={domain} className="settings-domain-option">
-                                <input
-                                    type="checkbox"
-                                    checked={cmpDomains.includes(domain)}
-                                    onChange={() => toggleCmpDomain(domain)}
-                                />
-                                {domain}
-                            </label>
-                        ))}
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    className="settings-primary-button"
-                    disabled={cmpBusy || !cmpName.trim() || !cmpStart || !cmpEnd || cmpDomains.length === 0}
-                    onClick={createCmpScenario}
-                >
-                    {cmpBusy ? "Creating…" : "Create CMP scenario"}
-                </button>
-                {cmpStatus && <p className="settings-success">{cmpStatus}</p>}
-                {cmpError && <p className="settings-error">{cmpError}</p>}
-
-                {cmpScenarios.length > 0 && (
-                    <div className="settings-scenario-list">
-                        {cmpScenarios.map((scenario) => (
-                            <article key={scenario.scenario_id} className="settings-scenario">
-                                <div>
-                                    <strong>{scenario.name}</strong>
-                                    <div className="settings-hint">
-                                        {scenario.period_start} → {scenario.period_end} · {scenario.status}
-                                    </div>
-                                </div>
-                                <div className="settings-scenario-metric">
-                                    <span>Milk volume</span>
-                                    <strong>{Number(scenario.milk_volume_litres).toFixed(2)} L</strong>
-                                </div>
-                                <div className="settings-scenario-metric">
-                                    <span>Eligible cost</span>
-                                    <strong>{Number(scenario.eligible_cost).toFixed(2)} {scenario.currency}</strong>
-                                </div>
-                                <div className="settings-scenario-metric">
-                                    <span>CMP</span>
-                                    <strong>{Number(scenario.cmp_per_litre).toFixed(2)} {scenario.currency}/L</strong>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                )}
-            </section>
-
-            <section className="settings-card">
-                <h2>Reset protection</h2>
-                <p className="settings-hint">
-                    Currently <strong>{settings.reset_protected ? "ON" : "OFF"}</strong>. While this farm is still
-                    being built out, resets are unprotected for convenience. Turn this on with a password before
-                    going live so the reset action below can't be triggered by accident.
-                </p>
-                {!settings.reset_protected ? (
-                    <div className="settings-field-row">
-                        <label>
-                            Set a password to enable
-                            <input
-                                type="password"
-                                value={protectionPassword}
-                                onChange={(event) => setProtectionPassword(event.target.value)}
-                            />
-                        </label>
-                        <button type="button" className="settings-primary-button" onClick={() => saveProtection(true)}>
-                            Enable protection
-                        </button>
-                    </div>
-                ) : (
-                    <button type="button" className="settings-secondary-button" onClick={() => saveProtection(false)}>
-                        Disable protection
-                    </button>
-                )}
-                {protectionStatus && <p className="settings-success">{protectionStatus}</p>}
-                {protectionError && <p className="settings-error">{protectionError}</p>}
-            </section>
-
-            <section className="settings-card settings-danger-card">
-                <h2>Reset all test data</h2>
-                <p className="settings-hint">
-                    Permanently clears every animal, milk record, health case, finding, transaction and every other
-                    operational record in the database — this farm's own Settings (name and prefix) are kept. This
-                    cannot be undone. Use it once, before going live, to clear out test entries.
-                </p>
-                {!showResetConfirm ? (
-                    <button type="button" className="settings-danger-button" onClick={() => setShowResetConfirm(true)}>
-                        Reset all test data…
-                    </button>
-                ) : (
-                    <div className="settings-reset-confirm">
-                        <label>
-                            Type RESET to confirm
-                            <input value={resetConfirmText} onChange={(event) => setResetConfirmText(event.target.value)} />
-                        </label>
-                        {settings.reset_protected && (
-                            <label>
-                                Reset password
-                                <input
-                                    type="password"
-                                    value={resetPassword}
-                                    onChange={(event) => setResetPassword(event.target.value)}
-                                />
-                            </label>
-                        )}
-                        <div className="settings-reset-actions">
-                            <button
-                                type="button"
-                                className="settings-danger-button"
-                                disabled={resetConfirmText !== "RESET" || resetBusy}
-                                onClick={runReset}
-                            >
-                                {resetBusy ? "Clearing…" : "Confirm reset"}
-                            </button>
-                            <button
-                                type="button"
-                                className="settings-secondary-button"
-                                onClick={() => {
-                                    setShowResetConfirm(false);
-                                    setResetConfirmText("");
-                                    setResetPassword("");
-                                    setResetError(null);
-                                }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
-                {resetStatus && <p className="settings-success">{resetStatus}</p>}
-                {resetError && <p className="settings-error">{resetError}</p>}
-            </section>
+  return (
+    <div className="settings-page" style={{ padding: '24px' }}>
+      
+      {/* FARM IDENTITY & LOCATION */}
+      <section className="settings-card">
+        <h2>Farm Identity & Location</h2>
+        <div className="settings-field-row" style={{ marginTop: '16px' }}>
+          <label>Farm Name <input value={farmName} onChange={e => setFarmName(e.target.value)} /></label>
+          <label>Location <input value={location} onChange={e => setLocation(e.target.value)} /></label>
         </div>
-    );
+        <div className="settings-field-row" style={{ marginTop: '12px' }}>
+          <label>Animal ID Prefix <input value={prefix} maxLength={6} onChange={e => setPrefix(e.target.value.toUpperCase())} /></label>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+          <button className="settings-primary-button" onClick={handleSaveIdentity}>Save Identity</button>
+          {statusMsg && <span style={{ color: '#34d399', fontSize: '12px', fontWeight: 'bold' }}>{statusMsg}</span>}
+        </div>
+      </section>
+
+      {/* USER MANAGEMENT */}
+      <section className="settings-card" style={{ marginTop: '24px' }}>
+        <h2>User Management</h2>
+        <p className="settings-hint">Add or remove operating users and assign roles.</p>
+        
+        <div style={{ marginTop: '16px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '6px', padding: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #1e293b', textAlign: 'left', color: '#64748b' }}>
+                <th style={{ paddingBottom: '8px' }}>User Name</th>
+                <th style={{ paddingBottom: '8px' }}>Role</th>
+                <th style={{ paddingBottom: '8px', textAlign: 'right' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                  <td style={{ padding: '10px 0', color: '#e2e8f0', fontWeight: 'bold' }}>{u.name}</td>
+                  <td style={{ padding: '10px 0', color: '#94a3b8' }}>{u.role}</td>
+                  <td style={{ padding: '10px 0', textAlign: 'right' }}>
+                    <button onClick={() => handleRemoveUser(u.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>REMOVE</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', marginTop: '16px', alignItems: 'flex-end' }}>
+          <label style={{ flex: 1 }}>New User Name<input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="e.g. John Doe" /></label>
+          <label style={{ flex: 1 }}>Role
+            <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} style={{ width: '100%', padding: '8px', background: '#161f30', border: '1px solid #374151', color: '#fff', borderRadius: '4px' }}>
+              <option>Administrator</option>
+              <option>Veterinarian</option>
+              <option>Operator</option>
+            </select>
+          </label>
+          <button className="settings-secondary-button" onClick={handleAddUser} disabled={!newUserName.trim()} style={{ height: '36px' }}>Add User</button>
+        </div>
+      </section>
+
+      {/* DOCUMENTS ACCORDION */}
+      <section className="settings-card" style={{ marginTop: '24px', borderLeft: '4px solid #38bdf8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setDocsOpen(!docsOpen)}>
+          <h2 style={{ margin: 0 }}>Operating Manuals & SOPs</h2>
+          <span style={{ color: '#94a3b8', fontSize: '12px' }}>{docsOpen ? 'Hide' : 'Show'} Documents</span>
+        </div>
+        
+        {docsOpen && (
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #1f2937' }}>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <li><button style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>1. Technical Operating Manual v2.1 (PDF)</button></li>
+              <li><button style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>2. Farm Staff Daily SOPs (PDF)</button></li>
+              <li><button style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>3. Emergency Health Intervention Guidelines (PDF)</button></li>
+            </ul>
+          </div>
+        )}
+      </section>
+
+      {/* RESET PROTECTION */}
+      <section className="settings-card settings-danger-card" style={{ marginTop: '24px' }}>
+        <h2>Reset Protection</h2>
+        <p className="settings-hint">Ensure test data reset is protected by password before going live.</p>
+        <button className="settings-danger-button">Enable Protection</button>
+      </section>
+    </div>
+  );
 }

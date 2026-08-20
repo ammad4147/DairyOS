@@ -1,0 +1,234 @@
+﻿=====================================================================
+ DAIRYOS REMEDIATION AUDIT EXPORT
+ DATE: 2026-08-20 14:57:01
+=====================================================================
+
+### FILE_START: firstboot.sh | PATH: D:\DairyOS\os\installer\hooks\firstboot.sh ###
+---------------------------------------------------------------------
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+DATA_ROOT="/var/lib/dairyos"
+APP_ROOT="/opt/dairyos"
+WHEELHOUSE="$APP_ROOT/wheelhouse"
+SOURCE="$APP_ROOT/source"
+ENV_DIR="/etc/dairyos"
+ENV_FILE="$ENV_DIR/dairyos.env"
+MARKER="$DATA_ROOT/.firstboot-complete"
+
+mkdir -p "$DATA_ROOT/storage" "$DATA_ROOT/backups" "$DATA_ROOT/logs" "$ENV_DIR" "$APP_ROOT"
+chmod 0750 "$ENV_DIR"
+
+[[ -d "$WHEELHOUSE" ]] || { echo "ERROR: offline wheelhouse missing: $WHEELHOUSE" >&2; exit 30; }
+
+if ! getent group dairyos >/dev/null 2>&1; then
+  groupadd --system dairyos
+fi
+if ! id -u dairyos >/dev/null 2>&1; then
+  useradd --system --gid dairyos --home-dir "$DATA_ROOT" --no-create-home dairyos
+fi
+
+systemctl start postgresql
+
+if ! runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='dairyos'" | grep -q 1; then
+  DB_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c "CREATE ROLE dairyos LOGIN PASSWORD '${DB_PASSWORD}'"
+else
+  DB_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c "ALTER ROLE dairyos WITH LOGIN PASSWORD '${DB_PASSWORD}'"
+fi
+
+if ! runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='dairyos'" | grep -q 1; then
+  runuser -u postgres -- createdb -O dairyos dairyos
+fi
+
+AUTH_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+
+umask 077
+cat > "$ENV_FILE" <<ENV
+DAIRYOS_ENV=production
+DAIRYOS_DATA_DIR=$DATA_ROOT
+DAIRYOS_HOST=0.0.0.0
+DAIRYOS_PORT=8000
+DAIRYOS_LOG_LEVEL=info
+DAIRYOS_DB_HOST=127.0.0.1
+DAIRYOS_DB_PORT=5432
+DAIRYOS_DB_NAME=dairyos
+DAIRYOS_DB_USER=dairyos
+DAIRYOS_DB_PASSWORD=$DB_PASSWORD
+DAIRYOS_AUTH_SECRET=$AUTH_SECRET
+ENV
+chmod 0600 "$ENV_FILE"
+
+python3 -m venv "$APP_ROOT/.venv"
+"$APP_ROOT/.venv/bin/python" -m pip install --no-index --find-links "$WHEELHOUSE" dairyos
+
+if [[ -f "$SOURCE/alembic.ini" ]]; then
+  cd "$SOURCE"
+  set -a
+  source "$ENV_FILE"
+  set +a
+  "$APP_ROOT/.venv/bin/alembic" upgrade head
+fi
+
+chown -R dairyos:dairyos "$DATA_ROOT"
+
+if [[ ! -f "$MARKER" ]]; then
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER"
+  chown dairyos:dairyos "$MARKER"
+fi
+
+systemctl daemon-reload
+systemctl enable dairyos.service
+
+
+---------------------------------------------------------------------
+### FILE_END: firstboot.sh ###
+
+
+### FILE_START: validate.sh | PATH: D:\DairyOS\os\installer\hooks\validate.sh ###
+---------------------------------------------------------------------
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+errors=0
+fail() { echo "FAIL: $*" >&2; errors=$((errors + 1)); }
+pass() { echo "PASS: $*"; }
+
+[[ "$(id -u)" -eq 0 ]] || { echo "Run as root." >&2; exit 20; }
+
+for path in /boot/efi /var/log /var/lib/dairyos /etc/systemd/system/dairyos.service /etc/systemd/system/dairyos-firstboot.service; do
+  if [[ -e "$path" ]]; then pass "$path exists"; else fail "$path missing"; fi
+done
+
+if command -v findmnt >/dev/null 2>&1; then
+  findmnt /boot/efi >/dev/null 2>&1 && pass "/boot/efi mounted" || fail "/boot/efi not mounted"
+  findmnt /var/log >/dev/null 2>&1 && pass "/var/log mounted" || fail "/var/log not mounted"
+  findmnt /var/lib/dairyos >/dev/null 2>&1 && pass "/var/lib/dairyos mounted" || fail "/var/lib/dairyos not mounted"
+fi
+
+systemctl is-enabled dairyos.service >/dev/null 2>&1 && pass "dairyos.service enabled" || fail "dairyos.service not enabled"
+systemctl is-enabled dairyos-firstboot.service >/dev/null 2>&1 && pass "firstboot service enabled" || fail "firstboot service not enabled"
+
+if [[ -f /etc/fstab ]]; then
+  grep -q 'DAIRYOS-ROOT' /etc/fstab && pass 'root filesystem in fstab' || fail 'root filesystem absent from fstab'
+  grep -q 'DAIRYOS-DATA' /etc/fstab && pass 'farm data filesystem in fstab' || fail 'farm data filesystem absent from fstab'
+else
+  fail '/etc/fstab missing'
+fi
+
+if [[ "$errors" -gt 0 ]]; then
+  echo "Validation failed with $errors error(s)." >&2
+  exit 2
+fi
+
+echo "DairyOS installed-system validation passed."
+
+---------------------------------------------------------------------
+### FILE_END: validate.sh ###
+
+
+### FILE_START: rollback.sh | PATH: D:\DairyOS\os\installer\rollback.sh ###
+---------------------------------------------------------------------
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+TARGET_ROOT="/mnt/dairyos"
+KEEP_DATA=true
+
+usage() {
+  cat <<'EOF'
+DairyOS rollback helper
+
+This command operates on an already-mounted DairyOS root. It does not wipe a
+partition. It disables the application service, restores an optional backup,
+and rebuilds the bootloader/initramfs transaction.
+
+Options:
+  --root PATH       Mounted DairyOS root (default /mnt/dairyos)
+  --purge-data      Delete /var/lib/dairyos after explicit confirmation
+  --confirm TOKEN   Required with --purge-data
+EOF
+}
+
+CONFIRM=""
+while (($#)); do
+  case "$1" in
+    --root) TARGET_ROOT="${2:?missing root}"; shift 2 ;;
+    --purge-data) KEEP_DATA=false; shift ;;
+    --confirm) CONFIRM="${2:?missing confirmation}"; shift 2 ;;
+    --help|-h) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+
+[[ "$(id -u)" -eq 0 ]] || { echo "ERROR: root required." >&2; exit 20; }
+[[ -d "$TARGET_ROOT" ]] || { echo "ERROR: root not found: $TARGET_ROOT" >&2; exit 21; }
+
+if [[ "$KEEP_DATA" == false ]]; then
+  [[ "$CONFIRM" == "PURGE DAIRYOS DATA" ]] || {
+    echo "ERROR: purge requires exact confirmation: PURGE DAIRYOS DATA" >&2
+    exit 22
+  }
+fi
+
+if mountpoint -q "$TARGET_ROOT/dev"; then umount -R "$TARGET_ROOT/dev"; fi
+if mountpoint -q "$TARGET_ROOT/proc"; then umount -R "$TARGET_ROOT/proc"; fi
+if mountpoint -q "$TARGET_ROOT/sys"; then umount -R "$TARGET_ROOT/sys"; fi
+
+chroot "$TARGET_ROOT" /bin/bash -c 'systemctl disable dairyos.service dairyos-firstboot.service 2>/dev/null || true'
+
+if [[ "$KEEP_DATA" == false ]]; then
+  echo "PURGE requested. Removing farm data after confirmation."
+  rm -rf -- "$TARGET_ROOT/var/lib/dairyos"
+fi
+
+if command -v update-initramfs >/dev/null 2>&1; then
+  chroot "$TARGET_ROOT" update-initramfs -u -k all
+fi
+
+if [[ -d "$TARGET_ROOT/boot/efi/EFI/DairyOS" ]]; then
+  echo "DairyOS EFI boot files remain intact for recovery unless the target is explicitly decommissioned."
+fi
+
+sync
+echo "Rollback/teardown transaction completed. Data retained: $KEEP_DATA"
+
+---------------------------------------------------------------------
+### FILE_END: rollback.sh ###
+
+
+### FILE_START: dairyos.sfdisk | PATH: D:\DairyOS\os\partitioning\dairyos.sfdisk ###
+---------------------------------------------------------------------
+label: gpt
+first-lba: 2048
+sector-size: 512
+
+# 512 MiB EFI System Partition
+type=U32-EFI
+size=1048576
+name="DairyOS EFI"
+
+# 16 GiB root filesystem
+type=U83-Linux
+size=33554432
+name="DairyOS Root"
+
+# 4 GiB dedicated logs
+type=U83-Linux
+size=8388608
+name="DairyOS Logs"
+
+# 4 GiB swap
+type=U82-Swap
+size=8388608
+name="DairyOS Swap"
+
+# Remaining space is persistent farm data.
+type=U83-Linux
+name="DairyOS Farm Data"
+
+---------------------------------------------------------------------
+### FILE_END: dairyos.sfdisk ###
+
+
