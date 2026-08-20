@@ -1,3 +1,4 @@
+from dairyos.middleware.enum_normalizer import PayloadNormalizationMiddleware
 """FastAPI application bootstrap for DairyOS.
 
 The operator UI is the React/Vite application under ``src/DairyOS.Web``.
@@ -39,6 +40,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
+app.add_middleware(PayloadNormalizationMiddleware)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[],

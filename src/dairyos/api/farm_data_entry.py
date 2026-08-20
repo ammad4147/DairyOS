@@ -1175,14 +1175,23 @@ def record_treatment(
         )
 
         linked_case = None
+        case_repo = rf.health_cases()
         if entry.health_case_id is not None:
-            case_repo = rf.health_cases()
             linked_case = case_repo.get_by_id(entry.health_case_id)
             if linked_case is None:
                 raise HTTPException(
                     status_code=404,
                     detail=f"health_case_id {entry.health_case_id} does not exist.",
                 )
+        elif entry.animal_id:
+            open_cases = [
+                c for c in case_repo.get_all()
+                if getattr(c, "animal_id", None) == entry.animal_id
+                and getattr(c, "status", None) != "RESOLVED"
+            ]
+            if open_cases:
+                linked_case = open_cases[-1]
+                entry.health_case_id = linked_case.id
 
         record = TreatmentRecord(
             animal_id=entry.animal_id,
@@ -1806,6 +1815,13 @@ def list_health_cases(
             rf.close()
 
 
+def _lookup_health_case(case_repo, case_ref: str):
+    case = case_repo.get_by_case_id(case_ref)
+    if case is None and case_ref.isdigit():
+        case = case_repo.get(int(case_ref)) if hasattr(case_repo, "get") else (case_repo.get_by_id(int(case_ref)) if hasattr(case_repo, "get_by_id") else None)
+    return case
+
+
 @router.get("/health-cases/{case_id}")
 def get_health_case(
     case_id: str,
@@ -1817,7 +1833,7 @@ def get_health_case(
         rf = RepositoryFactory.create()
         owns_factory = True
     try:
-        case = rf.health_cases().get_by_case_id(case_id)
+        case = _lookup_health_case(rf.health_cases(), case_id)
         if case is None:
             raise HTTPException(status_code=404, detail=f"No health case '{case_id}'.")
 
@@ -1858,7 +1874,7 @@ def resolve_health_case(
         owns_factory = True
     try:
         case_repo = rf.health_cases()
-        case = case_repo.get_by_case_id(case_id)
+        case = _lookup_health_case(case_repo, case_id)
         if case is None:
             raise HTTPException(status_code=404, detail=f"No health case '{case_id}'.")
 

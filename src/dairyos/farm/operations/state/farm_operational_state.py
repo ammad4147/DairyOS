@@ -176,7 +176,7 @@ class FarmOperationalState:
             "operators": [],
             "last_timestamp": None,
         })
-        entry["litres"] += litres
+        entry["litres"] = float(entry.get("litres") or 0.0) + float(litres or 0.0)
         if not isinstance(entry.get("unique_animal_ids"), list):
             entry["unique_animal_ids"] = []
         if animal_id:
@@ -190,7 +190,7 @@ class FarmOperationalState:
             entry["operators"].append(operator)
         entry["last_timestamp"] = timestamp or datetime.now(timezone.utc)
         entry["status"] = "completed"
-        self.milk_production_summary["total_litres_today"] += litres
+        self.milk_production_summary["total_litres_today"] = float(self.milk_production_summary.get("total_litres_today") or 0.0) + float(litres or 0.0)
         self.milk_production_summary["milking_events_count"] += 1
         self.milk_production_summary["last_milking_time"] = entry["last_timestamp"]
         self.milk_production_summary["last_operator"] = operator
