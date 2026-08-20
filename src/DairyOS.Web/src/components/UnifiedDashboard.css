@@ -1,36 +1,49 @@
 ﻿.cmd-dash-wrapper {
-  height: calc(100vh - 75px);
-  max-height: calc(100vh - 75px);
-  overflow: hidden;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.clickable-title {
+  transition: opacity 0.15s ease;
+}
+
+.clickable-title:hover {
+  opacity: 0.85;
+}
+
+/* Production Extremes Proportional Sizing */
+.performer-items {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  padding: 8px 12px;
-  background: #0b0f19;
+  gap: 3px;
 }
-.cmd-content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.cmd-col {
+
+.perf-item {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  overflow: hidden;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px !important;
+  line-height: 1.2;
 }
-.cmd-card {
-  background: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 6px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  min-height: 0;
-  overflow: hidden;
+
+.perf-tag {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #38bdf8 !important;
+  text-decoration: underline !important;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.perf-tag:hover {
+  color: #7dd3fc !important;
+}
+
+.perf-val {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #cbd5e1 !important;
 }
