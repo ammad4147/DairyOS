@@ -288,7 +288,7 @@ export default function CMPL() {
                   <Pie data={costDistribution} innerRadius={70} outerRadius={100} paddingAngle={3} dataKey="value" stroke="none">
                     {costDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={(value: number) => formatPKR(value)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '12px', color: '#fff' }} />
+                  <Tooltip formatter={(value: any) => formatPKR(Number(value))} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '12px', color: '#fff' }} />
                   <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -325,3 +325,4 @@ export default function CMPL() {
     </div>
   );
 }
+

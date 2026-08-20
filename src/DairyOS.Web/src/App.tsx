@@ -255,11 +255,11 @@ function MainAppShell() {
             <UnifiedDashboard 
               onNavigate={(v) => setCurrentView(v)} 
               onOpenYieldModal={handleOpenYieldEntry}
-              onOpenPassport={(id) => setSelectedPassportAnimalId(id)}
+              
             />
           )}
           {currentView === 'finance' && <FinanceTab />}
-          {currentView === 'feed' && <FeedTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
+          {currentView === 'feed' && <FeedTab  />}
           {currentView === 'cmpl' && <CMPL />}
           {currentView === 'analytics' && <Analytics />}
           {currentView === 'settings' && <SettingsTab />}
@@ -267,11 +267,11 @@ function MainAppShell() {
             <MilkTab 
               initialOpenModal={autoOpenYieldModal} 
               onModalClose={() => setAutoOpenYieldModal(false)} 
-              onOpenPassport={(id) => setSelectedPassportAnimalId(id)}
+              
             />
           )}
-          {currentView === 'health' && <HealthTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
-          {currentView === 'breeding' && <BreedingTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
+          {currentView === 'health' && <HealthTab  />}
+          {currentView === 'breeding' && <BreedingTab  />}
 
           {/* ANIMAL RECORDS & PASSPORT */}
           {currentView === 'animals' && (
@@ -422,5 +422,6 @@ export default function App() {
     </AlertAuditProvider>
   );
 }
+
 
 
