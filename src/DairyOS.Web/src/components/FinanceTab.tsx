@@ -58,13 +58,13 @@ export default function FinanceTab() {
     if (!revAmount) return;
     const finalCategory = revCategory === 'Others' && customRevCategory ? customRevCategory : revCategory;
     const newItem: LedgerItem = {
-      id: REV- + Date.now().toString().slice(-4),
+      id: 'REV-' + Date.now().toString().slice(-4),
       type: 'REVENUE',
       category: finalCategory,
       amount: parseFloat(revAmount),
       quantity: revQty || '-',
       date: revDate,
-      refNumber: revRef || REC- + Math.floor(Math.random() * 9000 + 1000),
+      refNumber: revRef || 'REC-' + Math.floor(Math.random() * 9000 + 1000),
       description: revDesc || 'Standard revenue entry',
       isVoid: false,
     };
@@ -84,13 +84,13 @@ export default function FinanceTab() {
     if (!expAmount) return;
     const finalCategory = expCategory === 'Others' && customExpCategory ? customExpCategory : expCategory;
     const newItem: LedgerItem = {
-      id: EXP- + Date.now().toString().slice(-4),
+      id: 'EXP-' + Date.now().toString().slice(-4),
       type: 'EXPENSE',
       category: finalCategory,
       amount: parseFloat(expAmount),
       quantity: expQty || '-',
       date: expDate,
-      refNumber: expRef || BILL- + Math.floor(Math.random() * 9000 + 1000),
+      refNumber: expRef || 'BILL-' + Math.floor(Math.random() * 9000 + 1000),
       description: expDesc || 'Standard expense entry',
       isVoid: false,
     };
@@ -126,12 +126,12 @@ export default function FinanceTab() {
   const handlePrintStatement = () => window.print();
   const handleExportCSV = () => {
     const headers = ['ID', 'Type', 'Category', 'Amount (PKR)', 'Quantity', 'Date', 'Ref Number', 'Description', 'Status', 'Void Reason'];
-    const rows = ledger.map(l => [ l.id, l.type, " + l.category + ", l.amount, " + (l.quantity || '') + ", l.date, " + l.refNumber + ", " + l.description + ", l.isVoid ? 'VOIDED' : 'ACTIVE', " + (l.voidReason || '') + " ]);
+    const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '', l.date, l.refNumber, l.description, l.isVoid ? 'VOIDED' : 'ACTIVE', l.voidReason || '' ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', DairyOS_Financial_Statement_ + statementPeriod + _2026.csv);
+    link.setAttribute('download', 'DairyOS_Financial_Statement_' + statementPeriod + '_2026.csv');
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 

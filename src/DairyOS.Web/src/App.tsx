@@ -19,6 +19,18 @@ import {
 } from 'lucide-react';
 import './App.css';
 
+interface HerdAnimal {
+  id: string;
+  breed: string;
+  category: string;
+  age: string;
+  status: string;
+  frequency: string;
+  earTag: string;
+  gender?: string;
+  stage?: string;
+}
+
 function MainAppShell() {
   const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(() => {
     const saved = localStorage.getItem('dairyos_user');
@@ -55,7 +67,7 @@ function MainAppShell() {
   };
 
   // Herd Animals Data
-  const [animals, setAnimals] = useState([
+  const [animals, setAnimals] = useState<HerdAnimal[]>([
     { id: 'TD-001', breed: 'Holstein Friesian', category: 'Milking Cows', age: '4 Years', status: 'Healthy', frequency: 'TWICE_DAILY', earTag: 'PK-LHR-001' },
     { id: 'TD-002', breed: 'Sahiwal Cross', category: 'Milking Cows', age: '5 Years', status: 'Healthy', frequency: 'THRICE_DAILY', earTag: 'PK-LHR-002' },
     { id: 'TD-003', breed: 'Cholistani', category: 'Milking Cows', age: '3 Years', status: 'Healthy', frequency: 'TWICE_DAILY', earTag: 'PK-LHR-003' },

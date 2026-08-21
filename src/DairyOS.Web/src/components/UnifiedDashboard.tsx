@@ -142,7 +142,18 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   const activeDropAlerts = alerts.filter(a => a.source === 'MILK_DROP' && a.status !== 'RESOLVED');
   const healthData = data?.health || { sick: 1, mastitis: 1, highTemp: 0, completedVax: 8, dueVax: 2 };
-  const reproData = data?.reproduction || { onHeat: 1, inseminated: 1, pregnant: 2, conceptionRatio: '62%' };
+  const reproSource = data?.reproduction as {
+  onHeat?: number;
+  inseminated?: number;
+  pregnant?: number;
+  conceptionRatio?: string;
+} | undefined;
+const reproData = {
+  onHeat: reproSource?.onHeat ?? 1,
+  inseminated: reproSource?.inseminated ?? 1,
+  pregnant: reproSource?.pregnant ?? 2,
+  conceptionRatio: reproSource?.conceptionRatio ?? '62%'
+};
 
   return (
     <div className="cmd-dash-wrapper" style={{ height: 'calc(100vh - 75px)', overflowY: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', padding: '10px' }}>
