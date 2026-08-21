@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
       - name: Run Milk Cycle and intelligence tests
         run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
 
@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx
       - name: Run installation lifecycle tests
         run: pytest -q tests/platform/test_lifecycle_manager.py
       - name: Check Docker Compose configuration
@@ -146,6 +146,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
       - name: Run full regression
         run: pytest -q
