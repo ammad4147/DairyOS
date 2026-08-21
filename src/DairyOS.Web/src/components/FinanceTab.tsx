@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Plus, Printer, Download,
   Ban, CheckCircle2, AlertTriangle, Calendar, FileText, Search, Filter
@@ -159,7 +159,7 @@ export default function FinanceTab() {
   const [statementPeriod, setStatementPeriod] = useState<'MONTH' | 'QUARTER' | 'YEAR'>('MONTH');
 
   // Add Revenue
-  const handleAddRevenue = (e: React.FormEvent) => {
+  const handleAddRevenue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!revAmount) return;
     const newItem: LedgerItem = {
@@ -173,15 +173,22 @@ export default function FinanceTab() {
       description: revDesc || 'Standard revenue entry',
       isVoid: false,
     };
-    setLedger([newItem, ...ledger]);
-    setRevAmount('');
+          try {
+        await fetch('/farm/finance/receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: parseFloat(revAmount), counterparty: revCategory, notes: revDesc, received_on: revDate })
+        });
+      } catch (err) { console.error('Financial ledger sync failed', err); }
+      setLedger([newItem, ...ledger]);
+      setRevAmount('');
     setRevQty('');
     setRevRef('');
     setRevDesc('');
   };
 
   // Add Expense
-  const handleAddExpense = (e: React.FormEvent) => {
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expAmount) return;
     const newItem: LedgerItem = {
@@ -195,8 +202,15 @@ export default function FinanceTab() {
       description: expDesc || 'Standard expense entry',
       isVoid: false,
     };
-    setLedger([newItem, ...ledger]);
-    setExpAmount('');
+          try {
+        await fetch('/farm/finance/disbursement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: parseFloat(expAmount), counterparty: expCategory, notes: expDesc, received_on: expDate })
+        });
+      } catch (err) { console.error('Financial ledger sync failed', err); }
+      setLedger([newItem, ...ledger]);
+      setExpAmount('');
     setExpQty('');
     setExpRef('');
     setExpDesc('');

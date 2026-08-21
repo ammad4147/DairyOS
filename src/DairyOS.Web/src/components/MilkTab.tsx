@@ -103,7 +103,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
     if (onModalClose) onModalClose();
   };
 
-  const handleQuickSaveYield = (e: React.FormEvent) => {
+  const handleQuickSaveYield = async (e: React.FormEvent) => {
     e.preventDefault();
     const liters = parseFloat(milkYieldInput);
     if (isNaN(liters) || liters <= 0) return;
@@ -137,34 +137,60 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
       warningLevel
     };
 
-    setRecords([newEntry, ...records]);
-    handleCloseYieldModal();
+          try {
+        await fetch('/farm/milk/' + selectedTag + '/milk-entry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ liters: liters, session: profile.modality, expected: exp, variance: variancePct })
+        });
+      } catch (err) { console.error('OS Sync Failed', err); }
+      setRecords([newEntry, ...records]);
+      handleCloseYieldModal();
   };
 
-  const handleSaveDomestic = (e: React.FormEvent) => {
+  const handleSaveDomestic = async (e: React.FormEvent) => {
     e.preventDefault();
     const l = parseFloat(domLiters);
     if (isNaN(l) || l <= 0) return;
 
-    const newDom: DomesticMilkLog = {
+          const currentYield = records.reduce((sum, r) => sum + r.liters, 0);
+      const currentDisposed = domesticLogs.reduce((sum, d) => sum + d.liters, 0) + calfLogs.reduce((sum, c) => sum + c.liters, 0);
+      if ((currentDisposed + l) > currentYield) {
+        alert('MASS BALANCE ANOMALY: Cannot allocate ' + l + 'L. Only ' + (currentYield - currentDisposed).toFixed(1) + 'L remains from today\'s physical yield. Disposition rejected.');
+        return;
+      }
+      const newDom: DomesticMilkLog = {
       id: `DOM-${Date.now().toString().slice(-4)}`,
       date: new Date().toISOString().split('T')[0],
       recipient: domRecipient,
       liters: l,
       notes: domNotes || 'Domestic kitchen consumption'
     };
-    setDomesticLogs([newDom, ...domesticLogs]);
+          try {
+        await fetch('/farm/milk/disposition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ production_date: new Date().toISOString().split('T')[0], disposition_type: 'DOMESTIC', quantity_litres: l, notes: domNotes })
+        });
+      } catch (err) { console.error('OS Sync Failed', err); }
+      setDomesticLogs([newDom, ...domesticLogs]);
     setShowDomesticModal(false);
     setDomLiters('');
     setDomNotes('');
   };
 
-  const handleSaveCalf = (e: React.FormEvent) => {
+  const handleSaveCalf = async (e: React.FormEvent) => {
     e.preventDefault();
     const l = parseFloat(calfLitersInput);
     if (isNaN(l) || l <= 0) return;
 
-    const newCalf: CalfMilkLog = {
+          const currentYield = records.reduce((sum, r) => sum + r.liters, 0);
+      const currentDisposed = domesticLogs.reduce((sum, d) => sum + d.liters, 0) + calfLogs.reduce((sum, c) => sum + c.liters, 0);
+      if ((currentDisposed + l) > currentYield) {
+        alert('MASS BALANCE ANOMALY: Cannot allocate ' + l + 'L. Only ' + (currentYield - currentDisposed).toFixed(1) + 'L remains from today\'s physical yield. Disposition rejected.');
+        return;
+      }
+      const newCalf: CalfMilkLog = {
       id: `CALF-${Date.now().toString().slice(-4)}`,
       date: new Date().toISOString().split('T')[0],
       calfTag: calfTagInput,
@@ -172,7 +198,14 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
       feedingSession: calfSessionInput,
       feederName: feederNameInput
     };
-    setCalfLogs([newCalf, ...calfLogs]);
+          try {
+        await fetch('/farm/milk/disposition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ production_date: new Date().toISOString().split('T')[0], disposition_type: 'CALF_FEEDING', quantity_litres: l, notes: calfSessionInput })
+        });
+      } catch (err) { console.error('OS Sync Failed', err); }
+      setCalfLogs([newCalf, ...calfLogs]);
     setShowCalfModal(false);
     setCalfLitersInput('');
   };

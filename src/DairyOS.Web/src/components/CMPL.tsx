@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calculator, DollarSign, TrendingUp, TrendingDown, PieChart as PieChartIcon, Settings2, Calendar, AlertTriangle, Link, Edit3, CheckCircle2 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { fetchCommandDashboardData, type CommandDashboardData } from '../api/commandDashboardClient';
@@ -52,7 +52,9 @@ export default function CMPL() {
 
   // --- CALCULATIONS ---
   const totalCosts = feedCost + laborCost + utilitiesCost + healthCost + overheads;
-  const cmpl = yieldLiters > 0 ? (totalCosts / yieldLiters) : 0;
+  const internalUseLiters = yieldLiters * 0.05; // Standard 5% deduction for calves, domestic, & discard
+    const sellableYield = yieldLiters - internalUseLiters;
+    const cmpl = sellableYield > 0 ? (totalCosts / sellableYield) : 0;
   
   const totalRevenue = (retailVol * retailPrice) + (wholesaleVol * wholesalePrice);
   const totalSoldVolume = retailVol + wholesaleVol;
