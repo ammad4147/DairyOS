@@ -17,6 +17,11 @@ storage:
       size_mib: 512
       filesystem: fat32
       mount: /boot/efi
+    - name: bios-boot
+      type: bios-boot
+      size_mib: 2
+      filesystem: null
+      mount: null
     - name: root
       type: linux-root
       size_mib: 16384
@@ -27,16 +32,16 @@ storage:
       size_mib: 4096
       filesystem: ext4
       mount: /var/log
-    - name: dairyos-data
-      type: linux-data
-      size_mib: 0
-      filesystem: ext4
-      mount: /var/lib/dairyos
     - name: swap
       type: linux-swap
       size_mib: 4096
       filesystem: swap
       mount: null
+    - name: dairyos-data
+      type: linux-data
+      size_mib: 0
+      filesystem: ext4
+      mount: /var/lib/dairyos
 security:
   installer_default_mode: dry-run
   purge_confirmation: "PURGE DAIRYOS DATA"
@@ -53,6 +58,7 @@ network:
     protocol: http
     host: 192.168.50.1
     path: /debian
+    security_path: /debian-security
 application:
   data_dir: /var/lib/dairyos
   service: dairyos.service
