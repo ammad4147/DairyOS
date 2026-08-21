@@ -13,19 +13,20 @@ if (-not (Test-Path -LiteralPath $finance -PathType Leaf)) {
 $content = Get-Content -LiteralPath $finance -Raw -Encoding UTF8
 $original = $content
 
-$replacements = [ordered]@{
-    'id: REV- + Date.now().toString().slice(-4)' = "id: 'REV-' + Date.now().toString().slice(-4)"
-    'refNumber: revRef || REC- + Math.floor(Math.random() * 9000 + 1000)' = "refNumber: revRef || 'REC-' + Math.floor(Math.random() * 9000 + 1000)"
-    'id: EXP- + Date.now().toString().slice(-4)' = "id: 'EXP-' + Date.now().toString().slice(-4)"
-    'refNumber: expRef || BILL- + Math.floor(Math.random() * 9000 + 1000)' = "refNumber: expRef || 'BILL-' + Math.floor(Math.random() * 9000 + 1000)"
-    'const rows = ledger.map(l => [ l.id, l.type, " + l.category + ", l.amount, " + (l.quantity || '') + ", l.date, " + l.refNumber + ", l.description + ", l.isVoid ? ''VOIDED'' : ''ACTIVE'', " + (l.voidReason || '') + " ]);' = 'const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '''', l.date, l.refNumber, l.description, l.isVoid ? ''VOIDED'' : ''ACTIVE'', l.voidReason || '''' ]);'
-    'link.setAttribute(''download'', DairyOS_Financial_Statement_ + statementPeriod + _2026.csv);' = "link.setAttribute('download', 'DairyOS_Financial_Statement_' + statementPeriod + '_2026.csv');"
-}
+$replacements = @(
+    @("id:\s*REV-\s*\+\s*Date\.now\(\)\.toString\(\)\.slice\(-4\)", "id: 'REV-' + Date.now().toString().slice(-4)"),
+    @("refNumber:\s*revRef\s*\|\|\s*REC-\s*\+\s*Math\.floor\(Math\.random\(\)\s*\*\s*9000\s*\+\s*1000\)", "refNumber: revRef || 'REC-' + Math.floor(Math.random() * 9000 + 1000)"),
+    @("id:\s*EXP-\s*\+\s*Date\.now\(\)\.toString\(\)\.slice\(-4\)", "id: 'EXP-' + Date.now().toString().slice(-4)"),
+    @("refNumber:\s*expRef\s*\|\|\s*BILL-\s*\+\s*Math\.floor\(Math\.random\(\)\s*\*\s*9000\s*\+\s*1000\)", "refNumber: expRef || 'BILL-' + Math.floor(Math.random() * 9000 + 1000)"),
+    @("const rows = ledger\.map\(l => \[.*?\]\);", "const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '', l.date, l.refNumber, l.description, l.isVoid ? 'VOIDED' : 'ACTIVE', l.voidReason || '' ]);"),
+    @("link\.setAttribute\('download',\s*DairyOS_Financial_Statement_\s*\+\s*statementPeriod\s*\+\s*_2026\.csv\);", "link.setAttribute('download', 'DairyOS_Financial_Statement_' + statementPeriod + '_2026.csv');")
+)
 
-foreach ($pair in $replacements.GetEnumerator()) {
-    if ($content.Contains($pair.Key)) {
-        $content = $content.Replace($pair.Key, $pair.Value)
-        Write-Host "[REPAIRED] $($pair.Key)"
+foreach ($replacement in $replacements) {
+    $updated = [regex]::Replace($content, $replacement[0], $replacement[1])
+    if ($updated -ne $content) {
+        $content = $updated
+        Write-Host "[REPAIRED] $($replacement[1])"
     }
 }
 
@@ -34,7 +35,7 @@ $required = @(
     "refNumber: revRef || 'REC-' + Math.floor(Math.random() * 9000 + 1000)",
     "id: 'EXP-' + Date.now().toString().slice(-4)",
     "refNumber: expRef || 'BILL-' + Math.floor(Math.random() * 9000 + 1000)",
-    'const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '''', l.date, l.refNumber, l.description, l.isVoid ? ''VOIDED'' : ''ACTIVE'', l.voidReason || '''' ]);',
+    "const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '', l.date, l.refNumber, l.description, l.isVoid ? 'VOIDED' : 'ACTIVE', l.voidReason || '' ]);",
     "link.setAttribute('download', 'DairyOS_Financial_Statement_' + statementPeriod + '_2026.csv');"
 )
 
