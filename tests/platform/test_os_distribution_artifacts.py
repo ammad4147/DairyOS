@@ -36,6 +36,17 @@ def test_partition_manifest_preserves_separate_log_and_farm_data_partitions():
     assert "U82-Swap" in sfdisk
 
 
+def test_release_and_installer_use_the_manifest_target_release():
+    manifest = yaml.safe_load(read("manifest.yaml"))
+    release = manifest["target"]["release"]
+    build = read("build/build-iso.sh")
+    installer = read("installer/install.sh")
+    mirror = read("pxe/mirror/sync-debian.sh")
+    assert f'DIST="{release}"' in build
+    assert f"debootstrap --arch=amd64 {release}" in installer
+    assert f'DIST="{release}"' in mirror
+
+
 def test_installer_is_fail_closed_and_has_explicit_disk_apply_gate():
     installer = read("installer/install.sh")
     assert 'MODE="dry-run"' in installer
@@ -48,6 +59,9 @@ def test_installer_is_fail_closed_and_has_explicit_disk_apply_gate():
     assert "grub-install --target=i386-pc" in installer
     assert 'DEBIAN_MIRROR="file:///srv/dairyos-debian"' in installer
     assert "validate_mirror" in installer
+    assert 'PARTITIONING_STARTED=true' in installer
+    assert 'The target disk is NOT automatically randomized or wiped.' in installer
+    assert 'write_recovery_state "failed"' in installer
     assert "touch \"$MOUNT_ROOT/.install-in-progress\"" in installer
     assert "touch \"$committed\"" in installer
 
@@ -78,6 +92,7 @@ def test_artifact_integrity_and_first_boot_assets_exist():
         "build/stage-app.sh",
         "build/release-manifest.sh",
         "installer/rollback.sh",
+        "installer/teardown-purge.sh",
         "installer/preseed/dairyos.seed",
         "installer/hooks/firstboot.sh",
         "installer/hooks/validate.sh",
@@ -92,6 +107,8 @@ def test_artifact_integrity_and_first_boot_assets_exist():
     assert "sha256sum" in release_builder
     assert "gpg" in release_builder
     assert "DAIRYOS_SIGNING_KEY" in release_builder
+    assert 'DAIRYOS_ALLOW_UNSIGNED="false"' in release_builder
+    assert 'exit 12' in release_builder
 
 
 def test_offline_build_stages_complete_application_wheelhouse():
@@ -119,6 +136,7 @@ def test_bare_metal_first_boot_provisions_database_and_secrets():
     assert "DAIRYOS_DB_PASSWORD=$DB_PASSWORD" in firstboot
     assert "DAIRYOS_AUTH_SECRET=$AUTH_SECRET" in firstboot
     assert "EnvironmentFile=-/etc/dairyos/dairyos.env" in service
+    assert "/var/log/dairyos" in service
 
 
 def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
@@ -147,3 +165,13 @@ def test_systemd_service_uses_persistent_farm_data_path():
     assert "Requires=postgresql.service" in firstboot_service
     assert "ConditionPathExists=/opt/dairyos-os/installer/firstboot.sh" in firstboot_service
     assert "ConditionPathExists=!/var/lib/dairyos/.firstboot-complete" in firstboot_service
+
+
+def test_teardown_handles_nvme_and_mmc_partition_naming_and_unmounts_first():
+    teardown = read("installer/teardown-purge.sh")
+    assert 'TARGET_DEVICE##*/' in teardown
+    assert 'DATA_PART="${TARGET_DEVICE}p5"' in teardown
+    assert 'findmnt -rn -S "$TARGET_DEVICE"' in teardown
+    assert 'umount -R "$mountpoint"' in teardown
+    assert 'wipefs -a "$TARGET_DEVICE"' in teardown
+    assert 'sgdisk --zap-all "$TARGET_DEVICE"' in teardown
