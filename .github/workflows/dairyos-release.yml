@@ -1,0 +1,88 @@
+name: DairyOS release verification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  audit-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout authoritative main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify one-branch policy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git branch --show-current)" = main
+          test -z "$(git status --porcelain)"
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin qemu-system-x86 ovmf gdisk dosfstools e2fsprogs util-linux rsync python3 python3-pip gnupg
+
+      - name: Install Python test dependencies
+        run: python3 -m pip install --break-system-packages pytest pyyaml
+
+      - name: Run current-main regression
+        run: bash AUDIT/run-host-regression.sh
+
+      - name: Run disaster safety contracts
+        run: bash AUDIT/run-disaster-simulations.sh
+
+      - name: Build actual DairyOS ISO
+        env:
+          OUT_DIR: ${{ github.workspace }}/dist/os
+          WORK_DIR: /var/tmp/dairyos-os-build
+          DAIRYOS_ALLOW_UNSIGNED: "true"
+        run: |
+          sudo -E bash os/build/build-iso.sh
+
+      - name: Verify ISO structure and checksum
+        run: |
+          set -Eeuo pipefail
+          ISO="dist/os/dairyos-trixie-amd64.iso"
+          test -s "$ISO"
+          sha256sum -c "$ISO.sha256"
+          xorriso -indev "$ISO" -report_el_torito plain -report_system_area plain
+          file "$ISO"
+
+      - name: Boot ISO in disposable UEFI VM
+        run: |
+          set -Eeuo pipefail
+          ISO="dist/os/dairyos-trixie-amd64.iso"
+          timeout 90s qemu-system-x86_64 -accel tcg -m 2048 -smp 2 -bios /usr/share/OVMF/OVMF_CODE_4M.fd -cdrom "$ISO" -display none -serial stdio -no-reboot -no-shutdown > dist/os/qemu-uefi.log 2>&1 || true
+          grep -Eiq 'DairyOS|GNU GRUB|Linux|Debian' dist/os/qemu-uefi.log
+
+      - name: Package build evidence
+        if: always()
+        run: |
+          mkdir -p dist/evidence
+          cp AUDIT/results/* dist/evidence/ 2>/dev/null || true
+          cp dist/os/*.sha256 dist/evidence/ 2>/dev/null || true
+          cp dist/os/qemu-uefi.log dist/evidence/ 2>/dev/null || true
+          git rev-parse HEAD > dist/evidence/commit.txt
+
+      - name: Upload ISO and evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dairyos-trixie-amd64-release-${{ github.sha }}
+          path: |
+            dist/os/dairyos-trixie-amd64.iso
+            dist/os/*.sha256
+            dist/os/SHA256SUMS*
+            dist/evidence/
+          if-no-files-found: error
