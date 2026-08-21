@@ -6,6 +6,16 @@ import { useAlertAudit } from '../context/AlertAuditContext';
 import AnimalPassportModal from './AnimalPassportModal';
 import './UnifiedDashboard.css';
 
+// SVG Cow Head Icon
+const CowIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 3L3 7v3l2 1v5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-5l2-1V7l-2-4-3 2H8L5 3z" />
+    <path d="M9 13v.01" />
+    <path d="M15 13v.01" />
+    <path d="M10 18a2 2 0 0 0 4 0" />
+  </svg>
+);
+
 interface Props {
   onNavigate?: (view: string) => void;
   onOpenYieldModal?: () => void;
@@ -188,8 +198,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                   </select>
                 </div>
                 <div style={{ flex: 1, minHeight: '65px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={filteredYieldTrend} margin={{ top: 2, right: 6, left: -24, bottom: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" key={"chart-wrap-" + chartDays}>
+                    <AreaChart key={"chart-" + chartDays} data={filteredYieldTrend} margin={{ top: 2, right: 6, left: -24, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.5}/>
@@ -199,7 +209,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                       <XAxis dataKey="dayIndex" stroke="#64748b" tick={{ fontSize: 8 }} interval={0} tickFormatter={(val) => "D" + val} />
                       <YAxis stroke="#64748b" tick={{ fontSize: 8 }} domain={['auto', 'auto']} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => "Day " + val} />
-                      <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" />
+                      <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" isAnimationActive={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -240,7 +250,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0, overflow: 'hidden' }}>
             <div className="cmd-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <span className="clickable-title" onClick={() => onNavigate && onNavigate('animals')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>
-                <Users size={15} /> <span>Total Herd</span>
+                <CowIcon size={16} color="#f59e0b" /> <span>Total Herd</span>
               </span>
               <span style={{ fontSize: '10px', color: '#94a3b8' }}>Total: {canonicalHerd.reduce((sum, c) => sum + c.value, 0)} Head</span>
             </div>
