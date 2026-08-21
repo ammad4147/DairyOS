@@ -13,9 +13,14 @@ if (-not (Test-Path -LiteralPath $finance -PathType Leaf)) {
 $content = Get-Content -LiteralPath $finance -Raw -Encoding UTF8
 $original = $content
 
-# This branch already contains the four ID/reference repairs. The remaining
-# acceptance defect is the malformed CSV row construction and filename.
+# Normalize all known FinanceTab acceptance defects. The operation is deliberately
+# idempotent so it can run against either the original malformed baseline or a
+# branch where some repairs have already been applied.
 $replacements = @(
+    @("id:\s*REV-\s*\+\s*Date\.now\(\)\.toString\(\)\.slice\(-4\)", "id: 'REV-' + Date.now().toString().slice(-4)"),
+    @("refNumber:\s*revRef\s*\|\|\s*REC-\s*\+\s*Math\.floor\(Math\.random\(\)\s*\*\s*9000\s*\+\s*1000\)", "refNumber: revRef || 'REC-' + Math.floor(Math.random() * 9000 + 1000)"),
+    @("id:\s*EXP-\s*\+\s*Date\.now\(\)\.toString\(\)\.slice\(-4\)", "id: 'EXP-' + Date.now().toString().slice(-4)"),
+    @("refNumber:\s*expRef\s*\|\|\s*BILL-\s*\+\s*Math\.floor\(Math\.random\(\)\s*\*\s*9000\s*\+\s*1000\)", "refNumber: expRef || 'BILL-' + Math.floor(Math.random() * 9000 + 1000)"),
     @("const rows = ledger\.map\(l => \[.*?\]\);", "const rows = ledger.map(l => [ l.id, l.type, l.category, l.amount, l.quantity || '', l.date, l.refNumber, l.description, l.isVoid ? 'VOIDED' : 'ACTIVE', l.voidReason || '' ]);"),
     @("link\.setAttribute\('download',\s*DairyOS_Financial_Statement_\s*\+\s*statementPeriod\s*\+\s*_2026\.csv\);", "link.setAttribute('download', 'DairyOS_Financial_Statement_' + statementPeriod + '_2026.csv');")
 )
@@ -53,5 +58,5 @@ if ($content -eq $original) {
 
 if ($CommitLocal) {
     git -C $Repository add -- $finance
-    git -C $Repository commit -m 'fix(UI): repair FinanceTab CSV export acceptance defect'
+    git -C $Repository commit -m 'fix(UI): repair FinanceTab acceptance defects'
 }
