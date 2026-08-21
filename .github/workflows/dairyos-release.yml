@@ -1,16 +1,14 @@
 name: DairyOS release verification
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
+  id-token: write
+  attestations: write
 env:
   DEBIAN_FRONTEND: noninteractive
-
 jobs:
   audit-and-build:
     runs-on: ubuntu-24.04
@@ -18,54 +16,66 @@ jobs:
     steps:
       - name: Checkout authoritative main
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+        with: {fetch-depth: 0}
       - name: Verify one-branch policy
-        shell: bash
         run: |
           set -Eeuo pipefail
           test "$(git branch --show-current)" = main
           test -z "$(git status --porcelain)"
-
+          test "$(git branch -r | grep -v 'origin/HEAD' | wc -l)" -eq 1
       - name: Install host dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin qemu-system-x86 ovmf gdisk dosfstools e2fsprogs util-linux rsync python3 python3-pip gnupg
-
       - name: Install Python test dependencies
         run: python3 -m pip install --break-system-packages pytest pyyaml
-
       - name: Run current-main regression
         run: bash AUDIT/run-host-regression.sh
-
       - name: Run disaster safety contracts
         run: bash AUDIT/run-disaster-simulations.sh
-
+      - name: Create ephemeral CI signing key
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cat > /tmp/dairyos-gpg.conf <<EOF
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 3072
+          Name-Real: DairyOS CI Release
+          Name-Email: ci@dairyos.invalid
+          Expire-Date: 1d
+          EOF
+          gpg --batch --generate-key /tmp/dairyos-gpg.conf
+          key="$(gpg --batch --list-secret-keys --with-colons ci@dairyos.invalid | awk -F: '$1=="sec"{print $5; exit}')"
+          test -n "$key"
+          echo "DAIRYOS_SIGNING_KEY=$key" >> "$GITHUB_ENV"
       - name: Build actual DairyOS ISO
         env:
           OUT_DIR: ${{ github.workspace }}/dist/os
           WORK_DIR: /var/tmp/dairyos-os-build
-          DAIRYOS_ALLOW_UNSIGNED: "true"
-        run: |
-          sudo -E bash os/build/build-iso.sh
-
-      - name: Verify ISO structure and checksum
+        run: sudo -E bash os/build/build-iso.sh
+      - name: Verify ISO structure, checksum and signatures
         run: |
           set -Eeuo pipefail
           ISO="dist/os/dairyos-trixie-amd64.iso"
           test -s "$ISO"
           sha256sum -c "$ISO.sha256"
+          gpg --batch --verify "$ISO.asc" "$ISO"
+          test -s dist/os/SHA256SUMS
+          test -s dist/os/SHA256SUMS.asc
+          gpg --batch --verify dist/os/SHA256SUMS.asc dist/os/SHA256SUMS
           xorriso -indev "$ISO" -report_el_torito plain -report_system_area plain
           file "$ISO"
-
       - name: Boot ISO in disposable UEFI VM
         run: |
           set -Eeuo pipefail
           ISO="dist/os/dairyos-trixie-amd64.iso"
           timeout 90s qemu-system-x86_64 -accel tcg -m 2048 -smp 2 -bios /usr/share/OVMF/OVMF_CODE_4M.fd -cdrom "$ISO" -display none -serial stdio -no-reboot -no-shutdown > dist/os/qemu-uefi.log 2>&1 || true
           grep -Eiq 'DairyOS|GNU GRUB|Linux|Debian' dist/os/qemu-uefi.log
-
+      - name: Attest ISO artifact
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/os/dairyos-trixie-amd64.iso
       - name: Package build evidence
         if: always()
         run: |
@@ -74,7 +84,6 @@ jobs:
           cp dist/os/*.sha256 dist/evidence/ 2>/dev/null || true
           cp dist/os/qemu-uefi.log dist/evidence/ 2>/dev/null || true
           git rev-parse HEAD > dist/evidence/commit.txt
-
       - name: Upload ISO and evidence
         if: success()
         uses: actions/upload-artifact@v4
