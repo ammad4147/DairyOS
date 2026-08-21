@@ -345,7 +345,7 @@ function MainAppShell() {
                     {animals.map((a) => (
                       <tr key={a.id} style={{ borderBottom: '1px solid #1a2234' }}>
                         <td style={{ padding: '10px 14px' }}>
-                          <button onClick={() => setSelectedPassportAnimalId(a.id)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '12px', textDecoration: 'underline' }} title={Tag: \}>
+                          <button onClick={() => setSelectedPassportAnimalId(a.id)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '12px', textDecoration: 'underline' }} title={"Tag: " + a.earTag}>
                             {a.id}
                           </button>
                         </td>

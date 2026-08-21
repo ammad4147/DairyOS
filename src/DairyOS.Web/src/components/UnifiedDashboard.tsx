@@ -54,7 +54,6 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const filteredYieldTrend = useMemo(() => {
     let sourceData = data?.yieldTrend;
     if (!sourceData || !Array.isArray(sourceData) || sourceData.length === 0) {
-      // 30-day fallback data so dropdown filters work correctly
       sourceData = [
         { yield: 120 }, { yield: 122 }, { yield: 119 }, { yield: 125 }, { yield: 128 },
         { yield: 130 }, { yield: 129 }, { yield: 131 }, { yield: 135 }, { yield: 133 },
@@ -99,11 +98,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
   const yesterdayLiters = Number(data?.yesterdayLiters) || 128.4;
 
-  // Evaluate Farm Yield Color Status based on drop criteria
   const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
-  let todayYieldColor = '#34d399'; // Default Green (within limits)
-  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444'; // Red
-  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b'; // Amber
+  let todayYieldColor = '#34d399';
+  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444';
+  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b';
 
   const rawHerd = data?.herdComposition || [];
   const findCount = (nameKeywords: string[]) => {
@@ -198,9 +196,9 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                           <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="dayIndex" stroke="#64748b" tick={{ fontSize: 8 }} interval={0} tickFormatter={(val) => D} />
+                      <XAxis dataKey="dayIndex" stroke="#64748b" tick={{ fontSize: 8 }} interval={0} tickFormatter={(val) => "D" + val} />
                       <YAxis stroke="#64748b" tick={{ fontSize: 8 }} domain={['auto', 'auto']} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => Day } />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => "Day " + val} />
                       <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -221,14 +219,14 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                     <div style={{ fontSize: '10px', color: '#34d399', textAlign: 'center', padding: '12px 0' }}>✓ No active yield drop warnings</div>
                   ) : (
                     activeDropAlerts.map((item: any) => (
-                      <div key={item.id} onClick={() => handleOpenDropComparison(item.animalId || 'TD-004', item.title)} style={{ background: '#161f30', borderLeft: 3px solid , padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} title="View comparison">
+                      <div key={item.id} onClick={() => handleOpenDropComparison(item.animalId || 'TD-004', item.title)} style={{ background: '#161f30', borderLeft: item.currentLevel === 'RED' ? '3px solid #ef4444' : '3px solid #f59e0b', padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} title="View comparison">
                         {item.animalId && (
                           <button onClick={(e) => { e.stopPropagation(); openPassportHandler(item.animalId!); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '11px', textDecoration: 'underline' }}>
                             #{item.animalId}
                           </button>
                         )}
                         <span style={{ color: item.currentLevel === 'RED' ? '#ef4444' : '#f59e0b', fontSize: '11px', fontWeight: 'bold' }}>
-                          {item.dropPercent ? ${item.dropPercent}% : (item.title?.match(/\d+(\.\d+)?%/) ? item.title.match(/\d+(\.\d+)?%/)[0] : 'Drop')}
+                          {item.dropPercent ? (item.dropPercent + '%') : (item.title?.match(/\d+(\.\d+)?%/) ? item.title.match(/\d+(\.\d+)?%/)[0] : 'Drop')}
                         </span>
                       </div>
                     ))
@@ -319,7 +317,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
             </div>
           </div>
 
-          {/* REPRODUCTIVE HEALTH (Added Conception Ratio) */}
+          {/* REPRODUCTIVE HEALTH */}
           <div className="cmd-card" style={{ flex: '0.85', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate && onNavigate('breeding')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', marginBottom: '6px' }}>
               <Activity size={15} /> <span>Reproductive Health</span>
