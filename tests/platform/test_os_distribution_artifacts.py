@@ -23,6 +23,7 @@ def test_os_manifest_targets_debian_trixie_amd64_and_safe_installer_mode():
     assert manifest["security"]["installer_default_mode"] == "dry-run"
     assert manifest["security"]["require_target_device"] is True
     assert manifest["security"]["require_apply_switch"] is True
+    assert manifest["network"]["offline_mirror"]["security_path"] == "/debian-security"
 
 
 def test_partition_manifest_preserves_efi_bios_root_log_swap_and_farm_data():
