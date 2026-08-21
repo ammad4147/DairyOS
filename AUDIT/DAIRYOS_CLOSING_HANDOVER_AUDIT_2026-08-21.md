@@ -6,92 +6,76 @@ Repository: `ammad4147/DairyOS`
 
 Authoritative remote branch: `main`
 
-Audit checkpoint: `7b327267ed083a71d18c199448d036a18f0795cc`
+Current audited tip: `de18f0d47ce7a399550f2151a3ba53872c5159e3`
 
-The former `recovery/g3-1-compatible` checkpoint from the earlier handover record is no longer a remote branch. GitHub currently exposes only `main`.
+GitHub currently exposes one remote branch: `main`.
 
 ## Phase 0 — Artifact inventory
 
 **Gate: PASS at source level.**
 
-The current `main` tree contains the OS distribution layer required to continue the audit:
+The tree contains the Debian trixie amd64 manifest, GPT partition definition, UEFI/legacy-BIOS GRUB configuration, installer, rollback/purge, unattended preseed, first-boot services, LAN Debian/security mirror tooling, PXE/iPXE configuration, ISO build, application staging, release signing, and OS contract tests.
 
-- Debian 13/trixie amd64 target manifest
-- GPT partition definition
-- GRUB UEFI and legacy-BIOS configuration
-- bare-metal installer and rollback/teardown scripts
-- unattended Debian preseed
-- first-boot provisioning and systemd units
-- local Debian main/security mirror tooling and PXE/iPXE configuration
-- ISO build, application staging and release-manifest tooling
-- OS artifact contract tests
-
-Source-level presence is not equivalent to release acceptance.
+A formal acceptance matrix, host regression harness, disaster-safety harness, and release verifier are now also present under `AUDIT/`.
 
 ## Phase 1 — Lifecycle/code wiring
 
-### Findings addressed in this checkpoint
+The following defects were corrected during the closing work:
 
-**F-OS-001 — CRITICAL — Release target mismatch**
-
-The OS manifest declared Debian trixie while the ISO builder and installer previously used bookworm. Both now consume trixie, and the OS contract tests enforce the alignment.
-
-**F-OS-002 — CRITICAL — GPT legacy-BIOS boot gap**
-
-The GPT layout previously lacked a BIOS boot partition while the installer invoked `grub-install --target=i386-pc`. A 2 MiB BIOS boot partition is now encoded in the manifest and sfdisk layout; the unattended preseed contains the corresponding `method{ biosgrub }` partition.
-
-**F-OS-003 — CRITICAL — PXE mirror WAN leakage**
-
-The preseed enabled security updates but the local mirror only represented the main Debian archive. The mirror helper now synchronizes Debian security content to `/debian-security`, nginx serves it, and the preseed points `apt-setup/security_host` to the farm LAN mirror.
-
-**F-OS-004 — CRITICAL — Install failure handler was destructive**
-
-The prior installer error trap attempted to write random data to the first target partition and wipe the target disk on failure. That was not a safe rollback mechanism and could destroy evidence or data during an interrupted installation. The installer now records recovery state and performs cleanup without automatic randomization/wipe on failure.
-
-**F-OS-005 — MAJOR — Teardown partition handling**
-
-The purge helper previously used the wrong NVMe/MMC partition suffix and disabled all host swap. It now resolves the persistent data partition as p6 after the BIOS partition addition, resolves the target swap partition separately, unmounts target mounts first, and never calls `swapoff -a`.
-
-**F-OS-006 — MAJOR — Release signature enforcement**
-
-The release manifest helper previously permitted unsigned output by default despite the manifest requiring a detached signature. Release generation now fails closed unless `DAIRYOS_SIGNING_KEY` is supplied; unsigned output requires an explicit development-only `DAIRYOS_ALLOW_UNSIGNED=true` override.
+- Debian release mismatch between manifest and build/installer: aligned on trixie.
+- GPT legacy-BIOS boot gap: added BIOS boot partition and matching preseed.
+- Offline security mirror leakage: security archive is routed through the LAN mirror.
+- Destructive installer failure trap: replaced with recorded recovery state and non-destructive failure handling.
+- Purge NVMe/MMC partition addressing: corrected for p5 swap and p6 data.
+- Purge global `swapoff -a`: removed; only target swap is disabled.
+- Release signing: ISO and SHA256 manifest detached signatures are generated and self-verified when a signing key is supplied; unsigned output requires explicit development override.
+- Release ISO builder: now fails if a signed release ISO is not produced.
+- Closing acceptance harness: added reproducible regression, disaster-contract, release-verification, checksum, signature, and ISO inspection tooling.
 
 ## Phase 2 — Hardware/veterinary environment
 
-**Gate: OPEN.**
+**Gate: OPEN — execution required.**
 
-Repository source contains USB/serial udev rules for a parlor PLC and RFID scanner plus a touchscreen rule, but no executed hardware matrix was found proving RFID, scale-meter, parlor-gateway, storage, power-loss or peripheral recovery behavior on designated farm hardware.
-
-Static udev configuration is evidence of intent, not hardware compatibility acceptance.
+Static configuration exists for farm peripherals, but source inspection cannot prove physical RFID, scale-meter, parlor PLC/gateway, USB/serial, storage, or power-recovery compatibility. These require designated hardware execution and evidence capture.
 
 ## Phase 3 — Disaster simulations
 
-**Gate: OPEN.**
+**Gate: OPEN — execution required.**
 
-The repository contains safe temporary-directory disaster simulations. They explicitly do not exercise real disks, firmware/NVRAM, PXE hardware, or an actual interrupted partition transaction. Therefore:
+The repository now has static safety contracts for all three scenarios, but those are not substitutes for real tests:
 
-- Scenario A power loss during real partition writing: **NOT PROVEN**
-- Scenario B air-gapped PXE installation with WAN physically unavailable: **NOT PROVEN**
-- Scenario C physical teardown with bootloader/NVRAM/partition verification: **NOT PROVEN**
+- Scenario A: actual interruption during partition/filesystem writing — not physically proven.
+- Scenario B: WAN physically disconnected during PXE/installation — not physically proven.
+- Scenario C: real teardown including EFI NVRAM and partition-table verification — not physically proven.
 
-## Regression status
+The purge implementation now explicitly refuses a target containing the running host's root/boot mounts and does not disable unrelated host swap.
 
-Static OS contract coverage has been expanded to enforce release alignment, GPT BIOS boot support, local security mirroring, recovery-safe installer behavior, and storage-aware purge behavior.
+## Regression and actual ISO build
 
-A full current-`main` backend/frontend regression and real ISO build were **not executable through the available repository connector in this audit session**. The prior handover record's `1,631 passed / 1 skipped` result belongs to the earlier `recovery/g3-1-compatible` checkpoint and must not be represented as validation of the current `main` tree.
+A GitHub Actions release workflow is now part of `main` and is triggered on pushes to `main` and manually. It:
 
-No current GitHub Actions run was available for the audited tip through the available workflow-run interface.
+1. enforces the one-branch policy;
+2. installs Live-Build, Debian bootstrap, GRUB, QEMU/OVMF and test dependencies;
+3. runs the current-main Python regression suite;
+4. runs disaster-safety contracts;
+5. creates a short-lived CI GPG signing key;
+6. builds the **actual `dairyos-trixie-amd64.iso`** using `os/build/build-iso.sh`;
+7. verifies SHA-256 and detached signatures;
+8. inspects ISO El Torito/system-area metadata;
+9. boots the ISO in a disposable UEFI QEMU VM;
+10. generates a GitHub build-provenance attestation; and
+11. uploads the ISO and evidence bundle.
 
-## Local reconciliation status
+The workflow is intended to provide the missing executable ISO-build evidence at the end of the audit. The available connector currently reports no workflow run for the audited commit, so a successful build cannot yet be claimed from this session.
+
+## Local reconciliation
 
 **BLOCKING — NOT VERIFIED.**
 
-The requested local repository `D:\DairyOS` could not be accessed from this execution environment. The uploaded handover record describes a local checkout at the old `recovery/g3-1-compatible` commit, while GitHub currently has only `main` and its tip is `7b327267ed083a71d18c199448d036a18f0795cc`.
+The Windows path `D:\DairyOS` is outside this execution environment. The required final local operation is to fetch `origin/main`, inspect local divergence, switch to `main`, hard-reset to `origin/main`, remove untracked build artifacts if safe, and verify an empty working tree. The local `HEAD` must equal the current remote `main` tip exactly.
 
-Therefore local/remote byte identity cannot honestly be certified from this session. The local checkout must be fetched to `origin/main`, its uncommitted changes inspected, and its final SHA verified against the authoritative `main` tip before handover.
+## Release disposition
 
-## Current conclusion
+**NOT ACCEPTED FOR RELEASE YET.**
 
-DairyOS has a materially complete **source-level OS distribution layer**, and several release-blocking implementation defects discovered during this closing audit have been corrected.
-
-The system is **NOT ACCEPTED FOR RELEASE** yet because execution evidence remains missing for the real ISO build, signed artifact verification, UEFI/legacy-BIOS boot, disposable VM installation, physical hardware compatibility, air-gapped PXE deployment, power-loss recovery, physical teardown/NVRAM cleanup, full current-main regression, and local repository reconciliation.
+Source defects found during the closing audit have been addressed and the actual-build automation is now in place. Formal acceptance still requires successful execution evidence for the current `main`, including the actual ISO build, UEFI/legacy-BIOS boot, full regression, air-gapped deployment, power-loss recovery, physical teardown/NVRAM cleanup, farm hardware matrix, and final `D:\DairyOS` reconciliation.
