@@ -10,6 +10,7 @@ RECOVERY_DIR="/var/lib/dairyos-installer"
 RECOVERY_STATE=""
 PARTITIONING_STARTED=false
 INSTALL_COMMITTED=false
+PT_BACKUP_FILE=""   # will hold path to backup partition table
 
 cleanup_mounts() {
   umount -R "$MOUNT_ROOT" 2>/dev/null || true
@@ -26,6 +27,7 @@ DairyOS installer recovery state
 Target=${TARGET_DEVICE}
 Phase=${phase}
 Committed=${INSTALL_COMMITTED}
+PT_BACKUP=${PT_BACKUP_FILE}
 Timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 STATE
 }
@@ -38,6 +40,11 @@ install_failed() {
     if [[ -n "$TARGET_DEVICE" ]]; then
       write_recovery_state "failed"
       echo "Recovery state: $RECOVERY_STATE" >&2
+      # Attempt to restore partition table if backup exists
+      if [[ -n "$PT_BACKUP_FILE" && -f "$PT_BACKUP_FILE" ]]; then
+        echo "Attempting to restore original partition table from $PT_BACKUP_FILE ..."
+        sfdisk "$TARGET_DEVICE" < "$PT_BACKUP_FILE" 2>/dev/null || echo "Restore failed; manual intervention required."
+      fi
     fi
     cleanup_mounts
   fi
@@ -85,8 +92,9 @@ require_cmds() {
 validate_target() {
   [[ -n "$TARGET_DEVICE" ]] || { echo "ERROR: --target-device is required." >&2; exit 22; }
   [[ -b "$TARGET_DEVICE" ]] || { echo "ERROR: target is not a block device: $TARGET_DEVICE" >&2; exit 23; }
+  # Allow any /dev/sd[a-z], /dev/nvme[0-9]n[0-9], /dev/vd[a-z], /dev/xvd[a-z]
   case "$TARGET_DEVICE" in
-    /dev/sda|/dev/sdb|/dev/sdc|/dev/nvme0n1|/dev/vda|/dev/xvda) ;;
+    /dev/sd[a-z]|/dev/nvme[0-9]n[0-9]|/dev/vd[a-z]|/dev/xvd[a-z]) ;;
     *) echo "ERROR: target device is outside approved appliance names: $TARGET_DEVICE" >&2; exit 24 ;;
   esac
   local size_bytes
@@ -106,6 +114,11 @@ validate_mirror() {
     file:///*)
       local path="${DEBIAN_MIRROR#file://}"
       [[ -d "$path" ]] || { echo "ERROR: offline Debian mirror not found: $path" >&2; exit 27; }
+      # Verify mirror contains required Release file
+      if [[ ! -f "$path/dists/trixie/Release" ]]; then
+        echo "ERROR: mirror does not contain a valid Debian release (dists/trixie/Release missing)." >&2
+        exit 29
+      fi
       ;;
     https://*|http://*)
       echo "WARNING: connected mirror selected: $DEBIAN_MIRROR" >&2
@@ -143,6 +156,14 @@ apply_install() {
   install -m 0600 /dev/null /var/lock/dairyos-install.lock
   write_recovery_state "validated"
   touch "$MOUNT_ROOT/.install-in-progress"
+
+  # Backup original partition table before wipe
+  PT_BACKUP_FILE="${RECOVERY_DIR}/${TARGET_DEVICE##*/}.pt-backup"
+  mkdir -p "$RECOVERY_DIR"
+  sfdisk -d "$TARGET_DEVICE" > "$PT_BACKUP_FILE" 2>/dev/null || {
+    echo "WARNING: could not back up original partition table." >&2
+    PT_BACKUP_FILE=""
+  }
 
   write_recovery_state "partitioning"
   PARTITIONING_STARTED=true

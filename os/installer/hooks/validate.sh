@@ -27,6 +27,30 @@ else
   fail '/etc/fstab missing'
 fi
 
+# Check PostgreSQL database and role
+if command -v runuser >/dev/null 2>&1 && command -v psql >/dev/null 2>&1; then
+  # Ensure postgresql service is running
+  systemctl is-active postgresql >/dev/null 2>&1 || systemctl start postgresql
+  if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='dairyos'" | grep -q 1; then
+    pass "database role 'dairyos' exists"
+  else
+    fail "database role 'dairyos' does not exist"
+  fi
+  if runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='dairyos'" | grep -q 1; then
+    pass "database 'dairyos' exists"
+  else
+    fail "database 'dairyos' does not exist"
+  fi
+else
+  fail "postgresql or psql not available for database checks"
+fi
+
+if [[ -f /etc/dairyos/dairyos.env ]]; then
+  pass "environment file exists"
+else
+  fail "/etc/dairyos/dairyos.env missing"
+fi
+
 if [[ "$errors" -gt 0 ]]; then
   echo "Validation failed with $errors error(s)." >&2
   exit 2
