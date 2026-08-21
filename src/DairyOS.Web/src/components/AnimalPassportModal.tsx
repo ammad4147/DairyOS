@@ -1,11 +1,11 @@
 ﻿import React, { useState } from 'react';
-import { 
-  X, Award, Milk, HeartPulse, Activity, Wheat, 
-  Calendar, FileText, CheckCircle2, AlertTriangle, 
+import {
+  X, Award, Milk, HeartPulse, Activity, Wheat,
+  Calendar, FileText, CheckCircle2, AlertTriangle,
   TrendingUp, Dna, ShieldCheck, Stethoscope, Clock,
   LogOut, DollarSign, Skull, Archive
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid, ReferenceLine } from 'recharts';
 
 interface PassportProps {
   animalId: string;
@@ -66,14 +66,28 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const yieldHistory = [
-    { day: 'D10', yield: 24.5 },
-    { day: 'D30', yield: 34.0 },
-    { day: 'D60', yield: 44.5 },
-    { day: 'D90', yield: 41.2 },
-    { day: 'D120', yield: 38.5 },
-    { day: 'D150', yield: 36.0 },
-    { day: 'D180', yield: 33.5 },
+  const lactationTelemetryData = [
+    { dim: 10, actual: 24.5, woodsStandard: 23.8 },
+    { dim: 30, actual: 34.0, woodsStandard: 35.2 },
+    { dim: 60, actual: 44.5, woodsStandard: 43.1 },
+    { dim: 90, actual: 41.2, woodsStandard: 40.5 },
+    { dim: 120, actual: 38.5, woodsStandard: 37.8 },
+    { dim: 150, actual: 36.0, woodsStandard: 35.1 },
+    { dim: 180, actual: null, woodsStandard: 32.4 },
+    { dim: 210, actual: null, woodsStandard: 29.8 },
+    { dim: 240, actual: null, woodsStandard: 27.2 },
+    { dim: 270, actual: null, woodsStandard: 24.5 },
+    { dim: 305, actual: null, woodsStandard: 21.0 },
+  ];
+
+  const growthTelemetryData = [
+    { ageMonths: 0, actualWeight: 40, targetWeight: 40 },
+    { ageMonths: 2, actualWeight: 88, targetWeight: 88 },
+    { ageMonths: 4, actualWeight: 138, targetWeight: 136 },
+    { ageMonths: 6, actualWeight: 185, targetWeight: 184 },
+    { ageMonths: 9, actualWeight: 260, targetWeight: 256 },
+    { ageMonths: 12, actualWeight: 335, targetWeight: 328 },
+    { ageMonths: 14, actualWeight: 380, targetWeight: 375 },
   ];
 
   const handleSave = (e: React.FormEvent) => {
@@ -105,7 +119,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
       <div style={{ background: '#111827', border: isArchived ? '2px solid #ef4444' : '1px solid #374151', borderRadius: '12px', width: '100%', maxWidth: '870px', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)' }}>
-        
+
         {/* TOP DOSSIER BANNER */}
         <div style={{ padding: '14px 20px', background: isArchived ? '#3f1515' : '#161f30', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -142,37 +156,37 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
 
         {/* PASSPORT NAVIGATION TABS */}
         <div style={{ display: 'flex', background: '#0f172a', borderBottom: '1px solid #1f2937', padding: '0 10px', overflowX: 'auto' }}>
-          <button 
+          <button
             onClick={() => setActiveTab('OVERVIEW')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'OVERVIEW' ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeTab === 'OVERVIEW' ? '2px solid #38bdf8' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <FileText size={14} /> Profile & Pedigree
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('MILK')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'MILK' ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeTab === 'MILK' ? '2px solid #38bdf8' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <Milk size={14} /> Milking & Yield Curve
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('BREEDING')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'BREEDING' ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeTab === 'BREEDING' ? '2px solid #38bdf8' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <Activity size={14} /> Breeding & Gestation
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('HEALTH')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'HEALTH' ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeTab === 'HEALTH' ? '2px solid #38bdf8' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <HeartPulse size={14} /> Health Ledger
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('FEED')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'FEED' ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeTab === 'FEED' ? '2px solid #38bdf8' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <Wheat size={14} /> Nutrition & FCE
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('EXIT')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', color: activeTab === 'EXIT' ? (isArchived ? '#f87171' : '#fb923c') : (isArchived ? '#ef4444' : '#94a3b8'), border: 'none', borderBottom: activeTab === 'EXIT' ? '2px solid #ef4444' : 'none', padding: '12px 14px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
@@ -182,7 +196,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
 
         {/* TAB CONTENT AREA */}
         <form onSubmit={handleSave} style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
+
           {/* 1. OVERVIEW & PEDIGREE */}
           {activeTab === 'OVERVIEW' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -264,6 +278,26 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                   <input type="number" step="0.25" value={bcsScore} onChange={e => setBcsScore(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '7px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold', boxSizing: 'border-box', marginTop: '4px' }} />
                 </div>
               </div>
+
+              {/* Youngstock Growth Trajectory */}
+              <div style={{ background: '#1e293b', padding: '14px', borderRadius: '8px', marginTop: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
+                  Growth & Target ADG Model
+                </div>
+                <div style={{ height: '140px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={growthTelemetryData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="ageMonths" stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <YAxis stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ background: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
+                      <ReferenceLine y={360} stroke="#38bdf8" strokeDasharray="3 3" />
+                      <Line type="monotone" dataKey="targetWeight" stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={2} dot={false} name="Target" />
+                      <Area type="monotone" dataKey="actualWeight" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.15} strokeWidth={2} name="Actual" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           )}
 
@@ -277,9 +311,9 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>Milking Modality</label>
-                    <select 
-                      value={milkingModality} 
-                      onChange={e => setMilkingModality(e.target.value as any)} 
+                    <select
+                      value={milkingModality}
+                      onChange={e => setMilkingModality(e.target.value as any)}
                       style={{ width: '100%', background: '#0f172a', color: '#38bdf8', border: '1px solid #38bdf8', padding: '8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}
                     >
                       <option value="TWICE_DAILY">Twice Daily (2x Daily)</option>
@@ -309,18 +343,14 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 </div>
                 <div style={{ height: '140px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={yieldHistory} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="pColor" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.6}/>
-                          <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
+                    <ComposedChart data={lactationTelemetryData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="dim" stroke="#64748b" tick={{ fontSize: 10 }} />
                       <YAxis stroke="#64748b" tick={{ fontSize: 10 }} />
                       <Tooltip contentStyle={{ background: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
-                      <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#pColor)" />
-                    </AreaChart>
+                      <Line type="monotone" dataKey="woodsStandard" stroke="#94a3b8" strokeDasharray="4 4" strokeWidth={2} dot={false} name="Wood's Standard" />
+                      <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} name="Actual Yield" />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -421,9 +451,9 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 'bold' }}>Lifecycle / Depletion Status</label>
-                    <select 
-                      value={lifecycleStatus} 
-                      onChange={e => setLifecycleStatus(e.target.value as any)} 
+                    <select
+                      value={lifecycleStatus}
+                      onChange={e => setLifecycleStatus(e.target.value as any)}
                       style={{ width: '100%', background: '#0f172a', color: lifecycleStatus === 'ACTIVE' ? '#34d399' : '#f87171', border: `1px solid ${lifecycleStatus === 'ACTIVE' ? '#334155' : '#ef4444'}`, padding: '8px', borderRadius: '4px', fontSize: '13px', fontWeight: 'bold' }}
                     >
                       <option value="ACTIVE">Active in Herd (Milking / Growing)</option>

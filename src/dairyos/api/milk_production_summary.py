@@ -17,6 +17,14 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
     MilkProductionTrendIntelligenceService,
 )
 
+
+
+def _clean_kpi_num(val):
+    if val is None:
+        return None
+    r = round(float(val), 2)
+    return int(round(r)) if abs(r - round(r)) < 0.0001 else r
+
 router = APIRouter(prefix="/farm/milk", tags=["Milk Production"])
 
 _PERIOD_LABELS = {
@@ -674,21 +682,11 @@ def milk_production_summary(
                 "days": days,
             },
             "kpis": {
-                "total_production_liters": (
-                    current["total_liters"]
-                ),
-                "average_per_day_liters": (
-                    current["average_liters_per_day"]
-                ),
-                "average_per_cow_liters": (
-                    current["average_liters_per_cow"]
-                ),
-                "morning_liters": (
-                    current["morning_liters"]
-                ),
-                "evening_liters": (
-                    current["evening_liters"]
-                ),
+                "total_production_liters": _clean_kpi_num(current["total_liters"]),
+                "average_per_day_liters": _clean_kpi_num(current["average_liters_per_day"]),
+                "average_per_cow_liters": _clean_kpi_num(current["average_liters_per_cow"]),
+                "morning_liters": _clean_kpi_num(current["morning_liters"]),
+                "evening_liters": _clean_kpi_num(current["evening_liters"]),
                 "open_drop_findings": len(
                     open_findings
                 ),

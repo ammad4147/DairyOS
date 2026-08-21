@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { Activity, Plus, Search, Calendar, CheckCircle2, Award, Heart, Sparkles } from 'lucide-react';
+import { Activity, Plus, Search, AlertTriangle, Calendar, CheckCircle2, Award, Heart, Sparkles } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 
 interface BreedingTabProps {
