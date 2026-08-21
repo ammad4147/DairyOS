@@ -1,0 +1,81 @@
+﻿
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# DairyOS generated files
+DairyOS_Project_Structure_Audit.txt
+RepositoryTree.txt
+RepositoryTree_ASCII.txt
+
+# Runtime database files
+*.db
+
+# Database backups
+backups/
+
+# Local SQLite database (not version controlled)
+dairyos.db
+
+# Legacy recovery archive
+dairyos_legacy_root/
+
+# Canonical source-tree guardrail
+# The authoritative Python package lives under src/dairyos.
+# Do not allow recovered root-level scaffolding back into the working tree.
+/dairyos/
+
+src/DairyOS.Web/node_modules/
+.aider*
+
+# Sprint-038 temporary persistence audit artifacts
+_sprint038_persistence_audit/
+
+data/storage/*.json
+
+.dairyo-reconciliation/
+
+.dairyo-reconciliation/
+
+reports/

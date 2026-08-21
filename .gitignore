@@ -79,3 +79,77 @@ data/storage/*.json
 .dairyo-reconciliation/
 
 reports/
+
+
+# === DAIRY OS FORENSIC CLEANUP — AUTO-GENERATED ===
+
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+
+# Build / dist artifacts
+dist/
+build/
+*.egg-info/
+*.iso
+*.img
+
+# Node.js / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.map
+
+# AI dump / export files (orphan bloat)
+DairyOS_Audit_Payload.txt
+DairyOS_Context.txt
+DairyOS_Part1.txt
+DairyOS_QA_Export.txt
+DairyOS_Remediation_Export.txt
+dairyos_inspect.txt
+*_Export.txt
+*_Payload.txt
+*_Context.txt
+
+# Temporary / reconciliation folders
+_to_delete/
+.dairyo-reconciliation/
+_local_reconciliation/
+remediation-backups/
+audit-results/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
