@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 MODE="dry-run"
@@ -6,20 +6,45 @@ TARGET_DEVICE=""
 MOUNT_ROOT="/mnt/dairyos"
 MANIFEST_DIR="/opt/dairyos-os"
 DEBIAN_MIRROR="file:///srv/dairyos-debian"
+RECOVERY_DIR="/var/lib/dairyos-installer"
+RECOVERY_STATE=""
+PARTITIONING_STARTED=false
+INSTALL_COMMITTED=false
 
-# --- DAIRYOS ATOMIC FAIL-SAFE TRAP ---
+cleanup_mounts() {
+  umount -R "$MOUNT_ROOT" 2>/dev/null || true
+  rm -f /var/lock/dairyos-install.lock 2>/dev/null || true
+}
+
+write_recovery_state() {
+  local phase="$1"
+  mkdir -p "$RECOVERY_DIR"
+  RECOVERY_STATE="$RECOVERY_DIR/${TARGET_DEVICE##*/}.state"
+  umask 077
+  cat > "$RECOVERY_STATE" <<STATE
+DairyOS installer recovery state
+Target=${TARGET_DEVICE}
+Phase=${phase}
+Committed=${INSTALL_COMMITTED}
+Timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+STATE
+}
+
 install_failed() {
   local exit_code=$?
-  if [[ ! -f "$MOUNT_ROOT/.dairyos-install-committed" ]]; then
-    echo "CRITICAL: Installation interrupted or failed (Code: $exit_code)." >&2
-    echo "Executing atomic rollback: Scrambling EFI partition to prevent bricked boot..." >&2
-    umount -R "$MOUNT_ROOT" 2>/dev/null || true
-    dd if=/dev/urandom of="${TARGET_DEVICE}1" bs=1M count=10 status=none || true
-    wipefs -a "$TARGET_DEVICE" || true
-    echo "Node safely reset for retry."
+  if (( exit_code != 0 )) && [[ "$INSTALL_COMMITTED" != true ]]; then
+    echo "CRITICAL: installation interrupted or failed (code: $exit_code)." >&2
+    echo "The target disk is NOT automatically randomized or wiped." >&2
+    if [[ -n "$TARGET_DEVICE" ]]; then
+      write_recovery_state "failed"
+      echo "Recovery state: $RECOVERY_STATE" >&2
+    fi
+    cleanup_mounts
   fi
+  return "$exit_code"
 }
-trap 'install_failed' ERR EXIT
+trap install_failed ERR
+trap cleanup_mounts EXIT
 
 usage() {
   cat <<'EOF'
@@ -29,9 +54,9 @@ Safe default: dry-run. No disk is modified unless all of the following are true:
   --apply
   --target-device /dev/...
 
-Offline deployment is the default: the Debian base repository is expected at
-file:///srv/dairyos-debian. A connected installation may override the mirror
-explicitly with --debian-mirror https://deb.debian.org/debian.
+Offline deployment is the default: the Debian 13 (trixie) base repository is
+expected at file:///srv/dairyos-debian. A connected installation may override
+the mirror explicitly with --debian-mirror https://deb.debian.org/debian.
 
 Options:
   --target-device DEVICE   Entire target disk, e.g. /dev/sda or /dev/nvme0n1
@@ -105,6 +130,7 @@ run_dry_run() {
   echo "DairyOS installer DRY RUN"
   echo "Target: ${TARGET_DEVICE:-<not supplied>}"
   echo "Debian mirror: $DEBIAN_MIRROR"
+  echo "Target release: trixie"
   echo "Partition manifest: ${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
   echo "No disk, filesystem, bootloader, or NVRAM changes will be made."
 }
@@ -115,13 +141,16 @@ apply_install() {
   local committed="${MOUNT_ROOT}/.dairyos-install-committed"
   mkdir -p "$MOUNT_ROOT"
   install -m 0600 /dev/null /var/lock/dairyos-install.lock
+  write_recovery_state "validated"
   touch "$MOUNT_ROOT/.install-in-progress"
-  trap 'rm -f /var/lock/dairyos-install.lock; umount -R "$MOUNT_ROOT" 2>/dev/null || true' EXIT
 
+  write_recovery_state "partitioning"
+  PARTITIONING_STARTED=true
   wipefs -a "$TARGET_DEVICE"
   sfdisk "$TARGET_DEVICE" < "${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
   partprobe "$TARGET_DEVICE"
 
+  write_recovery_state "filesystems"
   mkfs.vfat -F32 -n DAIRYOS-EFI "$EFI_PART"
   mkfs.ext4 -L DAIRYOS-ROOT "$ROOT_PART"
   mkfs.ext4 -L DAIRYOS-LOG "$LOG_PART"
@@ -129,16 +158,17 @@ apply_install() {
   mkfs.ext4 -L DAIRYOS-DATA "$DATA_PART"
 
   mount "$ROOT_PART" "$MOUNT_ROOT"
-  mkdir -p "$MOUNT_ROOT/boot/efi" "$MOUNT_ROOT/var/log" "$MOUNT_ROOT/var/lib/dairyos"
+  mkdir -p "$MOUNT_ROOT/boot/efi" "$MOUNT_ROOT/var/log" "$MOUNT_ROOT/var/log/dairyos" "$MOUNT_ROOT/var/lib/dairyos"
   mount "$EFI_PART" "$MOUNT_ROOT/boot/efi"
   mount "$LOG_PART" "$MOUNT_ROOT/var/log"
   mount "$DATA_PART" "$MOUNT_ROOT/var/lib/dairyos"
 
-  debootstrap --arch=amd64 bookworm "$MOUNT_ROOT" "$DEBIAN_MIRROR"
+  write_recovery_state "base-system"
+  debootstrap --arch=amd64 trixie "$MOUNT_ROOT" "$DEBIAN_MIRROR"
 
   cat > "$MOUNT_ROOT/etc/fstab" <<FSTAB
 LABEL=DAIRYOS-ROOT / ext4 defaults,errors=remount-ro 0 1
-LABEL=DAIRYOS-EFI /boot/efi vfat umask=0077 0 1
+LABEL=DAIRYOS-EFI /boot/efi vfat umask=0077 0 2
 LABEL=DAIRYOS-LOG /var/log ext4 defaults 0 2
 LABEL=DAIRYOS-DATA /var/lib/dairyos ext4 defaults 0 2
 LABEL=DAIRYOS-SWAP none swap sw 0 0
@@ -152,12 +182,13 @@ FSTAB
   mount --rbind /sys "$MOUNT_ROOT/sys"
   mount --make-rslave "$MOUNT_ROOT/sys"
 
+  write_recovery_state "packages"
   chroot "$MOUNT_ROOT" /bin/bash -c '
     set -Eeuo pipefail
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y linux-image-amd64 grub-efi-amd64 grub-pc systemd sudo ca-certificates python3 python3-venv postgresql
     systemctl enable systemd-timesyncd
-    mkdir -p /opt/dairyos-os /var/lib/dairyos/backups /var/lib/dairyos/logs /var/lib/dairyos/storage
+    mkdir -p /opt/dairyos-os /var/lib/dairyos/backups /var/lib/dairyos/logs /var/lib/dairyos/storage /var/log/dairyos
   '
 
   cp -a "$(dirname "$0")/../services" "$MOUNT_ROOT/opt/dairyos-os/"
@@ -165,6 +196,7 @@ FSTAB
   cp -a "$(dirname "$0")/../partitioning" "$MOUNT_ROOT/opt/dairyos-os/"
   cp -a "$(dirname "$0")/../boot" "$MOUNT_ROOT/opt/dairyos-os/"
 
+  write_recovery_state "bootloader"
   chroot "$MOUNT_ROOT" /bin/bash -c '
     set -Eeuo pipefail
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=DairyOS --recheck
@@ -175,7 +207,9 @@ FSTAB
 
   touch "$staged"
   rm -f "$MOUNT_ROOT/.install-in-progress"
+  INSTALL_COMMITTED=true
   touch "$committed"
+  write_recovery_state "committed"
   sync
   echo "DairyOS installation committed on ${TARGET_DEVICE}."
 }
@@ -203,4 +237,3 @@ fi
 validate_target
 validate_mirror
 apply_install
-
