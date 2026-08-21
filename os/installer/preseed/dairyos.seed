@@ -21,8 +21,9 @@ apt-setup/mirror/country string manual
 apt-setup/mirror/protocol string http
 apt-setup/mirror/http/hostname string 192.168.50.1
 apt-setup/mirror/http/directory string /debian
-apt-setup/disable-cdrom-entries boolean false
+apt-setup/security_host string 192.168.50.1
 apt-setup/services-select multiselect security, updates
+apt-setup/disable-cdrom-entries boolean false
 apt-setup/non-free boolean true
 apt-setup/contrib boolean true
 apt-setup/non-free-firmware boolean true
