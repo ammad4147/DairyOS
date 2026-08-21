@@ -211,7 +211,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                           <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="dayIndex" stroke="#64748b" tick={{ fontSize: 8 }} interval={0} tickFormatter={(val) => "D" + val} />
+                      <XAxis dataKey="dayIndex" hide={true} />
                       <YAxis stroke="#64748b" tick={{ fontSize: 8 }} domain={['auto', 'auto']} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => "Day " + val} />
                       <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" isAnimationActive={false} />
