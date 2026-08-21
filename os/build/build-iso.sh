@@ -150,6 +150,9 @@ rm -f "$FINAL" "$CHECKSUM"
 cp "$ISO" "$FINAL"
 sha256sum "$FINAL" > "$CHECKSUM"
 
+echo "=== GENERATING RELEASE MANIFEST ==="
+"$OS_ROOT/build/release-manifest.sh" "$OUT_DIR"
+
 echo ""
 echo "============================================================"
 echo " BUILD COMPLETE"
