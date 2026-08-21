@@ -7,6 +7,11 @@ type=U32-EFI
 size=1048576
 name="DairyOS EFI"
 
+# 2 MiB BIOS boot partition required for GRUB on GPT legacy-BIOS systems
+type=21686148-6449-6E6F-744E-656564454649
+size=4096
+name="DairyOS BIOS Boot"
+
 # 16 GiB root filesystem
 type=U83-Linux
 size=33554432
