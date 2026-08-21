@@ -37,8 +37,8 @@ partman-auto/method string regular
 partman-auto/choose_recipe select dairyos
 partman-auto/expert_recipe string \
     dairyos :: \
-        2 2 2 free $iflabel{ gpt } method{ biosgrub } . \
         512 512 512 fat32 $primary{ } $bootable{ } method{ efi } format{ } mountpoint{ /boot/efi } . \
+        2 2 2 free $iflabel{ gpt } method{ biosgrub } . \
         16384 16384 16384 ext4 $primary{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . \
         4096 4096 4096 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ /var/log } . \
         4096 4096 4096 linux-swap method{ swap } format{ } . \
