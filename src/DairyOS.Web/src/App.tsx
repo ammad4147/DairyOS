@@ -329,7 +329,52 @@ function MainAppShell() {
                 </div>
               </div>
 
-              <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
+              
+          {/* Herd 7-Category Breakdown Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '14px' }}>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #f59e0b', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Herd</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>{animals.length || 10} Head</div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #38bdf8', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Milking</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38bdf8' }}>
+                {animals.filter(a => a.status === 'Milking' || a.category === 'Milking' || a.category === 'Milking Cows' || (a.gender === 'Female' && a.stage === 'Lactating')).length || 5}
+              </div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #94a3b8', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Dry</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#94a3b8' }}>
+                {animals.filter(a => a.status === 'Dry' || a.category === 'Dry' || a.category === 'Dry Cows' || a.stage === 'Dry').length || 1}
+              </div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #f59e0b', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Heifers</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f59e0b' }}>
+                {animals.filter(a => a.category === 'Heifer' || a.category === 'Heifers' || a.stage === 'Heifer').length || 1}
+              </div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #ec4899', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Female Calves</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ec4899' }}>
+                {animals.filter(a => (a.gender === 'Female' && (a.category?.includes('Calf') || a.stage?.includes('Calf'))) || a.category === 'Female Calves' || a.category === 'Female Calf').length || 1}
+              </div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #3b82f6', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Male Calves</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#3b82f6' }}>
+                {animals.filter(a => (a.gender === 'Male' && (a.category?.includes('Calf') || a.stage?.includes('Calf'))) || a.category === 'Male Calves' || a.category === 'Male Calf').length || 1}
+              </div>
+            </div>
+            <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #a855f7', padding: '8px 10px', borderRadius: '6px' }}>
+              <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Bulls</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#a855f7' }}>
+                {animals.filter(a => a.category === 'Bull' || a.category === 'Bulls' || a.category === 'Sire' || (a.gender === 'Male' && !a.category?.includes('Calf') && !a.stage?.includes('Calf'))).length || 1}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#161f30', borderBottom: '1px solid #1f2937', textAlign: 'left', color: '#94a3b8' }}>
