@@ -128,6 +128,7 @@ def test_offline_build_stages_complete_application_wheelhouse():
     assert "pip install --no-index" in firstboot
     assert '"$OS_ROOT/build/stage-app.sh"' in build
     assert "app-stage/wheelhouse" in build
+    assert "release-manifest.sh" in build
 
 
 def test_bare_metal_first_boot_provisions_database_and_secrets():
@@ -155,11 +156,14 @@ def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
     assert manifest["network"]["offline_mirror"]["host"] == "192.168.50.1"
     assert "apt-setup/mirror/http/hostname string 192.168.50.1" in preseed
     assert "apt-setup/mirror/http/directory string /debian" in preseed
+    assert "apt-setup/security_host string 192.168.50.1" in preseed
     assert "method{ biosgrub }" in preseed
     assert "file:///srv/dairyos-debian" in installer
     assert "debmirror" in sync_script
+    assert "debian-security" in sync_script
     assert "/srv" in nginx
     assert "location /debian/" in nginx
+    assert "location /debian-security/" in nginx
 
 
 def test_systemd_service_uses_persistent_farm_data_path():
