@@ -11,8 +11,10 @@ case "$TARGET_DEVICE" in
 esac
 
 if [[ "$TARGET_DEVICE" == /dev/nvme* || "$TARGET_DEVICE" == /dev/mmcblk* ]]; then
+  SWAP_PART="${TARGET_DEVICE}p5"
   DATA_PART="${TARGET_DEVICE}p6"
 else
+  SWAP_PART="${TARGET_DEVICE}5"
   DATA_PART="${TARGET_DEVICE}6"
 fi
 
@@ -28,9 +30,8 @@ if command -v findmnt >/dev/null 2>&1; then
   done < <(findmnt -rn -S "$TARGET_DEVICE" -o TARGET | sort -r)
 fi
 
-if command -v swapoff >/dev/null 2>&1; then
-  swapoff "$DATA_PART" 2>/dev/null || true
-  swapoff -a 2>/dev/null || true
+if command -v swapoff >/dev/null 2>&1 && [[ -b "$SWAP_PART" ]]; then
+  swapoff "$SWAP_PART" 2>/dev/null || true
 fi
 
 if command -v efibootmgr >/dev/null 2>&1; then
