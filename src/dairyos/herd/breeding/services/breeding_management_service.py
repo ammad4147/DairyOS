@@ -18,6 +18,20 @@ class BreedingManagementService:
 
     ):
 
+        # Normalize input for robust matching
+        event_normalized = str(breeding_event or "").strip().lower()
+
+        # Synonym map for AI completion events
+        ai_synonyms = {
+            "ai completed",
+            "ai done",
+            "artificial insemination",
+            "inseminated",
+            "ai success",
+            "ai performed",
+        }
+
+
 
         if pregnant:
 
@@ -29,7 +43,7 @@ class BreedingManagementService:
 
 
 
-        elif breeding_event.lower() == "ai completed":
+        elif event_normalized in ai_synonyms:
 
             pregnancy_status = "PENDING CONFIRMATION"
 

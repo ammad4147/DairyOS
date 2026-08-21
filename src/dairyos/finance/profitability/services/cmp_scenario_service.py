@@ -212,7 +212,7 @@ class CMPScenarioService:
                 eligible_cost / milk_volume,
                 4,
             )
-            if milk_volume
+            if milk_volume and milk_volume > 0.001
             else None
         )
 
