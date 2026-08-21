@@ -67,7 +67,7 @@ jobs:
       DAIRYOS_ENV: development
       POSTGRES_DB: dairyos
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ci-compose-password
+      POSTGRES_PASSWORD: postgres
       DAIRYOS_AUTH_SECRET: ci-compose-auth-secret
     steps:
       - name: Checkout
@@ -97,6 +97,9 @@ jobs:
       - name: Install frontend dependencies
         working-directory: src/DairyOS.Web
         run: npm ci
+      - name: Typecheck frontend
+        working-directory: src/DairyOS.Web
+        run: npm run typecheck
       - name: Build frontend
         working-directory: src/DairyOS.Web
         run: npm run build
