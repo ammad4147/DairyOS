@@ -138,13 +138,13 @@ export default function AuditTab() {
                     {isResolved && (
                       <div style={{ fontSize: '11px', color: '#34d399' }}>
                         <div><strong>Resolved by:</strong> {a.resolvedBy}</div>
-                        <div style={{ color: '#94a3b8' }}>{a.resolvedAt} • {a.resolutionReason}</div>
+                        <div style={{ color: '#94a3b8' }}>{a.resolvedAt} • {a.resolutionNotes}</div>
                       </div>
                     )}
                     {isReinstated && (
                       <div style={{ fontSize: '11px', color: '#f87171' }}>
                         <div><strong>Admin Reinstated by:</strong> {a.reinstatedBy}</div>
-                        <div style={{ color: '#fca5a5' }}>{a.reinstatedAt} • {a.reinstatementReason}</div>
+                        <div style={{ color: '#fca5a5' }}>{a.reinstatedAt} • {a.reinstateReason}</div>
                       </div>
                     )}
                     {a.status === 'ACTIVE' && (
