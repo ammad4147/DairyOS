@@ -1,26 +1,58 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
-TARGET_DEVICE="${1:?Usage: $0 /dev/sdX}"
+TARGET_DEVICE="${1:?Usage: $0 /dev/sdX|/dev/nvme0n1|/dev/mmcblk0}"
 [[ "$(id -u)" -eq 0 ]] || { echo "ERROR: root required." >&2; exit 20; }
+[[ -b "$TARGET_DEVICE" ]] || { echo "ERROR: target is not a block device: $TARGET_DEVICE" >&2; exit 21; }
+
+case "$TARGET_DEVICE" in
+  /dev/sda|/dev/sdb|/dev/sdc|/dev/nvme0n1|/dev/mmcblk0|/dev/vda|/dev/xvda) ;;
+  *) echo "ERROR: target device is outside approved appliance names: $TARGET_DEVICE" >&2; exit 22 ;;
+esac
+
+if [[ "$TARGET_DEVICE" == /dev/nvme* || "$TARGET_DEVICE" == /dev/mmcblk* ]]; then
+  DATA_PART="${TARGET_DEVICE}p5"
+else
+  DATA_PART="${TARGET_DEVICE}5"
+fi
 
 echo "=== INITIATING BARE-METAL PURGE ON $TARGET_DEVICE ==="
-echo "WARNING: This will securely shred veterinary data and destroy the partition table."
-read -p "Type 'PURGE' to confirm: " confirm
+echo "WARNING: This destroys the DairyOS partition table and farm data."
+read -r -p "Type 'PURGE' to confirm: " confirm
 [[ "$confirm" == "PURGE" ]] || exit 1
 
-BOOT_NUMS=$(efibootmgr | grep "DairyOS" | grep -Eo 'Boot[0-9A-F]+' | sed 's/Boot//')
-for num in $BOOT_NUMS; do
-    efibootmgr -b "$num" -B -q || true
-done
+if command -v findmnt >/dev/null 2>&1; then
+  while read -r mountpoint; do
+    [[ -n "$mountpoint" ]] || continue
+    umount -R "$mountpoint" || true
+  done < <(findmnt -rn -S "$TARGET_DEVICE" -o TARGET | sort -r)
+fi
 
-DATA_PART="${TARGET_DEVICE}5"
+if command -v swapoff >/dev/null 2>&1; then
+  swapoff "$DATA_PART" 2>/dev/null || true
+  swapoff -a 2>/dev/null || true
+fi
+
+if command -v efibootmgr >/dev/null 2>&1; then
+  BOOT_NUMS=$(efibootmgr 2>/dev/null | grep "DairyOS" | grep -Eo 'Boot[0-9A-F]+' | sed 's/Boot//' || true)
+  for num in $BOOT_NUMS; do
+    efibootmgr -b "$num" -B -q || true
+  done
+fi
+
 if [[ -b "$DATA_PART" ]]; then
+  if command -v blkdiscard >/dev/null 2>&1; then
+    blkdiscard "$DATA_PART" || true
+  elif command -v shred >/dev/null 2>&1; then
     shred -v -n 2 -z "$DATA_PART"
+  fi
 fi
 
 wipefs -a "$TARGET_DEVICE"
-sgdisk --zap-all "$TARGET_DEVICE"
-partprobe "$TARGET_DEVICE"
+if command -v sgdisk >/dev/null 2>&1; then
+  sgdisk --zap-all "$TARGET_DEVICE"
+fi
+partprobe "$TARGET_DEVICE" || true
+sync
 
 echo "=== DAIRYOS NODE PURGED ==="
