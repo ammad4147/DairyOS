@@ -8,8 +8,16 @@ interface HealthTabProps {
 
 export default function HealthTab({ onOpenPassport }: HealthTabProps) {
   const [activeModalPassport, setActiveModalPassport] = useState<string | null>(null);
+  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
 
-  const [healthCases] = useState([
+  const [animalTag, setAnimalTag] = useState('TD-004');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [severity, setSeverity] = useState('MODERATE');
+  const [medicine, setMedicine] = useState('');
+  const [withdrawalDays, setWithdrawalDays] = useState('3');
+  const [vetName, setVetName] = useState('Dr. Asif');
+
+  const [healthCases, setHealthCases] = useState([
     { id: 'HLT-101', tag: 'TD-004', condition: 'Clinical Mastitis', severity: 'Critical', temp: '39.8°C', treatment: 'Intramammary Antibiotic + Flunixin', vet: 'Dr. Tariq', withdrawal: true, daysRemaining: 3 },
     { id: 'HLT-102', tag: 'TD-009', condition: 'Sub-acute Ruminal Acidosis', severity: 'Amber Warning', temp: '38.8°C', treatment: 'Buffer Drench + Hay adjustment', vet: 'Dr. Tariq', withdrawal: false, daysRemaining: 0 },
     { id: 'HLT-103', tag: 'TD-012', condition: 'Hoof Trimming / Lameness', severity: 'Mild', temp: '38.5°C', treatment: 'Footbath (Copper Sulphate)', vet: 'Farm Paravet', withdrawal: false, daysRemaining: 0 },
@@ -30,10 +38,27 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
     }
   };
 
+  const handleRecordTreatment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newCase = {
+      id: `HLT-${Date.now().toString().slice(-3)}`,
+      tag: animalTag,
+      condition: diagnosis || 'General Treatment',
+      severity: severity === 'HIGH' ? 'Critical' : 'Mild',
+      temp: '38.9°C',
+      treatment: medicine || 'Standard Protocol',
+      vet: vetName,
+      withdrawal: Number(withdrawalDays) > 0,
+      daysRemaining: Number(withdrawalDays)
+    };
+    setHealthCases([newCase, ...healthCases]);
+    setShowTreatmentModal(false);
+    setDiagnosis('');
+    setMedicine('');
+  };
+
   return (
     <div style={{ padding: '20px', color: '#fff' }}>
-      
-      {/* Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -43,9 +68,14 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
             Click any Animal ID to open the comprehensive Biological Passport and audit full veterinary histories.
           </p>
         </div>
+        <button
+          onClick={() => setShowTreatmentModal(true)}
+          style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+        >
+          <Plus size={15} /> Record Treatment / Open Case
+        </button>
       </div>
 
-      {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
         <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #ef4444' }}>
           <div style={{ fontSize: '10px', color: '#94a3b8' }}>Active Medical Cases</div>
@@ -55,7 +85,9 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
 
         <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #f59e0b' }}>
           <div style={{ fontSize: '10px', color: '#94a3b8' }}>Milk Withdrawal Lock (Antibiotics)</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>1 Cow (TD-004)</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>
+            {healthCases.filter(h => h.withdrawal).length} Head Active
+          </div>
           <div style={{ fontSize: '10px', color: '#fbbf24' }}>Milk withheld from sale</div>
         </div>
 
@@ -72,7 +104,6 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
         </div>
       </div>
 
-      {/* ACTIVE CLINICAL TREATMENTS TABLE */}
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px' }}>
         <div style={{ padding: '12px 14px', background: '#161f30', borderBottom: '1px solid #1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Stethoscope size={16} color="#ef4444" />
@@ -122,7 +153,6 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
         </table>
       </div>
 
-      {/* VACCINATION SCHEDULE TABLE */}
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ padding: '12px 14px', background: '#161f30', borderBottom: '1px solid #1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <CheckCircle2 size={16} color="#34d399" />
@@ -160,13 +190,64 @@ export default function HealthTab({ onOpenPassport }: HealthTabProps) {
         </table>
       </div>
 
-      {activeModalPassport && (
-        <AnimalPassportModal 
-          animalId={activeModalPassport} 
-          onClose={() => setActiveModalPassport(null)} 
-        />
+      {showTreatmentModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <form onSubmit={handleRecordTreatment} style={{ background: '#111827', border: '1px solid #374151', padding: '20px', borderRadius: '8px', width: '420px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Stethoscope size={16} color="#ef4444" /> Record Treatment & Withholding Directive
+              </h3>
+              <button type="button" onClick={() => setShowTreatmentModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Animal Tag ID</label>
+              <input type="text" value={animalTag} onChange={e => setAnimalTag(e.target.value)} placeholder="e.g. TD-015" required style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Diagnosis / Condition</label>
+              <input type="text" value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder="e.g. Clinical Mastitis / Lameness" required style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Severity</label>
+                <select value={severity} onChange={e => setSeverity(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px' }}>
+                  <option value="MILD">Mild</option>
+                  <option value="MODERATE">Moderate</option>
+                  <option value="HIGH">Critical / High</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Milk Withdrawal (Days)</label>
+                <input type="number" value={withdrawalDays} onChange={e => setWithdrawalDays(e.target.value)} min="0" max="30" style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Medicine / Protocol Administered</label>
+              <input type="text" value={medicine} onChange={e => setMedicine(e.target.value)} placeholder="e.g. Intramammary Cefquinome" required style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Attending Veterinarian</label>
+              <input type="text" value={vetName} onChange={e => setVetName(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
+            </div>
+
+            <button type="submit" style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '9px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' }}>
+              Commit Treatment & Enforce Safety Lock
+            </button>
+          </form>
+        </div>
       )}
 
+      {activeModalPassport && (
+        <AnimalPassportModal
+          animalId={activeModalPassport}
+          onClose={() => setActiveModalPassport(null)}
+        />
+      )}
     </div>
   );
 }
