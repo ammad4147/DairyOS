@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 
 $ErrorActionPreference = "Stop"
 Set-Location D:\DairyOS
@@ -129,7 +129,7 @@ $buildText = ($buildCommand -join "`n") + "`n"
 $buildFileWsl = "/mnt/d/DairyOS/.dairyo-reconciliation/iso-build-$stamp/run-build.sh"
 $buildTranscript = Join-Path $reportRoot "build-transcript.txt"
 
-@(wsl.exe -u root bash "$buildFileWsl" 2>&1) |
+wsl.exe -u root bash "$buildFileWsl" |
     Tee-Object -FilePath $buildTranscript
 
 $buildExit = $LASTEXITCODE
