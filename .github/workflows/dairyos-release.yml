@@ -49,11 +49,12 @@ jobs:
           key="$(gpg --batch --list-secret-keys --with-colons ci@dairyos.invalid | awk -F: '$1=="sec"{print $5; exit}')"
           test -n "$key"
           echo "DAIRYOS_SIGNING_KEY=$key" >> "$GITHUB_ENV"
+          gpg --export-secret-keys --armor "$key" | sudo gpg --batch --import
       - name: Build actual DairyOS ISO
         env:
           OUT_DIR: ${{ github.workspace }}/dist/os
           WORK_DIR: /var/tmp/dairyos-os-build
-        run: sudo -E bash os/build/build-iso.sh
+        run: sudo env "DAIRYOS_SIGNING_KEY=$DAIRYOS_SIGNING_KEY" "OUT_DIR=$OUT_DIR" "WORK_DIR=$WORK_DIR" bash os/build/build-iso.sh
       - name: Verify ISO structure, checksum and signatures
         run: |
           set -Eeuo pipefail
