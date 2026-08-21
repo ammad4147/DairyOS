@@ -181,7 +181,9 @@ def test_systemd_service_uses_persistent_farm_data_path():
 def test_teardown_handles_nvme_and_mmc_partition_naming_and_unmounts_first():
     teardown = read("installer/teardown-purge.sh")
     assert 'TARGET_DEVICE##*/' in teardown
+    assert 'SWAP_PART="${TARGET_DEVICE}p5"' in teardown
     assert 'DATA_PART="${TARGET_DEVICE}p6"' in teardown
+    assert 'swapoff -a' not in teardown
     assert 'findmnt -rn -S "$TARGET_DEVICE"' in teardown
     assert 'umount -R "$mountpoint"' in teardown
     assert 'wipefs -a "$TARGET_DEVICE"' in teardown
