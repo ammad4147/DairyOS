@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   X, Award, Milk, HeartPulse, Activity, Wheat,
   Calendar, FileText, CheckCircle2, AlertTriangle,
@@ -14,7 +14,13 @@ interface PassportProps {
 }
 
 export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal }: PassportProps) {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'MILK' | 'BREEDING' | 'HEALTH' | 'FEED' | 'EXIT'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'MILK' | 'BREEDING' | 'HEALTH' | 'FEED' | 'EXIT'>('OVERVIEW');
+  const [photos, setPhotos] = useState<string[]>([
+    'https://images.unsplash.com/photo-1548072048-2b8109bfaf63?auto=format&fit=crop&q=80&w=400',
+    'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&q=80&w=400',
+    'https://images.unsplash.com/photo-1596733430284-f7437764b1a9?auto=format&fit=crop&q=80&w=400'
+  ]);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
 
   // Core Biological & Pedigree State
   const [tag, setTag] = useState(animalId || 'TD-001');
@@ -145,7 +151,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 )}
               </div>
               <div style={{ fontSize: '11px', color: isArchived ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>
-                RFID: {rfidTag} • Ear Tag: {visualTag} • {isArchived ? 'Excluded from Active Headcount (Preserved for Analytics)' : 'Active Herd Asset'}
+                RFID: {rfidTag} � Ear Tag: {visualTag} � {isArchived ? 'Excluded from Active Headcount (Preserved for Analytics)' : 'Active Herd Asset'}
               </div>
             </div>
           </div>
@@ -256,6 +262,36 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                   </div>
                 </div>
 
+                {/* VISUAL IDENTIFICATION GALLERY */}
+                <div style={{ background: '#1e293b', padding: '14px', borderRadius: '8px', marginTop: '12px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff', marginBottom: '10px', textTransform: 'uppercase' }}>
+                    Visual Identification & Markings (Fail-Safe)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                    {photos.map((photo, idx) => (
+                      <div 
+                        key={idx} 
+                        onClick={() => setExpandedPhoto(photo)}
+                        style={{ 
+                          height: '110px', 
+                          borderRadius: '6px', 
+                          overflow: 'hidden', 
+                          cursor: 'zoom-in',
+                          border: '2px solid #334155',
+                          position: 'relative'
+                        }}>
+                        <img src={photo} alt={"Animal ID " + idx} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '9px', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {idx === 0 ? 'Left Flank / Markings' : idx === 1 ? 'Right Flank' : 'Face / Udder'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '8px', fontStyle: 'italic' }}>
+                    * Verify visual markings against physical animal before administering restricted medicine or initiating cull/sale protocols.
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '10px' }}>
                   <div>
                     <label style={{ fontSize: '11px', color: '#94a3b8' }}>Dam (Mother Lineage)</label>
@@ -339,7 +375,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
               <div style={{ background: '#1e293b', padding: '14px', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>Historical Lactation Curve (Preserved Forever)</span>
-                  <span style={{ fontSize: '11px', color: '#34d399' }}>Peak: {peakYield} L • Cumulative: {cumulativeLactationYield} L</span>
+                  <span style={{ fontSize: '11px', color: '#34d399' }}>Peak: {peakYield} L � Cumulative: {cumulativeLactationYield} L</span>
                 </div>
                 <div style={{ height: '140px', width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -404,7 +440,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>Body Temperature (°C)</label>
+                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>Body Temperature (�C)</label>
                     <input type="text" value={tempCelsius} onChange={e => setTempCelsius(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '7px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
                   </div>
                   <div>
@@ -472,7 +508,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 {lifecycleStatus === 'SOLD' && (
                   <div style={{ marginTop: '14px', padding: '12px', background: '#0f172a', borderRadius: '6px', border: '1px solid #34d399' }}>
                     <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#34d399', marginBottom: '8px' }}>
-                      💰 Commercial Sale Ledger Entry
+                      ?? Commercial Sale Ledger Entry
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
@@ -491,7 +527,7 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
                 {(lifecycleStatus === 'DECEASED' || lifecycleStatus === 'CULLED') && (
                   <div style={{ marginTop: '14px', padding: '12px', background: '#0f172a', borderRadius: '6px', border: '1px solid #ef4444' }}>
                     <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#f87171', marginBottom: '8px' }}>
-                      ⚠️ Mortality & Autopsy Record
+                      ?? Mortality & Autopsy Record
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
@@ -529,6 +565,19 @@ export default function AnimalPassportModal({ animalId, onClose, onUpdateAnimal 
             </button>
           </div>
         </form>
+        
+        {/* EXPANDED PHOTO LIGHTBOX */}
+        {expandedPhoto && (
+          <div 
+            onClick={() => setExpandedPhoto(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 20000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', cursor: 'zoom-out' }}
+          >
+            <img src={expandedPhoto} alt="Expanded Animal ID" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px', border: '2px solid #38bdf8' }} />
+            <div style={{ position: 'absolute', top: '20px', right: '20px', color: '#fff', background: '#0f172a', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+              Click anywhere to close
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
