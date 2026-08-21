@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Milk, Plus, Search, AlertTriangle, AlertCircle, CheckCircle2, Clock, Home, Baby, Scale, ArrowRightLeft, Award } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 
@@ -285,7 +285,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
               onClick={() => setShowYieldModal(true)} 
               style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
             >
-              <Plus size={15} /> Log Animal Yield
+              <Plus size={15} /> Enter Milk Production
             </button>
           </div>
 
@@ -465,8 +465,8 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
           <form onSubmit={handleQuickSaveYield} style={{ background: '#111827', border: '2px solid #38bdf8', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '460px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Log Animal Yield</h3>
-              <button type="button" onClick={handleCloseYieldModal} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Enter Milk Production</h3>
+              <button type="button" onClick={handleCloseYieldModal} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
             </div>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '6px', display: 'block' }}>1. Select Milking Animal ID</label>
@@ -491,7 +491,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
           <form onSubmit={handleSaveDomestic} style={{ background: '#111827', border: '1px solid #a855f7', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Log Domestic Milk Use</h3>
-              <button type="button" onClick={() => setShowDomesticModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+              <button type="button" onClick={() => setShowDomesticModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
             </div>
             <div>
               <label style={{ fontSize: '11px', color: '#94a3b8' }}>Recipient Entity</label>
@@ -520,7 +520,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
           <form onSubmit={handleSaveCalf} style={{ background: '#111827', border: '1px solid #fb923c', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Log Calf Nursery Milk</h3>
-              <button type="button" onClick={() => setShowCalfModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+              <button type="button" onClick={() => setShowCalfModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
             </div>
             <div>
               <label style={{ fontSize: '11px', color: '#94a3b8' }}>Calf Tag / ID</label>

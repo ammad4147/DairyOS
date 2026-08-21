@@ -1,369 +1,207 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, TrendingUp, Skull, DollarSign, Activity, Settings2, CheckSquare, Square, X, Calendar, Wheat, HeartPulse, PieChart as PieChartIcon, Link, Edit3, AlertTriangle } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell, Legend } from 'recharts';
-import { fetchCommandDashboardData, type CommandDashboardData } from '../api/commandDashboardClient';
+﻿import React, { useState } from 'react';
+import {
+  BarChart3, TrendingUp, Activity, PieChart, ShieldCheck,
+  AlertTriangle, DollarSign, Milk, Calendar, Award
+} from 'lucide-react';
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart as RePieChart, Pie, Cell, LineChart, Line
+} from 'recharts';
 
 export default function Analytics() {
-  const [dataMode, setDataMode] = useState<'AUTO' | 'MANUAL'>('AUTO');
-  const [liveData, setLiveData] = useState<CommandDashboardData | null>(null);
+  const [timeRange, setTimeRange] = useState<'30D' | '90D' | '1Y'>('30D');
 
-  // --- 1. CONFIGURATION & STATE ---
-  const [timeframe, setTimeframe] = useState<string>('30');
-  const [showSettings, setShowSettings] = useState(false);
-
-  const [visibleWidgets, setVisibleWidgets] = useState({
-    FCE: true,
-    REPRO: true,
-    DEMOGRAPHICS: true,
-    MORTALITY: true,
-  });
-
-  const [benchmarks, setBenchmarks] = useState({
-    targetFCE: 1.50, 
-    targetDaysOpen: 110, 
-    targetMilkingPct: 82, 
-  });
-
-  // KPI States (Can be overwritten by live API or manual entry)
-  const [currentAvgDaysOpen, setCurrentAvgDaysOpen] = useState<number>(124);
-  const [currentConceptionRate, setCurrentConceptionRate] = useState<number>(42);
-  const [milkingCowsCount, setMilkingCowsCount] = useState<number>(42);
-  const [dryCowsCount, setDryCowsCount] = useState<number>(16);
-  const [totalMortality, setTotalMortality] = useState<number>(3);
-  const [totalHistoricalRegistered, setTotalHistoricalRegistered] = useState<number>(52);
-  const [totalSold, setTotalSold] = useState<number>(6);
-  const [totalCulled, setTotalCulled] = useState<number>(1);
-  const [latestFCE, setLatestFCE] = useState<number>(1.49);
-
-  const loadData = useCallback(async () => {
-    try {
-      const res = await fetchCommandDashboardData();
-      setLiveData(res);
-    } catch (err) {
-      console.warn("Failed to load live data for Analytics", err);
-    }
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // Sync Logic
-  useEffect(() => {
-    if (dataMode === 'AUTO' && liveData) {
-      // Sync Demographics
-      const milking = liveData.herdComposition.find(c => c.name === 'Milking')?.value || 42;
-      const dry = liveData.herdComposition.find(c => c.name === 'Dry')?.value || 16;
-      setMilkingCowsCount(milking);
-      setDryCowsCount(dry);
-      
-      // Auto-calculate FCE (Assuming roughly 22kg DMI per cow logic for demo)
-      const calculatedFCE = liveData.todayLiters / (milking * 22);
-      setLatestFCE(Number(calculatedFCE.toFixed(2)));
-
-      // If API provided advanced repro/health, we'd sync here. (Using smart defaults if missing).
-      setCurrentAvgDaysOpen(115); // Example improved sync value
-      setCurrentConceptionRate(44);
-    }
-  }, [dataMode, liveData]);
-
-  // Derived Calculations
-  const totalAdults = milkingCowsCount + dryCowsCount;
-  const currentMilkingPct = totalAdults > 0 ? ((milkingCowsCount / totalAdults) * 100).toFixed(1) : '0.0';
-  const mortalityRatePct = totalHistoricalRegistered > 0 ? ((totalMortality / totalHistoricalRegistered) * 100).toFixed(1) : '0.0';
-  const cullingRatePct = totalHistoricalRegistered > 0 ? (((totalSold + totalCulled) / totalHistoricalRegistered) * 100).toFixed(1) : '0.0';
-
-  // --- 2. DATASETS FOR CHARTS ---
-  const fceData = [
-    { day: 'D1', fce: 1.42 }, { day: 'D5', fce: 1.45 }, 
-    { day: 'D10', fce: 1.41 }, { day: 'D15', fce: 1.38 }, 
-    { day: 'D20', fce: 1.44 }, { day: 'D25', fce: 1.47 }, 
-    { day: 'Current', fce: latestFCE }
+  // Performance Data Series
+  const lactationCurve = [
+    { dim: '0-30', avgYield: 24.5, target: 26.0 },
+    { dim: '31-60', avgYield: 34.2, target: 35.0 },
+    { dim: '61-90', avgYield: 38.6, target: 38.0 },
+    { dim: '91-120', avgYield: 35.1, target: 34.0 },
+    { dim: '121-180', avgYield: 29.8, target: 30.0 },
+    { dim: '181-240', avgYield: 24.2, target: 25.0 },
+    { dim: '241-305', avgYield: 18.5, target: 19.0 },
   ];
 
-  const demoData = [
-    { name: 'Milking Cows', value: milkingCowsCount, color: '#38bdf8' },
-    { name: 'Dry Cows', value: dryCowsCount, color: '#94a3b8' },
+  const cmplBreakdown = [
+    { name: 'Feed & Silage', value: 27.5, color: '#38bdf8' },
+    { name: 'Labor & Management', value: 6.8, color: '#34d399' },
+    { name: 'Power & Solar', value: 4.2, color: '#f59e0b' },
+    { name: 'Vet & Reproduction', value: 3.1, color: '#ec4899' },
+    { name: 'Overheads & Bedding', value: 2.15, color: '#a78bfa' },
   ];
 
-  const monthlyMortalityTrend = [
-    { month: 'Mar', deaths: 0, sales: 1 }, { month: 'Apr', deaths: 1, sales: 2 },
-    { month: 'May', deaths: 0, sales: 0 }, { month: 'Jun', deaths: 1, sales: 1 },
-    { month: 'Jul', deaths: 0, sales: 2 }, { month: 'Current', deaths: totalMortality, sales: totalSold },
+  const reproductionFunnel = [
+    { metric: 'Eligible Herd', count: 8 },
+    { metric: 'Heat Detected', count: 7 },
+    { metric: 'Inseminated', count: 7 },
+    { metric: 'Confirmed Pregnant', count: 5 },
   ];
-
-  const handleWidgetToggle = (key: keyof typeof visibleWidgets) => setVisibleWidgets(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box', position: 'relative' }}>
-      
+    <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
+
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BarChart3 size={22} /> Analytics, KPIs & Benchmarks
+          <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BarChart3 size={20} /> Advanced Farm Analytics & Executive KPIs
           </h2>
           <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-            Track biological efficiency against customizable performance targets.
+            Decision intelligence synthesizing herd biology, CMPL cost dynamics, and reproductive efficiency.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          
-          {/* DATA SOURCE TOGGLE */}
-          <div style={{ display: 'flex', background: '#0f172a', border: '1px solid #1f2937', borderRadius: '6px', overflow: 'hidden' }}>
-            <button 
-              onClick={() => setDataMode('AUTO')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: dataMode === 'AUTO' ? 'rgba(52, 211, 153, 0.2)' : 'transparent', color: dataMode === 'AUTO' ? '#34d399' : '#64748b', border: 'none', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+        <div style={{ display: 'flex', gap: '4px', background: '#111827', padding: '3px', borderRadius: '6px', border: '1px solid #1f2937' }}>
+          {(['30D', '90D', '1Y'] as const).map(period => (
+            <button
+              key={period}
+              onClick={() => setTimeRange(period)}
+              style={{
+                background: timeRange === period ? '#38bdf8' : 'transparent',
+                color: timeRange === period ? '#0f172a' : '#94a3b8',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
             >
-              <Link size={14} /> Live Farm Sync
+              {period === '30D' ? 'Last 30 Days' : period === '90D' ? 'Quarterly' : 'Annual'}
             </button>
-            <button 
-              onClick={() => setDataMode('MANUAL')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: dataMode === 'MANUAL' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: dataMode === 'MANUAL' ? '#f59e0b' : '#64748b', border: 'none', borderLeft: '1px solid #1f2937', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              <Edit3 size={14} /> Manual Override
-            </button>
-          </div>
-
-          <button 
-            onClick={() => setShowSettings(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            <Settings2 size={16} /> Configure Targets & Data
-          </button>
+          ))}
         </div>
       </div>
 
-      {dataMode === 'MANUAL' && (
-        <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', color: '#fbbf24', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-          <AlertTriangle size={16} /> <strong>Manual Override Active:</strong> Live data disconnected. Open "Configure Targets & Data" to override KPI inputs manually.
-        </div>
-      )}
-
-      {/* DYNAMIC GRID LAYOUT */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      {/* 4 STRATEGIC KPI PILLARS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
         
-        {/* WIDGET 1: FCE */}
-        {visibleWidgets.FCE && (
-          <div style={{ background: '#111827', border: `1px solid ${dataMode === 'AUTO' ? '#1f2937' : '#f59e0b'}`, padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Wheat size={16} /> Feed Conversion Efficiency (FCE) Trend
-                </h3>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Liters of milk produced per 1kg of Dry Matter Intake</div>
-              </div>
-              <div style={{ background: '#0f172a', padding: '6px 10px', borderRadius: '6px', border: '1px solid #1e293b', textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', color: '#94a3b8' }}>Target Benchmark</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399' }}>{benchmarks.targetFCE.toFixed(2)}</div>
-              </div>
-            </div>
-            <div style={{ height: '200px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={fceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
-                  <YAxis stroke="#64748b" tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#0f172a', borderColor: '#334155', fontSize: '12px', color: '#fff' }} />
-                  <ReferenceLine y={benchmarks.targetFCE} stroke="#34d399" strokeDasharray="4 4" label={{ position: 'top', value: 'Target', fill: '#34d399', fontSize: 10 }} />
-                  <Line type="monotone" dataKey="fce" stroke={dataMode === 'MANUAL' ? '#f59e0b' : '#38bdf8'} strokeWidth={3} dot={{ r: 4, fill: '#0f172a', stroke: dataMode === 'MANUAL' ? '#f59e0b' : '#38bdf8', strokeWidth: 2 }} name="Farm FCE" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #38bdf8' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Feed Conversion Ratio (FCR)</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#38bdf8' }}>1.42 kg/kg</div>
+          <div style={{ fontSize: '10px', color: '#34d399' }}>+4.5% vs Punjab benchmark</div>
+        </div>
 
-        {/* WIDGET 2: REPRO */}
-        {visibleWidgets.REPRO && (
-          <div style={{ background: '#111827', border: `1px solid ${dataMode === 'AUTO' ? '#1f2937' : '#f59e0b'}`, padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Activity size={16} /> Reproductive Efficiency KPIs
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1 }}>
-              <div style={{ background: '#0f172a', border: '1px solid #1e293b', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Avg Days Open</div>
-                <div style={{ fontSize: '32px', fontWeight: 'bold', color: currentAvgDaysOpen <= benchmarks.targetDaysOpen ? '#34d399' : '#f87171' }}>
-                  {currentAvgDaysOpen} <span style={{ fontSize: '14px', color: '#64748b' }}>days</span>
-                </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
-                  Target: &lt; {benchmarks.targetDaysOpen} days
-                </div>
-              </div>
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Feed Cost % of Revenue</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>52.4%</div>
+          <div style={{ fontSize: '10px', color: '#64748b' }}>Target &lt; 55% Healthy margin</div>
+        </div>
 
-              <div style={{ background: '#0f172a', border: '1px solid #1e293b', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>AI Conception Rate</div>
-                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#38bdf8' }}>
-                  {currentConceptionRate}<span style={{ fontSize: '20px' }}>%</span>
-                </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Target Benchmark: &gt; 45%</div>
-              </div>
-            </div>
-          </div>
-        )}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Pregnancy Rate (21d Cycle)</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>24.8%</div>
+          <div style={{ fontSize: '10px', color: '#fb923c' }}>Heat detection rate: 87.5%</div>
+        </div>
 
-        {/* WIDGET 3: DEMOGRAPHICS */}
-        {visibleWidgets.DEMOGRAPHICS && (
-          <div style={{ background: '#111827', border: `1px solid ${dataMode === 'AUTO' ? '#1f2937' : '#f59e0b'}`, padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#a855f7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <PieChartIcon size={16} /> Adult Herd Demographics
-                </h3>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Milking vs. Dry ratio management</div>
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', height: '180px' }}>
-              <div style={{ flex: 1, height: '100%', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={demoData} innerRadius={55} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
-                      {demoData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '12px', color: '#fff' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ background: '#0f172a', border: '1px solid #1e293b', padding: '12px', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>Current Milking %</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: Number(currentMilkingPct) >= benchmarks.targetMilkingPct ? '#34d399' : '#f59e0b' }}>
-                    {currentMilkingPct}%
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>Target: {benchmarks.targetMilkingPct}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Average Days in Milk (DIM)</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' }}>164 Days</div>
+          <div style={{ fontSize: '10px', color: '#34d399' }}>Optimal herd peak zone</div>
+        </div>
 
-        {/* WIDGET 4: MORTALITY */}
-        {visibleWidgets.MORTALITY && (
-          <div style={{ background: '#111827', border: `1px solid ${dataMode === 'AUTO' ? '#1f2937' : '#f59e0b'}`, padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Skull size={16} /> Asset Depletion & Offtake
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-               <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Mortality Rate</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f87171' }}>{mortalityRatePct}%</div>
-               </div>
-               <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Replacement Cull Rate</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f59e0b' }}>{cullingRatePct}%</div>
-               </div>
-            </div>
-            <div style={{ height: '120px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyMortalityTrend}>
-                  <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 9 }} />
-                  <Tooltip contentStyle={{ background: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
-                  <Bar dataKey="sales" fill="#34d399" name="Sold" stackId="a" />
-                  <Bar dataKey="deaths" fill="#ef4444" name="Mortality" stackId="a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* SETTINGS / OVERRIDE MODAL */}
-      {showSettings && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
-          <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: '12px', width: '100%', maxWidth: '700px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)' }}>
-            
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Settings2 size={18} color="#38bdf8" /> Configure Targets & Data
-              </h3>
-              <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
+      {/* 2x2 ANALYTICS GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '14px', marginBottom: '14px' }}>
+
+        {/* 1. Lactation Curve vs Standard Target */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+            <span>📈 Lactation Curve (Yield by Days in Milk)</span>
+            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Litres / Cow / Day</span>
+          </div>
+          <div style={{ height: '180px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={lactationCurve} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <XAxis dataKey="dim" stroke="#64748b" tick={{ fontSize: 9 }} />
+                <YAxis stroke="#64748b" tick={{ fontSize: 9 }} domain={[10, 45]} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px' }} />
+                <Line type="monotone" dataKey="avgYield" name="Actual Herd Average" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="target" name="Target Curve" stroke="#34d399" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', fontSize: '10px', marginTop: '6px' }}>
+            <span style={{ color: '#38bdf8' }}>● Actual Herd Yield</span>
+            <span style={{ color: '#34d399' }}>- - Benchmark Target (Purebred Holstein)</span>
+          </div>
+        </div>
+
+        {/* 2. CMPL Unit Cost Breakdown (PKR 43.75 total) */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+            <span>🥧 CMPL Cost Composition (PKR 43.75 / Liter)</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center' }}>
+            <div style={{ height: '170px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RePieChart>
+                  <Pie data={cmplBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={4}>
+                    {cmplBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px' }} formatter={(val: any) => `PKR ${val}/L`} />
+                </RePieChart>
+              </ResponsiveContainer>
             </div>
-
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
-              
-              {/* Manual Override Fields (Only shown if mode is MANUAL) */}
-              {dataMode === 'MANUAL' && (
-                <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', padding: '16px', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Edit3 size={14} /> Manual Data Override Input
-                  </h4>
-                  <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '12px' }}>Enter correct data below. This bypasses the farm sensors and automatic database extraction.</p>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#94a3b8' }}>Latest FCE (Milk/DMI)</label>
-                      <input type="number" step="0.01" value={latestFCE} onChange={e => setLatestFCE(Number(e.target.value))} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#94a3b8' }}>Avg Days Open</label>
-                      <input type="number" value={currentAvgDaysOpen} onChange={e => setCurrentAvgDaysOpen(Number(e.target.value))} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#94a3b8' }}>Milking Cows Count</label>
-                      <input type="number" value={milkingCowsCount} onChange={e => setMilkingCowsCount(Number(e.target.value))} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: '#94a3b8' }}>Dry Cows Count</label>
-                      <input type="number" value={dryCowsCount} onChange={e => setDryCowsCount(Number(e.target.value))} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '10px' }}>
+              {cmplBreakdown.map(item => (
+                <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#cbd5e1' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.color }} />
+                    {item.name}
+                  </span>
+                  <span style={{ fontWeight: 'bold', color: '#fff' }}>PKR {item.value}</span>
                 </div>
-              )}
-
-              {/* Benchmark Overrides */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#cbd5e1' }}>Farm Benchmark Targets (Local Overrides)</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                    <div>
-                      <div style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>Target FCE</div>
-                    </div>
-                    <input type="number" step="0.01" value={benchmarks.targetFCE} onChange={e => setBenchmarks({ ...benchmarks, targetFCE: Number(e.target.value) })} style={{ width: '80px', background: '#1e293b', color: '#34d399', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                    <div>
-                      <div style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>Target Max Days Open</div>
-                    </div>
-                    <input type="number" value={benchmarks.targetDaysOpen} onChange={e => setBenchmarks({ ...benchmarks, targetDaysOpen: Number(e.target.value) })} style={{ width: '80px', background: '#1e293b', color: '#fb923c', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                    <div>
-                      <div style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>Target % of Herd in Milk</div>
-                    </div>
-                    <input type="number" value={benchmarks.targetMilkingPct} onChange={e => setBenchmarks({ ...benchmarks, targetMilkingPct: Number(e.target.value) })} style={{ width: '80px', background: '#1e293b', color: '#a855f7', border: '1px solid #334155', padding: '6px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Widget Visibility Toggles */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#cbd5e1' }}>Visible Dashboard Modules</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {Object.entries(visibleWidgets).map(([key, isVisible]) => (
-                    <div key={key} onClick={() => handleWidgetToggle(key as keyof typeof visibleWidgets)} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: isVisible ? 'rgba(56, 189, 248, 0.1)' : '#0f172a', border: `1px solid ${isVisible ? '#38bdf8' : '#334155'}`, padding: '10px 14px', borderRadius: '6px', cursor: 'pointer' }}>
-                      {isVisible ? <CheckSquare size={16} color="#38bdf8" /> : <Square size={16} color="#64748b" />}
-                      <span style={{ fontSize: '12px', color: isVisible ? '#fff' : '#94a3b8', fontWeight: isVisible ? 'bold' : 'normal' }}>
-                        {key === 'FCE' && 'Feed Conversion Efficiency'}
-                        {key === 'REPRO' && 'Reproductive Efficiency'}
-                        {key === 'DEMOGRAPHICS' && 'Herd Demographics'}
-                        {key === 'MORTALITY' && 'Depletion & Mortality'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-            <div style={{ padding: '16px 20px', borderTop: '1px solid #1f2937', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowSettings(false)} style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '8px 20px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Save & Apply Configuration
-              </button>
+              ))}
             </div>
           </div>
         </div>
-      )}
+
+      </div>
+
+      {/* 3. Biological Reproduction Funnel & Clinical Risk Monitor */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#fb923c', marginBottom: '10px' }}>
+            🧬 Reproduction & Pregnancy Conversion Funnel
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {reproductionFunnel.map((step, i) => (
+              <div key={step.metric} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '130px', fontSize: '11px', color: '#94a3b8' }}>{step.metric}</span>
+                <div style={{ flex: 1, background: '#1e293b', borderRadius: '4px', height: '18px', overflow: 'hidden' }}>
+                  <div style={{ width: `${(step.count / 8) * 100}%`, background: i === 3 ? '#a78bfa' : '#fb923c', height: '100%', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '6px', fontSize: '10px', fontWeight: 'bold', color: '#0f172a' }}>
+                    {step.count}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '10px' }}>
+            🛡️ Udder Health & Milk Quality Index
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ background: '#161f30', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Bulk Tank SCC</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#34d399' }}>185,000 / mL</div>
+              <div style={{ fontSize: '9px', color: '#64748b' }}>Grade-A Milk Standard</div>
+            </div>
+            <div style={{ background: '#161f30', padding: '10px', borderRadius: '6px', borderLeft: '3px solid #38bdf8' }}>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Average Butterfat</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38bdf8' }}>3.85%</div>
+              <div style={{ fontSize: '9px', color: '#64748b' }}>Protein: 3.25%</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );

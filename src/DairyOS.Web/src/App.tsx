@@ -5,23 +5,34 @@ import FeedTab from './components/FeedTab';
 import CMPL from './components/CMPL';
 import Analytics from './components/Analytics';
 import SettingsTab from './components/SettingsTab';
+import AuditTab from './components/AuditTab';
 import MilkTab from './components/MilkTab';
 import HealthTab from './components/HealthTab';
 import BreedingTab from './components/BreedingTab';
+import LoginModal from './components/LoginModal';
 import AnimalPassportModal from './components/AnimalPassportModal';
 import { AlertAuditProvider, useAlertAudit } from './context/AlertAuditContext';
-import { 
-  LayoutDashboard, DollarSign, Wheat, Calculator, BarChart3, 
-  Milk, HeartPulse, Activity, Users, Settings, Plus, Award, 
-  Bell, Clock, ChevronRight, CheckCircle2, ShieldAlert
+import {
+  LayoutDashboard, DollarSign, Wheat, Calculator, BarChart3,
+  Milk, HeartPulse, Activity, Users, Settings, Plus, Award,
+  Bell, Clock, ChevronRight, CheckCircle2, ShieldAlert, LogOut
 } from 'lucide-react';
 import './App.css';
 
 function MainAppShell() {
+  const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(() => {
+    const saved = localStorage.getItem('dairyos_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedPassportAnimalId, setSelectedPassportAnimalId] = useState<string | null>(null);
   const [autoOpenYieldModal, setAutoOpenYieldModal] = useState(false);
-  
+
+  // Dynamic Farm Identity
+  const [farmName, setFarmName] = useState(() => localStorage.getItem('dairyos_farm_name') || 'Barki Dairy Farm');
+  const [farmLocation, setFarmLocation] = useState(() => localStorage.getItem('dairyos_farm_loc') || 'Lahore, Punjab, PK');
+
   // Real-time Clock
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
@@ -37,12 +48,18 @@ function MainAppShell() {
     setCurrentView('milk');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('dairyos_token');
+    localStorage.removeItem('dairyos_user');
+    setCurrentUser(null);
+  };
+
   // Herd Animals Data
   const [animals, setAnimals] = useState([
     { id: 'TD-001', breed: 'Holstein Friesian', category: 'Milking Cows', age: '4 Years', status: 'Healthy', frequency: 'TWICE_DAILY', earTag: 'PK-LHR-001' },
     { id: 'TD-002', breed: 'Sahiwal Cross', category: 'Milking Cows', age: '5 Years', status: 'Healthy', frequency: 'THRICE_DAILY', earTag: 'PK-LHR-002' },
     { id: 'TD-003', breed: 'Cholistani', category: 'Milking Cows', age: '3 Years', status: 'Healthy', frequency: 'TWICE_DAILY', earTag: 'PK-LHR-003' },
-    { id: 'TD-004', breed: 'Nili-Ravi (Buffalo)', category: 'Dry', age: '6 Years', status: 'Under Treatment', frequency: 'NONE', earTag: 'PK-LHR-004' },
+    { id: 'TD-004', breed: 'Nili-Ravi (Buffalo)', category: 'Dry Cows', age: '6 Years', status: 'Under Treatment', frequency: 'NONE', earTag: 'PK-LHR-004' },
     { id: 'TD-005', breed: 'Holstein Cross', category: 'Heifers', age: '18 Months', status: 'Growing', frequency: 'NONE', earTag: 'PK-LHR-005' },
     { id: 'TD-006', breed: 'Sahiwal', category: 'Female Calves', age: '3 Months', status: 'Weaned', frequency: 'NONE', earTag: 'PK-LHR-006' },
     { id: 'TD-007', breed: 'Holstein', category: 'Male Calves', age: '2 Months', status: 'Fattening', frequency: 'NONE', earTag: 'PK-LHR-007' },
@@ -68,20 +85,28 @@ function MainAppShell() {
     setShowAnimalModal(false);
   };
 
+  if (!currentUser) {
+    return <LoginModal onLoginSuccess={(u) => setCurrentUser(u)} />;
+  }
+
   return (
     <div className="app-shell" style={{ display: 'flex', height: '100vh', background: '#0b0f19', color: '#f8fafc', overflow: 'hidden', fontFamily: 'sans-serif' }}>
-      
+
       {/* SIDEBAR NAVIGATION */}
       <div className="sidebar" style={{ width: '235px', background: '#111827', borderRight: '1px solid #1f2937', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-        
-        {/* BRANDING HEADER */}
+
+        {/* BRANDING HEADER (Updates dynamically from Settings) */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid #1f2937', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>
-            BDF
+            {farmName.split(' ').map(w => w[0]).slice(0, 3).join('') || 'BDF'}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h1 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#fff', letterSpacing: '0.2px' }}>Barki Dairy Farm</h1>
-            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Lahore, Punjab, PK</span>
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <h1 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#fff', letterSpacing: '0.2px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={farmName}>
+              {farmName}
+            </h1>
+            <span style={{ fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={farmLocation}>
+              {farmLocation}
+            </span>
           </div>
         </div>
 
@@ -90,7 +115,7 @@ function MainAppShell() {
           <button onClick={() => setCurrentView('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '9px 12px', background: currentView === 'dashboard' ? '#1e293b' : 'transparent', color: currentView === 'dashboard' ? '#38bdf8' : '#94a3b8', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}>
             <LayoutDashboard size={16} /> Main Dashboard
           </button>
-          
+
           <button onClick={() => setCurrentView('finance')} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '9px 12px', background: currentView === 'finance' ? '#1e293b' : 'transparent', color: currentView === 'finance' ? '#38bdf8' : '#94a3b8', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}>
             <DollarSign size={16} /> Finance & Ledger
           </button>
@@ -125,18 +150,24 @@ function MainAppShell() {
             <Activity size={15} /> Breeding & Gestation
           </button>
 
-          <button onClick={() => setCurrentView('settings')} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '8px 12px', background: currentView === 'settings' ? '#1e293b' : 'transparent', color: currentView === 'settings' ? '#38bdf8' : '#94a3b8', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', textAlign: 'left', marginTop: '8px' }}>
-            <ShieldAlert size={15} /> Audit Register & Settings
+          <div style={{ margin: '10px 0 4px 12px', fontSize: '10px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>System Governance</div>
+
+          <button onClick={() => setCurrentView('audit')} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '8px 12px', background: currentView === 'audit' ? '#1e293b' : 'transparent', color: currentView === 'audit' ? '#ef4444' : '#94a3b8', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', textAlign: 'left' }}>
+            <ShieldAlert size={15} color={currentView === 'audit' ? '#ef4444' : '#94a3b8'} /> Warning Audit Register
+          </button>
+
+          <button onClick={() => setCurrentView('settings')} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '8px 12px', background: currentView === 'settings' ? '#1e293b' : 'transparent', color: currentView === 'settings' ? '#38bdf8' : '#94a3b8', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', textAlign: 'left' }}>
+            <Settings size={15} /> Settings
           </button>
         </nav>
       </div>
 
       {/* MAIN VIEWPORT */}
       <div className="main-viewport" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, boxSizing: 'border-box' }}>
-        
-        {/* TOPLINE CLEAN HEADER */}
+
+        {/* TOPLINE HEADER */}
         <header style={{ height: '54px', background: '#111827', borderBottom: '1px solid #1f2937', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', boxSizing: 'border-box', position: 'relative', zIndex: 50 }}>
-          
+
           <div style={{ minWidth: '40px' }} />
 
           {/* TOP-MIDDLE LIVE CLOCK */}
@@ -153,11 +184,11 @@ function MainAppShell() {
 
           {/* TOP-RIGHT ACTIONS */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            
-            {/* Clickable Notification Bell with Active Warning Counter */}
+
+            {/* Notification Bell (Direct navigation to Audit Register) */}
             <div style={{ position: 'relative' }}>
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)} 
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
                 style={{ position: 'relative', background: '#1e293b', border: '1px solid #334155', padding: '6px', borderRadius: '50%', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 title="Operational Alerts"
               >
@@ -174,8 +205,8 @@ function MainAppShell() {
                 <div style={{ position: 'absolute', right: 0, top: '38px', width: '380px', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.75)', padding: '12px', zIndex: 100 }}>
                   <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1f2937', paddingBottom: '6px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Active Warnings ({activeCount})</span>
-                    <button onClick={() => { setCurrentView('settings'); setShowNotifications(false); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline' }}>
-                      Open Full Audit Ledger
+                    <button onClick={() => { setCurrentView('audit'); setShowNotifications(false); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline' }}>
+                      Open Full Audit Register
                     </button>
                   </div>
 
@@ -183,39 +214,24 @@ function MainAppShell() {
                     {alerts.filter(a => a.status !== 'RESOLVED').map(n => {
                       const isReinstated = n.status === 'REINSTATED';
                       return (
-                        <div 
-                          key={n.id} 
-                          style={{ 
-                            fontSize: '11px', 
-                            background: isReinstated ? 'rgba(239, 68, 68, 0.3)' : '#161f30', 
-                            padding: '8px 10px', 
-                            borderRadius: '6px', 
+                        <div
+                          key={n.id}
+                          onClick={() => { setCurrentView('audit'); setShowNotifications(false); }}
+                          style={{
+                            fontSize: '11px',
+                            background: isReinstated ? 'rgba(239, 68, 68, 0.3)' : '#161f30',
+                            padding: '8px 10px',
+                            borderRadius: '6px',
                             borderLeft: `3px solid ${isReinstated ? '#dc2626' : (n.currentLevel === 'RED' ? '#ef4444' : '#f59e0b')}`,
-                            border: isReinstated ? '1px solid #ef4444' : 'none'
+                            border: isReinstated ? '1px solid #ef4444' : 'none',
+                            cursor: 'pointer'
                           }}
                         >
                           <div style={{ color: isReinstated ? '#fee2e2' : '#e2e8f0', fontWeight: 'bold' }}>
                             {isReinstated && '🚨 '} {n.title}
                           </div>
                           <div style={{ fontSize: '10px', color: isReinstated ? '#fca5a5' : '#94a3b8', margin: '3px 0' }}>{n.details}</div>
-                          
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', borderTop: '1px solid #1e293b', paddingTop: '4px' }}>
-                            {n.animalId ? (
-                              <button 
-                                onClick={() => { setSelectedPassportAnimalId(n.animalId!); setShowNotifications(false); }} 
-                                style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
-                              >
-                                View Passport #{n.animalId}
-                              </button>
-                            ) : <span style={{ fontSize: '9px', color: '#64748b' }}>System Alert</span>}
-
-                            <button 
-                              onClick={() => markResolved(n.id, 'Ammad Hassan', 'Resolved via Bell Popover')}
-                              style={{ background: '#059669', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              <CheckCircle2 size={11} /> Mark Resolved
-                            </button>
-                          </div>
+                          <div style={{ fontSize: '9px', color: '#38bdf8', marginTop: '4px' }}>Click to view in Audit Register →</div>
                         </div>
                       );
                     })}
@@ -224,27 +240,28 @@ function MainAppShell() {
               )}
             </div>
 
-            <button 
-              onClick={() => setCurrentView('settings')} 
+            {/* Gear Icon for Settings */}
+            <button
+              onClick={() => setCurrentView('settings')}
               style={{ background: currentView === 'settings' ? '#38bdf8' : '#1e293b', border: '1px solid #334155', padding: '6px', borderRadius: '50%', color: currentView === 'settings' ? '#0f172a' : '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              title="Audit Register & Settings"
+              title="Settings"
             >
-              <ShieldAlert size={15} />
+              <Settings size={15} />
             </button>
 
-            <button 
-              onClick={() => setCurrentView('settings')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', padding: '3px 10px', borderRadius: '20px', cursor: 'pointer', color: '#fff' }}
-              title="View User Profile & Settings"
-            >
+            {/* User Profile Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', padding: '3px 10px', borderRadius: '20px' }}>
               <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#38bdf8', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                AH
+                {currentUser.fullName.split(' ').map(n => n[0]).slice(0, 2).join('')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1', textAlign: 'left' }}>
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>Ammad Hassan</span>
-                <span style={{ fontSize: '9px', color: '#34d399' }}>Farm Owner</span>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}>{currentUser.fullName}</span>
+                <span style={{ fontSize: '9px', color: '#34d399' }}>{currentUser.role}</span>
               </div>
-            </button>
+              <button onClick={handleLogout} title="Log Out" style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0 0 0 4px', display: 'flex', alignItems: 'center' }}>
+                <LogOut size={13} />
+              </button>
+            </div>
 
           </div>
         </header>
@@ -252,26 +269,33 @@ function MainAppShell() {
         {/* CONTENT AREA */}
         <main style={{ flex: 1, overflowY: 'auto', background: '#0b0f19' }}>
           {currentView === 'dashboard' && (
-            <UnifiedDashboard 
-              onNavigate={(v) => setCurrentView(v)} 
+            <UnifiedDashboard
+              onNavigate={(v) => setCurrentView(v)}
               onOpenYieldModal={handleOpenYieldEntry}
-              
+              onOpenPassport={(id) => setSelectedPassportAnimalId(id)}
             />
           )}
           {currentView === 'finance' && <FinanceTab />}
-          {currentView === 'feed' && <FeedTab  />}
+          {currentView === 'feed' && <FeedTab />}
           {currentView === 'cmpl' && <CMPL />}
           {currentView === 'analytics' && <Analytics />}
-          {currentView === 'settings' && <SettingsTab />}
-          {currentView === 'milk' && (
-            <MilkTab 
-              initialOpenModal={autoOpenYieldModal} 
-              onModalClose={() => setAutoOpenYieldModal(false)} 
-              
+          {currentView === 'audit' && <AuditTab />}
+          {currentView === 'settings' && (
+            <SettingsTab
+              onFarmProfileUpdate={(p) => {
+                setFarmName(p.farmName);
+                setFarmLocation(p.location);
+              }}
             />
           )}
-          {currentView === 'health' && <HealthTab  />}
-          {currentView === 'breeding' && <BreedingTab  />}
+          {currentView === 'milk' && (
+            <MilkTab
+              initialOpenModal={autoOpenYieldModal}
+              onModalClose={() => setAutoOpenYieldModal(false)}
+            />
+          )}
+          {currentView === 'health' && <HealthTab />}
+          {currentView === 'breeding' && <BreedingTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
 
           {/* ANIMAL RECORDS & PASSPORT */}
           {currentView === 'animals' && (
@@ -297,54 +321,40 @@ function MainAppShell() {
                 </div>
                 <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #f59e0b' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Dry Cows & Heifers</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f59e0b' }}>{animals.filter(a => a.category === 'Dry' || a.category === 'Heifers').length}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f59e0b' }}>{animals.filter(a => a.category === 'Dry Cows' || a.category === 'Heifers').length}</div>
                 </div>
-                <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a855f7' }}>
+                <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Calves & Bulls</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#a855f7' }}>{animals.filter(a => a.category.includes('Calves') || a.category === 'Bulls').length}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#a78bfa' }}>{animals.filter(a => a.category === 'Female Calves' || a.category === 'Male Calves' || a.category === 'Bulls').length}</div>
                 </div>
               </div>
 
               <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937', textAlign: 'left', background: '#161f30' }}>
-                      <th style={{ padding: '10px 12px' }}>Animal ID (Passport)</th>
-                      <th style={{ padding: '10px 12px' }}>Ear Tag</th>
-                      <th style={{ padding: '10px 12px' }}>Breed</th>
-                      <th style={{ padding: '10px 12px' }}>Category</th>
-                      <th style={{ padding: '10px 12px' }}>Milking Modality</th>
-                      <th style={{ padding: '10px 12px' }}>Age</th>
-                      <th style={{ padding: '10px 12px' }}>Health Status</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Actions</th>
+                    <tr style={{ background: '#161f30', borderBottom: '1px solid #1f2937', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '10px 14px' }}>Animal ID / Tag</th>
+                      <th style={{ padding: '10px 14px' }}>Breed</th>
+                      <th style={{ padding: '10px 14px' }}>Herd Category</th>
+                      <th style={{ padding: '10px 14px' }}>Age</th>
+                      <th style={{ padding: '10px 14px' }}>Milking Frequency</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Health Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {animals.map(a => (
+                    {animals.map((a) => (
                       <tr key={a.id} style={{ borderBottom: '1px solid #1a2234' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#38bdf8' }}>
-                          <button onClick={() => setSelectedPassportAnimalId(a.id)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Award size={13}/> {a.id}
+                        <td style={{ padding: '10px 14px' }}>
+                          <button onClick={() => setSelectedPassportAnimalId(a.id)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '12px', textDecoration: 'underline' }}>
+                            {a.id} ({a.earTag})
                           </button>
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#94a3b8' }}>{a.earTag}</td>
-                        <td style={{ padding: '10px 12px', color: '#e2e8f0' }}>{a.breed}</td>
-                        <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>{a.category}</td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{ color: a.frequency === 'THRICE_DAILY' ? '#c084fc' : (a.frequency === 'TWICE_DAILY' ? '#fb923c' : '#64748b'), fontWeight: 'bold', fontSize: '11px' }}>
-                            {a.frequency}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#94a3b8' }}>{a.age}</td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{ background: a.status === 'Healthy' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: a.status === 'Healthy' ? '#34d399' : '#fca5a5', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
-                            {a.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                          <button onClick={() => setSelectedPassportAnimalId(a.id)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Award size={13}/> View Passport
-                          </button>
+                        <td style={{ padding: '10px 14px', color: '#fff' }}>{a.breed}</td>
+                        <td style={{ padding: '10px 14px', color: '#cbd5e1' }}>{a.category}</td>
+                        <td style={{ padding: '10px 14px', color: '#94a3b8' }}>{a.age}</td>
+                        <td style={{ padding: '10px 14px', color: '#38bdf8' }}>{a.frequency}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          <span style={{ background: a.status === 'Healthy' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: a.status === 'Healthy' ? '#34d399' : '#f87171', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>{a.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -356,61 +366,10 @@ function MainAppShell() {
         </main>
       </div>
 
-      {/* GLOBAL BIOLOGICAL PASSPORT MODAL */}
+      {/* ANIMAL PASSPORT MODAL */}
       {selectedPassportAnimalId && (
-        <AnimalPassportModal 
-          animalId={selectedPassportAnimalId} 
-          onClose={() => setSelectedPassportAnimalId(null)}
-          onUpdateAnimal={(updated) => {
-            setAnimals(prev => prev.map(a => a.id === updated.tag ? { ...a, status: updated.lifecycleStatus === "ACTIVE" ? "Healthy" : updated.lifecycleStatus, category: updated.lifecycleStatus !== "ACTIVE" ? `Archived (${updated.lifecycleStatus})` : a.category } : a));
-          }}
-        />
+        <AnimalPassportModal animalId={selectedPassportAnimalId} onClose={() => setSelectedPassportAnimalId(null)} />
       )}
-
-      {/* REGISTER ANIMAL MODAL */}
-      {showAnimalModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <form onSubmit={handleAddAnimal} style={{ background: '#111827', border: '1px solid #374151', padding: '20px', borderRadius: '8px', width: '380px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px' }}>Register New Herd Animal</h3>
-              <button type="button" onClick={() => setShowAnimalModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ fontSize: '11px', color: '#38bdf8' }}>Permanent Animal ID will be automatically generated by server (e.g. TD-011).</div>
-            <div>
-              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Breed</label>
-              <input type="text" value={newBreed} onChange={e => setNewBreed(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Category</label>
-              <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px' }}>
-                <option value="Milking Cows">Milking Cows</option>
-                <option value="Dry">Dry</option>
-                <option value="Heifers">Heifers</option>
-                <option value="Female Calves">Female Calves</option>
-                <option value="Male Calves">Male Calves</option>
-                <option value="Bulls">Bulls</option>
-              </select>
-            </div>
-            {newCategory === 'Milking Cows' && (
-              <div>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Milking Modality</label>
-                <select value={newFrequency} onChange={e => setNewFrequency(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px' }}>
-                  <option value="TWICE_DAILY">Twice Daily (Morning, Evening)</option>
-                  <option value="THRICE_DAILY">Thrice Daily (Morning, Afternoon, Evening)</option>
-                </select>
-              </div>
-            )}
-            <div>
-              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Age</label>
-              <input type="text" value={newAge} onChange={e => setNewAge(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #374151', padding: '7px', borderRadius: '4px', fontSize: '11px', boxSizing: 'border-box' }} />
-            </div>
-            <button type="submit" style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' }}>
-              Save Animal Record
-            </button>
-          </form>
-        </div>
-      )}
-
     </div>
   );
 }
@@ -422,6 +381,3 @@ export default function App() {
     </AlertAuditProvider>
   );
 }
-
-
-
