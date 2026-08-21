@@ -25,13 +25,16 @@ def test_os_manifest_targets_debian_trixie_amd64_and_safe_installer_mode():
     assert manifest["security"]["require_apply_switch"] is True
 
 
-def test_partition_manifest_preserves_separate_log_and_farm_data_partitions():
+def test_partition_manifest_preserves_efi_bios_root_log_swap_and_farm_data():
     sfdisk = read("partitioning/dairyos.sfdisk")
     assert "label: gpt" in sfdisk
     assert 'name="DairyOS EFI"' in sfdisk
+    assert 'name="DairyOS BIOS Boot"' in sfdisk
     assert 'name="DairyOS Root"' in sfdisk
     assert 'name="DairyOS Logs"' in sfdisk
+    assert 'name="DairyOS Swap"' in sfdisk
     assert 'name="DairyOS Farm Data"' in sfdisk
+    assert "21686148-6449-6E6F-744E-656564454649" in sfdisk
     assert "U32-EFI" in sfdisk
     assert "U82-Swap" in sfdisk
 
@@ -59,6 +62,8 @@ def test_installer_is_fail_closed_and_has_explicit_disk_apply_gate():
     assert "grub-install --target=i386-pc" in installer
     assert 'DEBIAN_MIRROR="file:///srv/dairyos-debian"' in installer
     assert "validate_mirror" in installer
+    assert 'BIOS_PART="${TARGET_DEVICE}p2"' in installer
+    assert 'DATA_PART="${TARGET_DEVICE}p6"' in installer
     assert 'PARTITIONING_STARTED=true' in installer
     assert 'The target disk is NOT automatically randomized or wiped.' in installer
     assert 'write_recovery_state "failed"' in installer
@@ -150,6 +155,7 @@ def test_air_gapped_mirror_contract_is_local_lan_only_by_default():
     assert manifest["network"]["offline_mirror"]["host"] == "192.168.50.1"
     assert "apt-setup/mirror/http/hostname string 192.168.50.1" in preseed
     assert "apt-setup/mirror/http/directory string /debian" in preseed
+    assert "method{ biosgrub }" in preseed
     assert "file:///srv/dairyos-debian" in installer
     assert "debmirror" in sync_script
     assert "/srv" in nginx
@@ -170,7 +176,7 @@ def test_systemd_service_uses_persistent_farm_data_path():
 def test_teardown_handles_nvme_and_mmc_partition_naming_and_unmounts_first():
     teardown = read("installer/teardown-purge.sh")
     assert 'TARGET_DEVICE##*/' in teardown
-    assert 'DATA_PART="${TARGET_DEVICE}p5"' in teardown
+    assert 'DATA_PART="${TARGET_DEVICE}p6"' in teardown
     assert 'findmnt -rn -S "$TARGET_DEVICE"' in teardown
     assert 'umount -R "$mountpoint"' in teardown
     assert 'wipefs -a "$TARGET_DEVICE"' in teardown
