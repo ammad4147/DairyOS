@@ -11,9 +11,9 @@ case "$TARGET_DEVICE" in
 esac
 
 if [[ "$TARGET_DEVICE" == /dev/nvme* || "$TARGET_DEVICE" == /dev/mmcblk* ]]; then
-  DATA_PART="${TARGET_DEVICE}p5"
+  DATA_PART="${TARGET_DEVICE}p6"
 else
-  DATA_PART="${TARGET_DEVICE}5"
+  DATA_PART="${TARGET_DEVICE}6"
 fi
 
 echo "=== INITIATING BARE-METAL PURGE ON $TARGET_DEVICE ==="
