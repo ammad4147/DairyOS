@@ -5,6 +5,7 @@ from .milk_production import MilkProduction
 from .financial_transaction import FinancialTransaction
 from .feed_record import FeedRecord
 from .feed_ration import FeedRation
+from .feed_inventory_item import FeedInventoryItem
 from .health_observation import HealthObservation
 
 
@@ -16,6 +17,7 @@ __all__ = [
     "FinancialTransaction",
     "FeedRecord",
     "FeedRation",
+    "FeedInventoryItem",
     "HealthObservation",
 ]
 
