@@ -2,6 +2,7 @@
 import UnifiedDashboard from './components/UnifiedDashboard';
 import FinanceTab from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
+import InventoryTab from './components/InventoryTab';
 import CMPL from './components/CMPL';
 import Analytics from './components/Analytics';
 import SettingsTab from './components/SettingsTab';
@@ -15,7 +16,7 @@ import { useAlertAudit } from './context/AlertAuditContext';
 import {
   LayoutDashboard, Calculator, BarChart3, DollarSign,
   Milk, HeartPulse, Activity, Settings, Plus,
-  Bell, Clock, LogOut, Wheat
+  Bell, Clock, LogOut, Wheat, Package
 } from 'lucide-react';
 import './App.css';
 
@@ -94,11 +95,9 @@ export default function MainAppShell() {
   const [selectedPassportAnimalId, setSelectedPassportAnimalId] = useState<string | null>(null);
   const [autoOpenYieldModal, setAutoOpenYieldModal] = useState(false);
 
-  // Dynamic Farm Identity
   const [farmName, setFarmName] = useState(() => localStorage.getItem('dairyos_farm_name') || 'Barki Dairy Farm');
   const [farmLocation, setFarmLocation] = useState(() => localStorage.getItem('dairyos_farm_loc') || 'Lahore, Punjab, PK');
 
-  // Real-time Clock
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -119,7 +118,6 @@ export default function MainAppShell() {
     setCurrentUser(null);
   };
 
-  // Authoritative Herd state: loaded from the persisted Animal register.
   const [animals, setAnimals] = useState<HerdAnimal[]>([]);
 
   const refreshAnimals = useCallback(async () => {
@@ -161,6 +159,7 @@ export default function MainAppShell() {
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
     { id: 'milk', label: 'Milk', icon: <Milk size={14} /> },
     { id: 'feed', label: 'Feed', icon: <Wheat size={14} /> },
+    { id: 'inventory', label: 'Inventory', icon: <Package size={14} /> },
     { id: 'finance', label: 'Finance', icon: <DollarSign size={14} /> },
     { id: 'breeding', label: 'Breeding', icon: <Activity size={14} /> },
     { id: 'health', label: 'Health', icon: <HeartPulse size={14} /> },
@@ -238,6 +237,7 @@ export default function MainAppShell() {
         {currentView === 'dashboard' && <UnifiedDashboard onNavigate={(v) => setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} realTimeTodayYield={todayYield} realTimeDailyFeedCost={dailyFeedCostPKR} realTimeReceivables={accountsReceivable} />}
         {currentView === 'finance' && <FinanceTab onSaveSale={(liters) => setTodayMilkSoldLiters(prev => prev + liters)} onUpdateReceivables={(amount) => setAccountsReceivable(amount)} />}
         {currentView === 'feed' && <FeedTab onUpdateFeedCost={(cost) => setDailyFeedCostPKR(cost)} />}
+        {currentView === 'inventory' && <InventoryTab />}
         {currentView === 'cmpl' && <CMPL />}
         {currentView === 'analytics' && <Analytics />}
         {currentView === 'audit' && <AuditTab />}
