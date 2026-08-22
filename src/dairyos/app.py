@@ -50,7 +50,7 @@ app.add_middleware(PayloadNormalizationMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\\.0\\.1):517[3-9]",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517[3-9]",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -126,6 +126,7 @@ from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
 from dairyos.api.financial_intelligence import router as financial_intelligence_router
+from dairyos.api.finance_ledger import router as finance_ledger_router
 from dairyos.api.farm_planning import router as farm_planning_router
 from dairyos.api.health import router as health_router
 from dairyos.api.milk_traceability import router as milk_traceability_router
@@ -157,6 +158,7 @@ app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
 app.include_router(financial_intelligence_router)
+app.include_router(finance_ledger_router)
 app.include_router(farm_planning_router)
 app.include_router(health_router)
 app.include_router(milk_traceability_router)
@@ -170,6 +172,7 @@ app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
 app.include_router(settings_router)
+app.include_router(milk_production_summary_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 
@@ -177,5 +180,3 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 @app.get("/", include_in_schema=False)
 def root():
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
-
-app.include_router(milk_production_summary_router)
