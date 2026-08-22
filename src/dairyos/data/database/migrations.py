@@ -18,6 +18,8 @@ FINANCE_COLUMNS = {
     "quantity": "DOUBLE PRECISION",
     "unit": "VARCHAR",
     "unit_rate": "DOUBLE PRECISION",
+    "due_date": "DATE",
+    "settled_date": "DATE",
 }
 
 MILK_PRODUCTION_COLUMNS = {
@@ -30,10 +32,10 @@ MILK_DISPOSITION_COLUMNS = {
 
 
 def migrate_finance_feed_opex() -> list[str]:
-    """Add missing Feed/OPEX financial columns without touching existing data.
+    """Add missing Finance columns without touching existing transactions.
 
-    Existing rows are intentionally left nullable. Historical category values
-    are backfilled into master_category where their meaning is unambiguous.
+    Existing rows remain nullable. Historical Feed/OPEX classification is still
+    backfilled where its meaning is unambiguous.
     """
     changed: list[str] = []
 
@@ -42,19 +44,12 @@ def migrate_finance_feed_opex() -> list[str]:
         if "financial_transactions" not in inspector.get_table_names():
             return changed
 
-        existing = {
-            column["name"]
-            for column in inspector.get_columns("financial_transactions")
-        }
+        existing = {column["name"] for column in inspector.get_columns("financial_transactions")}
 
         for name, sql_type in FINANCE_COLUMNS.items():
             if name in existing:
                 continue
-            connection.execute(
-                text(
-                    f'ALTER TABLE financial_transactions ADD COLUMN "{name}" {sql_type}'
-                )
-            )
+            connection.execute(text(f'ALTER TABLE financial_transactions ADD COLUMN "{name}" {sql_type}'))
             changed.append(name)
 
         if "master_category" in {*(existing), *FINANCE_COLUMNS}:
@@ -88,33 +83,19 @@ def migrate_milk_crud() -> list[str]:
         tables = set(inspector.get_table_names())
 
         if "milk_production" in tables:
-            existing = {
-                column["name"]
-                for column in inspector.get_columns("milk_production")
-            }
+            existing = {column["name"] for column in inspector.get_columns("milk_production")}
             for name, sql_type in MILK_PRODUCTION_COLUMNS.items():
                 if name in existing:
                     continue
-                connection.execute(
-                    text(
-                        f'ALTER TABLE milk_production ADD COLUMN "{name}" {sql_type}'
-                    )
-                )
+                connection.execute(text(f'ALTER TABLE milk_production ADD COLUMN "{name}" {sql_type}'))
                 changed.append(f"milk_production.{name}")
 
         if "milk_dispositions" in tables:
-            existing = {
-                column["name"]
-                for column in inspector.get_columns("milk_dispositions")
-            }
+            existing = {column["name"] for column in inspector.get_columns("milk_dispositions")}
             for name, sql_type in MILK_DISPOSITION_COLUMNS.items():
                 if name in existing:
                     continue
-                connection.execute(
-                    text(
-                        f'ALTER TABLE milk_dispositions ADD COLUMN "{name}" {sql_type}'
-                    )
-                )
+                connection.execute(text(f'ALTER TABLE milk_dispositions ADD COLUMN "{name}" {sql_type}'))
                 changed.append(f"milk_dispositions.{name}")
 
     return changed
