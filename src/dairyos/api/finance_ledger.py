@@ -263,16 +263,17 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
             master = payload.master_category if payload.master_category is not None else row.master_category
             sub = payload.sub_category if payload.sub_category is not None else row.sub_category
             custom = payload.custom_specification if payload.custom_specification is not None else row.custom_specification
-            temp = FinanceLedgerEdit(
-                **payload.model_dump(exclude_unset=True),
-                master_category=master,
-                sub_category=sub,
-                custom_specification=custom,
-                quantity=payload.quantity if payload.quantity is not None else row.quantity,
-                unit=payload.unit if payload.unit is not None else row.unit,
-                unit_rate=payload.unit_rate if payload.unit_rate is not None else row.unit_rate,
-                amount=payload.amount if payload.amount is not None else row.amount,
-            )
+            values = payload.model_dump(exclude_unset=True)
+            values.update({
+                "master_category": master,
+                "sub_category": sub,
+                "custom_specification": custom,
+                "quantity": payload.quantity if payload.quantity is not None else row.quantity,
+                "unit": payload.unit if payload.unit is not None else row.unit,
+                "unit_rate": payload.unit_rate if payload.unit_rate is not None else row.unit_rate,
+                "amount": payload.amount if payload.amount is not None else row.amount,
+            })
+            temp = FinanceLedgerEdit(**values)
             amount, legacy_category_value = _validate_expense_payload(temp, transaction_type)
             row.master_category = master
             row.sub_category = sub
@@ -322,15 +323,11 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
 
 
 @router.get("/payables")
-def list_payables(include_paid: bool = Query(default=False)):
+def list_payables():
     factory = RepositoryFactory.create()
     try:
         rows = factory.finance().get_all()
-        if include_paid:
-            eligible = [row for row in rows if row.status in {"PAYABLE", "PAID"}]
-        else:
-            eligible = [row for row in rows if row.status == "PAYABLE"]
-        return _ageing_payload(eligible)
+        return _ageing_payload([row for row in rows if row.status == "PAYABLE"])
     finally:
         factory.close()
 
