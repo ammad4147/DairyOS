@@ -61,12 +61,12 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Dynamic 7/15/30 Day Yield Curve
+  // Dynamic 7/15/30 Day Yield Curve (Forcing Whole Numbers)
   const filteredYieldTrend = useMemo(() => {
     const baseline30 = [
-      121.5, 122.0, 119.8, 123.4, 125.0, 126.8, 128.0, 127.5, 129.0, 131.2,
-      130.0, 128.5, 127.0, 129.4, 131.0, 133.5, 132.0, 134.0, 135.5, 133.0,
-      131.5, 130.2, 129.0, 131.8, 133.0, 130.5, 128.4, 131.0, 128.4, 132.7
+      121, 122, 120, 123, 125, 127, 128, 128, 129, 131,
+      130, 129, 127, 129, 131, 134, 132, 134, 136, 133,
+      132, 130, 129, 132, 133, 131, 128, 131, 128, 133
     ];
 
     let fullSeries: number[] = [...baseline30];
@@ -79,7 +79,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     const sliced = fullSeries.slice(-chartDays);
     return sliced.map((val, idx) => ({
       dayIndex: idx + 1,
-      yield: Number(val.toFixed(1))
+      yield: Math.round(Number(val))
     }));
   }, [data, chartDays]);
 
@@ -99,17 +99,20 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   if (loading && !data) return <div style={{ padding: '30px', color: '#94a3b8', textAlign: 'center', fontSize: '13px' }}>Loading authoritative command picture...</div>;
 
+  // KPIs - Wrapped in Math.round() to kill long decimals
   const milkingCount = Number(data?.milkingAnimals) || 6;
-  const todayYield = Number(data?.todayLiters) || 132.7;
-  const avgYieldPerAnimal = (todayYield / milkingCount).toFixed(1);
-  const cmplValue = '43.75';
+  const todayYield = Math.round(Number(data?.todayLiters) || 133);
+  const avgYieldPerAnimal = Math.round(todayYield / milkingCount);
+  const cmplValue = '44';
 
   const todayDate = new Date();
   const yesterdayDate = new Date();
   yesterdayDate.setDate(todayDate.getDate() - 1);
   const currentDateLabel = todayDate.toISOString().split('T')[0];
   const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
-  const yesterdayLiters = Number(data?.yesterdayLiters) || 128.4;
+  
+  // Yesterday's Yield
+  const yesterdayLiters = Math.round(Number(data?.yesterdayLiters) || 128);
 
   // Color-coded yield indicator based on drop criteria
   const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
@@ -134,8 +137,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const herdCol2 = canonicalHerd.slice(3, 6);
 
   const extremesOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  const allTopPerformers = [{ id: 'TD-009', yield: 44.5 }, { id: 'TD-001', yield: 38.5 }, { id: 'TD-014', yield: 37.0 }, { id: 'TD-002', yield: 36.2 }, { id: 'TD-021', yield: 35.8 }, { id: 'TD-025', yield: 35.0 }, { id: 'TD-028', yield: 34.6 }, { id: 'TD-031', yield: 34.0 }, { id: 'TD-035', yield: 33.5 }, { id: 'TD-038', yield: 33.0 }];
-  const allBottomPerformers = [{ id: 'TD-004', yield: 18.0 }, { id: 'TD-018', yield: 21.5 }, { id: 'TD-003', yield: 24.0 }, { id: 'TD-012', yield: 25.5 }, { id: 'TD-022', yield: 26.0 }, { id: 'TD-027', yield: 26.8 }, { id: 'TD-030', yield: 27.2 }, { id: 'TD-033', yield: 27.9 }, { id: 'TD-037', yield: 28.2 }, { id: 'TD-040', yield: 28.5 }];
+  const allTopPerformers = [{ id: 'TD-009', yield: 45 }, { id: 'TD-001', yield: 39 }, { id: 'TD-014', yield: 37 }, { id: 'TD-002', yield: 36 }, { id: 'TD-021', yield: 36 }, { id: 'TD-025', yield: 35 }, { id: 'TD-028', yield: 35 }, { id: 'TD-031', yield: 34 }, { id: 'TD-035', yield: 34 }, { id: 'TD-038', yield: 33 }];
+  const allBottomPerformers = [{ id: 'TD-004', yield: 18 }, { id: 'TD-018', yield: 22 }, { id: 'TD-003', yield: 24 }, { id: 'TD-012', yield: 26 }, { id: 'TD-022', yield: 26 }, { id: 'TD-027', yield: 27 }, { id: 'TD-030', yield: 27 }, { id: 'TD-033', yield: 28 }, { id: 'TD-037', yield: 28 }, { id: 'TD-040', yield: 29 }];
   const displayedTop = allTopPerformers.slice(0, extremesCount);
   const displayedBottom = allBottomPerformers.slice(0, extremesCount);
 
@@ -200,7 +203,7 @@ const reproData = {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: '8px', flex: 1, minHeight: 0 }}>
-              {/* Chart */}
+              {/* Chart (With position: absolute fix to prevent flexbox spilling) */}
               <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div className="graph-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span className="graph-title" style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -212,21 +215,25 @@ const reproData = {
                     <option value={30}>30 Days</option>
                   </select>
                 </div>
-                <div style={{ flex: 1, minHeight: '65px' }}>
-                  <ResponsiveContainer width="100%" height="100%" key={"chart-wrap-" + chartDays}>
-                    <AreaChart key={"chart-" + chartDays} data={filteredYieldTrend} margin={{ top: 2, right: 6, left: -24, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.5}/>
-                          <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="dayIndex" hide={true} />
-                      <YAxis stroke="#64748b" tick={{ fontSize: 8 }} domain={['auto', 'auto']} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => "Day " + val} />
-                      <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" isAnimationActive={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                
+                {/* The Fix: Relative parent, Absolute child */}
+                <div style={{ flex: 1, position: 'relative', minHeight: '65px' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%" key={"chart-wrap-" + chartDays}>
+                      <AreaChart key={"chart-" + chartDays} data={filteredYieldTrend} margin={{ top: 2, right: 6, left: -24, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.5}/>
+                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="dayIndex" hide={true} />
+                        <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 8 }} domain={['auto', 'auto']} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '10px', padding: '4px 8px' }} labelFormatter={(val) => "Day " + val} />
+                        <Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorY)" isAnimationActive={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
@@ -251,7 +258,7 @@ const reproData = {
                           </button>
                         )}
                         <span style={{ color: item.currentLevel === 'RED' ? '#ef4444' : '#f59e0b', fontSize: '11px', fontWeight: 'bold' }}>
-                          {item.dropPercent ? (item.dropPercent + '%') : (item.title?.match(/\d+(\.\d+)?%/) ? item.title.match(/\d+(\.\d+)?%/)[0] : 'Drop')}
+                          {item.dropPercent ? (Math.round(item.dropPercent) + '%') : (item.title?.match(/\d+(\.\d+)?%/) ? Math.round(parseFloat(item.title.match(/\d+(\.\d+)?%/)[0])) + '%' : 'Drop')}
                         </span>
                       </div>
                     ))
@@ -303,7 +310,7 @@ const reproData = {
                   {displayedTop.map((p, idx) => (
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', padding: '2px 4px', background: '#161f30', borderRadius: '3px' }}>
                       <span onClick={() => openPassportHandler(p.id)} style={{ color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}>{idx + 1}. #{p.id}</span>
-                      <span style={{ color: '#34d399', fontWeight: 'bold' }}>{p.yield} L</span>
+                      <span style={{ color: '#34d399', fontWeight: 'bold' }}>{Math.round(p.yield)} L</span>
                     </div>
                   ))}
                 </div>
@@ -314,7 +321,7 @@ const reproData = {
                   {displayedBottom.map((p, idx) => (
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', padding: '2px 4px', background: '#161f30', borderRadius: '3px' }}>
                       <span onClick={() => openPassportHandler(p.id)} style={{ color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}>{idx + 1}. #{p.id}</span>
-                      <span style={{ color: '#f87171', fontWeight: 'bold' }}>{p.yield} L</span>
+                      <span style={{ color: '#f87171', fontWeight: 'bold' }}>{Math.round(p.yield)} L</span>
                     </div>
                   ))}
                 </div>
@@ -388,15 +395,15 @@ const reproData = {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div style={{ background: '#0f172a', border: '1px solid #1e293b', padding: '10px', borderRadius: '6px' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Prior 3-Day Avg</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38bdf8' }}>{selectedDropDetail.prior3DayAvg} L</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38bdf8' }}>{Math.round(selectedDropDetail.prior3DayAvg)} L</div>
                 </div>
                 <div style={{ background: '#0f172a', border: '1px solid #1e293b', padding: '10px', borderRadius: '6px' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Current Yield</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f87171' }}>{selectedDropDetail.currentYield} L</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f87171' }}>{Math.round(selectedDropDetail.currentYield)} L</div>
                 </div>
                 <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '10px', borderRadius: '6px' }}>
                   <div style={{ fontSize: '10px', color: '#fca5a5' }}>Drop Variance</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ef4444' }}>-{selectedDropDetail.dropLiters} L ({selectedDropDetail.dropPercent}%)</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ef4444' }}>-{Math.round(selectedDropDetail.dropLiters)} L ({Math.round(selectedDropDetail.dropPercent)}%)</div>
                 </div>
               </div>
               <div style={{ background: '#161f30', padding: '12px', borderRadius: '6px', fontSize: '11px', color: '#cbd5e1' }}>
@@ -426,3 +433,4 @@ const reproData = {
     </div>
   );
 }
+
