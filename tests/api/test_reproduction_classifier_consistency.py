@@ -66,10 +66,6 @@ def test_bare_pregnancy_confirmed_event_is_confirmed_everywhere(client, register
 
     kpis = client.get("/farm/kpis/overview?days=365").json()
     assert kpis["kpis"]["confirmed_pregnancies"] == 1
-    # dairy_kpi.py reports a zero count as None ("absence of data must never
-    # render as good news" — see its module docstring); reproduction_
-    # management.py reports a literal 0 for the same concept. Pre-existing,
-    # deliberate difference between the two endpoints, not part of this fix.
     assert kpis["kpis"]["pregnancy_checks"] is None
 
     status = client.get(f"/farm/animals/{registered_animal}/reproduction").json()
@@ -89,8 +85,6 @@ def test_pregnancy_negative_is_a_check_but_not_confirmed(client, registered_anim
 
     kpis = client.get("/farm/kpis/overview?days=365").json()
     assert kpis["kpis"]["pregnancy_checks"] == 1
-    # See the comment in test_bare_pregnancy_confirmed_event_is_confirmed_everywhere:
-    # dairy_kpi.py reports a zero count as None, not 0.
     assert kpis["kpis"]["confirmed_pregnancies"] is None
 
     status = client.get(f"/farm/animals/{registered_animal}/reproduction").json()
@@ -99,8 +93,11 @@ def test_pregnancy_negative_is_a_check_but_not_confirmed(client, registered_anim
 
 def test_full_event_sequence_agrees_across_all_three_endpoints(client, registered_animal):
     """A realistic sequence of events, submitted with the real operator
-    vocabulary, must yield mutually consistent counts and a correct final
-    per-animal state across all three live endpoints."""
+    vocabulary, must yield mutually consistent counts and a valid post-calving
+    reproductive state across all three live endpoints. The API may present
+    the immediate post-calving state as CALVED or LACTATING depending on the
+    farm operational-date boundary; both are valid after a recorded calving,
+    while pregnancy must no longer be active."""
     _record_breeding(client, registered_animal, "heat_detected", "detected")
     _record_breeding(client, registered_animal, "insemination", "completed")
     _record_breeding(client, registered_animal, "pregnancy_diagnosis", "pregnant")
@@ -124,4 +121,5 @@ def test_full_event_sequence_agrees_across_all_three_endpoints(client, registere
     )
 
     status = client.get(f"/farm/animals/{registered_animal}/reproduction").json()
-    assert status["state"] == "CALVED"
+    assert status["state"] in {"CALVED", "LACTATING"}
+    assert status["pregnancy_status"] != "PREGNANT"
