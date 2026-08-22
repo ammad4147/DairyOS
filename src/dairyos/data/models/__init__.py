@@ -8,6 +8,7 @@ from .feed_record import FeedRecord
 from .feed_ration import FeedRation
 from .feed_inventory_item import FeedInventoryItem
 from .health_observation import HealthObservation
+from .coml_record import COMLRecord
 
 
 __all__ = [
@@ -21,6 +22,5 @@ __all__ = [
     "FeedRation",
     "FeedInventoryItem",
     "HealthObservation",
+    "COMLRecord",
 ]
-
-from dairyos.data.models.cmp_scenario import CMPScenario

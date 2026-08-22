@@ -3,7 +3,7 @@ import UnifiedDashboard from './components/UnifiedDashboard';
 import FinanceTab from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
 import InventoryTab from './components/InventoryTab';
-import CMPL from './components/CMPL';
+import COML from './components/COML';
 import Analytics from './components/Analytics';
 import SettingsTab from './components/SettingsTab';
 import AuditTab from './components/AuditTab';
@@ -138,7 +138,6 @@ export default function MainAppShell() {
   const [showAnimalModal, setShowAnimalModal] = useState(false);
   const [todayYield, setTodayYield] = useState(133);
   const [todayMilkSoldLiters, setTodayMilkSoldLiters] = useState(110);
-  const [dailyFeedCostPKR, setDailyFeedCostPKR] = useState(5850);
   const [accountsReceivable, setAccountsReceivable] = useState(23400);
 
   const handleRegisterAnimal = (updatedAnimal: HerdAnimal) => {
@@ -163,7 +162,7 @@ export default function MainAppShell() {
     { id: 'finance', label: 'Finance', icon: <DollarSign size={14} /> },
     { id: 'breeding', label: 'Breeding', icon: <Activity size={14} /> },
     { id: 'health', label: 'Health', icon: <HeartPulse size={14} /> },
-    { id: 'cmpl', label: 'CMPL', icon: <Calculator size={14} /> },
+    { id: 'coml', label: 'COML', icon: <Calculator size={14} /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={14} /> }
   ];
 
@@ -234,11 +233,11 @@ export default function MainAppShell() {
       </header>
 
       <main style={{ flex: 1, overflowY: 'auto', background: '#0b0f19', position: 'relative' }}>
-        {currentView === 'dashboard' && <UnifiedDashboard onNavigate={(v) => setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} realTimeTodayYield={todayYield} realTimeDailyFeedCost={dailyFeedCostPKR} realTimeReceivables={accountsReceivable} />}
+        {currentView === 'dashboard' && <UnifiedDashboard onNavigate={(v) => setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} realTimeTodayYield={todayYield} realTimeReceivables={accountsReceivable} />}
         {currentView === 'finance' && <FinanceTab onSaveSale={(liters) => setTodayMilkSoldLiters(prev => prev + liters)} onUpdateReceivables={(amount) => setAccountsReceivable(amount)} />}
-        {currentView === 'feed' && <FeedTab onUpdateFeedCost={(cost) => setDailyFeedCostPKR(cost)} />}
+        {currentView === 'feed' && <FeedTab />}
         {currentView === 'inventory' && <InventoryTab />}
-        {currentView === 'cmpl' && <CMPL />}
+        {currentView === 'coml' && <COML />}
         {currentView === 'analytics' && <Analytics />}
         {currentView === 'audit' && <AuditTab />}
         {currentView === 'settings' && <SettingsTab onFarmProfileUpdate={(p) => { setFarmName(p.farmName); setFarmLocation(p.location); }} />}

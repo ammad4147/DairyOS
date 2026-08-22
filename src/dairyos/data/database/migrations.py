@@ -159,3 +159,31 @@ def migrate_milk_quality() -> list[str]:
             )
         )
     return ["milk_quality_samples"]
+
+
+def migrate_coml() -> list[str]:
+    """Create the official static monthly COML record table."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "coml_records" in inspector.get_table_names():
+            return []
+        connection.execute(
+            text(
+                """
+                CREATE TABLE coml_records (
+                    id SERIAL PRIMARY KEY,
+                    month_start DATE NOT NULL UNIQUE,
+                    feed_cost_per_liter DOUBLE PRECISION NOT NULL,
+                    opex_cost_per_liter DOUBLE PRECISION NOT NULL,
+                    total_coml_per_liter DOUBLE PRECISION NOT NULL,
+                    status VARCHAR NOT NULL DEFAULT 'OFFICIAL',
+                    notes VARCHAR NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    locked_at TIMESTAMP NOT NULL,
+                    updated_by VARCHAR NOT NULL DEFAULT 'UI Operator'
+                )
+                """
+            )
+        )
+    return ["coml_records"]

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.data.database.migrations import migrate_finance_feed_opex, migrate_feed_inventory, migrate_milk_quality
+from dairyos.data.database.migrations import migrate_finance_feed_opex, migrate_feed_inventory, migrate_milk_quality, migrate_coml
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -35,12 +35,15 @@ async def lifespan(_app: FastAPI):
     migrated = migrate_finance_feed_opex()
     inventory_migrated = migrate_feed_inventory()
     quality_migrated = migrate_milk_quality()
+    coml_migrated = migrate_coml()
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
         logging.info("Feed inventory migration created: %s", ", ".join(inventory_migrated))
     if quality_migrated:
         logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
+    if coml_migrated:
+        logging.info("COML migration created: %s", ", ".join(coml_migrated))
     container.start()
     logging.info("RuntimeContainer started - operations ready.")
     try:
@@ -126,7 +129,6 @@ from dairyos.api.milk_production_analytics import router as milk_production_anal
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.analytics import router as analytics_router
-from dairyos.api.cmp import router as cmp_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
@@ -149,6 +151,7 @@ from dairyos.api.operational_findings import router as operational_findings_rout
 from dairyos.api.settings import router as settings_router
 from dairyos.api.milk_production_summary import router as milk_production_summary_router
 from dairyos.api.milk_quality import router as milk_quality_router
+from dairyos.api.coml import router as coml_router
 
 app.include_router(auth_router)
 app.include_router(command_router)
@@ -161,7 +164,6 @@ app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
 app.include_router(analytics_router)
-app.include_router(cmp_router)
 app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
@@ -183,6 +185,7 @@ app.include_router(operational_findings_router)
 app.include_router(settings_router)
 app.include_router(milk_production_summary_router)
 app.include_router(milk_quality_router)
+app.include_router(coml_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 

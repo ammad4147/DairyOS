@@ -74,7 +74,7 @@ def test_required_reconciliation_capabilities_are_present():
         "milk_reconciliation",
         "milk_dispositions",
         "analytics_contract",
-        "cmp",
+        "coml",
         "dashboard_read_model",
     }
 
