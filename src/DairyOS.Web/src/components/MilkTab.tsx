@@ -1,349 +1,79 @@
-﻿import React, { useState } from 'react';
-import { Milk, Calendar, Droplets, Plus, X, Save, List } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Droplets, Edit3, Milk, RefreshCw, Save, Trash2, X } from 'lucide-react';
 
-interface HerdAnimal {
-  id: string;
-  breed: string;
-  category: string;
+const API_BASE = 'http://localhost:8000';
+type HerdAnimal = { id: string; breed: string; category: string; frequency?: string };
+type ProductionRow = { id:number; animal_id:string; production_date:string; milking_session?:string|null; session_ledger:boolean; morning_yield?:number|null; afternoon_yield?:number|null; evening_yield?:number|null; total_yield?:number|null; status:string; notes?:string|null };
+type DispositionRow = { id:number; production_date:string; disposition_type:string; quantity_litres:number; sale_id?:string|null; counterparty?:string|null; selling_price_per_litre?:number|null; amount_due:number; amount_received:number; receivable_outstanding:number; notes?:string|null; status:string };
+type Reconciliation = { production_date:string; production_complete:boolean; produced_litres:number|null; accounted_litres:number; sold_litres:number; non_sale_accounted_litres:number; unaccounted_litres:number|null; over_accounted_litres:number|null; sale_value:number; cash_received:number; receivable_outstanding:number; status:string };
+type NextSession = { animal_id:string; milking_frequency?:string; expected_sessions:string[]; settled_sessions:string[]; next_session:string|null; status:string };
+type Props = { initialOpenModal?:boolean; onModalClose?:()=>void; herdMasterList?:HerdAnimal[]; onSaveYield?:(addedLiters:number)=>void; realTimeTodaySold?:number };
+
+const inputStyle:React.CSSProperties={background:'#1e293b',color:'#fff',border:'1px solid #334155',padding:'7px 8px',borderRadius:5,fontSize:11,boxSizing:'border-box',width:'100%'};
+const buttonStyle=(background:string):React.CSSProperties=>({background,color:'#fff',border:'none',padding:'8px 11px',borderRadius:5,fontSize:10,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5});
+const smallButton:React.CSSProperties={background:'#1e293b',border:'1px solid #334155',color:'#cbd5e1',padding:'4px 7px',borderRadius:4,fontSize:9,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:4};
+const today=()=>new Date().toISOString().slice(0,10);
+const litre=(value:number|null|undefined)=>`${Number(value||0).toFixed(1)} L`;
+
+async function request<T>(url:string,init?:RequestInit):Promise<T>{
+  const response=await fetch(`${API_BASE}${url}`,{headers:{'Content-Type':'application/json'},...init});
+  if(!response.ok){let detail=`Request failed: ${response.status}`;try{const body=await response.json() as {detail?:unknown};if(body.detail)detail=typeof body.detail==='string'?body.detail:JSON.stringify(body.detail);}catch{}throw new Error(detail);}
+  return response.json() as Promise<T>;
 }
 
-interface MilkTabProps {
-  initialOpenModal?: boolean;
-  onModalClose?: () => void;
-  herdMasterList?: HerdAnimal[];
-  onSaveYield?: (addedLiters: number) => void;
-  realTimeTodaySold?: number;
-}
+export default function MilkTab({initialOpenModal=false,onModalClose,herdMasterList=[],onSaveYield}:Props){
+  const [date,setDate]=useState(today());
+  const [productionAnimal,setProductionAnimal]=useState(herdMasterList[0]?.id||'');
+  const [nextSession,setNextSession]=useState<NextSession|null>(null);
+  const [productions,setProductions]=useState<ProductionRow[]>([]);
+  const [dispositions,setDispositions]=useState<DispositionRow[]>([]);
+  const [reconciliation,setReconciliation]=useState<Reconciliation|null>(null);
+  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+  const [showProductionForm,setShowProductionForm]=useState(initialOpenModal),[showDispositionForm,setShowDispositionForm]=useState(false);
+  const [editingProduction,setEditingProduction]=useState<ProductionRow|null>(null),[editingDisposition,setEditingDisposition]=useState<DispositionRow|null>(null);
+  const [productionSession,setProductionSession]=useState(''),[productionLitres,setProductionLitres]=useState(''),[productionNotes,setProductionNotes]=useState('');
+  const [dispositionType,setDispositionType]=useState('SOLD'),[dispositionLitres,setDispositionLitres]=useState(''),[saleId,setSaleId]=useState(''),[counterparty,setCounterparty]=useState(''),[sellingPrice,setSellingPrice]=useState(''),[dispositionNotes,setDispositionNotes]=useState('');
 
-export default function MilkTab({ initialOpenModal = false, onModalClose, herdMasterList = [], onSaveYield, realTimeTodaySold = 110 }: MilkTabProps) {
-  // Data Entry Modal State
-  const [activeModal, setActiveModal] = useState<'Production' | 'Domestic' | 'Calves' | null>(initialOpenModal ? 'Production' : null);
-  const [inputValue, setInputValue] = useState('');
-  const [selectedAnimal, setSelectedAnimal] = useState('BULK');
-  
-  // List Viewing Modal State
-  const [viewList, setViewList] = useState<'MonthlyProduced' | 'MonthlySold' | 'TodayProduced' | 'MonthlyReconciliation' | null>(null);
+  const load=async()=>{setLoading(true);setError('');setMessage('');try{const ledger=await request<{production:ProductionRow[];dispositions:DispositionRow[]}>(`/farm/milk/ledger?start_date=${date}&end_date=${date}`);setProductions(ledger.production||[]);setDispositions(ledger.dispositions||[]);setReconciliation(await request<Reconciliation>(`/farm/milk/reconciliation?production_date=${date}`));if(productionAnimal)setNextSession(await request<NextSession>(`/farm/milk/next-session?animal_id=${encodeURIComponent(productionAnimal)}&operational_date=${date}`));}catch(err){setError(err instanceof Error?err.message:'Unable to load Milk data.');}finally{setLoading(false);}};
+  useEffect(()=>{void load();},[date]);
+  useEffect(()=>{if(!productionAnimal&&herdMasterList[0])setProductionAnimal(herdMasterList[0].id);},[herdMasterList,productionAnimal]);
+  useEffect(()=>{if(!productionAnimal)return;void request<NextSession>(`/farm/milk/next-session?animal_id=${encodeURIComponent(productionAnimal)}&operational_date=${date}`).then(v=>{setNextSession(v);setProductionSession(v.next_session||v.expected_sessions[0]||'');}).catch(()=>setNextSession(null));},[productionAnimal,date]);
 
-  // Local Today's State
-  const [todayProduced, setTodayProduced] = useState(133); // Baseline mock
-  const [todayDomestic, setTodayDomestic] = useState(5);
-  const [todayCalves, setTodayCalves] = useState(10);
-  const todaySold = realTimeTodaySold;
+  const rows=useMemo(()=>[
+    ...productions.map(row=>({kind:'PRODUCTION' as const,id:row.id,date:row.production_date,label:`${row.animal_id} • ${row.milking_session||'LEGACY'}`,detail:litre(row.total_yield),status:row.status,row})),
+    ...dispositions.map(row=>({kind:'DISPOSITION' as const,id:row.id,date:row.production_date,label:`${row.disposition_type}${row.sale_id?` • ${row.sale_id}`:''}`,detail:litre(row.quantity_litres),status:row.status,row}))
+  ].sort((a,b)=>`${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`)),[productions,dispositions]);
 
-  // Live Today's Log (Updates when you enter milk)
-  const [todayLogs, setTodayLogs] = useState<{id: string, time: string, animalId: string, liters: number}[]>([
-    { id: 'LOG-1', time: '06:00 AM', animalId: 'TD-001', liters: 14.5 },
-    { id: 'LOG-2', time: '06:05 AM', animalId: 'TD-002', liters: 12.0 }
-  ]);
+  const resetProduction=()=>{setProductionLitres('');setProductionNotes('');setEditingProduction(null);setShowProductionForm(false);onModalClose?.();};
+  const resetDisposition=()=>{setDispositionLitres('');setSaleId('');setCounterparty('');setSellingPrice('');setDispositionNotes('');setEditingDisposition(null);setShowDispositionForm(false);};
 
-  // Mock Monthly Data for Lists
-  const monthlyProducedLogs = [
-    { date: 'August 22, 2026', liters: 133 },
-    { date: 'August 21, 2026', liters: 128 },
-    { date: 'August 20, 2026', liters: 131 },
-    { date: 'August 19, 2026', liters: 129 },
-  ];
-  
-  const monthlySoldLogs = [
-    { date: 'August 22, 2026', liters: 110 },
-    { date: 'August 21, 2026', liters: 108 },
-    { date: 'August 20, 2026', liters: 112 },
-    { date: 'August 19, 2026', liters: 105 },
-  ];
+  const saveProduction=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setError('');try{const litres=Number(productionLitres);if(litres<=0)throw new Error('Milk litres must be greater than zero.');if(!productionAnimal||!productionSession)throw new Error('Animal and expected milking session are required.');if(editingProduction){await request(`/farm/milk/production/${editingProduction.id}`,{method:'PATCH',body:JSON.stringify({production_date:date,morning_yield:productionSession==='MORNING'?litres:editingProduction.morning_yield,afternoon_yield:productionSession==='AFTERNOON'?litres:editingProduction.afternoon_yield,evening_yield:productionSession==='EVENING'?litres:editingProduction.evening_yield,notes:productionNotes})});setMessage('Milk production record updated.');}else{await request('/farm/milk',{method:'POST',body:JSON.stringify({animal_id:productionAnimal,milking_session:productionSession,morning_yield:productionSession==='MORNING'?litres:null,afternoon_yield:productionSession==='AFTERNOON'?litres:null,evening_yield:productionSession==='EVENING'?litres:null,production_date:date,notes:productionNotes,operator:'WEB'})});if(onSaveYield&&date===today())onSaveYield(litres);setMessage('Milk production recorded.');}resetProduction();await load();}catch(err){setError(err instanceof Error?err.message:'Milk production save failed.');}finally{setSaving(false);}};
 
-  const monthlyReconLogs = [
-    { date: 'August 21, 2026', variance: 0 },
-    { date: 'August 20, 2026', variance: -2.0 },
-    { date: 'August 19, 2026', variance: 0 },
-    { date: 'August 18, 2026', variance: +2.0 }, // Total historical variance balances to 0 for the mock
-  ];
+  const saveDisposition=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setError('');try{const litres=Number(dispositionLitres);if(litres<=0)throw new Error('Disposition litres must be greater than zero.');if(editingDisposition){await request(`/farm/milk/dispositions/${editingDisposition.id}`,{method:'PATCH',body:JSON.stringify({production_date:date,quantity_litres:litres,counterparty:counterparty||null,selling_price_per_litre:dispositionType==='SOLD'?Number(sellingPrice||0):null,notes:dispositionNotes})});setMessage('Milk disposition updated.');}else{await request('/farm/milk/dispositions',{method:'POST',body:JSON.stringify({production_date:date,disposition_type:dispositionType,quantity_litres:litres,sale_id:dispositionType==='SOLD'?(saleId||`SALE-${Date.now()}`):null,counterparty:dispositionType==='SOLD'?(counterparty||null):null,selling_price_per_litre:dispositionType==='SOLD'?Number(sellingPrice||0):null,notes:dispositionNotes||null})});setMessage('Milk disposition recorded.');}resetDisposition();await load();}catch(err){setError(err instanceof Error?err.message:'Milk disposition save failed.');}finally{setSaving(false);}};
 
-  // Daily True Variance Calculation (Produced - ALL OUTFLOWS)
-  const todayReconciliation = todayProduced - (todaySold + todayDomestic + todayCalves);
+  const editProduction=(row:ProductionRow)=>{setEditingProduction(row);setProductionAnimal(row.animal_id);setProductionSession(row.milking_session||'MORNING');setProductionLitres(String(row.morning_yield??row.afternoon_yield??row.evening_yield??''));setProductionNotes(row.notes||'');setDate(row.production_date.slice(0,10));setShowProductionForm(true);};
+  const editDisposition=(row:DispositionRow)=>{setEditingDisposition(row);setDispositionType(row.disposition_type);setDispositionLitres(String(row.quantity_litres));setSaleId(row.sale_id||'');setCounterparty(row.counterparty||'');setSellingPrice(String(row.selling_price_per_litre??''));setDispositionNotes(row.notes||'');setDate(row.production_date.slice(0,10));setShowDispositionForm(true);};
+  const voidProduction=async(row:ProductionRow)=>{if(!window.confirm(`Void milk production record ${row.id}? This remains in the audit ledger.`))return;try{await request(`/farm/milk/production/${row.id}/void`,{method:'POST',body:JSON.stringify({reason:'Operator void from Milk register'})});setMessage('Milk production record voided.');await load();}catch(err){setError(err instanceof Error?err.message:'Unable to void production.');}};
+  const voidDisposition=async(row:DispositionRow)=>{if(!window.confirm(`Void milk disposition ${row.id}? This remains in the audit ledger.`))return;try{await request(`/farm/milk/dispositions/${row.id}/void`,{method:'POST',body:JSON.stringify({reason:'Operator void from Milk register'})});setMessage('Milk disposition voided.');await load();}catch(err){setError(err instanceof Error?err.message:'Unable to void disposition.');}};
 
-  // FORENSIC AUDIT INJECTION: True Monthly Mass Balance
-  const monthlyProduced = 3980;
-  const monthlySold = 3700;
-  const monthlyDomestic = 150;
-  const monthlyCalves = 130;
-  const historicalMonthlyVariance = monthlyProduced - (monthlySold + monthlyDomestic + monthlyCalves);
-  
-  // Mathematically binds monthlyReconciliation to dynamically include todayReconciliation
-  const monthlyReconciliation = historicalMonthlyVariance + todayReconciliation;
+  return <div style={{padding:16,color:'#fff',height:'100%',overflowY:'auto',boxSizing:'border-box'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}}><div><div style={{fontSize:20,fontWeight:800,display:'flex',alignItems:'center',gap:8}}><Milk size={20} color="#38bdf8"/> Milk Production & Reconciliation</div><div style={{fontSize:11,color:'#94a3b8'}}>Animal Passport frequency remains authoritative for expected sessions.</div></div><button style={smallButton} onClick={()=>void load()}><RefreshCw size={12}/> Refresh</button></div>
+    {error&&<div style={{background:'rgba(239,68,68,.12)',border:'1px solid #ef4444',color:'#fecaca',padding:9,borderRadius:6,marginBottom:10,fontSize:11}}>{error}</div>}
+    {message&&<div style={{background:'rgba(52,211,153,.10)',border:'1px solid #34d399',color:'#bbf7d0',padding:9,borderRadius:6,marginBottom:10,fontSize:11,display:'flex',alignItems:'center',gap:5}}><Check size={13}/>{message}</div>}
+    <div style={{display:'flex',gap:7,alignItems:'center',marginBottom:10}}><label style={{fontSize:10,color:'#94a3b8'}}>Operational date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{...inputStyle,width:150}}/></div>
 
-  const todayDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    <div style={{display:'grid',gridTemplateColumns:'repeat(6,minmax(0,1fr))',gap:8,marginBottom:12}}>{([['Produced',reconciliation?.produced_litres,'#38bdf8'],['Sold',reconciliation?.sold_litres,'#34d399'],['Non-sale',reconciliation?.non_sale_accounted_litres,'#f59e0b'],['Unaccounted',reconciliation?.unaccounted_litres,'#f87171'],['Over-accounted',reconciliation?.over_accounted_litres,'#fb7185'],['Status',reconciliation?.status||'—','#a78bfa']] as const).map(([label,value,color])=><div key={String(label)} style={{background:'#111827',border:'1px solid #1f2937',borderLeft:`4px solid ${color}`,borderRadius:7,padding:'10px 12px'}}><div style={{fontSize:9,color:'#94a3b8',textTransform:'uppercase',fontWeight:700}}>{label}</div><div style={{fontSize:15,fontWeight:800,color}}>{typeof value==='number'?litre(value):String(value)}</div></div>)}</div>
 
-  const handleCloseEntry = () => {
-    setActiveModal(null);
-    if (onModalClose) onModalClose();
-  };
-
-  const handleSaveEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = parseFloat(inputValue);
-    if (!isNaN(amount) && amount > 0) {
-      if (activeModal === 'Production') {
-        setTodayProduced(prev => prev + amount);
-        
-        // Add to live list
-        setTodayLogs([{
-          id: `LOG-${Date.now()}`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          animalId: selectedAnimal,
-          liters: amount
-        }, ...todayLogs]);
-
-        if (onSaveYield) onSaveYield(amount);
-      } else if (activeModal === 'Domestic') {
-        setTodayDomestic(prev => prev + amount);
-      } else if (activeModal === 'Calves') {
-        setTodayCalves(prev => prev + amount);
-      }
-    }
-    setInputValue('');
-    setSelectedAnimal('BULK');
-    handleCloseEntry();
-  };
-
-  return (
-    <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-      
-      {/* HEADER */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Milk size={20} /> Mass Balance & Milk Distribution
-        </h2>
-        <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Track production, sales linkages, and internal farm utilization.</p>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+      <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:12}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{color:'#38bdf8',fontSize:12}}>Milk Production Entry</strong>{showProductionForm&&<button style={smallButton} onClick={resetProduction}><X size={12}/></button>}</div>
+        {!showProductionForm?<button style={buttonStyle('#0284c7')} onClick={()=>setShowProductionForm(true)}><Droplets size={13}/> Enter Milk Production</button>:<form onSubmit={saveProduction}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><select value={productionAnimal} onChange={e=>setProductionAnimal(e.target.value)} style={inputStyle} required>{herdMasterList.map(a=><option key={a.id} value={a.id}>{a.id} • {a.breed}</option>)}</select><select value={productionSession} onChange={e=>setProductionSession(e.target.value)} style={inputStyle} required><option value="">Expected session</option>{(nextSession?.expected_sessions||[]).map(s=><option key={s}>{s}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginTop:7}}><input type="number" min="0.001" step="0.001" value={productionLitres} onChange={e=>setProductionLitres(e.target.value)} style={inputStyle} placeholder="Milk litres" required/><input value={productionNotes} onChange={e=>setProductionNotes(e.target.value)} style={inputStyle} placeholder="Notes"/></div><div style={{marginTop:7,fontSize:9,color:'#64748b'}}>{nextSession?`Passport frequency: ${nextSession.milking_frequency||'—'} • Expected: ${nextSession.expected_sessions.join(', ')||'none'} • Next: ${nextSession.next_session||'day complete'}`:'Select an animal to load its effective schedule.'}</div><div style={{marginTop:8,display:'flex',gap:7}}><button disabled={saving} type="submit" style={buttonStyle('#0284c7')}><Save size={13}/>{saving?'Saving…':editingProduction?'Update Production':'Save Production'}</button><button type="button" style={smallButton} onClick={resetProduction}>Cancel</button></div></form>}
       </div>
 
-      {/* MONTHLY MILK REGISTER */}
-      <h3 style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Calendar size={16} color="#3b82f6" /> Monthly Milk Register
-      </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '32px' }}>
-        {/* Clickable Monthly Produced */}
-        <div onClick={() => setViewList('MonthlyProduced')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #38bdf8', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
-          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Total Milk Produced</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{monthlyProduced.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
-        </div>
-        
-        {/* Clickable Monthly Sold */}
-        <div onClick={() => setViewList('MonthlySold')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #10b981', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
-          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Total Milk Sold</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{monthlySold.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
-        </div>
-
-        {/* NOW CLICKABLE: Monthly Reconciliation */}
-        <div onClick={() => setViewList('MonthlyReconciliation')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #8b5cf6', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
-          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Monthly Milk Reconciliation</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: monthlyReconciliation === 0 ? '#10b981' : '#ef4444' }}>{monthlyReconciliation > 0 ? '+' : ''}{monthlyReconciliation.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
-        </div>
+      <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:12}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{color:'#34d399',fontSize:12}}>Milk Disposition / Sale</strong>{showDispositionForm&&<button style={smallButton} onClick={resetDisposition}><X size={12}/></button>}</div>
+        {!showDispositionForm?<button style={buttonStyle('#059669')} onClick={()=>setShowDispositionForm(true)}><Droplets size={13}/> Record Sale / Farm Use</button>:<form onSubmit={saveDisposition}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}><select disabled={!!editingDisposition} value={dispositionType} onChange={e=>setDispositionType(e.target.value)} style={inputStyle}><option>SOLD</option><option>CALF_FEED</option><option>DOMESTIC_USE</option><option>WASTAGE</option><option>OTHER</option></select><input type="number" min="0.001" step="0.001" value={dispositionLitres} onChange={e=>setDispositionLitres(e.target.value)} style={inputStyle} placeholder="Litres" required/></div>{dispositionType==='SOLD'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginTop:7}}><input value={saleId} onChange={e=>setSaleId(e.target.value)} style={inputStyle} placeholder="Sale ID" disabled={!!editingDisposition}/><input value={counterparty} onChange={e=>setCounterparty(e.target.value)} style={inputStyle} placeholder="Customer"/><input type="number" min="0" step="0.01" value={sellingPrice} onChange={e=>setSellingPrice(e.target.value)} style={inputStyle} placeholder="Price / litre" required /></div>}{dispositionType!=='SOLD'&&<input value={counterparty} onChange={e=>setCounterparty(e.target.value)} style={{...inputStyle,marginTop:7}} placeholder="Destination"/>}<input value={dispositionNotes} onChange={e=>setDispositionNotes(e.target.value)} style={{...inputStyle,marginTop:7}} placeholder="Notes"/><div style={{marginTop:8,display:'flex',gap:7}}><button disabled={saving} type="submit" style={buttonStyle('#059669')}><Save size={13}/>{saving?'Saving…':editingDisposition?'Update Disposition':'Save Disposition'}</button><button type="button" style={smallButton} onClick={resetDisposition}>Cancel</button></div></form>}
       </div>
-
-      {/* TODAY'S MILK REGISTER */}
-      <h3 style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Droplets size={16} color="#38bdf8" /> Today's Milk Register - {todayDateStr}
-      </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
-        
-        {/* Box 1: Milk Produced */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #38bdf8' }}>
-          <div onClick={() => setViewList('TodayProduced')} style={{ cursor: 'pointer' }}>
-            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Milk Produced</div>
-            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' }}>{todayProduced.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
-          </div>
-          <button onClick={() => setActiveModal('Production')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', transition: 'all 0.2s' }}>
-            <Plus size={12}/> Enter Milk Production
-          </button>
-        </div>
-
-        {/* Box 2: Milk Sold */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #10b981' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Milk Sold</div>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#10b981', marginBottom: '12px' }}>{todaySold.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: 'auto', padding: '8px 0', fontStyle: 'italic', textAlign: 'center' }}>
-            Taken from sales
-          </div>
-        </div>
-
-        {/* Box 3: Domestic Use */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #f59e0b' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Domestic Use</div>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#f59e0b', marginBottom: '12px' }}>{todayDomestic.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
-          <button onClick={() => setActiveModal('Domestic')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#f59e0b', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <Plus size={12}/> Enter Milk for Domestic Use
-          </button>
-        </div>
-
-        {/* Box 4: Calves Feed */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #ec4899' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Calves Feed</div>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#ec4899', marginBottom: '12px' }}>{todayCalves.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
-          <button onClick={() => setActiveModal('Calves')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#ec4899', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <Plus size={12}/> Enter Milk for Calves Feed
-          </button>
-        </div>
-
-        {/* Box 5: Reconciliation */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #8b5cf6' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Reconciliation</div>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', color: todayReconciliation === 0 ? '#10b981' : '#ef4444', marginBottom: '12px' }}>
-            {todayReconciliation > 0 ? '+' : ''}{todayReconciliation.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span>
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: 'auto', padding: '8px 0', textAlign: 'center' }}>
-            Unallocated Balance
-          </div>
-        </div>
-
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* MODALS FOR LIST VIEWS */}
-      {/* ------------------------------------------------------------- */}
-      {viewList && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', width: '500px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-            
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <List size={18} color="#38bdf8" /> 
-                {viewList === 'MonthlyProduced' && 'Monthly Daily Production List'}
-                {viewList === 'MonthlySold' && 'Monthly Daily Sold List'}
-                {viewList === 'TodayProduced' && "Today's Milk Production List"}
-                {viewList === 'MonthlyReconciliation' && 'Monthly Reconciliation History'}
-              </h3>
-              <button onClick={() => setViewList(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button>
-            </div>
-
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-              <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left' }}>
-                    {viewList === 'TodayProduced' ? (
-                      <>
-                        <th style={{ padding: '10px' }}>Time</th>
-                        <th style={{ padding: '10px' }}>Animal ID</th>
-                        <th style={{ padding: '10px', textAlign: 'right' }}>Yield (Liters)</th>
-                      </>
-                    ) : viewList === 'MonthlyReconciliation' ? (
-                      <>
-                        <th style={{ padding: '10px' }}>Date</th>
-                        <th style={{ padding: '10px', textAlign: 'right' }}>Variance (Liters)</th>
-                      </>
-                    ) : (
-                      <>
-                        <th style={{ padding: '10px' }}>Date</th>
-                        <th style={{ padding: '10px', textAlign: 'right' }}>Amount (Liters)</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewList === 'TodayProduced' && todayLogs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '10px', color: '#94a3b8' }}>{log.time}</td>
-                      <td style={{ padding: '10px', color: '#fff', fontWeight: 'bold' }}>{log.animalId}</td>
-                      <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
-                    </tr>
-                  ))}
-
-                  {viewList === 'MonthlyProduced' && monthlyProducedLogs.map((log, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
-                      <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
-                    </tr>
-                  ))}
-
-                  {viewList === 'MonthlySold' && monthlySoldLogs.map((log, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
-                      <td style={{ padding: '10px', color: '#10b981', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
-                    </tr>
-                  ))}
-
-                  {/* NEW RECONCILIATION LIST WIRE-UP */}
-                  {viewList === 'MonthlyReconciliation' && (
-                    <>
-                      {/* Inject Today's Live Variance at the top */}
-                      <tr style={{ borderBottom: '1px solid #1e293b', background: 'rgba(56, 189, 248, 0.05)' }}>
-                        <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold' }}>Today (Live)</td>
-                        <td style={{ padding: '10px', color: todayReconciliation === 0 ? '#10b981' : '#ef4444', fontWeight: 'bold', textAlign: 'right' }}>
-                          {todayReconciliation > 0 ? '+' : ''}{todayReconciliation.toFixed(1)} L
-                        </td>
-                      </tr>
-                      {/* Historical Daily Logs */}
-                      {monthlyReconLogs.map((log, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
-                          <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
-                          <td style={{ padding: '10px', color: log.variance === 0 ? '#10b981' : '#ef4444', fontWeight: 'bold', textAlign: 'right' }}>
-                            {log.variance > 0 ? '+' : ''}{log.variance.toFixed(1)} L
-                          </td>
-                        </tr>
-                      ))}
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* UNIVERSAL DATA ENTRY MODAL */}
-      {/* ------------------------------------------------------------- */}
-      {activeModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', width: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: activeModal === 'Production' ? '#38bdf8' : activeModal === 'Domestic' ? '#f59e0b' : '#ec4899', fontSize: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>
-                {activeModal === 'Production' && 'Enter Milk Production'}
-                {activeModal === 'Domestic' && 'Enter Milk for Domestic Use'}
-                {activeModal === 'Calves' && 'Enter Milk for Calves Feed'}
-              </span>
-              <button onClick={handleCloseEntry} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button>
-            </h3>
-            
-            <form onSubmit={handleSaveEntry} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              {activeModal === 'Production' && (
-                <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Select Source Animal</label>
-                  <select value={selectedAnimal} onChange={e => setSelectedAnimal(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>
-                    <option value="BULK">Bulk / Whole Herd Entry</option>
-                    {herdMasterList.map(a => (
-                       <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Amount (Liters)</label>
-                <input 
-                  type="number" 
-                  step="0.1" 
-                  min="0.1"
-                  required
-                  autoFocus
-                  placeholder="e.g. 10.5"
-                  value={inputValue} 
-                  onChange={e => setInputValue(e.target.value)} 
-                  style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '12px', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', boxSizing: 'border-box' }} 
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-                <button type="button" onClick={handleCloseEntry} style={{ background: '#334155', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Cancel</button>
-                <button type="submit" style={{ background: activeModal === 'Production' ? '#38bdf8' : activeModal === 'Domestic' ? '#f59e0b' : '#ec4899', color: '#0f172a', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Save size={14} /> Save Entry
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
-  );
+
+    <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,overflow:'hidden'}}><div style={{padding:'10px 12px',borderBottom:'1px solid #1f2937',display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong style={{fontSize:12}}>Unified Milk Ledger</strong><span style={{fontSize:9,color:'#64748b'}}>{loading?'Loading…':`${rows.length} records`}</span></div><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:760,borderCollapse:'collapse',fontSize:10}}><thead><tr style={{background:'#161f30',color:'#94a3b8',textAlign:'left'}}><th style={{padding:9}}>Date</th><th>Type / Animal</th><th>Quantity</th><th>Status</th><th>Notes</th><th style={{textAlign:'right',padding:9}}>Actions</th></tr></thead><tbody>{rows.map(entry=><tr key={`${entry.kind}-${entry.id}`} style={{borderTop:'1px solid #1a2234',opacity:entry.status==='VOID'?0.55:1}}><td style={{padding:9}}>{entry.date.slice(0,10)}</td><td>{entry.label}</td><td>{entry.detail}</td><td style={{color:entry.status==='VOID'?'#f87171':'#34d399',fontWeight:700}}>{entry.status}</td><td style={{maxWidth:260,color:'#94a3b8'}}>{entry.row.notes||'—'}</td><td style={{padding:9,textAlign:'right'}}>{entry.status!=='VOID'&&<span style={{display:'inline-flex',gap:5}}>{entry.kind==='PRODUCTION'?<><button style={smallButton} onClick={()=>editProduction(entry.row)}><Edit3 size={11}/> Edit</button><button style={smallButton} onClick={()=>voidProduction(entry.row)}><Trash2 size={11}/> Void</button></>:<><button style={smallButton} onClick={()=>editDisposition(entry.row)}><Edit3 size={11}/> Edit</button><button style={smallButton} onClick={()=>voidDisposition(entry.row)}><Trash2 size={11}/> Void</button></>}</span>}</td></tr>)}{!loading&&rows.length===0&&<tr><td colSpan={6} style={{padding:16,color:'#64748b',textAlign:'center'}}>No persisted milk records for {date}.</td></tr>}</tbody></table></div></div>
+  </div>;
 }

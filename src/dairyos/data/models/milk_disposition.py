@@ -1,10 +1,4 @@
-"""Persisted accounting destination for produced milk litres.
-
-Every complete production date must eventually account for every produced
-litre through SOLD, CALF_FEED, DOMESTIC_USE, WASTAGE or OTHER. A sale records
-its receivable separately from cash receipt; milk sold therefore never implies
-that money has already been received.
-"""
+"""Persisted accounting destination for produced milk litres."""
 
 from sqlalchemy import Column, Date, DateTime, Float, Index, Integer, String
 
@@ -28,6 +22,7 @@ class MilkDisposition(Base):
 
     notes = Column(String, nullable=True)
     recorded_by = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="RECORDED")
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, nullable=False)
 
@@ -37,4 +32,8 @@ class MilkDisposition(Base):
 
     @property
     def receivable_outstanding(self) -> float:
-        return max(float(self.amount_due or 0.0) - float(self.amount_received or 0.0), 0.0)
+        return max(
+            float(self.amount_due or 0.0)
+            - float(self.amount_received or 0.0),
+            0.0,
+        )
