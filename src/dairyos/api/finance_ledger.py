@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.reference_data import GOVERNED
@@ -11,6 +11,7 @@ from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import MASTER_CATEGORIES, all_items, legacy_category, valid_item
+from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
 
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
 
@@ -74,7 +75,6 @@ def _validate_expense_payload(entry: FinanceLedgerEntry) -> tuple[float, str]:
 
     if entry.master_category not in MASTER_CATEGORIES:
         raise HTTPException(status_code=422, detail="master_category must be FEED or OPEX.")
-
     if not entry.sub_category or not valid_item(entry.master_category, entry.sub_category):
         raise HTTPException(status_code=422, detail="sub_category is not valid for the selected master_category.")
 
@@ -95,7 +95,6 @@ def _validate_expense_payload(entry: FinanceLedgerEntry) -> tuple[float, str]:
         amount = float(entry.amount)
     else:
         raise HTTPException(status_code=422, detail="Provide quantity + unit_rate or a direct amount.")
-
     if amount <= 0:
         raise HTTPException(status_code=422, detail="Expense amount must be greater than zero.")
 
@@ -109,7 +108,14 @@ def list_finance_ledger():
         rows = factory.finance().get_all()
         return {
             "data_status": "LIVE_PERSISTED_DATA",
-            "transactions": [_row_dict(row) for row in sorted(rows, key=lambda r: r.transaction_date or datetime.min, reverse=True)],
+            "transactions": [
+                _row_dict(row)
+                for row in sorted(
+                    rows,
+                    key=lambda r: r.transaction_date or datetime.min,
+                    reverse=True,
+                )
+            ],
         }
     finally:
         factory.close()
@@ -178,3 +184,16 @@ def finance_taxonomy():
         "taxonomies": GOVERNED["finance_expense_taxonomy"],
         "items": {master: all_items(master) for master in sorted(MASTER_CATEGORIES)},
     }
+
+
+@router.get("/cost-of-production")
+def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366)):
+    factory = RepositoryFactory.create()
+    try:
+        return FeedOpexCostService().evaluate(
+            factory.milk().get_all(),
+            factory.finance().get_all(),
+            days=days,
+        )
+    finally:
+        factory.close()
