@@ -17,11 +17,7 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "LifetimeAnimalPassportService",
         "route": "/farm/animals/{animal_id}/passport",
-        "depends_on": [
-            "AnimalRepository",
-            "AnimalMilkingScheduleService",
-            "operational_date",
-        ],
+        "depends_on": ["AnimalRepository", "AnimalMilkingScheduleService", "operational_date"],
         "next_dependency": "Passport UI and historical views must remain consumers of the consolidated date-aware read model.",
     },
     "effective_milking_schedule": {
@@ -29,11 +25,7 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "AnimalMilkingScheduleService",
         "route": "/farm/animals/{animal_id}/milking-frequency/history",
-        "depends_on": [
-            "AnimalRepository",
-            "AnimalMilkingScheduleHistory",
-            "operational_date",
-        ],
+        "depends_on": ["AnimalRepository", "AnimalMilkingScheduleHistory", "operational_date"],
         "next_dependency": "All downstream milk consumers must remain resolver-based.",
     },
     "milk_execution_intelligence": {
@@ -41,11 +33,7 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "MilkProductionTrendIntelligenceService",
         "route": "/farm/milk/analytics",
-        "depends_on": [
-            "MilkProductionRepository",
-            "AnimalMilkingScheduleService",
-            "MilkDailySemantics",
-        ],
+        "depends_on": ["MilkProductionRepository", "AnimalMilkingScheduleService", "MilkDailySemantics"],
         "next_dependency": "Dashboard and analytics must consume this read contract.",
     },
     "milk_reconciliation": {
@@ -53,10 +41,7 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "MilkReconciliationService",
         "route": "/farm/milk/reconciliation",
-        "depends_on": [
-            "MilkProductionTrendIntelligenceService",
-            "MilkDispositionRepository",
-        ],
+        "depends_on": ["MilkProductionTrendIntelligenceService", "MilkDispositionRepository"],
         "next_dependency": "No frontend-owned reconciliation logic.",
     },
     "milk_dispositions": {
@@ -64,10 +49,7 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "MilkDispositionRepository",
         "route": "/farm/milk/dispositions",
-        "depends_on": [
-            "MilkProductionRepository",
-            "FinancialRepository",
-        ],
+        "depends_on": ["MilkProductionRepository", "FinancialRepository"],
         "next_dependency": "Sales analytics consumes persisted dispositions and receipts.",
     },
     "analytics_contract": {
@@ -75,36 +57,23 @@ CAPABILITIES = {
         "status": "LIVE",
         "authoritative_service": "AnalyticsContractService",
         "route": "/farm/analytics/catalog",
-        "depends_on": [
-            "governed domain authorities",
-            "operational_date",
-        ],
+        "depends_on": ["governed domain authorities", "operational_date"],
         "next_dependency": "Analysis UI cannot invent unsupported metrics.",
     },
-    "cmp": {
-        "title": "Cost of Milk Production / Scenarios",
+    "coml": {
+        "title": "Static Monthly Cost of Milk Production",
         "status": "LIVE",
-        "authoritative_service": "CMPScenarioService",
-        "route": "/farm/cmp/scenarios",
-        "depends_on": [
-            "CostOfProductionService",
-            "MilkProductionRepository",
-            "FinancialRepository",
-        ],
-        "next_dependency": "CMP UI must continue to distinguish actuals from scenario assumptions.",
+        "authoritative_service": "COMLRecord / COMLRepository",
+        "route": "/farm/coml",
+        "depends_on": ["COMLRecord", "COMLRepository", "monthly_reminder_setting"],
+        "next_dependency": "Official monthly values are user-locked and must remain independent of live transactions.",
     },
     "dashboard_read_model": {
         "title": "Main Dashboard Read Model",
         "status": "LIVE",
         "authoritative_service": "DashboardProjectionService",
         "route": "/dashboard",
-        "depends_on": [
-            "operational_state",
-            "milk",
-            "herd",
-            "health",
-            "finance",
-        ],
+        "depends_on": ["operational_state", "milk", "herd", "health", "finance"],
         "next_dependency": "No remaining frontend-owned business-truth calculation in the audited dashboard paths.",
     },
 }
@@ -113,15 +82,14 @@ CAPABILITIES = {
 class ReconciledImplementationContractService:
     """Single registry for approved backend capability ownership."""
 
-    VERSION = "1.0"
+    VERSION = "1.1"
 
     @classmethod
     def catalog(cls) -> dict:
         return {
             "contract_version": cls.VERSION,
             "authority_rule": (
-                "Authoritative domain data is persisted once; higher layers "
-                "consume lower-layer truth and do not redefine it."
+                "Authoritative domain data is persisted once; higher layers consume lower-layer truth and do not redefine it."
             ),
             "frontend_calculation_authority": False,
             "orphan_policy": {
