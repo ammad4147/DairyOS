@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState, useCallback, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Milk, Sparkles, AlertTriangle, X, TrendingDown, HeartPulse, Activity, Plus, Users } from 'lucide-react';
+import { Milk, Sparkles, AlertTriangle, X, TrendingDown, HeartPulse, Activity, Plus } from 'lucide-react';
 import { fetchCommandDashboardData, type CommandDashboardData } from '../api/commandDashboardClient';
 import { useAlertAudit } from '../context/AlertAuditContext';
 import AnimalPassportModal from './AnimalPassportModal';
@@ -53,7 +53,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       const res = await fetchCommandDashboardData();
       setData(res);
     } catch (err: any) {
-      setError(err?.message || "Failed to load command dashboard data");
+      setError(err?.message || 'Failed to load command dashboard data');
     } finally {
       setLoading(false);
     }
@@ -61,8 +61,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   useEffect(() => { loadData(); }, [loadData]);
 
-    const filteredYieldTrend = useMemo(() => {
-    // 30-day reference baseline curve for Barki Farm
+  // Dynamic 7/15/30 Day Yield Curve
+  const filteredYieldTrend = useMemo(() => {
     const baseline30 = [
       121.5, 122.0, 119.8, 123.4, 125.0, 126.8, 128.0, 127.5, 129.0, 131.2,
       130.0, 128.5, 127.0, 129.4, 131.0, 133.5, 132.0, 134.0, 135.5, 133.0,
@@ -70,10 +70,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     ];
 
     let fullSeries: number[] = [...baseline30];
-
-    // If backend provides real trend items, align the latest items with backend data
     if (data?.yieldTrend && Array.isArray(data.yieldTrend) && data.yieldTrend.length > 0) {
-      const backendValues = data.yieldTrend.map((item: any) => typeof item === "number" ? item : (item.yield || item.liters || 130));
+      const backendValues = data.yieldTrend.map((item: any) => typeof item === 'number' ? item : (item.yield || item.liters || 130));
       const replaceCount = Math.min(backendValues.length, 30);
       fullSeries.splice(30 - replaceCount, replaceCount, ...backendValues.slice(-replaceCount));
     }
@@ -104,7 +102,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const milkingCount = Number(data?.milkingAnimals) || 6;
   const todayYield = Number(data?.todayLiters) || 132.7;
   const avgYieldPerAnimal = (todayYield / milkingCount).toFixed(1);
-  const cmplValue = "43.75";
+  const cmplValue = '43.75';
 
   const todayDate = new Date();
   const yesterdayDate = new Date();
@@ -113,10 +111,11 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
   const yesterdayLiters = Number(data?.yesterdayLiters) || 128.4;
 
+  // Color-coded yield indicator based on drop criteria
   const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
-  let todayYieldColor = '#34d399';
-  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444';
-  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b';
+  let todayYieldColor = '#34d399'; // Green if within limits
+  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444'; // Red alert
+  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b'; // Amber warning
 
   const rawHerd = data?.herdComposition || [];
   const findCount = (nameKeywords: string[]) => {

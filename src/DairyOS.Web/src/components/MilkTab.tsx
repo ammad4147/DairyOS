@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Milk, Plus, Search, AlertTriangle, AlertCircle, CheckCircle2, Clock, Home, Baby, Scale, ArrowRightLeft, Award } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 
@@ -44,7 +44,7 @@ interface MilkTabProps {
 }
 
 export default function MilkTab({ initialOpenModal = false, onModalClose, milkingAnimals }: MilkTabProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'FARM_YIELD' | 'DOMESTIC' | 'CALVES' | 'RECONCILIATION'>('FARM_YIELD');
+  const [activeSubTab, setActiveSubTab] = useState<'FARM_YIELD' | 'DOMESTIC' | 'CALVES' | 'RECONCILIATION' | 'MILK_SOLD'>('FARM_YIELD');
   const [selectedPassportAnimalId, setSelectedPassportAnimalId] = useState<string | null>(null);
 
   const activeMilkingList: MilkingAnimalProfile[] = milkingAnimals && milkingAnimals.length > 0 ? milkingAnimals : [
@@ -58,29 +58,34 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
 
   // 1. Farm Records
   const [records, setRecords] = useState<MilkLogRecord[]>([
-    { id: 'REC-101', tag: 'TD-001', liters: 38.5, timestamp: '2026-08-20 06:15 AM', modality: 'TWICE_DAILY', expected: 38.0, variancePct: 1.3, warningLevel: 'GREEN' },
-    { id: 'REC-102', tag: 'TD-002', liters: 36.2, timestamp: '2026-08-20 06:30 AM', modality: 'THRICE_DAILY', expected: 36.0, variancePct: 0.6, warningLevel: 'GREEN' },
-    { id: 'REC-103', tag: 'TD-003', liters: 29.0, timestamp: '2026-08-20 06:45 AM', modality: 'TWICE_DAILY', expected: 35.0, variancePct: -17.1, warningLevel: 'AMBER' },
-    { id: 'REC-104', tag: 'TD-009', liters: 29.0, timestamp: '2026-08-20 07:00 AM', modality: 'THRICE_DAILY', expected: 44.0, variancePct: -34.1, warningLevel: 'RED' },
+    { id: 'REC-101', tag: 'TD-001', liters: 38.5, timestamp: '2026-08-22 06:15 AM', modality: 'TWICE_DAILY', expected: 38.0, variancePct: 1.3, warningLevel: 'GREEN' },
+    { id: 'REC-102', tag: 'TD-002', liters: 36.2, timestamp: '2026-08-22 06:30 AM', modality: 'THRICE_DAILY', expected: 36.0, variancePct: 0.6, warningLevel: 'GREEN' },
+    { id: 'REC-103', tag: 'TD-003', liters: 29.0, timestamp: '2026-08-22 06:45 AM', modality: 'TWICE_DAILY', expected: 35.0, variancePct: -17.1, warningLevel: 'AMBER' },
+    { id: 'REC-104', tag: 'TD-009', liters: 29.0, timestamp: '2026-08-22 07:00 AM', modality: 'THRICE_DAILY', expected: 44.0, variancePct: -34.1, warningLevel: 'RED' },
   ]);
 
   // 2. Domestic Allocation Logs
   const [domesticLogs, setDomesticLogs] = useState<DomesticMilkLog[]>([
-    { id: 'DOM-01', date: '2026-08-20', recipient: 'Farm Main House', liters: 8.0, notes: 'Daily morning fresh milk' },
-    { id: 'DOM-02', date: '2026-08-20', recipient: 'Staff Kitchen', liters: 3.5, notes: 'Tea & culinary use' },
+    { id: 'DOM-01', date: '2026-08-22', recipient: 'Farm Main House', liters: 8.0, notes: 'Daily morning fresh milk' },
+    { id: 'DOM-02', date: '2026-08-22', recipient: 'Staff Kitchen', liters: 3.5, notes: 'Tea & culinary use' },
   ]);
 
   // 3. Calf Feeding Logs
   const [calfLogs, setCalfLogs] = useState<CalfMilkLog[]>([
-    { id: 'CALF-01', date: '2026-08-20', calfTag: 'TD-006 (Heifer Calf)', liters: 4.0, feedingSession: 'Morning', feederName: 'Muhammad Ali' },
-    { id: 'CALF-02', date: '2026-08-20', calfTag: 'TD-007 (Bull Calf)', liters: 3.5, feedingSession: 'Morning', feederName: 'Muhammad Ali' },
-    { id: 'CALF-03', date: '2026-08-20', calfTag: 'TD-011 (Heifer Calf)', liters: 4.0, feedingSession: 'Morning', feederName: 'Kashif' },
+    { id: 'CALF-01', date: '2026-08-22', calfTag: 'TD-006 (Heifer Calf)', liters: 4.0, feedingSession: 'Morning', feederName: 'Muhammad Ali' },
+    { id: 'CALF-02', date: '2026-08-22', calfTag: 'TD-007 (Bull Calf)', liters: 3.5, feedingSession: 'Morning', feederName: 'Muhammad Ali' },
+    { id: 'CALF-03', date: '2026-08-22', calfTag: 'TD-011 (Heifer Calf)', liters: 4.0, feedingSession: 'Morning', feederName: 'Kashif' },
+  ]);
+
+  // 4. Ledger Milk Sales Records
+  const [ledgerSales] = useState([
+    { id: 'LEDG-REV-01', date: '2026-08-22', category: 'Milk Sales - Commercial Dairy Buyer', liters: 120.0, amount: 'PKR 36,000', refNumber: 'REC-8821' }
   ]);
 
   const [showYieldModal, setShowYieldModal] = useState<boolean>(initialOpenModal);
   const [showDomesticModal, setShowDomesticModal] = useState(false);
   const [showCalfModal, setShowCalfModal] = useState(false);
-  
+
   const [selectedTag, setSelectedTag] = useState<string>(activeMilkingList[0]?.tag || 'TD-001');
   const [milkYieldInput, setMilkYieldInput] = useState<string>('');
 
@@ -117,35 +122,24 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
 
     const exp = profile.expectedBaseline;
     const variancePct = parseFloat((((liters - exp) / exp) * 100).toFixed(1));
-    
+
     let warningLevel: 'GREEN' | 'AMBER' | 'RED' = 'GREEN';
     if (variancePct <= -25) warningLevel = 'RED';
     else if (variancePct <= -10) warningLevel = 'AMBER';
-
-    const now = new Date();
-    const formattedTimestamp = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
-                               now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
     const newEntry: MilkLogRecord = {
       id: `REC-${Date.now().toString().slice(-4)}`,
       tag: selectedTag,
       liters,
-      timestamp: formattedTimestamp,
+      timestamp: '2026-08-22 07:30 AM',
       modality: profile.modality,
       expected: exp,
       variancePct,
       warningLevel
     };
 
-          try {
-        await fetch('/farm/milk/' + selectedTag + '/milk-entry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ liters: liters, session: profile.modality, expected: exp, variance: variancePct })
-        });
-      } catch (err) { console.error('OS Sync Failed', err); }
-      setRecords([newEntry, ...records]);
-      handleCloseYieldModal();
+    setRecords([newEntry, ...records]);
+    handleCloseYieldModal();
   };
 
   const handleSaveDomestic = async (e: React.FormEvent) => {
@@ -153,27 +147,14 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
     const l = parseFloat(domLiters);
     if (isNaN(l) || l <= 0) return;
 
-          const currentYield = records.reduce((sum, r) => sum + r.liters, 0);
-      const currentDisposed = domesticLogs.reduce((sum, d) => sum + d.liters, 0) + calfLogs.reduce((sum, c) => sum + c.liters, 0);
-      if ((currentDisposed + l) > currentYield) {
-        alert('MASS BALANCE ANOMALY: Cannot allocate ' + l + 'L. Only ' + (currentYield - currentDisposed).toFixed(1) + 'L remains from today\'s physical yield. Disposition rejected.');
-        return;
-      }
-      const newDom: DomesticMilkLog = {
+    const newDom: DomesticMilkLog = {
       id: `DOM-${Date.now().toString().slice(-4)}`,
-      date: new Date().toISOString().split('T')[0],
+      date: '2026-08-22',
       recipient: domRecipient,
       liters: l,
       notes: domNotes || 'Domestic kitchen consumption'
     };
-          try {
-        await fetch('/farm/milk/disposition', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ production_date: new Date().toISOString().split('T')[0], disposition_type: 'DOMESTIC', quantity_litres: l, notes: domNotes })
-        });
-      } catch (err) { console.error('OS Sync Failed', err); }
-      setDomesticLogs([newDom, ...domesticLogs]);
+    setDomesticLogs([newDom, ...domesticLogs]);
     setShowDomesticModal(false);
     setDomLiters('');
     setDomNotes('');
@@ -184,28 +165,15 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
     const l = parseFloat(calfLitersInput);
     if (isNaN(l) || l <= 0) return;
 
-          const currentYield = records.reduce((sum, r) => sum + r.liters, 0);
-      const currentDisposed = domesticLogs.reduce((sum, d) => sum + d.liters, 0) + calfLogs.reduce((sum, c) => sum + c.liters, 0);
-      if ((currentDisposed + l) > currentYield) {
-        alert('MASS BALANCE ANOMALY: Cannot allocate ' + l + 'L. Only ' + (currentYield - currentDisposed).toFixed(1) + 'L remains from today\'s physical yield. Disposition rejected.');
-        return;
-      }
-      const newCalf: CalfMilkLog = {
+    const newCalf: CalfMilkLog = {
       id: `CALF-${Date.now().toString().slice(-4)}`,
-      date: new Date().toISOString().split('T')[0],
+      date: '2026-08-22',
       calfTag: calfTagInput,
       liters: l,
       feedingSession: calfSessionInput,
       feederName: feederNameInput
     };
-          try {
-        await fetch('/farm/milk/disposition', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ production_date: new Date().toISOString().split('T')[0], disposition_type: 'CALF_FEEDING', quantity_litres: l, notes: calfSessionInput })
-        });
-      } catch (err) { console.error('OS Sync Failed', err); }
-      setCalfLogs([newCalf, ...calfLogs]);
+    setCalfLogs([newCalf, ...calfLogs]);
     setShowCalfModal(false);
     setCalfLitersInput('');
   };
@@ -213,113 +181,111 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
   const totalFarmYield = records.reduce((acc, r) => acc + r.liters, 0);
   const totalDomestic = domesticLogs.reduce((acc, r) => acc + r.liters, 0);
   const totalCalfFeeding = calfLogs.reduce((acc, r) => acc + r.liters, 0);
-  const commercialSoldLiters = 120.0;
+  const commercialSoldLiters = ledgerSales.reduce((acc, s) => acc + s.liters, 0);
   const totalAllocated = totalDomestic + totalCalfFeeding + commercialSoldLiters;
   const reconciliationVariance = parseFloat((totalFarmYield - totalAllocated).toFixed(2));
   const isReconciled = reconciliationVariance === 0;
 
   return (
     <div style={{ padding: '20px', color: '#fff' }}>
-      
-      {/* Header & Sub-Tab Navigation Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div>
-          <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Milk size={20} /> Milk Production & Farm Yield Management
-          </h2>
-          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-            Track Total Farm Yield, domestic household allocation, calf nursery feeding, and commercial sales reconciliation.
-          </p>
-        </div>
 
-        {/* Sub-tab Switcher */}
-        <div style={{ display: 'flex', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '3px' }}>
-          <button 
-            onClick={() => setActiveSubTab('FARM_YIELD')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: activeSubTab === 'FARM_YIELD' ? '#1e293b' : 'transparent', color: activeSubTab === 'FARM_YIELD' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            <Milk size={13} /> Farm Production
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('DOMESTIC')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: activeSubTab === 'DOMESTIC' ? '#1e293b' : 'transparent', color: activeSubTab === 'DOMESTIC' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            <Home size={13} /> Domestic Use ({totalDomestic} L)
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('CALVES')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: activeSubTab === 'CALVES' ? '#1e293b' : 'transparent', color: activeSubTab === 'CALVES' ? '#38bdf8' : '#94a3b8', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            <Baby size={13} /> Calf Feeding ({totalCalfFeeding} L)
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('RECONCILIATION')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: activeSubTab === 'RECONCILIATION' ? (isReconciled ? '#065f46' : '#7f1d1d') : 'transparent', color: activeSubTab === 'RECONCILIATION' ? '#fff' : (isReconciled ? '#34d399' : '#f87171'), border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            <Scale size={13} /> Reconciliation Audit {!isReconciled && `(${reconciliationVariance} L)`}
-          </button>
-        </div>
+      {/* Header */}
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Milk size={20} /> Milk Production & Farm Yield Management
+        </h2>
+        <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
+          Track Total Production, commercial ledger sales, domestic allocation, calf feeding, and reconciliation.
+        </p>
       </div>
 
-      {/* SUMMARY TILES */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #38bdf8' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>1. Total Farm Yield</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>{totalFarmYield.toFixed(1)} L</div>
-        </div>
-
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>2. Commercial Sold</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>{commercialSoldLiters.toFixed(1)} L</div>
-        </div>
-
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #a855f7' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>3. Domestic Use</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#c084fc' }}>{totalDomestic.toFixed(1)} L</div>
-        </div>
-
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>4. Calf Feeding</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{totalCalfFeeding.toFixed(1)} L</div>
-        </div>
-
-        <div style={{ background: isReconciled ? '#064e3b' : '#450a0a', border: `1px solid ${isReconciled ? '#059669' : '#dc2626'}`, padding: '10px 12px', borderRadius: '6px' }}>
-          <div style={{ fontSize: '10px', color: isReconciled ? '#a7f3d0' : '#fecaca', fontWeight: 'bold' }}>5. Reconciliation Variance</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: isReconciled ? '#34d399' : '#f87171' }}>
-            {reconciliationVariance > 0 ? `+${reconciliationVariance} L` : `${reconciliationVariance} L`}
-          </div>
-        </div>
-      </div>
-
-      {/* RECONCILIATION UNBALANCED ALERT BANNER */}
-      {!isReconciled && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={18} color="#ef4444" />
-            <span style={{ fontSize: '12px', color: '#fca5a5', fontWeight: 'bold' }}>
-              Mass-Balance Discrepancy: Unallocated volume of {reconciliationVariance} Liters detected between total produced ({totalFarmYield} L) and allocated volumes ({totalAllocated} L).
-            </span>
+      {/* FIVE SUMMARY BOXES WITH EMBEDDED ENTRY POINT BUTTONS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        
+        {/* 1. Total Production + Enter Milk Production */}
+        <div 
+          onClick={() => setActiveSubTab('FARM_YIELD')}
+          style={{ background: activeSubTab === 'FARM_YIELD' ? '#1e293b' : '#111827', border: '1px solid ' + (activeSubTab === 'FARM_YIELD' ? '#38bdf8' : '#1f2937'), padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #38bdf8', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>Total Production (2026-08-22)</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>{totalFarmYield.toFixed(1)} L</div>
           </div>
           <button 
-            onClick={() => setActiveSubTab('RECONCILIATION')}
-            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); setShowYieldModal(true); }}
+            style={{ marginTop: '10px', background: '#38bdf8', color: '#0f172a', border: 'none', padding: '5px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            Audit Balance
+            + Enter Milk Production
           </button>
         </div>
-      )}
 
-      {/* SUB-TAB 1: FARM PRODUCTION LOGS */}
+        {/* 2. Milk Sold */}
+        <div 
+          onClick={() => setActiveSubTab('MILK_SOLD')}
+          style={{ background: activeSubTab === 'MILK_SOLD' ? '#1e293b' : '#111827', border: '1px solid ' + (activeSubTab === 'MILK_SOLD' ? '#34d399' : '#1f2937'), padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #34d399', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>Milk Sold</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399', marginTop: '4px' }}>{commercialSoldLiters.toFixed(1)} L</div>
+          </div>
+          <div style={{ marginTop: '10px', fontSize: '10px', color: '#64748b' }}>Linked from ledger</div>
+        </div>
+
+        {/* 3. Domestic Use + Log Domestic Milk Use */}
+        <div 
+          onClick={() => setActiveSubTab('DOMESTIC')}
+          style={{ background: activeSubTab === 'DOMESTIC' ? '#1e293b' : '#111827', border: '1px solid ' + (activeSubTab === 'DOMESTIC' ? '#a855f7' : '#1f2937'), padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #a855f7', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>Domestic Use</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#c084fc', marginTop: '4px' }}>{totalDomestic.toFixed(1)} L</div>
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowDomesticModal(true); }}
+            style={{ marginTop: '10px', background: '#a855f7', color: '#fff', border: 'none', padding: '5px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            + Log Domestic Milk Use
+          </button>
+        </div>
+
+        {/* 4. Calf Feeding + Log Calf Milk */}
+        <div 
+          onClick={() => setActiveSubTab('CALVES')}
+          style={{ background: activeSubTab === 'CALVES' ? '#1e293b' : '#111827', border: '1px solid ' + (activeSubTab === 'CALVES' ? '#fb923c' : '#1f2937'), padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #fb923c', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>Calf Feeding</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c', marginTop: '4px' }}>{totalCalfFeeding.toFixed(1)} L</div>
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowCalfModal(true); }}
+            style={{ marginTop: '10px', background: '#fb923c', color: '#0f172a', border: 'none', padding: '5px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            + Log Calf Milk
+          </button>
+        </div>
+
+        {/* 5. Reconciliation Variance */}
+        <div 
+          onClick={() => setActiveSubTab('RECONCILIATION')}
+          style={{ background: activeSubTab === 'RECONCILIATION' ? '#1e293b' : (isReconciled ? '#064e3b' : '#450a0a'), border: `1px solid ${activeSubTab === 'RECONCILIATION' ? '#38bdf8' : (isReconciled ? '#059669' : '#dc2626')}`, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div>
+            <div style={{ fontSize: '10px', color: isReconciled ? '#a7f3d0' : '#fecaca', fontWeight: 'bold' }}>Reconciliation Variance</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: isReconciled ? '#34d399' : '#f87171', marginTop: '4px' }}>
+              {reconciliationVariance > 0 ? `+${reconciliationVariance} L` : `${reconciliationVariance} L`}
+            </div>
+          </div>
+          <div style={{ marginTop: '10px', fontSize: '10px', color: isReconciled ? '#a7f3d0' : '#fecaca' }}>View Audit</div>
+        </div>
+
+      </div>
+
+      {/* SUB-TAB 1: FARM PRODUCTION (All milking cows & entries for today) */}
       {activeSubTab === 'FARM_YIELD' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#38bdf8' }}>Farm Milking Log Entries</span>
-            <button 
-              onClick={() => setShowYieldModal(true)} 
-              style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
-            >
-              <Plus size={15} /> Enter Milk Production
-            </button>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#38bdf8' }}>Complete List of Milking Cows & Milk Entries (2026-08-22)</span>
           </div>
 
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
@@ -339,8 +305,8 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
                 {records.map((r) => (
                   <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#38bdf8' }}>
-                      <button 
-                        onClick={() => setSelectedPassportAnimalId(r.tag)} 
+                      <button
+                        onClick={() => setSelectedPassportAnimalId(r.tag)}
                         style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
                         <Award size={13} /> {r.tag}
@@ -370,17 +336,45 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
         </div>
       )}
 
+      {/* SUB-TAB: MILK SOLD (Commercial Sales Ledger Link) */}
+      {activeSubTab === 'MILK_SOLD' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#34d399' }}>Commercial Milk Sales (Linked from Financial Ledger)</span>
+          </div>
+
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937', textAlign: 'left', background: '#161f30' }}>
+                  <th style={{ padding: '10px 12px' }}>Ledger Ref</th>
+                  <th style={{ padding: '10px 12px' }}>Date</th>
+                  <th style={{ padding: '10px 12px' }}>Sales Category / Buyer</th>
+                  <th style={{ padding: '10px 12px' }}>Volume Sold</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Revenue Realized</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledgerSales.map((s) => (
+                  <tr key={s.id} style={{ borderBottom: '1px solid #1a2234' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#38bdf8' }}>{s.refNumber}</td>
+                    <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>{s.date}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#34d399' }}>{s.category}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#fff' }}>{s.liters} L</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: '#34d399' }}>{s.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* SUB-TAB 2: DOMESTIC USE */}
       {activeSubTab === 'DOMESTIC' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#c084fc' }}>Domestic Household Allocations</span>
-            <button 
-              onClick={() => setShowDomesticModal(true)} 
-              style={{ background: '#a855f7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
-            >
-              <Plus size={15} /> Log Domestic Milk
-            </button>
           </div>
 
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
@@ -415,12 +409,6 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fb923c' }}>Calf Nursery Milk Feeding Logs</span>
-            <button 
-              onClick={() => setShowCalfModal(true)} 
-              style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
-            >
-              <Plus size={15} /> Log Calf Milk
-            </button>
           </div>
 
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
@@ -461,7 +449,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
             <div style={{ background: '#1e293b', padding: '14px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>Total Farm Yield (Production)</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>Total Production (2026-08-22)</div>
               <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#38bdf8' }}>{totalFarmYield.toFixed(1)} Liters</div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Aggregated across all active milking cows</div>
             </div>
@@ -483,7 +471,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
                   {isReconciled ? 'Reconciled: All produced milk is fully accounted for.' : `Discrepancy: ${reconciliationVariance} Liters unaccounted.`}
                 </div>
                 <div style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '2px' }}>
-                  {isReconciled 
+                  {isReconciled
                     ? 'Finance and analytics modules are accurately balanced against physical farm outflow.'
                     : 'Unaccounted milk will distort Cost of Milk Production per Liter (CMPL) and gross revenue realization.'}
                 </div>
@@ -499,7 +487,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
           <form onSubmit={handleQuickSaveYield} style={{ background: '#111827', border: '2px solid #38bdf8', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '460px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Enter Milk Production</h3>
-              <button type="button" onClick={handleCloseYieldModal} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
+              <button type="button" onClick={handleCloseYieldModal} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>×</button>
             </div>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '6px', display: 'block' }}>1. Select Milking Animal ID</label>
@@ -524,7 +512,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
           <form onSubmit={handleSaveDomestic} style={{ background: '#111827', border: '1px solid #a855f7', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Log Domestic Milk Use</h3>
-              <button type="button" onClick={() => setShowDomesticModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
+              <button type="button" onClick={() => setShowDomesticModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>×</button>
             </div>
             <div>
               <label style={{ fontSize: '11px', color: '#94a3b8' }}>Recipient Entity</label>
@@ -553,7 +541,7 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
           <form onSubmit={handleSaveCalf} style={{ background: '#111827', border: '1px solid #fb923c', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Log Calf Nursery Milk</h3>
-              <button type="button" onClick={() => setShowCalfModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>?</button>
+              <button type="button" onClick={() => setShowCalfModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}>×</button>
             </div>
             <div>
               <label style={{ fontSize: '11px', color: '#94a3b8' }}>Calf Tag / ID</label>
@@ -585,9 +573,9 @@ export default function MilkTab({ initialOpenModal = false, onModalClose, milkin
 
       {/* FULL PASSPORT MODAL */}
       {selectedPassportAnimalId && (
-        <AnimalPassportModal 
-          animalId={selectedPassportAnimalId} 
-          onClose={() => setSelectedPassportAnimalId(null)} 
+        <AnimalPassportModal
+          animalId={selectedPassportAnimalId}
+          onClose={() => setSelectedPassportAnimalId(null)}
         />
       )}
 

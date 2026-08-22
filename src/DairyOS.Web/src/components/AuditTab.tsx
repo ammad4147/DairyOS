@@ -1,36 +1,30 @@
 ﻿import React, { useState } from 'react';
-import {
-  ShieldAlert, CheckCircle2, RotateCcw, Search, Filter, Clock,
-  Award, AlertTriangle
-} from 'lucide-react';
 import { useAlertAudit } from '../context/AlertAuditContext';
+import { ShieldAlert, Search, Filter, RotateCcw, CheckCircle2 } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 
 export default function AuditTab() {
-  const { alerts, markResolved, adminReinstate } = useAlertAudit();
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedPassportId, setSelectedPassportId] = useState<string | null>(null);
+  const { alerts, markResolved, reinstateAlert } = useAlertAudit();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, ACTIVE, REINSTATED, RESOLVED
   const [overrideAlertId, setOverrideAlertId] = useState<string | null>(null);
-  const [overrideReason, setOverrideReason] = useState<string>('');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [selectedPassportId, setSelectedPassportId] = useState<string | null>(null);
+
+  const filteredAlerts = alerts.filter(a => {
+    const matchesSearch = (a.id + a.title + a.details + a.animalId + a.resolvedBy).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterStatus === 'ALL' ? true : a.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
 
   const handleTriggerReinstate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!overrideAlertId) return;
-    adminReinstate(overrideAlertId, 'Ammad Hassan (Admin)', overrideReason || 'Erroneous resolution canceled by manager');
-    setOverrideAlertId(null);
-    setOverrideReason('');
+    if (overrideAlertId && overrideReason) {
+      reinstateAlert(overrideAlertId, 'Ammad Hassan (Admin)', overrideReason);
+      setOverrideAlertId(null);
+      setOverrideReason('');
+    }
   };
-
-  const filteredAlerts = alerts.filter(a => {
-    const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
-    const matchesSearch =
-      a.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (a.animalId && a.animalId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (a.resolvedBy && a.resolvedBy.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesStatus && matchesSearch;
-  });
 
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
@@ -209,9 +203,13 @@ export default function AuditTab() {
           </div>
         </div>
       )}
-
+      
+      {/* ANIMAL PASSPORT MODAL */}
       {selectedPassportId && (
-        <AnimalPassportModal animalId={selectedPassportId} onClose={() => setSelectedPassportId(null)} />
+        <AnimalPassportModal 
+          animalId={selectedPassportId} 
+          onClose={() => setSelectedPassportId(null)} 
+        />
       )}
     </div>
   );
