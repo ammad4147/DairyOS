@@ -209,7 +209,7 @@ export default function Analytics() {
                 <ComposedChart data={milkData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey={milkDimension === 'THI' ? 'thi' : (milkDimension === 'DIM' ? 'dim' : 'period')} stroke="#64748b" tick={{ fontSize: 9 }} />
-                  <YAxis yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} domain={['auto', 'auto']} />
+                  <YAxis allowDecimals={false} yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} domain={['auto', 'auto']} />
                   <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
                   <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                   
@@ -277,7 +277,7 @@ export default function Analytics() {
                 <ComposedChart data={healthData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="season" stroke="#64748b" tick={{ fontSize: 9 }} />
-                  <YAxis yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} />
+                  <YAxis allowDecimals={false} yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} />
                   <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
                   <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                   
@@ -344,7 +344,7 @@ export default function Analytics() {
                 <ComposedChart data={breedingData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey={breedDimension === 'THI' ? 'thi' : 'month'} stroke="#64748b" tick={{ fontSize: 9 }} />
-                  <YAxis yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} domain={[0, 60]}/>
+                  <YAxis allowDecimals={false} yAxisId="left" stroke="#64748b" tick={{ fontSize: 9 }} domain={[0, 60]}/>
                   <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }} />
                   <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                   
@@ -397,3 +397,4 @@ export default function Analytics() {
     </div>
   );
 }
+

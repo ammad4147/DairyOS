@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { DollarSign, Thermometer, Wind, AlertTriangle, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 
 interface FarmIntelligenceWidgetProps {
@@ -23,11 +23,11 @@ export default function FarmIntelligenceWidget({
   // Calculate IOFC
   const dailyGrossRevenue = milkYield * milkPrice;
   const iofcValue = dailyGrossRevenue - feedCost;
-  const iofcMarginPct = ((iofcValue / dailyGrossRevenue) * 100).toFixed(1);
+  const iofcMarginPct = ((iofcValue / dailyGrossRevenue) * 100).toFixed(0);
 
   // Calculate THI: THI = (1.8*T + 32) - (0.55 - 0.0055*RH) * (1.8*T - 26)
   const thi = (1.8 * ambientTempC + 32) - (0.55 - 0.0055 * relativeHumidity) * (1.8 * ambientTempC - 26);
-  const thiScore = parseFloat(thi.toFixed(1));
+  const thiScore = parseFloat(thi.toFixed(0));
 
   let heatStressLevel = 'Normal';
   let heatStressColor = 'emerald';
@@ -150,3 +150,5 @@ export default function FarmIntelligenceWidget({
     </div>
   );
 }
+
+
