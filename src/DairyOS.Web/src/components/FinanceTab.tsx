@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Ban, Plus, Printer, RefreshCw } from 'lucide-react';
+import { Ban, Printer, RefreshCw } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
 type MasterCategory = 'FEED' | 'OPEX';
 type LedgerFilter = 'ALL' | MasterCategory;
+type Kpi = [string, number, string];
 
 type TaxonomyResponse = { master_categories: MasterCategory[]; taxonomies: Record<string, Record<string, string[]>>; items: Record<MasterCategory, string[]>; };
 type Transaction = { id:number; transaction_type:string; category:string; master_category?:MasterCategory|null; sub_category?:string|null; custom_specification?:string|null; amount:number; quantity?:number|null; unit?:string|null; unit_rate?:number|null; date?:string|null; reference?:string|null; payment_method?:string|null; counterparty?:string|null; vendor_name?:string|null; notes?:string|null; status?:string|null; };
@@ -43,11 +44,12 @@ export default function FinanceTab({ onSaveSale, onUpdateReceivables }: Props = 
 
   const updateStatus=async(transaction:Transaction,status:string,reason?:string)=>{try{const response=await fetch(`${API_BASE}/farm/finance-ledger/${transaction.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,reason})});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Status update failed.');await load();}catch(err){setError(err instanceof Error?err.message:'Status update failed.');}finally{setVoidTarget(null);setVoidReason('');}};
   const subItems=taxonomy?.items?.[masterCategory]??[];
+  const kpis: Kpi[] = [['Cash Revenue',cashRevenue,'#34d399'],['Feed Cost',feedCost,'#38bdf8'],['OPEX',opex,'#f59e0b'],['Total Expenses',totalExpenses,'#f87171'],['Net Margin',netMargin,netMargin>=0?'#34d399':'#f87171'],['CMPL',cmpl??0,'#a78bfa']];
 
   return <div style={{padding:16,color:'#fff',height:'100%',overflowY:'auto',boxSizing:'border-box'}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',marginBottom:14}}><div><div style={{fontSize:20,fontWeight:800}}>Finance</div><div style={{fontSize:11,color:'#94a3b8'}}>One persistent ledger • Feed and OPEX analytical streams</div></div><button onClick={()=>void load()} style={smallButtonStyle}><RefreshCw size={13}/> Refresh</button></div>
     {error&&<div style={{background:'rgba(239,68,68,.12)',border:'1px solid #ef4444',color:'#fecaca',padding:9,borderRadius:6,marginBottom:12,fontSize:11}}>{error}</div>}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(6,minmax(0,1fr))',gap:8,marginBottom:14}}>{[['Cash Revenue',cashRevenue,'#34d399'],['Feed Cost',feedCost,'#38bdf8'],['OPEX',opex,'#f59e0b'],['Total Expenses',totalExpenses,'#f87171'],['Net Margin',netMargin,netMargin>=0?'#34d399':'#f87171'],['CMPL',cmpl??0,'#a78bfa']].map(([label,value,color])=><div key={String(label)} style={{background:'#111827',border:'1px solid #1f2937',borderLeft:`4px solid ${color}`,borderRadius:7,padding:'10px 12px'}}><div style={{fontSize:9,color:'#94a3b8',textTransform:'uppercase'}}>{label}</div><div style={{fontSize:17,fontWeight:800,color}}>{label==='CMPL'?`${formatPKR(Number(value))}/L`:formatPKR(Number(value))}</div></div>)}</div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(6,minmax(0,1fr))',gap:8,marginBottom:14}}>{kpis.map(([label,value,color])=><div key={label} style={{background:'#111827',border:'1px solid #1f2937',borderLeft:`4px solid ${color}`,borderRadius:7,padding:'10px 12px'}}><div style={{fontSize:9,color:'#94a3b8',textTransform:'uppercase'}}>{label}</div><div style={{fontSize:17,fontWeight:800,color}}>{label==='CMPL'?`${formatPKR(Number(value))}/L`:formatPKR(Number(value))}</div></div>)}</div>
 
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
       <div style={{display:'flex',flexDirection:'column',gap:12}}>
