@@ -2,7 +2,7 @@
 
 ## Supported branch
 
-The active implementation line is `post-dashboard-reconciliation`.
+The active implementation line is `main`.
 
 ## Reporting a vulnerability
 

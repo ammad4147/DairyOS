@@ -3,7 +3,7 @@ name: Security checks
 on:
   pull_request:
   push:
-    branches: ["post-dashboard-reconciliation"]
+    branches: ["main"]
 
 permissions:
   contents: read
