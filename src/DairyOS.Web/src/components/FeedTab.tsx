@@ -50,7 +50,11 @@ const adviceStrings: Record<string, string> = {
   calf_starter:  "Development Strategy: Freshness is critical — mould destroys rumen papillae development. Mix only what is eaten within 6 hours. Transition to TMR gradually after 8 weeks."
 };
 
-export default function FeedTab() {
+interface FeedTabProps {
+  onUpdateFeedCost?: (dailyCost: number) => void;
+}
+
+export default function FeedTab({ onUpdateFeedCost }: FeedTabProps = {}) {
   const [stage, setStage] = useState<string>('early_milking');
   const [herdSize, setHerdSize] = useState<number>(10);
   const [qtys, setQtys] = useState<number[]>([...presets.early_milking]);
@@ -58,50 +62,6 @@ export default function FeedTab() {
   
   const [showModal, setShowModal] = useState<boolean>(false);
   const [saveNotify, setSaveNotify] = useState<boolean>(false);
-
-  // Load from LocalStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('dairyos_tmr_data');
-      if (saved) {
-        const d = JSON.parse(saved);
-        if (d.stage && d.qtys && d.prices) {
-          setStage(d.stage);
-          setHerdSize(d.size);
-          setQtys(d.qtys);
-          setPrices(d.prices);
-        }
-      }
-    } catch (e) {
-      console.warn("Could not load TMR data");
-    }
-  }, []);
-
-  const handleLoadTemplate = (selectedStage: string) => {
-    setStage(selectedStage);
-    setQtys([...presets[selectedStage]]);
-  };
-
-  const handleReset = () => { setQtys([...presets[stage]]); };
-
-  const handleSave = () => {
-    const data = { stage, size: herdSize, qtys, prices };
-    localStorage.setItem('dairyos_tmr_data', JSON.stringify(data));
-    setSaveNotify(true);
-    setTimeout(() => setSaveNotify(false), 3000);
-  };
-
-  const handleQtyChange = (index: number, val: number) => {
-    const newQtys = [...qtys];
-    newQtys[index] = val;
-    setQtys(newQtys);
-  };
-
-  const handlePriceChange = (index: number, val: number) => {
-    const newPrices = [...prices];
-    newPrices[index] = val;
-    setPrices(newPrices);
-  };
 
   let headSum = 0;
   let totalWeight = 0;
@@ -119,6 +79,65 @@ export default function FeedTab() {
   });
 
   const groupTotal = headSum * herdSize;
+
+  // FORENSIC AUDIT INJECTION: Sync initial loaded cost to Dashboard CMPL
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('dairyos_tmr_data');
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.stage && d.qtys && d.prices) {
+          setStage(d.stage);
+          setHerdSize(d.size);
+          setQtys(d.qtys);
+          setPrices(d.prices);
+          
+          // Calculate cost from loaded data to send up
+          let loadedHeadSum = 0;
+          schema.forEach((s, i) => {
+             const q = d.qtys[i] || 0;
+             const p = d.prices[i] || 0;
+             loadedHeadSum += s.g ? (q / 1000) * p : q * p;
+          });
+          if (onUpdateFeedCost) onUpdateFeedCost(loadedHeadSum * d.size);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load TMR data");
+    }
+  }, [onUpdateFeedCost]);
+
+  const handleLoadTemplate = (selectedStage: string) => {
+    setStage(selectedStage);
+    setQtys([...presets[selectedStage]]);
+  };
+
+  const handleReset = () => { setQtys([...presets[stage]]); };
+
+  const handleSave = () => {
+    const data = { stage, size: herdSize, qtys, prices };
+    localStorage.setItem('dairyos_tmr_data', JSON.stringify(data));
+    
+    // FORENSIC AUDIT INJECTION: Sync live cost to Dashboard CMPL on save
+    if (onUpdateFeedCost) {
+      onUpdateFeedCost(groupTotal);
+    }
+
+    setSaveNotify(true);
+    setTimeout(() => setSaveNotify(false), 3000);
+  };
+
+  const handleQtyChange = (index: number, val: number) => {
+    const newQtys = [...qtys];
+    newQtys[index] = val;
+    setQtys(newQtys);
+  };
+
+  const handlePriceChange = (index: number, val: number) => {
+    const newPrices = [...prices];
+    newPrices[index] = val;
+    setPrices(newPrices);
+  };
 
   const handleWhatsApp = () => {
     let t = `*TMR BATCH SHEET*\n*Stage:* ${stage.replace('_', ' ').toUpperCase()}\n*Animals:* ${herdSize}\n*Batch Weight:* ${Math.round(totalWeight)} KG\n*Cost/Head:* Rs. ${Math.round(headSum)}\n\n*Ingredients:*\n`;

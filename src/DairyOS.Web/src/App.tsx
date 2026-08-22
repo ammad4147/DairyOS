@@ -13,7 +13,7 @@ import LoginModal from './components/LoginModal';
 import AnimalPassportModal from './components/AnimalPassportModal';
 import { useAlertAudit } from './context/AlertAuditContext';
 import {
-  LayoutDashboard, Calculator, BarChart3,
+  LayoutDashboard, Calculator, BarChart3, DollarSign,
   Milk, HeartPulse, Activity, Settings, Plus,
   Bell, Clock, LogOut, Wheat
 } from 'lucide-react';
@@ -66,7 +66,7 @@ export default function MainAppShell() {
     setCurrentUser(null);
   };
 
-  // Herd Animals Data
+  // MASTER Herd Animals Data
   const [animals, setAnimals] = useState<HerdAnimal[]>([
     { id: 'TD-001', breed: 'Holstein Friesian', category: 'Milking Cows', age: '4 Years', status: 'Healthy', frequency: 'TWICE_DAILY', earTag: 'PK-LHR-001', gender: 'Female' },
     { id: 'TD-002', breed: 'Sahiwal Cross', category: 'Milking Cows', age: '5 Years', status: 'Healthy', frequency: 'THRICE_DAILY', earTag: 'PK-LHR-002', gender: 'Female' },
@@ -81,16 +81,24 @@ export default function MainAppShell() {
   ]);
 
   const [showAnimalModal, setShowAnimalModal] = useState(false);
+  const [todayYield, setTodayYield] = useState(133);
+  const [todayMilkSoldLiters, setTodayMilkSoldLiters] = useState(110);
+  const [dailyFeedCostPKR, setDailyFeedCostPKR] = useState(5850);
+  const [accountsReceivable, setAccountsReceivable] = useState(23400);
+
+  const handleRegisterAnimal = (newAnimal: HerdAnimal) => {
+    setAnimals(prev => [...prev, newAnimal]);
+  };
 
   if (!currentUser) {
     return <LoginModal onLoginSuccess={(u) => setCurrentUser(u)} />;
   }
 
-  // Restored Feed Tab alongside others
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
     { id: 'milk', label: 'Milk', icon: <Milk size={14} /> },
     { id: 'feed', label: 'Feed', icon: <Wheat size={14} /> },
+    { id: 'finance', label: 'Finance', icon: <DollarSign size={14} /> },
     { id: 'breeding', label: 'Breeding', icon: <Activity size={14} /> },
     { id: 'health', label: 'Health', icon: <HeartPulse size={14} /> },
     { id: 'cmpl', label: 'CMPL', icon: <Calculator size={14} /> },
@@ -99,11 +107,9 @@ export default function MainAppShell() {
 
   return (
     <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0b0f19', color: '#f8fafc', overflow: 'hidden', fontFamily: 'sans-serif' }}>
-
-      {/* COMPACT TOP NAVIGATION HEADER */}
+      
+      {/* HEADER */}
       <header style={{ height: '60px', background: '#0f172a', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', zIndex: 50, flexShrink: 0, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)' }}>
-        
-        {/* Left: Branding */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '12px', boxShadow: '0 2px 6px rgba(2, 132, 199, 0.4)' }}>
             {farmName.split(' ').map(w => w[0]).slice(0, 3).join('') || 'BDF'}
@@ -118,7 +124,6 @@ export default function MainAppShell() {
           </div>
         </div>
 
-        {/* Middle: High-Contrast Nav Tabs */}
         <nav style={{ display: 'flex', gap: '6px', justifyContent: 'center', flex: 1, margin: '0 12px' }}>
           {navItems.map(tab => {
             const isActive = currentView === tab.id;
@@ -149,10 +154,7 @@ export default function MainAppShell() {
           })}
         </nav>
 
-        {/* Right: Actions, Notifications, Settings, Streamlined User Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          
-          {/* Clock */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', border: '1px solid #334155', padding: '4px 10px', borderRadius: '16px', fontSize: '11px', color: '#cbd5e1' }}>
             <Clock size={12} color="#38bdf8" />
             <span style={{ fontWeight: 'bold', color: '#fff' }}>
@@ -164,7 +166,6 @@ export default function MainAppShell() {
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               style={{ position: 'relative', background: '#1e293b', border: '1px solid #334155', padding: '6px', borderRadius: '50%', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              title="Operational Alerts"
             >
               <Bell size={14} />
               {activeCount > 0 && (
@@ -203,11 +204,10 @@ export default function MainAppShell() {
             )}
           </div>
 
-          <button onClick={() => setCurrentView('settings')} style={{ background: currentView === 'settings' ? '#0ea5e9' : '#1e293b', border: currentView === 'settings' ? '1px solid #7dd3fc' : '1px solid #334155', padding: '6px', borderRadius: '50%', color: currentView === 'settings' ? '#ffffff' : '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Settings">
+          <button onClick={() => setCurrentView('settings')} style={{ background: currentView === 'settings' ? '#0ea5e9' : '#1e293b', border: currentView === 'settings' ? '1px solid #7dd3fc' : '1px solid #334155', padding: '6px', borderRadius: '50%', color: currentView === 'settings' ? '#ffffff' : '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={14} />
           </button>
 
-          {/* Compact User Section - Initials Only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e293b', border: '1px solid #334155', padding: '4px 10px', borderRadius: '20px' }}>
             <div title={`${currentUser.fullName} (${currentUser.role})`} style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#38bdf8', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px', cursor: 'help' }}>
               {currentUser.fullName.split(' ').map(n => n[0]).slice(0, 2).join('')}
@@ -221,16 +221,19 @@ export default function MainAppShell() {
 
       {/* MAIN VIEWPORT */}
       <main style={{ flex: 1, overflowY: 'auto', background: '#0b0f19', position: 'relative' }}>
-        {currentView === 'dashboard' && <UnifiedDashboard onNavigate={(v) => setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
-        {currentView === 'finance' && <FinanceTab />}
-        {currentView === 'feed' && <FeedTab />}
+        {/* Pass animals array to dashboard to resolve duplication */}
+        {currentView === 'dashboard' && <UnifiedDashboard onNavigate={(v) => setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} realTimeTodayYield={todayYield} realTimeDailyFeedCost={dailyFeedCostPKR} realTimeReceivables={accountsReceivable} />}
+        {currentView === 'finance' && <FinanceTab onSaveSale={(liters) => setTodayMilkSoldLiters(prev => prev + liters)} onUpdateReceivables={(amount) => setAccountsReceivable(amount)} />}
+        {currentView === 'feed' && <FeedTab onUpdateFeedCost={(cost) => setDailyFeedCostPKR(cost)} />}
         {currentView === 'cmpl' && <CMPL />}
         {currentView === 'analytics' && <Analytics />}
         {currentView === 'audit' && <AuditTab />}
         {currentView === 'settings' && <SettingsTab onFarmProfileUpdate={(p) => { setFarmName(p.farmName); setFarmLocation(p.location); }} />}
-        {currentView === 'milk' && <MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={() => setAutoOpenYieldModal(false)} />}
-        {currentView === 'health' && <HealthTab />}
-        {currentView === 'breeding' && <BreedingTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} />}
+        {currentView === 'milk' && <MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={() => setAutoOpenYieldModal(false)} herdMasterList={animals} onSaveYield={(addedLiters) => setTodayYield(prev => prev + addedLiters)} realTimeTodaySold={todayMilkSoldLiters} />}
+        {currentView === 'health' && <HealthTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} />}
+        
+        {/* Pass animals array down to Breeding Tab */}
+        {currentView === 'breeding' && <BreedingTab onOpenPassport={(id) => setSelectedPassportAnimalId(id)} herdMasterList={animals} />}
 
         {/* ANIMAL RECORDS & PASSPORT */}
         {currentView === 'animals' && (
@@ -245,7 +248,6 @@ export default function MainAppShell() {
               </button>
             </div>
 
-            {/* Herd Breakdown Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '14px' }}>
               <div style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: '4px solid #f59e0b', padding: '8px 10px', borderRadius: '6px' }}>
                 <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Herd</div>
@@ -295,9 +297,32 @@ export default function MainAppShell() {
         )}
       </main>
 
+      {/* OVERLAYS */}
       {selectedPassportAnimalId && (
-        <AnimalPassportModal animalId={selectedPassportAnimalId} onClose={() => setSelectedPassportAnimalId(null)} />
+        <AnimalPassportModal 
+          animalId={selectedPassportAnimalId} 
+          onClose={() => setSelectedPassportAnimalId(null)} 
+          onSave={(data) => {
+             // Only add if it's a completely new animal that doesn't exist
+             if (!animals.find(a => a.id === data.id)) {
+                 handleRegisterAnimal(data);
+             }
+          }}
+        />
+      )}
+
+      {showAnimalModal && (
+        <AnimalPassportModal 
+          animalId="NEW-ANIMAL" 
+          onClose={() => setShowAnimalModal(false)} 
+          onSave={(data) => handleRegisterAnimal(data)} 
+        />
       )}
     </div>
   );
 }
+
+
+
+
+

@@ -1,12 +1,11 @@
 ﻿import { useEffect, useState, useCallback, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Milk, Sparkles, AlertTriangle, X, TrendingDown, HeartPulse, Activity, Plus } from 'lucide-react';
+import { Milk, Sparkles, AlertTriangle, X, TrendingDown, HeartPulse, Activity, Plus, DollarSign } from 'lucide-react';
 import { fetchCommandDashboardData, type CommandDashboardData } from '../api/commandDashboardClient';
 import { useAlertAudit } from '../context/AlertAuditContext';
 import AnimalPassportModal from './AnimalPassportModal';
 import './UnifiedDashboard.css';
 
-// SVG Cow Head Icon
 const CowIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M5 3L3 7v3l2 1v5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-5l2-1V7l-2-4-3 2H8L5 3z" />
@@ -16,10 +15,20 @@ const CowIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?:
   </svg>
 );
 
+interface HerdAnimal {
+  id: string;
+  breed: string;
+  category: string;
+}
+
 interface Props {
   onNavigate?: (view: string) => void;
   onOpenYieldModal?: () => void;
   onOpenPassport?: (id: string) => void;
+  herdMasterList?: HerdAnimal[];
+  realTimeTodayYield?: number;
+  realTimeDailyFeedCost?: number;
+  realTimeReceivables?: number;
 }
 
 interface DropComparisonDetail {
@@ -35,7 +44,7 @@ interface DropComparisonDetail {
   recommendedAction: string;
 }
 
-export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport }: Props) {
+export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], realTimeTodayYield, realTimeDailyFeedCost, realTimeReceivables = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,27 +70,27 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Dynamic 7/15/30 Day Yield Curve (Forcing Whole Numbers)
   const filteredYieldTrend = useMemo(() => {
     const baseline30 = [
       121, 122, 120, 123, 125, 127, 128, 128, 129, 131,
       130, 129, 127, 129, 131, 134, 132, 134, 136, 133,
       132, 130, 129, 132, 133, 131, 128, 131, 128, 133
     ];
-
     let fullSeries: number[] = [...baseline30];
     if (data?.yieldTrend && Array.isArray(data.yieldTrend) && data.yieldTrend.length > 0) {
       const backendValues = data.yieldTrend.map((item: any) => typeof item === 'number' ? item : (item.yield || item.liters || 130));
       const replaceCount = Math.min(backendValues.length, 30);
       fullSeries.splice(30 - replaceCount, replaceCount, ...backendValues.slice(-replaceCount));
     }
-
+    
+    // Inject real-time yield if provided
+    if (realTimeTodayYield !== undefined) { 
+        fullSeries[fullSeries.length - 1] = realTimeTodayYield; 
+    }
+    
     const sliced = fullSeries.slice(-chartDays);
-    return sliced.map((val, idx) => ({
-      dayIndex: idx + 1,
-      yield: Math.round(Number(val))
-    }));
-  }, [data, chartDays]);
+    return sliced.map((val, idx) => ({ dayIndex: idx + 1, yield: Math.round(Number(val)) }));
+  }, [data, chartDays, realTimeTodayYield]);
 
   const openPassportHandler = (tag: string) => {
     if (onOpenPassport) onOpenPassport(tag);
@@ -99,42 +108,54 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   if (loading && !data) return <div style={{ padding: '30px', color: '#94a3b8', textAlign: 'center', fontSize: '13px' }}>Loading authoritative command picture...</div>;
 
-  // KPIs - Wrapped in Math.round() to kill long decimals
-  const milkingCount = Number(data?.milkingAnimals) || 6;
-  const todayYield = Math.round(Number(data?.todayLiters) || 133);
-  const avgYieldPerAnimal = Math.round(todayYield / milkingCount);
-  const cmplValue = '44';
+  // DYNAMIC HERD CALCULATION BASED ON MASTER STATE
+  const dynamicMilkingCount = herdMasterList.filter(a => a.category.includes('Milking')).length;
+  const milkingCount = dynamicMilkingCount > 0 ? dynamicMilkingCount : (Number(data?.milkingAnimals) || 6);
+  
+  // Real-time Yield Injection
+  const todayYield = realTimeTodayYield !== undefined ? realTimeTodayYield : Math.round(Number(data?.todayLiters) || 133);
+  
+  const avgYieldPerAnimal = milkingCount > 0 ? Math.round(todayYield / milkingCount) : 0;
+  
+  // Dynamic CMPL Calculation
+  const estimatedDailyFeedCostPKR = realTimeDailyFeedCost !== undefined ? realTimeDailyFeedCost : 5850;
+  const cmplValue = todayYield > 0 ? Math.round(estimatedDailyFeedCostPKR / todayYield).toString() : '--';
 
   const todayDate = new Date();
   const yesterdayDate = new Date();
   yesterdayDate.setDate(todayDate.getDate() - 1);
   const currentDateLabel = todayDate.toISOString().split('T')[0];
   const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
-  
-  // Yesterday's Yield
   const yesterdayLiters = Math.round(Number(data?.yesterdayLiters) || 128);
 
-  // Color-coded yield indicator based on drop criteria
   const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
-  let todayYieldColor = '#34d399'; // Green if within limits
-  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444'; // Red alert
-  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b'; // Amber warning
+  let todayYieldColor = '#34d399';
+  if (yieldDropPercent >= 20) todayYieldColor = '#ef4444';
+  else if (yieldDropPercent >= 10) todayYieldColor = '#f59e0b';
 
-  const rawHerd = data?.herdComposition || [];
-  const findCount = (nameKeywords: string[]) => {
-    const match = rawHerd.find((h: any) => nameKeywords.some(kw => h.name.toLowerCase().includes(kw.toLowerCase())));
-    return match ? Number(match.value) : 0;
-  };
-  const canonicalHerd = [
-    { name: 'Milking Cows', value: findCount(['Milking', 'Lactating']) || 6, color: '#38bdf8' },
-    { name: 'Dry Cows', value: findCount(['Dry']) || 1, color: '#94a3b8' },
-    { name: 'Heifers', value: findCount(['Heifer']) || 1, color: '#f59e0b' },
-    { name: 'Female Calves', value: findCount(['Female Calf', 'Female Calves']) || 1, color: '#ec4899' },
-    { name: 'Male Calves', value: findCount(['Male Calf', 'Male Calves']) || 1, color: '#3b82f6' },
-    { name: 'Bulls', value: findCount(['Bull', 'Sire']) || 1, color: '#a855f7' },
+  const countCategory = (keywords: string[]) => {
+      return herdMasterList.filter(a => keywords.some(k => a.category.includes(k))).length;
+  }
+
+  const canonicalHerd = herdMasterList.length > 0 ? [
+    { name: 'Milking Cows', value: countCategory(['Milking']), color: '#38bdf8' },
+    { name: 'Dry Cows', value: countCategory(['Dry']), color: '#94a3b8' },
+    { name: 'Heifers', value: countCategory(['Heifer']), color: '#f59e0b' },
+    { name: 'Female Calves', value: countCategory(['Female Calf']), color: '#ec4899' },
+    { name: 'Male Calves', value: countCategory(['Male Calf']), color: '#3b82f6' },
+    { name: 'Bulls', value: countCategory(['Bull', 'Sire']), color: '#a855f7' },
+  ] : [
+    { name: 'Milking Cows', value: 6, color: '#38bdf8' },
+    { name: 'Dry Cows', value: 1, color: '#94a3b8' },
+    { name: 'Heifers', value: 1, color: '#f59e0b' },
+    { name: 'Female Calves', value: 1, color: '#ec4899' },
+    { name: 'Male Calves', value: 1, color: '#3b82f6' },
+    { name: 'Bulls', value: 1, color: '#a855f7' },
   ];
+
   const herdCol1 = canonicalHerd.slice(0, 3);
   const herdCol2 = canonicalHerd.slice(3, 6);
+  const totalHerdCount = canonicalHerd.reduce((sum, c) => sum + c.value, 0);
 
   const extremesOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const allTopPerformers = [{ id: 'TD-009', yield: 45 }, { id: 'TD-001', yield: 39 }, { id: 'TD-014', yield: 37 }, { id: 'TD-002', yield: 36 }, { id: 'TD-021', yield: 36 }, { id: 'TD-025', yield: 35 }, { id: 'TD-028', yield: 35 }, { id: 'TD-031', yield: 34 }, { id: 'TD-035', yield: 34 }, { id: 'TD-038', yield: 33 }];
@@ -144,30 +165,20 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   const activeDropAlerts = alerts.filter(a => a.source === 'MILK_DROP' && a.status !== 'RESOLVED');
   const healthData = data?.health || { sick: 1, mastitis: 1, highTemp: 0, completedVax: 8, dueVax: 2 };
-  const reproSource = data?.reproduction as {
-  onHeat?: number;
-  inseminated?: number;
-  pregnant?: number;
-  conceptionRatio?: string;
-} | undefined;
-const reproData = {
-  onHeat: reproSource?.onHeat ?? 1,
-  inseminated: reproSource?.inseminated ?? 1,
-  pregnant: reproSource?.pregnant ?? 2,
-  conceptionRatio: reproSource?.conceptionRatio ?? '62%'
-};
+  const reproSource = data?.reproduction as { onHeat?: number; inseminated?: number; pregnant?: number; conceptionRatio?: string; } | undefined;
+  const reproData = { onHeat: reproSource?.onHeat ?? 1, inseminated: reproSource?.inseminated ?? 1, pregnant: reproSource?.pregnant ?? 2, conceptionRatio: reproSource?.conceptionRatio ?? '62%' };
 
   return (
     <div className="cmd-dash-wrapper" style={{ height: 'calc(100vh - 75px)', overflowY: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', padding: '10px' }}>
       <div className="cmd-content-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '10px', flex: 1, minHeight: 0 }}>
         
         <div className="cmd-col" style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0 }}>
-          {/* MILK PRODUCTION SECTION */}
           <div className="cmd-card" style={{ flex: '1.6', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate && onNavigate('milk')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}>
               <Milk size={16} /> <span>Milk Production & Farm Yield</span>
             </div>
-
+            
+            {/* ROW 1: Restored to exact original 5 boxes */}
             <div className="stat-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '8px' }}>
               <div className="stat-box" style={{ background: '#1e293b', padding: '6px', borderRadius: '6px' }}>
                 <div className="stat-lbl" style={{ fontSize: '9px', color: '#94a3b8' }}>Milking Animals</div>
@@ -179,7 +190,7 @@ const reproData = {
               </div>
               <div className="stat-box" style={{ background: '#1e293b', padding: '6px', borderRadius: '6px' }}>
                 <div className="stat-lbl" style={{ fontSize: '9px', color: '#94a3b8' }}>Milking %</div>
-                <div className="stat-val" style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399' }}>75%</div>
+                <div className="stat-val" style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399' }}>{totalHerdCount > 0 ? Math.round((milkingCount / totalHerdCount) * 100) : 0}%</div>
               </div>
               <div className="stat-box" style={{ background: '#1e293b', padding: '6px', borderRadius: '6px' }}>
                 <div className="stat-lbl" style={{ fontSize: '9px', color: '#94a3b8' }}>Avg Yield/Cow</div>
@@ -191,7 +202,8 @@ const reproData = {
               </div>
             </div>
 
-            <div className="stat-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+            {/* ROW 2: Now expanded to 3 boxes (Today, Yesterday, Pending Cash) */}
+            <div className="stat-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
               <div className="stat-box" style={{ background: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="stat-lbl" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>{currentDateLabel}</div>
                 <div className="stat-val" style={{ fontSize: '16px', fontWeight: 'bold', color: todayYieldColor }}>{todayYield} L</div>
@@ -200,10 +212,13 @@ const reproData = {
                 <div className="stat-lbl" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>{priorDateLabel}</div>
                 <div className="stat-val" style={{ fontSize: '16px', fontWeight: 'bold', color: '#cbd5e1' }}>{yesterdayLiters} L</div>
               </div>
+              <div className="stat-box" style={{ background: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #f59e0b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="stat-lbl" style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>Pending Cash</div>
+                <div className="stat-val" style={{ fontSize: '14px', fontWeight: 'bold', color: '#f59e0b' }}>Rs. {realTimeReceivables.toLocaleString()}</div>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: '8px', flex: 1, minHeight: 0 }}>
-              {/* Chart (With position: absolute fix to prevent flexbox spilling) */}
               <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div className="graph-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span className="graph-title" style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -215,8 +230,6 @@ const reproData = {
                     <option value={30}>30 Days</option>
                   </select>
                 </div>
-                
-                {/* The Fix: Relative parent, Absolute child */}
                 <div style={{ flex: 1, position: 'relative', minHeight: '65px' }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
                     <ResponsiveContainer width="100%" height="100%" key={"chart-wrap-" + chartDays}>
@@ -237,7 +250,6 @@ const reproData = {
                 </div>
               </div>
 
-              {/* YIELD DROP WATCHLIST */}
               <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -245,13 +257,12 @@ const reproData = {
                   </span>
                   <span style={{ fontSize: '8px', color: '#94a3b8' }}>Click row for detail</span>
                 </div>
-
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {activeDropAlerts.length === 0 ? (
                     <div style={{ fontSize: '10px', color: '#34d399', textAlign: 'center', padding: '12px 0' }}>✓ No active yield drop warnings</div>
                   ) : (
                     activeDropAlerts.map((item: any) => (
-                      <div key={item.id} onClick={() => handleOpenDropComparison(item.animalId || 'TD-004', item.title)} style={{ background: '#161f30', borderLeft: item.currentLevel === 'RED' ? '3px solid #ef4444' : '3px solid #f59e0b', padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} title="View comparison">
+                      <div key={item.id} onClick={() => handleOpenDropComparison(item.animalId || 'TD-004', item.title)} style={{ background: '#161f30', borderLeft: item.currentLevel === 'RED' ? '3px solid #ef4444' : '3px solid #f59e0b', padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                         {item.animalId && (
                           <button onClick={(e) => { e.stopPropagation(); openPassportHandler(item.animalId!); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '11px', textDecoration: 'underline' }}>
                             #{item.animalId}
@@ -268,29 +279,43 @@ const reproData = {
             </div>
           </div>
 
-          {/* TOTAL HERD */}
-          <div className="cmd-card" style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0, overflow: 'hidden' }}>
-            <div className="cmd-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span className="clickable-title" onClick={() => onNavigate && onNavigate('animals')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>
-                <CowIcon size={16} color="#f59e0b" /> <span>Total Herd</span>
-              </span>
-              <span style={{ fontSize: '10px', color: '#94a3b8' }}>Total: {canonicalHerd.reduce((sum, c) => sum + c.value, 0)} Head</span>
+          <div style={{ flex: '1', display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '10px', minHeight: 0 }}>
+            <div className="cmd-card" style={{ display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0, overflow: 'hidden' }}>
+              <div className="cmd-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span className="clickable-title" onClick={() => onNavigate && onNavigate('animals')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>
+                  <CowIcon size={16} color="#f59e0b" /> <span>Total Herd</span>
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>Total: {totalHerdCount} Head</span>
+              </div>
+              <div className="herd-table-wrapper" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', minHeight: 0 }}>
+                <table className="herd-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                  <thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937' }}><th style={{ textAlign: 'left', padding: '3px' }}>Category</th><th style={{ textAlign: 'right', padding: '3px' }}>Count</th></tr></thead>
+                  <tbody>{herdCol1.map(c => (<tr key={c.name} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', color: '#e2e8f0' }}><div style={{ width: '6px', height: '6px', backgroundColor: c.color, borderRadius: '2px' }}/> {c.name}</td><td style={{ fontWeight: 800, textAlign: 'right', padding: '4px', color: '#fff' }}>{c.value}</td></tr>))}</tbody>
+                </table>
+                <table className="herd-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                  <thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937' }}><th style={{ textAlign: 'left', padding: '3px' }}>Category</th><th style={{ textAlign: 'right', padding: '3px' }}>Count</th></tr></thead>
+                  <tbody>{herdCol2.map(c => (<tr key={c.name} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', color: '#e2e8f0' }}><div style={{ width: '6px', height: '6px', backgroundColor: c.color, borderRadius: '2px' }}/> {c.name}</td><td style={{ fontWeight: 800, textAlign: 'right', padding: '4px', color: '#fff' }}>{c.value}</td></tr>))}</tbody>
+                </table>
+              </div>
             </div>
-            <div className="herd-table-wrapper" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', minHeight: 0 }}>
-              <table className="herd-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
-                <thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937' }}><th style={{ textAlign: 'left', padding: '3px' }}>Category</th><th style={{ textAlign: 'right', padding: '3px' }}>Count</th></tr></thead>
-                <tbody>{herdCol1.map(c => (<tr key={c.name} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', color: '#e2e8f0' }}><div style={{ width: '6px', height: '6px', backgroundColor: c.color, borderRadius: '2px' }}/> {c.name}</td><td style={{ fontWeight: 800, textAlign: 'right', padding: '4px', color: '#fff' }}>{c.value}</td></tr>))}</tbody>
-              </table>
-              <table className="herd-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
-                <thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937' }}><th style={{ textAlign: 'left', padding: '3px' }}>Category</th><th style={{ textAlign: 'right', padding: '3px' }}>Count</th></tr></thead>
-                <tbody>{herdCol2.map(c => (<tr key={c.name} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', color: '#e2e8f0' }}><div style={{ width: '6px', height: '6px', backgroundColor: c.color, borderRadius: '2px' }}/> {c.name}</td><td style={{ fontWeight: 800, textAlign: 'right', padding: '4px', color: '#fff' }}>{c.value}</td></tr>))}</tbody>
-              </table>
+
+            <div className="cmd-card" style={{ display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
+              <div className="cmd-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px' }}>
+                <Plus size={15} /> <span>Data Entry</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
+                <button onClick={() => { if (onOpenYieldModal) onOpenYieldModal(); else if (onNavigate) onNavigate('milk'); }} style={{ width: '100%', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: '1px solid #38bdf8', borderRadius: '6px', padding: '10px', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.4)' }}>
+                  <Milk size={14} /> Enter Milk Production
+                </button>
+                <button onClick={() => onNavigate && onNavigate('finance')} style={{ width: '100%', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', border: '1px solid #34d399', borderRadius: '6px', padding: '10px', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.4)' }}>
+                  <span style={{ fontWeight: 800, fontSize: '14px', lineHeight: 1 }}>₨</span> Enter Milk Sale
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="cmd-col" style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0 }}>
-          {/* PRODUCTION EXTREMES */}
           <div className="cmd-card" style={{ flex: '0.9', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
             <div className="cmd-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <span className="clickable-title" onClick={() => onNavigate && onNavigate('milk')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>
@@ -329,7 +354,6 @@ const reproData = {
             </div>
           </div>
 
-          {/* HEALTH & TREATMENTS */}
           <div className="cmd-card" style={{ flex: '0.85', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate && onNavigate('health')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', marginBottom: '6px' }}>
               <HeartPulse size={15} /> <span>Health & Treatments</span>
@@ -349,7 +373,6 @@ const reproData = {
             </div>
           </div>
 
-          {/* REPRODUCTIVE HEALTH */}
           <div className="cmd-card" style={{ flex: '0.85', display: 'flex', flexDirection: 'column', background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px', minHeight: 0 }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate && onNavigate('breeding')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', marginBottom: '6px' }}>
               <Activity size={15} /> <span>Reproductive Health</span>
@@ -373,14 +396,9 @@ const reproData = {
               </div>
             </div>
           </div>
-
-          <button onClick={() => { if (onOpenYieldModal) onOpenYieldModal(); else if (onNavigate) onNavigate('milk'); }} style={{ width: '100%', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: '1px solid #38bdf8', borderRadius: '8px', padding: '10px 14px', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.4)' }}>
-            <Plus size={15} /> Enter Milk Production
-          </button>
         </div>
       </div>
 
-      {/* YIELD DROP DIAGNOSTIC & COMPARISON MODAL */}
       {selectedDropDetail && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ background: '#111827', border: '1px solid #ef4444', borderRadius: '10px', width: '520px', maxWidth: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.9)' }}>
@@ -433,4 +451,3 @@ const reproData = {
     </div>
   );
 }
-

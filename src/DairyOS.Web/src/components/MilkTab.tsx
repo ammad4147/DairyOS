@@ -1,178 +1,343 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Milk, Plus, X } from 'lucide-react';
+﻿import React, { useState } from 'react';
+import { Milk, Calendar, Droplets, Plus, X, Save, List } from 'lucide-react';
 
-interface Props {
-  initialOpenModal?: boolean;
-  onModalClose?: () => void;
+interface HerdAnimal {
+  id: string;
+  breed: string;
+  category: string;
 }
 
-export default function MilkTab({ initialOpenModal, onModalClose }: Props) {
-  const [isModalOpen, setIsModalOpen] = useState(initialOpenModal || false);
-  const [yieldInput, setYieldInput] = useState<string>('');
-  const [selectedAnimal, setSelectedAnimal] = useState('TD-001');
-  const [shift, setShift] = useState('Morning');
+interface MilkTabProps {
+  initialOpenModal?: boolean;
+  onModalClose?: () => void;
+  herdMasterList?: HerdAnimal[];
+  onSaveYield?: (addedLiters: number) => void;
+  realTimeTodaySold?: number;
+}
 
-  useEffect(() => {
-    if (initialOpenModal) setIsModalOpen(true);
-  }, [initialOpenModal]);
+export default function MilkTab({ initialOpenModal = false, onModalClose, herdMasterList = [], onSaveYield, realTimeTodaySold = 110 }: MilkTabProps) {
+  // Data Entry Modal State
+  const [activeModal, setActiveModal] = useState<'Production' | 'Domestic' | 'Calves' | null>(initialOpenModal ? 'Production' : null);
+  const [inputValue, setInputValue] = useState('');
+  const [selectedAnimal, setSelectedAnimal] = useState('BULK');
+  
+  // List Viewing Modal State
+  const [viewList, setViewList] = useState<'MonthlyProduced' | 'MonthlySold' | 'TodayProduced' | 'MonthlyReconciliation' | null>(null);
 
-  const handleClose = () => {
-    setIsModalOpen(false);
+  // Local Today's State
+  const [todayProduced, setTodayProduced] = useState(133); // Baseline mock
+  const [todayDomestic, setTodayDomestic] = useState(5);
+  const [todayCalves, setTodayCalves] = useState(10);
+  const todaySold = realTimeTodaySold;
+
+  // Live Today's Log (Updates when you enter milk)
+  const [todayLogs, setTodayLogs] = useState<{id: string, time: string, animalId: string, liters: number}[]>([
+    { id: 'LOG-1', time: '06:00 AM', animalId: 'TD-001', liters: 14.5 },
+    { id: 'LOG-2', time: '06:05 AM', animalId: 'TD-002', liters: 12.0 }
+  ]);
+
+  // Mock Monthly Data for Lists
+  const monthlyProducedLogs = [
+    { date: 'August 22, 2026', liters: 133 },
+    { date: 'August 21, 2026', liters: 128 },
+    { date: 'August 20, 2026', liters: 131 },
+    { date: 'August 19, 2026', liters: 129 },
+  ];
+  
+  const monthlySoldLogs = [
+    { date: 'August 22, 2026', liters: 110 },
+    { date: 'August 21, 2026', liters: 108 },
+    { date: 'August 20, 2026', liters: 112 },
+    { date: 'August 19, 2026', liters: 105 },
+  ];
+
+  const monthlyReconLogs = [
+    { date: 'August 21, 2026', variance: 0 },
+    { date: 'August 20, 2026', variance: -2.0 },
+    { date: 'August 19, 2026', variance: 0 },
+    { date: 'August 18, 2026', variance: +2.0 }, // Total historical variance balances to 0 for the mock
+  ];
+
+  // Daily True Variance Calculation (Produced - ALL OUTFLOWS)
+  const todayReconciliation = todayProduced - (todaySold + todayDomestic + todayCalves);
+
+  // FORENSIC AUDIT INJECTION: True Monthly Mass Balance
+  const monthlyProduced = 3980;
+  const monthlySold = 3700;
+  const monthlyDomestic = 150;
+  const monthlyCalves = 130;
+  const historicalMonthlyVariance = monthlyProduced - (monthlySold + monthlyDomestic + monthlyCalves);
+  
+  // Mathematically binds monthlyReconciliation to dynamically include todayReconciliation
+  const monthlyReconciliation = historicalMonthlyVariance + todayReconciliation;
+
+  const todayDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const handleCloseEntry = () => {
+    setActiveModal(null);
     if (onModalClose) onModalClose();
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSaveEntry = (e: React.FormEvent) => {
     e.preventDefault();
-    // Calculations continue in background as actuals, but UI ensures integer entry
-    console.log(`Saved ${yieldInput} L for ${selectedAnimal} during ${shift} shift`);
-    setYieldInput('');
-    handleClose();
-  };
+    const amount = parseFloat(inputValue);
+    if (!isNaN(amount) && amount > 0) {
+      if (activeModal === 'Production') {
+        setTodayProduced(prev => prev + amount);
+        
+        // Add to live list
+        setTodayLogs([{
+          id: `LOG-${Date.now()}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          animalId: selectedAnimal,
+          liters: amount
+        }, ...todayLogs]);
 
-  const handleYieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Strip out ANY non-digit character (prevents pasting decimals)
-    const val = e.target.value.replace(/\D/g, '');
-    setYieldInput(val);
+        if (onSaveYield) onSaveYield(amount);
+      } else if (activeModal === 'Domestic') {
+        setTodayDomestic(prev => prev + amount);
+      } else if (activeModal === 'Calves') {
+        setTodayCalves(prev => prev + amount);
+      }
+    }
+    setInputValue('');
+    setSelectedAnimal('BULK');
+    handleCloseEntry();
   };
-
-  // Background data can have decimals, UI will display whole numbers
-  const recentYields = [
-    { id: 'TD-001', shift: 'Morning', yield: 16.2, time: '05:30 AM' },
-    { id: 'TD-002', shift: 'Morning', yield: 14.8, time: '05:35 AM' },
-    { id: 'TD-003', shift: 'Morning', yield: 18.5, time: '05:40 AM' },
-    { id: 'TD-009', shift: 'Morning', yield: 21.1, time: '05:45 AM' },
-  ];
 
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Milk size={22} /> Milk Production Register
-          </h2>
-          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-            Record and monitor daily herd yields. Displaying whole numbers only.
-          </p>
-        </div>
-        <button onClick={() => setIsModalOpen(true)} style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}>
-          <Plus size={16}/> Enter Yield
-        </button>
+      
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Milk size={20} /> Mass Balance & Milk Distribution
+        </h2>
+        <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Track production, sales linkages, and internal farm utilization.</p>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #38bdf8' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Today's Total (Liters)</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{(133.5).toFixed(0)}</div>
+      {/* MONTHLY MILK REGISTER */}
+      <h3 style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Calendar size={16} color="#3b82f6" /> Monthly Milk Register
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '32px' }}>
+        {/* Clickable Monthly Produced */}
+        <div onClick={() => setViewList('MonthlyProduced')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #38bdf8', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
+          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Total Milk Produced</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{monthlyProduced.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
         </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #34d399' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Avg Yield / Cow</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>{(22.25).toFixed(0)}</div>
+        
+        {/* Clickable Monthly Sold */}
+        <div onClick={() => setViewList('MonthlySold')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #10b981', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
+          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Total Milk Sold</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{monthlySold.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
         </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Top Producer</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{(45.8).toFixed(0)}</div>
-        </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #a855f7' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Milking Herd Size</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#a855f7' }}>6</div>
+
+        {/* NOW CLICKABLE: Monthly Reconciliation */}
+        <div onClick={() => setViewList('MonthlyReconciliation')} style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #8b5cf6', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.background = '#111827'}>
+          <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '6px' }}>Monthly Milk Reconciliation</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: monthlyReconciliation === 0 ? '#10b981' : '#ef4444' }}>{monthlyReconciliation > 0 ? '+' : ''}{monthlyReconciliation.toLocaleString()} <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'normal' }}>Liters</span></div>
         </div>
       </div>
 
-      {/* Data Table - Forcing display to whole numbers */}
-      <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', background: '#161f30', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '14px', color: '#e2e8f0' }}>Today's Sessions</h3>
+      {/* TODAY'S MILK REGISTER */}
+      <h3 style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Droplets size={16} color="#38bdf8" /> Today's Milk Register - {todayDateStr}
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        
+        {/* Box 1: Milk Produced */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #38bdf8' }}>
+          <div onClick={() => setViewList('TodayProduced')} style={{ cursor: 'pointer' }}>
+            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Milk Produced</div>
+            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' }}>{todayProduced.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
+          </div>
+          <button onClick={() => setActiveModal('Production')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', transition: 'all 0.2s' }}>
+            <Plus size={12}/> Enter Milk Production
+          </button>
         </div>
-        <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#0f172a', borderBottom: '1px solid #1f2937', textAlign: 'left', color: '#94a3b8' }}>
-              <th style={{ padding: '12px 16px' }}>Animal ID</th>
-              <th style={{ padding: '12px 16px' }}>Shift</th>
-              <th style={{ padding: '12px 16px' }}>Time Recorded</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right' }}>Yield (Liters)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentYields.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid #1a2234' }}>
-                <td style={{ padding: '12px 16px', color: '#38bdf8', fontWeight: 'bold' }}>{r.id}</td>
-                <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{r.shift}</td>
-                <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.time}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>
-                  {r.yield.toFixed(0)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {/* Box 2: Milk Sold */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #10b981' }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Milk Sold</div>
+          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#10b981', marginBottom: '12px' }}>{todaySold.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: 'auto', padding: '8px 0', fontStyle: 'italic', textAlign: 'center' }}>
+            Taken from sales
+          </div>
+        </div>
+
+        {/* Box 3: Domestic Use */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #f59e0b' }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Domestic Use</div>
+          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#f59e0b', marginBottom: '12px' }}>{todayDomestic.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
+          <button onClick={() => setActiveModal('Domestic')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#f59e0b', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <Plus size={12}/> Enter Milk for Domestic Use
+          </button>
+        </div>
+
+        {/* Box 4: Calves Feed */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #ec4899' }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Calves Feed</div>
+          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#ec4899', marginBottom: '12px' }}>{todayCalves.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span></div>
+          <button onClick={() => setActiveModal('Calves')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#ec4899', padding: '8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <Plus size={12}/> Enter Milk for Calves Feed
+          </button>
+        </div>
+
+        {/* Box 5: Reconciliation */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', borderTop: '3px solid #8b5cf6' }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Reconciliation</div>
+          <div style={{ fontSize: '22px', fontWeight: 'bold', color: todayReconciliation === 0 ? '#10b981' : '#ef4444', marginBottom: '12px' }}>
+            {todayReconciliation > 0 ? '+' : ''}{todayReconciliation.toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>L</span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: 'auto', padding: '8px 0', textAlign: 'center' }}>
+            Unallocated Balance
+          </div>
+        </div>
+
       </div>
 
-      {/* Strict Integer Entry Modal */}
-      {isModalOpen && (
+      {/* ------------------------------------------------------------- */}
+      {/* MODALS FOR LIST VIEWS */}
+      {/* ------------------------------------------------------------- */}
+      {viewList && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#111827', border: '1px solid #38bdf8', borderRadius: '10px', width: '400px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(2, 132, 199, 0.5)' }}>
-            <div style={{ background: '#1e293b', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={18} color="#38bdf8" /> Record Milk Yield
-              </h3>
-              <button onClick={handleClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', width: '500px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
             
-            <form onSubmit={handleSave} style={{ padding: '20px' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Animal ID</label>
-                <select value={selectedAnimal} onChange={e => setSelectedAnimal(e.target.value)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '14px', outline: 'none' }}>
-                  <option value="TD-001">TD-001 (Holstein Friesian)</option>
-                  <option value="TD-002">TD-002 (Sahiwal Cross)</option>
-                  <option value="TD-003">TD-003 (Cholistani)</option>
-                  <option value="TD-009">TD-009 (Holstein Purebred)</option>
-                </select>
-              </div>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <List size={18} color="#38bdf8" /> 
+                {viewList === 'MonthlyProduced' && 'Monthly Daily Production List'}
+                {viewList === 'MonthlySold' && 'Monthly Daily Sold List'}
+                {viewList === 'TodayProduced' && "Today's Milk Production List"}
+                {viewList === 'MonthlyReconciliation' && 'Monthly Reconciliation History'}
+              </h3>
+              <button onClick={() => setViewList(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button>
+            </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Milking Shift</label>
-                <select value={shift} onChange={e => setShift(e.target.value)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '14px', outline: 'none' }}>
-                  <option>Morning</option>
-                  <option>Afternoon</option>
-                  <option>Evening</option>
-                </select>
-              </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left' }}>
+                    {viewList === 'TodayProduced' ? (
+                      <>
+                        <th style={{ padding: '10px' }}>Time</th>
+                        <th style={{ padding: '10px' }}>Animal ID</th>
+                        <th style={{ padding: '10px', textAlign: 'right' }}>Yield (Liters)</th>
+                      </>
+                    ) : viewList === 'MonthlyReconciliation' ? (
+                      <>
+                        <th style={{ padding: '10px' }}>Date</th>
+                        <th style={{ padding: '10px', textAlign: 'right' }}>Variance (Liters)</th>
+                      </>
+                    ) : (
+                      <>
+                        <th style={{ padding: '10px' }}>Date</th>
+                        <th style={{ padding: '10px', textAlign: 'right' }}>Amount (Liters)</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewList === 'TodayProduced' && todayLogs.map((log) => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                      <td style={{ padding: '10px', color: '#94a3b8' }}>{log.time}</td>
+                      <td style={{ padding: '10px', color: '#fff', fontWeight: 'bold' }}>{log.animalId}</td>
+                      <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
+                    </tr>
+                  ))}
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
-                  Yield (Whole Liters Only)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    required
-                    value={yieldInput}
-                    onChange={handleYieldChange}
-                    onKeyDown={(e) => {
-                      // ABSOLUTE BLOCK: Stop user from pressing period, comma, minus, or 'e'
-                      if (e.key === '.' || e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '-') {
-                        e.preventDefault();
-                      }
-                    }}
-                    placeholder="e.g. 16"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#fff', padding: '12px 12px 12px 40px', borderRadius: '6px', fontSize: '18px', fontWeight: 'bold', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  <Milk size={18} color="#38bdf8" style={{ position: 'absolute', left: '12px', top: '14px' }} />
-                  <span style={{ position: 'absolute', right: '16px', top: '14px', color: '#94a3b8', fontSize: '14px', fontWeight: 'bold' }}>L</span>
+                  {viewList === 'MonthlyProduced' && monthlyProducedLogs.map((log, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                      <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
+                      <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
+                    </tr>
+                  ))}
+
+                  {viewList === 'MonthlySold' && monthlySoldLogs.map((log, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                      <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
+                      <td style={{ padding: '10px', color: '#10b981', fontWeight: 'bold', textAlign: 'right' }}>{log.liters.toFixed(1)} L</td>
+                    </tr>
+                  ))}
+
+                  {/* NEW RECONCILIATION LIST WIRE-UP */}
+                  {viewList === 'MonthlyReconciliation' && (
+                    <>
+                      {/* Inject Today's Live Variance at the top */}
+                      <tr style={{ borderBottom: '1px solid #1e293b', background: 'rgba(56, 189, 248, 0.05)' }}>
+                        <td style={{ padding: '10px', color: '#38bdf8', fontWeight: 'bold' }}>Today (Live)</td>
+                        <td style={{ padding: '10px', color: todayReconciliation === 0 ? '#10b981' : '#ef4444', fontWeight: 'bold', textAlign: 'right' }}>
+                          {todayReconciliation > 0 ? '+' : ''}{todayReconciliation.toFixed(1)} L
+                        </td>
+                      </tr>
+                      {/* Historical Daily Logs */}
+                      {monthlyReconLogs.map((log, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                          <td style={{ padding: '10px', color: '#e2e8f0' }}>{log.date}</td>
+                          <td style={{ padding: '10px', color: log.variance === 0 ? '#10b981' : '#ef4444', fontWeight: 'bold', textAlign: 'right' }}>
+                            {log.variance > 0 ? '+' : ''}{log.variance.toFixed(1)} L
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* UNIVERSAL DATA ENTRY MODAL */}
+      {/* ------------------------------------------------------------- */}
+      {activeModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', width: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: activeModal === 'Production' ? '#38bdf8' : activeModal === 'Domestic' ? '#f59e0b' : '#ec4899', fontSize: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>
+                {activeModal === 'Production' && 'Enter Milk Production'}
+                {activeModal === 'Domestic' && 'Enter Milk for Domestic Use'}
+                {activeModal === 'Calves' && 'Enter Milk for Calves Feed'}
+              </span>
+              <button onClick={handleCloseEntry} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button>
+            </h3>
+            
+            <form onSubmit={handleSaveEntry} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {activeModal === 'Production' && (
+                <div>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Select Source Animal</label>
+                  <select value={selectedAnimal} onChange={e => setSelectedAnimal(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>
+                    <option value="BULK">Bulk / Whole Herd Entry</option>
+                    {herdMasterList.map(a => (
+                       <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>
+                    ))}
+                  </select>
                 </div>
-                <p style={{ fontSize: '10px', color: '#64748b', marginTop: '6px' }}>
-                  * Decimals are disabled. Please enter whole numbers (e.g., 16 not 16.2).
-                </p>
+              )}
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Amount (Liters)</label>
+                <input 
+                  type="number" 
+                  step="0.1" 
+                  min="0.1"
+                  required
+                  autoFocus
+                  placeholder="e.g. 10.5"
+                  value={inputValue} 
+                  onChange={e => setInputValue(e.target.value)} 
+                  style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '12px', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', boxSizing: 'border-box' }} 
+                />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={handleClose} style={{ background: 'none', border: '1px solid #334155', color: '#e2e8f0', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}>
-                  Save Record
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button type="button" onClick={handleCloseEntry} style={{ background: '#334155', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Cancel</button>
+                <button type="submit" style={{ background: activeModal === 'Production' ? '#38bdf8' : activeModal === 'Domestic' ? '#f59e0b' : '#ec4899', color: '#0f172a', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Save size={14} /> Save Entry
                 </button>
               </div>
             </form>
