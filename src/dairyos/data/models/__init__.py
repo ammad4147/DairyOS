@@ -2,6 +2,7 @@ from .animal import Animal
 from .animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from .farm import Farm
 from .milk_production import MilkProduction
+from .milk_quality_sample import MilkQualitySample
 from .financial_transaction import FinancialTransaction
 from .feed_record import FeedRecord
 from .feed_ration import FeedRation
@@ -14,6 +15,7 @@ __all__ = [
     "AnimalMilkingScheduleHistory",
     "Farm",
     "MilkProduction",
+    "MilkQualitySample",
     "FinancialTransaction",
     "FeedRecord",
     "FeedRation",

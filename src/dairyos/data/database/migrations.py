@@ -127,3 +127,35 @@ def migrate_feed_inventory() -> list[str]:
             )
         )
     return ["feed_inventory_items"]
+
+
+def migrate_milk_quality() -> list[str]:
+    """Create the daily milk-quality sample table; no historical rows are altered."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "milk_quality_samples" in inspector.get_table_names():
+            return []
+        connection.execute(
+            text(
+                """
+                CREATE TABLE milk_quality_samples (
+                    id SERIAL PRIMARY KEY,
+                    quality_date TIMESTAMP NOT NULL,
+                    fat_pct DOUBLE PRECISION NOT NULL,
+                    snf_pct DOUBLE PRECISION NOT NULL,
+                    sample_type VARCHAR NOT NULL DEFAULT 'BULK_TANK',
+                    notes VARCHAR NULL,
+                    recorded_by VARCHAR NOT NULL DEFAULT 'UI Operator',
+                    status VARCHAR NOT NULL DEFAULT 'RECORDED',
+                    recorded_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX uq_milk_quality_sample_day ON milk_quality_samples ((DATE(quality_date))) WHERE status = 'RECORDED'"
+            )
+        )
+    return ["milk_quality_samples"]
