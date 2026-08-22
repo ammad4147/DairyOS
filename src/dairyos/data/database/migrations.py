@@ -99,3 +99,31 @@ def migrate_milk_crud() -> list[str]:
                 changed.append(f"milk_dispositions.{name}")
 
     return changed
+
+
+def migrate_feed_inventory() -> list[str]:
+    """Create the feed item master without storing or altering stock balances."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        tables = set(inspector.get_table_names())
+        if "feed_inventory_items" in tables:
+            return []
+        connection.execute(
+            text(
+                """
+                CREATE TABLE feed_inventory_items (
+                    id SERIAL PRIMARY KEY,
+                    item VARCHAR NOT NULL UNIQUE,
+                    category VARCHAR NOT NULL DEFAULT 'FEED',
+                    unit VARCHAR NOT NULL DEFAULT 'kg',
+                    location VARCHAR NULL,
+                    reorder_level DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    active BOOLEAN NOT NULL DEFAULT TRUE,
+                    notes VARCHAR NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+    return ["feed_inventory_items"]
