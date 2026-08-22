@@ -8,18 +8,15 @@ from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.financial_transaction import FinancialTransaction
 
 
-@pytest.fixture(autouse=True)
-def clean_finance_rows():
+@pytest.fixture
+def finance_test_ids():
+    ids: list[int] = []
+    yield ids
+    if not ids:
+        return
     session = SessionLocal()
     try:
-        session.query(FinancialTransaction).delete(synchronize_session=False)
-        session.commit()
-    finally:
-        session.close()
-    yield
-    session = SessionLocal()
-    try:
-        session.query(FinancialTransaction).delete(synchronize_session=False)
+        session.query(FinancialTransaction).filter(FinancialTransaction.id.in_(ids)).delete(synchronize_session=False)
         session.commit()
     finally:
         session.close()
@@ -28,7 +25,7 @@ def clean_finance_rows():
 client = TestClient(app)
 
 
-def create_expense(**overrides):
+def create_expense(test_ids: list[int], **overrides):
     payload = {
         "transaction_type": "EXPENSE",
         "master_category": "FEED",
@@ -42,11 +39,14 @@ def create_expense(**overrides):
         "status": "PAID",
     }
     payload.update(overrides)
-    return client.post("/farm/finance-ledger", json=payload)
+    response = client.post("/farm/finance-ledger", json=payload)
+    if response.status_code < 300:
+        test_ids.append(response.json()["id"])
+    return response
 
 
-def test_edit_recalculates_expense_and_preserves_transaction_id():
-    created = create_expense()
+def test_edit_recalculates_expense_and_preserves_transaction_id(finance_test_ids):
+    created = create_expense(finance_test_ids)
     assert created.status_code == 200, created.text
     original = created.json()
     assert original["amount"] == 1000
@@ -64,8 +64,9 @@ def test_edit_recalculates_expense_and_preserves_transaction_id():
     assert updated["amount"] == 1800
 
 
-def test_void_transaction_cannot_be_edited():
-    created = create_expense()
+def test_void_transaction_cannot_be_edited(finance_test_ids):
+    created = create_expense(finance_test_ids)
+    assert created.status_code == 200, created.text
     transaction_id = created.json()["id"]
 
     voided = client.post(
@@ -81,10 +82,11 @@ def test_void_transaction_cannot_be_edited():
     assert edited.status_code == 409
 
 
-def test_payable_requires_due_date_and_reports_ageing():
+def test_payable_requires_due_date_and_reports_ageing(finance_test_ids):
     transaction_date = date.today() - timedelta(days=35)
     due_date = date.today() - timedelta(days=35)
     created = create_expense(
+        finance_test_ids,
         transaction_date=transaction_date.isoformat(),
         payment_method="CREDIT",
         status="PAYABLE",
@@ -103,8 +105,9 @@ def test_payable_requires_due_date_and_reports_ageing():
     assert body["transactions"][0]["days_overdue"] == 35
 
 
-def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date():
+def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date(finance_test_ids):
     created = create_expense(
+        finance_test_ids,
         payment_method="CREDIT",
         status="PAYABLE",
         due_date=(date.today() + timedelta(days=7)).isoformat(),
@@ -127,8 +130,9 @@ def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date
     assert payables.json()["count"] == 0
 
 
-def test_due_date_before_transaction_date_is_rejected():
+def test_due_date_before_transaction_date_is_rejected(finance_test_ids):
     created = create_expense(
+        finance_test_ids,
         transaction_date=date.today().isoformat(),
         payment_method="CREDIT",
         status="PAYABLE",
