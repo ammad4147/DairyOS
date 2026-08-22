@@ -20,6 +20,7 @@ from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingSch
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.milk_production import MilkProduction
+from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
 from dairyos.data.models.user import User
 from dairyos.runtime.persistent_event_journal import PersistentEventJournal
@@ -44,6 +45,7 @@ def _reset_test_persistence() -> None:
         # domain registers and operational projections.
         for model in (
             FinancialTransaction,
+            MilkDisposition,
             MilkProduction,
             FeedRecord,
             HealthObservation,
