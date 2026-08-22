@@ -12,6 +12,7 @@ from dairyos.data.repositories.milking_session_record_repository import (
 )
 from dairyos.data.repositories.financial_repository import FinancialRepository
 from dairyos.data.repositories.inventory_repository import InventoryRepository
+from dairyos.data.repositories.feed_inventory_item_repository import FeedInventoryItemRepository
 from dairyos.data.repositories.user_repository import UserRepository
 from dairyos.farm.operations.repositories.adapters.database_breeding_repository import DatabaseBreedingRepository
 from dairyos.data.repositories.operational_event_repository import OperationalEventRepository
@@ -73,6 +74,9 @@ class RepositoryFactory:
 
     def inventory(self):
         return InventoryRepository(session=self._session)
+
+    def feed_inventory_items(self):
+        return FeedInventoryItemRepository(session=self._session)
 
     def users(self):
         return UserRepository(session=self._session)
