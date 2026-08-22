@@ -11,6 +11,29 @@ permissions:
 jobs:
   os-artifacts:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dairyos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAIRYOS_DB_HOST: localhost
+      DAIRYOS_DB_PORT: "5432"
+      DAIRYOS_DB_NAME: dairyos
+      DAIRYOS_DB_USER: postgres
+      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_ENV: development
+      POSTGRES_DB: dairyos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -21,7 +44,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install project and OS test dependencies
-        run: python -m pip install --upgrade pip && pip install -e . PyYAML pytest
+        run: python -m pip install --upgrade pip && pip install -e . PyYAML pytest httpx2
 
       - name: Bash syntax validation
         shell: bash

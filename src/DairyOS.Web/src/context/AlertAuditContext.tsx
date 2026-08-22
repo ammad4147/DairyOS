@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export interface AuditAlertItem {
   id: string;
@@ -22,6 +22,7 @@ interface AlertAuditContextType {
   alerts: AuditAlertItem[];
   markResolved: (id: string, operator?: string, notes?: string) => void;
   adminReinstate: (id: string, adminName?: string, reason?: string) => void;
+  reinstateAlert: (id: string, adminName?: string, reason?: string) => void;
   activeCount: number;
 }
 
@@ -110,7 +111,7 @@ export const AlertAuditProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return {
           ...item,
           status: 'REINSTATED',
-          currentLevel: 'RED', // Enforces total red urgency
+          currentLevel: 'RED',
           reinstatedAt: timestamp,
           reinstatedBy: adminName,
           reinstateReason: reason
@@ -123,7 +124,7 @@ export const AlertAuditProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const activeCount = alerts.filter(a => a.status === 'ACTIVE' || a.status === 'REINSTATED').length;
 
   return (
-    <AlertAuditContext.Provider value={{ alerts, markResolved, adminReinstate, activeCount }}>
+    <AlertAuditContext.Provider value={{ alerts, markResolved, adminReinstate, reinstateAlert: adminReinstate, activeCount }}>
       {children}
     </AlertAuditContext.Provider>
   );

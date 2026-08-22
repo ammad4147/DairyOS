@@ -1,10 +1,13 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Building, Sliders, Save } from 'lucide-react';
 
-export default function SettingsTab() {
+interface SettingsTabProps {
+  onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
+}
+
+export default function SettingsTab({ onFarmProfileUpdate }: SettingsTabProps) {
   const [activeTab, setActiveTab] = useState<'FARM' | 'STANDARDS'>('FARM');
 
-  // State initialization
   const [farmName, setFarmName] = useState(localStorage.getItem('dairyos_farm_name') || 'Barki Dairy Farm');
   const [location, setLocation] = useState(localStorage.getItem('dairyos_farm_loc') || 'Lahore, Punjab, PK');
   const [timezone, setTimezone] = useState(localStorage.getItem('dairyos_timezone') || 'Asia/Karachi (PKT +05:00)');
@@ -12,6 +15,7 @@ export default function SettingsTab() {
   const handleSaveFarm = () => {
     localStorage.setItem('dairyos_farm_name', farmName);
     localStorage.setItem('dairyos_farm_loc', location);
+    onFarmProfileUpdate?.({ farmName, location });
     window.dispatchEvent(new Event('storage'));
     alert('Farm profile saved successfully.');
   };
@@ -51,4 +55,4 @@ export default function SettingsTab() {
       )}
     </div>
   );
-}
+} 
