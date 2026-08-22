@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.data.database.migrations import migrate_finance_feed_opex
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -31,6 +32,9 @@ container = RuntimeContainer(application_runtime=application_runtime)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    migrated = migrate_finance_feed_opex()
+    if migrated:
+        logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     container.start()
     logging.info("RuntimeContainer started - operations ready.")
     try:
@@ -80,8 +84,6 @@ async def enforce_animal_identity(request, call_next):
 
     response = await call_next(request)
 
-    # Derived monitoring never blocks the persisted milk fact. The write has
-    # already succeeded; these observers only raise traceable findings.
     if (
         response.status_code < 300
         and request.method == "POST"
@@ -96,25 +98,15 @@ async def enforce_animal_identity(request, call_next):
                 if raw_date
                 else OperationalDateAuthority().current_date()
             )
-
-            individual_result = MilkCycleMonitoringService().monitor(
+            MilkCycleMonitoringService().monitor(
                 animal_id=str(payload["animal_id"]),
                 milking_session=str(payload["milking_session"]),
                 production_date=operational_date,
             )
-
-            herd_result = MilkHerdDailyDropMonitoringService().monitor(
-                operational_date
-            )
-
-            MilkReconciliationService().reconcile(
-                operational_date
-            )
-
+            MilkHerdDailyDropMonitoringService().monitor(operational_date)
+            MilkReconciliationService().reconcile(operational_date)
         except Exception:
-            logging.exception(
-                "Milk post-write monitoring failed after a successful milk write."
-            )
+            logging.exception("Milk post-write monitoring failed after a successful milk write.")
 
     return response
 
@@ -134,6 +126,7 @@ from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
 from dairyos.api.financial_intelligence import router as financial_intelligence_router
+from dairyos.api.finance_ledger import router as finance_ledger_router
 from dairyos.api.farm_planning import router as farm_planning_router
 from dairyos.api.health import router as health_router
 from dairyos.api.milk_traceability import router as milk_traceability_router
@@ -165,6 +158,7 @@ app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
 app.include_router(financial_intelligence_router)
+app.include_router(finance_ledger_router)
 app.include_router(farm_planning_router)
 app.include_router(health_router)
 app.include_router(milk_traceability_router)
@@ -178,6 +172,7 @@ app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
 app.include_router(settings_router)
+app.include_router(milk_production_summary_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 
@@ -185,5 +180,3 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
 @app.get("/", include_in_schema=False)
 def root():
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
-
-app.include_router(milk_production_summary_router)
