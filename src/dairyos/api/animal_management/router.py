@@ -79,15 +79,17 @@ def _record_operational_event(container, input_type, payload, actor):
 @router.get("/animals")
 def list_animals(
     currently_milking: bool = False,
+    active_only: bool = False,
     container=Depends(get_container),
 ):
     repository = animal_repository(container)
 
-    animals = (
-        repository.currently_milking_animals()
-        if currently_milking
-        else repository.get_all()
-    )
+    if currently_milking:
+        animals = repository.currently_milking_animals()
+    elif active_only:
+        animals = repository.active_animals()
+    else:
+        animals = repository.get_all()
 
     return [
         serialize_animal(animal)
@@ -121,6 +123,159 @@ def list_milking_animals(
             container
         ).currently_milking_animals()
     ]
+
+
+@router.patch("/animals/{animal_id}")
+def update_animal(
+    animal_id: str,
+    payload: dict,
+    container=Depends(get_container),
+):
+    """Update editable master/profile fields without replacing the animal ID.
+
+    Lifecycle and milking frequency remain governed domains and use their
+    existing services so biological state and effective-dated schedules are
+    not bypassed by generic CRUD.
+    """
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
+
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+
+    if "lifecycle_status" in payload:
+        lifecycle = str(payload["lifecycle_status"]).upper()
+        if lifecycle not in ALLOWED_LIFECYCLE_STATUSES:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Invalid lifecycle status. Allowed: "
+                    + ", ".join(sorted(ALLOWED_LIFECYCLE_STATUSES))
+                ),
+            )
+        animal.lifecycle_status = lifecycle
+        animal.is_currently_milking = lifecycle == "LACTATING"
+
+    if "milking_frequency" in payload and payload.get("milking_frequency"):
+        frequency = payload["milking_frequency"]
+        if frequency not in ALLOWED_MILKING_FREQUENCIES:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Invalid milking frequency. Allowed: "
+                    + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES))
+                ),
+            )
+        try:
+            updated = repository.set_milking_frequency(
+                animal_id=animal_id,
+                new_frequency=frequency,
+                changed_by=payload.get("changed_by") or payload.get("operator") or "API",
+                reason=payload.get("milking_frequency_reason") or payload.get("reason"),
+                effective_date=payload.get("effective_date"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        animal = updated or animal
+
+    editable_fields = {
+        "animal_type",
+        "ear_tag",
+        "rfid",
+        "breed",
+        "sex",
+        "date_of_birth",
+        "dam_id",
+        "sire_id",
+        "production_group",
+        "location",
+    }
+
+    changed = {}
+    for field in editable_fields:
+        if field in payload:
+            setattr(animal, field, payload[field])
+            changed[field] = payload[field]
+
+    if "status" in payload and payload.get("status"):
+        animal.status = str(payload["status"]).upper()
+        changed["status"] = animal.status
+
+    animal.updated_at = datetime.now(timezone.utc)
+    updated = repository.save(animal)
+
+    _record_operational_event(
+        container,
+        "animal_profile_update",
+        {
+            "animal_id": animal_id,
+            "changed_fields": sorted(changed.keys()),
+        },
+        str(payload.get("operator") or "API"),
+    )
+
+    return serialize_animal(updated)
+
+
+@router.delete("/animals/{animal_id}")
+def retire_animal(
+    animal_id: str,
+    payload: dict | None = None,
+    container=Depends(get_container),
+):
+    """Soft-retire an animal; history and linked operational records remain."""
+    payload = payload or {}
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
+
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+
+    if not animal.active:
+        return serialize_animal(animal)
+
+    previous_status = animal.status
+    animal.deactivate()
+    updated = repository.save(animal)
+
+    _record_operational_event(
+        container,
+        "animal_retired",
+        {
+            "animal_id": animal_id,
+            "previous_status": previous_status,
+            "reason": payload.get("reason"),
+        },
+        str(payload.get("operator") or "API"),
+    )
+
+    return serialize_animal(updated)
+
+
+@router.post("/animals/{animal_id}/activate")
+def activate_animal(
+    animal_id: str,
+    payload: dict | None = None,
+    container=Depends(get_container),
+):
+    payload = payload or {}
+    repository = animal_repository(container)
+    animal = repository.get_by_animal_id(animal_id)
+
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+
+    animal.activate()
+    updated = repository.save(animal)
+
+    _record_operational_event(
+        container,
+        "animal_activated",
+        {"animal_id": animal_id, "reason": payload.get("reason")},
+        str(payload.get("operator") or "API"),
+    )
+
+    return serialize_animal(updated)
 
 
 @router.patch("/animals/{animal_id}/lifecycle")
