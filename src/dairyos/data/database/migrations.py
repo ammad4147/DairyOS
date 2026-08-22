@@ -1,8 +1,8 @@
 """Small, idempotent schema migrations for deployed DairyOS databases.
 
 The project intentionally keeps runtime table creation separate from schema
-evolution. This module contains only additive migrations required by the
-Feed/OPEX Finance slice.
+evolution. This module contains only additive migrations required by
+approved feature slices.
 """
 from __future__ import annotations
 
@@ -18,6 +18,14 @@ FINANCE_COLUMNS = {
     "quantity": "DOUBLE PRECISION",
     "unit": "VARCHAR",
     "unit_rate": "DOUBLE PRECISION",
+}
+
+MILK_PRODUCTION_COLUMNS = {
+    "notes": "VARCHAR",
+}
+
+MILK_DISPOSITION_COLUMNS = {
+    "status": "VARCHAR NOT NULL DEFAULT 'RECORDED'",
 }
 
 
@@ -49,9 +57,6 @@ def migrate_finance_feed_opex() -> list[str]:
             )
             changed.append(name)
 
-        # Backfill only expense-affecting legacy rows whose category already
-        # carries an unambiguous cost-domain meaning. Income/cash-movement rows
-        # remain outside the Feed/OPEX dimension.
         if "master_category" in {*(existing), *FINANCE_COLUMNS}:
             connection.execute(
                 text(
@@ -70,5 +75,46 @@ def migrate_finance_feed_opex() -> list[str]:
                     """
                 )
             )
+
+    return changed
+
+
+def migrate_milk_crud() -> list[str]:
+    """Add the minimal additive fields required for Milk CRUD/auditability."""
+    changed: list[str] = []
+
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        tables = set(inspector.get_table_names())
+
+        if "milk_production" in tables:
+            existing = {
+                column["name"]
+                for column in inspector.get_columns("milk_production")
+            }
+            for name, sql_type in MILK_PRODUCTION_COLUMNS.items():
+                if name in existing:
+                    continue
+                connection.execute(
+                    text(
+                        f'ALTER TABLE milk_production ADD COLUMN "{name}" {sql_type}'
+                    )
+                )
+                changed.append(f"milk_production.{name}")
+
+        if "milk_dispositions" in tables:
+            existing = {
+                column["name"]
+                for column in inspector.get_columns("milk_dispositions")
+            }
+            for name, sql_type in MILK_DISPOSITION_COLUMNS.items():
+                if name in existing:
+                    continue
+                connection.execute(
+                    text(
+                        f'ALTER TABLE milk_dispositions ADD COLUMN "{name}" {sql_type}'
+                    )
+                )
+                changed.append(f"milk_dispositions.{name}")
 
     return changed
