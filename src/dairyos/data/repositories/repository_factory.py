@@ -3,7 +3,6 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from dairyos.data.repositories.animal_repository import AnimalRepository
-from dairyos.data.repositories.cmp_scenario_repository import CMPScenarioRepository
 from dairyos.data.repositories.coml_repository import COMLRepository
 from dairyos.data.repositories.farm_repository import FarmRepository
 from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
@@ -60,10 +59,7 @@ class RepositoryFactory:
         return FarmRepository(session=self._session)
 
     def milk(self):
-        return MilkProductionRepository(
-            session=self._session,
-            animal_repository=self.animal(),
-        )
+        return MilkProductionRepository(session=self._session, animal_repository=self.animal())
 
     def milk_quality(self):
         return MilkQualityRepository(session=self._session)
@@ -124,14 +120,6 @@ class RepositoryFactory:
 
     def equipment(self):
         return EquipmentRepository(session=self._session)
-
-    def cmp_scenarios(self):
-        from dairyos.data.models.cmp_scenario import CMPScenario
-
-        return CMPScenarioRepository(
-            session=self._session,
-            model=CMPScenario,
-        )
 
     def milk_production(self):
         return self.milk()
