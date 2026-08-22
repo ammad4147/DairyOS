@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.data.database.migrations import migrate_finance_feed_opex
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -31,6 +32,9 @@ container = RuntimeContainer(application_runtime=application_runtime)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    migrated = migrate_finance_feed_opex()
+    if migrated:
+        logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     container.start()
     logging.info("RuntimeContainer started - operations ready.")
     try:
@@ -46,7 +50,7 @@ app.add_middleware(PayloadNormalizationMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517[3-9]",
+    allow_origin_regex=r"https?://(localhost|127\\.0\\.1):517[3-9]",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,8 +84,6 @@ async def enforce_animal_identity(request, call_next):
 
     response = await call_next(request)
 
-    # Derived monitoring never blocks the persisted milk fact. The write has
-    # already succeeded; these observers only raise traceable findings.
     if (
         response.status_code < 300
         and request.method == "POST"
@@ -96,25 +98,15 @@ async def enforce_animal_identity(request, call_next):
                 if raw_date
                 else OperationalDateAuthority().current_date()
             )
-
-            individual_result = MilkCycleMonitoringService().monitor(
+            MilkCycleMonitoringService().monitor(
                 animal_id=str(payload["animal_id"]),
                 milking_session=str(payload["milking_session"]),
                 production_date=operational_date,
             )
-
-            herd_result = MilkHerdDailyDropMonitoringService().monitor(
-                operational_date
-            )
-
-            MilkReconciliationService().reconcile(
-                operational_date
-            )
-
+            MilkHerdDailyDropMonitoringService().monitor(operational_date)
+            MilkReconciliationService().reconcile(operational_date)
         except Exception:
-            logging.exception(
-                "Milk post-write monitoring failed after a successful milk write."
-            )
+            logging.exception("Milk post-write monitoring failed after a successful milk write.")
 
     return response
 
