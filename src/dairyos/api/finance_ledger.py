@@ -18,6 +18,7 @@ router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
 
 class FinanceLedgerEntry(BaseModel):
     transaction_type: str = "EXPENSE"
+    category: str | None = None
     amount: float | None = Field(default=None, ge=0)
     master_category: str | None = None
     sub_category: str | None = None
@@ -63,7 +64,7 @@ def _row_dict(row: FinancialTransaction) -> dict:
     }
 
 
-def _validate_expense_payload(entry: FinanceLedgerEntry) -> tuple[float, str]:
+def _validate_expense_payload(entry: FinanceLedgerEntry) -> tuple[float, str | None]:
     transaction_type = classifier.normalize_transaction_type(entry.transaction_type)
     if transaction_type not in GOVERNED["financial_transaction_types"]:
         raise HTTPException(status_code=422, detail="Unsupported transaction_type.")
@@ -71,7 +72,7 @@ def _validate_expense_payload(entry: FinanceLedgerEntry) -> tuple[float, str]:
     if transaction_type not in classifier.EXPENSE_TYPES:
         if entry.amount is None:
             raise HTTPException(status_code=422, detail="amount is required for non-expense entries.")
-        return float(entry.amount), ""
+        return float(entry.amount), entry.category
 
     if entry.master_category not in MASTER_CATEGORIES:
         raise HTTPException(status_code=422, detail="master_category must be FEED or OPEX.")
@@ -110,11 +111,7 @@ def list_finance_ledger():
             "data_status": "LIVE_PERSISTED_DATA",
             "transactions": [
                 _row_dict(row)
-                for row in sorted(
-                    rows,
-                    key=lambda r: r.transaction_date or datetime.min,
-                    reverse=True,
-                )
+                for row in sorted(rows, key=lambda r: r.transaction_date or datetime.min, reverse=True)
             ],
         }
     finally:
@@ -129,11 +126,16 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry):
     if entry.payment_method is not None and entry.payment_method not in GOVERNED["payment_types"]:
         raise HTTPException(status_code=422, detail="Unsupported payment_method.")
 
+    if transaction_type in classifier.EXPENSE_TYPES:
+        category_value = legacy_category_value or "OTHER_OPERATING"
+    else:
+        category_value = entry.category or ("MILK_SALES" if transaction_type in classifier.INCOME_TYPES else "OTHER_OPERATING")
+
     factory = RepositoryFactory.create()
     try:
         transaction = FinancialTransaction(
             transaction_type=transaction_type,
-            category=(legacy_category_value or ("MILK_SALES" if transaction_type in classifier.INCOME_TYPES else "OTHER_OPERATING")),
+            category=category_value,
             amount=amount,
             reference=entry.reference or entry.counterparty or entry.notes or "",
             payment_method=entry.payment_method,
@@ -190,10 +192,6 @@ def finance_taxonomy():
 def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366)):
     factory = RepositoryFactory.create()
     try:
-        return FeedOpexCostService().evaluate(
-            factory.milk().get_all(),
-            factory.finance().get_all(),
-            days=days,
-        )
+        return FeedOpexCostService().evaluate(factory.milk().get_all(), factory.finance().get_all(), days=days)
     finally:
         factory.close()
