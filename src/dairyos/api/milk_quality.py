@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -56,10 +56,6 @@ def record_milk_quality(payload: MilkQualityRequest):
     snf = round(float(payload.snf_pct), 3)
     if fat <= 0 or snf <= 0:
         raise HTTPException(status_code=422, detail="Fat and SNF must be greater than zero.")
-    if snf < 6 or snf > 12:
-        raise HTTPException(status_code=422, detail="SNF must be between 6% and 12% for a governed dairy quality sample.")
-    if fat < 2 or fat > 10:
-        raise HTTPException(status_code=422, detail="Fat must be between 2% and 10% for a governed dairy quality sample.")
 
     rf = RepositoryFactory.create()
     try:
