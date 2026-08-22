@@ -16,26 +16,30 @@ function updateDashboardText() {
     const raw = text.nodeValue ?? '';
     if (!raw.trim()) continue;
 
-    let value = raw;
-    if (value.includes('COML')) {
-      value = value.replaceAll('COML', PRODUCTION_COST_LABEL);
+    let value = raw.replaceAll('COML', PRODUCTION_COST_LABEL);
+    if (value.includes(`${PRODUCTION_COST_LABEL} · `)) {
+      const [, remainder] = value.split(`${PRODUCTION_COST_LABEL} · `, 2);
+      value = `${PRODUCTION_COST_LABEL} (${remainder}`;
+      if (remainder && !value.endsWith(')')) value += ')';
     }
-    value = value.replace(
-      `${PRODUCTION_COST_LABEL} · `,
-      `${PRODUCTION_COST_LABEL} (`
-    );
-    if (value.endsWith('Current Month)')) {
+
+    if (value.startsWith(`${PRODUCTION_COST_LABEL} (Current Month`)) {
       value = '';
     }
 
     if (value !== raw) text.nodeValue = value;
   }
 
-  const costCard = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => {
+  const missingValue = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => {
     const text = element.textContent?.trim() ?? '';
-    return text.includes('No official Cost of Production/Liter');
+    return text.includes(`No official ${PRODUCTION_COST_LABEL}`);
   });
-  if (costCard) costCard.textContent = '';
+  if (missingValue) missingValue.textContent = '';
+
+  for (const button of Array.from(root.querySelectorAll<HTMLButtonElement>('button'))) {
+    const label = button.textContent?.trim() ?? '';
+    if (label.includes('Open Official COML')) button.remove();
+  }
 
   const dropRows = Array.from(root.querySelectorAll<HTMLElement>('div')).filter(
     (element) => element.textContent?.trim() === 'Drop'
