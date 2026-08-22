@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.data.database.migrations import migrate_finance_feed_opex
+from dairyos.data.database.migrations import migrate_finance_feed_opex, migrate_feed_inventory
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -33,8 +33,11 @@ container = RuntimeContainer(application_runtime=application_runtime)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     migrated = migrate_finance_feed_opex()
+    inventory_migrated = migrate_feed_inventory()
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
+    if inventory_migrated:
+        logging.info("Feed inventory migration created: %s", ", ".join(inventory_migrated))
     container.start()
     logging.info("RuntimeContainer started - operations ready.")
     try:
@@ -136,6 +139,7 @@ from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reproduction_management import router as reproduction_management_router
 from dairyos.api.youngstock_management import router as youngstock_management_router
 from dairyos.api.feed_management import router as feed_management_router
+from dairyos.api.feed_inventory import router as feed_inventory_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
@@ -168,6 +172,7 @@ app.include_router(reference_data_router)
 app.include_router(reproduction_management_router)
 app.include_router(youngstock_management_router)
 app.include_router(feed_management_router)
+app.include_router(feed_inventory_router)
 app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
