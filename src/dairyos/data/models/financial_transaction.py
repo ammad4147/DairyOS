@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Date, DateTime, Float, Integer, String
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -31,6 +31,11 @@ class FinancialTransaction(Base):
     quantity = Column(Float, nullable=True)
     unit = Column(String, nullable=True)
     unit_rate = Column(Float, nullable=True)
+
+    # Credit-control fields. Nullable to preserve historical transactions and
+    # non-credit payment flows.
+    due_date = Column(Date, nullable=True)
+    settled_date = Column(Date, nullable=True)
 
     def is_income(self):
         from ...finance.classification import transaction_classifier
