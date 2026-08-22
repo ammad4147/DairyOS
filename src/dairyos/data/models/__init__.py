@@ -24,5 +24,3 @@ __all__ = [
     "HealthObservation",
     "COMLRecord",
 ]
-
-from dairyos.data.models.cmp_scenario import CMPScenario
