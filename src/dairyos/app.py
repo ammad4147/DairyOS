@@ -142,6 +142,7 @@ from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reproduction_management import router as reproduction_management_router
 from dairyos.api.youngstock_management import router as youngstock_management_router
 from dairyos.api.feed_management import router as feed_management_router
+from dairyos.api.feed_inventory import router as feed_inventory_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
@@ -175,6 +176,7 @@ app.include_router(reference_data_router)
 app.include_router(reproduction_management_router)
 app.include_router(youngstock_management_router)
 app.include_router(feed_management_router)
+app.include_router(feed_inventory_router)
 app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
