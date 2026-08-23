@@ -63,12 +63,18 @@ jobs:
         run: |
           $pgRoot = 'C:\pg-ci'
           $dataRoot = "$pgRoot\data"
-          $serviceName = 'DairyOS-CI-PostgreSQL'
+          $passwordFile = "$pgRoot\postgres-password.txt"
           Remove-Item -Recurse -Force $pgRoot -ErrorAction SilentlyContinue
-          & .\postgresql-18.6-1-windows-x64.exe --mode unattended --unattendedmodeui none --prefix $pgRoot --datadir $dataRoot --serverport 5432 --superaccount postgres --superpassword $env:CI_PG_PASSWORD --servicepassword $env:CI_PG_PASSWORD --servicename $serviceName --disable-components pgAdmin,stackbuilder
-          if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL unattended installation failed.' }
-          Start-Service $serviceName
+          New-Item -ItemType Directory -Force $pgRoot | Out-Null
+          Set-Content -Path $passwordFile -Value $env:CI_PG_PASSWORD -NoNewline
+          & .\postgresql-18.6-1-windows-x64.exe --mode unattended --unattendedmodeui none --extract-only 1 --prefix $pgRoot
+          if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL binary extraction failed.' }
           $pgBin = "$pgRoot\bin"
+          if (!(Test-Path "$pgBin\initdb.exe")) { throw 'PostgreSQL initdb.exe was not extracted.' }
+          & "$pgBin\initdb.exe" -D $dataRoot -U postgres --pwfile=$passwordFile --auth-local=trust --auth-host=scram-sha-256 --encoding=UTF8
+          if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL initdb failed.' }
+          & "$pgBin\pg_ctl.exe" -D $dataRoot -o '"-p 5432"' -w start
+          if ($LASTEXITCODE -ne 0) { throw 'Temporary PostgreSQL pg_ctl start failed.' }
           $ready = $false
           for ($i = 0; $i -lt 30; $i++) {
             & "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 5432 -U postgres -q
@@ -79,6 +85,7 @@ jobs:
           $env:PGPASSWORD = $env:CI_PG_PASSWORD
           & "$pgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -c 'CREATE DATABASE dairyos;'
           if ($LASTEXITCODE -ne 0) { throw 'Could not create CI dairyos database.' }
+          Remove-Item $passwordFile -Force -ErrorAction SilentlyContinue
 
       - name: Backend regression
         timeout-minutes: 15
@@ -95,7 +102,10 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          Stop-Service 'DairyOS-CI-PostgreSQL' -ErrorAction SilentlyContinue
+          $dataRoot = 'C:\pg-ci\data'
+          $pgCtl = 'C:\pg-ci\bin\pg_ctl.exe'
+          if (Test-Path $pgCtl) { & $pgCtl -D $dataRoot -m fast -w stop }
+          Remove-Item -Recurse -Force 'C:\pg-ci' -ErrorAction SilentlyContinue
 
       - name: Package DairyOS desktop executable
         shell: pwsh
