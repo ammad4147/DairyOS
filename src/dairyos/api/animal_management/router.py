@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -84,6 +84,12 @@ def list_animals(currently_milking: bool = False, active_only: bool = False, con
     else:
         animals = repository.get_all()
     return [serialize_animal(animal) for animal in animals]
+
+@router.get("/animals/current/milking")
+def list_currently_milking_animals(container=Depends(get_container)):
+    """Compatibility endpoint for the authoritative current-milking animal register."""
+    repository = animal_repository(container)
+    return [serialize_animal(animal) for animal in repository.currently_milking_animals()]
 
 
 @router.get("/animals/{animal_id}")
