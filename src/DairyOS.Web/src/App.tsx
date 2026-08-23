@@ -31,9 +31,9 @@ export default function MainAppShell(){
  const [farmName,setFarmName]=useState(()=>localStorage.getItem('dairyos_farm_name')||'Barki Dairy Farm'),[farmLocation,setFarmLocation]=useState(()=>localStorage.getItem('dairyos_farm_loc')||'Lahore, Punjab, PK');
  const {alerts,activeCount}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
  const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[todayYield,setTodayYield]=useState(133),[todayMilkSoldLiters,setTodayMilkSoldLiters]=useState(110),[accountsReceivable,setAccountsReceivable]=useState(23400);
- const refreshPermissions=useCallback(async()=>{if(!currentUser)return;try{const response=await fetch(`${API_BASE}/authz/permissions`);if(!response.ok)return;const data=await response.json();const updated={...currentUser,permissions:data.permissions??[]};saveUser(updated);setCurrentUser(updated)}catch{}},[currentUser]);
  const refreshAnimals=useCallback(async()=>{if(!hasPermission('animals.view',currentUser))return;try{const response=await fetch(`${API_BASE}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);setAnimals(await response.json() as BackendAnimal[])}catch(error){console.error('DairyOS herd register load failed:',error)}},[currentUser]);
- useEffect(()=>{if(currentUser){void refreshPermissions();void refreshAnimals()}},[currentUser,refreshPermissions,refreshAnimals]);
+ useEffect(()=>{if(!currentUser||currentUser.permissions?.length)return;let active=true;void fetch(`${API_BASE}/authz/permissions`).then(async response=>{if(!response.ok)return;const data=await response.json();if(active){const updated={...currentUser,permissions:data.permissions??[]};saveUser(updated);setCurrentUser(updated)}}).catch(()=>{});return()=>{active=false}},[currentUser?.username]);
+ useEffect(()=>{if(currentUser)void refreshAnimals()},[currentUser,refreshAnimals]);
  const handleOpenYieldEntry=()=>{if(hasPermission('milk.create',currentUser)){setAutoOpenYieldModal(true);setCurrentView('milk')}};
  const handleLogout=()=>{clearAuth();setCurrentUser(null)};const handleRegisterAnimal=()=>{void refreshAnimals()};
  if(!currentUser)return <LoginModal onLoginSuccess={u=>setCurrentUser(u as AuthUser)}/>;
