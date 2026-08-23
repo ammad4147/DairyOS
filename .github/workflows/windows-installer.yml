@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 45
     env:
       PG_INSTALLER_URL: https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64.exe
+      CI_PG_PASSWORD: dairyos-ci-postgres-18
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,11 +56,56 @@ jobs:
           Invoke-WebRequest -Uri $env:PG_INSTALLER_URL -OutFile postgresql-18.6-1-windows-x64.exe
           if ((Get-Item postgresql-18.6-1-windows-x64.exe).Length -lt 100MB) { throw 'PostgreSQL installer download is unexpectedly small.' }
 
+      - name: Provision temporary PostgreSQL for backend regression
+        working-directory: packaging/windows
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $pgRoot = 'C:\pg-ci'
+          $dataRoot = "$pgRoot\data"
+          Remove-Item -Recurse -Force $pgRoot -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $pgRoot | Out-Null
+          $installer = (Resolve-Path .\postgresql-18.6-1-windows-x64.exe).Path
+          $args = @(
+            '--mode', 'unattended',
+            '--unattendedmodeui', 'none',
+            '--superaccount', 'postgres',
+            '--superpassword', $env:CI_PG_PASSWORD,
+            '--serviceaccount', 'postgres',
+            '--servicepassword', $env:CI_PG_PASSWORD,
+            '--servicename', 'dairyos-ci-postgresql',
+            '--serverport', '5432',
+            '--prefix', $pgRoot,
+            '--datadir', $dataRoot,
+            '--disable-components', 'pgAdmin,stackbuilder'
+          )
+          $proc = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "PostgreSQL unattended installation failed with exit code $($proc.ExitCode)." }
+          if (!(Test-Path "$pgRoot\bin\psql.exe")) { throw 'PostgreSQL psql.exe was not installed.' }
+          $env:PGPASSWORD = $env:CI_PG_PASSWORD
+          & "$pgRoot\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -c 'CREATE DATABASE dairyos;'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create CI dairyos database.' }
+
       - name: Backend regression
         timeout-minutes: 15
         env:
+          DAIRYOS_DB_HOST: 127.0.0.1
+          DAIRYOS_DB_PORT: '5432'
+          DAIRYOS_DB_NAME: dairyos
+          DAIRYOS_DB_USER: postgres
+          DAIRYOS_DB_PASSWORD: dairyos-ci-postgres-18
           DAIRYOS_ENV: test
         run: python -m pytest -q
+
+      - name: Stop temporary PostgreSQL
+        if: always()
+        shell: pwsh
+        run: |
+          $service = Get-Service -Name 'dairyos-ci-postgresql' -ErrorAction SilentlyContinue
+          if ($service -and $service.Status -ne 'Stopped') { Stop-Service -Name 'dairyos-ci-postgresql' -Force -ErrorAction SilentlyContinue }
+          $dataRoot = 'C:\pg-ci\data'
+          $pgCtl = 'C:\pg-ci\bin\pg_ctl.exe'
+          if (Test-Path $pgCtl) { & $pgCtl -D $dataRoot -m fast -w stop 2>$null }
 
       - name: Package DairyOS desktop executable
         shell: pwsh
