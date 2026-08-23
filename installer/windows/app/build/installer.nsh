@@ -19,9 +19,9 @@
   ; Copy the recovery tooling into ProgramData so it survives an application
   ; uninstall and remains available for disaster recovery.
   SetOutPath "$PROGRAMDATA\DairyOS\recovery"
-  File /nonfatal "..\runtime\recovery\DairyOS-Data-Backup.ps1"
-  File /nonfatal "..\runtime\recovery\DairyOS-Data-Restore.ps1"
-  File /nonfatal "..\runtime\recovery\README.txt"
+  File "..\..\recovery\DairyOS-Data-Backup.ps1"
+  File "..\..\recovery\DairyOS-Data-Restore.ps1"
+  File "..\..\recovery\README.txt"
 !macroend
 
 !macro customUnInstall
