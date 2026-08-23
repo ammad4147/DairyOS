@@ -31,6 +31,7 @@ class FeedInventoryMovement(BaseModel):
     location: str | None = None
     supplier: str | None = None
     notes: str | None = None
+    recorded_by: str | None = None
     source_financial_transaction_id: int | None = Field(default=None, gt=0)
 
 
@@ -62,7 +63,78 @@ def _movement_row(row: InventoryTransaction) -> dict:
         "notes": row.notes,
         "recorded_by": row.recorded_by,
         "recorded_at": row.recorded_at.isoformat() if row.recorded_at else None,
+        "source_financial_transaction_id": getattr(
+            row,
+            "source_financial_transaction_id",
+            None,
+        ),
     }
+
+
+def _finance_purchase_rows(factory, item: str):
+    rows = factory.finance().get_all()
+    return [
+        row
+        for row in rows
+        if str(row.transaction_type or "").upper() in {"EXPENSE", "PURCHASE"}
+        and str(row.master_category or "").upper() == "FEED"
+        and str(row.status or "").upper() != "VOID"
+        and str(row.sub_category or "").strip() == item
+        and float(row.quantity or 0) > 0
+    ]
+
+
+def _finance_purchased_quantity(factory, item: str, unit: str | None = None) -> float:
+    total = 0.0
+
+    for row in _finance_purchase_rows(factory, item):
+        row_unit = str(row.unit or unit or "").strip()
+        if unit and row_unit != unit:
+            continue
+        total += float(row.quantity or 0)
+
+    return total
+
+
+def _operational_balance(factory, item: str) -> float:
+    """
+    Return the operational inventory contribution.
+
+    Finance Feed expenses are the authoritative purchase source for the new
+    Finance -> Feed workflow. Legacy/unlinked inventory PURCHASE/RECEIPT
+    movements remain supported for backward compatibility and existing
+    inventory records/tests.
+
+    A movement explicitly marked as originating from a Finance transaction is
+    excluded from the operational purchase contribution so the same purchase
+    is not counted twice.
+    """
+    rows = factory.inventory().get_all()
+
+    balance = 0.0
+
+    for row in rows:
+        if row.item != item:
+            continue
+
+        movement_type = str(row.movement_type or "").upper()
+        notes = str(row.notes or "")
+
+        if movement_type in {"PURCHASE", "RECEIPT"}:
+            # Finance-linked stock is already represented by the Finance
+            # purchase quantity and must not be counted a second time.
+            if notes.startswith("Finance transaction #"):
+                continue
+
+        balance += float(row.signed_quantity or 0)
+
+    return balance
+
+
+def _feed_balance(factory, item: str, unit: str | None = None) -> float:
+    purchased = _finance_purchased_quantity(factory, item, unit)
+    operational = _operational_balance(factory, item)
+    return max(0.0, purchased + operational)
 
 
 @router.get("/items")
@@ -72,7 +144,10 @@ def list_feed_inventory_items(active_only: bool = True):
         rows = factory.feed_inventory_items().get_all()
         if active_only:
             rows = [row for row in rows if row.active]
-        return {"data_status": "LIVE_PERSISTED_DATA", "items": [_catalog_row(row) for row in rows]}
+        return {
+            "data_status": "LIVE_PERSISTED_DATA",
+            "items": [_catalog_row(row) for row in rows],
+        }
     finally:
         factory.close()
 
@@ -80,10 +155,15 @@ def list_feed_inventory_items(active_only: bool = True):
 @router.post("/items")
 def create_feed_inventory_item(payload: FeedInventoryItemEntry):
     item = payload.item.strip()
+
     factory = RepositoryFactory.create()
     try:
         if factory.feed_inventory_items().get_by_item(item) is not None:
-            raise HTTPException(status_code=409, detail=f"Inventory item '{item}' already exists.")
+            raise HTTPException(
+                status_code=409,
+                detail=f"Inventory item '{item}' already exists.",
+            )
+
         row = FeedInventoryItem(
             item=item,
             category=payload.category.strip().upper() or "FEED",
@@ -93,6 +173,7 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry):
             active=payload.active,
             notes=payload.notes,
         )
+
         saved = factory.feed_inventory_items().add(row)
         return _catalog_row(saved)
     finally:
@@ -100,15 +181,30 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry):
 
 
 @router.patch("/items/{item_id}")
-def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry):
+def edit_feed_inventory_item(
+    item_id: int,
+    payload: FeedInventoryItemEntry,
+):
     factory = RepositoryFactory.create()
+
     try:
         row = factory.feed_inventory_items().get_by_id(item_id)
         if row is None:
-            raise HTTPException(status_code=404, detail="Feed inventory item not found.")
-        existing = factory.feed_inventory_items().get_by_item(payload.item.strip())
+            raise HTTPException(
+                status_code=404,
+                detail="Feed inventory item not found.",
+            )
+
+        existing = factory.feed_inventory_items().get_by_item(
+            payload.item.strip()
+        )
+
         if existing is not None and existing.id != item_id:
-            raise HTTPException(status_code=409, detail=f"Inventory item '{payload.item.strip()}' already exists.")
+            raise HTTPException(
+                status_code=409,
+                detail=f"Inventory item '{payload.item.strip()}' already exists.",
+            )
+
         row.item = payload.item.strip()
         row.category = payload.category.strip().upper() or "FEED"
         row.unit = payload.unit.strip()
@@ -116,6 +212,7 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry):
         row.reorder_level = payload.reorder_level
         row.active = payload.active
         row.notes = payload.notes
+
         saved = factory.feed_inventory_items().add(row)
         return _catalog_row(saved)
     finally:
@@ -123,64 +220,153 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry):
 
 
 @router.get("/movements")
-def list_feed_inventory_movements(item: str | None = None, limit: int = Query(default=100, ge=1, le=500)):
+def list_feed_inventory_movements(
+    item: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+):
     factory = RepositoryFactory.create()
+
     try:
         rows = factory.inventory().get_all()
+
         if item:
             rows = [row for row in rows if row.item == item]
-        rows = sorted(rows, key=lambda row: row.recorded_at or datetime.min, reverse=True)[:limit]
-        return {"data_status": "LIVE_PERSISTED_DATA", "movements": [_movement_row(row) for row in rows]}
+
+        rows = sorted(
+            rows,
+            key=lambda row: row.recorded_at or datetime.min,
+            reverse=True,
+        )[:limit]
+
+        return {
+            "data_status": "LIVE_PERSISTED_DATA",
+            "movements": [_movement_row(row) for row in rows],
+        }
     finally:
         factory.close()
 
 
 @router.post("/movements")
-def create_feed_inventory_movement(payload: FeedInventoryMovement):
+def create_feed_inventory_movement(
+    payload: FeedInventoryMovement,
+):
     movement_type = payload.movement_type.strip().upper()
+
     allowed = set(GOVERNED["inventory_movement_types"])
+
     if movement_type not in allowed:
-        raise HTTPException(status_code=422, detail=f"movement_type must be one of: {', '.join(sorted(allowed))}")
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "movement_type must be one of: "
+                + ", ".join(sorted(allowed))
+            ),
+        )
 
     factory = RepositoryFactory.create()
+
     try:
-        catalog = factory.feed_inventory_items().get_by_item(payload.item.strip())
+        catalog = factory.feed_inventory_items().get_by_item(
+            payload.item.strip()
+        )
+
         if catalog is None or not catalog.active:
-            raise HTTPException(status_code=422, detail="Select an active Feed Inventory Item from the catalog.")
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Select an active Feed Inventory Item from "
+                    "the catalog."
+                ),
+            )
 
         quantity = float(payload.quantity)
+
         if movement_type in {"TRANSFER", "ADJUSTMENT"}:
             if quantity == 0:
-                raise HTTPException(status_code=422, detail=f"{movement_type} requires a nonzero quantity.")
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        f"{movement_type} requires a nonzero quantity."
+                    ),
+                )
+
             signed = quantity
             display_quantity = abs(quantity)
+
         else:
             if quantity <= 0:
-                raise HTTPException(status_code=422, detail=f"{movement_type} requires a positive quantity.")
-            signed = quantity if movement_type in {"PURCHASE", "RECEIPT"} else -quantity
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        f"{movement_type} requires a positive quantity."
+                    ),
+                )
+
+            signed = (
+                quantity
+                if movement_type in {"PURCHASE", "RECEIPT"}
+                else -quantity
+            )
+
             display_quantity = quantity
 
         unit = payload.unit or catalog.unit
-        if unit != catalog.unit:
-            raise HTTPException(status_code=422, detail=f"Unit mismatch: '{catalog.item}' is controlled as {catalog.unit}.")
 
-        balance = factory.inventory().balance_by_item().get(catalog.item, {}).get("balance", 0.0)
-        if signed < 0 and float(balance) + signed < 0:
+        if unit != catalog.unit:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Unit mismatch: '{catalog.item}' is controlled "
+                    f"as {catalog.unit}."
+                ),
+            )
+
+        # Finance is the authoritative purchase source.
+        # Purchase/receipt inventory movements are therefore excluded
+        # from the balance calculation.
+        available = _feed_balance(
+            factory,
+            catalog.item,
+            catalog.unit,
+        )
+
+        if signed < 0 and available + signed < 0:
             raise HTTPException(
                 status_code=409,
                 detail={
                     "error": "INSUFFICIENT_STOCK",
                     "item": catalog.item,
-                    "available": float(balance),
+                    "available": available,
                     "requested": display_quantity,
                     "unit": catalog.unit,
                 },
             )
 
         if payload.source_financial_transaction_id is not None:
-            finance_row = factory.finance().get_by_id(payload.source_financial_transaction_id)
+            finance_row = factory.finance().get_by_id(
+                payload.source_financial_transaction_id
+            )
+
             if finance_row is None:
-                raise HTTPException(status_code=422, detail="source_financial_transaction_id not found.")
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "source_financial_transaction_id not found."
+                    ),
+                )
+
+            if (
+                str(finance_row.transaction_type or "").upper()
+                not in {"EXPENSE", "PURCHASE"}
+                or str(finance_row.master_category or "").upper() != "FEED"
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "source_financial_transaction_id must reference "
+                        "a Finance Feed expense."
+                    ),
+                )
 
         transaction = InventoryTransaction(
             item=catalog.item,
@@ -191,11 +377,17 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement):
             location=payload.location or catalog.location,
             supplier=payload.supplier,
             notes=(
-                f"Finance transaction #{payload.source_financial_transaction_id}. {payload.notes or ''}".strip()
+                (
+                    f"Finance transaction "
+                    f"#{payload.source_financial_transaction_id}. "
+                    f"{payload.notes or ''}"
+                ).strip()
                 if payload.source_financial_transaction_id is not None
                 else payload.notes
             ),
+            recorded_by=payload.recorded_by or "WEB",
         )
+
         saved = factory.inventory().add(transaction)
         return _movement_row(saved)
     finally:
@@ -205,23 +397,62 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement):
 @router.get("/dashboard")
 def feed_inventory_dashboard():
     factory = RepositoryFactory.create()
+
     try:
-        catalog = [row for row in factory.feed_inventory_items().get_all() if row.active]
-        balances = factory.inventory().balance_by_item()
+        catalog = [
+            row
+            for row in factory.feed_inventory_items().get_all()
+            if row.active
+        ]
+
         items = []
         low_stock = []
+
         for row in catalog:
-            balance = float(balances.get(row.item, {}).get("balance", 0.0))
+            balance = _feed_balance(
+                factory,
+                row.item,
+                row.unit,
+            )
+
             threshold = float(row.reorder_level or 0.0)
-            status = "NO_THRESHOLD" if threshold <= 0 else ("LOW" if balance <= threshold else "OK")
+
+            status = (
+                "NO_THRESHOLD"
+                if threshold <= 0
+                else ("LOW" if balance <= threshold else "OK")
+            )
+
+            movement_rows = [
+                movement
+                for movement in factory.inventory().get_all()
+                if movement.item == row.item
+            ]
+
             record = {
                 **_catalog_row(row),
                 "balance": balance,
+                "purchased_from_finance": _finance_purchased_quantity(
+                    factory,
+                    row.item,
+                    row.unit,
+                ),
                 "status": status,
-                "transaction_count": balances.get(row.item, {}).get("transaction_count", 0),
-                "last_movement_at": balances.get(row.item, {}).get("last_movement_at"),
+                "transaction_count": len(movement_rows),
+                "last_movement_at": (
+                    max(
+                        (
+                            movement.recorded_at
+                            for movement in movement_rows
+                            if movement.recorded_at
+                        ),
+                        default=None,
+                    )
+                ),
             }
+
             items.append(record)
+
             if status == "LOW":
                 low_stock.append(record)
 
@@ -232,7 +463,11 @@ def feed_inventory_dashboard():
             "summary": {
                 "active_items": len(items),
                 "low_stock_items": len(low_stock),
-                "tracked_without_threshold": sum(1 for row in items if row["status"] == "NO_THRESHOLD"),
+                "tracked_without_threshold": sum(
+                    1
+                    for row in items
+                    if row["status"] == "NO_THRESHOLD"
+                ),
             },
         }
     finally:
