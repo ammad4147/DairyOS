@@ -14,19 +14,19 @@ This package turns the existing DairyOS React/FastAPI application into a convent
 
 The application and the farm database are deliberately separated:
 
-- Program files: `%ProgramFiles%\DairyOS`
-- Farm data: `%ProgramData%\DairyOS`
-- PostgreSQL cluster: `%ProgramData%\DairyOS\postgresql-data`
-- Rolling backups: `%ProgramData%\DairyOS\backups`
-- Recovery tools: `%ProgramData%\DairyOS\recovery`
+- Program files: `%ProgramFiles%\\DairyOS`
+- Farm data: `%ProgramData%\\DairyOS`
+- PostgreSQL cluster: `%ProgramData%\\DairyOS\\postgresql-data`
+- Rolling backups: `%ProgramData%\\DairyOS\\backups`
+- Recovery tools: `%ProgramData%\\DairyOS\\recovery`
 
-The uninstall operation removes the application only. It does **not** delete `%ProgramData%\DairyOS`.
+The uninstall operation removes the application only. It does **not** delete `%ProgramData%\\DairyOS`.
 
 Before uninstall, the custom NSIS uninstaller executes a final PostgreSQL logical backup. If that backup fails, uninstall is aborted.
 
 Before every normal application startup against an existing database, the desktop shell creates a `prestart` logical backup. This is intentional because DairyOS startup may perform schema migrations.
 
-For true protection against physical disk destruction, configure a secondary backup location in `%ProgramData%\DairyOS\backup-settings.json`, preferably on a different physical disk, NAS, or protected cloud-synchronised location.
+For true protection against physical disk destruction, configure a secondary backup location in `%ProgramData%\\DairyOS\\backup-settings.json`, preferably on a different physical disk, NAS, or protected cloud-synchronised location.
 
 ## Recovery
 
@@ -34,7 +34,7 @@ For true protection against physical disk destruction, configure a secondary bac
 
 ## Existing farm installation
 
-Reinstalling DairyOS over an existing machine must reuse the existing `%ProgramData%\DairyOS` data directory. The installer must never initialize a second empty farm database when the existing PostgreSQL cluster is present.
+Reinstalling DairyOS over an existing machine must reuse the existing `%ProgramData%\\DairyOS` data directory. The installer must never initialize a second empty farm database when the existing PostgreSQL cluster is present.
 
 ## Build
 
@@ -50,3 +50,5 @@ The Windows CI workflow performs:
 - installer/uninstaller data-safety smoke tests
 
 The PostgreSQL Windows binaries are pulled from EDB's current binary distribution during the build rather than stored in the DairyOS source repository.
+
+<!-- certification synchronization marker: installer packaging fix -->
