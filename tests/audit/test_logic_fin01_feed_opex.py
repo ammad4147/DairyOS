@@ -21,11 +21,14 @@ def test_feed_opex_cost_service_excludes_expenses_before_requested_window():
     milk = [SimpleNamespace(total_yield=1000.0, production_date=now)]
     finance = [
         _finance_row("FEED", 100.0, now),
-        _finance_row("FEED", 900.0, now.replace(day=1)),
+        _finance_row("FEED", 900.0, datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)),
+        _finance_row("HEALTH", 50.0, now, master_category="OPEX"),
+        _finance_row("HEALTH", 900.0, datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc), master_category="OPEX"),
     ]
 
     result = FeedOpexCostService().evaluate(milk, finance, days=30, now=now)
 
     assert result["feed_cost"] == 100.0
-    assert result["opex"] == 0.0
-    assert result["total_operating_cost"] == 100.0
+    assert result["opex"] == 50.0
+    assert result["total_operating_cost"] == 150.0
+    assert result["cmpl"] == 0.15
