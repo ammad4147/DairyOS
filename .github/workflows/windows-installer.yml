@@ -67,7 +67,7 @@ jobs:
           Remove-Item -Recurse -Force $pgRoot -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force $pgRoot | Out-Null
           Set-Content -Path $passwordFile -Value $env:CI_PG_PASSWORD -NoNewline
-          & .\postgresql-18.6-1-windows-x64.exe --mode unattended --unattendedmodeui none --extract-only 1 --prefix $pgRoot
+          & .\postgresql-18.6-1-windows-x64.exe --mode unattended --unattendedmodeui none --extract-only yes --prefix $pgRoot
           if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL binary extraction failed.' }
           $pgBin = "$pgRoot\bin"
           if (!(Test-Path "$pgBin\initdb.exe")) { throw 'PostgreSQL initdb.exe was not extracted.' }
