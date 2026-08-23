@@ -1,18 +1,12 @@
 from dairyos.middleware.enum_normalizer import PayloadNormalizationMiddleware
-"""FastAPI application bootstrap for DairyOS.
-
-The operator UI is the React/Vite application under ``src/DairyOS.Web``.
-FastAPI is the API/runtime surface and deliberately does not serve the retired
-static operator UI. Animal-linked operational writes are checked against the
-persisted Animal Register before they reach domain handlers.
-"""
+"""FastAPI application bootstrap for DairyOS."""
 from contextlib import asynccontextmanager
 from datetime import date
 import json
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -24,6 +18,8 @@ from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkC
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.api.authorization import authorize_request
+from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -54,18 +50,36 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
 app.add_middleware(PayloadNormalizationMiddleware)
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517[3-9]",
+    allow_origin_regex=r"https?://(localhost|127\\.0\\.0\\.1):517[3-9]",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
+
+
+@app.middleware("http")
+async def enforce_permissions(request: Request, call_next):
+    body = None
+    payload = {}
+    if request.method in {"POST", "PATCH", "PUT"}:
+        body = await request.body()
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = {}
+        async def receive():
+            return {"type": "http.request", "body": body, "more_body": False}
+        request._receive = receive
+    try:
+        authorize_request(request, payload)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers or {})
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -93,25 +107,11 @@ async def enforce_animal_identity(request, call_next):
 
     response = await call_next(request)
 
-    if (
-        response.status_code < 300
-        and request.method == "POST"
-        and request.url.path == "/farm/milk"
-        and payload.get("animal_id")
-        and payload.get("milking_session")
-    ):
+    if response.status_code < 300 and request.method == "POST" and request.url.path == "/farm/milk" and payload.get("animal_id") and payload.get("milking_session"):
         try:
             raw_date = payload.get("production_date")
-            operational_date = (
-                date.fromisoformat(str(raw_date)[:10])
-                if raw_date
-                else OperationalDateAuthority().current_date()
-            )
-            MilkCycleMonitoringService().monitor(
-                animal_id=str(payload["animal_id"]),
-                milking_session=str(payload["milking_session"]),
-                production_date=operational_date,
-            )
+            operational_date = date.fromisoformat(str(raw_date)[:10]) if raw_date else OperationalDateAuthority().current_date()
+            MilkCycleMonitoringService().monitor(animal_id=str(payload["animal_id"]), milking_session=str(payload["milking_session"]), production_date=operational_date)
             MilkHerdDailyDropMonitoringService().monitor(operational_date)
             MilkReconciliationService().reconcile(operational_date)
         except Exception:
@@ -120,6 +120,7 @@ async def enforce_animal_identity(request, call_next):
     return response
 
 from dairyos.api.auth import router as auth_router
+from dairyos.api.authorization import router as authorization_router
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.equipment_management import router as equipment_router
@@ -154,6 +155,7 @@ from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.coml import router as coml_router
 
 app.include_router(auth_router)
+app.include_router(authorization_router)
 app.include_router(command_router)
 app.include_router(dashboard_router)
 app.include_router(equipment_router)
