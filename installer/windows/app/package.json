@@ -1,0 +1,64 @@
+{
+  "name": "dairyos-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DairyOS Windows desktop shell",
+  "main": "main.cjs",
+  "scripts": {
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.tridentdairies.dairyos",
+    "productName": "DairyOS",
+    "artifactName": "DairyOS-Setup-${version}-Windows-x64.exe",
+    "asar": true,
+    "directories": {
+      "output": "../../dist-installer"
+    },
+    "files": [
+      "main.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../runtime/frontend",
+        "to": "frontend"
+      },
+      {
+        "from": "../runtime/backend",
+        "to": "backend"
+      },
+      {
+        "from": "../runtime/postgresql",
+        "to": "postgresql"
+      },
+      {
+        "from": "../runtime/recovery",
+        "to": "recovery"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "publisherName": "Trident Dairies"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DairyOS",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}
