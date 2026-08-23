@@ -184,7 +184,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
         event_type,
         technician: formInseminator,
         result,
-        semen_or_bull: eventType === 'insemination' ? `${formSemenType} — ${formSire || 'Unspecified'}` : formSire || null,
+        semen_or_bull: eventType === 'AI' ? `${formSemenType} — ${formSire || 'Unspecified'}` : formSire || null,
         notes: formNotes || undefined,
         operator: formInseminator,
         timestamp: formDate,
