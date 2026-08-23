@@ -1,10 +1,13 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Lock, User, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react';
 import { saveUser } from '../auth';
+import { API_BASE_URL } from '../config/api';
 
 interface LoginModalProps {
   onLoginSuccess: (user: { username: string; role: string; fullName: string; permissions: string[] }) => void;
 }
+
+const API_BASE=API_BASE_URL||'http://127.0.0.1:8000';
 
 export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
   const [username, setUsername] = useState('admin');
@@ -17,10 +20,15 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
     const role = String(authenticated.role || 'OWNER').toUpperCase();
     let permissions: string[] = [];
     try {
-      const response = await fetch('/authz/permissions');
+      const token = localStorage.getItem('dairyos_token');
+      const response = await fetch(`${API_BASE}/authz/permissions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (response.ok) {
         const payload = await response.json();
         permissions = Array.isArray(payload.permissions) ? payload.permissions : [];
+      } else if (response.status === 401) {
+        throw new Error('Authentication token was not accepted while loading permissions.');
       }
     } catch {
       permissions = [];
@@ -40,7 +48,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/login', {
+      const response = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

@@ -33,7 +33,7 @@ import secrets
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -309,6 +309,92 @@ def create_user(
     finally:
         factory.close()
 
+
+@router.patch("/users/{username}/password")
+def reset_user_password(
+    username: str,
+    payload: dict[str, str] = Body(...),
+    _owner: dict[str, Any] = Depends(require_role("OWNER")),
+):
+    """Reset a persisted user's password. OWNER role required."""
+
+    factory = RepositoryFactory.create()
+    try:
+        user = factory.users().get_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        new_password = payload.get("password", "")
+        if not new_password:
+            raise HTTPException(
+                status_code=422,
+                detail="password is required",
+            )
+
+        password_hash, salt = _hash_password(new_password)
+        user.password_hash = password_hash
+        user.password_salt = salt
+        factory.session.add(user)
+        factory.session.commit()
+
+        return {
+            "username": user.username,
+            "role": user.role,
+            "active": user.active,
+            "password_reset": True,
+        }
+    finally:
+        factory.close()
+
+
+@router.post("/me/password")
+def change_my_password(
+    payload: dict[str, str] = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
+    """Change the authenticated persisted user's own password."""
+
+    factory = RepositoryFactory.create()
+    try:
+        current_password = payload.get("current_password", "")
+        new_password = payload.get("new_password", "")
+
+        if not current_password or not new_password:
+            raise HTTPException(
+                status_code=422,
+                detail="current_password and new_password are required",
+            )
+
+        user = factory.users().get_by_username(str(current_user["sub"]))
+        if user is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Password for the configured legacy admin account is managed by environment configuration.",
+            )
+
+        if not _verify_password(
+            current_password,
+            user.password_hash,
+            user.password_salt,
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Current password is incorrect",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        password_hash, salt = _hash_password(new_password)
+        user.password_hash = password_hash
+        user.password_salt = salt
+        factory.session.add(user)
+        factory.session.commit()
+
+        return {
+            "username": user.username,
+            "password_changed": True,
+        }
+    finally:
+        factory.close()
 
 @router.get("/users")
 def list_users(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
