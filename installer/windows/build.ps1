@@ -123,7 +123,7 @@ npm run typecheck
 if ($LASTEXITCODE -ne 0) { throw "Frontend typecheck failed." }
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "Frontend build failed." }
-Copy-Item -LiteralPath (Join-Path $WebRoot "dist\*") -Destination $FrontendRoot -Recurse -Force
+Copy-Item -Path (Join-Path $WebRoot "dist\*") -Destination $FrontendRoot -Recurse -Force
 
 Write-Host "`n=== RECOVERY TOOLS ===" -ForegroundColor Cyan
 Copy-Item -LiteralPath (Join-Path $SourceRecoveryRoot "DairyOS-Data-Backup.ps1") -Destination $RecoveryRoot -Force
