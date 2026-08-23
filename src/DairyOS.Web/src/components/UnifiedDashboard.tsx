@@ -27,7 +27,8 @@ interface DropComparisonDetail {
   dropLiters: number; dropPercent: number; flagDate: string; possibleCauses: string[]; recommendedAction: string;
 }
 
-const API_BASE = 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
+const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
 export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], realTimeTodayYield, realTimeReceivables = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
@@ -51,26 +52,64 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   useEffect(() => { void loadData(); }, [loadData]);
 
   const filteredYieldTrend = useMemo(() => {
-    const fullSeries = data?.yieldTrend?.length ? data.yieldTrend.map((item:any)=>Number(item?.yield||0)) : [];
-    if (data?.yieldTrend && Array.isArray(data.yieldTrend) && data.yieldTrend.length > 0) {
-      const values = data.yieldTrend.map((item: any) => typeof item === 'number' ? item : (item.yield || item.liters || 130));
-      const count = Math.min(values.length, 30);
-      fullSeries.splice(30 - count, count, ...values.slice(-count));
+    const values = Array.isArray(data?.yieldTrend)
+      ? data.yieldTrend.map((item:any) =>
+          Number(
+            typeof item === 'number'
+              ? item
+              : (item?.yield ?? item?.liters ?? 0)
+          )
+        )
+      : [];
+
+    if (realTimeTodayYield !== undefined) {
+      if (values.length === 0) {
+        values.push(Number(realTimeTodayYield));
+      } else {
+        values[values.length - 1] = Number(realTimeTodayYield);
+      }
     }
-    if (realTimeTodayYield !== undefined) fullSeries[fullSeries.length - 1] = realTimeTodayYield;
-    return fullSeries.slice(-chartDays).map((value, index) => ({ dayIndex: index + 1, yield: Math.round(Number(value)) }));
+
+    return values
+      .slice(-chartDays)
+      .map((value, index) => ({
+        dayIndex: index + 1,
+        yield: Math.round(Number(value)),
+      }));
   }, [data, chartDays, realTimeTodayYield]);
 
   const openPassportHandler = (tag: string) => onOpenPassport ? onOpenPassport(tag) : setPassportTag(tag);
 
   const handleOpenDropComparison = (animalId: string, alertTitle: string) => {
-    const pool: Record<string, DropComparisonDetail> = {
-      'TD-004': { animalId:'TD-004', breed:'Nili-Ravi (Buffalo)', alertTitle, prior3DayAvg:26.5, currentYield:18, dropLiters:8.5, dropPercent:32.1, flagDate:'2026-08-21', possibleCauses:['Early subclinical mastitis','Heat stress'], recommendedAction:'Perform CMT immediately.' },
-      'TD-003': { animalId:'TD-003', breed:'Cholistani', alertTitle, prior3DayAvg:31, currentYield:24, dropLiters:7, dropPercent:22.5, flagDate:'2026-08-21', possibleCauses:['Onset of estrus'], recommendedAction:'Schedule AI within 12 hours.' },
-    };
-    setSelectedDropDetail(pool[animalId] || { animalId: animalId || 'TD-004', breed:'Holstein Friesian', alertTitle, prior3DayAvg:32, currentYield:24.5, dropLiters:7.5, dropPercent:23.4, flagDate:'2026-08-21', possibleCauses:['Feed change'], recommendedAction:'Inspect water.' });
-  };
+    const alert = alerts.find(
+      (item:any) =>
+        item.source === 'MILK_DROP' &&
+        (item.animalId || item.animal_id) === animalId &&
+        item.status !== 'RESOLVED'
+    ) as any;
 
+    if (!alert) return;
+
+    setSelectedDropDetail({
+      animalId,
+      breed: alert.breed || 'Unavailable',
+      alertTitle,
+      prior3DayAvg: Number(alert.prior3DayAvg ?? alert.prior_3_day_avg ?? 0),
+      currentYield: Number(alert.currentYield ?? alert.current_yield ?? 0),
+      dropLiters: Number(alert.dropLiters ?? alert.drop_liters ?? 0),
+      dropPercent: Number(alert.dropPercent ?? alert.drop_percent ?? 0),
+      flagDate: alert.flagDate || alert.flag_date || alert.date || '',
+      possibleCauses: Array.isArray(alert.possibleCauses)
+        ? alert.possibleCauses
+        : Array.isArray(alert.possible_causes)
+          ? alert.possible_causes
+          : [],
+      recommendedAction:
+        alert.recommendedAction ||
+        alert.recommended_action ||
+        'Review the linked milk-production and animal records.',
+    });
+  };
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
   const dynamicMilkingCount = herdMasterList.filter(a => a.category.includes('Milking')).length;
@@ -86,13 +125,13 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 10 ? '#f59e0b' : '#34d399';
 
   const countCategory = (keywords: string[]) => herdMasterList.filter(a => keywords.some(k => a.category.includes(k))).length;
-  const canonicalHerd = herdMasterList.length > 0 ? [
-    { name:'Milking Cows', value:countCategory(['Milking']), color:'#38bdf8' }, { name:'Dry Cows', value:countCategory(['Dry']), color:'#94a3b8' },
-    { name:'Heifers', value:countCategory(['Heifer']), color:'#f59e0b' }, { name:'Female Calves', value:countCategory(['Female Calf']), color:'#ec4899' },
-    { name:'Male Calves', value:countCategory(['Male Calf']), color:'#3b82f6' }, { name:'Bulls', value:countCategory(['Bull','Sire']), color:'#a855f7' },
-  ] : [
-    { name:'Milking Cows', value:6, color:'#38bdf8' }, { name:'Dry Cows', value:1, color:'#94a3b8' }, { name:'Heifers', value:1, color:'#f59e0b' },
-    { name:'Female Calves', value:1, color:'#ec4899' }, { name:'Male Calves', value:1, color:'#3b82f6' }, { name:'Bulls', value:1, color:'#a855f7' },
+  const canonicalHerd = [
+    { name:'Milking Cows', value:countCategory(['Milking']), color:'#38bdf8' },
+    { name:'Dry Cows', value:countCategory(['Dry']), color:'#94a3b8' },
+    { name:'Heifers', value:countCategory(['Heifer']), color:'#f59e0b' },
+    { name:'Female Calves', value:countCategory(['Female Calf']), color:'#ec4899' },
+    { name:'Male Calves', value:countCategory(['Male Calf']), color:'#3b82f6' },
+    { name:'Bulls', value:countCategory(['Bull','Sire']), color:'#a855f7' },
   ];
   const herdCol1 = canonicalHerd.slice(0,3), herdCol2 = canonicalHerd.slice(3,6);
   const totalHerdCount = canonicalHerd.reduce((sum,c) => sum + c.value, 0);
