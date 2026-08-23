@@ -71,7 +71,6 @@ jobs:
             '--unattendedmodeui', 'none',
             '--superaccount', 'postgres',
             '--superpassword', $env:CI_PG_PASSWORD,
-            '--serviceaccount', 'postgres',
             '--servicepassword', $env:CI_PG_PASSWORD,
             '--servicename', 'dairyos-ci-postgresql',
             '--serverport', '5432',
