@@ -50,7 +50,7 @@ Expand-Archive -LiteralPath $tempZip -DestinationPath $tempExtract -Force
 $pgBin = Get-ChildItem -Path $tempExtract -Recurse -Filter "pg_ctl.exe" -File | Select-Object -First 1
 if (-not $pgBin) { throw "Downloaded PostgreSQL archive does not contain pg_ctl.exe." }
 $pgRoot = $pgBin.Directory.Parent
-Copy-Item -LiteralPath (Join-Path $pgRoot "*") -Destination $PostgresRoot -Recurse -Force
+Get-ChildItem -LiteralPath $pgRoot -Force | Copy-Item -Destination $PostgresRoot -Recurse -Force
 
 Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
