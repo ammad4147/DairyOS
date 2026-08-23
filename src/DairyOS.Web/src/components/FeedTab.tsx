@@ -1,41 +1,34 @@
-import React from 'react';
-import { Activity, AlertTriangle, Database, Layers } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, RefreshCw, Utensils, Wheat } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
-export default function FeedTab() {
-  return (
-    <div style={{ padding: 20, color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}><Layers size={22} /> Feed &amp; Nutrition Operations</h2>
-        <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>Operational feed monitoring. Monthly COML and TMR preparation are managed in the COML tab.</p>
-      </div>
+const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
+type FinanceRow = { id:number; transaction_type:string; master_category?:string|null; sub_category?:string|null; custom_specification?:string|null; quantity?:number|null; unit?:string|null; amount:number; date?:string|null; status?:string|null };
+type Movement = { item:string; movement_type:string; signed_quantity:number; unit?:string|null };
+type FeedItem = { key:string; label:string; unit:string; purchased:number; used:number; balance:number };
+const panel:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:12,minWidth:0};
+const input:React.CSSProperties={width:'100%',boxSizing:'border-box',background:'#1e293b',color:'#fff',border:'1px solid #334155',borderRadius:5,padding:'7px 8px',fontSize:11};
+const button=(background:string):React.CSSProperties=>({background,color:'#fff',border:0,borderRadius:5,padding:'8px 10px',fontSize:10,fontWeight:800,cursor:'pointer'});
+const normalize=(row:FinanceRow)=>{const label=`${row.sub_category||row.custom_specification||row.id}${row.custom_specification&&row.sub_category?` — ${row.custom_specification}`:''}`;return {key:`${label}|${row.unit||'unit'}`,label,unit:row.unit||'unit'};};
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 16 }}>
-        <div style={card('#34d399')}>
-          <h3 style={title}><Database size={16} color="#34d399" /> Silage Bunker Status</h3>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#34d399' }}>180 <span style={muted}>Tons Remaining</span></div>
-          <div style={bar}><div style={{ width: '45%', height: '100%', background: '#34d399' }} /></div>
-          <div style={smallMuted}>Est. depletion in 42 days at current feed rate.</div>
-        </div>
-
-        <div style={card('#f59e0b')}>
-          <h3 style={title}><Database size={16} color="#f59e0b" /> Vanda / Concentrate Stock</h3>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#f59e0b' }}>4,250 <span style={muted}>KG Remaining</span></div>
-          <div style={bar}><div style={{ width: '25%', height: '100%', background: '#f87171' }} /></div>
-          <div style={{ ...smallMuted, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={10} /> Low stock warning: Reorder soon.</div>
-        </div>
-
-        <div style={card('#38bdf8')}>
-          <h3 style={title}><Activity size={16} color="#38bdf8" /> Daily Feed Distribution</h3>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#38bdf8' }}>1,850 <span style={muted}>KG Fed Today</span></div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}><span>Target: 1,900 KG</span><span style={{ color: '#f87171' }}>-2.6%</span></div>
-        </div>
-      </div>
+export default function FeedTab(){
+  const [finance,setFinance]=useState<FinanceRow[]>([]),[movements,setMovements]=useState<Movement[]>([]),[selectedItem,setSelectedItem]=useState(''),[usageType,setUsageType]=useState<'CONSUMPTION'|'WASTAGE'>('CONSUMPTION'),[usageQty,setUsageQty]=useState(''),[notes,setNotes]=useState(''),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const load=async()=>{setLoading(true);setError('');try{const [financeRes,movementRes]=await Promise.all([fetch(`${API_BASE}/farm/finance-ledger`),fetch(`${API_BASE}/farm/feed-inventory/movements?limit=200`)]);if(!financeRes.ok)throw new Error('Finance ledger unavailable.');const ledger=await financeRes.json();const movementData=movementRes.ok?await movementRes.json():{movements:[]};setFinance(ledger.transactions??[]);setMovements(movementData.movements??[]);}catch(e){setError(e instanceof Error?e.message:'Unable to load Feed data.');}finally{setLoading(false);}};
+  useEffect(()=>{void load();},[]);
+  const purchasedRows=useMemo(()=>finance.filter(row=>row.transaction_type==='EXPENSE'&&row.master_category==='FEED'&&row.status!=='VOID'&&Number(row.quantity||0)>0),[finance]);
+  const feedItems=useMemo<FeedItem[]>(()=>{const grouped=new Map<string,FeedItem>();for(const row of purchasedRows){const meta=normalize(row);const current=grouped.get(meta.key)||{key:meta.key,label:meta.label,unit:meta.unit,purchased:0,used:0,balance:0};current.purchased+=Number(row.quantity||0);grouped.set(meta.key,current);}for(const movement of movements){if(!['CONSUMPTION','WASTAGE','ADJUSTMENT','TRANSFER'].includes(movement.movement_type))continue;for(const item of grouped.values()){if(item.label===movement.item||item.label.split(' — ')[0]===movement.item){item.used+=Math.max(0,-Number(movement.signed_quantity||0));item.balance+=Number(movement.signed_quantity||0);}}}return [...grouped.values()].map(item=>({...item,balance:Math.max(0,item.purchased+item.balance)}));},[purchasedRows,movements]);
+  const current=feedItems.find(item=>item.key===selectedItem);
+  const recordUsage=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError('');setMessage('');try{if(!current)throw new Error('Select a purchased feed item.');const quantity=Number(usageQty);if(!(quantity>0))throw new Error('Usage quantity must be greater than zero.');const catalog=await fetch(`${API_BASE}/farm/feed-inventory/dashboard`);if(catalog.ok){const dashboard=await catalog.json();const exists=(dashboard.items||[]).some((row:any)=>row.item===current.label);if(!exists){const create=await fetch(`${API_BASE}/farm/feed-inventory/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item:current.label,category:'FEED',unit:current.unit,reorder_level:0,active:true})});if(!create.ok)throw new Error('Could not initialize the purchased feed item for usage tracking.');}}const response=await fetch(`${API_BASE}/farm/feed-inventory/movements`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item:current.label,quantity,movement_type:usageType,unit:current.unit,notes:notes||null,recorded_by:'WEB'})});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:data.detail?.message||'Usage could not be recorded.');setMessage(`${usageType==='CONSUMPTION'?'Consumption':'Wastage'} recorded for ${current.label}.`);setUsageQty('');setNotes('');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to record feed usage.');}finally{setSaving(false);}};
+  const totalPurchased=feedItems.reduce((sum,item)=>sum+item.purchased,0),totalBalance=feedItems.reduce((sum,item)=>sum+item.balance,0),lowBalance=feedItems.filter(item=>item.purchased>0&&item.balance<=0);
+  return <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',boxSizing:'border-box',padding:14,color:'#fff',minWidth:0}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12,flexWrap:'wrap'}}><div><div style={{fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:7}}><Wheat size={18} color="#38bdf8"/> Feed & Nutrition</div><div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Purchases come only from Finance Feed expenses. Usage is tracked here; balance = purchased less operational usage.</div></div><button onClick={()=>void load()} style={button('#1e293b')}><RefreshCw size={12}/> Refresh</button></div>
+    {error&&<div style={{...panel,color:'#fecaca',borderColor:'#ef4444',marginBottom:10,fontSize:10}}>{error}</div>}{message&&<div style={{...panel,color:'#bbf7d0',borderColor:'#34d399',marginBottom:10,fontSize:10}}>{message}</div>}
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8,marginBottom:10}}><Metric label="Purchased in Finance" value={`${totalPurchased.toLocaleString()} kg/unit`} accent="#38bdf8"/><Metric label="Current Feed Balance" value={`${totalBalance.toLocaleString()} kg/unit`} accent="#34d399"/><Metric label="Items Purchased" value={String(feedItems.length)} accent="#f59e0b"/></div>
+    <div style={{display:'grid',gridTemplateColumns:'minmax(0,1.4fr) minmax(280px,.6fr)',gap:10,alignItems:'start',minWidth:0}}>
+      <section style={panel}><div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Feed Purchased in Finance</div>{loading?<div style={{fontSize:10,color:'#64748b'}}>Loading finance-linked feed purchases…</div>:feedItems.length===0?<div style={{padding:20,textAlign:'center',color:'#64748b',fontSize:10}}>No Feed expenses have been entered in Finance yet.</div>:<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:10,minWidth:520}}><thead><tr style={{color:'#94a3b8',textAlign:'left',borderBottom:'1px solid #1f2937'}}><th style={{padding:7}}>Feed item</th><th style={{padding:7,textAlign:'right'}}>Purchased</th><th style={{padding:7,textAlign:'right'}}>Used</th><th style={{padding:7,textAlign:'right'}}>Balance</th><th style={{padding:7}}>Unit</th></tr></thead><tbody>{feedItems.map(item=><tr key={item.key} style={{borderBottom:'1px solid #1a2234'}}><td style={{padding:7,fontWeight:700}}>{item.label}</td><td style={{padding:7,textAlign:'right',color:'#38bdf8'}}>{item.purchased.toLocaleString()}</td><td style={{padding:7,textAlign:'right',color:'#f59e0b'}}>{item.used.toLocaleString()}</td><td style={{padding:7,textAlign:'right',color:item.balance<=0?'#f87171':'#34d399',fontWeight:800}}>{item.balance.toLocaleString()}</td><td style={{padding:7,color:'#94a3b8'}}>{item.unit}</td></tr>)}</tbody></table></div>}</section>
+      <section style={panel}><div style={{fontSize:12,fontWeight:800,marginBottom:8,display:'flex',alignItems:'center',gap:6}}><Utensils size={14} color="#34d399"/> Record Feed Usage</div><form onSubmit={recordUsage} style={{display:'grid',gap:7}}><select required value={selectedItem} onChange={e=>setSelectedItem(e.target.value)} style={input}><option value="">Select purchased item…</option>{feedItems.map(item=><option key={item.key} value={item.key}>{item.label}</option>)}</select><select value={usageType} onChange={e=>setUsageType(e.target.value as 'CONSUMPTION'|'WASTAGE')} style={input}><option value="CONSUMPTION">Consumption</option><option value="WASTAGE">Wastage</option></select><input required type="number" min="0.001" step="0.001" placeholder={current?`Quantity (${current.unit})`:'Quantity'} value={usageQty} onChange={e=>setUsageQty(e.target.value)} style={input}/><input placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)} style={input}/><button disabled={saving||!current} type="submit" style={button('#059669')}>{saving?'Saving…':'Record Usage'}</button></form></section>
     </div>
-  );
+    {lowBalance.length>0&&<div style={{...panel,marginTop:10,borderColor:'#f59e0b'}}><div style={{color:'#f59e0b',fontWeight:800,fontSize:11,display:'flex',alignItems:'center',gap:5}}><AlertTriangle size={12}/> Feed balance needs attention</div><div style={{color:'#94a3b8',fontSize:10,marginTop:4}}>{lowBalance.map(item=>item.label).join(', ')} has no remaining balance from recorded purchases.</div></div>}
+  </div>;
 }
-
-const title: React.CSSProperties = { margin: '0 0 12px', fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 };
-const muted: React.CSSProperties = { fontSize: 12, color: '#94a3b8' };
-const smallMuted: React.CSSProperties = { fontSize: 10, color: '#64748b', marginTop: 6 };
-const bar: React.CSSProperties = { marginTop: 8, background: '#1e293b', height: 8, borderRadius: 4, overflow: 'hidden' };
-const card = (accent: string): React.CSSProperties => ({ background: '#111827', border: '1px solid #1f2937', padding: 16, borderRadius: 8, borderLeft: `3px solid ${accent}` });
+function Metric({label,value,accent}:{label:string;value:string;accent:string}){return <div style={{...panel,borderLeft:`4px solid ${accent}`}}><div style={{fontSize:8,color:'#94a3b8',textTransform:'uppercase',fontWeight:800}}>{label}</div><div style={{marginTop:4,fontSize:16,fontWeight:800,color:accent}}>{value}</div></div>}
