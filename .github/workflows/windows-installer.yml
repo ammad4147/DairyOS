@@ -131,7 +131,11 @@ jobs:
       - name: Build installer
         working-directory: packaging/windows
         shell: pwsh
-        run: makensis.exe /V2 DairyOS.nsi
+        run: |
+          $makensis = Get-ChildItem 'C:\Program Files (x86)\NSIS' -Filter 'makensis.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $makensis) { throw 'makensis.exe was not found after NSIS installation.' }
+          & $makensis.FullName /V2 .\DairyOS.nsi
+          if ($LASTEXITCODE -ne 0) { throw "NSIS installer build failed with exit code $LASTEXITCODE." }
 
       - name: Verify installer exists
         working-directory: packaging/windows
