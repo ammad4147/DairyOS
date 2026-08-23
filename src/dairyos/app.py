@@ -13,7 +13,13 @@ from fastapi.responses import JSONResponse
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.data.database.migrations import migrate_finance_feed_opex, migrate_feed_inventory, migrate_milk_quality, migrate_coml
+from dairyos.data.database.migrations import (
+    migrate_finance_feed_opex,
+    migrate_feed_inventory,
+    migrate_milk_quality,
+    migrate_coml,
+    migrate_operational_finding_audit,
+)
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -32,6 +38,7 @@ async def lifespan(_app: FastAPI):
     inventory_migrated = migrate_feed_inventory()
     quality_migrated = migrate_milk_quality()
     coml_migrated = migrate_coml()
+    finding_audit_migrated = migrate_operational_finding_audit()
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
@@ -40,6 +47,8 @@ async def lifespan(_app: FastAPI):
         logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
     if coml_migrated:
         logging.info("COML migration created: %s", ", ".join(coml_migrated))
+    if finding_audit_migrated:
+        logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
     container.start()
     logging.info("RuntimeContainer started - operations ready.")
     try:
