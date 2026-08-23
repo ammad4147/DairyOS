@@ -1,321 +1,54 @@
-﻿import React, { useEffect, useState } from 'react';
-import { X, Save, Activity, Milk, HeartPulse, DollarSign, Database, ArchiveRestore } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, Database, DollarSign, HeartPulse, Milk, Save, X } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
-interface AnimalData {
-  id: string;
-  category: string;
-  breed: string;
-  age: string;
-  status: string;
-  frequency: string;
-  earTag: string;
-  gender?: string;
+type AnimalData={id:string;category:string;breed:string;age:string;status:string;frequency:string;earTag:string;gender?:string;stage?:string};
+type BackendAnimal={animal_id:string;animal_type?:string;ear_tag?:string|null;rfid?:string|null;breed?:string|null;sex?:string|null;date_of_birth?:string|null;dam_id?:string|null;sire_id?:string|null;lifecycle_status?:string|null;status?:string|null;milking_frequency?:string|null;production_group?:string|null;location?:string|null;active?:boolean};
+type Props={animalId:string;onClose:()=>void;onSave?:(animal:AnimalData)=>void};
+const API_BASE=API_BASE_URL||'http://127.0.0.1:8000';
+const input:React.CSSProperties={width:'100%',boxSizing:'border-box',background:'#111827',border:'1px solid #334155',color:'#fff',padding:'8px',borderRadius:5,fontSize:10};
+const small:React.CSSProperties={background:'#1e293b',border:'1px solid #334155',color:'#cbd5e1',padding:'5px 8px',borderRadius:4,fontSize:9,fontWeight:700,cursor:'pointer'};
+const btn=(bg:string):React.CSSProperties=>({background:bg,color:'#fff',border:0,borderRadius:5,padding:'7px 10px',fontSize:9,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5});
+function categoryFromLifecycle(l?:string|null,sex?:string|null){const lifecycle=(l||'').toUpperCase(),gender=(sex||'').toUpperCase();if(lifecycle==='LACTATING')return 'Milking Cows';if(lifecycle==='DRY')return 'Dry Cows';if(lifecycle==='HEIFER'||lifecycle==='CLOSE_UP')return gender==='MALE'?'Bulls':'Heifers';if(lifecycle==='CALF')return gender==='MALE'?'Male Calves':'Female Calves';return gender==='MALE'?'Bulls':'Heifers'}
+function lifecycleFromCategory(category:string){if(category==='Milking Cows')return 'LACTATING';if(category==='Dry Cows')return 'DRY';if(category==='Heifers'||category==='Bulls')return 'HEIFER';return 'CALF'}
+function age(value?:string|null){if(!value)return 'Unknown';const d=new Date(value);if(Number.isNaN(d.getTime()))return 'Unknown';const now=new Date();let y=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))y--;return y>0?`${y} Years`:`${Math.max(0,Math.floor((now.getTime()-d.getTime())/2592000000))} Months`}
+function toUi(a:BackendAnimal):AnimalData{return{id:a.animal_id,category:categoryFromLifecycle(a.lifecycle_status,a.sex),breed:a.breed||'Unknown',age:age(a.date_of_birth),status:a.status||(a.active===false?'INACTIVE':'ACTIVE'),frequency:a.milking_frequency||'NONE',earTag:a.ear_tag||a.animal_id,gender:(a.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:a.lifecycle_status||undefined}}
+function displayKey(k:string){return k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function Primitive({value}:{value:any}){if(value===null||value===undefined||value==='')return <span style={{color:'#64748b'}}>—</span>;if(typeof value==='boolean')return <span>{value?'Yes':'No'}</span>;return <span>{typeof value==='object'?JSON.stringify(value):String(value)}</span>}
+function RecordBlock({value,depth=0}:{value:any;depth?:number}):React.ReactNode{if(value===null||value===undefined||typeof value!=='object')return <Primitive value={value}/>;if(Array.isArray(value))return value.length?<div style={{display:'grid',gap:5}}>{value.map((item,i)=><div key={i} style={{background:'#0f172a',border:'1px solid #1f2937',borderRadius:5,padding:7}}><div style={{fontSize:8,color:'#64748b',marginBottom:4}}>Record {i+1}</div><RecordBlock value={item} depth={depth+1}/></div>)}</div>:<span style={{color:'#64748b'}}>No records</span>;return <div style={{display:'grid',gridTemplateColumns:depth>0?'repeat(2,minmax(0,1fr))':'repeat(2,minmax(0,1fr))',gap:5}}>{Object.entries(value).map(([key,val])=><div key={key} style={{background:depth?'#0f172a':'#111827',border:'1px solid #1f2937',borderRadius:5,padding:7,minWidth:0}}><div style={{fontSize:7,color:'#64748b',fontWeight:800,textTransform:'uppercase',marginBottom:3}}>{displayKey(key)}</div><div style={{fontSize:9,color:'#e2e8f0',overflowWrap:'anywhere'}}><RecordBlock value={val} depth={depth+1}/></div></div>)}</div>}
+function findSection(source:any,keys:string[]){for(const key of keys)if(source&&source[key]!==undefined)return source[key];return null}
+
+export default function AnimalPassportModal({animalId,onClose,onSave}:Props){
+ const isNew=animalId==='NEW-ANIMAL';
+ const [animal,setAnimal]=useState<BackendAnimal|null>(null),[passport,setPassport]=useState<any>(null),[exits,setExits]=useState<any[]>([]),[tab,setTab]=useState<'overview'|'milk'|'health'|'breeding'|'finance'|'lineage'|'history'|'exit'>('overview');
+ const [loading,setLoading]=useState(!isNew),[saving,setSaving]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);
+ const [form,setForm]=useState({category:'Milking Cows',breed:'',birthDate:'',sire:'',dam:'',rfid:'',frequency:'TWICE_DAILY',earTag:'',location:'',productionGroup:''});
+ const [exitForm,setExitForm]=useState({disposition:'SOLD',effectiveDate:new Date().toISOString().slice(0,10),reason:'',buyer:'',amount:'',reference:'',veterinarian:'',cause:'',notes:''});
+ const load=async()=>{if(isNew)return;setLoading(true);setError('');try{const [a,p,d]=await Promise.all([fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`),fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/passport`),fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/disposition-history`)]);if(!a.ok)throw new Error(`Unable to load animal (${a.status})`);if(!p.ok)throw new Error(`Unable to load lifetime passport (${p.status})`);const animalData=await a.json() as BackendAnimal;setAnimal(animalData);setPassport(await p.json());setExits(d.ok?await d.json():[]);setForm({category:categoryFromLifecycle(animalData.lifecycle_status,animalData.sex),breed:animalData.breed||'',birthDate:animalData.date_of_birth||'',sire:animalData.sire_id||'',dam:animalData.dam_id||'',rfid:animalData.rfid||'',frequency:animalData.milking_frequency||'TWICE_DAILY',earTag:animalData.ear_tag||'',location:animalData.location||'',productionGroup:animalData.production_group||''})}catch(e){setError(e instanceof Error?e.message:'Unable to load passport')}finally{setLoading(false)}};
+ useEffect(()=>{void load()},[animalId]);
+ const identity=findSection(passport,['identity','animal','animal_identity','profile'])||animal||{};const lineage=findSection(passport,['lineage','lineage_projection'])||{};const production=findSection(passport,['production','lactation','lifetime_production','milk_production'])||{};const health=findSection(passport,['health','health_cases','health_history'])||{};const breeding=findSection(passport,['reproduction','breproduction','breeding','reproductive_history'])||{};const finance=findSection(passport,['finance','financial','financial_dynamics','economics','feed'])||{};const history=findSection(passport,['operational_history','history','events'])||{};
+ const title=useMemo(()=>isNew?'New Animal Comprehensive Passport':`Animal Passport — ${animal?.animal_id||animalId}`,[isNew,animal,animalId]);
+ const handleSave=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setError('');try{const lifecycle=lifecycleFromCategory(form.category);const payload={ear_tag:form.earTag||null,rfid:form.rfid||null,breed:form.breed||null,date_of_birth:form.birthDate||null,sire_id:form.sire||null,dam_id:form.dam||null,lifecycle_status:lifecycle,milking_frequency:lifecycle==='LACTATING'?form.frequency:null,production_group:form.productionGroup||null,location:form.location||null,operator:'Operator UI'};const url=isNew?`${API_BASE}/farm/animals`:`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`;const response=await fetch(url,{method:isNew?'POST':'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(isNew?{...payload,animal_type:'CATTLE',sex:form.category.includes('Male')||form.category==='Bulls'?'MALE':'FEMALE'}:payload)});if(!response.ok)throw new Error((await response.text())||`Unable to save animal (${response.status})`);const savedAnimal=await response.json() as BackendAnimal;setAnimal(savedAnimal);setSaved(true);onSave?.(toUi(savedAnimal));if(isNew)setTimeout(onClose,500);else await load()}catch(e){setError(e instanceof Error?e.message:'Unable to save animal')}finally{setSaving(false)}};
+ const recordExit=async(e:React.FormEvent)=>{e.preventDefault();if(isNew)return;setSaving(true);setError('');try{const response=await fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/disposition`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({disposition:exitForm.disposition,effective_date:exitForm.effectiveDate,reason:exitForm.reason||null,buyer_or_counterparty:exitForm.buyer||null,amount:exitForm.amount?Number(exitForm.amount):null,reference:exitForm.reference||null,veterinarian:exitForm.veterinarian||null,cause:exitForm.cause||null,notes:exitForm.notes||null,operator:'Operator UI'})});if(!response.ok)throw new Error((await response.text())||`Unable to record exit (${response.status})`);const result=await response.json();setAnimal(result.animal);setSaved(true);onSave?.(toUi(result.animal));await load()}catch(e){setError(e instanceof Error?e.message:'Unable to record animal exit')}finally{setSaving(false)}};
+ const tabs=[['overview','Identity & Status'],['milk','Milk & Production'],['health','Health & Safety'],['breeding','Breeding & Lineage'],['finance','Finance & Feed'],['lineage','Full Lineage'],['history','Linked History'],['exit','Sold / Mortality']];
+ return <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:10000,display:'flex',alignItems:'center',justifyContent:'center',padding:12}}><div style={{background:'#0f172a',width:'min(1180px,100%)',height:'min(92vh,900px)',borderRadius:9,border:'1px solid #334155',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 25px 50px rgba(0,0,0,.6)'}}>
+  <div style={{padding:'12px 16px',background:'#111827',borderBottom:'1px solid #1f2937',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}}><div><div style={{fontSize:8,color:'#38bdf8',fontWeight:800,textTransform:'uppercase'}}>Lifetime biological record</div><div style={{fontSize:15,fontWeight:900}}>{title}</div><div style={{fontSize:9,color:'#64748b'}}>Identity, lineage, production, health, breeding, finance/feed, operational history and exit outcomes remain linked to one permanent Animal ID.</div></div><button onClick={onClose} style={{background:'transparent',border:0,color:'#94a3b8',cursor:'pointer'}}><X size={18}/></button></div>
+  <div style={{display:'flex',gap:0,background:'#1e293b',borderBottom:'1px solid #334155',overflowX:'auto'}}>{tabs.map(([id,label])=><button key={id} onClick={()=>setTab(id as any)} style={{background:'transparent',border:0,borderBottom:tab===id?'2px solid #38bdf8':'2px solid transparent',color:tab===id?'#38bdf8':'#94a3b8',padding:'8px 10px',fontSize:8,fontWeight:800,whiteSpace:'nowrap',cursor:'pointer'}}>{label}</button>)}</div>
+  <div style={{flex:1,minHeight:0,overflowY:'auto',padding:12}}>{loading&&<div style={notice}>Loading authoritative lifetime passport…</div>}{saved&&<div style={{...notice,background:'#064e3b',color:'#6ee7b7'}}>Persistent animal record updated.</div>}{error&&<div style={{...notice,background:'#450a0a',color:'#fca5a5',borderColor:'#7f1d1d'}}>{error}</div>}
+   {!isNew&&tab==='overview'&&<Section title="Identity & Current Biological Status"><RecordBlock value={identity}/></Section>}
+   {tab==='overview'&&isNew&&<form onSubmit={handleSave}><ProfileForm form={form} setForm={setForm}/><div style={{display:'flex',justifyContent:'flex-end',marginTop:10}}><button disabled={saving} type="submit" style={btn('#0284c7')}><Save size={11}/> {saving?'Saving…':'Create Permanent Animal Record'}</button></div></form>}
+   {!isNew&&tab==='overview'&&<form onSubmit={handleSave} style={{marginTop:9}}><Section title="Editable Master Profile"><ProfileForm form={form} setForm={setForm}/><div style={{display:'flex',justifyContent:'flex-end',marginTop:9}}><button disabled={saving} type="submit" style={btn('#0284c7')}><Save size={11}/> {saving?'Saving…':'Save Profile'}</button></div></Section></form>}
+   {!isNew&&tab==='milk'&&<Section title="Milk & Production — Linked to Animal ID"><RecordBlock value={production}/></Section>}
+   {!isNew&&tab==='health'&&<Section title="Health, Treatments & Milk Safety — Linked to Animal ID"><RecordBlock value={health}/></Section>}
+   {!isNew&&tab==='breeding'&&<Section title="Breeding & Reproductive Lifecycle — Linked to Animal ID"><RecordBlock value={breeding}/></Section>}
+   {!isNew&&tab==='finance'&&<Section title="Finance, Feed & Economic Linkages — Linked to Animal ID"><RecordBlock value={finance}/></Section>}
+   {!isNew&&tab==='lineage'&&<Section title="Full Recursive Lineage — Parents, Ancestors & Offspring"><RecordBlock value={lineage}/></Section>}
+   {!isNew&&tab==='history'&&<Section title="Linked Operational History"><RecordBlock value={history}/></Section>}
+   {!isNew&&tab==='exit'&&<div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)',gap:10}}><Section title="Record Sold / Mortality"><form onSubmit={recordExit}><div style={grid2}><Field label="Outcome"><select value={exitForm.disposition} onChange={e=>setExitForm({...exitForm,disposition:e.target.value})} style={input}><option value="SOLD">Sold</option><option value="DECEASED">Mortality / Deceased</option></select></Field><Field label="Effective Date"><input required type="date" value={exitForm.effectiveDate} onChange={e=>setExitForm({...exitForm,effectiveDate:e.target.value})} style={input}/></Field><Field label="Buyer / Counterparty"><input value={exitForm.buyer} onChange={e=>setExitForm({...exitForm,buyer:e.target.value})} style={input}/></Field><Field label="Amount"><input type="number" min="0" step="0.01" value={exitForm.amount} onChange={e=>setExitForm({...exitForm,amount:e.target.value})} style={input}/></Field><Field label="Reference"><input value={exitForm.reference} onChange={e=>setExitForm({...exitForm,reference:e.target.value})} style={input}/></Field><Field label={exitForm.disposition==='DECEASED'?'Cause of mortality':'Reason'}><input value={exitForm.disposition==='DECEASED'?exitForm.cause:exitForm.reason} onChange={e=>exitForm.disposition==='DECEASED'?setExitForm({...exitForm,cause:e.target.value}):setExitForm({...exitForm,reason:e.target.value})} style={input}/></Field><Field label="Veterinarian / Responsible person"><input value={exitForm.veterinarian} onChange={e=>setExitForm({...exitForm,veterinarian:e.target.value})} style={input}/></Field><Field label="Notes"><textarea value={exitForm.notes} onChange={e=>setExitForm({...exitForm,notes:e.target.value})} style={{...input,minHeight:55}}/></Field></div><div style={{marginTop:8,fontSize:8,color:'#f59e0b'}}>Recording this outcome sets the animal to inactive and removes it from Total Herd strength. The permanent animal record and linked history remain available for analytics.</div><div style={{display:'flex',justifyContent:'flex-end',marginTop:9}}><button disabled={saving} type="submit" style={btn(exitForm.disposition==='DECEASED'?'#b91c1c':'#b45309')}>{saving?'Recording…':`Record ${exitForm.disposition==='DECEASED'?'Mortality':'Sale'}`}</button></div></form></Section><Section title="Existing Exit Records">{exits.length?<RecordBlock value={exits}/>:<div style={{fontSize:9,color:'#64748b'}}>No Sold/Mortality outcome has been recorded for this animal.</div>}</Section></div>}
+  </div>
+ </div></div>
 }
-
-interface AnimalPassportModalProps {
-  animalId: string;
-  onClose: () => void;
-  onSave?: (animalData: AnimalData) => void;
-}
-
-interface BackendAnimal {
-  animal_id: string;
-  animal_type?: string;
-  ear_tag?: string | null;
-  rfid?: string | null;
-  breed?: string | null;
-  sex?: string | null;
-  date_of_birth?: string | null;
-  dam_id?: string | null;
-  sire_id?: string | null;
-  lifecycle_status?: string | null;
-  status?: string | null;
-  milking_frequency?: string | null;
-  production_group?: string | null;
-  location?: string | null;
-  active?: boolean;
-}
-
-const API_BASE = 'http://localhost:8000';
-
-function categoryFromLifecycle(lifecycle?: string | null): string {
-  switch ((lifecycle || '').toUpperCase()) {
-    case 'LACTATING': return 'Milking Cows';
-    case 'DRY': return 'Dry Cows';
-    case 'HEIFER':
-    case 'CLOSE_UP': return 'Heifers';
-    case 'CALF': return 'Female Calves';
-    default: return 'Heifers';
-  }
-}
-
-function lifecycleFromCategory(category: string): string {
-  switch (category) {
-    case 'Milking Cows': return 'LACTATING';
-    case 'Dry Cows': return 'DRY';
-    case 'Heifers': return 'HEIFER';
-    case 'Male Calves':
-    case 'Female Calves': return 'CALF';
-    case 'Bulls': return 'HEIFER';
-    default: return 'HEIFER';
-  }
-}
-
-function ageFromBirthDate(value?: string | null): string {
-  if (!value) return 'Unknown';
-  const birth = new Date(value);
-  if (Number.isNaN(birth.getTime())) return 'Unknown';
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  const beforeBirthday =
-    now.getMonth() < birth.getMonth() ||
-    (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate());
-  if (beforeBirthday) years -= 1;
-  return years >= 1 ? `${years} Years` : `${Math.max(0, Math.floor((now.getTime() - birth.getTime()) / 2592000000))} Months`;
-}
-
-function toUiAnimal(animal: BackendAnimal): AnimalData {
-  return {
-    id: animal.animal_id,
-    category: categoryFromLifecycle(animal.lifecycle_status),
-    breed: animal.breed || 'Unknown',
-    age: ageFromBirthDate(animal.date_of_birth),
-    status: animal.active === false ? 'Inactive' : (animal.status || animal.lifecycle_status || 'Active'),
-    frequency: animal.milking_frequency || 'NONE',
-    earTag: animal.ear_tag || animal.animal_id,
-    gender: animal.sex === 'MALE' ? 'Male' : 'Female',
-  };
-}
-
-export default function AnimalPassportModal({ animalId, onClose, onSave }: AnimalPassportModalProps) {
-  const isNew = animalId === 'NEW-ANIMAL';
-
-  const [formData, setFormData] = useState({
-    tagId: isNew ? '' : animalId,
-    category: 'Milking Cows',
-    breed: 'Holstein Friesian',
-    birthDate: '2023-01-15',
-    sire: '',
-    dam: '',
-    rfid: '',
-    status: 'ACTIVE',
-    frequency: 'TWICE_DAILY',
-  });
-
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'milk' | 'health' | 'breeding' | 'finance'>('profile');
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(!isNew);
-  const [error, setError] = useState<string | null>(null);
-  const [retiring, setRetiring] = useState(false);
-
-  useEffect(() => {
-    if (isNew) return;
-
-    let cancelled = false;
-    setLoading(true);
-    fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`)
-      .then(async response => {
-        if (!response.ok) throw new Error((await response.text()) || `Unable to load animal (${response.status})`);
-        return response.json() as Promise<BackendAnimal>;
-      })
-      .then(animal => {
-        if (cancelled) return;
-        setFormData({
-          tagId: animal.animal_id,
-          category: categoryFromLifecycle(animal.lifecycle_status),
-          breed: animal.breed || 'Unknown',
-          birthDate: animal.date_of_birth || '',
-          sire: animal.sire_id || '',
-          dam: animal.dam_id || '',
-          rfid: animal.rfid || '',
-          status: animal.status || (animal.active === false ? 'INACTIVE' : 'ACTIVE'),
-          frequency: animal.milking_frequency || 'NONE',
-        });
-      })
-      .catch(err => {
-        if (!cancelled) setError(err?.message || 'Unable to load animal passport');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [animalId, isNew]);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    try {
-      const lifecycle = lifecycleFromCategory(formData.category);
-      const payload = {
-        breed: formData.breed,
-        date_of_birth: formData.birthDate || null,
-        sire_id: formData.sire || null,
-        dam_id: formData.dam || null,
-        rfid: formData.rfid || null,
-        lifecycle_status: lifecycle,
-        milking_frequency: lifecycle === 'LACTATING' ? formData.frequency : undefined,
-        operator: 'Operator UI',
-      };
-
-      let response: Response;
-      if (isNew) {
-        response = await fetch(`${API_BASE}/farm/animals`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            animal_type: 'CATTLE',
-            sex: formData.category.includes('Male') || formData.category === 'Bulls' ? 'MALE' : 'FEMALE',
-            breed: formData.breed,
-            date_of_birth: formData.birthDate || null,
-            sire_id: formData.sire || null,
-            dam_id: formData.dam || null,
-            rfid: formData.rfid || null,
-            lifecycle_status: lifecycle,
-            milking_frequency: lifecycle === 'LACTATING' ? formData.frequency : undefined,
-          }),
-        });
-      } else {
-        response = await fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!response.ok) throw new Error((await response.text()) || `Unable to save animal (${response.status})`);
-      const savedAnimal = await response.json() as BackendAnimal;
-      setSaved(true);
-      onSave?.(toUiAnimal(savedAnimal));
-      setTimeout(onClose, 500);
-    } catch (err: any) {
-      setError(err?.message || 'Unable to save animal');
-    }
-  };
-
-  const handleRetire = async () => {
-    if (isNew || retiring) return;
-    if (!window.confirm(`Retire animal ${animalId}? The record will remain in the permanent register and linked history will be preserved.`)) return;
-    setRetiring(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operator: 'Operator UI', reason: 'Retired from Herd register' }),
-      });
-      if (!response.ok) throw new Error((await response.text()) || `Unable to retire animal (${response.status})`);
-      const retired = await response.json() as BackendAnimal;
-      onSave?.(toUiAnimal(retired));
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Unable to retire animal');
-    } finally {
-      setRetiring(false);
-    }
-  };
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.75)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#0f172a', width: '900px', maxHeight: '90vh', borderRadius: '12px', border: '1px solid #1f2937', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
-        <div style={{ padding: '20px 24px', background: '#111827', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Database size={20} color="#38bdf8" />
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: 0 }}>
-                {isNew ? 'New Animal Comprehensive Passport' : `Animal Passport: ${animalId}`}
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '12px', margin: 0 }}>
-                {isNew ? 'Create a permanent system-generated Animal ID.' : 'Edit the authoritative animal master record.'}
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
-        </div>
-
-        <div style={{ display: 'flex', background: '#1e293b', padding: '0 24px', borderBottom: '1px solid #334155' }}>
-          {[
-            { id: 'profile', label: 'Identity & Lineage', icon: <Database size={14} /> },
-            { id: 'milk', label: 'Milk & Yield Link', icon: <Milk size={14} /> },
-            { id: 'health', label: 'Health & Safety', icon: <HeartPulse size={14} /> },
-            { id: 'breeding', label: 'Breeding & Heat', icon: <Activity size={14} /> },
-            { id: 'finance', label: 'Valuation & Feed', icon: <DollarSign size={14} /> },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveSubTab(tab.id as any)} style={{ background: 'transparent', color: activeSubTab === tab.id ? '#38bdf8' : '#94a3b8', border: 'none', borderBottom: activeSubTab === tab.id ? '2px solid #38bdf8' : '2px solid transparent', padding: '12px 16px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSave} style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {loading && <div style={{ background: '#1e293b', color: '#cbd5e1', padding: '10px', borderRadius: '6px', fontSize: '12px' }}>Loading authoritative animal record...</div>}
-          {saved && <div style={{ background: '#064e3b', color: '#34d399', padding: '12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>Animal record saved to the persistent Herd register.</div>}
-          {error && <div style={{ background: '#450a0a', color: '#fca5a5', padding: '12px', borderRadius: '6px', fontSize: '12px', border: '1px solid #7f1d1d' }}>{error}</div>}
-
-          {activeSubTab === 'profile' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>System Animal ID</label>
-                <input type="text" value={formData.tagId || '(generated on save)'} disabled style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#64748b', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Category</label>
-                <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>
-                  <option value="Milking Cows">Milking Cows</option>
-                  <option value="Dry Cows">Dry Cows</option>
-                  <option value="Heifers">Heifers</option>
-                  <option value="Female Calves">Female Calves</option>
-                  <option value="Male Calves">Male Calves</option>
-                  <option value="Bulls">Bulls</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Breed</label>
-                <input type="text" value={formData.breed} onChange={(e) => setFormData({...formData, breed: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>RFID</label>
-                <input type="text" value={formData.rfid} onChange={(e) => setFormData({...formData, rfid: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Date of Birth</label>
-                <input type="date" value={formData.birthDate} onChange={(e) => setFormData({...formData, birthDate: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Sire (Father ID)</label>
-                <input type="text" value={formData.sire} onChange={(e) => setFormData({...formData, sire: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Dam (Mother ID)</label>
-                <input type="text" value={formData.dam} onChange={(e) => setFormData({...formData, dam: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }} />
-              </div>
-              {formData.category === 'Milking Cows' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Milking Frequency</label>
-                  <select value={formData.frequency} onChange={(e) => setFormData({...formData, frequency: e.target.value})} style={{ width: '100%', background: '#111827', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>
-                    <option value="TWICE_DAILY">Twice Daily</option>
-                    <option value="THRICE_DAILY">Thrice Daily</option>
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeSubTab === 'milk' && <div style={{ background: '#111827', padding: '20px', borderRadius: '8px', border: '1px solid #1f2937' }}><h4 style={{ color: '#38bdf8', margin: '0 0 10px 0', fontSize: '14px' }}>Milk Module Integration</h4><p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Milking-frequency remains an Animal Passport rule and is consumed by the existing session scheduling service.</p></div>}
-          {activeSubTab === 'health' && <div style={{ background: '#111827', padding: '20px', borderRadius: '8px', border: '1px solid #1f2937' }}><h4 style={{ color: '#f87171', margin: '0 0 10px 0', fontSize: '14px' }}>Health & Withdrawal Safety</h4><p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Health events remain in the Health module; this tab shows the master animal identity only.</p></div>}
-          {activeSubTab === 'breeding' && <div style={{ background: '#111827', padding: '20px', borderRadius: '8px', border: '1px solid #1f2937' }}><h4 style={{ color: '#f472b6', margin: '0 0 10px 0', fontSize: '14px' }}>Reproductive Cycle</h4><p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Breeding events remain governed by the Breeding module and linked to this permanent Animal ID.</p></div>}
-          {activeSubTab === 'finance' && <div style={{ background: '#111827', padding: '20px', borderRadius: '8px', border: '1px solid #1f2937' }}><h4 style={{ color: '#fbbf24', margin: '0 0 10px 0', fontSize: '14px' }}>Financial Link</h4><p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Animal-linked financial facts remain in the Finance ledger; this passport only retains the permanent identity link.</p></div>}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginTop: 'auto', borderTop: '1px solid #1f2937', paddingTop: '16px' }}>
-            <div>{!isNew && <button type="button" onClick={handleRetire} disabled={retiring} style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fca5a5', padding: '10px 16px', borderRadius: '6px', fontSize: '13px', cursor: retiring ? 'wait' : 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '7px' }}><ArchiveRestore size={15} /> {retiring ? 'Retiring...' : 'Retire Animal'}</button>}</div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" onClick={onClose} style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '10px 18px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
-              <button type="submit" disabled={loading} style={{ background: '#0284c7', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '6px', fontSize: '13px', cursor: loading ? 'wait' : 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><Save size={16} /> {isNew ? 'Create Animal' : 'Save Changes'}</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+function ProfileForm({form,setForm}:{form:any;setForm:(v:any)=>void}){return <div style={grid2}><Field label="Animal ID / Tag"><input value={form.earTag||'(system-generated if new)'} onChange={e=>setForm({...form,earTag:e.target.value})} disabled={form.earTag===''} style={input}/></Field><Field label="Category"><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} style={input}><option>Milking Cows</option><option>Dry Cows</option><option>Heifers</option><option>Female Calves</option><option>Male Calves</option><option>Bulls</option></select></Field><Field label="Breed"><input value={form.breed} onChange={e=>setForm({...form,breed:e.target.value})} style={input}/></Field><Field label="RFID"><input value={form.rfid} onChange={e=>setForm({...form,rfid:e.target.value})} style={input}/></Field><Field label="Date of Birth"><input type="date" value={form.birthDate} onChange={e=>setForm({...form,birthDate:e.target.value})} style={input}/></Field><Field label="Sire ID"><input value={form.sire} onChange={e=>setForm({...form,sire:e.target.value})} style={input}/></Field><Field label="Dam ID"><input value={form.dam} onChange={e=>setForm({...form,dam:e.target.value})} style={input}/></Field><Field label="Milking Frequency"><select value={form.frequency} onChange={e=>setForm({...form,frequency:e.target.value})} style={input}><option>TWICE_DAILY</option><option>THRICE_DAILY</option></select></Field><Field label="Location"><input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} style={input}/></Field><Field label="Production Group"><input value={form.productionGroup} onChange={e=>setForm({...form,productionGroup:e.target.value})} style={input}/></Field></div>}
+function Field({label,children}:{label:string;children:React.ReactNode}){return <label style={{fontSize:8,color:'#94a3b8'}}><div style={{marginBottom:3,fontWeight:800}}>{label}</div>{children}</label>}
+function Section({title,children}:{title:string;children:React.ReactNode}){return <section style={{background:'#111827',border:'1px solid #1f2937',borderRadius:7,padding:9,marginBottom:9}}><div style={{fontSize:10,fontWeight:900,marginBottom:7}}>{title}</div>{children}</section>}
+const notice:React.CSSProperties={background:'#1e293b',border:'1px solid #334155',color:'#cbd5e1',padding:8,borderRadius:5,fontSize:9,marginBottom:8};const grid2:React.CSSProperties={display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:7};
