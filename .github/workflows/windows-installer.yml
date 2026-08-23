@@ -1,0 +1,105 @@
+name: DairyOS Windows Installer
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'installer/windows/**'
+      - 'pyproject.toml'
+      - '.github/workflows/windows-installer.yml'
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/DairyOS.Web/package-lock.json
+
+      - name: Build and test installer
+        shell: powershell
+        run: .\installer\windows\build.ps1
+
+      - name: Verify installer exists
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem .\dist-installer -Filter 'DairyOS-Setup-*.exe' -File | Select-Object -First 1
+          if (-not $installer) { throw 'DairyOS Windows installer was not produced.' }
+          Write-Host "Installer: $($installer.FullName)"
+          Write-Host "Size: $($installer.Length) bytes"
+
+      - name: Publish installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer
+          path: dist-installer/DairyOS-Setup-*.exe
+          if-no-files-found: error
+
+  installer-data-safety-smoke:
+    needs: build-windows-installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer
+          path: installer-artifact
+
+      - name: Silent install smoke test
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem .\installer-artifact -Filter '*.exe' -File | Select-Object -First 1
+          if (-not $installer) { throw 'Installer artifact not found.' }
+          Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru | Out-Null
+          $programRoot = Join-Path ${env:ProgramFiles} 'DairyOS'
+          if (-not (Test-Path $programRoot)) { throw "Install root not found: $programRoot" }
+
+      - name: Farm-data persistence smoke test
+        shell: powershell
+        run: |
+          $dataRoot = Join-Path $env:ProgramData 'DairyOS'
+          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          'DairyOS-DATA-SAFETY-SENTINEL' | Set-Content -Path (Join-Path $dataRoot 'sentinel.txt') -Encoding UTF8
+          $recovery = Join-Path $dataRoot 'recovery'
+          New-Item -ItemType Directory -Force -Path $recovery | Out-Null
+          @'
+          param([string]$InstallRoot,[string]$Reason='test')
+          'FINAL-BACKUP-OK' | Set-Content -Path (Join-Path $env:ProgramData 'DairyOS\final-backup-smoke.txt') -Encoding UTF8
+          exit 0
+          '@ | Set-Content -Path (Join-Path $recovery 'DairyOS-Data-Backup.ps1') -Encoding UTF8
+
+      - name: Silent uninstall smoke test
+        shell: powershell
+        run: |
+          $programRoot = Join-Path ${env:ProgramFiles} 'DairyOS'
+          $uninstaller = Join-Path $programRoot 'Uninstall DairyOS.exe'
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller not found: $uninstaller" }
+          Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru | Out-Null
+          if (Test-Path $programRoot) { throw 'Program files still exist after uninstall.' }
+          $dataRoot = Join-Path $env:ProgramData 'DairyOS'
+          if (-not (Test-Path (Join-Path $dataRoot 'sentinel.txt'))) { throw 'Farm data sentinel was deleted by uninstall.' }
+          if (-not (Test-Path (Join-Path $dataRoot 'final-backup-smoke.txt'))) { throw 'Final backup guard did not execute.' }
