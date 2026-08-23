@@ -88,7 +88,7 @@ try {
     Write-Host "`n=== BACKEND TEST / PACKAGE ===" -ForegroundColor Cyan
     Set-Location $RepoRoot
     $PythonExe = if (Test-Path "$RepoRoot\.venv\Scripts\python.exe") { "$RepoRoot\.venv\Scripts\python.exe" } else { "python" }
-    & $PythonExe -m pip install -e . pytest pyinstaller
+    & $PythonExe -m pip install -e . -r requirements-dev.txt httpx2 pyinstaller
     if ($LASTEXITCODE -ne 0) { throw "Backend test/package dependencies failed to install." }
     & $PythonExe -m pytest -q
     if ($LASTEXITCODE -ne 0) { throw "Backend regression failed." }
