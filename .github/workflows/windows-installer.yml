@@ -8,6 +8,8 @@ on:
       - 'pyproject.toml'
       - '.github/workflows/windows-installer.yml'
   push:
+    branches:
+      - 'windows-installer-data-safe-2026-08-23'
     tags:
       - 'v*'
   workflow_dispatch:
