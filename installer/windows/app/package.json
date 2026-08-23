@@ -24,30 +24,13 @@
       "package.json"
     ],
     "extraResources": [
-      {
-        "from": "../runtime/frontend",
-        "to": "frontend"
-      },
-      {
-        "from": "../runtime/backend",
-        "to": "backend"
-      },
-      {
-        "from": "../runtime/postgresql",
-        "to": "postgresql"
-      },
-      {
-        "from": "../runtime/recovery",
-        "to": "recovery"
-      }
+      { "from": "../runtime/frontend", "to": "frontend" },
+      { "from": "../runtime/backend", "to": "backend" },
+      { "from": "../runtime/postgresql", "to": "postgresql" },
+      { "from": "../runtime/recovery", "to": "recovery" }
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
       "publisherName": "Trident Dairies"
     },
     "nsis": {
