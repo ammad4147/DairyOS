@@ -18,8 +18,6 @@ VIAddVersionKey "FileVersion" "0.1.0"
 VIAddVersionKey "LegalCopyright" "Trident Dairies"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\uninstall.ico"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
