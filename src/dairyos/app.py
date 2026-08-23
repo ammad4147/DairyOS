@@ -62,10 +62,10 @@ app.add_middleware(PayloadNormalizationMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\\.0\\.0\\.1):517[3-9]",
+    allow_origin_regex=r"https?://(?:localhost|127\.0\.0\.1):517[3-9]$",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"] ,
+    allow_headers=["*"],
 )
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
@@ -73,6 +73,9 @@ ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatme
 
 @app.middleware("http")
 async def enforce_permissions(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     body = None
     payload = {}
     if request.method in {"POST", "PATCH", "PUT"}:
@@ -81,9 +84,12 @@ async def enforce_permissions(request: Request, call_next):
             payload = json.loads(body.decode("utf-8") or "{}")
         except (UnicodeDecodeError, json.JSONDecodeError):
             payload = {}
+
         async def receive():
             return {"type": "http.request", "body": body, "more_body": False}
+
         request._receive = receive
+
     try:
         authorize_request(request, payload)
     except HTTPException as exc:
