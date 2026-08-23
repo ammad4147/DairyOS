@@ -32,7 +32,7 @@ Var PostgresInstaller
 
 Section "DairyOS" SecMain
   StrCpy $DataDir "$COMMONAPPDATA\DairyOS"
-  StrCpy $PostgresInstaller "$EXEDIR\postgresql-18.6-1-windows-x64.exe"
+  StrCpy $PostgresInstaller "$INSTDIR\postgresql-18.6-1-windows-x64.exe"
 
   SetOutPath "$INSTDIR"
   File /r "build\DairyOS\*.*"
