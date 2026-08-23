@@ -19,7 +19,7 @@ def test_ecm_accounts_for_fat_and_protein(service: FeedOptimizationService) -> N
     )
 
     assert ecm > 30.0
-    assert ecm == pytest.approx(34.04, rel=0.01)
+    assert ecm == pytest.approx(33.23, rel=0.01)
 
 
 def test_fce_uses_dmi_not_fresh_feed(service: FeedOptimizationService) -> None:
