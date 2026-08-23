@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import FinanceTab from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
@@ -72,8 +72,33 @@ export default function MainAppShell(){
  return <div className="app-shell" style={{display:'flex',flexDirection:'column',height:'100vh',minWidth:0,background:'#0b0f19',color:'#f8fafc',overflow:'hidden',fontFamily:'sans-serif'}}>
   <header style={{height:60,background:'#0f172a',borderBottom:'1px solid #1e293b',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 12px',zIndex:50,flexShrink:0,boxShadow:'0 4px 6px -1px rgba(0,0,0,.3)',minWidth:0}}>
    <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div style={{width:32,height:32,borderRadius:6,background:'#0284c7',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:'bold',fontSize:12}}>{farmName.split(' ').map(w=>w[0]).slice(0,3).join('')||'BDF'}</div><div style={{display:'flex',flexDirection:'column'}}><h1 style={{margin:0,fontSize:13,fontWeight:'bold',whiteSpace:'nowrap'}}>{farmName}</h1><span style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap'}}>{farmLocation}</span></div></div>
-   <nav style={{display:'flex',gap:6,justifyContent:'center',flex:1,minWidth:0,margin:'0 12px',overflowX:'auto',overflowY:'hidden',scrollbarWidth:'thin'}}>{navItems.map(tab=>{const isActive=currentView===tab.id;return <button key={tab.id} onClick={()=>setCurrentView(tab.id)} style={{display:'flex',alignItems:'center',gap:4,flex:'0 0 auto',background:isActive?'#0ea5e9':'#1e293b',color:isActive?'#fff':'#e2e8f0',border:isActive?'1px solid #7dd3fc':'1px solid #334155',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:11,fontWeight:isActive?'bold':'600',whiteSpace:'nowrap'}}>{tab.icon} {tab.label}</button>})}</nav>
-   <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div style={{position:'relative'}}><button onClick={()=>setShowNotifications(!showNotifications)} style={{position:'relative',background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#f59e0b',cursor:'pointer',display:'flex'}}><Bell size={14}/>{activeCount>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,background:'#ef4444',border:'2px solid #0f172a',borderRadius:'50%',color:'#fff',fontSize:9,fontWeight:'bold',display:'flex',alignItems:'center',justifyContent:'center'}}>{activeCount}</span>}</button>{showNotifications&&<div style={{position:'absolute',right:0,top:40,width:380,maxWidth:'min(380px,calc(100vw - 20px))',background:'#111827',border:'1px solid #1f2937',borderRadius:8,boxShadow:'0 20px 25px -5px rgba(0,0,0,.75)',padding:12,zIndex:100}}><div style={{fontSize:12,fontWeight:'bold',borderBottom:'1px solid #1f2937',paddingBottom:8,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}><span>Active Warnings ({activeCount})</span>{canAudit&&<button onClick={()=>{setCurrentView('audit');setShowNotifications(false)}} style={{background:'none',border:'none',color:'#38bdf8',fontSize:11,cursor:'pointer',textDecoration:'underline'}}>Open Full Audit Register</button>}</div><div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>{alerts.filter(a=>a.status!=='RESOLVED').map(n=>{const isReinstated=n.status==='REINSTATED';return <div key={n.id} onClick={()=>canAudit&&setCurrentView('audit')} style={{fontSize:11,background:isReinstated?'rgba(239,68,68,.3)':'#161f30',padding:9,borderRadius:6,borderLeft:`4px solid ${isReinstated?'#dc2626':n.currentLevel==='RED'?'#ef4444':'#f59e0b'}`,cursor:canAudit?'pointer':'default'}}><div style={{color:isReinstated?'#fee2e2':'#e2e8f0',fontWeight:'bold'}}>{isReinstated&&'ðŸš¨ '}{n.title}</div><div style={{fontSize:10,color:isReinstated?'#fca5a5':'#94a3b8',marginTop:4}}>{n.details}</div></div>})}</div></div>}</div>
+   <nav style={{display:'flex',gap:6,justifyContent:'center',flex:1,minWidth:0,margin:'0 12px',overflowX:'auto',overflowY:'hidden',scrollbarWidth:'thin'}}>{navItems.map(tab=>{
+    const isActive=currentView===tab.id;
+    const colorMap: Record<string, string> = {
+        dashboard: '#3b82f6', // Blue
+        animals: '#f59e0b',   // Amber
+        milk: '#0ea5e9',      // Sky Blue
+        feed: '#10b981',      // Emerald
+        finance: '#22c55e',   // Green
+        breeding: '#f97316',  // Orange
+        health: '#ef4444',    // Red
+        coml: '#a855f7',      // Purple
+        analytics: '#6366f1'  // Indigo
+    };
+    const themeColor = colorMap[tab.id] || '#94a3b8';
+    
+    // Default: Dark bg with slightly faded colored text. Active: Colored border, brighter text, 15% opacity bg wash.
+    const bgStyle = isActive ? `${themeColor}25` : '#1e293b'; 
+    const borderStyle = isActive ? `1px solid ${themeColor}` : '1px solid #334155';
+    const textStyle = isActive ? themeColor : `${themeColor}d9`; // d9 is ~85% opacity hex
+    
+    return (
+        <button key={tab.id} onClick={()=>setCurrentView(tab.id)} style={{display:'flex',alignItems:'center',gap:4,flex:'0 0 auto',background:bgStyle,color:textStyle,border:borderStyle,padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:11,fontWeight:isActive?'bold':'600',whiteSpace:'nowrap',transition:'all 0.2s'}}>
+            <span style={{color: themeColor, display:'flex', alignItems:'center'}}>{tab.icon}</span> {tab.label}
+        </button>
+    );
+})}</nav>
+   <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div style={{position:'relative'}}><button onClick={()=>setShowNotifications(!showNotifications)} style={{position:'relative',background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#f59e0b',cursor:'pointer',display:'flex'}}><Bell size={14}/>{activeCount>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,background:'#ef4444',border:'2px solid #0f172a',borderRadius:'50%',color:'#fff',fontSize:9,fontWeight:'bold',display:'flex',alignItems:'center',justifyContent:'center'}}>{activeCount}</span>}</button>{showNotifications&&<div style={{position:'absolute',right:0,top:40,width:380,maxWidth:'min(380px,calc(100vw - 20px))',background:'#111827',border:'1px solid #1f2937',borderRadius:8,boxShadow:'0 20px 25px -5px rgba(0,0,0,.75)',padding:12,zIndex:100}}><div style={{fontSize:12,fontWeight:'bold',borderBottom:'1px solid #1f2937',paddingBottom:8,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}><span>Active Warnings ({activeCount})</span>{canAudit&&<button onClick={()=>{setCurrentView('audit');setShowNotifications(false)}} style={{background:'none',border:'none',color:'#38bdf8',fontSize:11,cursor:'pointer',textDecoration:'underline'}}>Open Full Audit Register</button>}</div><div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>{alerts.filter(a=>a.status!=='RESOLVED').map(n=>{const isReinstated=n.status==='REINSTATED';return <div key={n.id} onClick={()=>canAudit&&setCurrentView('audit')} style={{fontSize:11,background:isReinstated?'rgba(239,68,68,.3)':'#161f30',padding:9,borderRadius:6,borderLeft:`4px solid ${isReinstated?'#dc2626':n.currentLevel==='RED'?'#ef4444':'#f59e0b'}`,cursor:canAudit?'pointer':'default'}}><div style={{color:isReinstated?'#fee2e2':'#e2e8f0',fontWeight:'bold'}}>{isReinstated&&'Ã°Å¸Å¡Â¨ '}{n.title}</div><div style={{fontSize:10,color:isReinstated?'#fca5a5':'#94a3b8',marginTop:4}}>{n.details}</div></div>})}</div></div>}</div>
     {canSettings&&<button onClick={()=>setCurrentView('settings')} style={{background:currentView==='settings'?'#0ea5e9':'#1e293b',border:currentView==='settings'?'1px solid #7dd3fc':'1px solid #334155',padding:6,borderRadius:'50%',color:'#e2e8f0',cursor:'pointer',display:'flex'}}><Settings size={14}/></button>}
     <button
     type="button"
@@ -124,3 +149,6 @@ export default function MainAppShell(){
   {selectedPassportAnimalId&&hasPermission('animals.view',currentUser)&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal}/>} {showAnimalModal&&hasPermission('animals.create',currentUser)&&<AnimalPassportModal animalId="NEW-ANIMAL" onClose={()=>setShowAnimalModal(false)} onSave={handleRegisterAnimal}/>}
  </div>
 }
+
+
+
