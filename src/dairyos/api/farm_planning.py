@@ -1,7 +1,7 @@
 """Operational lifecycle services for reproduction and nutrition planning."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -181,11 +181,6 @@ def _resolve_current_reproductive_state(animal_id, records):
         if event["event_date"].date() <= as_of_date
     ]
 
-    # Compatibility boundary:
-    # "pregnancy_confirmed" and positive "pregnancy_diagnosis" have historically
-    # been accepted as complete operator facts even when an earlier insemination
-    # was not recorded. The strict resolver still requires chronology, so add
-    # only an ephemeral chronology anchor. Nothing is persisted.
     for event in list(effective):
         if event["event_type"] != "PREGNANCY_CONFIRMED":
             continue
@@ -202,9 +197,7 @@ def _resolve_current_reproductive_state(animal_id, records):
                 {
                     "animal_id": animal_id,
                     "event_type": "INSEMINATION",
-                    "event_date": (
-                        event["event_date"] - timedelta(seconds=1)
-                    ),
+                    "event_date": event["event_date"] - timedelta(seconds=1),
                     "result": "IMPLICIT_CHRONOLOGY_ANCHOR",
                     "source_record_id": None,
                     "derived": True,
@@ -221,16 +214,7 @@ def _resolve_current_reproductive_state(animal_id, records):
 
 
 def _current_state_api_value(state):
-    """Expose the established API vocabulary from the canonical resolver.
-
-    ReproductiveStateService remains authoritative for current reproductive
-    state. This function only adapts the domain result to the established
-    API vocabulary.
-
-    The resolver reports LACTATING on the exact calving date because
-    lactation begins with calving. The historical API contract exposes
-    that exact-day condition as CALVED.
-    """
+    """Expose the established API vocabulary from the canonical resolver."""
     if (
         getattr(state, "last_calving_date", None) is not None
         and state.last_calving_date == state.as_of_date
@@ -250,6 +234,8 @@ def _current_state_api_value(state):
         return "LACTATING"
 
     return "OPEN"
+
+
 @router.get("/animals/{animal_id}/reproduction")
 def reproductive_status(animal_id: str):
     factory = RepositoryFactory.create()
@@ -258,10 +244,7 @@ def reproductive_status(animal_id: str):
         animal = factory.animal().get_by_animal_id(animal_id)
 
         if animal is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Animal not found",
-            )
+            raise HTTPException(status_code=404, detail="Animal not found")
 
         records = [
             record
@@ -276,10 +259,7 @@ def reproductive_status(animal_id: str):
             )
         )
 
-        state = _resolve_current_reproductive_state(
-            animal_id,
-            records,
-        )
+        state = _resolve_current_reproductive_state(animal_id, records)
 
         return {
             "animal_id": animal_id,
@@ -287,45 +267,17 @@ def reproductive_status(animal_id: str):
             "state": _current_state_api_value(state),
             "reproductive_status": state.reproductive_status,
             "pregnancy_status": state.pregnancy_status,
-            "last_heat": (
-                state.last_heat_date.isoformat()
-                if state.last_heat_date
-                else None
-            ),
-            "last_insemination": (
-                state.last_insemination_date.isoformat()
-                if state.last_insemination_date
-                else None
-            ),
-            "pregnancy_confirmed_date": (
-                state.pregnancy_confirmed_date.isoformat()
-                if state.pregnancy_confirmed_date
-                else None
-            ),
-            "pregnancy_result": (
-                "pregnant"
-                if state.pregnancy_status == "PREGNANT"
-                else None
-            ),
-            "expected_calving": (
-                state.expected_calving_date.isoformat()
-                if state.expected_calving_date
-                else None
-            ),
-            "last_calving": (
-                state.last_calving_date.isoformat()
-                if state.last_calving_date
-                else None
-            ),
+            "last_heat": state.last_heat_date.isoformat() if state.last_heat_date else None,
+            "last_insemination": state.last_insemination_date.isoformat() if state.last_insemination_date else None,
+            "pregnancy_confirmed_date": state.pregnancy_confirmed_date.isoformat() if state.pregnancy_confirmed_date else None,
+            "pregnancy_result": "pregnant" if state.pregnancy_status == "PREGNANT" else None,
+            "expected_calving": state.expected_calving_date.isoformat() if state.expected_calving_date else None,
+            "last_calving": state.last_calving_date.isoformat() if state.last_calving_date else None,
             "lactation_number": state.lactation_number,
             "days_in_milk": state.days_in_milk,
             "eligible_to_breed": state.eligible_to_breed,
             "days_open": state.days_open,
-            "expected_dry_off_date": (
-                state.expected_dry_off_date.isoformat()
-                if state.expected_dry_off_date
-                else None
-            ),
+            "expected_dry_off_date": state.expected_dry_off_date.isoformat() if state.expected_dry_off_date else None,
             "dry_period_status": state.dry_period_status,
             "events": [
                 {
@@ -333,11 +285,7 @@ def reproductive_status(animal_id: str):
                     "event_type": record.event_type,
                     "result": record.result,
                     "technician": record.technician,
-                    "timestamp": (
-                        record.timestamp.isoformat()
-                        if record.timestamp
-                        else None
-                    ),
+                    "timestamp": record.timestamp.isoformat() if record.timestamp else None,
                 }
                 for record in records
             ],
@@ -345,6 +293,8 @@ def reproductive_status(animal_id: str):
 
     finally:
         factory.close()
+
+
 @router.get("/nutrition/rations")
 def list_rations(farm_id: str = "DEFAULT"):
     factory = RepositoryFactory.create()
