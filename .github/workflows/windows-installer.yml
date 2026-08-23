@@ -101,11 +101,19 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          $service = Get-Service -Name 'dairyos-ci-postgresql' -ErrorAction SilentlyContinue
-          if ($service -and $service.Status -ne 'Stopped') { Stop-Service -Name 'dairyos-ci-postgresql' -Force -ErrorAction SilentlyContinue }
           $dataRoot = 'C:\pg-ci\data'
           $pgCtl = 'C:\pg-ci\bin\pg_ctl.exe'
-          if (Test-Path $pgCtl) { & $pgCtl -D $dataRoot -m fast -w stop 2>$null }
+          $service = Get-Service -Name 'dairyos-ci-postgresql' -ErrorAction SilentlyContinue
+          if ($service -and $service.Status -ne 'Stopped') {
+            Stop-Service -Name 'dairyos-ci-postgresql' -Force -ErrorAction SilentlyContinue
+          }
+          if (Test-Path $pgCtl) {
+            & $pgCtl -D $dataRoot -m fast -w stop 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host 'PostgreSQL already stopped or pg_ctl cleanup returned non-zero; continuing.'
+            }
+          }
+          exit 0
 
       - name: Package DairyOS desktop executable
         shell: pwsh
