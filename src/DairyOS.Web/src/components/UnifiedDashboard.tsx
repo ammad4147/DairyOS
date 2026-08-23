@@ -194,7 +194,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { onHeat?:number; inseminated?:number; pregnant?:number; conceptionRatio?:string; } | undefined;
   const reproData = { onHeat:reproSource?.onHeat ?? 0, inseminated:reproSource?.inseminated ?? 0, pregnant:reproSource?.pregnant ?? 0, conceptionRatio:reproSource ? undefined : undefined };
-  const currentComlMonth = comlOutput?.month || '';
+  const currentComlMonth = comlOutput?.month || new Date().toISOString().slice(0, 7);
   const currentComlValue = Number(comlOutput?.costOfMilkProductionPerLiter || 0);
 
   return (
