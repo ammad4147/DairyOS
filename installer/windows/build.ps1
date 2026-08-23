@@ -47,7 +47,14 @@ $hrefMatches = [regex]::Matches(
 
 foreach ($match in $hrefMatches) {
     $candidate = $match.Groups[1].Value
-    if ($candidate -match '(?i)getfile\.jsp\?fileid=\d+' -or $candidate -match '(?i)postgresql-[0-9.]+-\d+-windows-x64-binaries\.zip') {
+    if (
+        $candidate -match '(?i)getfile\.jsp\?fileid=\d+' -and
+        (
+            $candidate -match '(?i)postgresql-[0-9.]+-\d+-windows-x64-binaries\.zip' -or
+            $candidate -match '(?i)windows.*x64.*(binary|zip)' -or
+            $candidate -match '(?i)x86-64.*(binary|zip)'
+        )
+    ) {
         if ($candidate -notmatch '^https?://') {
             if ($candidate.StartsWith('//')) {
                 $candidate = "https:$candidate"
@@ -61,22 +68,16 @@ foreach ($match in $hrefMatches) {
 }
 
 if (-not $downloadUri) {
-    # EDB's page has historically exposed the Windows-binary download through
-    # a getfile.jsp URL adjacent to the Windows x86-64 entry. Keep a second
-    # pass that uses the surrounding HTML when the href itself is opaque.
     $htmlLines = $html -split "`r?`n"
     for ($i = 0; $i -lt $htmlLines.Count -and -not $downloadUri; $i++) {
         if ($htmlLines[$i] -match '(?i)Windows\s*x86-64') {
-            for ($j = 1; $j -le 8 -and ($i - $j) -ge 0; $j++) {
-                $previous = $htmlLines[$i - $j]
-                $urlMatch = [regex]::Match(
-                    $previous,
-                    '(?i)https?://sbp\.enterprisedb\.com/getfile\.jsp\?fileid=\d+|https?://www\.enterprisedb\.com/getfile\.jsp\?fileid=\d+',
-                )
-                if ($urlMatch.Success) {
-                    $downloadUri = $urlMatch.Value
-                    break
-                }
+            $window = $htmlLines[$i..([math]::Min($i + 8, $htmlLines.Count - 1))] -join "`n"
+            $urlMatch = [regex]::Match(
+                $window,
+                '(?i)https?://(?:sbp|www)\.enterprisedb\.com/getfile\.jsp\?fileid=\d+'
+            )
+            if ($urlMatch.Success) {
+                $downloadUri = $urlMatch.Value
             }
         }
     }
