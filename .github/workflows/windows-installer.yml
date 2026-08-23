@@ -1,0 +1,145 @@
+# certification trigger 2026-08-23T20:32+05:00
+name: DairyOS Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, windows-installer-certification, windows-installer-certification-2026-08-23]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PG_INSTALLER_URL: https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64.exe
+      CI_PG_PASSWORD: dairyos-ci-postgres-18
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/DairyOS.Web/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: src/DairyOS.Web
+        run: npm ci
+      - name: Frontend typecheck
+        working-directory: src/DairyOS.Web
+        run: npm run typecheck
+      - name: Frontend build
+        working-directory: src/DairyOS.Web
+        run: npm run build
+      - name: Install backend and packaging tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . pyinstaller pytest httpx2
+      - name: Download PostgreSQL 18.6 Windows x64
+        working-directory: packaging/windows
+        run: |
+          Invoke-WebRequest -Uri $env:PG_INSTALLER_URL -OutFile postgresql-18.6-1-windows-x64.exe
+          if ((Get-Item postgresql-18.6-1-windows-x64.exe).Length -lt 100MB) { throw 'PostgreSQL installer download is unexpectedly small.' }
+      - name: Provision temporary PostgreSQL for backend regression
+        working-directory: packaging/windows
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $pgRoot = 'C:\pg-ci'
+          $dataRoot = "$pgRoot\data"
+          Remove-Item -Recurse -Force $pgRoot -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $pgRoot | Out-Null
+          $installer = (Resolve-Path .\postgresql-18.6-1-windows-x64.exe).Path
+          $args = @('--mode','unattended','--unattendedmodeui','none','--superaccount','postgres','--superpassword',$env:CI_PG_PASSWORD,'--servicepassword',$env:CI_PG_PASSWORD,'--servicename','dairyos-ci-postgresql','--serverport','5432','--prefix',$pgRoot,'--datadir',$dataRoot,'--disable-components','pgAdmin,stackbuilder')
+          $proc = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "PostgreSQL unattended installation failed with exit code $($proc.ExitCode)." }
+          if (!(Test-Path "$pgRoot\bin\psql.exe")) { throw 'PostgreSQL psql.exe was not installed.' }
+          $env:PGPASSWORD = $env:CI_PG_PASSWORD
+          & "$pgRoot\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -c 'CREATE DATABASE dairyos;'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create CI dairyos database.' }
+      - name: Backend regression
+        timeout-minutes: 15
+        env:
+          DAIRYOS_DB_HOST: 127.0.0.1
+          DAIRYOS_DB_PORT: '5432'
+          DAIRYOS_DB_NAME: dairyos
+          DAIRYOS_DB_USER: postgres
+          DAIRYOS_DB_PASSWORD: dairyos-ci-postgres-18
+          DAIRYOS_ENV: test
+          DAIRYOS_AUTH_SECRET: ci-test-auth-secret-2026
+        run: python -m pytest -q
+      - name: Stop temporary PostgreSQL
+        if: always()
+        shell: pwsh
+        run: |
+          $dataRoot = 'C:\pg-ci\data'
+          $pgCtl = 'C:\pg-ci\bin\pg_ctl.exe'
+          $service = Get-Service -Name 'dairyos-ci-postgresql' -ErrorAction SilentlyContinue
+          if ($service -and $service.Status -ne 'Stopped') { Stop-Service -Name 'dairyos-ci-postgresql' -Force -ErrorAction SilentlyContinue }
+          if (Test-Path $pgCtl) { & $pgCtl -D $dataRoot -m fast -w stop 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host 'PostgreSQL already stopped or pg_ctl cleanup returned non-zero; continuing.' } }
+          exit 0
+      - name: Package DairyOS desktop executable
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force packaging/windows/build -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force packaging/windows/build | Out-Null
+          python -m PyInstaller --noconfirm --clean --onedir --name DairyOS --collect-all dairyos --collect-all psycopg --add-data "src/DairyOS.Web/dist;dairyos/web" packaging/windows/launcher.py
+          New-Item -ItemType Directory -Force packaging/windows/build/DairyOS | Out-Null
+          Copy-Item -Recurse -Force dist/DairyOS/* packaging/windows/build/DairyOS/
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+      - name: Build installer
+        working-directory: packaging/windows
+        shell: pwsh
+        run: |
+          $makensis = Get-ChildItem 'C:\Program Files (x86)\NSIS' -Filter 'makensis.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $makensis) { throw 'makensis.exe was not found after NSIS installation.' }
+          & $makensis.FullName /V2 .\DairyOS.nsi
+          if ($LASTEXITCODE -ne 0) { throw "NSIS installer build failed with exit code $LASTEXITCODE." }
+      - name: Verify installer exists
+        working-directory: packaging/windows
+        run: |
+          if (!(Test-Path DairyOS-Setup.exe)) { throw 'DairyOS-Setup.exe was not produced.' }
+          if ((Get-Item DairyOS-Setup.exe).Length -lt 10MB) { throw 'DairyOS-Setup.exe is unexpectedly small.' }
+      - name: Installer lifecycle and farm-data preservation
+        shell: pwsh
+        timeout-minutes: 15
+        working-directory: packaging/windows
+        run: |
+          $installRoot = 'C:\Program Files\DairyOS'; $dataRoot = 'C:\ProgramData\DairyOS'; $setup = (Resolve-Path .\DairyOS-Setup.exe).Path
+          Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+          if (!(Test-Path "$installRoot\DairyOS.exe")) { throw 'Installed DairyOS executable is missing.' }
+          if (!(Test-Path "$dataRoot\dairyos.env")) { throw 'Persistent DairyOS configuration was not created.' }
+          Start-Process -FilePath "$installRoot\DairyOS.exe" -ArgumentList '--initialize-only' -Wait
+          $pgBin = "$installRoot\PostgreSQL\bin"; $envLines = Get-Content "$dataRoot\dairyos.env"; $cfg = @{}
+          foreach ($line in $envLines) { if ($line -match '^(DAIRYOS_[^=]+)=(.*)$') { $cfg[$Matches[1]] = $Matches[2] } }; $env:PGPASSWORD = $cfg.DAIRYOS_DB_PASSWORD
+          & "$pgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d dairyos -c "CREATE TABLE IF NOT EXISTS dairyos_installer_sentinel (id integer primary key, marker text not null);"; if ($LASTEXITCODE -ne 0) { throw 'Could not create installer sentinel table.' }
+          & "$pgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d dairyos -c "INSERT INTO dairyos_installer_sentinel VALUES (1, 'FARM_DATA_PRESERVATION_OK') ON CONFLICT (id) DO UPDATE SET marker = EXCLUDED.marker;"; if ($LASTEXITCODE -ne 0) { throw 'Could not write farm-data sentinel.' }
+          Start-Process -FilePath "$installRoot\Uninstall DairyOS.exe" -ArgumentList '/S' -Wait
+          if (!(Test-Path $dataRoot)) { throw 'FAIL: ProgramData\DairyOS was removed during uninstall.' }
+          $backup = Get-ChildItem "$dataRoot\backups\pre-uninstall-*.sql" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -eq $backup -or $backup.Length -lt 100) { throw 'FAIL: final farm-data backup missing or empty.' }
+          if (-not (Select-String -Path $backup.FullName -Pattern 'FARM_DATA_PRESERVATION_OK' -SimpleMatch)) { throw 'FAIL: farm-data sentinel was not present in uninstall backup.' }
+          Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+          if (!(Test-Path "$dataRoot\dairyos.env")) { throw 'FAIL: reinstall did not reuse persistent data/configuration.' }
+          Start-Process -FilePath "$installRoot\DairyOS.exe" -ArgumentList '--initialize-only' -Wait
+          $value = & "$installRoot\PostgreSQL\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d dairyos -tAc "SELECT marker FROM dairyos_installer_sentinel WHERE id=1" 2>$null
+          if ($value.Trim() -ne 'FARM_DATA_PRESERVATION_OK') { throw 'FAIL: reinstall did not recover the original farm database.' }
+          Start-Process -FilePath "$installRoot\Uninstall DairyOS.exe" -ArgumentList '/S' -Wait
+          if (!(Test-Path $dataRoot)) { throw 'FAIL: final uninstall removed persistent farm data.' }
+      - name: Publish installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer-${{ github.sha }}
+          path: packaging/windows/DairyOS-Setup.exe
+          if-no-files-found: error
