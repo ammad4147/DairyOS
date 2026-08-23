@@ -37,7 +37,7 @@ New-Item -ItemType Directory -Path $BackendRoot,$FrontendRoot,$PostgresRoot,$Rec
 Write-Host "`n=== BACKEND TEST / PACKAGE ===" -ForegroundColor Cyan
 Set-Location $RepoRoot
 python -m pip install --upgrade pip
-python -m pip install . pyinstaller pytest
+python -m pip install . pyinstaller pytest httpx2
 python -m pytest -q
 if ($LASTEXITCODE -ne 0) { throw "Backend regression failed." }
 
