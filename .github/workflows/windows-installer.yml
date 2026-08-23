@@ -94,6 +94,7 @@ jobs:
           DAIRYOS_DB_USER: postgres
           DAIRYOS_DB_PASSWORD: dairyos-ci-postgres-18
           DAIRYOS_ENV: test
+          DAIRYOS_AUTH_SECRET: ci-test-auth-secret-2026
         run: python -m pytest -q
 
       - name: Stop temporary PostgreSQL
