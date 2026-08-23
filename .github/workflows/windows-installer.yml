@@ -181,3 +181,4 @@ jobs:
           if-no-files-found: error
 
 # Certification trigger: rerun the complete Windows installer lifecycle after CI auth hardening.
+# Correct branch trigger marker: 2026-08-23T19:05+05:00
