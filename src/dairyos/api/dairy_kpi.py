@@ -111,6 +111,9 @@ def _conception_rate(inseminations, pregnancy_checks):
 
 def _interval_metrics(breeding):
     """Derive reproductive intervals only where event chronology is explicit."""
+    # AUDIT-FIX [LOGIC-REP-01]: Correct Days Open calculation. Days Open measures
+    # the interval from calving to subsequent conception (or subsequent insemination),
+    # NOT the gestation interval (calving minus prior service before calving).
     by_animal = defaultdict(list)
     for record in breeding:
         timestamp = _record_date(record, "timestamp")
@@ -125,10 +128,15 @@ def _interval_metrics(breeding):
         services = [t for t, record in events if _is_insemination(record)]
         for previous, current in zip(calvings, calvings[1:]):
             calving_intervals.append((current - previous).days)
-        for calving in calvings:
-            prior_services = [t for t in services if t < calving]
-            if prior_services:
-                days_open.append((calving - prior_services[-1]).days)
+            services_in_cycle = [t for t in services if previous < t < current]
+            if services_in_cycle:
+                days_open.append((services_in_cycle[-1] - previous).days)
+
+        if calvings:
+            latest_calving = calvings[-1]
+            services_after = [t for t in services if t > latest_calving]
+            if services_after:
+                days_open.append((services_after[-1] - latest_calving).days)
 
     return {
         "calving_interval_days": (

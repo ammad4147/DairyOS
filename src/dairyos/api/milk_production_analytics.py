@@ -80,9 +80,9 @@ def milk_analytics(
         rf.close()
 
 
-@router.get("/reconciliation")
-def milk_reconciliation(production_date: date):
-    return MilkReconciliationService().reconcile(production_date)
+# AUDIT-FIX [WIRING-ROUTER-01]: Removed duplicate GET /farm/milk/reconciliation route.
+# The authoritative endpoint is registered in milk_traceability.py with full query-param
+# support and operational date fallback, resolving FastAPI duplicate Operation ID warning.
 
 
 @router.get("/dispositions")
