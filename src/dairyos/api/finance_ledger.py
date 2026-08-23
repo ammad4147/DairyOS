@@ -234,7 +234,7 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry):
             master_category=entry.master_category if transaction_type in classifier.EXPENSE_TYPES else None,
             sub_category=entry.sub_category if transaction_type in classifier.EXPENSE_TYPES else None,
             custom_specification=entry.custom_specification if transaction_type in classifier.EXPENSE_TYPES else None,
-            quantity=entry.quantity if transaction_type in classifier.EXPENSE_TYPES else None,
+            quantity=entry.quantity,
             unit=entry.unit if transaction_type in classifier.EXPENSE_TYPES else None,
             unit_rate=entry.unit_rate if transaction_type in classifier.EXPENSE_TYPES else None,
             due_date=entry.due_date,

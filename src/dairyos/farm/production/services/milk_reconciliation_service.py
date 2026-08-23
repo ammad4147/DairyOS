@@ -32,8 +32,13 @@ class MilkReconciliationService:
     as zero production or as a complete production day.
     """
 
-    def __init__(self, disposition_repository=None):
+    def __init__(
+        self,
+        disposition_repository=None,
+        financial_repository=None,
+    ):
         self.disposition_repository = disposition_repository
+        self.financial_repository = financial_repository
 
     def _repo(self):
         if self.disposition_repository is not None:
@@ -41,6 +46,48 @@ class MilkReconciliationService:
 
         factory = RepositoryFactory.create()
         return factory.milk_dispositions(), factory
+
+    def _finance_sales(self, production_date: date):
+        # Unit/in-memory reconciliation tests inject a disposition
+        # repository intentionally. In that mode there is no Finance
+        # repository dependency to resolve.
+        if (
+            self.financial_repository is None
+            and self.disposition_repository is not None
+        ):
+            return []
+
+        if self.financial_repository is not None:
+            rows = self.financial_repository.get_all()
+            return [
+                row
+                for row in rows
+                if str(getattr(row, "category", "")).upper()
+                == "MILK_SALES"
+                and str(getattr(row, "status", "")).upper()
+                != "VOID"
+                and getattr(row, "transaction_date", None) is not None
+                and getattr(row, "transaction_date").date()
+                == production_date
+            ]
+
+        factory = RepositoryFactory.create()
+        try:
+            rows = factory.finance().get_all()
+            return [
+                row
+                for row in rows
+                if str(getattr(row, "category", "")).upper()
+                == "MILK_SALES"
+                and str(getattr(row, "status", "")).upper()
+                != "VOID"
+                and getattr(row, "transaction_date", None) is not None
+                and getattr(row, "transaction_date").date()
+                == production_date
+            ]
+        finally:
+            factory.close()
+
 
     @staticmethod
     def _production_total(production_date: date) -> dict:
@@ -204,12 +251,16 @@ class MilkReconciliationService:
                 current["daily_total"]
             )
 
-            accounted = sum(
+            finance_sales = self._finance_sales(
+                production_date
+            )
+
+            disposition_accounted = sum(
                 float(item.quantity_litres)
                 for item in dispositions
             )
 
-            sold = sum(
+            disposition_sold = sum(
                 float(item.quantity_litres)
                 for item in dispositions
                 if str(
@@ -218,9 +269,27 @@ class MilkReconciliationService:
                 == "SOLD"
             )
 
-            non_sale = accounted - sold
+            finance_sold = sum(
+                float(getattr(item, "quantity", 0.0) or 0.0)
+                for item in finance_sales
+            )
 
-            sale_value = sum(
+            accounted = (
+                disposition_accounted
+                + finance_sold
+            )
+
+            sold = (
+                disposition_sold
+                + finance_sold
+            )
+
+            non_sale = (
+                accounted
+                - sold
+            )
+
+            disposition_sale_value = sum(
                 float(item.amount_due or 0.0)
                 for item in dispositions
                 if str(
@@ -229,7 +298,17 @@ class MilkReconciliationService:
                 == "SOLD"
             )
 
-            cash_received = sum(
+            finance_sale_value = sum(
+                float(getattr(item, "amount", 0.0) or 0.0)
+                for item in finance_sales
+            )
+
+            sale_value = (
+                disposition_sale_value
+                + finance_sale_value
+            )
+
+            disposition_cash = sum(
                 float(item.amount_received or 0.0)
                 for item in dispositions
                 if str(
@@ -238,8 +317,21 @@ class MilkReconciliationService:
                 == "SOLD"
             )
 
+            finance_cash = sum(
+                float(getattr(item, "amount", 0.0) or 0.0)
+                for item in finance_sales
+                if str(getattr(item, "status", "")).upper()
+                in {"RECEIVED", "PAID"}
+            )
+
+            cash_received = (
+                disposition_cash
+                + finance_cash
+            )
+
             receivable = max(
-                sale_value - cash_received,
+                sale_value
+                - cash_received,
                 0.0,
             )
 

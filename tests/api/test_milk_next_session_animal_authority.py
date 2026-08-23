@@ -34,22 +34,40 @@ def _create_animal(
     return payload["animal_id"]
 
 
+def _record_session(
+    client: TestClient,
+    animal_id: str,
+    session: str,
+    litres: float,
+) -> None:
+    payload = {
+        "animal_id": animal_id,
+        "production_date": TODAY.isoformat(),
+        "milking_session": session,
+        "morning_yield": litres if session == "MORNING" else None,
+        "afternoon_yield": litres if session == "AFTERNOON" else None,
+        "evening_yield": litres if session == "EVENING" else None,
+        "operator": "NEXT-SESSION-TEST",
+    }
+
+    response = client.post(
+        "/farm/milk",
+        json=payload,
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def _record_morning(
     client: TestClient,
     animal_id: str,
 ) -> None:
-    response = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": animal_id,
-            "production_date": TODAY.isoformat(),
-            "milking_session": "MORNING",
-            "morning_yield": 10.0,
-            "operator": "NEXT-SESSION-TEST",
-        },
+    _record_session(
+        client,
+        animal_id,
+        "MORNING",
+        10.0,
     )
-
-    assert response.status_code == 200, response.text
 
 
 def _next_session(
@@ -84,7 +102,7 @@ def test_next_session_uses_effective_frequency_for_specific_animal(
         ear_tag="NEXT-THRICE-001",
     )
 
-    # Before any session has been settled, both animals owe MORNING.
+    # Before any animal has been milked, both owe MORNING.
     twice_initial = _next_session(client, twice_daily)
     thrice_initial = _next_session(client, thrice_daily)
 
@@ -94,15 +112,29 @@ def test_next_session_uses_effective_frequency_for_specific_animal(
     assert twice_initial["next_session"] == "MORNING"
     assert thrice_initial["next_session"] == "MORNING"
 
-    # Settle the shared MORNING session.
+    # Milk only the TWICE_DAILY animal for MORNING.
     _record_morning(client, twice_daily)
 
-    # The next session must now be derived from each animal's own schedule:
-    # TWICE_DAILY skips AFTERNOON; THRICE_DAILY requires it.
+    # The TWICE_DAILY animal advances to EVENING.
     twice_after_morning = _next_session(client, twice_daily)
-    thrice_after_morning = _next_session(client, thrice_daily)
+
+    # The THRICE_DAILY animal is unaffected by the other animal's MORNING.
+    thrice_after_other_animal_morning = _next_session(
+        client,
+        thrice_daily,
+    )
 
     assert twice_after_morning["next_session"] == "EVENING"
+    assert thrice_after_other_animal_morning["next_session"] == "MORNING"
+
+    # Now milk the THRICE_DAILY animal for MORNING.
+    _record_morning(client, thrice_daily)
+
+    thrice_after_morning = _next_session(
+        client,
+        thrice_daily,
+    )
+
     assert thrice_after_morning["next_session"] == "AFTERNOON"
 
 

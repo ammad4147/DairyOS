@@ -891,6 +891,54 @@ def next_milking_session(
 
         expected = list(snapshot.expected_sessions)
 
+        # Animal-specific settlement:
+        # - a MilkProduction row settles a session only for this animal;
+        # - a farm-level NOT_MILKED declaration settles that session for the
+        #   whole herd because it states that the session did not happen.
+        milk_accessor = getattr(factory, "milk", None)
+
+        animal_settled = set()
+        if milk_accessor is not None:
+            animal_rows = milk_accessor().get_all()
+
+            for row in animal_rows:
+                if str(getattr(row, "animal_id", "")) != str(animal_id):
+                    continue
+
+                production_date = getattr(
+                    row,
+                    "production_date",
+                    None,
+                )
+
+                if production_date is None:
+                    continue
+
+                if production_date.date() != target:
+                    continue
+
+                if str(
+                    getattr(row, "status", "")
+                ).upper() == "VOID":
+                    continue
+
+                if getattr(row, "morning_yield", None) is not None:
+                    animal_settled.add("MORNING")
+
+                if getattr(row, "afternoon_yield", None) is not None:
+                    animal_settled.add("AFTERNOON")
+
+                if getattr(row, "evening_yield", None) is not None:
+                    animal_settled.add("EVENING")
+
+        farm_not_milked = {
+            str(record.milking_session)
+            for record in sequence.ledger.get_by_date(target)
+            if str(getattr(record, "status", "")).upper() == "NOT_MILKED"
+        }
+
+        animal_settled |= farm_not_milked
+
         if not expected:
             return {
                 "operational_date": target.isoformat(),
@@ -900,7 +948,9 @@ def next_milking_session(
                 "milking_frequency": snapshot.milking_frequency,
                 "expected_sessions": [],
                 "settled_sessions": sorted(
-                    sequence.ledger.settled_sessions_on(target)
+                    session
+                    for session in expected
+                    if session in animal_settled
                 ),
                 "schedule_source": snapshot.source,
                 "non_milking_directive": (
@@ -914,7 +964,7 @@ def next_milking_session(
                 ),
             }
 
-        settled = sequence.ledger.settled_sessions_on(target)
+        settled = animal_settled
 
         next_session = next(
             (
