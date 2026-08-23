@@ -12,6 +12,7 @@ $WebRoot = Join-Path $RepoRoot "src\DairyOS.Web"
 $InstallerRoot = Join-Path $RepoRoot "installer\windows"
 $RuntimeRoot = Join-Path $InstallerRoot "runtime"
 $AppRoot = Join-Path $InstallerRoot "app"
+$SourceRecoveryRoot = Join-Path $InstallerRoot "recovery"
 $DistRoot = Join-Path $RepoRoot "dist-installer"
 $BackendRoot = Join-Path $RuntimeRoot "backend"
 $FrontendRoot = Join-Path $RuntimeRoot "frontend"
@@ -91,9 +92,9 @@ Remove-Item -LiteralPath $tempZip -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "`n=== RECOVERY TOOLS ===" -ForegroundColor Cyan
-Copy-Item -LiteralPath (Join-Path $InstallerRoot "runtime\recovery\DairyOS-Data-Backup.ps1") -Destination $RecoveryRoot -Force
-Copy-Item -LiteralPath (Join-Path $InstallerRoot "runtime\recovery\DairyOS-Data-Restore.ps1") -Destination $RecoveryRoot -Force
-Copy-Item -LiteralPath (Join-Path $InstallerRoot "runtime\recovery\README.txt") -Destination $RecoveryRoot -Force
+Copy-Item -LiteralPath (Join-Path $SourceRecoveryRoot "DairyOS-Data-Backup.ps1") -Destination $RecoveryRoot -Force
+Copy-Item -LiteralPath (Join-Path $SourceRecoveryRoot "DairyOS-Data-Restore.ps1") -Destination $RecoveryRoot -Force
+Copy-Item -LiteralPath (Join-Path $SourceRecoveryRoot "README.txt") -Destination $RecoveryRoot -Force
 
 Write-Host "`n=== ELECTRON DESKTOP INSTALLER ===" -ForegroundColor Cyan
 Set-Location $AppRoot
