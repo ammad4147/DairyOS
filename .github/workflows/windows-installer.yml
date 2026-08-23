@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main, windows-installer-certification]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
