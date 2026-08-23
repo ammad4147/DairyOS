@@ -17,6 +17,11 @@ interface COMLProps {
 type CostRow = { id: string; item: string; cost: number };
 type Group = { label: string; items: string[] };
 
+type StoredMonthlyOutput = COMLOutput & { month: string };
+
+const COML_STORAGE_KEY = 'dairyos_coml_monthly_output';
+const COML_EVENT = 'dairyos:coml-output';
+
 const FEED_GROUPS: Group[] = [
   { label: 'Green Fodder & Silage', items: ['Corn / Maize Silage','Alfalfa (Lucerne)','Berseem','Rhodes Grass (Fresh)','Sorghum / Sadabahar','Super Napier / Mott Grass','Rye Grass'] },
   { label: 'Dry Roughages & Hay', items: ['Wheat Straw (Bhoosa)','Rhodes Grass Hay','Alfalfa Hay','Corn Stover'] },
@@ -67,6 +72,26 @@ function Metric({ title, accent, children }: { title: string; accent: string; ch
   </div>;
 }
 
+function monthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function publishMonthlyOutput(output: COMLOutput) {
+  const month = monthKey();
+  const stored: Record<string, StoredMonthlyOutput> = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(COML_STORAGE_KEY) || '{}') as Record<string, StoredMonthlyOutput>;
+    } catch {
+      return {};
+    }
+  })();
+
+  stored[month] = { month, ...output };
+  localStorage.setItem(COML_STORAGE_KEY, JSON.stringify(stored));
+
+  window.dispatchEvent(new CustomEvent(COML_EVENT, { detail: stored[month] }));
+}
+
 export default function COML({ onOutputChange }: COMLProps) {
   const [milkProduced, setMilkProduced] = useState('');
   const [feedItem, setFeedItem] = useState('');
@@ -86,7 +111,17 @@ export default function COML({ onOutputChange }: COMLProps) {
   const comlPerL = feedPerL + opexPerL;
 
   useEffect(() => {
-    onOutputChange?.({ milkProduced: litres, feedTotal, opexTotal, feedCostPerLiter: feedPerL, opexCostPerLiter: opexPerL, costOfMilkProductionPerLiter: comlPerL });
+    const output: COMLOutput = {
+      milkProduced: litres,
+      feedTotal,
+      opexTotal,
+      feedCostPerLiter: feedPerL,
+      opexCostPerLiter: opexPerL,
+      costOfMilkProductionPerLiter: comlPerL,
+    };
+
+    publishMonthlyOutput(output);
+    onOutputChange?.(output);
   }, [onOutputChange, litres, feedTotal, opexTotal, feedPerL, opexPerL, comlPerL]);
 
   const addFeed = () => {
