@@ -1,183 +1,143 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, LockKeyhole, Save, Settings2 } from 'lucide-react';
-import TMRPreparationTool from './TMRPreparationTool';
+import { Plus, Trash2 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
-
-type COMLRecord = {
-  id: number;
-  month_start: string;
-  month_label: string;
-  feed_cost_per_liter: number;
-  opex_cost_per_liter: number;
-  total_coml_per_liter: number;
-  status: string;
-  notes?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  locked_at?: string | null;
-  updated_by: string;
+export type COMLOutput = {
+  milkProduced: number;
+  feedTotal: number;
+  opexTotal: number;
+  feedCostPerLiter: number;
+  opexCostPerLiter: number;
+  costOfMilkProductionPerLiter: number;
 };
 
-type COMLStatus = {
-  month_start: string;
-  month_label: string;
-  has_official: boolean;
-  record: COMLRecord | null;
-  reminder_day: number;
-  reminder_status: 'LOCKED' | 'UPCOMING' | 'DUE' | 'OVERDUE';
-  reminder_due: boolean;
-};
-
-const firstOfMonth = (value = new Date()) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-01`;
-const monthLabel = (value: string) => new Date(`${value.slice(0, 7)}-01T00:00:00`).toLocaleDateString('en-PK', { month: 'long', year: 'numeric' });
-const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const money = (value: number) => `PKR ${value.toFixed(2)} / L`;
-
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${url}`, { headers: { 'Content-Type': 'application/json' }, ...init });
-  if (!response.ok) {
-    let detail = `Request failed: ${response.status}`;
-    try { const body = await response.json() as { detail?: unknown }; if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail); } catch { /* ignore */ }
-    throw new Error(detail);
-  }
-  return response.json() as Promise<T>;
+interface COMLProps {
+  onOutputChange?: (output: COMLOutput) => void;
 }
 
-export default function COML() {
-  const [selectedMonth, setSelectedMonth] = useState(firstOfMonth());
-  const [status, setStatus] = useState<COMLStatus | null>(null);
-  const [history, setHistory] = useState<COMLRecord[]>([]);
-  const [feedCost, setFeedCost] = useState('');
-  const [opexCost, setOpexCost] = useState('');
-  const [notes, setNotes] = useState('');
-  const [reminderDay, setReminderDay] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+type CostRow = { id: string; item: string; cost: number };
+type Group = { label: string; items: string[] };
 
-  const load = async (month = selectedMonth) => {
-    setLoading(true); setError(''); setMessage('');
-    try {
-      const [current, historyResult, settings] = await Promise.all([
-        request<COMLStatus>(`/farm/coml?month_start=${month}`),
-        request<{ records: COMLRecord[] }>('/farm/coml/history'),
-        request<{ reminder_day: number }>('/farm/coml/settings'),
-      ]);
-      setStatus(current);
-      setHistory(historyResult.records || []);
-      setReminderDay(settings.reminder_day || 1);
-      const record = current.record;
-      setFeedCost(record ? String(record.feed_cost_per_liter) : '');
-      setOpexCost(record ? String(record.opex_cost_per_liter) : '');
-      setNotes(record?.notes || '');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load COML.');
-    } finally { setLoading(false); }
+const FEED_GROUPS: Group[] = [
+  { label: 'Green Fodder & Silage', items: ['Corn / Maize Silage','Alfalfa (Lucerne)','Berseem','Rhodes Grass (Fresh)','Sorghum / Sadabahar','Super Napier / Mott Grass','Rye Grass'] },
+  { label: 'Dry Roughages & Hay', items: ['Wheat Straw (Bhoosa)','Rhodes Grass Hay','Alfalfa Hay','Corn Stover'] },
+  { label: 'Commercial Feeds & Grains', items: ['Commercial Compound Vanda / Cattle Feed','Flaked Corn / Cracked Maize','Wheat Bran (Choker)','Rice Polish','Barley','Broken Rice'] },
+  { label: 'Protein Meals & Cakes', items: ['Canola Meal','Soybean Meal (Hi-Pro)','Mustard Cake (Khal Sarson)','Cottonseed Cake (Khal Banola)','Sunflower Meal','Corn Gluten Meal (30% / 60%)'] },
+  { label: 'Minerals, Premixes & Additives', items: ['Dairy Mineral Premix','Di-Calcium Phosphate (DCP)','Bypass Fat / Rumen-Protected Fat','Sodium Bicarbonate (Buffer)','Toxin Binder','Live Yeast / Probiotics','Molasses','Urea','Rock Salt / Mineral Licking Blocks'] },
+  { label: 'Custom', items: ['Other'] },
+];
+
+const OPEX_GROUPS: Group[] = [
+  { label: 'Veterinary & Herd Health', items: ['Routine Vet Fees / Consultation','Vaccinations (FMD, HS, LSD, Anthrax)','Dewormers & Parasiticides','Mastitis Injectables & Intramammary Tubes','Antibiotics & General Medications','Calving & OB Supplies'] },
+  { label: 'Breeding & Reproduction', items: ['Semen Straws (Sexed / Conventional)','AI Consumables (Sheaths, Gloves, Lube)','Synchronization Hormones (GnRH, PGF2α)','AI Inseminator Service Charges'] },
+  { label: 'Labor & Salaries', items: ['Milker Wages','Feeder / Shed Worker Wages','Supervisor / Farm Manager Salary','Daily / Temporary Labor','Staff Rations & Living Expenses'] },
+  { label: 'Utilities & Energy', items: ['Grid Electricity (WAPDA)','Generator Fuel (Diesel / Petrol)','Solar System Maintenance & Inverter Servicing','Water Pumping & Borehole Maintenance'] },
+  { label: 'Machinery & Infrastructure', items: ['Milking Machine Liners, Tubes & Oil','Milk Chiller / Cooling Tank Maintenance','Silage Cutter / Feed Mixer Repairs','Tractor Diesel & Servicing','Shed Maintenance & Plumbing Repairs'] },
+  { label: 'Dairy Chemicals & Hygiene', items: ['Acid Cleaner (Milkstone Remover)','Alkaline CIP Detergent','Chlorine / Sanitizer','Teat Dip (Pre & Post Dip)','Shed Disinfectants & Lime Powder'] },
+  { label: 'Bedding, Logistics & Miscellaneous', items: ['Animal Bedding (Sand, Sawdust, Straw)','Milk Transport & Delivery Fuel','Packaging / Milk Cans','Farm Land Lease / Rent','Accounting & Banking Fees'] },
+  { label: 'Custom', items: ['Other'] },
+];
+
+const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: 6, padding: '9px 10px', fontSize: 12, outline: 'none' };
+const panelStyle: React.CSSProperties = { background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: 16, minWidth: 0 };
+const money = (v: number) => `PKR ${v.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function TaxonomySelect({ groups, selected, value, onChange, placeholder }: { groups: Group[]; selected: Set<string>; value: string; onChange: (v: string) => void; placeholder: string }) {
+  return <select value={value} onChange={e => onChange(e.target.value)} style={inputStyle}>
+    <option value="">{placeholder}</option>
+    {groups.map(group => {
+      const available = group.items.filter(item => !selected.has(item));
+      return available.length ? <optgroup key={group.label} label={group.label}>{available.map(item => <option key={item} value={item}>{item}</option>)}</optgroup> : null;
+    })}
+  </select>;
+}
+
+function Rows({ rows, accent, remove }: { rows: CostRow[]; accent: string; remove: (id: string) => void }) {
+  if (!rows.length) return <div style={{ marginTop: 12, padding: 18, textAlign: 'center', borderTop: '1px solid #1f2937', color: '#64748b', fontSize: 11 }}>No entries added yet.</div>;
+  return <div style={{ marginTop: 12, borderTop: '1px solid #1f2937' }}>{rows.map(row => <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #1a2234' }}>
+    <div style={{ flex: 1, minWidth: 0, color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>{row.item}</div>
+    <div style={{ color: accent, fontSize: 12, fontWeight: 900, whiteSpace: 'nowrap' }}>{money(row.cost)}</div>
+    <button type="button" onClick={() => remove(row.id)} title="Remove entry" style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid #334155', background: '#1e293b', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={12} /></button>
+  </div>)}</div>;
+}
+
+function Metric({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+  return <div style={{ ...panelStyle, borderLeft: `4px solid ${accent}`, minHeight: 86 }}>
+    <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>{title}</div>
+    <div style={{ fontSize: 19, fontWeight: 900, color: accent, marginTop: 8 }}>{children}</div>
+  </div>;
+}
+
+export default function COML({ onOutputChange }: COMLProps) {
+  const [milkProduced, setMilkProduced] = useState('');
+  const [feedItem, setFeedItem] = useState('');
+  const [feedCostInput, setFeedCostInput] = useState('');
+  const [opexItem, setOpexItem] = useState('');
+  const [opexCostInput, setOpexCostInput] = useState('');
+  const [feedRows, setFeedRows] = useState<CostRow[]>([]);
+  const [opexRows, setOpexRows] = useState<CostRow[]>([]);
+
+  const selectedFeed = useMemo(() => new Set(feedRows.map(r => r.item)), [feedRows]);
+  const selectedOpex = useMemo(() => new Set(opexRows.map(r => r.item)), [opexRows]);
+  const feedTotal = useMemo(() => feedRows.reduce((s, r) => s + r.cost, 0), [feedRows]);
+  const opexTotal = useMemo(() => opexRows.reduce((s, r) => s + r.cost, 0), [opexRows]);
+  const litres = Math.max(0, Number(milkProduced) || 0);
+  const feedPerL = litres > 0 ? feedTotal / litres : 0;
+  const opexPerL = litres > 0 ? opexTotal / litres : 0;
+  const comlPerL = feedPerL + opexPerL;
+
+  useEffect(() => {
+    onOutputChange?.({ milkProduced: litres, feedTotal, opexTotal, feedCostPerLiter: feedPerL, opexCostPerLiter: opexPerL, costOfMilkProductionPerLiter: comlPerL });
+  }, [onOutputChange, litres, feedTotal, opexTotal, feedPerL, opexPerL, comlPerL]);
+
+  const addFeed = () => {
+    const cost = Number(feedCostInput);
+    if (!feedItem || !Number.isFinite(cost) || cost < 0) return;
+    setFeedRows(rows => [...rows, { id: `feed-${Date.now()}-${Math.random()}`, item: feedItem, cost }]);
+    setFeedItem(''); setFeedCostInput('');
   };
 
-  useEffect(() => { void load(); }, [selectedMonth]);
-
-  const total = useMemo(() => (Number(feedCost) || 0) + (Number(opexCost) || 0), [feedCost, opexCost]);
-  const isCurrentMonth = selectedMonth === firstOfMonth();
-
-  const lock = async () => {
-    setSaving(true); setError(''); setMessage('');
-    try {
-      await request<COMLStatus>('/farm/coml/lock', {
-        method: 'POST',
-        body: JSON.stringify({ month_start: selectedMonth, feed_cost_per_liter: Number(feedCost), opex_cost_per_liter: Number(opexCost), notes: notes || null, updated_by: 'UI Operator' }),
-      });
-      setMessage(`Official COML locked for ${monthLabel(selectedMonth)}.`);
-      await load();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to lock COML.'); }
-    finally { setSaving(false); }
+  const addOpex = () => {
+    const cost = Number(opexCostInput);
+    if (!opexItem || !Number.isFinite(cost) || cost < 0) return;
+    setOpexRows(rows => [...rows, { id: `opex-${Date.now()}-${Math.random()}`, item: opexItem, cost }]);
+    setOpexItem(''); setOpexCostInput('');
   };
 
-  const saveReminder = async () => {
-    setError(''); setMessage('');
-    try {
-      await request('/farm/coml/settings', { method: 'PUT', body: JSON.stringify({ reminder_day: reminderDay }) });
-      setMessage(`Monthly COML reminder is set for day ${reminderDay}.`);
-      await load();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save reminder setting.'); }
-  };
+  return <div style={{ padding: 20, color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
+    <div style={{ marginBottom: 16 }}>
+      <h2 style={{ margin: '0 0 4px 0', fontSize: 18, color: '#34d399' }}>Cost of Production/Liter</h2>
+      <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>Independent manual cost calculator.</p>
+    </div>
 
-  return (
-    <div style={{ padding: 16, color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div>
-          <h2 style={{ margin: 0, color: '#34d399', fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}> <LockKeyhole size={21} /> Static Monthly COML</h2>
-          <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: 11 }}>Official Cost of Milk Production per liter. Month-specific, user-locked, historical, and independent of live transactions.</p>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <Metric title="Milk Produced" accent="#38bdf8"><input type="number" min="0" step="0.01" value={milkProduced} onChange={e => setMilkProduced(e.target.value)} placeholder="Litres" style={{ ...inputStyle, marginTop: 7, fontSize: 16, fontWeight: 900 }} /></Metric>
+      <Metric title="Feed Cost/Liter" accent="#34d399">{money(feedPerL)}</Metric>
+      <Metric title="Operational Expenses/Liter" accent="#f59e0b">{money(opexPerL)}</Metric>
+      <Metric title="Cost of Milk Production/Liter" accent="#a78bfa">{money(comlPerL)}</Metric>
+    </div>
+
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
+      <section style={panelStyle}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#34d399' }}>Feed Cost Calculator</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px auto', gap: 8, alignItems: 'end' }}>
+          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Feed Item<div style={{ marginTop: 5 }}><TaxonomySelect groups={FEED_GROUPS} selected={selectedFeed} value={feedItem} onChange={setFeedItem} placeholder="Select feed item" /></div></label>
+          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cost<input type="number" min="0" step="0.01" value={feedCostInput} onChange={e => setFeedCostInput(e.target.value)} placeholder="PKR" style={{ ...inputStyle, marginTop: 5 }} /></label>
+          <button type="button" onClick={addFeed} disabled={!feedItem || feedCostInput === ''} style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, opacity: !feedItem || feedCostInput === '' ? 0.45 : 1 }}><Plus size={12} /> Add</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#111827', border: '1px solid #1f2937', borderRadius: 7, padding: 8 }}>
-          <CalendarDays size={14} color="#38bdf8" />
-          <label style={{ color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>Month / Year</label>
-          <input type="month" value={selectedMonth.slice(0, 7)} onChange={e => setSelectedMonth(`${e.target.value}-01`)} style={inputStyle} />
-        </div>
-      </div>
-
-      {error && <Banner tone="#ef4444">{error}</Banner>}
-      {message && <Banner tone="#34d399"><CheckCircle2 size={13} /> {message}</Banner>}
-
-      {status?.reminder_due && !status.has_official && (
-        <Banner tone="#f59e0b"><AlertTriangle size={14} /> {isCurrentMonth ? `No official COML is locked for ${status.month_label}. Monthly calculation is due.` : `No official COML is locked for ${status.month_label}.`}</Banner>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
-        <Metric label={`Official COML · ${monthLabel(selectedMonth)}`} value={status?.has_official ? money(status.record!.total_coml_per_liter) : 'Not locked'} accent={status?.has_official ? '#34d399' : '#f59e0b'} />
-        <Metric label="Feed Cost / L · Static" value={status?.has_official ? money(status.record!.feed_cost_per_liter) : `${Number(feedCost || 0).toFixed(2)} / L`} accent="#38bdf8" />
-        <Metric label="OPEX / L · Static" value={status?.has_official ? money(status.record!.opex_cost_per_liter) : `${Number(opexCost || 0).toFixed(2)} / L`} accent="#a78bfa" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 12, marginBottom: 12 }}>
-        <section style={card}>
-          <div style={sectionTitle}><span>Official Monthly COML Record</span><span style={{ color: status?.has_official ? '#34d399' : '#f59e0b', fontSize: 9 }}>{status?.has_official ? 'OFFICIAL / LOCKED' : 'NO OFFICIAL RECORD'}</span></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
-            <Field label="Feed Cost per Liter" value={feedCost} onChange={setFeedCost} />
-            <Field label="OPEX per Liter" value={opexCost} onChange={setOpexCost} />
-          </div>
-          <div style={{ marginTop: 9, padding: 10, background: '#0f172a', borderRadius: 7, border: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div><div style={{ color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>Total COML / L</div><div style={{ color: '#34d399', fontSize: 22, fontWeight: 900 }}>{money(total)}</div></div>
-            <div style={{ color: '#64748b', fontSize: 9, textAlign: 'right' }}>Auto-sum only.<br />No live transaction linkage.</div>
-          </div>
-          <label style={{ display: 'block', marginTop: 9, color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>Notes<textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} style={{ ...inputStyle, marginTop: 4, resize: 'vertical' }} placeholder="Basis, TMR assumptions, management note..." /></label>
-          <div style={{ marginTop: 9, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ color: '#94a3b8', fontSize: 9 }}>{status?.has_official ? `Last updated: ${formatDate(status.record?.updated_at)} · Locked: ${formatDate(status.record?.locked_at)}` : `Valid for: ${monthLabel(selectedMonth)}`}</div>
-            <button disabled={saving || Number(feedCost) < 0 || Number(opexCost) < 0 || total <= 0} onClick={() => void lock()} style={button('#059669')}><Save size={12} /> {saving ? 'Locking…' : `Lock / Save Official COML for ${monthLabel(selectedMonth)}`}</button>
-          </div>
-        </section>
-
-        <section style={card}>
-          <div style={sectionTitle}><span><Clock3 size={13} /> Monthly Reminder</span><span style={{ color: reminderColor(status?.reminder_status), fontSize: 9 }}>{status?.reminder_status || '—'}</span></div>
-          <div style={{ color: '#cbd5e1', fontSize: 11, lineHeight: 1.5 }}>Reminder stays active until the selected month has an official locked COML.</div>
-          <label style={{ marginTop: 12, display: 'block', color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>Reminder Day (1–28)<input type="number" min={1} max={28} value={reminderDay} onChange={e => setReminderDay(Number(e.target.value))} style={{ ...inputStyle, marginTop: 4 }} /></label>
-          <button onClick={() => void saveReminder()} style={{ ...button('#334155'), marginTop: 8 }}><Settings2 size={12} /> Save Reminder Setting</button>
-          {isCurrentMonth && <div style={{ marginTop: 12, padding: 9, borderRadius: 6, background: status?.has_official ? 'rgba(52,211,153,.08)' : 'rgba(245,158,11,.08)', color: status?.has_official ? '#86efac' : '#fcd34d', fontSize: 10 }}>{status?.has_official ? `Current month is officially locked: ${status.month_label}.` : `Current month has no official COML: ${status?.month_label || monthLabel(selectedMonth)}.`}</div>}
-        </section>
-      </div>
-
-      <section style={{ marginBottom: 12 }}>
-        <div style={{ marginBottom: 7, color: '#38bdf8', fontSize: 13, fontWeight: 900 }}>TMR Preparation Tool</div>
-        <TMRPreparationTool />
+        <Rows rows={feedRows} accent="#34d399" remove={id => setFeedRows(rows => rows.filter(r => r.id !== id))} />
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Feed Total</span><span style={{ color: '#34d399', fontSize: 16, fontWeight: 900 }}>{money(feedTotal)}</span></div>
       </section>
 
-      <section style={card}>
-        <div style={sectionTitle}><span>Historical Monthly COML</span><span style={{ color: '#64748b', fontSize: 9 }}>{history.length} locked month(s)</span></div>
-        <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}><thead><tr style={{ color: '#94a3b8', textAlign: 'left', borderBottom: '1px solid #1f2937' }}><th style={th}>Month</th><th style={th}>Feed / L</th><th style={th}>OPEX / L</th><th style={th}>Official COML / L</th><th style={th}>Last Updated</th></tr></thead><tbody>{history.map(row => <tr key={row.id} style={{ borderBottom: '1px solid #1a2234', cursor: 'pointer' }} onClick={() => setSelectedMonth(row.month_start)}><td style={td}>{row.month_label}</td><td style={td}>{money(row.feed_cost_per_liter)}</td><td style={td}>{money(row.opex_cost_per_liter)}</td><td style={{ ...td, color: '#34d399', fontWeight: 900 }}>{money(row.total_coml_per_liter)}</td><td style={td}>{formatDate(row.updated_at)}</td></tr>)}{history.length === 0 && <tr><td colSpan={5} style={{ padding: 16, color: '#64748b', textAlign: 'center' }}>No historical monthly COML records yet.</td></tr>}</tbody></table></div>
+      <section style={panelStyle}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#f59e0b' }}>Operational Cost Calculator</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px auto', gap: 8, alignItems: 'end' }}>
+          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Operating Expense<div style={{ marginTop: 5 }}><TaxonomySelect groups={OPEX_GROUPS} selected={selectedOpex} value={opexItem} onChange={setOpexItem} placeholder="Select operating expense" /></div></label>
+          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cost<input type="number" min="0" step="0.01" value={opexCostInput} onChange={e => setOpexCostInput(e.target.value)} placeholder="PKR" style={{ ...inputStyle, marginTop: 5 }} /></label>
+          <button type="button" onClick={addOpex} disabled={!opexItem || opexCostInput === ''} style={{ background: '#d97706', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, opacity: !opexItem || opexCostInput === '' ? 0.45 : 1 }}><Plus size={12} /> Add</button>
+        </div>
+        <Rows rows={opexRows} accent="#f59e0b" remove={id => setOpexRows(rows => rows.filter(r => r.id !== id))} />
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Operational Total</span><span style={{ color: '#f59e0b', fontSize: 16, fontWeight: 900 }}>{money(opexTotal)}</span></div>
       </section>
     </div>
-  );
+  </div>;
 }
-
-const card: React.CSSProperties = { background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: 12 };
-const sectionTitle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 9, color: '#fff', fontSize: 12, fontWeight: 900 };
-const inputStyle: React.CSSProperties = { background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '7px 8px', borderRadius: 5, fontSize: 10, boxSizing: 'border-box', width: '100%' };
-const th: React.CSSProperties = { padding: 8, fontWeight: 800 };
-const td: React.CSSProperties = { padding: 8 };
-const button = (background: string): React.CSSProperties => ({ background, color: '#fff', border: 'none', borderRadius: 5, padding: '8px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 });
-function Metric({ label, value, accent }: { label: string; value: string; accent: string }) { return <div style={{ ...card, borderLeft: `4px solid ${accent}` }}><div style={{ color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>{label}</div><div style={{ color: accent, fontSize: 18, fontWeight: 900, marginTop: 5 }}>{value}</div></div>; }
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label style={{ color: '#94a3b8', fontSize: 9, textTransform: 'uppercase', fontWeight: 800 }}>{label}<input type="number" min="0" step="0.01" value={value} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} placeholder="0.00" /></label>; }
-function Banner({ children, tone }: { children: React.ReactNode; tone: string }) { return <div style={{ background: `${tone}12`, border: `1px solid ${tone}`, color: tone, borderRadius: 6, padding: 9, marginBottom: 10, fontSize: 10, display: 'flex', alignItems: 'center', gap: 6 }}>{children}</div>; }
-function reminderColor(status?: string) { return status === 'LOCKED' ? '#34d399' : status === 'UPCOMING' ? '#38bdf8' : '#f59e0b'; }
