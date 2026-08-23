@@ -32,7 +32,7 @@ export default function MainAppShell(){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false);
  const [farmName,setFarmName]=useState(()=>localStorage.getItem('dairyos_farm_name')||'Barki Dairy Farm'),[farmLocation,setFarmLocation]=useState(()=>localStorage.getItem('dairyos_farm_loc')||'Lahore, Punjab, PK');
  const {alerts,activeCount}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
- const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[todayYield,setTodayYield]=useState(133),[todayMilkSoldLiters,setTodayMilkSoldLiters]=useState(110),[accountsReceivable,setAccountsReceivable]=useState(23400);
+ const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[todayYield,setTodayYield]=useState(0),[todayMilkSoldLiters,setTodayMilkSoldLiters]=useState(0),[accountsReceivable,setAccountsReceivable]=useState(0);
  const refreshAnimals=useCallback(async()=>{if(!hasPermission('animals.view',currentUser))return;try{const response=await fetch(`${API_BASE}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);setAnimals(await response.json() as BackendAnimal[])}catch(error){console.error('DairyOS herd register load failed:',error)}},[currentUser]);
  useEffect(()=>{
   if(!currentUser||currentUser.permissions?.length)return;

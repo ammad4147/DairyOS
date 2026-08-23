@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api";
+﻿import { API_BASE_URL } from "../config/api";
 
 export interface PerformerItem {
   id: string;
@@ -37,101 +37,146 @@ export interface CommandDashboardData {
   };
 }
 
+const EMPTY_DASHBOARD = (): CommandDashboardData => ({
+  todayLiters: 0,
+  yesterdayLiters: 0,
+  todayDate: new Date().toISOString().split("T")[0],
+  yesterdayDate: "",
+  milkingAnimals: 0,
+  adultAnimals: 0,
+  milkingPercentage: 0,
+  topPerformers: [],
+  bottomPerformers: [],
+  yieldTrend: [],
+  herdComposition: [],
+  health: {
+    sick: 0,
+    mastitis: 0,
+    highTemp: 0,
+    completedVax: 0,
+    dueVax: 0,
+  },
+  reproduction: {
+    onHeat: 0,
+    inseminated: 0,
+    pregnant: 0,
+  },
+});
+
 export async function fetchCommandDashboardData(): Promise<CommandDashboardData> {
   const base = API_BASE_URL || "http://127.0.0.1:8000";
+
   try {
     const res = await fetch(`${base}/dashboard`, {
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
     });
-    
-    if (res.ok) {
-      const raw = await res.json();
-      
-      // If the backend already returns the CommandDashboardData shape
-      if (raw.todayLiters !== undefined && raw.milkingAnimals !== undefined) {
-        return raw;
-      }
 
-      // Adapter: map backend Command Center schema to CommandDashboardData
-      const dash = raw.dashboard || {};
-      const animalsMap = raw.operational_state?.animals || {};
-      const animalList = Object.values(animalsMap);
-      
-      const totalAdults = dash.animals?.total ?? (animalList.length || 20);
-      const milkingCount = dash.animals?.milking ?? (animalList.filter((a: any) => a.lifecycle_status === 'LACTATING' || a.is_currently_milking).length || 20);
-      const dryCount = dash.animals?.dry ?? (totalAdults - milkingCount);
-      const milkingPct = dash.animals?.milking_percentage ?? (totalAdults > 0 ? (milkingCount / totalAdults) * 100 : 100);
+    if (!res.ok) {
+      return EMPTY_DASHBOARD();
+    }
 
-      const todayL = Number(dash.milk?.today_litres ?? dash.milk?.litres ?? 0);
-      const yestL = Number(dash.milk?.previous_litres ?? 0);
+    const raw = await res.json();
 
+    if (
+      raw.todayLiters !== undefined &&
+      raw.milkingAnimals !== undefined
+    ) {
       return {
-        todayLiters: todayL,
-        yesterdayLiters: yestL,
-        todayDate: dash.milk?.production_date || new Date().toISOString().split('T')[0],
-        yesterdayDate: dash.milk?.previous_production_date || '',
-        milkingAnimals: milkingCount,
-        adultAnimals: totalAdults,
-        milkingPercentage: Number(milkingPct.toFixed(1)),
-        topPerformers: [
-          { id: 'TD-001', yield: 38.5 },
-          { id: 'TD-002', yield: 36.2 },
-          { id: 'TD-003', yield: 35.8 }
-        ],
-        bottomPerformers: [
-          { id: 'TD-018', yield: 21.5 },
-          { id: 'TD-019', yield: 22.0 },
-          { id: 'TD-020', yield: 22.4 }
-        ],
-        yieldTrend: [
-          { day: 'D1', yield: 540 },
-          { day: 'D2', yield: 555 },
-          { day: 'D3', yield: 560 },
-          { day: 'D4', yield: 558 },
-          { day: 'D5', yield: 562 },
-          { day: 'D6', yield: 565 },
-          { day: 'D7', yield: todayL || 570 }
-        ],
-        herdComposition: [
-          { name: 'Milking', value: milkingCount, color: '#10B981' },
-          { name: 'Dry', value: dryCount, color: '#6B7280' },
-          { name: 'Heifers', value: 0, color: '#3B82F6' },
-          { name: 'Calves', value: 0, color: '#F59E0B' }
-        ],
-        health: {
-          sick: dash.health?.active_exceptions ?? 0,
-          mastitis: dash.health?.critical_cases ?? 0,
-          highTemp: 0,
-          completedVax: 20,
-          dueVax: 0
-        },
-        reproduction: {
-          onHeat: 0,
-          inseminated: 10,
-          pregnant: 10
-        }
+        ...EMPTY_DASHBOARD(),
+        ...raw,
+        topPerformers: Array.isArray(raw.topPerformers)
+          ? raw.topPerformers
+          : [],
+        bottomPerformers: Array.isArray(raw.bottomPerformers)
+          ? raw.bottomPerformers
+          : [],
+        yieldTrend: Array.isArray(raw.yieldTrend)
+          ? raw.yieldTrend
+          : [],
+        herdComposition: Array.isArray(raw.herdComposition)
+          ? raw.herdComposition
+          : [],
       };
     }
-  } catch (err) {
-    console.warn("Backend API request failed, serving default state:", err);
-  }
 
-  return {
-    todayLiters: 0,
-    yesterdayLiters: 0,
-    todayDate: new Date().toISOString().split("T")[0],
-    yesterdayDate: "",
-    milkingAnimals: 20,
-    adultAnimals: 20,
-    milkingPercentage: 100,
-    topPerformers: [],
-    bottomPerformers: [],
-    yieldTrend: [],
-    herdComposition: [
-      { name: "Milking", value: 20, color: "#10B981" },
-      { name: "Dry", value: 0, color: "#6B7280" }
-    ],
-    health: { sick: 0, mastitis: 0, highTemp: 0, completedVax: 20, dueVax: 0 },
-    reproduction: { onHeat: 0, inseminated: 10, pregnant: 10 }
-  };
+    const dash = raw.dashboard || {};
+    const animalsMap = raw.operational_state?.animals || {};
+    const animalList = Object.values(animalsMap) as any[];
+
+    const totalAdults = Number(dash.animals?.total ?? animalList.length ?? 0);
+    const milkingCount = Number(
+      dash.animals?.milking ??
+        animalList.filter(
+          (a: any) =>
+            a.lifecycle_status === "LACTATING" ||
+            a.is_currently_milking,
+        ).length ??
+        0,
+    );
+
+    const dryCount = Number(
+      dash.animals?.dry ?? Math.max(0, totalAdults - milkingCount),
+    );
+
+    const todayLiters = Number(
+      dash.milk?.today_litres ?? dash.milk?.litres ?? 0,
+    );
+
+    const yesterdayLiters = Number(
+      dash.milk?.previous_litres ?? 0,
+    );
+
+    return {
+      todayLiters,
+      yesterdayLiters,
+      todayDate:
+        dash.milk?.production_date ||
+        new Date().toISOString().split("T")[0],
+      yesterdayDate: dash.milk?.previous_production_date || "",
+      milkingAnimals: milkingCount,
+      adultAnimals: totalAdults,
+      milkingPercentage:
+        totalAdults > 0
+          ? Number(((milkingCount / totalAdults) * 100).toFixed(1))
+          : 0,
+      topPerformers: Array.isArray(dash.milk?.top_performers)
+        ? dash.milk.top_performers
+        : [],
+      bottomPerformers: Array.isArray(dash.milk?.bottom_performers)
+        ? dash.milk.bottom_performers
+        : [],
+      yieldTrend: Array.isArray(dash.milk?.yield_trend)
+        ? dash.milk.yield_trend
+        : [],
+      herdComposition:
+        Array.isArray(dash.animals?.composition)
+          ? dash.animals.composition
+          : [
+              ...(milkingCount > 0
+                ? [{ name: "Milking", value: milkingCount }]
+                : []),
+              ...(dryCount > 0
+                ? [{ name: "Dry", value: dryCount }]
+                : []),
+            ],
+      health: {
+        sick: Number(dash.health?.active_exceptions ?? 0),
+        mastitis: Number(dash.health?.critical_cases ?? 0),
+        highTemp: Number(dash.health?.high_temperature ?? 0),
+        completedVax: Number(dash.health?.completed_vaccinations ?? 0),
+        dueVax: Number(dash.health?.due_vaccinations ?? 0),
+      },
+      reproduction: {
+        onHeat: Number(dash.reproduction?.on_heat ?? 0),
+        inseminated: Number(dash.reproduction?.inseminated ?? 0),
+        pregnant: Number(dash.reproduction?.pregnant ?? 0),
+      },
+    };
+  } catch (err) {
+    console.warn(
+      "Backend API request failed; serving an explicit empty dashboard state.",
+      err,
+    );
+    return EMPTY_DASHBOARD();
+  }
 }

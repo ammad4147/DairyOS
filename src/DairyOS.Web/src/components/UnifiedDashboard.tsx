@@ -51,8 +51,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   useEffect(() => { void loadData(); }, [loadData]);
 
   const filteredYieldTrend = useMemo(() => {
-    const baseline30 = [121,122,120,123,125,127,128,128,129,131,130,129,127,129,131,134,132,134,136,133,132,130,129,132,133,131,128,131,128,133];
-    const fullSeries = [...baseline30];
+    const fullSeries = data?.yieldTrend?.length ? data.yieldTrend.map((item:any)=>Number(item?.yield||0)) : [];
     if (data?.yieldTrend && Array.isArray(data.yieldTrend) && data.yieldTrend.length > 0) {
       const values = data.yieldTrend.map((item: any) => typeof item === 'number' ? item : (item.yield || item.liters || 130));
       const count = Math.min(values.length, 30);
@@ -75,14 +74,14 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
   const dynamicMilkingCount = herdMasterList.filter(a => a.category.includes('Milking')).length;
-  const milkingCount = dynamicMilkingCount > 0 ? dynamicMilkingCount : (Number(data?.milkingAnimals) || 6);
-  const todayYield = realTimeTodayYield !== undefined ? realTimeTodayYield : Math.round(Number(data?.todayLiters) || 133);
+  const milkingCount = dynamicMilkingCount > 0 ? dynamicMilkingCount : Number(data?.milkingAnimals || 0);
+  const todayYield = realTimeTodayYield !== undefined ? realTimeTodayYield : Math.round(Number(data?.todayLiters) || 0);
   const avgYieldPerAnimal = milkingCount > 0 ? Math.round(todayYield / milkingCount) : 0;
   const todayDate = new Date();
   const yesterdayDate = new Date(todayDate); yesterdayDate.setDate(todayDate.getDate() - 1);
   const currentDateLabel = todayDate.toISOString().split('T')[0];
   const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
-  const yesterdayLiters = Math.round(Number(data?.yesterdayLiters) || 128);
+  const yesterdayLiters = Math.round(Number(data?.yesterdayLiters) || 0);
   const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
   const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 10 ? '#f59e0b' : '#34d399';
 
@@ -98,13 +97,13 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const herdCol1 = canonicalHerd.slice(0,3), herdCol2 = canonicalHerd.slice(3,6);
   const totalHerdCount = canonicalHerd.reduce((sum,c) => sum + c.value, 0);
   const extremesOptions = [1,2,3,4,5,6,7,8,9,10];
-  const allTopPerformers = [{id:'TD-009',yield:45},{id:'TD-001',yield:39},{id:'TD-014',yield:37},{id:'TD-002',yield:36},{id:'TD-021',yield:36},{id:'TD-025',yield:35},{id:'TD-028',yield:35},{id:'TD-031',yield:34},{id:'TD-035',yield:34},{id:'TD-038',yield:33}];
-  const allBottomPerformers = [{id:'TD-004',yield:18},{id:'TD-018',yield:22},{id:'TD-003',yield:24},{id:'TD-012',yield:26},{id:'TD-022',yield:26},{id:'TD-027',yield:27},{id:'TD-030',yield:27},{id:'TD-033',yield:28},{id:'TD-037',yield:28},{id:'TD-040',yield:29}];
+  const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
+  const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
   const displayedTop = allTopPerformers.slice(0,extremesCount), displayedBottom = allBottomPerformers.slice(0,extremesCount);
   const activeDropAlerts = alerts.filter(a => a.source === 'MILK_DROP' && a.status !== 'RESOLVED');
-  const healthData = data?.health || { sick:1, mastitis:1, highTemp:0, completedVax:8, dueVax:2 };
+  const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { onHeat?:number; inseminated?:number; pregnant?:number; conceptionRatio?:string; } | undefined;
-  const reproData = { onHeat:reproSource?.onHeat ?? 1, inseminated:reproSource?.inseminated ?? 1, pregnant:reproSource?.pregnant ?? 2, conceptionRatio:reproSource?.conceptionRatio ?? '62%' };
+  const reproData = { onHeat:reproSource?.onHeat ?? 0, inseminated:reproSource?.inseminated ?? 0, pregnant:reproSource?.pregnant ?? 0, conceptionRatio:reproSource ? undefined : undefined };
 
   return (
     <div className="cmd-dash-wrapper" style={{ height:'calc(100vh - 60px)', overflow:'hidden', display:'flex', flexDirection:'column', boxSizing:'border-box', padding:10, minWidth:0 }}>
@@ -131,7 +130,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         </div>
       </div>
       {selectedDropDetail && <div style={modalOverlay}><div style={modalCard}><div style={modalHeader}><div style={{display:'flex',alignItems:'center',gap:8}}><TrendingDown size={18} color="#ef4444"/><h3 style={{margin:0,fontSize:14}}>Yield Drop Diagnostic: #{selectedDropDetail.animalId}</h3></div><button onClick={()=>setSelectedDropDetail(null)} style={iconButton}><X size={18}/></button></div><div style={{padding:18,display:'flex',flexDirection:'column',gap:14}}><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10}}><KpiMini label="Prior 3-Day Avg" value={`${Math.round(selectedDropDetail.prior3DayAvg)} L`}/><KpiMini label="Current Yield" value={`${Math.round(selectedDropDetail.currentYield)} L`}/><KpiMini label="Drop Variance" value={`-${Math.round(selectedDropDetail.dropLiters)} L (${Math.round(selectedDropDetail.dropPercent)}%)`} danger/></div><div style={{background:'#161f30',padding:12,borderRadius:6,fontSize:11,color:'#cbd5e1'}}><div><b>Breed:</b> {selectedDropDetail.breed}</div><div style={{marginTop:5}}><b>Triggered Alert:</b> {selectedDropDetail.alertTitle}</div><div style={{marginTop:5}}><b>Flagged Date:</b> {selectedDropDetail.flagDate}</div></div><div><div style={{fontSize:11,fontWeight:800,color:'#fbbf24',marginBottom:6}}>Probable Causes</div><ul style={{margin:0,paddingLeft:18,fontSize:11,color:'#cbd5e1'}}>{selectedDropDetail.possibleCauses.map(c=><li key={c}>{c}</li>)}</ul></div><div style={{background:'rgba(56,189,248,.10)',borderLeft:'3px solid #38bdf8',padding:10,borderRadius:4,fontSize:11}}><b style={{color:'#38bdf8'}}>Recommended Action:</b> <span style={{color:'#e2e8f0'}}>{selectedDropDetail.recommendedAction}</span></div><div style={{display:'flex',justifyContent:'flex-end',gap:8}}><button onClick={()=>{const tag=selectedDropDetail.animalId;setSelectedDropDetail(null);openPassportHandler(tag);}} style={button('#0284c7')}>Open Passport #{selectedDropDetail.animalId}</button><button onClick={()=>setSelectedDropDetail(null)} style={button('#334155')}>Close</button></div></div></div></div>}
-      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>} 
+      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>}
     </div>
   );
 }
