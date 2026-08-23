@@ -1,0 +1,1 @@
+Windows installer certification is complete only when the GitHub Actions workflow passes the full build and lifecycle test: install, persist farm-data sentinel, uninstall with final backup, reinstall, and recover the same database state.
