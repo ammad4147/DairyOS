@@ -1,9 +1,7 @@
-﻿import React, { useState, useMemo } from 'react';
-import {
-  Activity, Plus, Calendar, CheckCircle2, Heart, Sparkles,
-  AlertTriangle, Filter, Search, ShieldCheck, ChevronRight
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, Plus } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
+import { apiUrl } from '../config/api';
 
 interface BreedingRecord {
   id: string;
@@ -30,184 +28,219 @@ interface BreedingTabProps {
   herdMasterList?: HerdAnimal[];
 }
 
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(apiUrl(path));
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(apiUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let detail = `Request failed: ${response.status}`;
+    try {
+      const body = await response.json() as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // Preserve the status when the response is not JSON.
+    }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<T>;
+}
+
+function normaliseEvent(value: unknown): string {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function dateOnly(value: unknown): string {
+  if (!value) return '-';
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? String(value).slice(0, 10) : parsed.toISOString().split('T')[0];
+}
+
+function addDays(value: string, days: number): string {
+  if (value === '-') return '-';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  parsed.setDate(parsed.getDate() + days);
+  return parsed.toISOString().split('T')[0];
+}
+
 export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: BreedingTabProps) {
   const [activeModalPassport, setActiveModalPassport] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventType, setEventType] = useState<'HEAT' | 'AI' | 'PD' | 'CALVING'>('AI');
+  const [records, setRecords] = useState<BreedingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [conceptionRate, setConceptionRate] = useState<number | null>(null);
 
-  const [records, setRecords] = useState<BreedingRecord[]>([
-    {
-      id: 'BRD-2026-01', tag: 'TD-001', status: 'Confirmed Pregnant', aiDate: '2026-03-28',
-      sireCode: 'ABS-SUPERIOR-991', semenType: 'Sexed Semen (90% Female)', inseminator: 'Dr. Tariq Mahmood',
-      daysPregnant: 146, expectedCalving: '2027-01-02', pdDueDate: '2026-05-02 (Confirmed +)', notes: 'Strong fetal heartbeat detected at 60d ultrasound.'
-    },
-    {
-      id: 'BRD-2026-02', tag: 'TD-002', status: 'Inseminated (Pending PD)', aiDate: '2026-08-06',
-      sireCode: 'WWS-SAHIWAL-STAR', semenType: 'Conventional', inseminator: 'Dr. Tariq Mahmood',
-      daysPregnant: 15, expectedCalving: '2027-05-13', pdDueDate: '2026-09-10 (Day 35)', notes: 'Natural standing heat observed morning milking.'
-    },
-    {
-      id: 'BRD-2026-03', tag: 'TD-003', status: 'Standing Heat', aiDate: '-',
-      sireCode: 'Assigned: US-HO-882', semenType: 'Sexed Semen (90% Female)', inseminator: '-',
-      daysPregnant: 0, expectedCalving: '-', pdDueDate: '-', notes: 'Clear mucus discharge & standing heat at 06:00 AM.'
-    },
-    {
-      id: 'BRD-2026-04', tag: 'TD-005', status: 'Open / Ready', aiDate: '-',
-      sireCode: 'Candidate: ABS-EASY-CALV', semenType: 'Sexed Semen (90% Female)', inseminator: '-',
-      daysPregnant: 0, expectedCalving: '-', pdDueDate: '-', notes: 'Virgin Heifer (18 months, 345 kg BW) ready for 1st service.'
-    },
-  ]);
-
-  // Default select to first available female if array exists
   const eligibleFemales = useMemo(() => {
     return herdMasterList.filter(a => !a.category.includes('Male') && !a.category.includes('Bull'));
   }, [herdMasterList]);
 
-  const [formTag, setFormTag] = useState(eligibleFemales.length > 0 ? eligibleFemales[0].id : 'TD-003');
-  const [formSire, setFormSire] = useState('ABS-SUPERIOR-991');
+  const [formTag, setFormTag] = useState(eligibleFemales.length > 0 ? eligibleFemales[0].id : '');
+  const [formSire, setFormSire] = useState('');
   const [formSemenType, setFormSemenType] = useState<'Sexed Semen (90% Female)' | 'Conventional'>('Sexed Semen (90% Female)');
   const [formInseminator, setFormInseminator] = useState('Dr. Tariq Mahmood');
-  const [formDate, setFormDate] = useState('2026-08-21');
+  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formPdResult, setFormPdResult] = useState<'POSITIVE' | 'NEGATIVE'>('POSITIVE');
   const [formNotes, setFormNotes] = useState('');
+
+  useEffect(() => {
+    if (eligibleFemales.length > 0 && !eligibleFemales.some(animal => animal.id === formTag)) {
+      setFormTag(eligibleFemales[0].id);
+    }
+  }, [eligibleFemales, formTag]);
+
+  const loadRecords = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [breeding, overview] = await Promise.all([
+        getJson<any[]>('/farm/breeding'),
+        getJson<any>('/farm/reproduction/overview'),
+      ]);
+
+      const mapped = breeding.map((item, index): BreedingRecord => {
+        const event = normaliseEvent(item.event_type);
+        const timestamp = dateOnly(item.timestamp || item.date);
+        const result = String(item.result || '').toUpperCase();
+        const status: BreedingRecord['status'] =
+          event.includes('heat') ? 'Standing Heat' :
+          event.includes('insemin') || event === 'ai' ? 'Inseminated (Pending PD)' :
+          event.includes('pregnancy_confirmed') || (event.includes('pregnancy') && result.includes('POSITIVE')) ? 'Confirmed Pregnant' :
+          event.includes('pregnancy_negative') || (event.includes('pregnancy') && result.includes('NEGATIVE')) ? 'Open / Ready' :
+          event.includes('dry') ? 'Dry' :
+          'Open / Ready';
+
+        const aiDate = event.includes('insemin') || event === 'ai' ? timestamp : '-';
+        const confirmedAt = status === 'Confirmed Pregnant' ? (item.pregnancy_confirmed_date || item.timestamp || item.date) : null;
+        const confirmedMs = confirmedAt ? new Date(String(confirmedAt)).getTime() : NaN;
+        const pregnantDays = Number.isNaN(confirmedMs) ? 0 : Math.max(0, Math.floor((Date.now() - confirmedMs) / 86400000));
+        const semen = String(item.semen_or_bull || item.sire_code || '');
+        const semenType = semen.toLowerCase().includes('sexed') ? 'Sexed Semen (90% Female)' : 'Conventional';
+
+        return {
+          id: String(item.record_id ?? item.id ?? `BRD-${index + 1}`),
+          tag: String(item.animal_id || ''),
+          status,
+          aiDate,
+          sireCode: semen || '-',
+          semenType,
+          inseminator: String(item.technician || item.inseminator || '-'),
+          daysPregnant: pregnantDays,
+          expectedCalving: aiDate === '-' ? '-' : addDays(aiDate, 280),
+          pdDueDate: aiDate === '-' ? '-' : addDays(aiDate, 35),
+          notes: String(item.notes || item.result || 'Reproductive event recorded.'),
+        };
+      });
+
+      setRecords(mapped.sort((a, b) => b.aiDate.localeCompare(a.aiDate)));
+      const rate = overview?.conception_rate_percent;
+      setConceptionRate(rate === null || rate === undefined ? null : Number(rate));
+    } catch (loadError) {
+      setRecords([]);
+      setConceptionRate(null);
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load persisted breeding records.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRecords();
+  }, [herdMasterList]);
 
   const openPassportHandler = (tag: string) => {
     if (onOpenPassport) onOpenPassport(tag);
     else setActiveModalPassport(tag);
   };
 
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (eventType === 'AI') {
-      const aiDateTime = new Date(formDate);
-      const pdDate = new Date(aiDateTime);
-      pdDate.setDate(pdDate.getDate() + 35);
-      const calvingDate = new Date(aiDateTime);
-      calvingDate.setDate(calvingDate.getDate() + 280);
+    if (!formTag) return;
+    setError(null);
 
-      const newRecord: BreedingRecord = {
-        id: `BRD-2026-${(records.length + 1).toString().padStart(2, '0')}`,
-        tag: formTag, status: 'Inseminated (Pending PD)', aiDate: formDate, sireCode: formSire,
-        semenType: formSemenType, inseminator: formInseminator, daysPregnant: 0,
-        expectedCalving: calvingDate.toISOString().split('T')[0],
-        pdDueDate: `${pdDate.toISOString().split('T')[0]} (Day 35)`,
-        notes: formNotes || 'AI Straw thawed at 37°C for 45s.'
-      };
-      setRecords([newRecord, ...records.filter(r => r.tag !== formTag)]);
-    } else if (eventType === 'HEAT') {
-      const newRecord: BreedingRecord = {
-        id: `BRD-2026-${(records.length + 1).toString().padStart(2, '0')}`,
-        tag: formTag, status: 'Standing Heat', aiDate: '-', sireCode: formSire,
-        semenType: formSemenType, inseminator: '-', daysPregnant: 0, expectedCalving: '-', pdDueDate: '-',
-        notes: formNotes || 'Standing heat confirmed. Optimal AI window: 12 hrs.'
-      };
-      setRecords([newRecord, ...records.filter(r => r.tag !== formTag)]);
-    } else if (eventType === 'PD') {
-      setRecords(records.map(r => {
-        if (r.tag === formTag) {
-          return {
-            ...r,
-            status: formPdResult === 'POSITIVE' ? 'Confirmed Pregnant' : 'Open / Ready',
-            daysPregnant: formPdResult === 'POSITIVE' && r.aiDate !== '-' 
-              ? Math.max(0, Math.floor((new Date('2026-08-22').getTime() - new Date(r.aiDate).getTime()) / (1000 * 60 * 60 * 24))) 
-              : 0,
-            pdDueDate: formPdResult === 'POSITIVE' ? `${formDate} (Confirmed +)` : `${formDate} (Open - Reheat due)`,
-            notes: formNotes || (formPdResult === 'POSITIVE' ? 'Fetus detected healthy via rectal palpation.' : 'Open cow returned to AI breeding pool.')
-          };
-        }
-        return r;
-      }));
+    try {
+      let event_type = 'insemination';
+      let result = 'RECORDED';
+      if (eventType === 'HEAT') event_type = 'heat_detected';
+      if (eventType === 'PD') {
+        event_type = formPdResult === 'POSITIVE' ? 'pregnancy_confirmed' : 'pregnancy_negative';
+        result = formPdResult;
+      }
+      if (eventType === 'CALVING') event_type = 'calving';
+
+      await postJson('/farm/breeding', {
+        animal_id: formTag,
+        event_type,
+        technician: formInseminator,
+        result,
+        semen_or_bull: eventType === 'insemination' ? `${formSemenType} — ${formSire || 'Unspecified'}` : formSire || null,
+        notes: formNotes || undefined,
+        operator: formInseminator,
+        timestamp: formDate,
+      });
+
+      setShowEventModal(false);
+      setFormNotes('');
+      await loadRecords();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save the breeding event.');
     }
-    setShowEventModal(false);
-    setFormNotes('');
   };
+
+  const activeHeat = records.filter(r => r.status === 'Standing Heat').length;
+  const pendingPd = records.filter(r => r.status === 'Inseminated (Pending PD)').length;
+  const confirmedPregnant = records.filter(r => r.status === 'Confirmed Pregnant').length;
+  const gestationDays = records.filter(r => r.status === 'Confirmed Pregnant' && r.daysPregnant > 0).map(r => r.daysPregnant);
+  const averageGestation = gestationDays.length > 0 ? Math.round(gestationDays.reduce((sum, value) => sum + value, 0) / gestationDays.length) : null;
 
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={20} /> Breeding, Artificial Insemination (AI) & Gestation Ledger
-          </h2>
-          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-            Track estrus detection, genetic sire lineage, sexed semen straws, and 280-day gestation schedules.
-          </p>
+          <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} /> Breeding, Artificial Insemination (AI) & Gestation Ledger</h2>
+          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Track estrus detection, genetic sire lineage, sexed semen straws, and 280-day gestation schedules.</p>
         </div>
-        <button onClick={() => setShowEventModal(true)} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-          <Plus size={15} /> + Record Breeding / AI Event
-        </button>
+        <button onClick={() => setShowEventModal(true)} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}><Plus size={15} /> + Record Breeding / AI Event</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Active Heat Standing</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{records.filter(r => r.status === 'Standing Heat').length} Animals</div>
-          <div style={{ fontSize: '10px', color: '#fb923c' }}>AI Window: Next 12 Hours</div>
-        </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #60a5fa' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Inseminated (Pending PD)</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{records.filter(r => r.status === 'Inseminated (Pending PD)').length} Animals</div>
-          <div style={{ fontSize: '10px', color: '#64748b' }}>PD Check Due Day 35</div>
-        </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Confirmed Pregnant</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' }}>{records.filter(r => r.status === 'Confirmed Pregnant').length} Animals</div>
-          <div style={{ fontSize: '10px', color: '#a78bfa' }}>Average 146d Gestation</div>
-        </div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>First-Service Conception Rate</div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>68.5%</div>
-          <div style={{ fontSize: '10px', color: '#34d399' }}>Sexed Semen Target Met</div>
-        </div>
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Active Heat Standing</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{activeHeat} Animals</div><div style={{ fontSize: '10px', color: '#fb923c' }}>AI Window: Next 12 Hours</div></div>
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #60a5fa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Inseminated (Pending PD)</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{pendingPd} Animals</div><div style={{ fontSize: '10px', color: '#64748b' }}>PD Check Due Day 35</div></div>
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Confirmed Pregnant</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' }}>{confirmedPregnant} Animals</div><div style={{ fontSize: '10px', color: '#a78bfa' }}>{averageGestation === null ? 'No confirmed pregnancy data' : `Average ${averageGestation}d Gestation`}</div></div>
+        <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>First-Service Conception Rate</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>{conceptionRate === null ? '—' : `${conceptionRate.toFixed(1)}%`}</div><div style={{ fontSize: '10px', color: '#34d399' }}>Calculated from persisted reproductive outcomes</div></div>
       </div>
+
+      {error && <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(251,146,60,0.12)', border: '1px solid #7c2d12', color: '#fdba74', fontSize: '12px' }}>{error}</div>}
 
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
         <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937', textAlign: 'left', background: '#161f30' }}>
-              <th style={{ padding: '10px 12px' }}>Animal Tag</th>
-              <th style={{ padding: '10px 12px' }}>Reproductive Status</th>
-              <th style={{ padding: '10px 12px' }}>AI Date & Sire Lineage</th>
-              <th style={{ padding: '10px 12px' }}>Semen Type</th>
-              <th style={{ padding: '10px 12px' }}>Gestation / Calving Timeline</th>
-              <th style={{ padding: '10px 12px' }}>Veterinary Clinical Notes</th>
+          <thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937', textAlign: 'left', background: '#161f30' }}><th style={{ padding: '10px 12px' }}>Animal Tag</th><th style={{ padding: '10px 12px' }}>Reproductive Status</th><th style={{ padding: '10px 12px' }}>AI Date & Sire Lineage</th><th style={{ padding: '10px 12px' }}>Semen Type</th><th style={{ padding: '10px 12px' }}>Gestation / Calving Timeline</th><th style={{ padding: '10px 12px' }}>Veterinary Clinical Notes</th></tr></thead>
+          <tbody>{loading ? null : records.map(r => (
+            <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}>
+              <td style={{ padding: '10px 12px' }}><button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }} title="Open Biological Passport">#{r.tag}</button><div style={{ fontSize: '10px', color: '#64748b' }}>{r.id}</div></td>
+              <td style={{ padding: '10px 12px' }}><span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', background: r.status === 'Confirmed Pregnant' ? 'rgba(167, 139, 250, 0.2)' : r.status === 'Standing Heat' ? 'rgba(251, 146, 60, 0.2)' : r.status === 'Inseminated (Pending PD)' ? 'rgba(96, 165, 250, 0.2)' : 'rgba(52, 211, 153, 0.2)', color: r.status === 'Confirmed Pregnant' ? '#a78bfa' : r.status === 'Standing Heat' ? '#fb923c' : r.status === 'Inseminated (Pending PD)' ? '#60a5fa' : '#34d399' }}>{r.status}</span></td>
+              <td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold', color: '#fff' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>Date: {r.aiDate} • {r.inseminator}</div></td>
+              <td style={{ padding: '10px 12px', color: '#cbd5e1' }}><span style={{ color: r.semenType.includes('Sexed') ? '#ec4899' : '#94a3b8', fontWeight: 'bold', fontSize: '11px' }}>{r.semenType}</span></td>
+              <td style={{ padding: '10px 12px' }}><div style={{ color: '#fff' }}><strong>PD:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399' }}>Calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td>
+              <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: '11px' }}>{r.notes}</td>
             </tr>
-          </thead>
-          <tbody>
-            {records.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}>
-                <td style={{ padding: '10px 12px' }}>
-                  <button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }} title="Open Biological Passport">#{r.tag}</button>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>{r.id}</div>
-                </td>
-                <td style={{ padding: '10px 12px' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', background: r.status === 'Confirmed Pregnant' ? 'rgba(167, 139, 250, 0.2)' : r.status === 'Standing Heat' ? 'rgba(251, 146, 60, 0.2)' : r.status === 'Inseminated (Pending PD)' ? 'rgba(96, 165, 250, 0.2)' : 'rgba(52, 211, 153, 0.2)', color: r.status === 'Confirmed Pregnant' ? '#a78bfa' : r.status === 'Standing Heat' ? '#fb923c' : r.status === 'Inseminated (Pending PD)' ? '#60a5fa' : '#34d399' }}>{r.status}</span>
-                </td>
-                <td style={{ padding: '10px 12px' }}>
-                  <div style={{ fontWeight: 'bold', color: '#fff' }}>{r.sireCode}</div>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Date: {r.aiDate} • {r.inseminator}</div>
-                </td>
-                <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>
-                  <span style={{ color: r.semenType.includes('Sexed') ? '#ec4899' : '#94a3b8', fontWeight: 'bold', fontSize: '11px' }}>{r.semenType}</span>
-                </td>
-                <td style={{ padding: '10px 12px' }}>
-                  <div style={{ color: '#fff' }}><strong>PD:</strong> {r.pdDueDate}</div>
-                  {r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399' }}>Calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}
-                </td>
-                <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: '11px' }}>{r.notes}</td>
-              </tr>
-            ))}
-          </tbody>
+          ))}</tbody>
         </table>
       </div>
 
       {showEventModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#111827', border: '1px solid #fb923c', borderRadius: '10px', width: '480px', padding: '22px' }}>
-            <h3 style={{ margin: '0 0 14px 0', color: '#fb923c', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={18} /> Record Reproduction & Gestation Event
-            </h3>
-
+            <h3 style={{ margin: '0 0 14px 0', color: '#fb923c', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={18} /> Record Reproduction & Gestation Event</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
               <button type="button" onClick={() => setEventType('AI')} style={{ background: eventType === 'AI' ? '#fb923c' : '#1e293b', color: eventType === 'AI' ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Insemination (AI)</button>
               <button type="button" onClick={() => setEventType('HEAT')} style={{ background: eventType === 'HEAT' ? '#fb923c' : '#1e293b', color: eventType === 'HEAT' ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Heat Observation</button>
@@ -218,68 +251,35 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
               <div>
                 <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Select Animal ID</label>
                 <select value={formTag} onChange={e => setFormTag(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
-                  {eligibleFemales.length > 0 ? (
-                    eligibleFemales.map(a => (
-                      <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>
-                    ))
-                  ) : (
-                    <option value="TD-003">TD-003 (Fallback Cow)</option>
-                  )}
+                  {eligibleFemales.length > 0 ? eligibleFemales.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>) : <option value="" disabled>No eligible female animals available</option>}
                 </select>
               </div>
 
               {eventType === 'AI' && (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div>
-                      <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Sire Code / Bull</label>
-                      <input type="text" required value={formSire} onChange={e => setFormSire(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Semen Type</label>
-                      <select value={formSemenType} onChange={(e: any) => setFormSemenType(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
-                        <option value="Sexed Semen (90% Female)">Sexed Semen (90% Female)</option>
-                        <option value="Conventional">Conventional Semen</option>
-                      </select>
-                    </div>
+                    <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Sire Code / Bull</label><input type="text" required value={formSire} onChange={e => setFormSire(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div>
+                    <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Semen Type</label><select value={formSemenType} onChange={e => setFormSemenType(e.target.value as 'Sexed Semen (90% Female)' | 'Conventional')} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}><option value="Sexed Semen (90% Female)">Sexed Semen (90% Female)</option><option value="Conventional">Conventional Semen</option></select></div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div>
-                      <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>AI Date</label>
-                      <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Inseminator / Vet</label>
-                      <input type="text" value={formInseminator} onChange={e => setFormInseminator(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                    </div>
+                    <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>AI Date</label><input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div>
+                    <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Inseminator / Vet</label><input type="text" value={formInseminator} onChange={e => setFormInseminator(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div>
                   </div>
                 </>
               )}
 
               {eventType === 'PD' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>PD Check Result</label>
-                    <select value={formPdResult} onChange={(e: any) => setFormPdResult(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
-                      <option value="POSITIVE">Positive (Confirmed Pregnant)</option>
-                      <option value="NEGATIVE">Negative (Open - Re-breed)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Check Date</label>
-                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-                  </div>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>PD Check Result</label><select value={formPdResult} onChange={e => setFormPdResult(e.target.value as 'POSITIVE' | 'NEGATIVE')} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}><option value="POSITIVE">Positive (Confirmed Pregnant)</option><option value="NEGATIVE">Negative (Open - Re-breed)</option></select></div>
+                  <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Check Date</label><input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div>
                 </div>
               )}
 
-              <div>
-                <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Clinical / Behavioral Notes</label>
-                <input type="text" placeholder="e.g., Mucus quality, straw lot number, ultrasound finding" value={formNotes} onChange={e => setFormNotes(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} />
-              </div>
+              <div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Clinical / Behavioral Notes</label><input type="text" placeholder="e.g., Mucus quality, straw lot number, ultrasound finding" value={formNotes} onChange={e => setFormNotes(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowEventModal(false)} style={{ background: '#334155', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
-                <button type="submit" style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Save Breeding Entry</button>
+                <button type="submit" disabled={loading || !formTag} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Save Breeding Entry</button>
               </div>
             </form>
           </div>
@@ -290,4 +290,3 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
     </div>
   );
 }
-
