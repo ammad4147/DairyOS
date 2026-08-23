@@ -27,6 +27,41 @@ interface DropComparisonDetail {
   dropLiters: number; dropPercent: number; flagDate: string; possibleCauses: string[]; recommendedAction: string;
 }
 
+type MonthlyComlOutput = {
+  month: string;
+  costOfMilkProductionPerLiter: number;
+};
+
+const COML_STORAGE_KEY = 'dairyos_coml_monthly_output';
+const COML_EVENT = 'dairyos:coml-output';
+
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function monthLabel(month: string): string {
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString('en-PK', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function readCurrentComlOutput(): MonthlyComlOutput | null {
+  try {
+    const raw = localStorage.getItem(COML_STORAGE_KEY);
+    if (!raw) return null;
+    const entries = JSON.parse(raw) as Record<string, MonthlyComlOutput>;
+    const entry = entries[currentMonth()];
+    if (!entry || !Number.isFinite(Number(entry.costOfMilkProductionPerLiter))) return null;
+    return {
+      month: entry.month,
+      costOfMilkProductionPerLiter: Number(entry.costOfMilkProductionPerLiter),
+    };
+  } catch {
+    return null;
+  }
+}
+
 import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -38,6 +73,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [extremesCount, setExtremesCount] = useState(3);
   const [passportTag, setPassportTag] = useState<string | null>(null);
   const [selectedDropDetail, setSelectedDropDetail] = useState<DropComparisonDetail | null>(null);
+  const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(() => readCurrentComlOutput());
   const { alerts } = useAlertAudit();
 
   const loadData = useCallback(async () => {
@@ -50,6 +86,16 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const refreshComl = () => setComlOutput(readCurrentComlOutput());
+    window.addEventListener(COML_EVENT, refreshComl);
+    window.addEventListener('storage', refreshComl);
+    return () => {
+      window.removeEventListener(COML_EVENT, refreshComl);
+      window.removeEventListener('storage', refreshComl);
+    };
+  }, []);
 
   const filteredYieldTrend = useMemo(() => {
     const values = Array.isArray(data?.yieldTrend)
@@ -143,6 +189,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { onHeat?:number; inseminated?:number; pregnant?:number; conceptionRatio?:string; } | undefined;
   const reproData = { onHeat:reproSource?.onHeat ?? 0, inseminated:reproSource?.inseminated ?? 0, pregnant:reproSource?.pregnant ?? 0, conceptionRatio:reproSource ? undefined : undefined };
+  const currentComlMonth = comlOutput?.month || currentMonth();
+  const currentComlValue = Number(comlOutput?.costOfMilkProductionPerLiter || 0);
 
   return (
     <div className="cmd-dash-wrapper" style={{ height:'calc(100vh - 60px)', overflow:'hidden', display:'flex', flexDirection:'column', boxSizing:'border-box', padding:10, minWidth:0 }}>
@@ -151,8 +199,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         <div className="cmd-col" style={{ display:'flex', flexDirection:'column', gap:10, minHeight:0, minWidth:0 }}>
           <div className="cmd-card" style={{ flex:'1.6 1 0', display:'flex', flexDirection:'column', background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:10, minHeight:0, minWidth:0, overflow:'hidden' }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate?.('milk')} style={{ display:'flex', alignItems:'center', gap:6, color:'#38bdf8', fontWeight:'bold', fontSize:12, cursor:'pointer', marginBottom:8 }}> <Milk size={16} /> <span>Milk Production & Farm Yield</span></div>
-            <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
-              <SmallStat label="Milking Animals" value={milkingCount} /><SmallStat label="Total Adults" value={canonicalHerd[0].value + canonicalHerd[1].value + canonicalHerd[5].value} /><SmallStat label="Milking %" value={totalHerdCount > 0 ? `${Math.round((milkingCount / totalHerdCount) * 100)}%` : '0%'} color="#34d399" /><SmallStat label="Avg Yield/Cow" value={`${avgYieldPerAnimal} L`} color="#38bdf8" />
+            <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
+              <SmallStat label="Milking Animals" value={milkingCount} /><SmallStat label="Total Adults" value={canonicalHerd[0].value + canonicalHerd[1].value + canonicalHerd[5].value} /><SmallStat label="Milking %" value={totalHerdCount > 0 ? `${Math.round((milkingCount / totalHerdCount) * 100)}%` : '0%'} color="#34d399" /><SmallStat label="Avg Yield/Cow" value={`${avgYieldPerAnimal} L`} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}><WideStat label={currentDateLabel} value={`${todayYield} L`} color={todayYieldColor}/><WideStat label={priorDateLabel} value={`${yesterdayLiters} L`} color="#cbd5e1" border="#64748b"/><WideStat label="Receivables" value={`Rs. ${realTimeReceivables.toLocaleString()}`} color="#f59e0b" border="#f59e0b" /></div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
@@ -169,12 +217,12 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         </div>
       </div>
       {selectedDropDetail && <div style={modalOverlay}><div style={modalCard}><div style={modalHeader}><div style={{display:'flex',alignItems:'center',gap:8}}><TrendingDown size={18} color="#ef4444"/><h3 style={{margin:0,fontSize:14}}>Yield Drop Diagnostic: #{selectedDropDetail.animalId}</h3></div><button onClick={()=>setSelectedDropDetail(null)} style={iconButton}><X size={18}/></button></div><div style={{padding:18,display:'flex',flexDirection:'column',gap:14}}><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10}}><KpiMini label="Prior 3-Day Avg" value={`${Math.round(selectedDropDetail.prior3DayAvg)} L`}/><KpiMini label="Current Yield" value={`${Math.round(selectedDropDetail.currentYield)} L`}/><KpiMini label="Drop Variance" value={`-${Math.round(selectedDropDetail.dropLiters)} L (${Math.round(selectedDropDetail.dropPercent)}%)`} danger/></div><div style={{background:'#161f30',padding:12,borderRadius:6,fontSize:11,color:'#cbd5e1'}}><div><b>Breed:</b> {selectedDropDetail.breed}</div><div style={{marginTop:5}}><b>Triggered Alert:</b> {selectedDropDetail.alertTitle}</div><div style={{marginTop:5}}><b>Flagged Date:</b> {selectedDropDetail.flagDate}</div></div><div><div style={{fontSize:11,fontWeight:800,color:'#fbbf24',marginBottom:6}}>Probable Causes</div><ul style={{margin:0,paddingLeft:18,fontSize:11,color:'#cbd5e1'}}>{selectedDropDetail.possibleCauses.map(c=><li key={c}>{c}</li>)}</ul></div><div style={{background:'rgba(56,189,248,.10)',borderLeft:'3px solid #38bdf8',padding:10,borderRadius:4,fontSize:11}}><b style={{color:'#38bdf8'}}>Recommended Action:</b> <span style={{color:'#e2e8f0'}}>{selectedDropDetail.recommendedAction}</span></div><div style={{display:'flex',justifyContent:'flex-end',gap:8}}><button onClick={()=>{const tag=selectedDropDetail.animalId;setSelectedDropDetail(null);openPassportHandler(tag);}} style={button('#0284c7')}>Open Passport #{selectedDropDetail.animalId}</button><button onClick={()=>setSelectedDropDetail(null)} style={button('#334155')}>Close</button></div></div></div></div>}
-      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>}
+      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>}    
     </div>
   );
 }
 
-function SmallStat({label,value,color='#fff'}:{label:string,value:string|number,color?:string}){return <div style={{background:'#1e293b',padding:6,borderRadius:6,minWidth:0}}><div style={{fontSize:8,color:'#94a3b8'}}>{label}</div><div style={{fontSize:13,fontWeight:900,color,marginTop:2}}>{value}</div></div>}
+function SmallStat({label,value,color='#fff',sublabel}:{label:string,value:string|number,color?:string,sublabel?:string}){return <div style={{background:'#1e293b',padding:6,borderRadius:6,minWidth:0}}><div style={{fontSize:8,color:'#94a3b8'}}>{label}</div><div style={{fontSize:13,fontWeight:900,color,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{value}</div>{sublabel && <div style={{fontSize:7,color:'#64748b',marginTop:2}}>{sublabel}</div>}</div>}
 function WideStat({label,value,color,border='#38bdf8'}:{label:string,value:string,color:string,border?:string}){return <div style={{background:'#1e293b',padding:'8px 12px',borderRadius:6,borderLeft:`3px solid ${border}`,display:'flex',justifyContent:'space-between',alignItems:'center',minWidth:0}}><div style={{fontSize:10,color:'#94a3b8',fontWeight:800}}>{label}</div><div style={{fontSize:15,fontWeight:900,color}}>{value}</div></div>}
 function HerdTable({rows}:{rows:{name:string;value:number;color:string}[]}){return <div style={{minHeight:0,overflow:'auto'}}><table style={{width:'100%',fontSize:10,borderCollapse:'collapse'}}><thead><tr style={{color:'#94a3b8',borderBottom:'1px solid #1f2937'}}><th style={{textAlign:'left',padding:3}}>Category</th><th style={{textAlign:'right',padding:3}}>Count</th></tr></thead><tbody>{rows.map(c=><tr key={c.name} style={{borderBottom:'1px solid #1a2234'}}><td style={{display:'flex',alignItems:'center',gap:4,padding:4,color:'#e2e8f0'}}><div style={{width:6,height:6,backgroundColor:c.color,borderRadius:2}}/>{c.name}</td><td style={{fontWeight:800,textAlign:'right',padding:4}}>{c.value}</td></tr>)}</tbody></table></div>}
 function ExtremeList({title,rows,color,onOpen}:{title:string,rows:{id:string;yield:number}[],color:string,onOpen:(id:string)=>void}){return <div style={{background:'#0b1120',border:'1px solid #1e293b',borderRadius:6,padding:'6px 8px',minWidth:0}}><div style={{fontSize:10,fontWeight:800,color,marginBottom:4,display:'flex',justifyContent:'space-between'}}><span>{title}</span><span>Liters</span></div>{rows.map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',fontSize:10,padding:'2px 4px',background:'#161f30',borderRadius:3,marginBottom:3}}><span onClick={()=>onOpen(p.id)} style={{color:'#38bdf8',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>{i+1}. #{p.id}</span><span style={{color,fontWeight:700}}>{Math.round(p.yield)} L</span></div>)}</div>}
