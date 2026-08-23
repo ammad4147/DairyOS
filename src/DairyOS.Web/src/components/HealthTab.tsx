@@ -1,6 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HeartPulse, Plus, X, Syringe, AlertTriangle, ShieldCheck, FileText } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
+import { apiUrl } from '../config/api';
 
 interface HerdAnimal {
   id: string;
@@ -27,18 +28,46 @@ interface HealthTabProps {
   herdMasterList?: HerdAnimal[];
 }
 
+function normaliseDate(value: unknown): string {
+  if (!value) return '';
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  return parsed.toISOString().split('T')[0];
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(apiUrl(path));
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(apiUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let detail = `Request failed: ${response.status}`;
+    try {
+      const body = await response.json() as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // Keep the HTTP status when the response is not JSON.
+    }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<T>;
+}
+
 export default function HealthTab({ onOpenPassport, herdMasterList = [] }: HealthTabProps) {
   const [showEventModal, setShowEventModal] = useState(false);
   const [activeModalPassport, setActiveModalPassport] = useState<string | null>(null);
-  
-  const [records, setRecords] = useState<HealthRecord[]>([
-    { id: 'HLT-001', tag: 'TD-004', date: '2026-08-20', type: 'Treatment', condition: 'Clinical Mastitis (RF Quarter)', medication: 'Ceftiofur 50mg/mL', veterinarian: 'Dr. Tariq', withdrawalDays: 5, status: 'Active', cost: 4500 },
-    { id: 'HLT-002', tag: 'TD-002', date: '2026-08-15', type: 'Checkup', condition: 'Post-Calving Review', medication: 'Calcium Borogluconate', veterinarian: 'Dr. Tariq', withdrawalDays: 0, status: 'Resolved', cost: 1200 },
-    { id: 'HLT-003', tag: 'TD-005', date: '2026-08-10', type: 'Vaccination', condition: 'Routine FMD Booster', medication: 'FMD-Vac (Trivalent)', veterinarian: 'Farm Staff', withdrawalDays: 0, status: 'Preventative', cost: 500 },
-    { id: 'HLT-004', tag: 'TD-014', date: '2026-08-05', type: 'Treatment', condition: 'Lameness (Hind Left)', medication: 'Flunixin Meglumine', veterinarian: 'Dr. Tariq', withdrawalDays: 3, status: 'Resolved', cost: 2800 }
-  ]);
+  const [records, setRecords] = useState<HealthRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [formTag, setFormTag] = useState(herdMasterList.length > 0 ? herdMasterList[0].id : 'TD-001');
+  const [formTag, setFormTag] = useState(herdMasterList.length > 0 ? herdMasterList[0].id : '');
   const [formType, setFormType] = useState<'Treatment' | 'Vaccination' | 'Checkup'>('Treatment');
   const [formCondition, setFormCondition] = useState('');
   const [formMedication, setFormMedication] = useState('');
@@ -46,47 +75,222 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
   const [formWithdrawal, setFormWithdrawal] = useState('0');
   const [formCost, setFormCost] = useState('0');
 
+  useEffect(() => {
+    if (herdMasterList.length > 0 && !herdMasterList.some(animal => animal.id === formTag)) {
+      setFormTag(herdMasterList[0].id);
+    }
+  }, [herdMasterList, formTag]);
+
+  const loadRecords = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [observations, treatments, activeWithdrawals, financeLedger] = await Promise.all([
+        getJson<any[]>('/farm/health-observations'),
+        getJson<any[]>('/farm/treatments'),
+        getJson<any[]>('/farm/withdrawals/active'),
+        getJson<{ transactions?: any[] }>('/farm/finance-ledger'),
+      ]);
+
+      const vaccinationLists = await Promise.all(
+        herdMasterList.map(async animal => {
+          try {
+            return await getJson<any[]>(`/farm/animals/${encodeURIComponent(animal.id)}/vaccinations`);
+          } catch {
+            return [];
+          }
+        }),
+      );
+
+      const withdrawalIds = new Set(activeWithdrawals.map(item => String(item.treatment_id)));
+      const transactions = Array.isArray(financeLedger?.transactions) ? financeLedger.transactions : [];
+
+      const recentVetExpenses = transactions
+        .filter(item => {
+          const category = String(item.master_category || '').toUpperCase();
+          const subCategory = String(item.sub_category || '');
+          const status = String(item.status || '').toUpperCase();
+          if (category !== 'OPEX' || status === 'VOID') return false;
+          const veterinary = [
+            'Routine Vet Fees / Consultation',
+            'Vaccinations (FMD, HS, LSD, Anthrax)',
+            'Dewormers & Parasiticides',
+            'Mastitis Injectables & Intramammary Tubes',
+            'Antibiotics & General Medications',
+            'Calving & OB Supplies',
+          ];
+          if (!veterinary.includes(subCategory)) return false;
+          const dateValue = item.transaction_date || item.date;
+          if (!dateValue) return false;
+          const parsed = new Date(String(dateValue));
+          const start = new Date();
+          start.setHours(0, 0, 0, 0);
+          start.setDate(start.getDate() - 30);
+          return !Number.isNaN(parsed.getTime()) && parsed >= start;
+        })
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+      const observationRecords: HealthRecord[] = observations.map((item, index) => ({
+        id: `OBS-${item.id ?? index}`,
+        tag: String(item.animal_id || ''),
+        date: normaliseDate(item.timestamp || item.observed_at || item.date),
+        type: 'Checkup',
+        condition: String(item.observation || item.symptom || 'Health observation'),
+        medication: '—',
+        veterinarian: String(item.reported_by || item.operator || 'API'),
+        withdrawalDays: 0,
+        status: 'Resolved',
+        cost: 0,
+      }));
+
+      const treatmentRecords: HealthRecord[] = treatments.map((item, index) => ({
+        id: `TRT-${item.treatment_id ?? item.id ?? index}`,
+        tag: String(item.animal_id || ''),
+        date: normaliseDate(item.treated_at || item.timestamp || item.date),
+        type: 'Treatment',
+        condition: String(item.diagnosis || item.medicine || 'Treatment'),
+        medication: String(item.medicine || '—'),
+        veterinarian: String(item.treated_by || item.operator || 'API'),
+        withdrawalDays: Number(item.milk_withdrawal_days || 0),
+        status: withdrawalIds.has(String(item.treatment_id ?? item.id)) ? 'Active' : 'Resolved',
+        cost: 0,
+      }));
+
+      const vaccinationRecords: HealthRecord[] = vaccinationLists
+        .flat()
+        .map((item, index) => ({
+          id: `VAX-${item.animal_id || 'ANIMAL'}-${item.administered_date || index}-${index}`,
+          tag: String(item.animal_id || ''),
+          date: normaliseDate(item.administered_date),
+          type: 'Vaccination',
+          condition: String(item.vaccine || item.vaccination || 'Vaccination'),
+          medication: String(item.dose || item.vaccine || '—'),
+          veterinarian: String(item.veterinarian || item.operator || 'API'),
+          withdrawalDays: 0,
+          status: 'Preventative',
+          cost: 0,
+        }));
+
+      const combined = [...observationRecords, ...treatmentRecords, ...vaccinationRecords]
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      setRecords(combined.map(record => ({
+        ...record,
+        cost: record.cost || (combined.length > 0 ? 0 : recentVetExpenses),
+      })));
+    } catch (loadError) {
+      setRecords([]);
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load persisted health records.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRecords();
+  }, [herdMasterList]);
+
   const openPassportHandler = (tag: string) => {
     if (onOpenPassport) onOpenPassport(tag);
     else setActiveModalPassport(tag);
   };
 
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newRecord: HealthRecord = {
-      id: `HLT-${Date.now().toString().slice(-4)}`,
-      tag: formTag,
-      date: new Date().toISOString().split('T')[0],
-      type: formType,
-      condition: formCondition,
-      medication: formMedication,
-      veterinarian: formVet,
-      withdrawalDays: parseInt(formWithdrawal) || 0,
-      status: formType === 'Treatment' ? 'Active' : (formType === 'Vaccination' ? 'Preventative' : 'Resolved'),
-      cost: parseFloat(formCost) || 0
-    };
-    
-    setRecords([newRecord, ...records]);
-    setShowEventModal(false);
-    
-    // Reset form
-    setFormCondition('');
-    setFormMedication('');
-    setFormWithdrawal('0');
-    setFormCost('0');
-  };
+    if (!formTag) return;
+    setError(null);
 
-  const getRemainingWithdrawal = (recordDate: string, prescribedDays: number) => {
-    if (prescribedDays <= 0) return 0;
-    const today = new Date('2026-08-22').getTime();
-    const treatDate = new Date(recordDate).getTime();
-    const daysElapsed = Math.floor((today - treatDate) / (1000 * 60 * 60 * 24));
-    const remaining = prescribedDays - daysElapsed;
-    return remaining > 0 ? remaining : 0;
+    try {
+      const cost = parseFloat(formCost) || 0;
+      const today = new Date().toISOString().split('T')[0];
+
+      if (formType === 'Treatment') {
+        const saved = await postJson<any>('/farm/treatments', {
+          animal_id: formTag,
+          medicine: formMedication,
+          diagnosis: formCondition,
+          treated_by: formVet,
+          milk_withdrawal_days: parseFloat(formWithdrawal) || 0,
+          notes: formCondition,
+          operator: formVet,
+        });
+
+        if (cost > 0) {
+          await postJson('/farm/finance-ledger', {
+            transaction_type: 'EXPENSE',
+            master_category: 'OPEX',
+            sub_category: 'Routine Vet Fees / Consultation',
+            amount: cost,
+            transaction_date: today,
+            reference: `HEALTH-TREATMENT-${saved.treatment_id}`,
+            counterparty: formVet,
+            notes: `${formCondition || 'Veterinary treatment'} — ${formTag}`,
+            status: 'RECORDED',
+          });
+        }
+      } else if (formType === 'Vaccination') {
+        await postJson(`/farm/animals/${encodeURIComponent(formTag)}/vaccinations`, {
+          vaccine: formMedication || formCondition,
+          dose: formMedication,
+          administered_date: today,
+          veterinarian: formVet,
+          notes: formCondition,
+          operator: formVet,
+        });
+
+        if (cost > 0) {
+          await postJson('/farm/finance-ledger', {
+            transaction_type: 'EXPENSE',
+            master_category: 'OPEX',
+            sub_category: 'Vaccinations (FMD, HS, LSD, Anthrax)',
+            amount: cost,
+            transaction_date: today,
+            reference: `HEALTH-VACCINATION-${formTag}-${today}`,
+            counterparty: formVet,
+            notes: `${formCondition || 'Vaccination'} — ${formTag}`,
+            status: 'RECORDED',
+          });
+        }
+      } else {
+        await postJson('/farm/health-observations', {
+          animal_id: formTag,
+          observation: formCondition,
+          symptom: formCondition,
+          severity: 'NORMAL',
+          operator: formVet,
+        });
+
+        if (cost > 0) {
+          await postJson('/farm/finance-ledger', {
+            transaction_type: 'EXPENSE',
+            master_category: 'OPEX',
+            sub_category: 'Routine Vet Fees / Consultation',
+            amount: cost,
+            transaction_date: today,
+            reference: `HEALTH-CHECKUP-${formTag}-${today}`,
+            counterparty: formVet,
+            notes: `${formCondition || 'Veterinary checkup'} — ${formTag}`,
+            status: 'RECORDED',
+          });
+        }
+      }
+
+      setShowEventModal(false);
+      setFormCondition('');
+      setFormMedication('');
+      setFormWithdrawal('0');
+      setFormCost('0');
+      await loadRecords();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save the health event.');
+    }
   };
 
   const activeTreatments = records.filter(r => r.status === 'Active');
-  const totalMonthlyCost = records.reduce((sum, r) => sum + r.cost, 0);
+  const withdrawalCount = records.filter(r => r.status === 'Active' && r.withdrawalDays > 0).length;
+  const totalMonthlyCost = records.length > 0
+    ? records.reduce((sum, r) => sum + r.cost, 0)
+    : 0;
 
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
@@ -111,19 +315,19 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
         </div>
         <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
           <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>In Withdrawal Period</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>
-             {records.filter(r => r.status === 'Active' && r.withdrawalDays > 0).length}
-          </div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{withdrawalCount}</div>
         </div>
         <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #34d399' }}>
           <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>Vaccination Compliance</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>95%</div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>{records.length === 0 ? '0%' : 'LIVE'}</div>
         </div>
         <div style={{ background: '#111827', border: '1px solid #1f2937', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #38bdf8' }}>
           <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>30-Day Vet Expenses</div>
           <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#38bdf8' }}>Rs. {totalMonthlyCost.toLocaleString()}</div>
         </div>
       </div>
+
+      {error && <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(239,68,68,0.12)', border: '1px solid #7f1d1d', color: '#fca5a5', fontSize: '12px' }}>{error}</div>}
 
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}>
         <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
@@ -138,13 +342,11 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => (
+            {loading ? null : records.map((r) => (
               <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}>
                 <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.date}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '13px' }}>
-                    #{r.tag}
-                  </button>
+                  <button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '13px' }}>#{r.tag}</button>
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -155,17 +357,13 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
                 <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{r.medication}</td>
                 <td style={{ padding: '12px 16px' }}>
                   {r.withdrawalDays > 0 ? (
-                     <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fcd34d', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                       <AlertTriangle size={12} /> {r.withdrawalDays} Days
-                     </span>
+                    <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fcd34d', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> {r.withdrawalDays} Days</span>
                   ) : (
                     <span style={{ color: '#64748b', fontSize: '11px' }}>Clear</span>
                   )}
                 </td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                  <span style={{ background: r.status === 'Active' ? 'rgba(239, 68, 68, 0.2)' : r.status === 'Resolved' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(52, 211, 153, 0.2)', color: r.status === 'Active' ? '#fca5a5' : r.status === 'Resolved' ? '#7dd3fc' : '#6ee7b7', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
-                    {r.status}
-                  </span>
+                  <span style={{ background: r.status === 'Active' ? 'rgba(239, 68, 68, 0.2)' : r.status === 'Resolved' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(52, 211, 153, 0.2)', color: r.status === 'Active' ? '#fca5a5' : r.status === 'Resolved' ? '#7dd3fc' : '#6ee7b7', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>{r.status}</span>
                 </td>
               </tr>
             ))}
@@ -177,33 +375,24 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#111827', border: '1px solid #ef4444', borderRadius: '10px', width: '500px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, color: '#ef4444', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Syringe size={18} /> Record Clinical Event
-              </h3>
+              <h3 style={{ margin: 0, color: '#ef4444', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Syringe size={18} /> Record Clinical Event</h3>
               <button onClick={() => setShowEventModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button>
             </div>
 
             <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {['Treatment', 'Vaccination', 'Checkup'].map(type => (
-                  <button key={type} type="button" onClick={() => setFormType(type as any)} style={{ background: formType === type ? '#ef4444' : '#1e293b', color: formType === type ? '#fff' : '#cbd5e1', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {type}
-                  </button>
+                  <button key={type} type="button" onClick={() => setFormType(type as 'Treatment' | 'Vaccination' | 'Checkup')} style={{ background: formType === type ? '#ef4444' : '#1e293b', color: formType === type ? '#fff' : '#cbd5e1', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>{type}</button>
                 ))}
               </div>
 
               <div>
                 <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Patient / Animal ID</label>
                 <select value={formTag} onChange={e => setFormTag(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>
-                  {herdMasterList.length > 0 ? (
-                    herdMasterList.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed} - {a.status})</option>)
-                  ) : (
-                    <option value="TD-001">TD-001 (Fallback)</option>
-                  )}
+                  {herdMasterList.length > 0 ? herdMasterList.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed} - {a.status})</option>) : <option value="" disabled>No registered animals available</option>}
                 </select>
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Diagnosis / Condition</label>
@@ -219,7 +408,7 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
                 <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Medication Administered</label>
                 <input type="text" required placeholder="e.g., Ceftiofur 50mg" value={formMedication} onChange={e => setFormMedication(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Milk/Meat Withdrawal (Days)</label>
@@ -233,17 +422,14 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setShowEventModal(false)} style={{ background: '#334155', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Cancel</button>
-                <button type="submit" style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={16} /> Save Record
-                </button>
+                <button type="submit" disabled={loading || !formTag} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Save Record</button>
               </div>
             </form>
           </div>
         </div>
       )}
-      
+
       {activeModalPassport && <AnimalPassportModal animalId={activeModalPassport} onClose={() => setActiveModalPassport(null)} />}
     </div>
   );
 }
-
