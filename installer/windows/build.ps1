@@ -35,20 +35,60 @@ Reset-Directory $DistRoot
 New-Item -ItemType Directory -Path $BackendRoot,$FrontendRoot,$PostgresRoot,$RecoveryRoot -Force | Out-Null
 
 Write-Host "`n=== POSTGRESQL WINDOWS BINARIES ===" -ForegroundColor Cyan
-$zipName = "postgresql-$PostgresVersion-1-windows-x64-binaries.zip"
-$tempZip = Join-Path $env:TEMP $zipName
-$downloadPage = Invoke-WebRequest -Uri "https://www.enterprisedb.com/download-postgresql-binaries" -UseBasicParsing
-$pattern = 'href=["'']([^"'']*' + [regex]::Escape($zipName) + ')["'']'
-$match = [regex]::Match($downloadPage.Content, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-if (-not $match.Success) {
-    throw "Could not locate the PostgreSQL binary archive for $zipName on EDB's current download page."
+$downloadPage = Invoke-WebRequest -Uri "https://www.enterprisedb.com/download-postgresql-binaries?lang=en" -UseBasicParsing
+$html = [string]$downloadPage.Content
+
+$downloadUri = $null
+$hrefMatches = [regex]::Matches(
+    $html,
+    'href=["'']([^"'']+)["'']',
+    [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+)
+
+foreach ($match in $hrefMatches) {
+    $candidate = $match.Groups[1].Value
+    if ($candidate -match '(?i)getfile\.jsp\?fileid=\d+' -or $candidate -match '(?i)postgresql-[0-9.]+-\d+-windows-x64-binaries\.zip') {
+        if ($candidate -notmatch '^https?://') {
+            if ($candidate.StartsWith('//')) {
+                $candidate = "https:$candidate"
+            } else {
+                $candidate = [System.Uri]::new([System.Uri]"https://www.enterprisedb.com", $candidate).AbsoluteUri
+            }
+        }
+        $downloadUri = $candidate
+        break
+    }
 }
-$href = $match.Groups[1].Value
-if ($href -notmatch '^https?://') {
-    $href = "https://www.enterprisedb.com$href"
+
+if (-not $downloadUri) {
+    # EDB's page has historically exposed the Windows-binary download through
+    # a getfile.jsp URL adjacent to the Windows x86-64 entry. Keep a second
+    # pass that uses the surrounding HTML when the href itself is opaque.
+    $htmlLines = $html -split "`r?`n"
+    for ($i = 0; $i -lt $htmlLines.Count -and -not $downloadUri; $i++) {
+        if ($htmlLines[$i] -match '(?i)Windows\s*x86-64') {
+            for ($j = 1; $j -le 8 -and ($i - $j) -ge 0; $j++) {
+                $previous = $htmlLines[$i - $j]
+                $urlMatch = [regex]::Match(
+                    $previous,
+                    '(?i)https?://sbp\.enterprisedb\.com/getfile\.jsp\?fileid=\d+|https?://www\.enterprisedb\.com/getfile\.jsp\?fileid=\d+',
+                )
+                if ($urlMatch.Success) {
+                    $downloadUri = $urlMatch.Value
+                    break
+                }
+            }
+        }
+    }
 }
-Write-Host "Downloading $href"
-Invoke-WebRequest -Uri $href -OutFile $tempZip -UseBasicParsing
+
+if (-not $downloadUri) {
+    throw "Could not determine a PostgreSQL Windows binary download URL from EDB's current download page."
+}
+
+Write-Host "Downloading PostgreSQL binaries from: $downloadUri"
+$tempZip = Join-Path $env:TEMP "dairyos-postgresql-$PostgresVersion-$([guid]::NewGuid().ToString('N')).zip"
+Invoke-WebRequest -Uri $downloadUri -OutFile $tempZip -UseBasicParsing
 
 $tempExtract = Join-Path $env:TEMP "dairyos-pg-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $tempExtract -Force | Out-Null
