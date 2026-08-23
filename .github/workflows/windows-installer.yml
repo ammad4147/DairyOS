@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 45
     env:
       PG_INSTALLER_URL: https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64.exe
+      CI_PG_PASSWORD: dairyos-ci-postgres-18
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,14 +50,52 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install . pyinstaller pytest httpx2
 
-      - name: Backend regression
-        run: python -m pytest -q
-
       - name: Download PostgreSQL 18.6 Windows x64
         working-directory: packaging/windows
         run: |
           Invoke-WebRequest -Uri $env:PG_INSTALLER_URL -OutFile postgresql-18.6-1-windows-x64.exe
           if ((Get-Item postgresql-18.6-1-windows-x64.exe).Length -lt 100MB) { throw 'PostgreSQL installer download is unexpectedly small.' }
+
+      - name: Start temporary PostgreSQL for backend regression
+        working-directory: packaging/windows
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $pgRoot = 'C:\pg-ci'
+          $dataRoot = "$pgRoot\data"
+          $serviceName = 'DairyOS-CI-PostgreSQL'
+          Remove-Item -Recurse -Force $pgRoot -ErrorAction SilentlyContinue
+          & .\postgresql-18.6-1-windows-x64.exe --mode unattended --unattendedmodeui none --prefix $pgRoot --datadir $dataRoot --serverport 5432 --superaccount postgres --superpassword $env:CI_PG_PASSWORD --servicepassword $env:CI_PG_PASSWORD --servicename $serviceName --disable-components pgAdmin,stackbuilder
+          if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL unattended installation failed.' }
+          Start-Service $serviceName
+          $pgBin = "$pgRoot\bin"
+          $ready = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            & "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 5432 -U postgres -q
+            if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) { throw 'Temporary PostgreSQL did not become ready on localhost:5432.' }
+          $env:PGPASSWORD = $env:CI_PG_PASSWORD
+          & "$pgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -c 'CREATE DATABASE dairyos;'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create CI dairyos database.' }
+
+      - name: Backend regression
+        timeout-minutes: 15
+        env:
+          DAIRYOS_DB_HOST: 127.0.0.1
+          DAIRYOS_DB_PORT: '5432'
+          DAIRYOS_DB_NAME: dairyos
+          DAIRYOS_DB_USER: postgres
+          DAIRYOS_DB_PASSWORD: dairyos-ci-postgres-18
+          DAIRYOS_ENV: test
+        run: python -m pytest -q
+
+      - name: Stop temporary PostgreSQL
+        if: always()
+        shell: pwsh
+        run: |
+          Stop-Service 'DairyOS-CI-PostgreSQL' -ErrorAction SilentlyContinue
 
       - name: Package DairyOS desktop executable
         shell: pwsh
