@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getStoredUser } from '../auth';
+import { apiUrl } from '../config/api';
 
 export interface AuditAlertItem {
   id: string;
@@ -20,111 +22,151 @@ export interface AuditAlertItem {
 
 interface AlertAuditContextType {
   alerts: AuditAlertItem[];
-  markResolved: (id: string, operator?: string, notes?: string) => void;
-  adminReinstate: (id: string, adminName?: string, reason?: string) => void;
-  reinstateAlert: (id: string, adminName?: string, reason?: string) => void;
+  markResolved: (id: string, operator?: string, notes?: string) => Promise<void>;
+  adminReinstate: (id: string, adminName?: string, reason?: string) => Promise<void>;
+  reinstateAlert: (id: string, adminName?: string, reason?: string) => Promise<void>;
   activeCount: number;
+}
+
+interface FindingPayload {
+  finding_id: string;
+  source_module?: string;
+  subject_type?: string | null;
+  subject_id?: string | null;
+  severity?: string;
+  title?: string;
+  detail?: string | null;
+  status?: string;
+  raised_at?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  resolution_note?: string | null;
+  reinstated_at?: string | null;
+  reinstated_by?: string | null;
+  reinstate_reason?: string | null;
 }
 
 const AlertAuditContext = createContext<AlertAuditContextType | undefined>(undefined);
 
+function mapSource(source?: string): AuditAlertItem['source'] {
+  switch ((source || '').toUpperCase()) {
+    case 'MILK': return 'MILK_DROP';
+    case 'HEALTH': return 'HEALTH_WITHDRAWAL';
+    case 'BREEDING': return 'BREEDING_HEAT';
+    case 'RECONCILIATION': return 'RECONCILIATION';
+    default: return 'SYSTEM';
+  }
+}
+
+function mapLevel(severity?: string): AuditAlertItem['initialLevel'] {
+  switch ((severity || '').toUpperCase()) {
+    case 'CRITICAL':
+    case 'HIGH': return 'RED';
+    case 'INFORMATION': return 'INFO';
+    default: return 'AMBER';
+  }
+}
+
+function mapStatus(status?: string): AuditAlertItem['status'] {
+  switch ((status || '').toUpperCase()) {
+    case 'RESOLVED': return 'RESOLVED';
+    case 'REINSTATED': return 'REINSTATED';
+    default: return 'ACTIVE';
+  }
+}
+
+function toAlert(finding: FindingPayload): AuditAlertItem {
+  const level = mapLevel(finding.severity);
+  return {
+    id: finding.finding_id,
+    source: mapSource(finding.source_module),
+    animalId: finding.subject_id || undefined,
+    title: finding.title || 'Operational Finding',
+    details: finding.detail || 'Persisted operational finding.',
+    initialLevel: level,
+    currentLevel: finding.status === 'REINSTATED' ? 'RED' : level,
+    status: mapStatus(finding.status),
+    createdAt: finding.raised_at || '',
+    resolvedAt: finding.resolved_at || undefined,
+    resolvedBy: finding.resolved_by || undefined,
+    resolutionNotes: finding.resolution_note || undefined,
+    reinstatedAt: finding.reinstated_at || undefined,
+    reinstatedBy: finding.reinstated_by || undefined,
+    reinstateReason: finding.reinstate_reason || undefined,
+  };
+}
+
+async function loadFindings(): Promise<AuditAlertItem[]> {
+  const response = await fetch(apiUrl('/farm/findings'));
+  if (!response.ok) throw new Error(`Unable to load operational findings (${response.status})`);
+  const payload = await response.json() as { findings?: FindingPayload[] };
+  return Array.isArray(payload.findings) ? payload.findings.map(toAlert) : [];
+}
+
 export const AlertAuditProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [alerts, setAlerts] = useState<AuditAlertItem[]>([
-    {
-      id: 'ALT-1001',
-      source: 'HEALTH_WITHDRAWAL',
-      animalId: 'TD-004',
-      title: 'Mandatory Milk Withdrawal Active (Clinical Mastitis)',
-      details: 'Milk withholding required for 3 days due to intramammary antibiotic treatment.',
-      initialLevel: 'RED',
-      currentLevel: 'RED',
-      status: 'ACTIVE',
-      createdAt: '2026-08-20 06:00:00',
-    },
-    {
-      id: 'ALT-1002',
-      source: 'MILK_DROP',
-      animalId: 'TD-009',
-      title: 'Severe Yield Drop Alert (-34.1% vs Baseline)',
-      details: 'Recorded 29.0 L vs expected 44.0 L. Modality 3x Daily.',
-      initialLevel: 'RED',
-      currentLevel: 'RED',
-      status: 'ACTIVE',
-      createdAt: '2026-08-20 07:05:00',
-    },
-    {
-      id: 'ALT-1003',
-      source: 'MILK_DROP',
-      animalId: 'TD-003',
-      title: 'Amber Drop Warning (-17.1% vs Baseline)',
-      details: 'Recorded 29.0 L vs expected 35.0 L. Ration check recommended.',
-      initialLevel: 'AMBER',
-      currentLevel: 'AMBER',
-      status: 'ACTIVE',
-      createdAt: '2026-08-20 06:45:00',
-    },
-    {
-      id: 'ALT-1004',
-      source: 'RECONCILIATION',
-      title: 'Mass-Balance Variance (11.2 L Unaccounted)',
-      details: 'Total produced yield exceeds recorded sales, domestic, and calf feeding logs.',
-      initialLevel: 'AMBER',
-      currentLevel: 'AMBER',
-      status: 'RESOLVED',
-      createdAt: '2026-08-19 18:30:00',
-      resolvedAt: '2026-08-19 19:15:22',
-      resolvedBy: 'Ammad Hassan',
-      resolutionNotes: 'Calf bucket 2 entry was delayed. Reconciled after log entry.',
+  const [alerts, setAlerts] = useState<AuditAlertItem[]>([]);
+
+  const refresh = async () => {
+    try {
+      setAlerts(await loadFindings());
+    } catch (error) {
+      console.error('DairyOS operational findings load failed:', error);
+      setAlerts([]);
     }
-  ]);
-
-  const markResolved = (id: string, operator = 'Ammad Hassan', notes = 'Operator marked resolved') => {
-    const now = new Date();
-    const timestamp = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + ' ' +
-      now.toLocaleTimeString('en-GB');
-
-    setAlerts(prev => prev.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: 'RESOLVED',
-          resolvedAt: timestamp,
-          resolvedBy: operator,
-          resolutionNotes: notes
-        };
-      }
-      return item;
-    }));
   };
 
-  const adminReinstate = (id: string, adminName = 'Ammad Hassan (Admin)', reason = 'Erroneous resolution override') => {
-    const now = new Date();
-    const timestamp = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + ' ' +
-      now.toLocaleTimeString('en-GB');
+  useEffect(() => {
+    void refresh();
+  }, []);
 
-    setAlerts(prev => prev.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: 'REINSTATED',
-          currentLevel: 'RED',
-          reinstatedAt: timestamp,
-          reinstatedBy: adminName,
-          reinstateReason: reason
-        };
-      }
-      return item;
-    }));
+  const markResolved = async (
+    id: string,
+    operator = getStoredUser()?.username || 'UI Operator',
+    notes = 'Operator marked resolved',
+  ) => {
+    const response = await fetch(apiUrl(`/farm/findings/${encodeURIComponent(id)}/resolve`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operator, resolution_note: notes }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `Unable to resolve finding (${response.status})`);
+    }
+    await refresh();
   };
 
-  const activeCount = alerts.filter(a => a.status === 'ACTIVE' || a.status === 'REINSTATED').length;
+  const adminReinstate = async (
+    id: string,
+    adminName = getStoredUser()?.username || 'Administrator',
+    reason = 'Administrative reinstatement',
+  ) => {
+    const response = await fetch(apiUrl(`/farm/findings/${encodeURIComponent(id)}/reinstate`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operator: adminName, reason }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(payload?.detail || `Unable to reinstate finding (${response.status})`);
+    }
+    await refresh();
+  };
+
+  const activeCount = alerts.filter(
+    alert => alert.status === 'ACTIVE' || alert.status === 'REINSTATED',
+  ).length;
 
   return (
-    <AlertAuditContext.Provider value={{ alerts, markResolved, adminReinstate, reinstateAlert: adminReinstate, activeCount }}>
+    <AlertAuditContext.Provider
+      value={{
+        alerts,
+        markResolved,
+        adminReinstate,
+        reinstateAlert: adminReinstate,
+        activeCount,
+      }}
+    >
       {children}
     </AlertAuditContext.Provider>
   );
