@@ -1,9 +1,8 @@
 """Operational Finding lifecycle endpoints (AA-013 §4, D-UI-5).
 
-Findings are raised by detection engines (e.g. the milk drop detector),
-never created directly by an operator POST -- there is deliberately no
-`POST /farm/findings`, the same way there is no manual way to create a
-command-center decision. Operators can only acknowledge or resolve.
+Findings are raised by detection engines; operators can acknowledge, resolve,
+and administrators can persistently reinstate a resolved finding with a
+reason.
 """
 from __future__ import annotations
 
@@ -13,9 +12,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.findings.services.operational_finding_service import (
-    OperationalFindingService,
-)
+from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
 
 router = APIRouter(prefix="/farm/findings", tags=["Operational Findings"])
 
@@ -27,6 +24,11 @@ class AcknowledgeFindingRequest(BaseModel):
 class ResolveFindingRequest(BaseModel):
     operator: str = Field(default="UI Operator", min_length=1)
     resolution_note: str | None = None
+
+
+class ReinstateFindingRequest(BaseModel):
+    operator: str = Field(default="UI Operator", min_length=1)
+    reason: str = Field(min_length=1)
 
 
 def _finding_dict(finding) -> dict[str, Any]:
@@ -48,6 +50,9 @@ def _finding_dict(finding) -> dict[str, Any]:
         "resolved_at": finding.resolved_at.isoformat() if finding.resolved_at else None,
         "resolved_by": finding.resolved_by,
         "resolution_note": finding.resolution_note,
+        "reinstated_at": finding.reinstated_at.isoformat() if finding.reinstated_at else None,
+        "reinstated_by": finding.reinstated_by,
+        "reinstate_reason": finding.reinstate_reason,
     }
 
 
@@ -68,8 +73,6 @@ def list_findings(module: str | None = None, status: str | None = None, severity
 
 @router.get("/counts")
 def finding_counts():
-    """Per-module unresolved counts for the dashboard nav badges (§4.5)."""
-
     service, rf = _service()
     try:
         return {"counts": service.counts_by_module()}
@@ -81,8 +84,7 @@ def finding_counts():
 def acknowledge_finding(finding_id: str, payload: AcknowledgeFindingRequest):
     service, rf = _service()
     try:
-        finding = service.acknowledge(finding_id, operator=payload.operator)
-        return _finding_dict(finding)
+        return _finding_dict(service.acknowledge(finding_id, operator=payload.operator))
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
@@ -93,8 +95,32 @@ def acknowledge_finding(finding_id: str, payload: AcknowledgeFindingRequest):
 def resolve_finding(finding_id: str, payload: ResolveFindingRequest):
     service, rf = _service()
     try:
-        finding = service.resolve(finding_id, operator=payload.operator, resolution_note=payload.resolution_note)
-        return _finding_dict(finding)
+        return _finding_dict(
+            service.resolve(
+                finding_id,
+                operator=payload.operator,
+                resolution_note=payload.resolution_note,
+            )
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        rf.close()
+
+
+@router.post("/{finding_id}/reinstate")
+def reinstate_finding(finding_id: str, payload: ReinstateFindingRequest):
+    service, rf = _service()
+    try:
+        return _finding_dict(
+            service.reinstate(
+                finding_id,
+                operator=payload.operator,
+                reason=payload.reason,
+            )
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
