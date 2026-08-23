@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\.." )).Path
 $WebRoot = Join-Path $RepoRoot "src\DairyOS.Web"
 $InstallerRoot = Join-Path $RepoRoot "installer\windows"
 $RuntimeRoot = Join-Path $InstallerRoot "runtime"
@@ -33,35 +33,6 @@ Write-Host "PostgreSQL binary version: $PostgresVersion"
 Reset-Directory $RuntimeRoot
 Reset-Directory $DistRoot
 New-Item -ItemType Directory -Path $BackendRoot,$FrontendRoot,$PostgresRoot,$RecoveryRoot -Force | Out-Null
-
-Write-Host "`n=== BACKEND TEST / PACKAGE ===" -ForegroundColor Cyan
-Set-Location $RepoRoot
-python -m pip install --upgrade pip
-python -m pip install . pyinstaller pytest httpx2
-python -m pytest -q
-if ($LASTEXITCODE -ne 0) { throw "Backend regression failed." }
-
-python -m PyInstaller `
-    --noconfirm `
-    --clean `
-    --onefile `
-    --name dairyos-server `
-    --paths src `
-    --collect-all dairyos `
-    src\dairyos\server.py
-if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed." }
-
-Copy-Item -LiteralPath (Join-Path $RepoRoot "dist\dairyos-server.exe") -Destination $BackendRoot -Force
-
-Write-Host "`n=== FRONTEND TEST / BUILD ===" -ForegroundColor Cyan
-Set-Location $WebRoot
-npm ci --no-audit --fund=false
-if ($LASTEXITCODE -ne 0) { throw "Frontend npm ci failed." }
-npm run typecheck
-if ($LASTEXITCODE -ne 0) { throw "Frontend typecheck failed." }
-npm run build
-if ($LASTEXITCODE -ne 0) { throw "Frontend build failed." }
-Copy-Item -LiteralPath (Join-Path $WebRoot "dist\*") -Destination $FrontendRoot -Recurse -Force
 
 Write-Host "`n=== POSTGRESQL WINDOWS BINARIES ===" -ForegroundColor Cyan
 $zipName = "postgresql-$PostgresVersion-1-windows-x64-binaries.zip"
@@ -90,6 +61,76 @@ Copy-Item -LiteralPath (Join-Path $pgRoot "*") -Destination $PostgresRoot -Recur
 
 Remove-Item -LiteralPath $tempZip -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
+
+$ciPgData = $null
+$ciPgRunning = $false
+if ($env:CI -eq "true") {
+    Write-Host "`n=== CI POSTGRESQL TEST INSTANCE ===" -ForegroundColor Cyan
+    $ciPgData = Join-Path $env:TEMP "dairyos-ci-pg-$([guid]::NewGuid().ToString('N'))"
+    $pgCtl = Join-Path $PostgresRoot "bin\pg_ctl.exe"
+    $initDb = Join-Path $PostgresRoot "bin\initdb.exe"
+    $createdb = Join-Path $PostgresRoot "bin\createdb.exe"
+    if (-not (Test-Path $pgCtl)) { throw "pg_ctl.exe was not found in the bundled PostgreSQL runtime." }
+    if (-not (Test-Path $initDb)) { throw "initdb.exe was not found in the bundled PostgreSQL runtime." }
+    if (-not (Test-Path $createdb)) { throw "createdb.exe was not found in the bundled PostgreSQL runtime." }
+
+    & $initDb -D $ciPgData -U postgres --auth=trust --encoding=UTF8 --locale=C
+    if ($LASTEXITCODE -ne 0) { throw "PostgreSQL initdb failed." }
+
+    & $pgCtl -D $ciPgData -w start -o "-h 127.0.0.1 -p 5432"
+    if ($LASTEXITCODE -ne 0) { throw "PostgreSQL test server failed to start." }
+    $ciPgRunning = $true
+
+    & $createdb -h 127.0.0.1 -p 5432 -U postgres dairyos
+    if ($LASTEXITCODE -ne 0) { throw "PostgreSQL test database creation failed." }
+
+    $env:DAIRYOS_DB_HOST = "127.0.0.1"
+    $env:DAIRYOS_DB_PORT = "5432"
+    $env:DAIRYOS_DB_NAME = "dairyos"
+    $env:DAIRYOS_DB_USER = "postgres"
+    $env:DAIRYOS_DB_PASSWORD = "postgres"
+    Write-Host "CI PostgreSQL test instance is ready on 127.0.0.1:5432."
+}
+
+try {
+    Write-Host "`n=== BACKEND TEST / PACKAGE ===" -ForegroundColor Cyan
+    Set-Location $RepoRoot
+    python -m pip install --upgrade pip
+    python -m pip install . pyinstaller pytest httpx2
+    python -m pytest -q
+    if ($LASTEXITCODE -ne 0) { throw "Backend regression failed." }
+} finally {
+    if ($ciPgRunning) {
+        $pgCtl = Join-Path $PostgresRoot "bin\pg_ctl.exe"
+        & $pgCtl -D $ciPgData -m fast -w stop
+        $ciPgRunning = $false
+    }
+    if ($ciPgData -and (Test-Path $ciPgData)) {
+        Remove-Item -LiteralPath $ciPgData -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+python -m PyInstaller `
+    --noconfirm `
+    --clean `
+    --onefile `
+    --name dairyos-server `
+    --paths src `
+    --collect-all dairyos `
+    src\dairyos\server.py
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed." }
+
+Copy-Item -LiteralPath (Join-Path $RepoRoot "dist\dairyos-server.exe") -Destination $BackendRoot -Force
+
+Write-Host "`n=== FRONTEND TEST / BUILD ===" -ForegroundColor Cyan
+Set-Location $WebRoot
+npm ci --no-audit --fund=false
+if ($LASTEXITCODE -ne 0) { throw "Frontend npm ci failed." }
+npm run typecheck
+if ($LASTEXITCODE -ne 0) { throw "Frontend typecheck failed." }
+npm run build
+if ($LASTEXITCODE -ne 0) { throw "Frontend build failed." }
+Copy-Item -LiteralPath (Join-Path $WebRoot "dist\*") -Destination $FrontendRoot -Recurse -Force
 
 Write-Host "`n=== RECOVERY TOOLS ===" -ForegroundColor Cyan
 Copy-Item -LiteralPath (Join-Path $SourceRecoveryRoot "DairyOS-Data-Backup.ps1") -Destination $RecoveryRoot -Force
