@@ -34,8 +34,61 @@ export default function FinanceTab({onSaveSale,onUpdateReceivables}:Props={}){
     <section style={card}><div style={sectionTitle}>Revenue Ledger</div>{revenueRows.slice(0,50).map(r=><div key={r.id} style={row}><div style={{flex:1,minWidth:0}}><strong>{r.notes||r.category}</strong><div style={muted}>{r.date?.slice(0,10)} • {r.reference||'No reference'}{r.due_date?` • Due ${r.due_date}`:''}</div></div><div style={{fontWeight:800,color:r.status==='RECEIVABLE'?'#f59e0b':'#34d399'}}>{money(r.amount)}</div>{r.status==='RECEIVABLE'&&<button onClick={()=>void updateStatus(r,'RECEIVED')} style={smallButton}>Paid</button>}</div>)}{!loading&&revenueRows.length===0&&<div style={empty}>No persisted revenue entries.</div>}</section>
    </div>
    <div style={{display:'grid',gap:10}}>
-    <form onSubmit={saveExpense} style={card}><div style={sectionTitle}>Record Expense</div><div style={{fontSize:9,color:'#64748b',marginBottom:7}}>Feed purchases are entered here and automatically appear in the Feed tab. Other operating expenses remain accounting entries here.</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}><select value={masterCategory} onChange={e=>setMasterCategory(e.target.value as MasterCategory)} style={inputStyle}><option value="FEED">Feed purchase</option><option value="OPEX">Operating expense</option></select><select required value={subCategory} onChange={e=>setSubCategory(e.target.value)} style={inputStyle}>{subItems.map(i=><option key={i}>{i}</option>)}</select></div>{subCategory==='Other'&&<input required value={customSpecification} onChange={e=>setCustomSpecification(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Specification"/>}<input value={vendor} onChange={e=>setVendor(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Vendor / Supplier"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginTop:6}}><input type="number" min="0" step="0.001" value={quantity} onChange={e=>setQuantity(e.target.value)} style={inputStyle} placeholder="Quantity"/><select value={unit} onChange={e=>setUnit(e.target.value)} style={inputStyle}><option>kg</option><option>bag</option><option>ton</option><option>litre</option><option>service</option><option>head</option><option>unit</option></select><input type="number" min="0" step="0.01" value={unitRate} onChange={e=>setUnitRate(e.target.value)} style={inputStyle} placeholder="Unit rate" disabled={!quantity}/><input type="number" min="0" step="0.01" value={quantity?calculatedAmount:directAmount} onChange={e=>quantity?undefined:setDirectAmount(e.target.value)} style={inputStyle} placeholder="Amount" readOnly={Boolean(quantity)}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:6}}><input type="date" value={expenseDate} onChange={e=>setExpenseDate(e.target.value)} style={inputStyle}/><select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option value="CREDIT">Credit / Payable</option></select>{paymentMethod==='CREDIT'?<input required type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} style={inputStyle}/>:<input value={reference} onChange={e=>setReference(e.target.value)} style={inputStyle} placeholder="Reference"/>}</div>{paymentMethod==='CREDIT'&&<input value={reference} onChange={e=>setReference(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Reference"/>}<input value={notes} onChange={e=>setNotes(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Notes"/><button disabled={saving} type="submit" style={{...button('#0284c7'),width:'100%',marginTop:6}}>{saving?'Saving…':'Save Expense'}</button></form>
-    <section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:7}}>{(['ALL','FEED','OPEX'] as LedgerFilter[]).map(f=><button key={f} onClick={()=>setLedgerFilter(f)} style={{...smallButton,background:ledgerFilter===f?'#0ea5e9':'#1e293b',color:'#fff'}}>{f}</button>)}<div style={{display:'flex',alignItems:'center',gap:4,flex:1,minWidth:150,background:'#1e293b',border:'1px solid #334155',padding:'4px 6px',borderRadius:4}}><Search size={11} color="#94a3b8"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search ledger…" style={{...inputStyle,border:0,padding:0,background:'transparent'}}/></div><button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>{loading?<div style={empty}>Loading persistent ledger…</div>:filteredExpenses.slice(0,100).map(r=><div key={r.id} style={row}><div style={{minWidth:80}}><div style={muted}>{r.date?.slice(0,10)}</div><strong>{r.master_category||'LEGACY'}</strong></div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>{r.sub_category||r.category}{r.custom_specification?` — ${r.custom_specification}`:''}</div><div style={muted}>{r.vendor_name||'No vendor'} • {r.payment_method||'No payment'}{r.due_date?` • Due ${r.due_date}`:''}</div></div><div style={{textAlign:'right'}}><strong>{money(r.amount)}</strong><div style={muted}>{r.status}</div></div>{r.status!=='VOID'&&<button onClick={()=>setEditTarget(r)} style={smallButton}><Edit3 size={10}/></button>}{r.status!=='VOID'&&<button onClick={()=>setVoidTarget(r)} style={{...smallButton,color:'#f87171'}}><Ban size={10}/></button>}</div>)}{!loading&&filteredExpenses.length===0&&<div style={empty}>No expenses match this view.</div>}</section>
+    <form onSubmit={saveExpense} style={card}><div style={sectionTitle}>Record Expense</div><div style={{fontSize:9,color:'#64748b',marginBottom:7}}>Feed purchases are entered here and automatically appear in the Feed tab. Other operating expenses remain accounting entries here.</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+  <button
+    type="button"
+    onClick={()=>setMasterCategory('FEED')}
+    style={{
+      background:masterCategory==='FEED'?'#0369a1':'#1e293b',
+      border:'1px solid',
+      borderColor:masterCategory==='FEED'?'#38bdf8':'#334155',
+      color:'#fff',
+      padding:'10px 10px',
+      borderRadius:5,
+      fontSize:11,
+      fontWeight:800,
+      cursor:'pointer'
+    }}
+  >
+    Feed Expenses
+  </button>
+
+  <button
+    type="button"
+    onClick={()=>setMasterCategory('OPEX')}
+    style={{
+      background:masterCategory==='OPEX'?'#92400e':'#1e293b',
+      border:'1px solid',
+      borderColor:masterCategory==='OPEX'?'#f59e0b':'#334155',
+      color:'#fff',
+      padding:'10px 10px',
+      borderRadius:5,
+      fontSize:11,
+      fontWeight:800,
+      cursor:'pointer'
+    }}
+  >
+    OPEX
+  </button>
+</div>
+
+<div style={{marginTop:6}}>
+  <select
+    required
+    value={subCategory}
+    onChange={e=>setSubCategory(e.target.value)}
+    style={inputStyle}
+  >
+    {(Object.entries(taxonomy?.taxonomies?.[masterCategory]??{}) as [string,string[]][]).map(([group,items])=>(
+      <optgroup key={group} label={group.replace(/_/g,' ')}>
+        {items.map(item=>(
+          <option key={item} value={item}>{item}</option>
+        ))}
+      </optgroup>
+    ))}
+  </select>
+</div>{subCategory==='Other'&&<input required value={customSpecification} onChange={e=>setCustomSpecification(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Specification"/>}<input value={vendor} onChange={e=>setVendor(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Vendor / Supplier"/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginTop:6}}><input type="number" min="0" step="0.001" value={quantity} onChange={e=>setQuantity(e.target.value)} style={inputStyle} placeholder="Quantity"/><select value={unit} onChange={e=>setUnit(e.target.value)} style={inputStyle}><option>kg</option><option>bag</option><option>ton</option><option>litre</option><option>service</option><option>head</option><option>unit</option></select><input type="number" min="0" step="0.01" value={unitRate} onChange={e=>setUnitRate(e.target.value)} style={inputStyle} placeholder="Unit rate" disabled={!quantity}/><input type="number" min="0" step="0.01" value={quantity?calculatedAmount:directAmount} onChange={e=>quantity?undefined:setDirectAmount(e.target.value)} style={inputStyle} placeholder="Amount" readOnly={Boolean(quantity)}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:6}}><input type="date" value={expenseDate} onChange={e=>setExpenseDate(e.target.value)} style={inputStyle}/><select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option value="CREDIT">Credit / Payable</option></select>{paymentMethod==='CREDIT'?<input required type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} style={inputStyle}/>:<input value={reference} onChange={e=>setReference(e.target.value)} style={inputStyle} placeholder="Reference"/>}</div>{paymentMethod==='CREDIT'&&<input value={reference} onChange={e=>setReference(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Reference"/>}<input value={notes} onChange={e=>setNotes(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Notes"/><button disabled={saving} type="submit" style={{...button('#0284c7'),width:'100%',marginTop:6}}>{saving?'Saving…':'Save Expense'}</button></form>
+    <section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:7}}>{(['ALL','FEED','OPEX'] as LedgerFilter[]).map(f=><button key={f} onClick={()=>setLedgerFilter(f)} style={{...smallButton,background:ledgerFilter===f?'#0ea5e9':'#1e293b',color:'#fff'}}>{f}</button>)}<div style={{display:'flex',alignItems:'center',gap:4,flex:1,minWidth:150,background:'#1e293b',border:'1px solid #334155',padding:'4px 6px',borderRadius:4}}><Search size={11} color="#94a3b8"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search ledgerâ€¦" style={{...inputStyle,border:0,padding:0,background:'transparent'}}/></div><button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>{loading?<div style={empty}>Loading persistent ledgerâ€¦</div>:filteredExpenses.slice(0,100).map(r=><div key={r.id} style={row}><div style={{minWidth:80}}><div style={muted}>{r.date?.slice(0,10)}</div><strong>{r.master_category||'LEGACY'}</strong></div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700}}>{r.sub_category||r.category}{r.custom_specification?` — ${r.custom_specification}`:''}</div><div style={muted}>{r.vendor_name||'No vendor'} • {r.payment_method||'No payment'}{r.due_date?` • Due ${r.due_date}`:''}</div></div><div style={{textAlign:'right'}}><strong>{money(r.amount)}</strong><div style={muted}>{r.status}</div></div>{r.status!=='VOID'&&<button onClick={()=>setEditTarget(r)} style={smallButton}><Edit3 size={10}/></button>}{r.status!=='VOID'&&<button onClick={()=>setVoidTarget(r)} style={{...smallButton,color:'#f87171'}}><Ban size={10}/></button>}</div>)}{!loading&&filteredExpenses.length===0&&<div style={empty}>No expenses match this view.</div>}</section>
    </div>
   </div>
   <section style={{...card,marginTop:10}}><div style={sectionTitle}>Payables</div>{payables?<><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:7}}><Summary label="Outstanding" value={money(payables.outstanding_total)}/><Summary label="Overdue" value={money(payables.overdue_total)}/><Summary label="Open bills" value={String(payables.count)}/></div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,marginTop:7}}>{[['CURRENT',payables.ageing_buckets.CURRENT],['1-30',payables.ageing_buckets['1_30']],['31-60',payables.ageing_buckets['31_60']],['61-90',payables.ageing_buckets['61_90']],['90+',payables.ageing_buckets['90_PLUS']],['NO DUE DATE',payables.ageing_buckets.NO_DUE_DATE]].map(([l,v])=><Summary key={String(l)} label={String(l)} value={money(Number(v))}/>)}</div>{payables.transactions.slice(0,20).map(r=><div key={r.id} style={row}><div style={{flex:1}}><strong>{r.vendor_name||'Unspecified Supplier'}</strong><div style={muted}>{r.sub_category||r.category} • Due {r.due_date||'—'}</div></div><div style={{textAlign:'right'}}><strong>{money(r.amount)}</strong><div style={muted}>{r.days_overdue&&r.days_overdue>0?`${r.days_overdue} days overdue`:'Current'}</div></div><button onClick={()=>void updateStatus(r,'PAID')} style={smallButton}>Paid</button></div>)}</>:<div style={empty}>No payables data available.</div>}</section>
