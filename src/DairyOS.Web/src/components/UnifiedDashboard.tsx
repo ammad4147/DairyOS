@@ -32,34 +32,11 @@ type MonthlyComlOutput = {
   costOfMilkProductionPerLiter: number;
 };
 
-const COML_STORAGE_KEY = 'dairyos_coml_monthly_output';
-const COML_EVENT = 'dairyos:coml-output';
-
-function currentMonth(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
 function monthLabel(month: string): string {
   return new Date(`${month}-01T00:00:00`).toLocaleDateString('en-PK', {
     month: 'short',
     year: 'numeric',
   });
-}
-
-function readCurrentComlOutput(): MonthlyComlOutput | null {
-  try {
-    const raw = localStorage.getItem(COML_STORAGE_KEY);
-    if (!raw) return null;
-    const entries = JSON.parse(raw) as Record<string, MonthlyComlOutput>;
-    const entry = entries[currentMonth()];
-    if (!entry || !Number.isFinite(Number(entry.costOfMilkProductionPerLiter))) return null;
-    return {
-      month: entry.month,
-      costOfMilkProductionPerLiter: Number(entry.costOfMilkProductionPerLiter),
-    };
-  } catch {
-    return null;
-  }
 }
 
 import { API_BASE_URL } from '../config/api';
@@ -73,7 +50,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [extremesCount, setExtremesCount] = useState(3);
   const [passportTag, setPassportTag] = useState<string | null>(null);
   const [selectedDropDetail, setSelectedDropDetail] = useState<DropComparisonDetail | null>(null);
-  const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(() => readCurrentComlOutput());
+  const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
   const { alerts } = useAlertAudit();
 
   const loadData = useCallback(async () => {
@@ -88,12 +65,40 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   useEffect(() => { void loadData(); }, [loadData]);
 
   useEffect(() => {
-    const refreshComl = () => setComlOutput(readCurrentComlOutput());
-    window.addEventListener(COML_EVENT, refreshComl);
-    window.addEventListener('storage', refreshComl);
+    let cancelled = false;
+
+    const loadComl = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/farm/coml/current`, {
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error(`COML request failed: ${response.status}`);
+        const body = await response.json() as {
+          record?: {
+            month_start?: string | null;
+            total_coml_per_liter?: number | null;
+          } | null;
+        };
+
+        const record = body.record;
+        const month = record?.month_start ? String(record.month_start).slice(0, 7) : null;
+        const value = Number(record?.total_coml_per_liter);
+        if (!cancelled) {
+          setComlOutput(
+            month && Number.isFinite(value)
+              ? { month, costOfMilkProductionPerLiter: value }
+              : null,
+          );
+        }
+      } catch {
+        if (!cancelled) setComlOutput(null);
+      }
+    };
+
+    void loadComl();
+
     return () => {
-      window.removeEventListener(COML_EVENT, refreshComl);
-      window.removeEventListener('storage', refreshComl);
+      cancelled = true;
     };
   }, []);
 
@@ -189,7 +194,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { onHeat?:number; inseminated?:number; pregnant?:number; conceptionRatio?:string; } | undefined;
   const reproData = { onHeat:reproSource?.onHeat ?? 0, inseminated:reproSource?.inseminated ?? 0, pregnant:reproSource?.pregnant ?? 0, conceptionRatio:reproSource ? undefined : undefined };
-  const currentComlMonth = comlOutput?.month || currentMonth();
+  const currentComlMonth = comlOutput?.month || new Date().toISOString().slice(0, 7);
   const currentComlValue = Number(comlOutput?.costOfMilkProductionPerLiter || 0);
 
   return (

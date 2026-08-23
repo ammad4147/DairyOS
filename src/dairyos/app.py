@@ -65,7 +65,7 @@ app.add_middleware(
     allow_origin_regex=r"https?://(localhost|127\\.0\\.0\\.1):517[3-9]",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"] ,
 )
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
@@ -92,7 +92,7 @@ async def enforce_permissions(request: Request, call_next):
 
 
 @app.middleware("http")
-async def enforce_animal_identity(request, call_next):
+async def enforce_animal_identity(request: Request, call_next):
     body = None
     payload = {}
     if request.method == "POST" and request.url.path in ANIMAL_LINKED_POSTS:
@@ -139,6 +139,7 @@ from dairyos.api.milk_production_analytics import router as milk_production_anal
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.analytics import router as analytics_router
+from dairyos.api.live_analytics import router as live_analytics_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.farm_intelligence import router as farm_intelligence_router
 from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
@@ -155,6 +156,7 @@ from dairyos.api.reproduction_management import router as reproduction_managemen
 from dairyos.api.youngstock_management import router as youngstock_management_router
 from dairyos.api.feed_management import router as feed_management_router
 from dairyos.api.feed_inventory import router as feed_inventory_router
+from dairyos.api.feed_inventory_projection import router as feed_inventory_projection_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
@@ -175,6 +177,7 @@ app.include_router(animal_registration_router)
 app.include_router(animal_router, prefix="/farm")
 app.include_router(animal_passport_router)
 app.include_router(analytics_router)
+app.include_router(live_analytics_router)
 app.include_router(farm_intelligence_router)
 app.include_router(heat_stress_intelligence_router)
 app.include_router(animal_welfare_router)
@@ -190,6 +193,7 @@ app.include_router(reproduction_management_router)
 app.include_router(youngstock_management_router)
 app.include_router(feed_management_router)
 app.include_router(feed_inventory_router)
+app.include_router(feed_inventory_projection_router)
 app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
