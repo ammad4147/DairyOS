@@ -179,3 +179,5 @@ jobs:
           name: DairyOS-Windows-Installer-${{ github.sha }}
           path: packaging/windows/DairyOS-Setup.exe
           if-no-files-found: error
+
+# Certification trigger: rerun the complete Windows installer lifecycle after CI auth hardening.
