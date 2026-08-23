@@ -1,2 +1,1 @@
-Certification trigger 3 refreshed for the Windows installer certification workflow.
-Rerun requested after frontend dist wildcard packaging correction.
+Certification trigger 3 refreshed for Windows installer certification after frontend dist wildcard packaging correction.
