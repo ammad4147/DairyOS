@@ -12,8 +12,9 @@
 
   ; Allow the local Windows Users group to operate the farm application while
   ; keeping Program Files protected. The database itself still listens only
-  ; on loopback.
-  nsExec::ExecToLog '"$SYSDIR\icacls.exe" "${DAIRYOS_DATA_ROOT}" /grant *S-1-5-32-545:(OI)(CI)M /T /C'
+  ; on loopback. Directory inheritance applies to files/subdirectories created
+  ; beneath the data root, so a recursive traversal is unnecessary here.
+  nsExec::ExecToLog '"$SYSDIR\icacls.exe" "${DAIRYOS_DATA_ROOT}" /grant *S-1-5-32-545:(OI)(CI)M /C'
 
   ; Persist the installer location for the recovery/uninstall data guard.
   FileOpen $0 "${DAIRYOS_DATA_ROOT}\install.json" w
