@@ -12,9 +12,9 @@ const DB_ROOT = path.join(DATA_ROOT, 'postgresql-data');
 const BACKUP_ROOT = path.join(DATA_ROOT, 'backups');
 const RECOVERY_ROOT = path.join(DATA_ROOT, 'recovery');
 const CONFIG_PATH = path.join(DATA_ROOT, 'desktop-config.json');
+const ENV_PATH = path.join(DATA_ROOT, 'dairyos.env');
 const INITIALIZE_ONLY = process.argv.includes('--initialize-only');
 
-let postgresProcess = null;
 let backendProcess = null;
 let mainWindow = null;
 let shuttingDown = false;
@@ -54,10 +54,25 @@ function loadConfig() {
   return config;
 }
 
+function writeEnvironmentFile(config) {
+  const databaseUrl = `postgresql+psycopg://${encodeURIComponent(config.database_user)}:${encodeURIComponent(config.database_password)}@127.0.0.1:${PG_PORT}/${encodeURIComponent(config.database_name)}`;
+  const content = [
+    'DAIRYOS_ENV=production',
+    'DAIRYOS_HOST=127.0.0.1',
+    `DAIRYOS_PORT=${APP_PORT}`,
+    `DAIRYOS_DATA_DIR=${DATA_ROOT}`,
+    `DAIRYOS_DATABASE_URL=${databaseUrl}`,
+    '',
+  ].join('\n');
+  fs.writeFileSync(ENV_PATH, content, { encoding: 'utf8', mode: 0o600 });
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     windowsHide: true,
     encoding: 'utf8',
+    timeout: options.timeout ?? 120000,
+    killSignal: 'SIGTERM',
     stdio: options.capture === false ? 'ignore' : ['ignore', 'pipe', 'pipe'],
     env: options.env || process.env,
   });
@@ -78,6 +93,8 @@ function isPostgresRunning(pgctl) {
   const result = spawnSync(pgctl, ['status', '-D', DB_ROOT], {
     windowsHide: true,
     encoding: 'utf8',
+    timeout: 10000,
+    killSignal: 'SIGTERM',
     stdio: 'ignore',
   });
   return result.status === 0;
@@ -88,15 +105,17 @@ function initializePostgres(config, initdb) {
   const passwordFile = path.join(DATA_ROOT, '.postgres-password');
   fs.writeFileSync(passwordFile, `${config.database_password}\n`, { encoding: 'utf8', mode: 0o600 });
 
-  run(initdb, [
-    '-D', DB_ROOT,
-    '-U', config.database_user,
-    '-A', 'scram-sha-256',
-    '--pwfile=' + passwordFile,
-    '--encoding=UTF8',
-  ]);
-
-  fs.rmSync(passwordFile, { force: true });
+  try {
+    run(initdb, [
+      '-D', DB_ROOT,
+      '-U', config.database_user,
+      '-A', 'scram-sha-256',
+      '--pwfile=' + passwordFile,
+      '--encoding=UTF8',
+    ]);
+  } finally {
+    fs.rmSync(passwordFile, { force: true });
+  }
 }
 
 function startPostgres(config) {
@@ -115,19 +134,15 @@ function startPostgres(config) {
     run(pgctl, [
       'start', '-D', DB_ROOT, '-l', logFile, '-w', '-t', '30',
       '-o', `-p ${PG_PORT} -h 127.0.0.1`,
-    ]);
+    ], { timeout: 45000 });
   }
 
   const env = { ...process.env, PGPASSWORD: config.database_password };
-  const ready = spawnSync(psql, [
+  run(psql, [
     '-h', '127.0.0.1', '-p', String(PG_PORT),
     '-U', config.database_user, '-d', config.database_name,
     '-c', 'SELECT 1;',
-  ], { windowsHide: true, encoding: 'utf8', stdio: 'ignore', env });
-
-  if (ready.status !== 0) {
-    throw new Error('DairyOS PostgreSQL started but the application database is not accepting connections.');
-  }
+  ], { env, capture: false, timeout: 15000 });
 }
 
 function backupDatabase(config, reason) {
@@ -143,7 +158,7 @@ function backupDatabase(config, reason) {
     '-h', '127.0.0.1', '-p', String(PG_PORT),
     '-U', config.database_user, '-d', config.database_name,
     '-F', 'c', '--no-owner', '--no-acl', '-f', target,
-  ], { env });
+  ], { env, timeout: 120000 });
 
   const files = fs.readdirSync(BACKUP_ROOT)
     .filter(name => name.toLowerCase().endsWith('.dump'))
@@ -230,7 +245,12 @@ async function createWindow() {
 function stopProcessTree(child) {
   if (!child || child.killed) return;
   try {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+      windowsHide: true,
+      stdio: 'ignore',
+      timeout: 15000,
+      killSignal: 'SIGTERM',
+    });
   } catch (_) {
     // Best-effort shutdown; data is stored independently of the application process.
   }
@@ -238,18 +258,36 @@ function stopProcessTree(child) {
 
 function stopPostgres() {
   const pgctl = binaryPath(path.join('postgresql', 'bin', 'pg_ctl.exe'));
-  if (fs.existsSync(pgctl) && isPostgresRunning(pgctl)) {
-    spawnSync(pgctl, ['stop', '-D', DB_ROOT, '-m', 'fast', '-w'], { windowsHide: true, stdio: 'ignore' });
-  }
+  if (!fs.existsSync(pgctl) || !isPostgresInitialized()) return;
+  if (!isPostgresRunning(pgctl)) return;
+
+  const result = spawnSync(pgctl, ['stop', '-D', DB_ROOT, '-m', 'fast', '-w'], {
+    windowsHide: true,
+    encoding: 'utf8',
+    stdio: 'ignore',
+    timeout: 15000,
+    killSignal: 'SIGTERM',
+  });
+
+  if (result.error) throw new Error(`PostgreSQL shutdown failed: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`PostgreSQL shutdown failed with exit code ${result.status}.`);
 }
 
 async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   stopProcessTree(backendProcess);
-  stopPostgres();
   backendProcess = null;
-  postgresProcess = null;
+  stopPostgres();
+}
+
+async function initializeOnly() {
+  ensureDirectories();
+  const config = loadConfig();
+  writeEnvironmentFile(config);
+  startPostgres(config);
+  backupDatabase(config, 'prestart');
+  await shutdown();
 }
 
 async function boot() {
@@ -266,25 +304,31 @@ async function boot() {
 
   startBackend(config);
   await waitForHealth();
-  if (!INITIALIZE_ONLY) {
-    await createWindow();
-  }
+  await createWindow();
 }
 
 app.whenReady().then(async () => {
   try {
-    await boot();
     if (INITIALIZE_ONLY) {
-      await shutdown();
-      app.quit();
+      await initializeOnly();
+      app.exit(0);
+      return;
     }
+
+    await boot();
   } catch (error) {
-    await shutdown();
+    try {
+      await shutdown();
+    } catch (shutdownError) {
+      console.error(`DairyOS shutdown failed: ${shutdownError instanceof Error ? shutdownError.stack || shutdownError.message : String(shutdownError)}`);
+    }
+
     if (INITIALIZE_ONLY) {
       console.error(`DairyOS initialize-only failed: ${error instanceof Error ? error.stack || error.message : String(error)}`);
       app.exit(1);
       return;
     }
+
     dialog.showErrorBox(
       'DairyOS could not start safely',
       `${error instanceof Error ? error.message : String(error)}\n\nFarm data has not been removed.\n\nData location:\n${DATA_ROOT}\n\nBackups:\n${BACKUP_ROOT}`,
