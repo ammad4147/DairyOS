@@ -1,8 +1,8 @@
 !include LogicLib.nsh
 
-; NSIS does not provide a $PROGRAMDATA special variable. $COMMONAPPDATA
-; resolves to the Windows common application-data directory (C:\ProgramData).
-!define DAIRYOS_DATA_ROOT "$COMMONAPPDATA\DairyOS"
+; Keep farm data in the required Windows-wide ProgramData location.
+; Use a literal path because NSIS has no built-in $PROGRAMDATA special variable.
+!define DAIRYOS_DATA_ROOT "C:\ProgramData\DairyOS"
 
 !macro customInstall
   ; Farm data is deliberately outside the program directory.
