@@ -37,20 +37,35 @@ function ensureDirectories() {
 
 function loadConfig() {
   ensureDirectories();
+
+  let config;
+
   if (fs.existsSync(CONFIG_PATH)) {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  } else {
+    config = {
+      database_user: 'dairyos',
+      database_name: 'dairyos',
+      database_password: crypto.randomBytes(32).toString('base64url'),
+      database_port: PG_PORT,
+      data_root: DATA_ROOT,
+      created_at: new Date().toISOString(),
+    };
   }
 
-  const config = {
-    database_user: 'dairyos',
-    database_name: 'dairyos',
-    database_password: crypto.randomBytes(32).toString('base64url'),
-    database_port: PG_PORT,
-    data_root: DATA_ROOT,
-    created_at: new Date().toISOString(),
-  };
+  // Authentication signing material is an installation-level secret.  It
+  // must survive application restarts and upgrades, but must never be
+  // hard-coded or regenerated when an existing installation is opened.
+  if (!config.auth_secret) {
+    config.auth_secret = crypto.randomBytes(32).toString('base64url');
+  }
 
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(
+    CONFIG_PATH,
+    JSON.stringify(config, null, 2),
+    { encoding: 'utf8', mode: 0o600 },
+  );
+
   return config;
 }
 
@@ -62,6 +77,7 @@ function writeEnvironmentFile(config) {
     `DAIRYOS_PORT=${APP_PORT}`,
     `DAIRYOS_DATA_DIR=${DATA_ROOT}`,
     `DAIRYOS_DATABASE_URL=${databaseUrl}`,
+    `DAIRYOS_AUTH_SECRET=${config.auth_secret}`,
     '',
   ].join('\n');
   fs.writeFileSync(ENV_PATH, content, { encoding: 'utf8', mode: 0o600 });
@@ -212,6 +228,7 @@ function startBackend(config) {
     DAIRYOS_PORT: String(APP_PORT),
     DAIRYOS_DATA_DIR: DATA_ROOT,
     DAIRYOS_DATABASE_URL: databaseUrl,
+    DAIRYOS_AUTH_SECRET: config.auth_secret,
   };
 
   backendProcess = spawn(server, ['--host', '127.0.0.1', '--port', String(APP_PORT), '--data-dir', DATA_ROOT], {
@@ -321,6 +338,7 @@ async function initializeOnly() {
 async function boot() {
   ensureDirectories();
   const config = loadConfig();
+  writeEnvironmentFile(config);
 
   startPostgres(config);
   if (isPostgresInitialized()) {
