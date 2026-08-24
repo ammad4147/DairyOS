@@ -30,15 +30,26 @@
 !macroend
 
 !macro customUnInstall
-  ; Never delete the farm data directory. Before removing application files,
-  ; make a final logical backup. If the backup cannot be completed, abort the
-  ; uninstall rather than risk an avoidable data-loss event.
-  IfFileExists "${DAIRYOS_DATA_ROOT}\recovery\DairyOS-Data-Backup.ps1" 0 done
-    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "${DAIRYOS_DATA_ROOT}\recovery\DairyOS-Data-Backup.ps1" -InstallRoot "$INSTDIR" -Reason uninstall'
-    Pop $0
-    ${If} $0 != 0
-      MessageBox MB_ICONSTOP|MB_OK "DairyOS could not complete the final farm-data backup.\n\nUninstallation has been cancelled to protect your farm data."
-      Abort
-    ${EndIf}
-done:
+  ; Never delete the farm data directory.
+  ; Before removing application files, create a final logical backup.
+  ; If the backup fails, cancel the uninstall to protect farm data.
+
+  IfFileExists "${DAIRYOS_DATA_ROOT}\recovery\DairyOS-Data-Backup.ps1" backup_available backup_missing
+
+backup_available:
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "${DAIRYOS_DATA_ROOT}\recovery\DairyOS-Data-Backup.ps1" -InstallRoot "$INSTDIR" -Reason uninstall'
+  Pop $0
+
+  ${If} $0 != 0
+    MessageBox MB_ICONSTOP|MB_OK "DairyOS could not complete the final farm-data backup.$\r$\n$\r$\nUninstallation has been cancelled to protect your farm data."
+    Abort
+  ${EndIf}
+
+  Goto uninstall_continue
+
+backup_missing:
+  MessageBox MB_ICONEXCLAMATION|MB_OK "The DairyOS farm-data backup tool was not found.$\r$\n$\r$\nUninstallation has been cancelled to protect your farm data."
+  Abort
+
+uninstall_continue:
 !macroend

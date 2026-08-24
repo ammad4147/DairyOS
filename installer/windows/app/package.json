@@ -34,8 +34,10 @@
       "target": "nsis"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
       "runAfterFinish": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
@@ -45,4 +47,3 @@
     }
   }
 }
-

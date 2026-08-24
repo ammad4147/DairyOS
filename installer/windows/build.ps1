@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Configuration = "Release",
     [string]$PostgresVersion = "18.6"
@@ -35,24 +35,148 @@ Reset-Directory $DistRoot
 New-Item -ItemType Directory -Path $BackendRoot,$FrontendRoot,$PostgresRoot,$RecoveryRoot -Force | Out-Null
 
 Write-Host "`n=== POSTGRESQL WINDOWS BINARIES ===" -ForegroundColor Cyan
-$downloadUri = "https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64-binaries.zip"
 
-Write-Host "Downloading PostgreSQL binaries from: $downloadUri"
+$downloadUri = "https://get.enterprisedb.com/postgresql/postgresql-$PostgresVersion-1-windows-x64-binaries.zip"
 $tempZip = Join-Path $env:TEMP "dairyos-postgresql-$PostgresVersion-win-x64.zip"
-if (-not (Test-Path $tempZip) -or (Get-Item $tempZip).Length -lt 100000000) {
-    curl.exe -L -f --retry 3 -o $tempZip $downloadUri
-}
-
 $tempExtract = Join-Path $env:TEMP "dairyos-pg-$([guid]::NewGuid().ToString('N'))"
-New-Item -ItemType Directory -Path $tempExtract -Force | Out-Null
-Expand-Archive -LiteralPath $tempZip -DestinationPath $tempExtract -Force
 
-$pgBin = Get-ChildItem -Path $tempExtract -Recurse -Filter "pg_ctl.exe" -File | Select-Object -First 1
-if (-not $pgBin) { throw "Downloaded PostgreSQL archive does not contain pg_ctl.exe." }
-$pgRoot = $pgBin.Directory.Parent
-Get-ChildItem -LiteralPath $pgRoot -Force | Copy-Item -Destination $PostgresRoot -Recurse -Force
+Write-Host "PostgreSQL version: $PostgresVersion"
+Write-Host "PostgreSQL archive: $tempZip"
 
-Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
+try {
+    if (Test-Path -LiteralPath $tempZip -PathType Leaf) {
+        $cachedSize = (Get-Item -LiteralPath $tempZip).Length
+
+        if ($cachedSize -ge 300000000) {
+            Write-Host "Using cached PostgreSQL archive [$cachedSize bytes]." -ForegroundColor Green
+        }
+        else {
+            Write-Host "Cached PostgreSQL archive is too small [$cachedSize bytes]. Re-downloading..." -ForegroundColor Yellow
+            Remove-Item -LiteralPath $tempZip -Force
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $tempZip -PathType Leaf)) {
+        Write-Host "Downloading PostgreSQL binaries from: $downloadUri" -ForegroundColor Yellow
+
+        curl.exe `
+            -L `
+            -f `
+            --retry 3 `
+            -o $tempZip `
+            $downloadUri
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "PostgreSQL binary download failed."
+        }
+    }
+
+    $archiveSize = (Get-Item -LiteralPath $tempZip).Length
+
+    if ($archiveSize -lt 300000000) {
+        throw "PostgreSQL binary archive is unexpectedly small: $archiveSize bytes."
+    }
+
+    Write-Host "PostgreSQL archive size: $archiveSize bytes"
+
+    New-Item -ItemType Directory -Path $tempExtract -Force | Out-Null
+
+    Write-Host "Extracting PostgreSQL archive..." -ForegroundColor Cyan
+
+    Expand-Archive `
+        -LiteralPath $tempZip `
+        -DestinationPath $tempExtract `
+        -Force
+
+    $pgBin = Get-ChildItem `
+        -Path $tempExtract `
+        -Recurse `
+        -Filter "pg_ctl.exe" `
+        -File `
+        -ErrorAction Stop |
+        Select-Object -First 1
+
+    if (-not $pgBin) {
+        throw "PostgreSQL archive does not contain pg_ctl.exe."
+    }
+
+    $pgRoot = $pgBin.Directory.Parent
+
+    Write-Host "Detected PostgreSQL source root: $($pgRoot.FullName)"
+
+    if (-not (Test-Path -LiteralPath (Join-Path $pgRoot.FullName "bin") -PathType Container)) {
+        throw "PostgreSQL source root does not contain bin directory."
+    }
+
+    foreach ($requiredBinary in @(
+        "pg_ctl.exe",
+        "initdb.exe",
+        "createdb.exe",
+        "psql.exe",
+        "postgres.exe",
+        "pg_dump.exe"
+    )) {
+        $sourceBinary = Join-Path $pgRoot.FullName "bin\$requiredBinary"
+
+        if (-not (Test-Path -LiteralPath $sourceBinary -PathType Leaf)) {
+            throw "PostgreSQL archive is missing required binary: $requiredBinary"
+        }
+    }
+
+    Write-Host "Copying PostgreSQL runtime to installer staging..." -ForegroundColor Cyan
+
+    Copy-Item `
+        -Path (Join-Path $pgRoot.FullName "*") `
+        -Destination $PostgresRoot `
+        -Recurse `
+        -Force
+
+    Write-Host "`n=== VERIFYING STAGED POSTGRESQL RUNTIME ===" -ForegroundColor Cyan
+
+    foreach ($requiredBinary in @(
+        "pg_ctl.exe",
+        "initdb.exe",
+        "createdb.exe",
+        "psql.exe",
+        "postgres.exe",
+        "pg_dump.exe"
+    )) {
+        $stagedBinary = Join-Path $PostgresRoot "bin\$requiredBinary"
+
+        if (-not (Test-Path -LiteralPath $stagedBinary -PathType Leaf)) {
+            throw "Staged PostgreSQL runtime is missing: bin\$requiredBinary"
+        }
+
+        $size = (Get-Item -LiteralPath $stagedBinary).Length
+
+        if ($size -le 0) {
+            throw "Staged PostgreSQL binary is empty: bin\$requiredBinary"
+        }
+
+        Write-Host "FOUND: bin\$requiredBinary [$size bytes]" -ForegroundColor Green
+    }
+
+    foreach ($requiredDirectory in @("bin", "lib", "share")) {
+        $stagedDirectory = Join-Path $PostgresRoot $requiredDirectory
+
+        if (-not (Test-Path -LiteralPath $stagedDirectory -PathType Container)) {
+            throw "Staged PostgreSQL runtime is missing directory: $requiredDirectory"
+        }
+
+        Write-Host "FOUND: $requiredDirectory\" -ForegroundColor Green
+    }
+
+    Write-Host "PostgreSQL runtime staging is VALID." -ForegroundColor Green
+}
+finally {
+    if (Test-Path -LiteralPath $tempExtract) {
+        Remove-Item `
+            -LiteralPath $tempExtract `
+            -Recurse `
+            -Force `
+            -ErrorAction SilentlyContinue
+    }
+}
 
 $ciPgData = $null
 $ciPgRunning = $false
@@ -90,7 +214,7 @@ try {
     $PythonExe = if (Test-Path "$RepoRoot\.venv\Scripts\python.exe") { "$RepoRoot\.venv\Scripts\python.exe" } else { "python" }
     & $PythonExe -m pip install -e . -r requirements-dev.txt httpx2 pyinstaller
     if ($LASTEXITCODE -ne 0) { throw "Backend test/package dependencies failed to install." }
-    & $PythonExe -m pytest -q
+    & $PythonExe -m pytest -q --basetemp="$RepoRoot\.pytest-tmp"
     if ($LASTEXITCODE -ne 0) { throw "Backend regression failed." }
 } finally {
     if ($ciPgRunning) {
@@ -151,4 +275,5 @@ if (-not $env:CI) {
         Write-Host "`n>>> Successfully placed $($SetupExe.Name) on Desktop: $TargetDesktop <<<" -ForegroundColor Green
     }
 }
+
 
