@@ -12,6 +12,7 @@ const DB_ROOT = path.join(DATA_ROOT, 'postgresql-data');
 const BACKUP_ROOT = path.join(DATA_ROOT, 'backups');
 const RECOVERY_ROOT = path.join(DATA_ROOT, 'recovery');
 const CONFIG_PATH = path.join(DATA_ROOT, 'desktop-config.json');
+const INITIALIZE_ONLY = process.argv.includes('--initialize-only');
 
 let postgresProcess = null;
 let backendProcess = null;
@@ -265,14 +266,25 @@ async function boot() {
 
   startBackend(config);
   await waitForHealth();
-  await createWindow();
+  if (!INITIALIZE_ONLY) {
+    await createWindow();
+  }
 }
 
 app.whenReady().then(async () => {
   try {
     await boot();
+    if (INITIALIZE_ONLY) {
+      await shutdown();
+      app.quit();
+    }
   } catch (error) {
     await shutdown();
+    if (INITIALIZE_ONLY) {
+      console.error(`DairyOS initialize-only failed: ${error instanceof Error ? error.stack || error.message : String(error)}`);
+      app.exit(1);
+      return;
+    }
     dialog.showErrorBox(
       'DairyOS could not start safely',
       `${error instanceof Error ? error.message : String(error)}\n\nFarm data has not been removed.\n\nData location:\n${DATA_ROOT}\n\nBackups:\n${BACKUP_ROOT}`,
