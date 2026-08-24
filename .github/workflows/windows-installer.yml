@@ -140,6 +140,21 @@ jobs:
           $initProc = Start-Process -FilePath (Join-Path $installRoot 'DairyOS.exe') -ArgumentList '--initialize-only' -PassThru
           if (-not $initProc.WaitForExit(120000)) {
             Write-Host '##[error] DairyOS.exe --initialize-only did not exit within 2 minutes.'
+            Write-Host '=== DairyOS ProgramData diagnostics ==='
+            if (Test-Path $dataRoot) {
+              Get-ChildItem $dataRoot -Force -Recurse -File -ErrorAction SilentlyContinue |
+                Select-Object FullName, Length |
+                Format-Table -AutoSize |
+                Out-String |
+                Write-Host
+              foreach ($log in @('postgresql.log','backend.log','backend-error.log','initialize-error.log')) {
+                $logPath = Join-Path $dataRoot $log
+                if (Test-Path $logPath) {
+                  Write-Host "=== $log ==="
+                  Get-Content $logPath -Tail 200 -ErrorAction SilentlyContinue | Write-Host
+                }
+              }
+            }
             Get-Process -ErrorAction SilentlyContinue |
               Where-Object { $_.ProcessName -match 'DairyOS' } |
               Select-Object ProcessName, Id, MainWindowTitle |
@@ -148,7 +163,29 @@ jobs:
             throw 'DairyOS.exe --initialize-only hung.'
           }
           Write-Host "initialize-only exited with code $($initProc.ExitCode)"
-          if ($initProc.ExitCode -ne 0) { throw "initialize-only exited with code $($initProc.ExitCode)" }
+          if ($initProc.ExitCode -ne 0) {
+            Write-Host '=== DairyOS ProgramData diagnostics ==='
+            if (Test-Path $dataRoot) {
+              Get-ChildItem $dataRoot -Force -Recurse -File -ErrorAction SilentlyContinue |
+                Select-Object FullName, Length |
+                Format-Table -AutoSize |
+                Out-String |
+                Write-Host
+              foreach ($log in @('postgresql.log','backend.log','backend-error.log','initialize-error.log')) {
+                $logPath = Join-Path $dataRoot $log
+                if (Test-Path $logPath) {
+                  Write-Host "=== $log ==="
+                  Get-Content $logPath -Tail 200 -ErrorAction SilentlyContinue | Write-Host
+                }
+              }
+              $configPath = Join-Path $dataRoot 'desktop-config.json'
+              if (Test-Path $configPath) {
+                Write-Host '=== desktop-config.json ==='
+                Get-Content $configPath -Raw | Write-Host
+              }
+            }
+            throw "initialize-only exited with code $($initProc.ExitCode)"
+          }
 
           if (!(Test-Path $dataRoot)) { throw 'Persistent ProgramData\DairyOS directory was not created.' }
 
