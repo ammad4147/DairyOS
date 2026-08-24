@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$Configuration = "Release",
     [string]$PostgresVersion = "18.6"
