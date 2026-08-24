@@ -137,7 +137,18 @@ jobs:
           if (!(Test-Path (Join-Path $installRoot 'DairyOS.exe'))) { throw 'Installed DairyOS executable is missing.' }
           if (!(Test-Path (Join-Path $installRoot 'resources'))) { throw 'Installed Electron resources are missing.' }
 
-          Start-Process -FilePath (Join-Path $installRoot 'DairyOS.exe') -ArgumentList '--initialize-only' -Wait
+          $initProc = Start-Process -FilePath (Join-Path $installRoot 'DairyOS.exe') -ArgumentList '--initialize-only' -PassThru
+          if (-not $initProc.WaitForExit(120000)) {
+            Write-Host '##[error] DairyOS.exe --initialize-only did not exit within 2 minutes.'
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessName -match 'DairyOS' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize | Out-String | Write-Host
+            Stop-Process -Id $initProc.Id -Force -ErrorAction SilentlyContinue
+            throw 'DairyOS.exe --initialize-only hung.'
+          }
+          Write-Host "initialize-only exited with code $($initProc.ExitCode)"
+          if ($initProc.ExitCode -ne 0) { throw "initialize-only exited with code $($initProc.ExitCode)" }
 
           if (!(Test-Path $dataRoot)) { throw 'Persistent ProgramData\DairyOS directory was not created.' }
 
