@@ -118,6 +118,32 @@ function initializePostgres(config, initdb) {
   }
 }
 
+function quoteSqlIdentifier(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function quoteSqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function ensureDatabase(config, psql, env) {
+  const databaseName = String(config.database_name);
+  const databaseUser = String(config.database_user);
+  const exists = run(psql, [
+    '-h', '127.0.0.1', '-p', String(PG_PORT),
+    '-U', databaseUser, '-d', 'postgres',
+    '-tAc', `SELECT 1 FROM pg_database WHERE datname = ${quoteSqlLiteral(databaseName)};`,
+  ], { env, timeout: 15000 }).trim();
+
+  if (exists === '1') return;
+
+  run(psql, [
+    '-h', '127.0.0.1', '-p', String(PG_PORT),
+    '-U', databaseUser, '-d', 'postgres',
+    '-c', `CREATE DATABASE ${quoteSqlIdentifier(databaseName)} OWNER ${quoteSqlIdentifier(databaseUser)};`,
+  ], { env, timeout: 15000 });
+}
+
 function startPostgres(config) {
   const pgctl = binaryPath(path.join('postgresql', 'bin', 'pg_ctl.exe'));
   const initdb = binaryPath(path.join('postgresql', 'bin', 'initdb.exe'));
@@ -138,6 +164,8 @@ function startPostgres(config) {
   }
 
   const env = { ...process.env, PGPASSWORD: config.database_password };
+  ensureDatabase(config, psql, env);
+
   run(psql, [
     '-h', '127.0.0.1', '-p', String(PG_PORT),
     '-U', config.database_user, '-d', config.database_name,
