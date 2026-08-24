@@ -73,7 +73,13 @@ jobs:
           $setup = $env:SETUP_EXE
 
           Write-Host "Installing: $setup"
-          Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+          $proc = Start-Process -FilePath $setup -ArgumentList '/S' -PassThru
+          if (-not $proc.WaitForExit(300000)) {
+            Write-Host "##[error] Installer did not exit within 5 minutes"
+            Get-Process | Where-Object { $_.ProcessName -match 'DairyOS' } | Format-Table | Out-String | Write-Host
+            throw "Installer hung during silent install"
+          }
+          if ($proc.ExitCode -ne 0) { throw "Installer exited with code $($proc.ExitCode)" }
 
           if (!(Test-Path (Join-Path $installRoot 'DairyOS.exe'))) { throw 'Installed DairyOS executable is missing.' }
           if (!(Test-Path (Join-Path $installRoot 'resources'))) { throw 'Installed Electron resources are missing.' }

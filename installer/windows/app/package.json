@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "dairyos-desktop",
   "version": "0.1.0",
   "private": true,
@@ -34,9 +34,9 @@
       "target": "nsis"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": true,
-      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "DairyOS",
@@ -45,3 +45,4 @@
     }
   }
 }
+

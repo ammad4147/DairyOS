@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Configuration = "Release",
     [string]$PostgresVersion = "18.6"
@@ -13,7 +13,7 @@ $InstallerRoot = Join-Path $RepoRoot "installer\windows"
 $RuntimeRoot = Join-Path $InstallerRoot "runtime"
 $AppRoot = Join-Path $InstallerRoot "app"
 $SourceRecoveryRoot = Join-Path $InstallerRoot "recovery"
-$DistRoot = Join-Path $RepoRoot "dist-installer"
+$DistRoot = Join-Path $InstallerRoot "..\dist-installer"
 $BackendRoot = Join-Path $RuntimeRoot "backend"
 $FrontendRoot = Join-Path $RuntimeRoot "frontend"
 $PostgresRoot = Join-Path $RuntimeRoot "postgresql"
@@ -140,13 +140,15 @@ if ($LASTEXITCODE -ne 0) { throw "Electron/NSIS installer build failed." }
 Write-Host "`nInstaller artifacts:" -ForegroundColor Green
 Get-ChildItem $DistRoot -File | Select-Object Name,Length,LastWriteTime
 
-$TargetDesktop = "C:\Users\ammad\Desktop\DairyOS_USB_Installer"
-if (-not (Test-Path $TargetDesktop)) {
-    New-Item -ItemType Directory -Path $TargetDesktop -Force | Out-Null
+if (-not $env:CI) {
+    $TargetDesktop = "C:\Users\ammad\Desktop\DairyOS_USB_Installer"
+    if (-not (Test-Path $TargetDesktop)) {
+        New-Item -ItemType Directory -Path $TargetDesktop -Force | Out-Null
+    }
+    $SetupExe = Get-ChildItem $DistRoot -Filter "*.exe" -File | Select-Object -First 1
+    if ($SetupExe) {
+        Copy-Item -Path $SetupExe.FullName -Destination (Join-Path $TargetDesktop $SetupExe.Name) -Force
+        Write-Host "`n>>> Successfully placed $($SetupExe.Name) on Desktop: $TargetDesktop <<<" -ForegroundColor Green
+    }
 }
 
-$SetupExe = Get-ChildItem $DistRoot -Filter "*.exe" -File | Select-Object -First 1
-if ($SetupExe) {
-    Copy-Item -Path $SetupExe.FullName -Destination (Join-Path $TargetDesktop $SetupExe.Name) -Force
-    Write-Host "`n>>> Successfully placed $($SetupExe.Name) on Desktop: $TargetDesktop <<<" -ForegroundColor Green
-}
