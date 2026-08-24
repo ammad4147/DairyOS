@@ -55,7 +55,7 @@ jobs:
       - name: Verify installer artifact
         shell: pwsh
         run: |
-          $artifacts = Get-ChildItem .\dist-installer -Filter '*.exe' -File -ErrorAction SilentlyContinue
+          $artifacts = Get-ChildItem .\installer\dist-installer -Filter '*.exe' -File -ErrorAction SilentlyContinue
           if (-not $artifacts) { throw 'No Windows installer executable was produced.' }
           $setup = $artifacts | Select-Object -First 1
           Write-Host "Installer: $($setup.FullName)"
@@ -117,5 +117,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DairyOS-Windows-Installer-${{ github.sha }}
-          path: dist-installer/*.exe
+          path: installer/dist-installer/*.exe
           if-no-files-found: error
