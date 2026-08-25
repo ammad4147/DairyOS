@@ -416,3 +416,9 @@ def list_users(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
     finally:
         factory.close()
 
+
+# Logout endpoint
+@router.post("/logout")
+async def logout():
+    # No server-side token invalidation needed for JWT; client discards token.
+    return {"message": "Logged out successfully"}
