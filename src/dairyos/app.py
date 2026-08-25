@@ -25,11 +25,13 @@ from dairyos.farm.production.services.milk_herd_drop_monitoring_service import M
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.api.authorization import authorize_request
+from dairyos.email.scheduler import NightlyEmailScheduler
 from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
+email_scheduler = NightlyEmailScheduler(container=container)
 
 
 @asynccontextmanager
@@ -50,10 +52,12 @@ async def lifespan(_app: FastAPI):
     if finding_audit_migrated:
         logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
     container.start()
-    logging.info("RuntimeContainer started - operations ready.")
+    email_scheduler.start()
+    logging.info("RuntimeContainer and nightly email scheduler started - operations ready.")
     try:
         yield
     finally:
+        email_scheduler.stop()
         container.shutdown()
 
 
