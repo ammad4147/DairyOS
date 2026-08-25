@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from dairyos.core.time_utils import utcnow
@@ -66,7 +66,7 @@ class NightlyEmailScheduler:
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_seconds):
             now = datetime.now(LOCAL_ZONE)
-            if now.time().hour == 23 and now.time().minute == 0:
+            if now.hour == 23 and now.minute == 0:
                 slot = now.date().isoformat()
                 if slot != self._last_attempted_slot:
                     self._last_attempted_slot = slot
@@ -78,12 +78,7 @@ class NightlyEmailScheduler:
         current_local = current.astimezone(LOCAL_ZONE)
         previous_local = previous.astimezone(LOCAL_ZONE)
         digest_date = expected_digest_date(current_local)
-        if current_local.time() >= time(23, 0) and digest_date == current_local.date():
-            expected_slot = current_local.replace(hour=23, minute=0, second=0, microsecond=0)
-        else:
-            expected_slot = current_local.replace(hour=23, minute=0, second=0, microsecond=0)
-            if digest_date != current_local.date():
-                expected_slot = expected_slot.replace(day=expected_slot.day - 1)
+        expected_slot = datetime.combine(digest_date, time(23, 0), tzinfo=LOCAL_ZONE)
         if previous_local.date() == digest_date and previous_local.time() < time(23, 0) and current_local >= expected_slot:
             self._send(digest_date)
 
