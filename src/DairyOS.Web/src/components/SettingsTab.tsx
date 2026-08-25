@@ -21,7 +21,7 @@ export default function SettingsTab({ onFarmProfileUpdate }: SettingsTabProps) {
   const [emailConfig,setEmailConfig]=useState<EmailConfig>({configured:false}),[emailPassword,setEmailPassword]=useState(''),[testRecipient,setTestRecipient]=useState('');
   const [error,setError]=useState(''),[message,setMessage]=useState('');
   const canUsers=hasPermission('users.view');
-  const canEmail=hasPermission('settings.email') || canUsers;
+  const canEmail=hasPermission('settings.email');
 
   const loadUsers=async()=>{if(!canUsers)return;setError('');try{const [u,m]=await Promise.all([fetch(`${API_BASE}/users`),fetch(`${API_BASE}/authz/matrix`)]);if(!u.ok||!m.ok)throw new Error('User administration is unavailable.');setUsers((await u.json()).users??[]);setMatrix(await m.json())}catch(e){setError(e instanceof Error?e.message:'Unable to load users.')}};
   const loadEmail=async()=>{if(!canEmail)return;try{const r=await fetch(`${API_BASE}/settings/email`);if(r.ok)setEmailConfig(await r.json())}catch(e){console.error(e)}};
@@ -44,12 +44,9 @@ export default function SettingsTab({ onFarmProfileUpdate }: SettingsTabProps) {
   }catch(e){setError(e instanceof Error?e.message:'Unable to create user.')}};
 
   const openUser=async(username:string)=>{try{const r=await fetch(`${API_BASE}/authz/users/${encodeURIComponent(username)}/profile`);const d=await r.json();if(!r.ok)throw new Error(d.detail||'Unable to load user profile.');setSelected(d);setPermissions(d.permissions??[])}catch(e){setError(e instanceof Error?e.message:'Unable to load user profile.')}};
-
   const saveUserProfile=async()=>{if(!selected)return;setError('');setMessage('');try{const r=await fetch(`${API_BASE}/authz/users/${encodeURIComponent(selected.username)}/profile`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_title:selected.job_title||null,personal_email:selected.personal_email||null,permissions})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Unable to save user access.');setSelected({...selected,...d});setMessage(`Access saved for ${d.username}.`);await loadUsers()}catch(e){setError(e instanceof Error?e.message:'Unable to save user access.')}};
-
   const setActive=async(u:UserRow)=>{setError('');setMessage('');try{const r=await fetch(`${API_BASE}/authz/users/${encodeURIComponent(u.username)}/active`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!u.active})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Unable to update user.');setMessage(`${d.username} is now ${d.active?'active':'disabled'}.`);await loadUsers()}catch(e){setError(e instanceof Error?e.message:'Unable to update user.')}};
-
-  const saveEmail=async()=>{setError('');setMessage('');try{const r=await fetch(`${API_BASE}/settings/email`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...emailConfig,smtp_password:emailPassword||undefined})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Unable to save email settings.');setEmailConfig(d);setEmailPassword('');setMessage('DairyOS sender settings saved.') }catch(e){setError(e instanceof Error?e.message:'Unable to save email settings.')}};
+  const saveEmail=async()=>{setError('');setMessage('');try{const r=await fetch(`${API_BASE}/settings/email`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...emailConfig,smtp_password:emailPassword||undefined})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Unable to save email settings.');setEmailConfig(d);setEmailPassword('');setMessage('DairyOS sender settings saved.')}catch(e){setError(e instanceof Error?e.message:'Unable to save email settings.')}};
   const sendTest=async()=>{setError('');setMessage('');try{const r=await fetch(`${API_BASE}/settings/email/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipient:testRecipient})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Test email failed.');setMessage(`Test email sent to ${d.recipient}.`)}catch(e){setError(e instanceof Error?e.message:'Test email failed.')}};
 
   return <div style={{padding:24,color:'#fff',height:'100%',overflowY:'auto'}}>
@@ -62,10 +59,8 @@ export default function SettingsTab({ onFarmProfileUpdate }: SettingsTabProps) {
     </div>
     {error&&<div style={{background:'#450a0a',border:'1px solid #7f1d1d',color:'#fecaca',padding:10,borderRadius:6,marginBottom:12,fontSize:11}}>{error}</div>}
     {message&&<div style={{background:'#064e3b',border:'1px solid #065f46',color:'#a7f3d0',padding:10,borderRadius:6,marginBottom:12,fontSize:11}}>{message}</div>}
-
     {activeTab==='FARM'&&<div style={{background:'#111827',padding:20,borderRadius:8,maxWidth:440}}><label style={label}>Farm Name</label><input value={farmName} onChange={e=>setFarmName(e.target.value)} style={field}/><label style={label}>Location</label><input value={location} onChange={e=>setLocation(e.target.value)} style={field}/><button onClick={handleSaveFarm} style={button}><Save size={14}/>Save Farm</button></div>}
     {activeTab==='STANDARDS'&&<div style={{background:'#111827',padding:20,borderRadius:8,maxWidth:440}}><label style={label}>Timezone</label><select value={timezone} onChange={e=>setTimezone(e.target.value)} style={field}><option>Asia/Karachi (PKT +05:00)</option><option>UTC</option></select><button onClick={handleSaveStandards} style={button}><Save size={14}/>Save Standards</button></div>}
-
     {activeTab==='USERS'&&canUsers&&<div style={{display:'grid',gridTemplateColumns:'minmax(260px,360px) minmax(0,1fr)',gap:14,alignItems:'start'}}>
       <div style={{display:'grid',gap:14}}>
         <section style={card}><h3 style={title}>Users</h3>{users.map(u=><div key={u.id} style={row}><div style={{flex:1,cursor:'pointer'}} onClick={()=>void openUser(u.username)}><strong>{u.username}</strong><div style={muted}>{u.role} {u.active?'• Active':'• Disabled'}</div></div><button onClick={()=>void setActive(u)} style={{...small,color:u.active?'#fca5a5':'#86efac'}}>{u.active?<UserX size={13}/>:<UserCheck size={13}/>} {u.active?'Disable':'Enable'}</button></div>)}{users.length===0&&<div style={empty}>No persisted users found.</div>}</section>
@@ -80,22 +75,17 @@ export default function SettingsTab({ onFarmProfileUpdate }: SettingsTabProps) {
           <button type="submit" style={button}><UserPlus size={14}/>Create User</button>
         </form>
       </div>
-
       <div style={{display:'grid',gap:14}}>
         {selected&&<section style={card}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><div><h3 style={title}>Access Profile — {selected.username}</h3><div style={muted}>{selected.role} {selected.job_title?`• ${selected.job_title}`:''}</div></div><button type="button" onClick={()=>setSelected(null)} style={small}>Close</button></div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-            <input placeholder="Job title" value={selected.job_title??''} onChange={e=>setSelected({...selected,job_title:e.target.value})} style={field}/>
-            <input type="email" placeholder="Personal email (optional)" value={selected.personal_email??''} onChange={e=>setSelected({...selected,personal_email:e.target.value})} style={field}/>
-          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}><input placeholder="Job title" value={selected.job_title??''} onChange={e=>setSelected({...selected,job_title:e.target.value})} style={field}/><input type="email" placeholder="Personal email (optional)" value={selected.personal_email??''} onChange={e=>setSelected({...selected,personal_email:e.target.value})} style={field}/></div>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:12}}>Visibility & Entry Permissions</strong><span style={muted}>{selectedCount} enabled</span></div>
           {matrix&&Object.entries(matrix.groups).map(([group,groupPermissions])=><div key={group} style={{borderTop:'1px solid #1f2937',padding:'10px 0'}}><div style={{fontSize:11,fontWeight:700,marginBottom:6}}>{group}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:6}}>{groupPermissions.map(permission=><label key={permission} style={{display:'flex',alignItems:'center',gap:6,fontSize:9,color:'#cbd5e1',background:'#0f172a',padding:'6px 8px',borderRadius:5,border:'1px solid #1e293b'}}><input type="checkbox" checked={permissions.includes(permission)} onChange={()=>togglePermission(permission)}/>{permission}</label>)}</div></div>)}
-          <div style={{display:'flex',gap:8,marginTop:10}}><button onClick={saveUserProfile} style={button}><Save size={14}/>Save Access</button><button type="button" onClick={()=>{setPermissions(allPermissions)}} style={small}>Grant All</button><button type="button" onClick={()=>setPermissions([])} style={small}><KeyRound size={13}/>Clear All</button></div>
+          <div style={{display:'flex',gap:8,marginTop:10}}><button onClick={saveUserProfile} style={button}><Save size={14}/>Save Access</button><button type="button" onClick={()=>setPermissions(allPermissions)} style={small}>Grant All</button><button type="button" onClick={()=>setPermissions([])} style={small}><KeyRound size={13}/>Clear All</button></div>
         </section>}
         {!selected&&<section style={card}><h3 style={title}>Flexible Access Model</h3><div style={muted}>Job titles describe the person. Saved permissions determine what the person can see, enter, edit, approve, or administer. Presets are only convenience starting points.</div><div style={{marginTop:12,fontSize:10,color:'#94a3b8'}}>Select a user on the left to edit their profile.</div></section>}
       </div>
     </div>}
-
     {activeTab==='EMAIL'&&canEmail&&<div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(320px,420px)',gap:14,alignItems:'start'}}>
       <section style={card}><h3 style={title}>DairyOS Sender</h3><div style={muted}>All nightly digests and DairyOS-generated email are sent using this identity. Database settings override deployment defaults.</div>
         <label style={label}>From email</label><input type="email" value={emailConfig.sender_email??''} onChange={e=>setEmailConfig({...emailConfig,sender_email:e.target.value})} style={field}/>
