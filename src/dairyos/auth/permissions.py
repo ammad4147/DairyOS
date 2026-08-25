@@ -41,12 +41,14 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         "health.view",
         "breeding.view",
     }),
+    "CUSTOM": frozenset(),
 }
 
 ROLE_DESCRIPTIONS = {
-    "OWNER": "Full farm, financial, administrative, and security control.",
-    "MANAGER": "Operational management preset. Every permission can be customized for the individual user.",
-    "MILKER": "Milk/feed operational preset. Every permission can be customized for the individual user.",
+    "OWNER": "Full farm, financial, administrative, and security preset.",
+    "MANAGER": "Operational management preset; permissions can be customized per user.",
+    "MILKER": "Milk/feed operational preset; permissions can be customized per user.",
+    "CUSTOM": "No preset permissions. The administrator defines this user's access explicitly.",
 }
 
 PERMISSION_GROUPS: dict[str, tuple[str, ...]] = {
