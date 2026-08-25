@@ -48,7 +48,7 @@ GOVERNED = {
     # Access roles are presets, not a closed user taxonomy. CUSTOM is the
     # neutral preset for users whose access is defined entirely by their
     # saved permission profile and optional job title.
-    "auth_roles": ["OWNER", "MANAGER", "MILKER", "CUSTOM"],
+    "auth_roles": ["ADMIN", "OWNER", "MANAGER", "MILKER", "CUSTOM"],
     "health_case_statuses": ["OPEN", "RESOLVED"],
     "finding_severities": ["CRITICAL", "HIGH", "MONITORING", "INFORMATION"],
     "finding_statuses": ["RAISED", "ACKNOWLEDGED", "RESOLVED"],
