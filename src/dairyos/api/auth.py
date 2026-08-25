@@ -22,6 +22,8 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 router = APIRouter(tags=["Authentication"])
 _bearer = HTTPBearer(auto_error=False)
 _PBKDF2_ITERATIONS = 200_000
+_LEGACY_ADMIN_PASSWORD_HASH_KEY = "legacy_admin_password_hash"
+_LEGACY_ADMIN_PASSWORD_SALT_KEY = "legacy_admin_password_salt"
 
 
 class LoginRequest(BaseModel):
@@ -32,7 +34,7 @@ class LoginRequest(BaseModel):
 class CreateUserRequest(BaseModel):
     username: str = Field(min_length=1)
     password: str = Field(min_length=1)
-    role: str = Field(min_length=1)
+    role: str = Field(default="CUSTOM", min_length=1)
 
 
 def _configured_username() -> str:
@@ -104,6 +106,26 @@ def _find_persisted_user(username: str):
         factory.close()
 
 
+def _legacy_admin_password_override() -> tuple[str, str] | None:
+    factory = RepositoryFactory.create()
+    try:
+        repository = factory.app_settings()
+        password_hash = repository.get(_LEGACY_ADMIN_PASSWORD_HASH_KEY)
+        salt = repository.get(_LEGACY_ADMIN_PASSWORD_SALT_KEY)
+        if password_hash and salt:
+            return str(password_hash), str(salt)
+        return None
+    finally:
+        factory.close()
+
+
+def _verify_legacy_admin_password(password: str) -> bool:
+    override = _legacy_admin_password_override()
+    if override is not None:
+        return _verify_password(password, override[0], override[1])
+    return hmac.compare_digest(password, _configured_password())
+
+
 def _resolved_permissions_for_identity(user: dict[str, Any]) -> frozenset[str]:
     factory = RepositoryFactory.create()
     try:
@@ -124,7 +146,7 @@ def login(credentials: LoginRequest | None = None):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password", headers={"WWW-Authenticate": "Bearer"})
         role = persisted_user.role
     else:
-        if not hmac.compare_digest(supplied.username, _configured_username()) or not hmac.compare_digest(supplied.password, _configured_password()):
+        if not hmac.compare_digest(supplied.username, _configured_username()) or not _verify_legacy_admin_password(supplied.password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password", headers={"WWW-Authenticate": "Bearer"})
         role = _configured_role()
     now = int(time.time())
@@ -206,23 +228,35 @@ def reset_user_password(username: str, payload: dict[str, str] = Body(...), _adm
 
 @router.post("/me/password")
 def change_my_password(payload: dict[str, str] = Body(...), current_user: dict[str, Any] = Depends(get_current_user)):
+    current_password = payload.get("current_password", "")
+    new_password = payload.get("new_password", "")
+    if not current_password or not new_password:
+        raise HTTPException(status_code=422, detail="current_password and new_password are required")
+
+    username = str(current_user["sub"])
     factory = RepositoryFactory.create()
     try:
-        current_password = payload.get("current_password", "")
-        new_password = payload.get("new_password", "")
-        if not current_password or not new_password:
-            raise HTTPException(status_code=422, detail="current_password and new_password are required")
-        user = factory.users().get_by_username(str(current_user["sub"]))
-        if user is None:
-            raise HTTPException(status_code=409, detail="Password for the configured legacy admin account is managed by environment configuration.")
-        if not _verify_password(current_password, user.password_hash, user.password_salt):
+        user = factory.users().get_by_username(username)
+        if user is not None:
+            if not _verify_password(current_password, user.password_hash, user.password_salt):
+                raise HTTPException(status_code=401, detail="Current password is incorrect", headers={"WWW-Authenticate": "Bearer"})
+            password_hash, salt = _hash_password(new_password)
+            user.password_hash = password_hash
+            user.password_salt = salt
+            factory.session.add(user)
+            factory.session.commit()
+            return {"username": user.username, "password_changed": True, "account_type": "persisted"}
+
+        if username != _configured_username():
+            raise HTTPException(status_code=404, detail="Persisted user account not found")
+        if not _verify_legacy_admin_password(current_password):
             raise HTTPException(status_code=401, detail="Current password is incorrect", headers={"WWW-Authenticate": "Bearer"})
+
         password_hash, salt = _hash_password(new_password)
-        user.password_hash = password_hash
-        user.password_salt = salt
-        factory.session.add(user)
-        factory.session.commit()
-        return {"username": user.username, "password_changed": True}
+        settings = factory.app_settings()
+        settings.set(_LEGACY_ADMIN_PASSWORD_HASH_KEY, password_hash, updated_by=username)
+        settings.set(_LEGACY_ADMIN_PASSWORD_SALT_KEY, salt, updated_by=username)
+        return {"username": username, "password_changed": True, "account_type": "legacy_admin"}
     finally:
         factory.close()
 
