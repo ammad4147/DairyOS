@@ -9,22 +9,36 @@ def _login(client, username, password):
     return client.post("/login", json={"username": username, "password": password})
 
 
-def _owner_token(client, monkeypatch):
+def _admin_token(client, monkeypatch):
+    monkeypatch.setenv("DAIRYOS_ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("DAIRYOS_ADMIN_PASSWORD", "test-password")
+    monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "OWNER")  # Must be ignored: bootstrap identity is always ADMIN.
+    monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "test-secret")
+    response = _login(client, "admin", "test-password")
+    assert response.status_code == 200, response.text
+    assert response.json()["user"] == {"username": "admin", "role": "ADMIN"}
+    return response.json()["access_token"]
+
+
+def test_auth_roles_include_admin_and_custom_access_preset():
+    assert GOVERNED["auth_roles"] == ["ADMIN", "OWNER", "MANAGER", "MILKER", "CUSTOM"]
+
+
+def test_bootstrap_admin_role_cannot_be_changed_by_environment(client: TestClient, monkeypatch):
     monkeypatch.setenv("DAIRYOS_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("DAIRYOS_ADMIN_PASSWORD", "test-password")
     monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "OWNER")
     monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "test-secret")
     response = _login(client, "admin", "test-password")
     assert response.status_code == 200, response.text
-    return response.json()["access_token"]
+    assert response.json()["user"] == {"username": "admin", "role": "ADMIN"}
+    me = client.get("/me", headers={"Authorization": f"Bearer {response.json()['access_token']}"})
+    assert me.status_code == 200
+    assert me.json()["role"] == "ADMIN"
 
 
-def test_auth_roles_include_custom_access_preset():
-    assert GOVERNED["auth_roles"] == ["OWNER", "MANAGER", "MILKER", "CUSTOM"]
-
-
-def test_owner_can_create_a_custom_user(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+def test_admin_can_create_a_custom_user(client: TestClient, monkeypatch):
+    token = _admin_token(client, monkeypatch)
     response = client.post(
         "/users",
         json={"username": "custom1", "password": "s3cret-pass", "role": "CUSTOM"},
@@ -34,8 +48,8 @@ def test_owner_can_create_a_custom_user(client: TestClient, monkeypatch):
     assert response.json()["role"] == "CUSTOM"
 
 
-def test_owner_can_create_a_user(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+def test_admin_can_create_a_user(client: TestClient, monkeypatch):
+    token = _admin_token(client, monkeypatch)
     response = client.post(
         "/users",
         json={"username": "manager1", "password": "s3cret-pass", "role": "MANAGER"},
@@ -48,8 +62,8 @@ def test_owner_can_create_a_user(client: TestClient, monkeypatch):
     assert body["active"] is True
 
 
-def test_owner_can_list_created_users(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+def test_admin_can_list_created_users(client: TestClient, monkeypatch):
+    token = _admin_token(client, monkeypatch)
     client.post(
         "/users",
         json={"username": "milker1", "password": "s3cret-pass", "role": "MILKER"},
@@ -62,7 +76,7 @@ def test_owner_can_list_created_users(client: TestClient, monkeypatch):
 
 
 def test_creating_a_user_with_ungoverned_role_is_rejected(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+    token = _admin_token(client, monkeypatch)
     response = client.post(
         "/users",
         json={"username": "rogue1", "password": "s3cret-pass", "role": "SUPERADMIN"},
@@ -72,7 +86,7 @@ def test_creating_a_user_with_ungoverned_role_is_rejected(client: TestClient, mo
 
 
 def test_duplicate_username_is_rejected(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+    token = _admin_token(client, monkeypatch)
     client.post(
         "/users",
         json={"username": "dup1", "password": "s3cret-pass", "role": "MILKER"},
@@ -86,12 +100,17 @@ def test_duplicate_username_is_rejected(client: TestClient, monkeypatch):
     assert response.status_code == 409, response.text
 
 
-def test_non_owner_cannot_create_users(client: TestClient, monkeypatch):
-    monkeypatch.setenv("DAIRYOS_ADMIN_USERNAME", "admin")
-    monkeypatch.setenv("DAIRYOS_ADMIN_PASSWORD", "test-password")
-    monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "MILKER")
-    monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "test-secret")
-    login_response = _login(client, "admin", "test-password")
+def test_non_admin_cannot_create_users(client: TestClient, monkeypatch):
+    admin_token = _admin_token(client, monkeypatch)
+    created = client.post(
+        "/users",
+        json={"username": "milker-no-admin", "password": "s3cret-pass", "role": "MILKER"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert created.status_code == 200, created.text
+
+    login_response = _login(client, "milker-no-admin", "s3cret-pass")
+    assert login_response.status_code == 200, login_response.text
     token = login_response.json()["access_token"]
     response = client.post(
         "/users",
@@ -107,7 +126,7 @@ def test_users_endpoint_requires_authentication(client: TestClient):
 
 
 def test_persisted_user_can_log_in_with_their_own_password(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+    token = _admin_token(client, monkeypatch)
     client.post(
         "/users",
         json={"username": "realmanager", "password": "correct-horse", "role": "MANAGER"},
@@ -123,7 +142,7 @@ def test_persisted_user_can_log_in_with_their_own_password(client: TestClient, m
 
 
 def test_persisted_user_login_rejects_wrong_password(client: TestClient, monkeypatch):
-    token = _owner_token(client, monkeypatch)
+    token = _admin_token(client, monkeypatch)
     client.post(
         "/users",
         json={"username": "realmilker", "password": "correct-horse", "role": "MILKER"},
@@ -141,6 +160,7 @@ def test_legacy_admin_password_can_be_changed(client: TestClient, monkeypatch):
 
     login_response = _login(client, "admin", "test-password")
     assert login_response.status_code == 200, login_response.text
+    assert login_response.json()["user"]["role"] == "ADMIN"
     token = login_response.json()["access_token"]
 
     changed = client.post(
@@ -170,11 +190,11 @@ def test_legacy_admin_password_change_rejects_wrong_current_password(client: Tes
     assert response.status_code == 401, response.text
 
 
-def test_legacy_admin_login_still_works_when_no_persisted_user_matches(client: TestClient, monkeypatch):
+def test_legacy_admin_login_is_always_admin_when_no_persisted_user_matches(client: TestClient, monkeypatch):
     monkeypatch.setenv("DAIRYOS_ADMIN_USERNAME", "legacy-admin")
     monkeypatch.setenv("DAIRYOS_ADMIN_PASSWORD", "test-password")
     monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "operator")
     monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "test-secret")
     response = _login(client, "legacy-admin", "test-password")
     assert response.status_code == 200, response.text
-    assert response.json()["user"] == {"username": "legacy-admin", "role": "operator"}
+    assert response.json()["user"] == {"username": "legacy-admin", "role": "ADMIN"}
