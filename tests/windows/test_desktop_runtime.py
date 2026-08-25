@@ -23,13 +23,15 @@ def test_choose_port_returns_bindable_loopback_port():
 
 
 def test_probe_returns_false_for_unreachable_endpoint():
-    assert probe("http://127.0.0.1:1/health", timeout=0.05) is False
+    port = choose_port()
+    assert probe(f"http://127.0.0.1:{port}/health", timeout=0.05) is False
 
 
 def test_wait_for_ready_times_out_when_backend_is_absent():
+    port = choose_port()
     config = SupervisorConfig(health_timeout=0.05, health_interval=0.01)
     try:
-        wait_for_ready("http://127.0.0.1:1", config)
+        wait_for_ready(f"http://127.0.0.1:{port}", config)
     except RuntimeError as exc:
         assert "healthy" in str(exc)
     else:  # pragma: no cover - defensive assertion
