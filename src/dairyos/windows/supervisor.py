@@ -21,6 +21,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
+from dairyos.windows.postgres_service import PostgreSQLServiceError, ensure_postgresql_running
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 
@@ -33,6 +34,7 @@ class SupervisorConfig:
     health_interval: float = 0.5
     restart_attempts: int = 2
     restart_backoff: float = 1.5
+    postgres_timeout: float = 30.0
 
 
 class SingleInstance:
@@ -256,6 +258,20 @@ def run(config: SupervisorConfig) -> int:
     backend = None
     try:
         try:
+            service_name = ensure_postgresql_running(timeout=config.postgres_timeout)
+            if service_name != "non-windows":
+                LOG.info("PostgreSQL Windows Service is running: %s", service_name)
+        except PostgreSQLServiceError as exc:
+            LOG.exception("DairyOS PostgreSQL service preflight failed")
+            show_startup_error(
+                "DairyOS database service unavailable",
+                "DairyOS could not start PostgreSQL.\n\n"
+                f"{exc}\n\n"
+                "No application window was started. Farm data was not modified.",
+            )
+            return 4
+
+        try:
             migration = migrate_if_needed()
             LOG.info(
                 "Database migration gate passed: migrated=%s current=%s target=%s backup=%s",
@@ -308,6 +324,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=int(os.environ.get("DAIRYOS_PORT", "0")))
     parser.add_argument("--health-timeout", type=float, default=60.0)
     parser.add_argument("--restart-attempts", type=int, default=2)
+    parser.add_argument("--postgres-timeout", type=float, default=30.0)
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
     return parser
 
@@ -326,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
             port=args.port,
             health_timeout=args.health_timeout,
             restart_attempts=max(0, args.restart_attempts),
+            postgres_timeout=max(1.0, args.postgres_timeout),
         )
     )
 
