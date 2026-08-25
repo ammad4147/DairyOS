@@ -1,0 +1,228 @@
+name: DairyOS Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, windows-installer-certification, windows-installer-certification-2026-08-23]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CI: true
+      POSTGRES_VERSION: '18.6'
+      DAIRYOS_AUTH_SECRET: ci-test-auth-secret-2026
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            src/DairyOS.Web/package-lock.json
+            installer/windows/app/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/DairyOS.Web
+        run: npm ci
+
+      - name: Install desktop packaging dependencies
+        working-directory: installer/windows/app
+        run: npm ci --no-audit --fund=false
+
+      - name: Build canonical Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\installer\windows\build.ps1 -Configuration Release -PostgresVersion $env:POSTGRES_VERSION
+          if ($LASTEXITCODE -ne 0) { throw "Canonical Windows installer build failed with exit code $LASTEXITCODE." }
+
+      - name: Verify installer artifact
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem .\installer\dist-installer -Filter '*.exe' -File -ErrorAction SilentlyContinue
+          if (-not $artifacts) { throw 'No Windows installer executable was produced.' }
+          $setup = $artifacts | Where-Object { $_.Name -notlike '*.__uninstaller.exe' } | Select-Object -First 1
+          if (-not $setup) { throw 'No primary Windows installer executable was produced.' }
+          Write-Host "Installer: $($setup.FullName)"
+          Write-Host "Size: $($setup.Length) bytes"
+          if ($setup.Length -lt 10MB) { throw 'Installer executable is unexpectedly small.' }
+          "SETUP_EXE=$($setup.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Installer lifecycle and farm-data preservation
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:ProgramFiles 'DairyOS'
+          $dataRoot = Join-Path $env:ProgramData 'DairyOS'
+          $setup = $env:SETUP_EXE
+
+          Write-Host "Installing: $setup"
+          $proc = Start-Process -FilePath $setup -ArgumentList '/S' -PassThru
+
+          $timeoutSec = 300
+          $elapsed = 0
+          $pollSec = 15
+
+          while (-not $proc.HasExited -and $elapsed -lt $timeoutSec) {
+            Start-Sleep -Seconds $pollSec
+            $elapsed += $pollSec
+            $proc.Refresh()
+
+            Write-Host "Still running after $elapsed s (PID $($proc.Id))"
+
+            Write-Host '=== Related processes ==='
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessName -match 'DairyOS|uninstall|nsis|elevate|msiexec' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize |
+              Out-String |
+              Write-Host
+
+            Write-Host '=== Visible windows ==='
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle.Trim() -ne '' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize |
+              Out-String |
+              Write-Host
+          }
+
+          $proc.Refresh()
+
+          if (-not $proc.HasExited) {
+            Write-Host '##[error] Installer did not exit within 300 seconds.'
+
+            Write-Host '=== Final related-process snapshot ==='
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessName -match 'DairyOS|uninstall|nsis|elevate|msiexec' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize |
+              Out-String |
+              Write-Host
+
+            Write-Host '=== All visible windows ==='
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle.Trim() -ne '' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize |
+              Out-String |
+              Write-Host
+
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+          Write-Host "Installer exited with code $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) {
+            throw "Installer exited with code $($proc.ExitCode)"
+          }
+
+          if (!(Test-Path (Join-Path $installRoot 'DairyOS.exe'))) { throw 'Installed DairyOS executable is missing.' }
+          if (!(Test-Path (Join-Path $installRoot 'resources'))) { throw 'Installed Electron resources are missing.' }
+
+          $initProc = Start-Process -FilePath (Join-Path $installRoot 'DairyOS.exe') -ArgumentList '--initialize-only' -PassThru
+          if (-not $initProc.WaitForExit(120000)) {
+            Write-Host '##[error] DairyOS.exe --initialize-only did not exit within 2 minutes.'
+            Write-Host '=== DairyOS ProgramData diagnostics ==='
+            if (Test-Path $dataRoot) {
+              Get-ChildItem $dataRoot -Force -Recurse -File -ErrorAction SilentlyContinue |
+                Select-Object FullName, Length |
+                Format-Table -AutoSize |
+                Out-String |
+                Write-Host
+              foreach ($log in @('postgresql.log','backend.log','backend-error.log','initialize-error.log')) {
+                $logPath = Join-Path $dataRoot $log
+                if (Test-Path $logPath) {
+                  Write-Host "=== $log ==="
+                  Get-Content $logPath -Tail 200 -ErrorAction SilentlyContinue | Write-Host
+                }
+              }
+            }
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessName -match 'DairyOS' } |
+              Select-Object ProcessName, Id, MainWindowTitle |
+              Format-Table -AutoSize | Out-String | Write-Host
+            Stop-Process -Id $initProc.Id -Force -ErrorAction SilentlyContinue
+            throw 'DairyOS.exe --initialize-only hung.'
+          }
+          Write-Host "initialize-only exited with code $($initProc.ExitCode)"
+          if ($initProc.ExitCode -ne 0) {
+            Write-Host '=== DairyOS ProgramData diagnostics ==='
+            if (Test-Path $dataRoot) {
+              Get-ChildItem $dataRoot -Force -Recurse -File -ErrorAction SilentlyContinue |
+                Select-Object FullName, Length |
+                Format-Table -AutoSize |
+                Out-String |
+                Write-Host
+              foreach ($log in @('postgresql.log','backend.log','backend-error.log','initialize-error.log')) {
+                $logPath = Join-Path $dataRoot $log
+                if (Test-Path $logPath) {
+                  Write-Host "=== $log ==="
+                  Get-Content $logPath -Tail 200 -ErrorAction SilentlyContinue | Write-Host
+                }
+              }
+              $configPath = Join-Path $dataRoot 'desktop-config.json'
+              if (Test-Path $configPath) {
+                Write-Host '=== desktop-config.json ==='
+                Get-Content $configPath -Raw | Write-Host
+              }
+            }
+            throw "initialize-only exited with code $($initProc.ExitCode)"
+          }
+
+          if (!(Test-Path $dataRoot)) { throw 'Persistent ProgramData\DairyOS directory was not created.' }
+
+          $sentinel = Join-Path $dataRoot 'installer-sentinel.txt'
+          'FARM_DATA_PRESERVATION_OK' | Set-Content -Path $sentinel -Encoding utf8
+
+          $envFile = Join-Path $dataRoot 'dairyos.env'
+          if (!(Test-Path $envFile)) { throw 'Persistent DairyOS environment file was not created.' }
+
+          $uninstaller = Join-Path $installRoot 'Uninstall DairyOS.exe'
+          if (!(Test-Path $uninstaller)) { throw 'DairyOS uninstaller was not installed.' }
+
+          Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait
+
+          if (!(Test-Path $dataRoot)) { throw 'FAIL: ProgramData\DairyOS was removed during uninstall.' }
+          if (!(Test-Path $sentinel)) { throw 'FAIL: farm-data sentinel was removed during uninstall.' }
+
+          $backupRoot = Join-Path $dataRoot 'backups'
+          if (!(Test-Path $backupRoot)) { throw 'FAIL: backup directory was not preserved/created.' }
+
+          Start-Process -FilePath $setup -ArgumentList '/S' -Wait
+          if (!(Test-Path $sentinel)) { throw 'FAIL: farm-data sentinel was not preserved across reinstall.' }
+          $value = (Get-Content $sentinel -Raw).Trim()
+          if ($value -ne 'FARM_DATA_PRESERVATION_OK') { throw 'FAIL: persisted farm-data sentinel was altered.' }
+
+          Start-Process -FilePath (Join-Path $installRoot 'DairyOS.exe') -ArgumentList '--initialize-only' -Wait
+
+          $uninstaller = Join-Path $installRoot 'Uninstall DairyOS.exe'
+          if (!(Test-Path $uninstaller)) { throw 'FAIL: uninstaller missing after reinstall.' }
+          Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait
+
+          if (!(Test-Path $dataRoot)) { throw 'FAIL: final uninstall removed persistent farm data.' }
+          if (!(Test-Path $sentinel)) { throw 'FAIL: final uninstall removed persistent farm-data sentinel.' }
+
+      - name: Publish installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer-${{ github.sha }}
+          path: installer/dist-installer/*.exe
+          if-no-files-found: error
