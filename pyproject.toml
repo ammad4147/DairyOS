@@ -20,9 +20,11 @@ dependencies = [
   "python-dotenv>=1.1",
   "uvicorn>=0.35",
   "PyYAML>=6.0",
-  "cryptography>=45.0",
-  "pywebview>=6.2.1"
+  "cryptography>=45.0"
 ]
+
+[project.optional-dependencies]
+desktop = ["pywebview>=6.2.1"]
 
 [project.scripts]
 dairyos-server = "dairyos.server:main"
