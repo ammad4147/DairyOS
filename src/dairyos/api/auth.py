@@ -46,10 +46,13 @@ def _configured_password() -> str:
 
 
 def _configured_role() -> str:
-    # The bootstrap account is an administrator. It must never silently
-    # acquire the farm-owner identity merely because it is the first account.
-    configured = os.getenv("DAIRYOS_ADMIN_ROLE", "ADMIN").strip().upper()
-    return configured if configured in GOVERNED["auth_roles"] else "ADMIN"
+    """Return the role of the bootstrap account.
+
+    The configured legacy/bootstrap account is always the system Admin.
+    Farm ownership is a separate persisted identity and must never be inferred
+    from the bootstrap username or from an environment override.
+    """
+    return "ADMIN"
 
 
 def _signing_secret() -> bytes:
