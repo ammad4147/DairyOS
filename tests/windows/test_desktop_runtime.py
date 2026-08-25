@@ -81,7 +81,10 @@ def test_backend_watchdog_recovers_a_dead_backend(monkeypatch):
         return new_process, f"http://127.0.0.1:{port}"
 
     monkeypatch.setattr("dairyos.windows.supervisor.start_backend", fake_start_backend)
-    monkeypatch.setattr("dairyos.windows.supervisor.wait_for_ready", lambda url, config: None)
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor.wait_for_ready",
+        lambda url, config: None,
+    )
 
     watchdog = BackendWatchdog(
         old_process,
@@ -97,7 +100,72 @@ def test_backend_watchdog_recovers_a_dead_backend(monkeypatch):
     assert watchdog.failure is None
     assert calls[0][0] == 8123
     assert ("reloaded", "http://127.0.0.1:8123") in calls
-    # The old process has already exited, so terminate_backend correctly has
-    # nothing to terminate. Recovery is proven by replacement and readiness.
     assert old_process.terminated is False
     assert watchdog.process is new_process
+
+
+def test_backend_watchdog_clears_transient_restart_failure_after_recovery(monkeypatch):
+    class FakeProcess:
+        def __init__(self, alive: bool):
+            self.alive = alive
+            self.terminated = False
+
+        def poll(self):
+            return None if self.alive else 1
+
+        def terminate(self):
+            self.terminated = True
+            self.alive = False
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            self.alive = False
+
+    class FakeJob:
+        def assign(self, process):
+            return None
+
+    old_process = FakeProcess(alive=False)
+    recovered_process = FakeProcess(alive=True)
+    attempts = []
+    readiness_attempts = []
+
+    def fake_start_backend(config, job, port=None):
+        attempts.append(port)
+        if len(attempts) == 1:
+            raise RuntimeError("simulated transient restart failure")
+        return recovered_process, f"http://127.0.0.1:{port}"
+
+    def fake_wait_for_ready(url, config):
+        readiness_attempts.append(url)
+
+    reloads = []
+
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor.start_backend",
+        fake_start_backend,
+    )
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor.wait_for_ready",
+        fake_wait_for_ready,
+    )
+
+    watchdog = BackendWatchdog(
+        old_process,
+        "http://127.0.0.1:8123",
+        SupervisorConfig(restart_attempts=2, restart_backoff=0.0),
+        FakeJob(),
+        lambda url: reloads.append(url),
+    )
+
+    watchdog.start()
+    watchdog.thread.join(timeout=3)
+    watchdog.stop()
+
+    assert attempts == [8123, 8123]
+    assert readiness_attempts == ["http://127.0.0.1:8123"]
+    assert reloads == ["http://127.0.0.1:8123"]
+    assert watchdog.process is recovered_process
+    assert watchdog.failure is None

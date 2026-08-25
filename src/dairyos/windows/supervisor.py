@@ -274,6 +274,7 @@ class BackendWatchdog:
                     self.url = new_url
                 terminate_backend(old_process)
                 attempts = 0
+                self.failure = None
                 self.on_restart(new_url)
                 LOG.info("DairyOS backend recovered at %s", new_url)
             except Exception as exc:
