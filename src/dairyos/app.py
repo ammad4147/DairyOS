@@ -26,6 +26,7 @@ from dairyos.farm.production.services.milk_reconciliation_service import MilkRec
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.api.authorization import authorize_request
 from dairyos.email.scheduler import NightlyEmailScheduler
+from dairyos.frontend import frontend_index_response, mount_frontend
 from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -206,9 +207,15 @@ app.include_router(milk_production_summary_router)
 app.include_router(milk_quality_router)
 app.include_router(coml_router)
 
-FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "http://localhost:5173/")
+FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 
 
 @app.get("/", include_in_schema=False)
 def root():
-    return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "Retired; the React/Vite operator shell is authoritative."}})
+    frontend = frontend_index_response()
+    if frontend is not None:
+        return frontend
+    return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "React/Vite operator shell is not present in this runtime."}})
+
+
+mount_frontend(app)

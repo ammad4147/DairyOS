@@ -20,12 +20,14 @@ dependencies = [
   "python-dotenv>=1.1",
   "uvicorn>=0.35",
   "PyYAML>=6.0",
-  "cryptography>=45.0"
+  "cryptography>=45.0",
+  "pywebview>=6.2.1"
 ]
 
 [project.scripts]
 dairyos-server = "dairyos.server:main"
 dairyos-lifecycle = "dairyos.lifecycle.cli:main"
+dairyos-desktop = "dairyos.windows.supervisor:main"
 
 [tool.black]
 line-length=88
