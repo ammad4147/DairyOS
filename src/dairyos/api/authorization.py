@@ -7,16 +7,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 
-from dairyos.api.auth import _decode_token, get_current_user, require_role
-from dairyos.auth.permissions import (
-    PERMISSIONS,
-    PERMISSION_GROUPS,
-    ROLE_DESCRIPTIONS,
-    ROLE_PERMISSIONS,
-    normalize_permissions,
-    permissions_for_role,
-    permissions_from_json,
-)
+from dairyos.api.auth import _decode_token, get_current_user, require_permission
+from dairyos.auth.permissions import PERMISSIONS, PERMISSION_GROUPS, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS, normalize_permissions, permissions_for_role, permissions_from_json
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 router = APIRouter(prefix="/authz", tags=["authorization"])
@@ -90,7 +82,7 @@ def current_permissions(user: dict[str, Any] = Depends(get_current_user)):
 
 
 @router.get("/matrix")
-def permission_matrix(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
+def permission_matrix(_admin: dict[str, Any] = Depends(require_permission("users.permissions"))):
     return {"permissions": list(PERMISSIONS), "groups": {name: list(values) for name, values in PERMISSION_GROUPS.items()}, "roles": {role: {"description": ROLE_DESCRIPTIONS[role], "permissions": normalize_permissions(permissions)} for role, permissions in ROLE_PERMISSIONS.items()}}
 
 
@@ -110,7 +102,7 @@ class UserAccessProfile(BaseModel):
 
 
 @router.get("/users/{username}/profile")
-def get_user_profile(username: str, _owner: dict[str, Any] = Depends(require_role("OWNER"))):
+def get_user_profile(username: str, _admin: dict[str, Any] = Depends(require_permission("users.view"))):
     factory = RepositoryFactory.create()
     try:
         user = factory.users().get_by_username(username)
@@ -121,7 +113,7 @@ def get_user_profile(username: str, _owner: dict[str, Any] = Depends(require_rol
 
 
 @router.put("/users/{username}/profile")
-def update_user_profile(username: str, payload: UserAccessProfile, _owner: dict[str, Any] = Depends(require_role("OWNER"))):
+def update_user_profile(username: str, payload: UserAccessProfile, _admin: dict[str, Any] = Depends(require_permission("users.edit"))):
     import json
     factory = RepositoryFactory.create()
     try:
@@ -139,12 +131,12 @@ def update_user_profile(username: str, payload: UserAccessProfile, _owner: dict[
 
 
 @router.patch("/users/{username}/active")
-def set_user_active(username: str, payload: dict[str, bool], _owner: dict[str, Any] = Depends(require_role("OWNER"))):
+def set_user_active(username: str, payload: dict[str, bool], _admin: dict[str, Any] = Depends(require_permission("users.disable"))):
     factory = RepositoryFactory.create()
     try:
         user = factory.users().get_by_username(username)
         if user is None: raise HTTPException(status_code=404, detail="User not found")
-        if username == _owner["sub"] and payload.get("active") is False: raise HTTPException(status_code=409, detail="The current owner cannot disable their own account")
+        if username == _admin["sub"] and payload.get("active") is False: raise HTTPException(status_code=409, detail="The current administrator cannot disable their own account")
         user.active = bool(payload.get("active", True))
         factory.session.add(user)
         factory.session.commit()
