@@ -16,6 +16,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+import threading
 import time
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -52,6 +53,7 @@ class SingleInstance:
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
         kernel32.CreateMutexW.restype = wintypes.HANDLE
+        ctypes.set_last_error(0)
         self.handle = kernel32.CreateMutexW(None, False, self.name)
         if not self.handle:
             raise ctypes.WinError(ctypes.get_last_error())
@@ -197,17 +199,17 @@ def backend_command(host: str, port: int) -> list[str]:
     return [sys.executable, "-m", "dairyos.server", "--host", host, "--port", str(port)]
 
 
-def start_backend(config: SupervisorConfig, job: JobObject) -> tuple[subprocess.Popen, str]:
-    port = config.port or choose_port(config.host)
-    command = backend_command(config.host, port)
+def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = None) -> tuple[subprocess.Popen, str]:
+    selected_port = port or config.port or choose_port(config.host)
+    command = backend_command(config.host, selected_port)
     env = os.environ.copy()
     env["DAIRYOS_HOST"] = config.host
-    env["DAIRYOS_PORT"] = str(port)
-    LOG.info("Starting DairyOS backend on %s:%s", config.host, port)
+    env["DAIRYOS_PORT"] = str(selected_port)
+    LOG.info("Starting DairyOS backend on %s:%s", config.host, selected_port)
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     process = subprocess.Popen(command, env=env, creationflags=creationflags)
     job.assign(process)
-    return process, f"http://{config.host}:{port}"
+    return process, f"http://{config.host}:{selected_port}"
 
 
 def terminate_backend(process: subprocess.Popen | None) -> None:
@@ -223,6 +225,74 @@ def terminate_backend(process: subprocess.Popen | None) -> None:
         process.wait(timeout=5)
 
 
+class BackendWatchdog:
+    """Monitor the backend while WebView2 is open and recover bounded crashes."""
+
+    def __init__(self, process, url: str, config: SupervisorConfig, job: JobObject, on_restart):
+        self.process = process
+        self.url = url
+        self.config = config
+        self.job = job
+        self.on_restart = on_restart
+        self.stop_event = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.failure: Exception | None = None
+        self._lock = threading.Lock()
+
+    def start(self) -> None:
+        self.thread = threading.Thread(target=self._watch, name="dairyos-backend-watchdog", daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.stop_event.set()
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(timeout=5)
+
+    def _watch(self) -> None:
+        attempts = 0
+        while not self.stop_event.wait(0.25):
+            if self.process.poll() is None:
+                continue
+
+            attempts += 1
+            if attempts > self.config.restart_attempts:
+                self.failure = RuntimeError("DairyOS backend exceeded the automatic restart limit.")
+                LOG.error("DairyOS backend crash-loop limit reached")
+                return
+
+            delay = self.config.restart_backoff * attempts
+            LOG.warning("DairyOS backend exited; restarting attempt %s/%s after %.1fs", attempts, self.config.restart_attempts, delay)
+            if self.stop_event.wait(delay):
+                return
+
+            try:
+                with self._lock:
+                    new_process, new_url = start_backend(self.config, self.job, port=_url_port(self.url))
+                    wait_for_ready(new_url, self.config)
+                    old_process = self.process
+                    self.process = new_process
+                    self.url = new_url
+                terminate_backend(old_process)
+                attempts = 0
+                self.on_restart(new_url)
+                LOG.info("DairyOS backend recovered at %s", new_url)
+            except Exception as exc:
+                LOG.exception("DairyOS backend restart attempt failed")
+                self.failure = exc
+                terminate_backend(locals().get("new_process"))
+                if attempts >= self.config.restart_attempts:
+                    return
+
+
+def _url_port(url: str) -> int:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.port is None:
+        raise RuntimeError(f"DairyOS backend URL has no explicit port: {url}")
+    return parsed.port
+
+
 def show_startup_error(title: str, message: str) -> None:
     if os.name == "nt":
         ctypes.windll.user32.MessageBoxW(None, message, title, 0x10)
@@ -230,7 +300,7 @@ def show_startup_error(title: str, message: str) -> None:
         LOG.error("%s: %s", title, message)
 
 
-def launch_webview(url: str, on_closed) -> None:
+def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     try:
         import webview
     except ImportError as exc:
@@ -244,8 +314,20 @@ def launch_webview(url: str, on_closed) -> None:
         min_size=(1024, 700),
         text_select=True,
     )
+
+    def reload_url(new_url: str) -> None:
+        try:
+            window.load_url(new_url)
+        except Exception:
+            LOG.exception("Failed to reload the DairyOS WebView after backend recovery")
+
+    watchdog.on_restart = reload_url
     window.events.closed += lambda: on_closed()
-    webview.start(gui="edgechromium", debug=False)
+    watchdog.start()
+    try:
+        webview.start(gui="edgechromium", debug=False)
+    finally:
+        watchdog.stop()
 
 
 def run(config: SupervisorConfig) -> int:
@@ -256,6 +338,7 @@ def run(config: SupervisorConfig) -> int:
 
     job = JobObject()
     backend = None
+    watchdog = None
     try:
         try:
             service_name = ensure_postgresql_running(timeout=config.postgres_timeout)
@@ -297,10 +380,13 @@ def run(config: SupervisorConfig) -> int:
                 backend, url = start_backend(config, job)
                 wait_for_ready(url, config)
                 LOG.info("DairyOS backend ready at %s", url)
-                launch_webview(url, lambda: terminate_backend(backend))
-                return 0
+                watchdog = BackendWatchdog(backend, url, config, job, lambda _url: None)
+                launch_webview(url, watchdog, lambda: terminate_backend(watchdog.process))
+                return 0 if watchdog.failure is None else 1
             except Exception as exc:
                 LOG.exception("DairyOS desktop startup/runtime failure")
+                if watchdog is not None:
+                    watchdog.stop()
                 terminate_backend(backend)
                 backend = None
                 if attempt + 1 >= attempts:
@@ -313,7 +399,9 @@ def run(config: SupervisorConfig) -> int:
                 time.sleep(config.restart_backoff * (attempt + 1))
         return 1
     finally:
-        terminate_backend(backend)
+        if watchdog is not None:
+            watchdog.stop()
+        terminate_backend(watchdog.process if watchdog is not None else backend)
         job.close()
         instance.release()
 
