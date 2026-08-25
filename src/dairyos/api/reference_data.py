@@ -45,7 +45,10 @@ GOVERNED = {
     "inventory_movement_types": [
         "PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT",
     ],
-    "auth_roles": ["OWNER", "MANAGER", "MILKER"],
+    # Access roles are presets, not a closed user taxonomy. CUSTOM is the
+    # neutral preset for users whose access is defined entirely by their
+    # saved permission profile and optional job title.
+    "auth_roles": ["OWNER", "MANAGER", "MILKER", "CUSTOM"],
     "health_case_statuses": ["OPEN", "RESOLVED"],
     "finding_severities": ["CRITICAL", "HIGH", "MONITORING", "INFORMATION"],
     "finding_statuses": ["RAISED", "ACKNOWLEDGED", "RESOLVED"],
