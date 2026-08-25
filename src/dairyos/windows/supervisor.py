@@ -20,6 +20,8 @@ import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
+
 LOG = logging.getLogger("dairyos.windows.supervisor")
 
 
@@ -219,6 +221,13 @@ def terminate_backend(process: subprocess.Popen | None) -> None:
         process.wait(timeout=5)
 
 
+def show_startup_error(title: str, message: str) -> None:
+    if os.name == "nt":
+        ctypes.windll.user32.MessageBoxW(None, message, title, 0x10)
+    else:
+        LOG.error("%s: %s", title, message)
+
+
 def launch_webview(url: str, on_closed) -> None:
     try:
         import webview
@@ -246,6 +255,25 @@ def run(config: SupervisorConfig) -> int:
     job = JobObject()
     backend = None
     try:
+        try:
+            migration = migrate_if_needed()
+            LOG.info(
+                "Database migration gate passed: migrated=%s current=%s target=%s backup=%s",
+                migration.migrated,
+                migration.current_heads,
+                migration.target_heads,
+                migration.backup_path,
+            )
+        except MigrationGateError as exc:
+            LOG.exception("DairyOS database startup gate failed")
+            show_startup_error(
+                "DairyOS database startup blocked",
+                "DairyOS could not safely prepare the farm database.\n\n"
+                f"{exc}\n\n"
+                "No application window was started. Existing farm data was not intentionally deleted.",
+            )
+            return 3
+
         job.create()
         attempts = config.restart_attempts + 1
         for attempt in range(attempts):
@@ -255,11 +283,16 @@ def run(config: SupervisorConfig) -> int:
                 LOG.info("DairyOS backend ready at %s", url)
                 launch_webview(url, lambda: terminate_backend(backend))
                 return 0
-            except Exception:
+            except Exception as exc:
                 LOG.exception("DairyOS desktop startup/runtime failure")
                 terminate_backend(backend)
                 backend = None
                 if attempt + 1 >= attempts:
+                    show_startup_error(
+                        "DairyOS could not start",
+                        "The DairyOS application runtime failed to start or become ready.\n\n"
+                        f"{exc}\n\nReview the DairyOS logs for diagnostic details.",
+                    )
                     return 1
                 time.sleep(config.restart_backoff * (attempt + 1))
         return 1
