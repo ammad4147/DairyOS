@@ -7,7 +7,7 @@ interface LoginModalProps {
   onLoginSuccess: (user: { username: string; role: string; fullName: string; permissions: string[] }) => void;
 }
 
-const API_BASE=API_BASE_URL||'http://127.0.0.1:8000';
+const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
 export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
   const [username, setUsername] = useState('admin');
@@ -17,7 +17,10 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
 
   const finishLogin = async (data: any, fallbackUsername = username) => {
     const authenticated = data?.user ?? data ?? {};
-    const role = String(authenticated.role || 'OWNER').toUpperCase();
+    const authenticatedUsername = String(authenticated.username || fallbackUsername);
+    const role = String(authenticated.role || '').toUpperCase();
+    if (!role) throw new Error('Authenticated account did not return a role.');
+
     let permissions: string[] = [];
     try {
       const token = localStorage.getItem('dairyos_token');
@@ -33,10 +36,13 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
     } catch {
       permissions = [];
     }
+
     const userObj = {
-      username: authenticated.username || fallbackUsername,
+      username: authenticatedUsername,
       role,
-      fullName: fallbackUsername === 'admin' ? 'Farm Owner' : fallbackUsername,
+      // Do not infer a person's identity from a username. The backend remains
+      // authoritative for the authenticated account and role.
+      fullName: authenticated.fullName || authenticated.display_name || authenticatedUsername,
       permissions,
     };
     saveUser(userObj);
@@ -59,6 +65,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
       localStorage.setItem('dairyos_token', data.access_token || '');
       await finishLogin(data);
     } catch {
+      localStorage.removeItem('dairyos_token');
       setError('Unable to authenticate with DairyOS server.');
     } finally {
       setLoading(false);
@@ -69,9 +76,9 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps) {
     <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at 50% 30%, #1e293b 0%, #0b0f19 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, fontFamily: 'sans-serif' }}>
       <div style={{ width: '400px', background: '#111827', border: '1px solid #1f2937', borderRadius: '12px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ width: '54px', height: '54px', borderRadius: '12px', background: '#0284c7', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '20px', marginBottom: '12px' }}>BDF</div>
+          <div style={{ width: '54px', height: '54px', borderRadius: '12px', background: '#0284c7', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '20px', marginBottom: '12px' }}>DOS</div>
           <h1 style={{ margin: '0 0 4px 0', fontSize: '20px', color: '#fff', fontWeight: 'bold' }}>DairyOS Enterprise</h1>
-          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Barki Dairy Farm Operating System</p>
+          <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Dairy Farm Operating System</p>
         </div>
         {error && <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '10px 12px', borderRadius: '6px', fontSize: '11px', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}><AlertCircle size={15} color="#ef4444" /><span>{error}</span></div>}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
