@@ -211,11 +211,21 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 
 
 @app.get("/", include_in_schema=False)
-def root():
+def root(request: Request):
+    """Serve React to browsers while retaining a deterministic JSON API root.
+
+    API clients and TestClient use the metadata response. A normal browser or
+    WebView2 requests HTML and receives the production React entrypoint.
+    """
     frontend = frontend_index_response()
-    if frontend is not None:
+    accept = request.headers.get("accept", "")
+    if frontend is not None and "text/html" in accept.lower():
         return frontend
-    return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "React/Vite operator shell is not present in this runtime."}})
+    return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "React/Vite operator shell is authoritative; FastAPI exposes the API/runtime surface."}})
 
 
+# Production desktop/runtime mode: serve the compiled React application from
+# the same FastAPI process. This is deliberately mounted only after all API
+# routers so API paths remain authoritative and the React shell handles
+# browser-side routes/fallbacks.
 mount_frontend(app)
