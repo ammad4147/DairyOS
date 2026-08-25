@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 
 
-def test_login_issues_signed_operator_token(client: TestClient, monkeypatch):
+def test_login_issues_signed_admin_token(client: TestClient, monkeypatch):
     monkeypatch.setenv("DAIRYOS_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("DAIRYOS_ADMIN_PASSWORD", "test-password")
-    monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "operator")
+    monkeypatch.setenv("DAIRYOS_ADMIN_ROLE", "operator")  # ignored by design: bootstrap identity is always ADMIN
     monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "test-secret")
 
     response = client.post(
@@ -15,7 +15,7 @@ def test_login_issues_signed_operator_token(client: TestClient, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["token_type"] == "bearer"
-    assert payload["user"] == {"username": "admin", "role": "operator"}
+    assert payload["user"] == {"username": "admin", "role": "ADMIN"}
     assert payload["access_token"] != "static-token"
 
     me = client.get(
@@ -25,7 +25,7 @@ def test_login_issues_signed_operator_token(client: TestClient, monkeypatch):
 
     assert me.status_code == 200
     assert me.json()["username"] == "admin"
-    assert me.json()["role"] == "operator"
+    assert me.json()["role"] == "ADMIN"
 
 
 def test_login_rejects_invalid_credentials(client: TestClient, monkeypatch):
