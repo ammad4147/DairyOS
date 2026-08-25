@@ -14,6 +14,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     password_salt = Column(String, nullable=False)
     role = Column(String, nullable=False)
+    job_title = Column(String, nullable=True)
     personal_email = Column(String, nullable=True)
     permissions_json = Column(Text, nullable=True)
     active = Column(Boolean, nullable=False, default=True)
