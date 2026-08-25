@@ -19,6 +19,8 @@ def upgrade() -> None:
     user_columns = {c["name"] for c in inspector.get_columns("users")}
     if "personal_email" not in user_columns:
         op.add_column("users", sa.Column("personal_email", sa.String(), nullable=True))
+    if "job_title" not in user_columns:
+        op.add_column("users", sa.Column("job_title", sa.String(), nullable=True))
     if "permissions_json" not in user_columns:
         op.add_column("users", sa.Column("permissions_json", sa.Text(), nullable=True))
 
@@ -84,5 +86,7 @@ def downgrade() -> None:
     user_columns = {c["name"] for c in inspector.get_columns("users")}
     if "permissions_json" in user_columns:
         op.drop_column("users", "permissions_json")
+    if "job_title" in user_columns:
+        op.drop_column("users", "job_title")
     if "personal_email" in user_columns:
         op.drop_column("users", "personal_email")
