@@ -19,7 +19,8 @@ dependencies = [
   "pydantic>=2.11",
   "python-dotenv>=1.1",
   "uvicorn>=0.35",
-  "PyYAML>=6.0"
+  "PyYAML>=6.0",
+  "cryptography>=45.0"
 ]
 
 [project.scripts]
