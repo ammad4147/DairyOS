@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
-from datetime import datetime
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
+from dairyos.core.time_utils import utcnow
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from .digest import DashboardDigestService, expected_digest_date
 
 log = logging.getLogger(__name__)
+LOCAL_ZONE = ZoneInfo("Asia/Karachi")
+_LAST_STARTUP_KEY = "email_scheduler_last_startup_utc"
 
 
 class NightlyEmailScheduler:
-    """Small lifecycle-owned scheduler for the single Windows farm instance."""
+    """Lifecycle-owned scheduler for the single DairyOS farm instance."""
 
     def __init__(self, *, container, interval_seconds: int = 30):
         self.container = container
@@ -24,8 +27,11 @@ class NightlyEmailScheduler:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        previous = self._previous_startup()
+        current = utcnow()
+        self._record_startup(current)
         self._stop.clear()
-        self._run_catch_up()
+        self._run_catch_up(previous, current)
         self._thread = threading.Thread(target=self._loop, name="dairyos-email-scheduler", daemon=True)
         self._thread.start()
         log.info("Nightly email scheduler started")
@@ -36,21 +42,50 @@ class NightlyEmailScheduler:
             self._thread.join(timeout=2)
         self._thread = None
 
+    def _previous_startup(self) -> datetime | None:
+        factory = RepositoryFactory.create()
+        try:
+            value = factory.app_settings().get(_LAST_STARTUP_KEY)
+        finally:
+            factory.close()
+        if not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(str(value))
+            return parsed.replace(tzinfo=ZoneInfo("UTC")) if parsed.tzinfo is None else parsed
+        except ValueError:
+            return None
+
+    def _record_startup(self, when: datetime) -> None:
+        factory = RepositoryFactory.create()
+        try:
+            factory.app_settings().set(_LAST_STARTUP_KEY, when.isoformat(), updated_by="EMAIL_SCHEDULER")
+        finally:
+            factory.close()
+
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_seconds):
-            now = datetime.now(ZoneInfo("Asia/Karachi"))
-            if now.hour == 23 and now.minute == 0:
+            now = datetime.now(LOCAL_ZONE)
+            if now.time().hour == 23 and now.time().minute == 0:
                 slot = now.date().isoformat()
                 if slot != self._last_attempted_slot:
                     self._last_attempted_slot = slot
                     self._send(now.date())
 
-    def _run_catch_up(self) -> None:
-        digest_date = expected_digest_date()
-        now = datetime.now(ZoneInfo("Asia/Karachi"))
-        if now.hour == 23 and now.minute < 1:
+    def _run_catch_up(self, previous: datetime | None, current: datetime) -> None:
+        if previous is None:
             return
-        self._send(digest_date)
+        current_local = current.astimezone(LOCAL_ZONE)
+        previous_local = previous.astimezone(LOCAL_ZONE)
+        digest_date = expected_digest_date(current_local)
+        if current_local.time() >= time(23, 0) and digest_date == current_local.date():
+            expected_slot = current_local.replace(hour=23, minute=0, second=0, microsecond=0)
+        else:
+            expected_slot = current_local.replace(hour=23, minute=0, second=0, microsecond=0)
+            if digest_date != current_local.date():
+                expected_slot = expected_slot.replace(day=expected_slot.day - 1)
+        if previous_local.date() == digest_date and previous_local.time() < time(23, 0) and current_local >= expected_slot:
+            self._send(digest_date)
 
     def _send(self, digest_date) -> None:
         try:
