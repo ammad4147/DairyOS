@@ -30,7 +30,9 @@ def permission_for_request(method: str, path: str, payload: dict[str, Any] | Non
     clean = path.rstrip("/") or "/"
     if clean.startswith("/authz") or clean in {"/login", "/me", "/auth/users", "/auth/users/"}:
         return None
-    if clean.startswith("/farm/finance-ledger"):
+    if clean == "/dashboard" or clean.startswith("/dashboard/"):
+        return "dashboard.view"
+    if clean.startswith("/farm/finance-ledger") or clean.startswith("/farm/finance") or clean.startswith("/farm/financial") or clean.startswith("/financial"):
         if m == "GET": return "finance.view"
         if m == "POST" and clean.count("/") == 2:
             category = str((payload or {}).get("master_category") or "").upper()
