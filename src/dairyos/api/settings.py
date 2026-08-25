@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from dairyos.api.auth import require_role
+from dairyos.api.auth import require_permission
 from dairyos.api.dependencies import get_container
 from dairyos.data.database.session import engine
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -14,7 +14,6 @@ from dairyos.email.service import EmailService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
-
 _PRESERVED_TABLES = {"alembic_version", "app_settings"}
 
 
@@ -136,20 +135,20 @@ class EmailTestRequest(BaseModel):
 
 
 @router.get("/email")
-def get_email_settings(_owner=Depends(require_role("OWNER"))):
+def get_email_settings(_admin=Depends(require_permission("settings.email"))):
     return EmailService().public_config()
 
 
 @router.put("/email")
-def save_email_settings(payload: EmailSettingsRequest, owner=Depends(require_role("OWNER"))):
+def save_email_settings(payload: EmailSettingsRequest, admin=Depends(require_permission("settings.email"))):
     try:
-        return EmailService().save_config(payload.model_dump(), updated_by=str(owner.get("sub") or "OWNER"))
+        return EmailService().save_config(payload.model_dump(), updated_by=str(admin.get("sub") or "ADMIN"))
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/email/test")
-def send_test_email(payload: EmailTestRequest, _owner=Depends(require_role("OWNER"))):
+def send_test_email(payload: EmailTestRequest, _admin=Depends(require_permission("settings.email"))):
     try:
         EmailService().send(recipient=payload.recipient, subject="DairyOS SMTP Test", body="DairyOS SMTP configuration test succeeded.")
         return {"status": "sent", "recipient": payload.recipient}
