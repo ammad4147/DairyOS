@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from dairyos.auth.permissions import permissions_from_json
 from dairyos.email.digest import expected_digest_date
+from dairyos.api.authorization import permission_for_request
 
 
 def test_custom_permissions_override_role_preset():
@@ -15,6 +16,14 @@ def test_missing_permissions_json_uses_role_preset():
     permissions = permissions_from_json(None, "MILKER")
     assert "milk.create" in permissions
     assert "finance.view" not in permissions
+
+
+def test_dashboard_endpoint_requires_dashboard_permission():
+    assert permission_for_request("GET", "/dashboard") == "dashboard.view"
+
+
+def test_finance_endpoint_requires_finance_permission():
+    assert permission_for_request("GET", "/farm/finance/cost-of-production") == "finance.view"
 
 
 def test_digest_date_is_today_after_2300():
