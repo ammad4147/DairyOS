@@ -1,4 +1,4 @@
-﻿"""Operational authentication and role identity for DairyOS."""
+"""Operational authentication and role identity for DairyOS."""
 
 from __future__ import annotations
 
@@ -46,7 +46,10 @@ def _configured_password() -> str:
 
 
 def _configured_role() -> str:
-    return os.getenv("DAIRYOS_ADMIN_ROLE", "OWNER")
+    # The bootstrap account is an administrator. It must never silently
+    # acquire the farm-owner identity merely because it is the first account.
+    configured = os.getenv("DAIRYOS_ADMIN_ROLE", "ADMIN").strip().upper()
+    return configured if configured in GOVERNED["auth_roles"] else "ADMIN"
 
 
 def _signing_secret() -> bytes:
