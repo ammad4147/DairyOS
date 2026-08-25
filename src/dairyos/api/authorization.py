@@ -4,12 +4,33 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
 
 from dairyos.api.auth import _decode_token, get_current_user, require_role
-from dairyos.auth.permissions import PERMISSIONS, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS, has_permission, normalize_permissions, permissions_for_role
+from dairyos.auth.permissions import (
+    PERMISSIONS,
+    PERMISSION_GROUPS,
+    ROLE_DESCRIPTIONS,
+    ROLE_PERMISSIONS,
+    has_permission,
+    normalize_permissions,
+    permissions_for_role,
+    permissions_from_json,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 router = APIRouter(prefix="/authz", tags=["authorization"])
+
+
+def _resolved_permissions(user: dict[str, Any]) -> frozenset[str]:
+    factory = RepositoryFactory.create()
+    try:
+        persisted = factory.users().get_by_username(str(user["sub"]))
+        if persisted is not None:
+            return permissions_from_json(persisted.permissions_json, persisted.role)
+    finally:
+        factory.close()
+    return permissions_for_role(str(user.get("role") or ""))
 
 
 def permission_for_request(method: str, path: str, payload: dict[str, Any] | None = None) -> str | None:
@@ -73,23 +94,16 @@ def authorize_request(request: Request, payload: dict[str, Any] | None = None) -
     credentials = request.headers.get("Authorization")
     if not credentials or not credentials.lower().startswith("bearer "):
         if _deployment_enforcement_enabled():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required", headers={"WWW-Authenticate": "Bearer"})
         return None
 
     user = _decode_token(credentials.split(" ", 1)[1].strip())
+    permissions = _resolved_permissions(user)
     role = str(user.get("role") or "").upper()
-    if has_permission(role, required):
+    if required in permissions:
         return user
 
-    # Preserve the historic authenticated-operator contract in local/test
-    # environments. The legacy system allowed an arbitrary DAIRYOS_ADMIN_ROLE
-    # and used the signed identity for operator attribution without applying
-    # fine-grained RBAC. Do not carry this compatibility bypass into deployment.
-    if not _deployment_enforcement_enabled() and role not in ROLE_PERMISSIONS:
+    if not _deployment_enforcement_enabled() and role not in ROLE_PERMISSIONS and not permissions:
         return user
 
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission required: {required}")
@@ -98,10 +112,11 @@ def authorize_request(request: Request, payload: dict[str, Any] | None = None) -
 @router.get("/permissions")
 def current_permissions(user: dict[str, Any] = Depends(get_current_user)):
     role = str(user["role"]).upper()
+    permissions = _resolved_permissions(user)
     return {
         "role": role,
-        "description": ROLE_DESCRIPTIONS.get(role, "Legacy authenticated operator identity." if role not in ROLE_PERMISSIONS else ""),
-        "permissions": normalize_permissions(permissions_for_role(role)),
+        "description": ROLE_DESCRIPTIONS.get(role, "Custom user access profile."),
+        "permissions": normalize_permissions(permissions),
     }
 
 
@@ -109,6 +124,7 @@ def current_permissions(user: dict[str, Any] = Depends(get_current_user)):
 def permission_matrix(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
     return {
         "permissions": list(PERMISSIONS),
+        "groups": {name: list(values) for name, values in PERMISSION_GROUPS.items()},
         "roles": {
             role: {
                 "description": ROLE_DESCRIPTIONS[role],
@@ -117,6 +133,56 @@ def permission_matrix(_owner: dict[str, Any] = Depends(require_role("OWNER"))):
             for role, permissions in ROLE_PERMISSIONS.items()
         },
     }
+
+
+class UserAccessProfile(BaseModel):
+    job_title: str | None = Field(default=None, max_length=120)
+    personal_email: EmailStr | None = None
+    permissions: list[str] = Field(default_factory=list)
+
+
+@router.get("/users/{username}/profile")
+def get_user_profile(username: str, _owner: dict[str, Any] = Depends(require_role("OWNER"))):
+    factory = RepositoryFactory.create()
+    try:
+        user = factory.users().get_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        permissions = permissions_from_json(user.permissions_json, user.role)
+        return {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "job_title": user.job_title,
+            "personal_email": user.personal_email,
+            "active": user.active,
+            "permissions": normalize_permissions(permissions),
+        }
+    finally:
+        factory.close()
+
+
+@router.put("/users/{username}/profile")
+def update_user_profile(username: str, payload: UserAccessProfile, _owner: dict[str, Any] = Depends(require_role("OWNER"))):
+    factory = RepositoryFactory.create()
+    try:
+        user = factory.users().get_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        normalized = normalize_permissions(payload.permissions)
+        user.job_title = payload.job_title.strip() if payload.job_title else None
+        user.personal_email = str(payload.personal_email) if payload.personal_email else None
+        user.permissions_json = __import__("json").dumps(normalized, separators=(",", ":"))
+        factory.session.add(user)
+        factory.session.commit()
+        return {
+            "username": user.username,
+            "job_title": user.job_title,
+            "personal_email": user.personal_email,
+            "permissions": normalized,
+        }
+    finally:
+        factory.close()
 
 
 @router.patch("/users/{username}/active")
@@ -131,6 +197,6 @@ def set_user_active(username: str, payload: dict[str, bool], _owner: dict[str, A
         user.active = bool(payload.get("active", True))
         factory.session.add(user)
         factory.session.commit()
-        return {"username": user.username, "role": user.role, "active": user.active}
+        return {"username": user.username, "role": user.role, "job_title": user.job_title, "personal_email": user.personal_email, "active": user.active}
     finally:
         factory.close()
