@@ -1,22 +1,26 @@
 <#
-    DairyOS one-click launcher (2026-08-14).
+    DairyOS one-click launcher.
 
     Starts the backend (FastAPI/uvicorn, port 8000) and the frontend
     (Vite dev server, port 5173) each in their own visible PowerShell
-    window (so you can see their logs and Ctrl+C to stop), waits for
-    both to come up, then opens the dashboard in your default browser.
+    window, waits for both to come up, then opens the operator UI.
+
+    Python environment policy:
+      - Prefer D:\DairyOS\.venv\Scripts\python.exe when that runtime exists.
+      - Otherwise use the configured system Python (python on PATH).
+      - Never call Activate.ps1. The launcher invokes Python directly.
 
     Safe to re-run: any stale process already listening on port 8000 or
     5173 is stopped first, but ONLY if it looks like a DairyOS process
-    (python/uvicorn/node) -- an unrelated app on one of those ports is
-    left alone and reported instead, so this never kills something that
-    isn't ours.
+    (python/uvicorn/node). An unrelated process is left alone and reported.
 #>
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $backendPort = 8000
 $frontendPort = 5173
+$frontendRoot = Join-Path $root "src\DairyOS.Web"
+$sourceRoot = Join-Path $root "src"
 
 function Stop-StalePortOwner {
     param([int]$Port)
@@ -30,7 +34,7 @@ function Stop-StalePortOwner {
             Write-Host "Stopping stale $($proc.ProcessName) (PID $($proc.Id)) on port $Port" -ForegroundColor Yellow
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
         } else {
-            Write-Warning "Port $Port is already in use by '$($proc.ProcessName)' (PID $($proc.Id)), which doesn't look like a DairyOS process. Leaving it alone -- close it manually if this launch fails."
+            Write-Warning "Port $Port is already in use by '$($proc.ProcessName)' (PID $($proc.Id)), which doesn't look like a DairyOS process. Leaving it alone."
         }
     }
 }
@@ -51,22 +55,48 @@ function Wait-ForHttp {
     return $false
 }
 
+function Resolve-DairyOSPython {
+    $venvPython = Join-Path $root ".venv\Scripts\python.exe"
+    if (Test-Path $venvPython -PathType Leaf) {
+        return $venvPython
+    }
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python -and $python.Source) {
+        return $python.Source
+    }
+
+    throw "No Python interpreter was found. Install/configure Python 3.12+ and ensure 'python' is available on PATH."
+}
+
+if (-not (Test-Path $frontendRoot -PathType Container)) {
+    throw "DairyOS frontend directory was not found: $frontendRoot"
+}
+
+if (-not (Test-Path (Join-Path $frontendRoot "package.json") -PathType Leaf)) {
+    throw "DairyOS frontend package.json was not found: $frontendRoot\package.json"
+}
+
+$pythonExe = Resolve-DairyOSPython
+
 Write-Host "== DairyOS launcher ==" -ForegroundColor Green
+Write-Host "Python: $pythonExe" -ForegroundColor DarkGray
+Write-Host "Frontend: $frontendRoot" -ForegroundColor DarkGray
 
 Stop-StalePortOwner -Port $backendPort
 Stop-StalePortOwner -Port $frontendPort
 Start-Sleep -Seconds 1
 
 Write-Host "Starting backend (uvicorn) on port $backendPort ..."
+$backendCommand = "Set-Location '$root'; `$env:PYTHONPATH='$sourceRoot'; & '$pythonExe' -m uvicorn dairyos.app:app --reload --port $backendPort"
 Start-Process powershell -WindowStyle Normal -ArgumentList @(
-    "-NoExit", "-Command",
-    "cd `"$root`"; & `"$root\.venv\Scripts\Activate.ps1`"; python -m uvicorn dairyos.app:app --reload --port $backendPort"
+    "-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $backendCommand
 )
 
 Write-Host "Starting frontend (vite) on port $frontendPort ..."
+$frontendCommand = "Set-Location '$frontendRoot'; npm run dev -- --host localhost --port $frontendPort --strictPort"
 Start-Process powershell -WindowStyle Normal -ArgumentList @(
-    "-NoExit", "-Command",
-    "cd `"$root\src\DairyOS.Web`"; npm run dev -- --port $frontendPort --strictPort"
+    "-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $frontendCommand
 )
 
 Write-Host "Waiting for the backend to respond..."
@@ -76,14 +106,16 @@ if (-not $backendUp) {
 }
 
 Write-Host "Waiting for the frontend to respond..."
-# "localhost", not "127.0.0.1" -- confirmed on this machine that Vite's
-# dev server only answers on whichever address "localhost" resolves to
-# (observed to be the IPv6 loopback), not on the literal IPv4 127.0.0.1.
 $frontendUp = Wait-ForHttp -Url "http://localhost:$frontendPort" -TimeoutSeconds 60
 if (-not $frontendUp) {
     Write-Warning "Frontend did not respond within 60s -- check its PowerShell window for errors."
 }
 
-Start-Process "http://localhost:$frontendPort"
-Write-Host "DairyOS should now be open in your browser." -ForegroundColor Green
-Write-Host "Close the two new PowerShell windows (or Ctrl+C in each) to stop the backend and frontend."
+if ($frontendUp) {
+    Start-Process "http://localhost:$frontendPort"
+    Write-Host "DairyOS operator UI opened at http://localhost:$frontendPort" -ForegroundColor Green
+} else {
+    Write-Warning "DairyOS backend may be running, but the operator UI was not opened because Vite did not respond."
+}
+
+Write-Host "Close the two DairyOS PowerShell windows (or press Ctrl+C in each) to stop the development runtime." -ForegroundColor DarkGray
