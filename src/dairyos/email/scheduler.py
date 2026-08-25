@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from .digest import DashboardDigestService, expected_digest_date
 
 log = logging.getLogger(__name__)
-LOCAL_ZONE = ZoneInfo("Asia/Karachi")
 _LAST_STARTUP_KEY = "email_scheduler_last_startup_utc"
 
 
 class NightlyEmailScheduler:
-    """Lifecycle-owned scheduler for the single DairyOS farm instance."""
+    """Lifecycle-owned scheduler using the farm's configured IANA timezone."""
 
     def __init__(self, *, container, interval_seconds: int = 30):
         self.container = container
@@ -23,6 +23,13 @@ class NightlyEmailScheduler:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_attempted_slot: str | None = None
+
+    def _zone(self) -> ZoneInfo:
+        factory = RepositoryFactory.create()
+        try:
+            return FarmSettingsService(factory.app_settings()).get_timezone_info()
+        finally:
+            factory.close()
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -65,7 +72,8 @@ class NightlyEmailScheduler:
 
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_seconds):
-            now = datetime.now(LOCAL_ZONE)
+            zone = self._zone()
+            now = datetime.now(zone)
             if now.hour == 23 and now.minute == 0:
                 slot = now.date().isoformat()
                 if slot != self._last_attempted_slot:
@@ -75,10 +83,11 @@ class NightlyEmailScheduler:
     def _run_catch_up(self, previous: datetime | None, current: datetime) -> None:
         if previous is None:
             return
-        current_local = current.astimezone(LOCAL_ZONE)
-        previous_local = previous.astimezone(LOCAL_ZONE)
+        zone = self._zone()
+        current_local = current.astimezone(zone)
+        previous_local = previous.astimezone(zone)
         digest_date = expected_digest_date(current_local)
-        expected_slot = datetime.combine(digest_date, time(23, 0), tzinfo=LOCAL_ZONE)
+        expected_slot = datetime.combine(digest_date, time(23, 0), tzinfo=zone)
         if previous_local.date() == digest_date and previous_local.time() < time(23, 0) and current_local >= expected_slot:
             self._send(digest_date)
 
