@@ -20,6 +20,9 @@ PERMISSIONS = (
 )
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
+    # ADMIN is the system administrator identity. It is intentionally
+    # distinct from OWNER even though both currently have the full preset.
+    "ADMIN": frozenset(PERMISSIONS),
     "OWNER": frozenset(PERMISSIONS),
     "MANAGER": frozenset({
         "dashboard.view", "dashboard.view_finance", "dashboard.view_profitability",
@@ -45,6 +48,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 ROLE_DESCRIPTIONS = {
+    "ADMIN": "System administration preset; distinct from the farm-owner identity.",
     "OWNER": "Full farm, financial, administrative, and security preset.",
     "MANAGER": "Operational management preset; permissions can be customized per user.",
     "MILKER": "Milk/feed operational preset; permissions can be customized per user.",
