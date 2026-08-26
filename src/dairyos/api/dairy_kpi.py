@@ -1,9 +1,4 @@
-"""Standard dairy-farm KPI projections from persisted operational records.
-
-The KPI engine calculates only metrics supported by persisted DairyOS records.
-Missing inputs remain ``None`` and are explicitly reported as uncovered rather
-than being replaced by benchmark or zero assumptions.
-"""
+"""Standard dairy-farm KPI projections from persisted operational records."""
 
 from __future__ import annotations
 
@@ -55,13 +50,9 @@ def _record_date(record, *names):
 
 
 def _has_entered_yield(record) -> bool:
-    """Whether an operator actually entered a figure for this record."""
     if getattr(record, "total_yield", None) is not None:
         return True
-    return any(
-        getattr(record, field, None) is not None
-        for field in ("morning_yield", "afternoon_yield", "evening_yield")
-    )
+    return any(getattr(record, field, None) is not None for field in ("morning_yield", "afternoon_yield", "evening_yield"))
 
 
 def _in_period(record, start, end, *date_fields):
@@ -70,25 +61,21 @@ def _in_period(record, start, end, *date_fields):
 
 
 def _conception_outcomes(inseminations, pregnancy_checks):
-    """Compatibility wrapper around the authoritative reproduction KPI service."""
     return ReproductionKpiService.conception_outcomes(inseminations, pregnancy_checks)
 
 
 def _conception_rate(inseminations, pregnancy_checks):
-    """Use the same observed-outcome denominator across DairyOS KPI surfaces."""
-    return ReproductionKpiService.calculate_observed_conception_rate(
-        inseminations,
-        pregnancy_checks,
-    )
+    return ReproductionKpiService.calculate_observed_conception_rate(inseminations, pregnancy_checks)
 
 
 def _interval_metrics(breeding):
-    """Calculate calving interval and observed days-open outcomes only.
+    """Calculate observed calving interval and days open.
 
-    Days open is not an estimate for an open cow. It is recorded only when a
-    persisted pregnancy diagnosis confirms a conception and that diagnosis can
-    be chronologically linked to a persisted service after the preceding
-    calving.
+    Days open is the observed interval from the most recent calving to the
+    subsequent insemination/service that established the pregnancy cycle. It
+    is not calculated from gestation length and does not require a pregnancy
+    diagnosis merely to establish the service date. A service before any
+    observed calving is not treated as a days-open observation.
     """
     by_animal = defaultdict(list)
     for record in breeding:
@@ -105,27 +92,23 @@ def _interval_metrics(breeding):
         for previous, current in zip(calvings, calvings[1:]):
             calving_intervals.append((current[0] - previous[0]).days)
 
-        for pregnancy_time, pregnancy_record in events:
-            if not _is_pregnancy_check(pregnancy_record) or not _is_confirmed_pregnancy(pregnancy_record):
-                continue
-
-            prior_calvings = [t for t, _ in calvings if t < pregnancy_time]
-            cycle_start = prior_calvings[-1] if prior_calvings else None
+        # Each observed calving starts a reproductive cycle. The first
+        # subsequent insemination is the observed conception-service point for
+        # days-open purposes. If no subsequent calving is present, the latest
+        # service is still an observed days-open value for the current cycle.
+        for index, (calving_time, _) in enumerate(calvings):
+            next_calving_time = calvings[index + 1][0] if index + 1 < len(calvings) else None
             services = [
-                t
-                for t, record in events
+                t for t, record in events
                 if _is_insemination(record)
-                and t <= pregnancy_time
-                and (cycle_start is None or t > cycle_start)
+                and t > calving_time
+                and (next_calving_time is None or t < next_calving_time)
             ]
-            if services and cycle_start is not None:
-                days_open.append((services[-1] - cycle_start).days)
+            if services:
+                days_open.append((services[0] - calving_time).days)
 
     return {
-        "calving_interval_days": (
-            round(sum(calving_intervals) / len(calving_intervals), 2)
-            if calving_intervals else None
-        ),
+        "calving_interval_days": round(sum(calving_intervals) / len(calving_intervals), 2) if calving_intervals else None,
         "days_open": round(sum(days_open) / len(days_open), 2) if days_open else None,
         "calving_interval_observations": len(calving_intervals),
         "days_open_observations": len(days_open),
@@ -136,10 +119,7 @@ def _overview(factory, start, end):
     animals = [a for a in factory.animal().get_all() if getattr(a, "active", True)]
     milk = [r for r in factory.milk().get_all() if _in_period(r, start, end, "production_date")]
     feed = [r for r in factory.feed().get_all() if _in_period(r, start, end, "feeding_date")]
-    health = [
-        r for r in factory.health().get_all()
-        if _in_period(r, start, end, "observed_at", "timestamp", "observation_date", "created_at")
-    ]
+    health = [r for r in factory.health().get_all() if _in_period(r, start, end, "observed_at", "timestamp", "observation_date", "created_at")]
     breeding = [r for r in factory.breeding().get_all() if _in_period(r, start, end, "timestamp")]
     treatments = [r for r in factory.treatment().get_all() if _in_period(r, start, end, "treated_at")]
     finance = [r for r in factory.finance().get_all() if _in_period(r, start, end, "transaction_date")]
@@ -164,16 +144,9 @@ def _overview(factory, start, end):
 
     feed_total = sum(float(getattr(r, "quantity_kg", 0.0) or 0.0) for r in feed)
     active_milking = [a for a in animals if bool(getattr(a, "is_currently_milking", False))]
-    youngstock = [
-        a for a in animals
-        if str(getattr(a, "lifecycle_status", "")).upper() in {"CALF", "HEIFER"}
-    ]
+    youngstock = [a for a in animals if str(getattr(a, "lifecycle_status", "")).upper() in {"CALF", "HEIFER"}]
 
     average_milk_per_animal_day = milk_total / len(production_by_animal_day) if production_by_animal_day else None
-    # FeedRecord.quantity_kg is an as-fed quantity. Dairy feed conversion/FCE
-    # must use DMI (dry matter intake), and DairyOS does not currently persist
-    # an observed DMI value per feeding record. Therefore the engine refuses to
-    # publish a scientifically misleading kg-as-fed/L "feed conversion" KPI.
     feed_per_liter = None
     health_per_100_animals = (len(health) / len(animals)) * 100 if animals else None
     treatment_rate = (len({r.animal_id for r in treatments}) / len(animals)) * 100 if animals else None
@@ -182,10 +155,7 @@ def _overview(factory, start, end):
     expense_categories = cost.get("expense_by_category", {})
 
     interval_metrics = _interval_metrics(breeding)
-    conception_rate = ReproductionKpiService.calculate_observed_conception_rate(
-        inseminations,
-        pregnancy_checks,
-    )
+    conception_rate = ReproductionKpiService.calculate_observed_conception_rate(inseminations, pregnancy_checks)
     covered = {
         "milk_per_cow_day": average_milk_per_animal_day is not None,
         "herd_average": average_milk_per_animal_day is not None,
@@ -208,20 +178,14 @@ def _overview(factory, start, end):
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat(), "days": (end - start).days},
         "data_status": "LIVE_PERSISTED_DATA" if has_kpi_anchor_data else "NO_DATA",
-        "record_counts": {
-            "animals": len(animals), "milk": len(milk), "feed": len(feed),
-            "health": len(health), "breeding": len(breeding),
-            "treatments": len(treatments), "finance": len(finance),
-        },
+        "record_counts": {"animals": len(animals), "milk": len(milk), "feed": len(feed), "health": len(health), "breeding": len(breeding), "treatments": len(treatments), "finance": len(finance)},
         "kpis": {
-            "herd_size": len(animals),
-            "milking_cows": len(active_milking),
-            "youngstock": len(youngstock),
+            "herd_size": len(animals), "milking_cows": len(active_milking), "youngstock": len(youngstock),
             "milk_production_liters": round(milk_total, 3) if milk else None,
             "average_milk_liters_per_animal_day": round(average_milk_per_animal_day, 3) if average_milk_per_animal_day is not None else None,
             "peak_daily_milk_liters": round(max(daily_totals.values()), 3) if daily_totals else None,
             "feed_consumption_kg": round(feed_total, 3) if feed else None,
-            "feed_kg_per_liter_milk": None,
+            "feed_kg_per_liter_milk": feed_per_liter,
             "health_observations": len(health) if health else None,
             "health_observations_per_100_active_animals": round(health_per_100_animals, 2) if health_per_100_animals is not None else None,
             "treatment_rate_percent": round(treatment_rate, 2) if treatment_rate is not None else None,
