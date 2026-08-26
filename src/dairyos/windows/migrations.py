@@ -65,13 +65,18 @@ def _build_config() -> tuple[Config, ScriptDirectory]:
 
 
 def _database_url() -> str:
+    """Resolve the database URL from the current environment on every call."""
     try:
-        from dairyos.data.database.session import DATABASE_URL
+        from dairyos.data.database.session import _build_database_url
     except Exception as exc:
         raise MigrationGateError(f"Unable to resolve the DairyOS database configuration: {exc}") from exc
-    if not DATABASE_URL:
+    try:
+        url = _build_database_url()
+    except Exception as exc:
+        raise MigrationGateError(f"DairyOS database configuration is invalid: {exc}") from exc
+    if not url:
         raise MigrationGateError("DairyOS database configuration is empty.")
-    return DATABASE_URL
+    return url
 
 
 def migrate_if_needed() -> MigrationResult:
@@ -83,6 +88,11 @@ def migrate_if_needed() -> MigrationResult:
     pre-migration backup is created before any schema change. Migration
     failures are propagated without an automatic restore; the backup remains
     available for controlled recovery.
+
+    A database without Alembic history is deliberately not auto-stamped.
+    DairyOS refuses to guess at an existing schema because doing so could hide
+    an incomplete legacy installation. A fresh supported deployment must be
+    initialized through the packaged migration chain before production use.
     """
     database_url = _database_url()
     config, script = _build_config()
@@ -91,7 +101,10 @@ def migrate_if_needed() -> MigrationResult:
 
     try:
         with engine.begin() as connection:
-            connection.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": MIGRATION_LOCK_KEY})
+            connection.execute(
+                text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                {"lock_key": MIGRATION_LOCK_KEY},
+            )
             migration_context = MigrationContext.configure(connection)
             current = tuple(sorted(migration_context.get_current_heads()))
             target = tuple(sorted(script.get_heads()))
@@ -107,7 +120,9 @@ def migrate_if_needed() -> MigrationResult:
             try:
                 backup_path = manager.backup(label="pre-migration")
             except Exception as exc:
-                raise MigrationGateError(f"Pre-migration backup failed; startup is blocked: {exc}") from exc
+                raise MigrationGateError(
+                    f"Pre-migration backup failed; startup is blocked: {exc}"
+                ) from exc
 
             config.attributes["connection"] = connection
             try:
@@ -130,6 +145,8 @@ def migrate_if_needed() -> MigrationResult:
     except MigrationGateError:
         raise
     except Exception as exc:
-        raise MigrationGateError(f"DairyOS database preflight failed; startup is blocked: {exc}") from exc
+        raise MigrationGateError(
+            f"DairyOS database preflight failed; startup is blocked: {exc}"
+        ) from exc
     finally:
         engine.dispose()
