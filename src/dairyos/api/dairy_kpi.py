@@ -228,3 +228,32 @@ def _overview(factory, start, end):
             "derived_values": "calculated only when required persisted inputs exist",
             "unsupported_without_history": ["mortality_rate", "culling_rate", "persistency", "feed_conversion"],
         },
+    }
+
+
+@router.get("/overview")
+@router.get("")
+def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), container=Depends(get_container)):
+    operational_date = OperationalDateAuthority().current_date()
+    end = datetime.combine(operational_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    start = end - timedelta(days=days)
+    factory, owns_factory = _fresh_factory(container)
+    try:
+        return _overview(factory, start, end)
+    finally:
+        if owns_factory:
+            factory.close()
+
+
+@router.get("/period")
+def standard_dairy_kpi_period(start_date: date, end_date: date, container=Depends(get_container)):
+    if end_date <= start_date:
+        raise HTTPException(status_code=400, detail="end_date must be after start_date")
+    start = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+    end = datetime.combine(end_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    factory, owns_factory = _fresh_factory(container)
+    try:
+        return _overview(factory, start, end)
+    finally:
+        if owns_factory:
+            factory.close()
