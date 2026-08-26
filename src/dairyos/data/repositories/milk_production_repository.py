@@ -1,4 +1,4 @@
-﻿from datetime import date as date_type, datetime as datetime_type
+from datetime import date as date_type, datetime as datetime_type
 
 from sqlalchemy import func
 
@@ -6,6 +6,10 @@ from ..models.milk_production import MilkProduction
 from ..models.animal import Animal
 from ..models.treatment_record import TreatmentRecord
 from dairyos.core.time_utils import utcnow
+
+
+INACTIVE_LIFECYCLE_STATUSES = {"DECEASED", "SOLD", "CULLED"}
+MILK_YIELD_FIELDS = ("morning_yield", "afternoon_yield", "evening_yield")
 
 
 class MilkProductionRepository:
@@ -16,19 +20,34 @@ class MilkProductionRepository:
         self.records = []
 
     def _ensure_animal_exists(self, animal_id):
-        """Enforce the permanent Animal identity invariant for milk records."""
+        """Enforce animal identity, lifecycle, and milk-yield integrity."""
         if not animal_id or not str(animal_id).strip():
             raise ValueError("Milk production requires a permanent animal_id.")
 
+        for field in MILK_YIELD_FIELDS:
+            # Repository is a defense-in-depth boundary for non-HTTP callers.
+            # A missing value is valid; a numeric negative value is not.
+            value = getattr(self, "_pending_production", None)
+            if value is not None:
+                candidate = getattr(value, field, None)
+                if candidate is not None and float(candidate) < 0:
+                    raise ValueError(
+                        f"Milk production rejected: {field} must be greater than or equal to zero."
+                    )
+
+        animal = None
         if self.animal_repository is not None:
-            exists = self.animal_repository.exists(str(animal_id))
+            getter = getattr(self.animal_repository, "get_by_animal_id", None)
+            if getter is not None:
+                animal = getter(str(animal_id))
+            exists = animal is not None if animal is not None else self.animal_repository.exists(str(animal_id))
         elif self.session:
-            exists = (
+            animal = (
                 self.session.query(Animal)
                 .filter(Animal.animal_id == str(animal_id))
                 .first()
-                is not None
             )
+            exists = animal is not None
         else:
             exists = True
 
@@ -36,6 +55,30 @@ class MilkProductionRepository:
             raise ValueError(
                 f"Milk production rejected: animal_id '{animal_id}' does not exist."
             )
+
+        if animal is not None:
+            lifecycle_status = str(
+                getattr(animal, "lifecycle_status", "") or ""
+            ).strip().upper()
+            active = bool(getattr(animal, "active", True))
+            if not active or lifecycle_status in INACTIVE_LIFECYCLE_STATUSES:
+                state = lifecycle_status or "INACTIVE"
+                raise ValueError(
+                    f"Milk production rejected: animal_id '{animal_id}' is {state} and cannot accept production."
+                )
+
+    def _validate_production_payload(self, production):
+        self._pending_production = production
+        try:
+            for field in MILK_YIELD_FIELDS:
+                value = getattr(production, field, None)
+                if value is not None and float(value) < 0:
+                    raise ValueError(
+                        f"Milk production rejected: {field} must be greater than or equal to zero."
+                    )
+            self._ensure_animal_exists(production.animal_id)
+        finally:
+            self._pending_production = None
 
     def _has_active_withdrawal(self, animal_id, production_at=None) -> bool:
         """Return whether milk is under an active veterinary withdrawal.
@@ -86,7 +129,7 @@ class MilkProductionRepository:
         return production
 
     def add(self, production):
-        self._ensure_animal_exists(production.animal_id)
+        self._validate_production_payload(production)
         self._apply_veterinary_status(production)
 
         if self.session:
@@ -131,7 +174,7 @@ class MilkProductionRepository:
 
     def upsert_ledger_day(self, production):
         """Merge a governed session entry into that animal's day row."""
-        self._ensure_animal_exists(production.animal_id)
+        self._validate_production_payload(production)
         self._apply_veterinary_status(production)
 
         existing = self.ledger_row_for_animal_day(
@@ -150,6 +193,10 @@ class MilkProductionRepository:
         ):
             value = getattr(production, field, None)
             if value is not None:
+                if float(value) < 0:
+                    raise ValueError(
+                        f"Milk production rejected: {field} must be greater than or equal to zero."
+                    )
                 setattr(existing, field, value)
 
         existing.milking_session = production.milking_session
