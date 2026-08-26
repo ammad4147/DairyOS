@@ -20,6 +20,10 @@ class OperationalInputType(str, Enum):
 
     ANIMAL_LIFECYCLE = "animal_lifecycle"
 
+    ANIMAL_DISPOSITION = "animal_disposition"
+
+    ANIMAL_PROFILE_UPDATE = "animal_profile_update"
+
     YOUNGSTOCK_GROWTH = "youngstock_growth"
 
     YOUNGSTOCK_WEANING = "youngstock_weaning"
