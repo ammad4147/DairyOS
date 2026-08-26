@@ -4,7 +4,7 @@ Repository: `ammad4147/DairyOS`
 Authoritative branch: `main`
 Supported deployment target: **Windows application installer only**
 
-Bare-metal ISO, bootloader, PXE, partitioning, Debian installer, and dedicated DairyOS operating-system image development are not supported release targets.
+This matrix is the sole release gate for the supported DairyOS deployment product.
 
 | Gate | Evidence mechanism | Status rule |
 |---|---|---|
