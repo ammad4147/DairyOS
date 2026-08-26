@@ -43,7 +43,9 @@ def test_standard_dairy_kpis_read_persisted_operational_records(client, register
     assert body["record_counts"]["health"] >= 1
     assert body["kpis"]["milk_production_liters"] == 15.0
     assert body["kpis"]["feed_consumption_kg"] == 20.0
-    assert body["kpis"]["feed_kg_per_liter_milk"] == round(20.0 / 15.0, 4)
+    assert body["kpis"]["feed_kg_per_liter_milk"] is None
+    assert body["coverage"]["missing_metrics"]
+    assert body["coverage"]["definitions"]["feed_conversion"].startswith("not calculated")
     assert body["kpis"]["average_milk_liters_per_animal_day"] == 15.0
 
 
