@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
+from dairyos.finance.profitability.services.mofc_service import MOFCService
 from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
@@ -20,6 +21,30 @@ def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
         return FeedOpexCostService().evaluate(
             factory.milk().get_all(),
             factory.finance().get_all(),
+            days=days,
+        )
+    finally:
+        factory.close()
+
+
+@router.get("/mofc")
+def margin_over_feed_cost(
+    milk_price_per_litre: float = Query(gt=0),
+    days: int = Query(default=30, ge=1, le=366),
+):
+    """Return animal/group MOFC from persisted milk and historical feed costs.
+
+    The milk price is explicit because price is an economic assumption, while
+    production and feed cost are persisted operational facts. Rows with legacy
+    or otherwise unpriced feed remain ``PARTIAL_COST_DATA`` and do not expose
+    a falsely precise MOFC.
+    """
+    factory = RepositoryFactory.create()
+    try:
+        return MOFCService().evaluate(
+            factory.milk().get_all(),
+            factory.feed().get_all(),
+            milk_price_per_litre=milk_price_per_litre,
             days=days,
         )
     finally:
