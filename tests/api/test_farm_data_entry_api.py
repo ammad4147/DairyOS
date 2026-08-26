@@ -18,7 +18,7 @@ def test_record_milk_entry(client, registered_animal):
     assert body["animal_id"] == registered_animal
     assert body["total_yield"] == 22.0
     assert body["status"] == "RECORDED"
-    assert body["operator"] == "admin"
+    assert body["operator"] == "Milking Operator"
 
 
 def test_list_milk_entries(client, registered_animal):
@@ -35,7 +35,7 @@ def test_record_feed_entry(client):
     body = response.json()
     assert body["feed_type"] == "Silage"
     assert body["quantity_kg"] == 20.0
-    assert body["operator"] == "admin"
+    assert body["operator"] == "Feed Supervisor"
 
 
 def test_list_feed_entries(client):
@@ -51,7 +51,7 @@ def test_record_health_observation(client, registered_animal):
     assert body["animal_id"] == registered_animal
     assert body["severity"] == "ELEVATED"
     assert body["status"] == "OPEN"
-    assert body["operator"] == "admin"
+    assert body["operator"] == "Dr Vet"
 
 
 def test_list_health_observations(client):
@@ -66,7 +66,7 @@ def test_record_breeding_entry(client, registered_animal):
     body = response.json()
     assert body["animal_id"] == registered_animal
     assert body["event_type"] == "insemination"
-    assert body["operator"] == "admin"
+    assert body["operator"] == "Dr Vet"
 
 
 def test_list_breeding_entries(client):
@@ -123,7 +123,7 @@ def test_record_financial_entry(client):
     body = response.json()
     assert body["transaction_type"] == "EXPENSE"
     assert body["amount"] == 25000.0
-    assert body["operator"] == "admin"
+    assert body["operator"] == "Farm Manager"
 
 
 def test_list_financial_entries(client):
