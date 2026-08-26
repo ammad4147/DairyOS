@@ -131,6 +131,65 @@ def _existing_feed_consumption(factory, feed_record_id: int):
     return None
 
 
+def _feeding_day(value: datetime | None) -> datetime:
+    return value or utcnow()
+
+
+def _historical_feed_cost(factory, feed_type: str, feeding_date: datetime):
+    """Return the latest defensible persisted feed unit-cost basis at feeding time.
+
+    Only finance rows explicitly classified as FEED with a positive quantity and
+    unit rate are eligible. Historical feed records without such a price remain
+    explicitly UNPRICED; DairyOS never invents a cost from today's price.
+    """
+    target = feeding_date.replace(tzinfo=None) if feeding_date.tzinfo else feeding_date
+    candidates = []
+
+    for row in factory.finance().get_all():
+        if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+            continue
+        if str(getattr(row, "transaction_type", "") or "").upper() not in {"EXPENSE", "PAYMENT", "PURCHASE"}:
+            continue
+        if str(getattr(row, "master_category", "") or "").upper() != "FEED":
+            continue
+        if str(getattr(row, "sub_category", "") or "").strip() != feed_type.strip():
+            continue
+
+        timestamp = getattr(row, "transaction_date", None)
+        if timestamp is None:
+            continue
+        comparison_time = timestamp.replace(tzinfo=None) if timestamp.tzinfo else timestamp
+        if comparison_time > target:
+            continue
+
+        unit = str(getattr(row, "unit", "") or "").strip().lower()
+        if unit and unit not in {"kg", "kgs", "kilogram", "kilograms"}:
+            continue
+
+        unit_rate = getattr(row, "unit_rate", None)
+        quantity = getattr(row, "quantity", None)
+        if unit_rate is None and quantity:
+            amount = float(getattr(row, "amount", 0.0) or 0.0)
+            quantity_value = float(quantity or 0.0)
+            unit_rate = amount / quantity_value if quantity_value > 0 else None
+        if unit_rate is None or float(unit_rate) <= 0:
+            continue
+
+        candidates.append((comparison_time, float(unit_rate), getattr(row, "id", None)))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: (item[0], item[2] or 0), reverse=True)
+    _, unit_rate, source_id = candidates[0]
+    return {
+        "unit_cost_per_kg": unit_rate,
+        "total_feed_cost": None,
+        "cost_basis": "FINANCE_FEED_PURCHASE",
+        "cost_source_financial_transaction_id": source_id,
+    }
+
+
 @router.post("/records")
 def record_feed(payload: FeedEntry):
     if not payload.animal_id and not payload.group_or_pen:
@@ -141,19 +200,26 @@ def record_feed(payload: FeedEntry):
         if payload.animal_id and not factory.animal().exists(payload.animal_id):
             raise HTTPException(status_code=422, detail="Unknown Animal ID")
 
+        feeding_date = _feeding_day(payload.feeding_date)
+        cost = _historical_feed_cost(factory, payload.feed_type.strip(), feeding_date)
+        quantity = float(payload.quantity_kg)
+
         record = FeedRecord(
             animal_id=payload.animal_id,
             group_or_pen=payload.group_or_pen,
             feed_type=payload.feed_type.strip(),
-            quantity_kg=payload.quantity_kg,
-            feeding_date=payload.feeding_date or utcnow(),
+            quantity_kg=quantity,
+            feeding_date=feeding_date,
             notes=payload.notes,
             status="RECORDED",
+            unit_cost_per_kg=(cost["unit_cost_per_kg"] if cost else None),
+            total_feed_cost=(quantity * cost["unit_cost_per_kg"] if cost else None),
+            cost_basis=(cost["cost_basis"] if cost else "UNPRICED"),
+            cost_source_financial_transaction_id=(
+                cost["cost_source_financial_transaction_id"] if cost else None
+            ),
         )
 
-        # Feed and stock consumption are one operational fact. Persist both
-        # through the same SQLAlchemy transaction so a successful feeding can
-        # never exist without its corresponding stock movement.
         session = factory.session
         session.add(record)
         session.flush()
@@ -163,8 +229,8 @@ def record_feed(payload: FeedEntry):
             transaction = InventoryTransaction(
                 item=record.feed_type,
                 movement_type="CONSUMPTION",
-                quantity=float(record.quantity_kg),
-                signed_quantity=-float(record.quantity_kg),
+                quantity=quantity,
+                signed_quantity=-quantity,
                 unit="kg",
                 notes=(
                     f"Auto-deducted from feeding record #{record.id}. "
@@ -173,14 +239,10 @@ def record_feed(payload: FeedEntry):
                 recorded_by="FEED_API",
                 source_type="FEED_RECORD",
                 source_id=str(record.id),
-                recorded_at=record.feeding_date or utcnow(),
+                recorded_at=feeding_date,
             )
             session.add(transaction)
 
-        # Do not reject feeding merely because the opening stock is missing;
-        # that would lose a real farm event. Instead the canonical inventory
-        # ledger records the consumption and can expose a negative balance as
-        # a stock-control exception.
         session.commit()
         session.refresh(record)
 
@@ -194,6 +256,10 @@ def record_feed(payload: FeedEntry):
             "quantity_kg": record.quantity_kg,
             "feeding_date": record.feeding_date,
             "status": record.status,
+            "unit_cost_per_kg": record.unit_cost_per_kg,
+            "total_feed_cost": record.total_feed_cost,
+            "cost_basis": record.cost_basis,
+            "cost_source_financial_transaction_id": record.cost_source_financial_transaction_id,
             "inventory_balance_kg": inventory_balance,
             "inventory_status": (
                 "NEGATIVE_STOCK_EXCEPTION"
@@ -226,6 +292,14 @@ def list_feed_records():
                 "feeding_date": r.feeding_date,
                 "status": r.status,
                 "notes": r.notes,
+                "unit_cost_per_kg": getattr(r, "unit_cost_per_kg", None),
+                "total_feed_cost": getattr(r, "total_feed_cost", None),
+                "cost_basis": getattr(r, "cost_basis", None),
+                "cost_source_financial_transaction_id": getattr(
+                    r,
+                    "cost_source_financial_transaction_id",
+                    None,
+                ),
             }
             for r in factory.feed().get_all()
         ]
@@ -240,18 +314,25 @@ def feed_overview():
         records = factory.feed().get_all()
         rations = factory.feed_rations().get_all()
         total_quantity = sum(float(r.quantity_kg or 0) for r in records)
+        priced_records = [
+            r for r in records if getattr(r, "total_feed_cost", None) is not None
+        ]
+        priced_cost = sum(float(r.total_feed_cost or 0) for r in priced_records)
         return {
             "data_status": "LIVE_PERSISTED_DATA",
             "feeding_records": len(records),
             "ration_count": len(rations),
             "total_recorded_feed_kg": total_quantity,
+            "priced_feed_kg": sum(float(r.quantity_kg or 0) for r in priced_records),
+            "priced_feed_cost": round(priced_cost, 2),
+            "unpriced_feed_records": len(records) - len(priced_records),
             "nutrition_metrics": {
                 "dry_matter_intake_kg": None,
                 "crude_protein_pct": None,
                 "ndf_pct": None,
                 "energy_mcal_kg": None,
             },
-            "interpretation": "Nutrition metrics are reported only when supported by persisted ration/measurement data; no synthetic values are generated.",
+            "interpretation": "Nutrition metrics are reported only when supported by persisted ration/measurement data; feed economics use historical persisted purchase prices when available and never invent missing costs.",
         }
     finally:
         factory.close()
