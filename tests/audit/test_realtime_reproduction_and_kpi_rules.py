@@ -34,7 +34,8 @@ def test_open_cow_has_no_fabricated_days_open():
     assert state.reproductive_status == "LACTATING"
 
 
-def test_negative_pregnancy_returns_to_open_not_bred():
+def test_negative_pregnancy_returns_to_bred_not_open():
+    """A failed pregnancy closes pregnancy status but preserves the active service cycle."""
     state = ReproductiveStateService(POLICY).resolve(
         "A1",
         [
@@ -46,7 +47,7 @@ def test_negative_pregnancy_returns_to_open_not_bred():
         as_of_date=date(2026, 5, 2),
     )
     assert state.pregnancy_status == "NOT_PREGNANT"
-    assert state.reproductive_status == "OPEN"
+    assert state.reproductive_status == "BRED"
     assert state.days_open is None
 
 
