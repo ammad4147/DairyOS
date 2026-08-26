@@ -132,7 +132,6 @@ try {
 if (-not `$env:DAIRYOS_DATABASE_URL -and (`$env:DAIRYOS_DB_PASSWORD -or `$env:DAIRYOS_DB_HOST)) {
     Write-Host 'Using DAIRYOS_DB_* environment variables for the production database.'
 }
-`$env:PYTHONPATH = '$InstallRoot\src'
 & '$VenvPython' -m dairyos.windows.supervisor
 "@
     [IO.File]::WriteAllText(
