@@ -45,7 +45,7 @@ async def lifespan(_app: FastAPI):
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
-        logging.info("Feed inventory migration created: %s", ", ".join(inventory_migrated))
+        logging.info("Feed inventory migration created/updated: %s", ", ".join(inventory_migrated))
     if quality_migrated:
         logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
     if coml_migrated:
