@@ -63,9 +63,7 @@ def _reset_test_persistence() -> None:
             OperationalStateModel,
             EventJournalModel,
         ):
-            session.query(model).delete(
-                synchronize_session=False
-            )
+            session.query(model).delete(synchronize_session=False)
 
         session.commit()
         session.expire_all()
@@ -87,19 +85,13 @@ def _reset_test_persistence() -> None:
 
     # Recreate the persisted operational-state application service so no
     # FarmOperationalState object survives from a previous test.
-    container.runtime._operational_state_service = (
-        FarmOperationalStateService(
-            repository=container.runtime.operational_state_repository,
-            animal_projection=container.animal_event_projection,
-        )
+    container.runtime._operational_state_service = FarmOperationalStateService(
+        repository=container.runtime.operational_state_repository,
+        animal_projection=container.animal_event_projection,
     )
 
-    container.farm_operational_state_service = (
-        container.runtime._operational_state_service
-    )
-    container.operational_state_service = (
-        container.runtime._operational_state_service
-    )
+    container.farm_operational_state_service = container.runtime._operational_state_service
+    container.operational_state_service = container.runtime._operational_state_service
 
     # Rebind the event subscriber to the fresh service.
     container.runtime._operational_state_event_subscriber.operational_state_service = (
@@ -138,26 +130,14 @@ def client(tmp_path):
     container.runtime._animal_operational_state_repository = (
         container.animal_operational_state_repository
     )
+    container.runtime._animal_event_projection = container.animal_event_projection
 
-    container.runtime._animal_event_projection = (
-        container.animal_event_projection
+    container.runtime._operational_state_service = FarmOperationalStateService(
+        repository=container.runtime.operational_state_repository,
+        animal_projection=container.animal_event_projection,
     )
-
-    container.runtime._operational_state_service = (
-        FarmOperationalStateService(
-            repository=container.runtime.operational_state_repository,
-            animal_projection=container.animal_event_projection,
-        )
-    )
-
-    container.farm_operational_state_service = (
-        container.runtime._operational_state_service
-    )
-
-    container.operational_state_service = (
-        container.runtime._operational_state_service
-    )
-
+    container.farm_operational_state_service = container.runtime._operational_state_service
+    container.operational_state_service = container.runtime._operational_state_service
     container.runtime._operational_state_event_subscriber.operational_state_service = (
         container.runtime._operational_state_service
     )
@@ -170,9 +150,19 @@ def client(tmp_path):
         )
 
         withdrawal_service = WithdrawalService()
-
         container.runtime._withdrawal_service = withdrawal_service
         container.withdrawal_service = withdrawal_service
+
+        # Production API routes are intentionally authenticated. The test
+        # fixture therefore establishes the same bearer identity that a real
+        # client must establish instead of bypassing authorization middleware.
+        login = c.post(
+            "/auth/login",
+            json={"username": "admin", "password": "dairyos"},
+        )
+        assert login.status_code == 200, login.text
+        access_token = login.json()["access_token"]
+        c.headers.update({"Authorization": f"Bearer {access_token}"})
 
         print(
             "FIXTURE RESET EVENT JOURNAL:",
@@ -202,15 +192,10 @@ def registered_animal(client: TestClient):
     assert response.status_code == 200, response.text
 
     payload = response.json()
-
     assert payload["system_generated_animal_id"] is True
-
-    assert re.match(
-        r"^[A-Z]{1,6}-\d{3,}$",
-        payload["animal_id"],
-    ), payload["animal_id"]
-
+    assert re.match(r"^[A-Z]{1,6}-\d{3,}$", payload["animal_id"]), payload["animal_id"]
     return payload["animal_id"]
+
 
 # ---------------------------------------------------------------------------
 # SESSION-END PERSISTENCE CLEANUP
