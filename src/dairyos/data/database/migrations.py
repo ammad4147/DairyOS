@@ -33,6 +33,12 @@ INVENTORY_SOURCE_COLUMNS = {
     "source_type": "VARCHAR",
     "source_id": "VARCHAR",
 }
+FEED_RECORD_COST_COLUMNS = {
+    "unit_cost_per_kg": "DOUBLE PRECISION",
+    "total_feed_cost": "DOUBLE PRECISION",
+    "cost_basis": "VARCHAR",
+    "cost_source_financial_transaction_id": "INTEGER",
+}
 
 
 def migrate_finance_feed_opex() -> list[str]:
@@ -141,6 +147,21 @@ def migrate_feed_inventory() -> list[str]:
             )
             changed.append("uq_inventory_transaction_source")
 
+    return changed
+
+
+def migrate_feed_record_costs() -> list[str]:
+    changed: list[str] = []
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "feed_record" not in inspector.get_table_names():
+            return changed
+        existing = {column["name"] for column in inspector.get_columns("feed_record")}
+        for name, sql_type in FEED_RECORD_COST_COLUMNS.items():
+            if name in existing:
+                continue
+            connection.execute(text(f'ALTER TABLE feed_record ADD COLUMN "{name}" {sql_type}'))
+            changed.append(f"feed_record.{name}")
     return changed
 
 
