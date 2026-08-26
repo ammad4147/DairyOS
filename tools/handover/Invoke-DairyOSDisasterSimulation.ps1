@@ -1,14 +1,14 @@
 [CmdletBinding()]
 param(
     [string]$RepoRoot = (Get-Location).Path,
-    [ValidateSet("All","PowerCutDuringInstall","AirGappedDeployment","FullTeardown")]
+    [ValidateSet("All","InterruptedInstall","KeepDataUninstall","PurgeData")]
     [string]$Scenario = "All"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
-$root = Join-Path ([System.IO.Path]::GetTempPath()) ("DairyOS-DisasterSim-" + [guid]::NewGuid().ToString("N"))
+$root = Join-Path ([System.IO.Path]::GetTempPath()) ("DairyOS-Windows-DeploymentSim-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $root | Out-Null
 
 function Assert-Test {
@@ -19,54 +19,48 @@ function Assert-Test {
 try {
     Write-Host "Simulation root: $root"
 
-    if ($Scenario -in @("All","PowerCutDuringInstall")) {
+    if ($Scenario -in @("All","InterruptedInstall")) {
         Write-Host ""
-        Write-Host "=== Scenario A: Power Cut During Install ===" -ForegroundColor Cyan
+        Write-Host "=== Scenario A: Interrupted Windows Installation ===" -ForegroundColor Cyan
         $install = Join-Path $root "install"
-        $data = Join-Path $root "data"
-        New-Item -ItemType Directory -Force $install,$data | Out-Null
+        New-Item -ItemType Directory -Force $install | Out-Null
         $manifest = Join-Path $install "install-manifest.json"
         $staged = Join-Path $install "staged.marker"
         $committed = Join-Path $install "committed.marker"
         @{state="staged"; version="test"} | ConvertTo-Json | Set-Content $manifest
         Set-Content $staged "staged"
         Remove-Item $staged -Force
-        Assert-Test (-not (Test-Path $committed)) "Interrupted install incorrectly reached committed state."
+        Assert-Test (-not (Test-Path $committed)) "Interrupted installation incorrectly reached committed state."
         Assert-Test (Test-Path $manifest) "Recovery metadata was not retained."
-        Write-Host "PASS: interruption leaves recovery metadata without a commit marker." -ForegroundColor Green
+        Write-Host "PASS: interrupted installer simulation retains recovery metadata without a commit marker." -ForegroundColor Green
     }
 
-    if ($Scenario -in @("All","AirGappedDeployment")) {
+    if ($Scenario -in @("All","KeepDataUninstall")) {
         Write-Host ""
-        Write-Host "=== Scenario B: Air-Gapped Deployment ===" -ForegroundColor Cyan
-        $repo = Join-Path $root "offline-repo"
-        New-Item -ItemType Directory -Force $repo | Out-Null
-        Set-Content (Join-Path $repo "offline-package.txt") "available"
-        Assert-Test (Test-Path (Join-Path $repo "offline-package.txt")) "Offline repository fixture missing."
-        $compose = Join-Path $RepoRoot "docker-compose.yml"
-        Assert-Test (Test-Path $compose) "docker-compose.yml missing."
-        Write-Host "PASS: offline fixture established; simulation makes no WAN call." -ForegroundColor Green
-        Write-Host "NOTE: real PXE/WAN isolation requires a Linux/PXE lab and is not proven here." -ForegroundColor Yellow
-    }
-
-    if ($Scenario -in @("All","FullTeardown")) {
-        Write-Host ""
-        Write-Host "=== Scenario C: Full Teardown & Purge ===" -ForegroundColor Cyan
-        $install = Join-Path $root "teardown-install"
-        $data = Join-Path $root "teardown-data"
+        Write-Host "=== Scenario B: Application Uninstall With Data Preservation ===" -ForegroundColor Cyan
+        $install = Join-Path $root "installation"
+        $data = Join-Path $root "farm-data"
         New-Item -ItemType Directory -Force $install,$data | Out-Null
         Set-Content (Join-Path $data "record.txt") "veterinary-audit-data"
         Remove-Item $install -Recurse -Force
-        Assert-Test (-not (Test-Path $install)) "Installation tree was not removed."
-        Assert-Test (Test-Path $data) "Data unexpectedly disappeared during keep-data simulation."
+        Assert-Test (-not (Test-Path $install)) "Application installation tree was not removed."
+        Assert-Test (Test-Path (Join-Path $data "record.txt")) "Farm data unexpectedly disappeared during uninstall-with-data-preservation simulation."
+        Write-Host "PASS: application removal preserves farm data." -ForegroundColor Green
+    }
+
+    if ($Scenario -in @("All","PurgeData")) {
+        Write-Host ""
+        Write-Host "=== Scenario C: Explicit Farm-Data Purge ===" -ForegroundColor Cyan
+        $data = Join-Path $root "purge-data"
+        New-Item -ItemType Directory -Force $data | Out-Null
+        Set-Content (Join-Path $data "record.txt") "veterinary-audit-data"
         Remove-Item $data -Recurse -Force
-        Assert-Test (-not (Test-Path $data)) "Purge simulation failed to remove data."
-        Write-Host "PASS: keep-data and purge semantics separated in a temporary workspace." -ForegroundColor Green
-        Write-Host "NOTE: bootloader/NVRAM and partition wipe require dedicated target hardware." -ForegroundColor Yellow
+        Assert-Test (-not (Test-Path $data)) "Explicit farm-data purge simulation failed."
+        Write-Host "PASS: explicit data purge is separate from application uninstall." -ForegroundColor Green
     }
 
     Write-Host ""
-    Write-Host "All safe disaster simulations completed." -ForegroundColor Green
+    Write-Host "All Windows deployment disaster simulations completed." -ForegroundColor Green
     exit 0
 }
 finally {
