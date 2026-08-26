@@ -123,8 +123,49 @@ try {
     $validateCommandArgs = $validateArgs + @("validate")
     Invoke-DairyOsLifecycle $validateCommandArgs
 
+    Write-Step "DATABASE / PRODUCTION SECURITY GATE"
+    $previousEnvironment = $env:DAIRYOS_ENV
+    $previousDataDir = $env:DAIRYOS_DATA_DIR
+    try {
+        $env:DAIRYOS_ENV = "production"
+        $env:DAIRYOS_DATA_DIR = $DataRoot
+
+        & $VenvPython -c "from dairyos.windows.migrations import migrate_if_needed; print(migrate_if_needed())"
+        if ($LASTEXITCODE -ne 0) {
+            throw "DairyOS production migration gate failed during installation."
+        }
+
+        & $VenvPython -c "from dairyos.api.auth import ensure_production_admin_password_configured; ensure_production_admin_password_configured()"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Existing production admin password configuration is valid." -ForegroundColor Green
+        }
+        else {
+            $securePassword = Read-Host "Enter the DairyOS production admin password (minimum 12 characters)" -AsSecureString
+            $passwordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+            try {
+                $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPtr)
+                $env:DAIRYOS_BOOTSTRAP_ADMIN_PASSWORD = $plainPassword
+                & $VenvPython -c "import os; from dairyos.api.auth import bootstrap_production_admin_password; bootstrap_production_admin_password(os.environ['DAIRYOS_BOOTSTRAP_ADMIN_PASSWORD'])"
+                if ($LASTEXITCODE -ne 0) {
+                    throw "DairyOS production admin password bootstrap failed."
+                }
+                Write-Host "Production admin password initialized securely in the DairyOS data store." -ForegroundColor Green
+            }
+            finally {
+                if ($passwordPtr -ne [IntPtr]::Zero) {
+                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPtr)
+                }
+                Remove-Item Env:DAIRYOS_BOOTSTRAP_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    finally {
+        if ($null -eq $previousEnvironment) { Remove-Item Env:DAIRYOS_ENV -ErrorAction SilentlyContinue } else { $env:DAIRYOS_ENV = $previousEnvironment }
+        if ($null -eq $previousDataDir) { Remove-Item Env:DAIRYOS_DATA_DIR -ErrorAction SilentlyContinue } else { $env:DAIRYOS_DATA_DIR = $previousDataDir }
+    }
+
     Write-Step "WRITE LAUNCHER"
-    $launcher = Join-Path $InstallRoot "DairyOS-Server.ps1"
+    $launcher = Join-Path $InstallRoot "DairyOS-Desktop.ps1"
     $launcherContent = @"
 `$ErrorActionPreference = 'Stop'
 `$env:DAIRYOS_ENV = 'production'
@@ -132,7 +173,7 @@ try {
 if (-not `$env:DAIRYOS_DATABASE_URL -and (`$env:DAIRYOS_DB_PASSWORD -or `$env:DAIRYOS_DB_HOST)) {
     Write-Host 'Using DAIRYOS_DB_* environment variables for the production database.'
 }
-& '$VenvPython' -m dairyos.server --host 127.0.0.1 --port 8000
+& '$VenvPython' -m dairyos.windows.supervisor
 "@
     [IO.File]::WriteAllText(
         $launcher,
