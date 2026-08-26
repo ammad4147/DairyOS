@@ -16,6 +16,7 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.database.migrations import (
     migrate_finance_feed_opex,
     migrate_feed_inventory,
+    migrate_feed_record_costs,
     migrate_milk_quality,
     migrate_coml,
     migrate_operational_finding_audit,
@@ -39,6 +40,7 @@ email_scheduler = NightlyEmailScheduler(container=container)
 async def lifespan(_app: FastAPI):
     migrated = migrate_finance_feed_opex()
     inventory_migrated = migrate_feed_inventory()
+    feed_cost_migrated = migrate_feed_record_costs()
     quality_migrated = migrate_milk_quality()
     coml_migrated = migrate_coml()
     finding_audit_migrated = migrate_operational_finding_audit()
@@ -46,6 +48,8 @@ async def lifespan(_app: FastAPI):
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
         logging.info("Feed inventory migration created/updated: %s", ", ".join(inventory_migrated))
+    if feed_cost_migrated:
+        logging.info("Feed record cost migration added columns: %s", ", ".join(feed_cost_migrated))
     if quality_migrated:
         logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
     if coml_migrated:
@@ -71,7 +75,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"] ,
-)
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
