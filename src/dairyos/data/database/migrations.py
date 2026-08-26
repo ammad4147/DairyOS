@@ -116,53 +116,57 @@ def migrate_feed_inventory() -> list[str]:
             changed.append("feed_inventory_items")
             tables.add("feed_inventory_items")
 
-        if "inventory_transactions" not in tables:
-            return changed
-
-        existing = {
-            column["name"]
-            for column in inspector.get_columns("inventory_transactions")
-        }
-        for name, sql_type in INVENTORY_SOURCE_COLUMNS.items():
-            if name in existing:
-                continue
-            connection.execute(
-                text(
-                    f'ALTER TABLE inventory_transactions '
-                    f'ADD COLUMN "{name}" {sql_type}'
+        if "inventory_transactions" in tables:
+            existing = {
+                column["name"]
+                for column in inspector.get_columns("inventory_transactions")
+            }
+            for name, sql_type in INVENTORY_SOURCE_COLUMNS.items():
+                if name in existing:
+                    continue
+                connection.execute(
+                    text(
+                        f'ALTER TABLE inventory_transactions '
+                        f'ADD COLUMN "{name}" {sql_type}'
+                    )
                 )
-            )
-            changed.append(f"inventory_transactions.{name}")
+                changed.append(f"inventory_transactions.{name}")
 
-        indexes = {
-            index["name"]
-            for index in inspect(connection).get_indexes("inventory_transactions")
-        }
-        if "uq_inventory_transaction_source" not in indexes:
-            connection.execute(
-                text(
-                    "CREATE UNIQUE INDEX uq_inventory_transaction_source "
-                    "ON inventory_transactions (source_type, source_id)"
+            indexes = {
+                index["name"]
+                for index in inspect(connection).get_indexes("inventory_transactions")
+            }
+            if "uq_inventory_transaction_source" not in indexes:
+                connection.execute(
+                    text(
+                        "CREATE UNIQUE INDEX uq_inventory_transaction_source "
+                        "ON inventory_transactions (source_type, source_id)"
+                    )
                 )
-            )
-            changed.append("uq_inventory_transaction_source")
+                changed.append("uq_inventory_transaction_source")
+
+        if "feed_record" in tables:
+            existing = {
+                column["name"]
+                for column in inspector.get_columns("feed_record")
+            }
+            for name, sql_type in FEED_RECORD_COST_COLUMNS.items():
+                if name in existing:
+                    continue
+                connection.execute(
+                    text(
+                        f'ALTER TABLE feed_record '
+                        f'ADD COLUMN "{name}" {sql_type}'
+                    )
+                )
+                changed.append(f"feed_record.{name}")
 
     return changed
 
 
 def migrate_feed_record_costs() -> list[str]:
-    changed: list[str] = []
-    with engine.begin() as connection:
-        inspector = inspect(connection)
-        if "feed_record" not in inspector.get_table_names():
-            return changed
-        existing = {column["name"] for column in inspector.get_columns("feed_record")}
-        for name, sql_type in FEED_RECORD_COST_COLUMNS.items():
-            if name in existing:
-                continue
-            connection.execute(text(f'ALTER TABLE feed_record ADD COLUMN "{name}" {sql_type}'))
-            changed.append(f"feed_record.{name}")
-    return changed
+    """Compatibility wrapper for callers that invoke the cost migration directly."""
+    return migrate_feed_inventory()
 
 
 def migrate_milk_quality() -> list[str]:
@@ -199,7 +203,7 @@ def migrate_coml() -> list[str]:
                 month_start DATE NOT NULL UNIQUE,
                 feed_cost_per_liter DOUBLE PRECISION NOT NULL,
                 opex_cost_per_liter DOUBLE PRECISION NOT NULL,
-                total_coml_per_liter DOUBLE PRECISION NOT NULL,
+                total_compl_per_liter DOUBLE PRECISION NOT NULL,
                 status VARCHAR NOT NULL DEFAULT 'OFFICIAL',
                 notes VARCHAR NULL,
                 created_at TIMESTAMP NOT NULL,
