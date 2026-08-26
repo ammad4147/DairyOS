@@ -29,7 +29,7 @@ def _run_sc(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def list_postgresql_services() -> list[str]:
-    """Return installed PostgreSQL service names, newest-looking first."""
+    """Return installed PostgreSQL service names in stable order."""
     if os.name != "nt":
         return []
 
@@ -45,7 +45,7 @@ def list_postgresql_services() -> list[str]:
         if match and match.group(1).lower().startswith("postgresql"):
             names.append(match.group(1))
 
-    return sorted(names, reverse=True)
+    return sorted(names)
 
 
 def configured_service_name() -> str | None:
@@ -63,6 +63,12 @@ def resolve_service_name() -> str:
         raise PostgreSQLServiceError(
             "No PostgreSQL Windows Service was found. DairyOS requires PostgreSQL "
             "to be installed before the application can start."
+        )
+    if len(services) > 1:
+        raise PostgreSQLServiceError(
+            "Multiple PostgreSQL Windows Services were found and DairyOS cannot "
+            "safely choose between them. Set DAIRYOS_POSTGRES_SERVICE explicitly. "
+            f"Detected services: {', '.join(services)}"
         )
     return services[0]
 
