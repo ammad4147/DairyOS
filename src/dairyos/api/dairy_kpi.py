@@ -22,6 +22,7 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_insemination as _is_insemination,
     is_pregnancy_check as _is_pregnancy_check,
 )
+from dairyos.herd.reproduction.services.reproduction_kpi_service import ReproductionKpiService
 
 router = APIRouter(prefix="/farm/kpis", tags=["Standard Dairy KPIs"])
 
@@ -69,35 +70,16 @@ def _in_period(record, start, end, *date_fields):
 
 
 def _conception_outcomes(inseminations, pregnancy_checks):
-    ordered_inseminations = sorted(
-        [r for r in inseminations if _record_date(r, "timestamp") is not None],
-        key=lambda record: _record_date(record, "timestamp"),
-    )
-    ordered_checks = sorted(
-        [r for r in pregnancy_checks if _record_date(r, "timestamp") is not None],
-        key=lambda record: _record_date(record, "timestamp"),
-    )
-    outcomes = {}
-    for check in ordered_checks:
-        check_time = _record_date(check, "timestamp")
-        candidates = [
-            record
-            for record in ordered_inseminations
-            if record.animal_id == check.animal_id
-            and _record_date(record, "timestamp") <= check_time
-        ]
-        if not candidates:
-            continue
-        matched = candidates[-1]
-        outcomes[getattr(matched, "record_id", id(matched))] = _is_confirmed_pregnancy(check)
-    return outcomes
+    """Compatibility wrapper around the authoritative reproduction KPI service."""
+    return ReproductionKpiService.conception_outcomes(inseminations, pregnancy_checks)
 
 
 def _conception_rate(inseminations, pregnancy_checks):
-    outcomes = _conception_outcomes(inseminations, pregnancy_checks)
-    if not outcomes:
-        return None
-    return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
+    """Use the same observed-outcome denominator across DairyOS KPI surfaces."""
+    return ReproductionKpiService.calculate_observed_conception_rate(
+        inseminations,
+        pregnancy_checks,
+    )
 
 
 def _interval_metrics(breeding):
@@ -123,8 +105,6 @@ def _interval_metrics(breeding):
         for previous, current in zip(calvings, calvings[1:]):
             calving_intervals.append((current[0] - previous[0]).days)
 
-        # Every confirmed pregnancy is an observed conception outcome. Link it
-        # to the latest service in the same current reproductive cycle.
         for pregnancy_time, pregnancy_record in events:
             if not _is_pregnancy_check(pregnancy_record) or not _is_confirmed_pregnancy(pregnancy_record):
                 continue
@@ -260,6 +240,7 @@ def _overview(factory, start, end):
                 "feed_conversion": "not calculated: persisted feed quantities are as-fed kg, while scientifically valid feed conversion requires observed DMI",
                 "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
                 "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
+                "conception_rate": "confirmed conceptions divided by services with a documented pregnancy diagnosis outcome",
             },
         },
         "methodology": {
