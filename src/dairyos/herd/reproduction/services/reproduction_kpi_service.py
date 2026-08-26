@@ -3,8 +3,6 @@ from datetime import date, datetime, timezone
 
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_confirmed_pregnancy,
-    is_insemination,
-    is_pregnancy_check,
 )
 
 
@@ -115,9 +113,9 @@ class ReproductionKpiService:
         confirmed_pregnancies: int,
         total_inseminations: int,
     ) -> float:
-        """Legacy count-based calculation retained for compatibility.
+        """Legacy count-based arithmetic retained for compatibility.
 
-        New persisted-record KPI paths must use
+        Persisted-record KPI paths must use
         :meth:`calculate_observed_conception_rate`, which prevents services
         without a documented pregnancy outcome from entering the denominator.
         """
