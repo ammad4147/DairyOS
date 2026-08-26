@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_confirmed_pregnancy,
+    is_insemination,
+    is_pregnancy_check,
+)
+
 
 @dataclass
 class ReproductionKpiSummary:
@@ -13,12 +19,77 @@ class ReproductionKpiSummary:
 
 
 class ReproductionKpiService:
-    """
-    Calculates reproduction & fertility KPIs for dairy cows.
+    """Authoritative reproductive KPI calculations.
+
+    KPI calculations that depend on breeding outcomes use the same observed
+    outcome rule everywhere in DairyOS: an insemination enters the conception
+    denominator only when a subsequent persisted pregnancy diagnosis is
+    available for that service. Multiple diagnoses for one service update the
+    same service outcome and never create multiple conceptions.
     """
 
+    @staticmethod
+    def _as_utc(value: datetime | date | None) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
+        return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+
+    @classmethod
+    def conception_outcomes(cls, inseminations, pregnancy_checks) -> dict[str, bool]:
+        """Return one observed pregnancy outcome per service.
+
+        The latest diagnosis chronologically associated with a service is the
+        authoritative observed outcome for that service. A diagnosis cannot
+        match a service from another animal, and undated records are excluded
+        because they cannot establish chronology.
+        """
+        ordered_inseminations = sorted(
+            [
+                record
+                for record in inseminations
+                if cls._as_utc(getattr(record, "timestamp", None)) is not None
+            ],
+            key=lambda record: cls._as_utc(getattr(record, "timestamp", None)),
+        )
+        ordered_checks = sorted(
+            [
+                record
+                for record in pregnancy_checks
+                if cls._as_utc(getattr(record, "timestamp", None)) is not None
+            ],
+            key=lambda record: cls._as_utc(getattr(record, "timestamp", None)),
+        )
+
+        outcomes: dict[str, bool] = {}
+        for check in ordered_checks:
+            check_time = cls._as_utc(getattr(check, "timestamp", None))
+            candidates = [
+                record
+                for record in ordered_inseminations
+                if getattr(record, "animal_id", None) == getattr(check, "animal_id", None)
+                and cls._as_utc(getattr(record, "timestamp", None)) <= check_time
+            ]
+            if not candidates:
+                continue
+            matched = candidates[-1]
+            key = str(getattr(matched, "record_id", id(matched)))
+            outcomes[key] = is_confirmed_pregnancy(check)
+        return outcomes
+
+    @classmethod
+    def calculate_observed_conception_rate(cls, inseminations, pregnancy_checks) -> float | None:
+        """Calculate conception rate from services with documented outcomes."""
+        outcomes = cls.conception_outcomes(inseminations, pregnancy_checks)
+        if not outcomes:
+            return None
+        return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
+
+    @staticmethod
     def calculate_calving_interval(
-        self,
         previous_calving_date: date | datetime,
         current_calving_date: date | datetime,
     ) -> int:
@@ -28,8 +99,8 @@ class ReproductionKpiService:
             current_calving_date = current_calving_date.date()
         return (current_calving_date - previous_calving_date).days
 
+    @staticmethod
     def calculate_days_open(
-        self,
         last_calving_date: date | datetime,
         conception_date: date | datetime,
     ) -> int:
@@ -39,17 +110,23 @@ class ReproductionKpiService:
             conception_date = conception_date.date()
         return (conception_date - last_calving_date).days
 
+    @staticmethod
     def calculate_conception_rate(
-        self,
         confirmed_pregnancies: int,
         total_inseminations: int,
     ) -> float:
+        """Legacy count-based calculation retained for compatibility.
+
+        New persisted-record KPI paths must use
+        :meth:`calculate_observed_conception_rate`, which prevents services
+        without a documented pregnancy outcome from entering the denominator.
+        """
         if total_inseminations == 0:
             return 0.0
         return round((confirmed_pregnancies / total_inseminations) * 100, 2)
 
+    @staticmethod
     def calculate_services_per_conception(
-        self,
         total_inseminations: int,
         total_conceptions: int,
     ) -> float:
