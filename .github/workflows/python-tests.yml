@@ -83,6 +83,63 @@ jobs:
       - name: Check Docker Compose configuration
         run: docker compose config -q
 
+  production-startup-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dairyos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAIRYOS_DB_HOST: localhost
+      DAIRYOS_DB_PORT: "5432"
+      DAIRYOS_DB_NAME: dairyos
+      DAIRYOS_DB_USER: postgres
+      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_ENV: production
+      DAIRYOS_AUTH_SECRET: ci-production-auth-secret
+      DAIRYOS_ADMIN_PASSWORD: ci-production-admin-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+      - name: Run production migration gate
+        run: python -c "from dairyos.windows.migrations import migrate_if_needed; result = migrate_if_needed(); print(result)"
+      - name: Verify production admin configuration gate
+        run: python -c "from dairyos.api.auth import ensure_production_admin_password_configured; ensure_production_admin_password_configured(); print('production admin password gate passed')"
+      - name: Verify authorization fails closed without credentials
+        run: |
+          python - <<'PY'
+          from types import SimpleNamespace
+          from fastapi import HTTPException
+          from dairyos.api.authorization import authorize_request
+
+          request = SimpleNamespace(
+              method="GET",
+              url=SimpleNamespace(path="/dashboard"),
+              headers={},
+          )
+          try:
+              authorize_request(request)
+          except HTTPException as exc:
+              assert exc.status_code == 401, exc.status_code
+          else:
+              raise SystemExit("authorization unexpectedly allowed an unauthenticated production request")
+          PY
+
   frontend-build:
     runs-on: ubuntu-latest
     steps:
@@ -109,10 +166,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
       - name: Check Milk dashboard JavaScript
         run: node --check src/dairyos/web/dashboard_milk_intelligence.js
 
