@@ -72,19 +72,14 @@ def _reset_test_persistence() -> None:
         session.rollback()
         raise
 
-    # The event journal owns its own short-lived sessions. Clear it again
-    # explicitly so the application replay boundary is unquestionably empty.
     PersistentEventJournal().clear()
 
-    # Clear non-SQL projections used by the application runtime.
     if getattr(container, "animal_operational_state_repository", None) is not None:
         container.animal_operational_state_repository.clear()
 
     if getattr(container, "operational_input_repository", None) is not None:
         container.operational_input_repository.clear()
 
-    # Recreate the persisted operational-state application service so no
-    # FarmOperationalState object survives from a previous test.
     container.runtime._operational_state_service = FarmOperationalStateService(
         repository=container.runtime.operational_state_repository,
         animal_projection=container.animal_event_projection,
@@ -92,14 +87,10 @@ def _reset_test_persistence() -> None:
 
     container.farm_operational_state_service = container.runtime._operational_state_service
     container.operational_state_service = container.runtime._operational_state_service
-
-    # Rebind the event subscriber to the fresh service.
     container.runtime._operational_state_event_subscriber.operational_state_service = (
         container.runtime._operational_state_service
     )
 
-    # Force the compatibility facade to rebuild its runtime surfaces on the
-    # next TestClient startup.
     container.started = False
     container.operations = None
     container.dashboard = None
@@ -126,7 +117,6 @@ def client(tmp_path):
     container.operations = None
     container.dashboard = None
 
-    # Rebind the runtime's animal projection to the test-local projection.
     container.runtime._animal_operational_state_repository = (
         container.animal_operational_state_repository
     )
@@ -153,17 +143,11 @@ def client(tmp_path):
         container.runtime._withdrawal_service = withdrawal_service
         container.withdrawal_service = withdrawal_service
 
-        # Production API routes are intentionally authenticated. The test
-        # fixture therefore establishes the same bearer identity that a real
-        # client must establish instead of bypassing authorization middleware.
-        login = c.post(
-            "/auth/login",
-            json={"username": "admin", "password": "dairyos"},
-        )
-        assert login.status_code == 200, login.text
-        access_token = login.json()["access_token"]
-        c.headers.update({"Authorization": f"Bearer {access_token}"})
-
+        # The fixture deliberately does NOT install a bearer token globally.
+        # API tests that need an authenticated identity establish one explicitly;
+        # this preserves the ability to verify unauthenticated contracts such as
+        # GET /me and GET /users while development-mode operational routes remain
+        # usable by tests that exercise their legacy operator contract.
         print(
             "FIXTURE RESET EVENT JOURNAL:",
             container.event_journal.count(),
@@ -197,15 +181,6 @@ def registered_animal(client: TestClient):
     return payload["animal_id"]
 
 
-# ---------------------------------------------------------------------------
-# SESSION-END PERSISTENCE CLEANUP
-# ---------------------------------------------------------------------------
-# API fixtures already reset persistence before each test. This finalizer
-# guarantees that the COMPLETE pytest session also leaves the database and
-# persistent event journal clean, including tests that never request `client`.
-#
-# This is intentionally test-only. It does not alter production persistence
-# behavior or the /settings/reset-test-data endpoint.
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup_persistence_after_test_session():
     yield
