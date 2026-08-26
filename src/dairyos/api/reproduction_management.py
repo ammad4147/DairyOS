@@ -9,6 +9,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving as _is_calving,
+    is_confirmed_pregnancy as _is_confirmed_pregnancy,
     is_heat_detection as _is_heat_detection,
     is_insemination as _is_insemination,
     is_pregnancy_check as _is_pregnancy_check,
@@ -30,6 +31,11 @@ def _as_utc(value: datetime | None) -> datetime:
 def _fresh_factory(container):
     factory = getattr(container, "repository_factory", None)
     if factory is not None:
+        # Other API tests may mutate persisted ORM rows through a separate
+        # repository session. Expire the long-lived runtime session before a
+        # projection read so current database state, including timestamp edits,
+        # is authoritative rather than an identity-map snapshot.
+        factory.session.expire_all()
         return factory, False
     return RepositoryFactory.create(), True
 
@@ -62,13 +68,48 @@ def _conception_rate(inseminations, pregnancy_checks):
     )
 
 
+def _confirmed_pregnancy_count(recent, inseminations):
+    """Count unique observed pregnancy confirmations.
+
+    A positive pregnancy diagnosis and a later pregnancy_confirmed event for
+    the same service are two observations of one conception, not two
+    conceptions. A standalone pregnancy_confirmed event remains countable as
+    one observed confirmation even when no service is documented.
+    """
+    outcomes = _conception_outcomes(inseminations, [r for r in recent if _is_pregnancy_check(r)])
+    matched_service_ids = set(outcomes)
+
+    confirmed = sum(1 for value in outcomes.values() if value)
+
+    for record in recent:
+        if not _is_confirmed_pregnancy(record):
+            continue
+        if _is_pregnancy_check(record):
+            continue
+
+        # pregnancy_confirmed is outcome evidence. If it can be associated
+        # with a recorded service, conception_outcomes already accounts for
+        # that service and this observation must not double-count it.
+        candidates = [
+            service
+            for service in inseminations
+            if service.animal_id == record.animal_id
+            and service.timestamp is not None
+            and record.timestamp is not None
+            and _as_utc(service.timestamp) <= _as_utc(record.timestamp)
+        ]
+        if candidates:
+            if str(candidates[-1].record_id) in matched_service_ids:
+                continue
+        confirmed += 1
+
+    return confirmed
+
+
 def _management(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=365)
 
-    # Records without a real event timestamp are historical/incomplete facts,
-    # not evidence that the event occurred inside this KPI window. Do not let
-    # missing timestamps silently enter current reproductive calculations.
     recent = [
         r
         for r in records
@@ -82,7 +123,7 @@ def _management(records):
     heat_events = [r for r in recent if _is_heat_detection(r)]
 
     outcomes = _conception_outcomes(inseminations, pregnancy_checks)
-    confirmed = sum(outcomes.values())
+    confirmed = _confirmed_pregnancy_count(recent, inseminations)
 
     return {
         "period": {
