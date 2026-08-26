@@ -19,7 +19,13 @@ from dairyos.api.reference_data import GOVERNED
 from dairyos.auth.permissions import permissions_from_json, permissions_for_role
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
-router = APIRouter(tags=["Authentication"])
+# Authentication endpoints are intentionally namespaced under /auth.  This
+# matches the production API contract used by the operator shell and by the
+# authorization middleware (which treats /auth/users and /auth/login as public
+# identity-establishment routes).  Keeping the namespace here, rather than
+# relying on an app-level prefix, also makes the router safe to mount in tests
+# and other ASGI compositions.
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 _bearer = HTTPBearer(auto_error=False)
 _PBKDF2_ITERATIONS = 200_000
 _LEGACY_ADMIN_PASSWORD_HASH_KEY = "legacy_admin_password_hash"
