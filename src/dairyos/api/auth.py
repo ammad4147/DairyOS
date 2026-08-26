@@ -126,6 +126,23 @@ def _legacy_admin_password_override() -> tuple[str, str] | None:
         factory.close()
 
 
+def bootstrap_production_admin_password(password: str) -> None:
+    """Persist a non-default bootstrap password for a production install."""
+    if not password or len(password) < 12:
+        raise ValueError("The DairyOS production admin password must be at least 12 characters long.")
+    if hmac.compare_digest(password, _DEFAULT_ADMIN_PASSWORD):
+        raise ValueError("The DairyOS production admin password may not use the development default.")
+
+    factory = RepositoryFactory.create()
+    try:
+        password_hash, salt = _hash_password(password)
+        settings = factory.app_settings()
+        settings.set(_LEGACY_ADMIN_PASSWORD_HASH_KEY, password_hash, updated_by="installer")
+        settings.set(_LEGACY_ADMIN_PASSWORD_SALT_KEY, salt, updated_by="installer")
+    finally:
+        factory.close()
+
+
 def ensure_production_admin_password_configured() -> None:
     """Refuse production startup while the bootstrap password is unsafe.
 
@@ -283,7 +300,7 @@ def change_my_password(payload: dict[str, str] = Body(...), current_user: dict[s
             user.password_salt = salt
             factory.session.add(user)
             factory.session.commit()
-            return {"username": user.username, "password_changed": True, "account_type": "persisted"}
+            return {"username": username, "password_changed": True, "account_type": "persisted"}
 
         if username != _configured_username():
             raise HTTPException(status_code=404, detail="Persisted user account not found")
