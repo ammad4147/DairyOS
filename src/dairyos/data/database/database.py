@@ -10,6 +10,8 @@ All SQLAlchemy ORM models must be imported here so that they are
 registered with Base.metadata before create_all() executes.
 """
 
+import os
+
 from dairyos.data.database.base import Base
 from dairyos.data.database.session import engine
 
@@ -81,23 +83,20 @@ from dairyos.data.models.user import (
 
 
 def initialize_database() -> None:
+    """Create the development/test schema when explicitly appropriate.
+
+    Production/staging/preprod startup is migration-owned. The Windows
+    supervisor runs the migration gate before the application is constructed,
+    so ``create_all()`` must never silently compete with Alembic in those
+    environments.
     """
-    Create all registered PostgreSQL tables if they do not exist.
+    environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
+    if environment in {"production", "staging", "preprod"}:
+        return
 
-    The operation is intentionally idempotent.
-
-    Schema evolution belongs to the migration layer, not to this
-    runtime initialization boundary.
-    """
-
-    Base.metadata.create_all(
-        bind=engine,
-    )
+    Base.metadata.create_all(bind=engine)
 
 
 if __name__ == "__main__":
     initialize_database()
-
-    print(
-        "DairyOS PostgreSQL database initialized."
-    )
+    print("DairyOS PostgreSQL database initialized.")
