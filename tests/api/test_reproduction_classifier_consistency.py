@@ -1,17 +1,13 @@
 """Guards G6.1 (breeding classifier unification, Phase 1, 2026-08-14).
 
-Before this fix, three live endpoints independently classified the same
-BreedingRecord rows and disagreed: dairy_kpi.py never recognized
-"pregnancy_diagnosis" or "pregnancy_confirmed" — the operator UI's actual
-event-type values (src/DairyOS.Web/src/App.tsx's entryConfigs.breeding) — as
-pregnancy-check events at all, so its confirmed_pregnancies/
-conception_rate_percent silently undercounted relative to
-/farm/reproduction/overview for identical underlying data.
-
 These tests submit events using the real operator vocabulary and assert
 /farm/animals/{id}/reproduction, /farm/reproduction/overview and
-/farm/kpis/overview now agree, using the shared
-dairyos.herd.reproduction.services.reproductive_event_classifier module.
+/farm/kpis/overview agree, using the shared
+reproductive_event_classifier and reproduction KPI authority.
+
+A positive pregnancy diagnosis and a later pregnancy_confirmed event are two
+observations of the same conception; they must therefore produce one confirmed
+pregnancy/conception rather than inflating the KPI by counting observations.
 """
 
 
@@ -31,11 +27,6 @@ def _record_breeding(client, animal_id, event_type, result):
 
 
 def test_pregnancy_diagnosis_is_confirmed_on_every_live_endpoint(client, registered_animal):
-    """The concrete regression this fix closes: before the fix, dairy_kpi.py
-    never matched "pregnancy_diagnosis" as a pregnancy check at all, so a
-    real confirmed pregnancy recorded through the actual operator UI form
-    would silently disappear from /farm/kpis/overview while still showing
-    up on /farm/reproduction/overview."""
     _record_breeding(client, registered_animal, "insemination", "completed")
     _record_breeding(client, registered_animal, "pregnancy_diagnosis", "pregnant")
 
@@ -54,10 +45,6 @@ def test_pregnancy_diagnosis_is_confirmed_on_every_live_endpoint(client, registe
 
 
 def test_bare_pregnancy_confirmed_event_is_confirmed_everywhere(client, registered_animal):
-    """A bare "pregnancy_confirmed" event (no separate pregnancy_diagnosis
-    check) must also be counted as confirmed on every endpoint, and must
-    NOT be double-counted as a pregnancy_check (matches the pre-existing,
-    test-locked reproduction_management.py behavior this fix preserves)."""
     _record_breeding(client, registered_animal, "pregnancy_confirmed", "confirmed")
 
     reproduction = client.get("/farm/reproduction/overview").json()
@@ -73,10 +60,6 @@ def test_bare_pregnancy_confirmed_event_is_confirmed_everywhere(client, register
 
 
 def test_pregnancy_negative_is_a_check_but_not_confirmed(client, registered_animal):
-    """New in this fix: pregnancy_negative previously wasn't counted as a
-    pregnancy_check at all on either live endpoint (a real undercount, not
-    just an inconsistency). Now both agree it is a check, and neither
-    counts it as confirmed."""
     _record_breeding(client, registered_animal, "pregnancy_negative", "open")
 
     reproduction = client.get("/farm/reproduction/overview").json()
@@ -92,12 +75,6 @@ def test_pregnancy_negative_is_a_check_but_not_confirmed(client, registered_anim
 
 
 def test_full_event_sequence_agrees_across_all_three_endpoints(client, registered_animal):
-    """A realistic sequence of events, submitted with the real operator
-    vocabulary, must yield mutually consistent counts and a valid post-calving
-    reproductive state across all three live endpoints. The API may present
-    the immediate post-calving state as CALVED or LACTATING depending on the
-    farm operational-date boundary; both are valid after a recorded calving,
-    while pregnancy must no longer be active."""
     _record_breeding(client, registered_animal, "heat_detected", "detected")
     _record_breeding(client, registered_animal, "insemination", "completed")
     _record_breeding(client, registered_animal, "pregnancy_diagnosis", "pregnant")
@@ -108,13 +85,13 @@ def test_full_event_sequence_agrees_across_all_three_endpoints(client, registere
     assert reproduction["heat_detections"] == 1
     assert reproduction["inseminations"] == 1
     assert reproduction["pregnancy_checks"] == 1
-    assert reproduction["confirmed_pregnancies"] == 2
+    assert reproduction["confirmed_pregnancies"] == 1
     assert reproduction["calvings"] == 1
 
     kpis = client.get("/farm/kpis/overview?days=365").json()
     assert kpis["kpis"]["inseminations"] == 1
     assert kpis["kpis"]["pregnancy_checks"] == 1
-    assert kpis["kpis"]["confirmed_pregnancies"] == 2
+    assert kpis["kpis"]["confirmed_pregnancies"] == 1
     assert (
         kpis["kpis"]["conception_rate_percent"]
         == reproduction["conception_rate_percent"]
