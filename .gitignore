@@ -130,6 +130,9 @@ _local_reconciliation/
 remediation-backups/
 audit-results/
 
+# Local forensic audit utility (kept locally until separately reviewed)
+tools/run_forensic_full_audit.py
+
 # IDE / Editor
 .vscode/
 .idea/
