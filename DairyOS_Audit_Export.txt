@@ -1,3962 +1,0 @@
-﻿=====================================================================
- DAIRYOS FORENSIC AUDIT EXPORT
- DATE: 2026-08-20 14:54:36
-=====================================================================
-
-### FILE_START: build-environment-probe.sh | PATH: D:\DairyOS\.dairyo-reconciliation\build-environment-20260820-011546\build-environment-probe.sh ###
----------------------------------------------------------------------
-set +e
-
-echo "=== OS ==="
-uname -a
-cat /etc/os-release 2>/dev/null
-
-echo
-echo "=== TOOLS ==="
-for c in bash sha256sum python3 rsync live-build lb debootstrap genisoimage xorriso grub-mkrescue qemu-system-x86_64 qemu-img; do
-    if command -v "$c" >/dev/null 2>&1; then
-        echo "FOUND $c -> $(command -v "$c")"
-    else
-        echo "MISSING $c"
-    fi
-done
-
-echo
-echo "=== VERSIONS ==="
-echo "--- python3 ---"
-python3 --version 2>&1
-echo "--- rsync ---"
-rsync --version 2>&1 | head -1
-echo "--- lb ---"
-lb --version 2>&1
-echo "--- debootstrap ---"
-debootstrap --version 2>&1
-echo "--- xorriso ---"
-xorriso --version 2>&1 | head -1
-echo "--- grub-mkrescue ---"
-grub-mkrescue --version 2>&1
-echo "--- qemu-system-x86_64 ---"
-qemu-system-x86_64 --version 2>&1 | head -1
-echo "--- qemu-img ---"
-qemu-img --version 2>&1 | head -1
-
-echo
-echo "=== FILESYSTEM ==="
-df -h /
-
-echo
-echo "=== REPOSITORY ACCESS ==="
-if [ -d /mnt/d/DairyOS ]; then
-    echo "FOUND /mnt/d/DairyOS"
-else
-    echo "MISSING /mnt/d/DairyOS"
-fi
-
-echo
-echo "=== BUILD SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/build/build-iso.sh
-
-echo
-echo "=== RELEASE MANIFEST SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/release-manifest.sh
-
-echo
-echo "=== STAGE SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/stage-app.sh
-
-exit 0
-
-
----------------------------------------------------------------------
-### FILE_END: build-environment-probe.sh ###
-
-
-### FILE_START: build-environment-probe.sh | PATH: D:\DairyOS\.dairyo-reconciliation\build-environment-20260820-011714\build-environment-probe.sh ###
----------------------------------------------------------------------
-echo "=== OS ==="
-uname -a
-cat /etc/os-release 2>/dev/null || true
-
-echo "=== TOOLS ==="
-for c in bash sha256sum python3 rsync live-build lb debootstrap genisoimage xorriso grub-mkrescue qemu-system-x86_64 qemu-img; do
-    if command -v "$c" >/dev/null 2>&1; then
-        echo "FOUND $c -> $(command -v "$c")"
-    else
-        echo "MISSING $c"
-    fi
-done
-
-echo "=== VERSIONS ==="
-echo "--- python3 ---"
-python3 --version 2>&1 || true
-echo "--- rsync ---"
-rsync --version 2>&1 | head -1 || true
-echo "--- lb ---"
-lb --version 2>&1 || true
-echo "--- debootstrap ---"
-debootstrap --version 2>&1 || true
-echo "--- xorriso ---"
-xorriso --version 2>&1 | head -1 || true
-echo "--- grub-mkrescue ---"
-grub-mkrescue --version 2>&1 || true
-echo "--- qemu-system-x86_64 ---"
-qemu-system-x86_64 --version 2>&1 | head -1 || true
-echo "--- qemu-img ---"
-qemu-img --version 2>&1 | head -1 || true
-
-echo "=== FILESYSTEM ==="
-df -h /
-
-echo "=== REPOSITORY ACCESS ==="
-if [ -d /mnt/d/DairyOS ]; then
-    echo "FOUND /mnt/d/DairyOS"
-else
-    echo "MISSING /mnt/d/DairyOS"
-fi
-
-echo "=== BUILD SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/build/build-iso.sh
-
-echo "=== RELEASE MANIFEST SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/release-manifest.sh
-
-echo "=== STAGE SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/stage-app.sh
-
-echo "=== INSTALLER SCRIPT ==="
-sed -n "1,320p" /mnt/d/DairyOS/os/installer/install.sh
-
-echo "=== ROLLBACK SCRIPT ==="
-sed -n "1,320p" /mnt/d/DairyOS/os/installer/rollback.sh
-
-echo "=== FIRSTBOOT SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/installer/hooks/firstboot.sh
-
-echo "=== VALIDATE SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/installer/hooks/validate.sh
-
-
----------------------------------------------------------------------
-### FILE_END: build-environment-probe.sh ###
-
-
-### FILE_START: build-environment-probe.sh | PATH: D:\DairyOS\.dairyo-reconciliation\build-environment-20260820-011749\build-environment-probe.sh ###
----------------------------------------------------------------------
-echo "=== OS ==="
-uname -a
-cat /etc/os-release 2>/dev/null || true
-
-echo "=== TOOLS ==="
-for c in bash sha256sum python3 rsync live-build lb debootstrap genisoimage xorriso grub-mkrescue qemu-system-x86_64 qemu-img; do
-    if command -v "$c" >/dev/null 2>&1; then
-        echo "FOUND $c -> $(command -v "$c")"
-    else
-        echo "MISSING $c"
-    fi
-done
-
-echo "=== VERSIONS ==="
-echo "--- python3 ---"
-python3 --version 2>&1 || true
-echo "--- rsync ---"
-rsync --version 2>&1 | head -1 || true
-echo "--- lb ---"
-lb --version 2>&1 || true
-echo "--- debootstrap ---"
-debootstrap --version 2>&1 || true
-echo "--- xorriso ---"
-xorriso --version 2>&1 | head -1 || true
-echo "--- grub-mkrescue ---"
-grub-mkrescue --version 2>&1 || true
-echo "--- qemu-system-x86_64 ---"
-qemu-system-x86_64 --version 2>&1 | head -1 || true
-echo "--- qemu-img ---"
-qemu-img --version 2>&1 | head -1 || true
-
-echo "=== FILESYSTEM ==="
-df -h /
-
-echo "=== REPOSITORY ACCESS ==="
-if [ -d /mnt/d/DairyOS ]; then
-    echo "FOUND /mnt/d/DairyOS"
-else
-    echo "MISSING /mnt/d/DairyOS"
-fi
-
-echo "=== GIT ==="
-cd /mnt/d/DairyOS
-git rev-parse --short HEAD 2>/dev/null || true
-
-echo "=== BUILD SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/build/build-iso.sh
-
-echo "=== RELEASE MANIFEST SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/release-manifest.sh
-
-echo "=== STAGE SCRIPT ==="
-sed -n "1,220p" /mnt/d/DairyOS/os/build/stage-app.sh
-
-echo "=== INSTALLER SCRIPT ==="
-sed -n "1,320p" /mnt/d/DairyOS/os/installer/install.sh
-
-echo "=== ROLLBACK SCRIPT ==="
-sed -n "1,320p" /mnt/d/DairyOS/os/installer/rollback.sh
-
-echo "=== FIRSTBOOT SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/installer/hooks/firstboot.sh
-
-echo "=== VALIDATE SCRIPT ==="
-sed -n "1,260p" /mnt/d/DairyOS/os/installer/hooks/validate.sh
-
-exit 0
-
-
----------------------------------------------------------------------
-### FILE_END: build-environment-probe.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-012106\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD HEAD: $(git rev-parse HEAD)"
-echo "BUILD BRANCH: $(git branch --show-current)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-012142\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-013235\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-013931\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-014050\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-015138\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-020225\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-021408\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-022119\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-022246\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-022612\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-022926\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-023246\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-024017\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-024358\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-024630\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-024937\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-025254\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-025718\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-030109\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-030740\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-031115\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-031606\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-032259\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-032930\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-033916\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-033947\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-034001\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-034241\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: run-build.sh | PATH: D:\DairyOS\.dairyo-reconciliation\iso-build-20260820-035054\run-build.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-cd /mnt/d/DairyOS
-echo "BUILD ROOT: $(pwd)"
-echo "BUILD START: $(date -Is)"
-bash os/build/build-iso.sh
-echo "BUILD END: $(date -Is)"
-
-
----------------------------------------------------------------------
-### FILE_END: run-build.sh ###
-
-
-### FILE_START: install-isohybrid.sh | PATH: D:\DairyOS\.dairyo-reconciliation\install-isohybrid.sh ###
----------------------------------------------------------------------
-set -Eeuo pipefail
-echo "=== INSTALLING ISOHYBRID PROVIDER ==="
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y syslinux-utils
-echo ""
-echo "=== VERIFYING ISOHYBRID ==="
-command -v isohybrid
-isohybrid --help 2>&1 | head -20
-echo ""
-echo "=== TOOLCHAIN COMPLETE ==="
-
-
----------------------------------------------------------------------
-### FILE_END: install-isohybrid.sh ###
-
-
-### FILE_START: environmentnetworkegressallowlist.cpython-314.pyc | PATH: D:\DairyOS\.venv\Lib\site-packages\google\genai\_gaos\types\interactions\__pycache__\environmentnetworkegressallowlist.cpython-314.pyc ###
----------------------------------------------------------------------
-+
-    D±„j€  ã                  óø   € R t ^ RIHt ^RIHtHt ^RIHtHt ^ RI	H
-t
- ^ RIHtHtHtHt ^ RIHtHtHt ]R,          t  ! R R]4      t ! R	 R
-]4      t]! R]]]3,          4      t ]! R]]]3,          4      tR# )zACode generated by Speakeasy (https://speakeasy.com). DO NOT EDIT.)Úannotations)Ú	BaseModelÚUNSET_SENTINEL)ÚAllowlistEntryÚAllowlistEntryParam)Úmodel_serializer)ÚListÚLiteralÚOptionalÚUnion)ÚNotRequiredÚTypeAliasTypeÚ	TypedDictc                  ó&   € ] tR t^t$ RtR]R&   RtR# )ÚAllowlistParamúÀOutbound networking configuration for the sandbox. When specified, restricts which external domains the sandbox can reach. Omit entirely to allow all outbound traffic with no header injection.z&NotRequired[List[AllowlistEntryParam]]Ú	allowlist© N)Ú__name__Ú
-__module__Ú__qualname__Ú__firstlineno__Ú__doc__Ú__annotations__Ú__static_attributes__r   ó    ÚmD:\DairyOS\.venv\Lib\site-packages\google/genai/_gaos/types/interactions/environmentnetworkegressallowlist.pyr   r      s   ‡ ñ Là5Ó5ó wr   r   c                  óJ   € ] tR t^&t$ RtRtR]R&    ]! RR7      R 4       tRt	R# )	Ú	Allowlistr   NzOptional[List[AllowlistEntry]]r   Úwrap)Úmodec                	ó0  € \        R .4      pV! V 4      p/ p\        V 4      P                  P                  4        FX  w  rVVP                  ;'       g    TpVP                  WsP                  V4      4      pV\        8w  g   KH  Vf	   Wr9  g   KT  W„V&   KZ  	  V# )r   )ÚsetÚtypeÚmodel_fieldsÚitemsÚaliasÚgetr   )	ÚselfÚhandlerÚoptional_fieldsÚ
-serializedÚmÚnÚfÚkÚvals	   &&       r   Úserialize_modelÚAllowlist.serialize_model,   s   € ä˜{˜mÓ,ˆÙ˜T“]ˆ
-Øˆä˜“J×+Ñ+×1Ñ1Ö3‰DˆAØ—‘—˜1ˆAØ—.‘. §N¡N°1Ó$5Ó6ˆCà”nÖ$Ø’? aÖ&>Øa“Dñ 4ð ˆr   r   )
-r   r   r   r   r   r   r   r   r1   r   r   r   r   r   r   &   s0   ‡ ñ Là04€IÐ-Ó4ð wá˜6Ô"ñó #ôr   r   Ú&EnvironmentNetworkEgressAllowlistParamÚ!EnvironmentNetworkEgressAllowlistN)Údisabled)r   Ú
-__future__r   Ú r   r   Úallowlistentryr   r   Úpydanticr   Útypingr   r	   r
-   r   Útyping_extensionsr   r   r   ÚDisabledr   r   r3   r4   r   r   r   Ú<module>r=      s   ðñ" Hå "ß (ß ?Ý %ß 1Ó 1ß CÑ Cð ;Õ€Ø ôwYô wô	ô ñ. *7Ø,¨e°NÀHÐ4LÕ.Mó*Ð &ð zñ %2Ø'¨¨y¸(Ð/BÕ)Có%Ð !ñ zr   
-
----------------------------------------------------------------------
-### FILE_END: environmentnetworkegressallowlist.cpython-314.pyc ###
-
-
-### FILE_START: environmentnetworkegressallowlist.py | PATH: D:\DairyOS\.venv\Lib\site-packages\google\genai\_gaos\types\interactions\environmentnetworkegressallowlist.py ###
----------------------------------------------------------------------
-# Copyright 2026 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# pyformat: disable
-
-"""Code generated by Speakeasy (https://speakeasy.com). DO NOT EDIT."""
-
-from __future__ import annotations
-from .. import BaseModel, UNSET_SENTINEL
-from .allowlistentry import AllowlistEntry, AllowlistEntryParam
-from pydantic import model_serializer
-from typing import List, Literal, Optional, Union
-from typing_extensions import NotRequired, TypeAliasType, TypedDict
-
-
-Disabled = Literal["disabled",]
-r"""Turns all network off."""
-
-
-class AllowlistParam(TypedDict):
-    r"""Outbound networking configuration for the sandbox. When specified, restricts which external domains the sandbox can reach. Omit entirely to allow all outbound traffic with no header injection."""
-
-    allowlist: NotRequired[List[AllowlistEntryParam]]
-    r"""List of allowed outbound domains. Only requests to listed domains are permitted. Use [{'domain': '*'}] to allow all domains while still injecting headers on specific ones."""
-
-
-class Allowlist(BaseModel):
-    r"""Outbound networking configuration for the sandbox. When specified, restricts which external domains the sandbox can reach. Omit entirely to allow all outbound traffic with no header injection."""
-
-    allowlist: Optional[List[AllowlistEntry]] = None
-    r"""List of allowed outbound domains. Only requests to listed domains are permitted. Use [{'domain': '*'}] to allow all domains while still injecting headers on specific ones."""
-
-    @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
-        optional_fields = set(["allowlist"])
-        serialized = handler(self)
-        m = {}
-
-        for n, f in type(self).model_fields.items():
-            k = f.alias or n
-            val = serialized.get(k, serialized.get(n))
-
-            if val != UNSET_SENTINEL:
-                if val is not None or k not in optional_fields:
-                    m[k] = val
-
-        return m
-
-
-EnvironmentNetworkEgressAllowlistParam = TypeAliasType(
-    "EnvironmentNetworkEgressAllowlistParam", Union[AllowlistParam, Disabled]
-)
-r"""Outbound networking configuration for the sandbox. Accepts an object with an 'allowlist' array to restrict traffic, or the string 'disabled' to turn off all network access. Omit entirely to allow all outbound traffic with no header injection."""
-
-
-EnvironmentNetworkEgressAllowlist = TypeAliasType(
-    "EnvironmentNetworkEgressAllowlist", Union[Allowlist, Disabled]
-)
-r"""Outbound networking configuration for the sandbox. Accepts an object with an 'allowlist' array to restrict traffic, or the string 'disabled' to turn off all network access. Omit entirely to allow all outbound traffic with no header injection."""
-
-
----------------------------------------------------------------------
-### FILE_END: environmentnetworkegressallowlist.py ###
-
-
-### FILE_START: networks.py | PATH: D:\DairyOS\.venv\Lib\site-packages\pydantic\v1\networks.py ###
----------------------------------------------------------------------
-import re
-from ipaddress import (
-    IPv4Address,
-    IPv4Interface,
-    IPv4Network,
-    IPv6Address,
-    IPv6Interface,
-    IPv6Network,
-    _BaseAddress,
-    _BaseNetwork,
-)
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Collection,
-    Dict,
-    Generator,
-    List,
-    Match,
-    Optional,
-    Pattern,
-    Set,
-    Tuple,
-    Type,
-    Union,
-    cast,
-    no_type_check,
-)
-
-from pydantic.v1 import errors
-from pydantic.v1.utils import Representation, update_not_none
-from pydantic.v1.validators import constr_length_validator, str_validator
-
-if TYPE_CHECKING:
-    import email_validator
-    from typing_extensions import TypedDict
-
-    from pydantic.v1.config import BaseConfig
-    from pydantic.v1.fields import ModelField
-    from pydantic.v1.typing import AnyCallable
-
-    CallableGenerator = Generator[AnyCallable, None, None]
-
-    class Parts(TypedDict, total=False):
-        scheme: str
-        user: Optional[str]
-        password: Optional[str]
-        ipv4: Optional[str]
-        ipv6: Optional[str]
-        domain: Optional[str]
-        port: Optional[str]
-        path: Optional[str]
-        query: Optional[str]
-        fragment: Optional[str]
-
-    class HostParts(TypedDict, total=False):
-        host: str
-        tld: Optional[str]
-        host_type: Optional[str]
-        port: Optional[str]
-        rebuild: bool
-
-else:
-    email_validator = None
-
-    class Parts(dict):
-        pass
-
-
-NetworkType = Union[str, bytes, int, Tuple[Union[str, bytes, int], Union[str, int]]]
-
-__all__ = [
-    'AnyUrl',
-    'AnyHttpUrl',
-    'FileUrl',
-    'HttpUrl',
-    'stricturl',
-    'EmailStr',
-    'NameEmail',
-    'IPvAnyAddress',
-    'IPvAnyInterface',
-    'IPvAnyNetwork',
-    'PostgresDsn',
-    'CockroachDsn',
-    'AmqpDsn',
-    'RedisDsn',
-    'MongoDsn',
-    'KafkaDsn',
-    'validate_email',
-]
-
-_url_regex_cache = None
-_multi_host_url_regex_cache = None
-_ascii_domain_regex_cache = None
-_int_domain_regex_cache = None
-_host_regex_cache = None
-
-_host_regex = (
-    r'(?:'
-    r'(?P<ipv4>(?:\d{1,3}\.){3}\d{1,3})(?=$|[/:#?])|'  # ipv4
-    r'(?P<ipv6>\[[A-F0-9]*:[A-F0-9:]+\])(?=$|[/:#?])|'  # ipv6
-    r'(?P<domain>[^\s/:?#]+)'  # domain, validation occurs later
-    r')?'
-    r'(?::(?P<port>\d+))?'  # port
-)
-_scheme_regex = r'(?:(?P<scheme>[a-z][a-z0-9+\-.]+)://)?'  # scheme https://tools.ietf.org/html/rfc3986#appendix-A
-_user_info_regex = r'(?:(?P<user>[^\s:/]*)(?::(?P<password>[^\s/]*))?@)?'
-_path_regex = r'(?P<path>/[^\s?#]*)?'
-_query_regex = r'(?:\?(?P<query>[^\s#]*))?'
-_fragment_regex = r'(?:#(?P<fragment>[^\s#]*))?'
-
-
-def url_regex() -> Pattern[str]:
-    global _url_regex_cache
-    if _url_regex_cache is None:
-        _url_regex_cache = re.compile(
-            rf'{_scheme_regex}{_user_info_regex}{_host_regex}{_path_regex}{_query_regex}{_fragment_regex}',
-            re.IGNORECASE,
-        )
-    return _url_regex_cache
-
-
-def multi_host_url_regex() -> Pattern[str]:
-    """
-    Compiled multi host url regex.
-
-    Additionally to `url_regex` it allows to match multiple hosts.
-    E.g. host1.db.net,host2.db.net
-    """
-    global _multi_host_url_regex_cache
-    if _multi_host_url_regex_cache is None:
-        _multi_host_url_regex_cache = re.compile(
-            rf'{_scheme_regex}{_user_info_regex}'
-            r'(?P<hosts>([^/]*))'  # validation occurs later
-            rf'{_path_regex}{_query_regex}{_fragment_regex}',
-            re.IGNORECASE,
-        )
-    return _multi_host_url_regex_cache
-
-
-def ascii_domain_regex() -> Pattern[str]:
-    global _ascii_domain_regex_cache
-    if _ascii_domain_regex_cache is None:
-        ascii_chunk = r'[_0-9a-z](?:[-_0-9a-z]{0,61}[_0-9a-z])?'
-        ascii_domain_ending = r'(?P<tld>\.[a-z]{2,63})?\.?'
-        _ascii_domain_regex_cache = re.compile(
-            fr'(?:{ascii_chunk}\.)*?{ascii_chunk}{ascii_domain_ending}', re.IGNORECASE
-        )
-    return _ascii_domain_regex_cache
-
-
-def int_domain_regex() -> Pattern[str]:
-    global _int_domain_regex_cache
-    if _int_domain_regex_cache is None:
-        int_chunk = r'[_0-9a-\U00040000](?:[-_0-9a-\U00040000]{0,61}[_0-9a-\U00040000])?'
-        int_domain_ending = r'(?P<tld>(\.[^\W\d_]{2,63})|(\.(?:xn--)[_0-9a-z-]{2,63}))?\.?'
-        _int_domain_regex_cache = re.compile(fr'(?:{int_chunk}\.)*?{int_chunk}{int_domain_ending}', re.IGNORECASE)
-    return _int_domain_regex_cache
-
-
-def host_regex() -> Pattern[str]:
-    global _host_regex_cache
-    if _host_regex_cache is None:
-        _host_regex_cache = re.compile(
-            _host_regex,
-            re.IGNORECASE,
-        )
-    return _host_regex_cache
-
-
-class AnyUrl(str):
-    strip_whitespace = True
-    min_length = 1
-    max_length = 2**16
-    allowed_schemes: Optional[Collection[str]] = None
-    tld_required: bool = False
-    user_required: bool = False
-    host_required: bool = True
-    hidden_parts: Set[str] = set()
-
-    __slots__ = ('scheme', 'user', 'password', 'host', 'tld', 'host_type', 'port', 'path', 'query', 'fragment')
-
-    @no_type_check
-    def __new__(cls, url: Optional[str], **kwargs) -> object:
-        return str.__new__(cls, cls.build(**kwargs) if url is None else url)
-
-    def __init__(
-        self,
-        url: str,
-        *,
-        scheme: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        host: Optional[str] = None,
-        tld: Optional[str] = None,
-        host_type: str = 'domain',
-        port: Optional[str] = None,
-        path: Optional[str] = None,
-        query: Optional[str] = None,
-        fragment: Optional[str] = None,
-    ) -> None:
-        str.__init__(url)
-        self.scheme = scheme
-        self.user = user
-        self.password = password
-        self.host = host
-        self.tld = tld
-        self.host_type = host_type
-        self.port = port
-        self.path = path
-        self.query = query
-        self.fragment = fragment
-
-    @classmethod
-    def build(
-        cls,
-        *,
-        scheme: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        host: str,
-        port: Optional[str] = None,
-        path: Optional[str] = None,
-        query: Optional[str] = None,
-        fragment: Optional[str] = None,
-        **_kwargs: str,
-    ) -> str:
-        parts = Parts(
-            scheme=scheme,
-            user=user,
-            password=password,
-            host=host,
-            port=port,
-            path=path,
-            query=query,
-            fragment=fragment,
-            **_kwargs,  # type: ignore[misc]
-        )
-
-        url = scheme + '://'
-        if user:
-            url += user
-        if password:
-            url += ':' + password
-        if user or password:
-            url += '@'
-        url += host
-        if port and ('port' not in cls.hidden_parts or cls.get_default_parts(parts).get('port') != port):
-            url += ':' + port
-        if path:
-            url += path
-        if query:
-            url += '?' + query
-        if fragment:
-            url += '#' + fragment
-        return url
-
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        update_not_none(field_schema, minLength=cls.min_length, maxLength=cls.max_length, format='uri')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: Any, field: 'ModelField', config: 'BaseConfig') -> 'AnyUrl':
-        if value.__class__ == cls:
-            return value
-        value = str_validator(value)
-        if cls.strip_whitespace:
-            value = value.strip()
-        url: str = cast(str, constr_length_validator(value, field, config))
-
-        m = cls._match_url(url)
-        # the regex should always match, if it doesn't please report with details of the URL tried
-        assert m, 'URL regex failed unexpectedly'
-
-        original_parts = cast('Parts', m.groupdict())
-        parts = cls.apply_default_parts(original_parts)
-        parts = cls.validate_parts(parts)
-
-        if m.end() != len(url):
-            raise errors.UrlExtraError(extra=url[m.end() :])
-
-        return cls._build_url(m, url, parts)
-
-    @classmethod
-    def _build_url(cls, m: Match[str], url: str, parts: 'Parts') -> 'AnyUrl':
-        """
-        Validate hosts and build the AnyUrl object. Split from `validate` so this method
-        can be altered in `MultiHostDsn`.
-        """
-        host, tld, host_type, rebuild = cls.validate_host(parts)
-
-        return cls(
-            None if rebuild else url,
-            scheme=parts['scheme'],
-            user=parts['user'],
-            password=parts['password'],
-            host=host,
-            tld=tld,
-            host_type=host_type,
-            port=parts['port'],
-            path=parts['path'],
-            query=parts['query'],
-            fragment=parts['fragment'],
-        )
-
-    @staticmethod
-    def _match_url(url: str) -> Optional[Match[str]]:
-        return url_regex().match(url)
-
-    @staticmethod
-    def _validate_port(port: Optional[str]) -> None:
-        if port is not None and int(port) > 65_535:
-            raise errors.UrlPortError()
-
-    @classmethod
-    def validate_parts(cls, parts: 'Parts', validate_port: bool = True) -> 'Parts':
-        """
-        A method used to validate parts of a URL.
-        Could be overridden to set default values for parts if missing
-        """
-        scheme = parts['scheme']
-        if scheme is None:
-            raise errors.UrlSchemeError()
-
-        if cls.allowed_schemes and scheme.lower() not in cls.allowed_schemes:
-            raise errors.UrlSchemePermittedError(set(cls.allowed_schemes))
-
-        if validate_port:
-            cls._validate_port(parts['port'])
-
-        user = parts['user']
-        if cls.user_required and user is None:
-            raise errors.UrlUserInfoError()
-
-        return parts
-
-    @classmethod
-    def validate_host(cls, parts: 'Parts') -> Tuple[str, Optional[str], str, bool]:
-        tld, host_type, rebuild = None, None, False
-        for f in ('domain', 'ipv4', 'ipv6'):
-            host = parts[f]  # type: ignore[literal-required]
-            if host:
-                host_type = f
-                break
-
-        if host is None:
-            if cls.host_required:
-                raise errors.UrlHostError()
-        elif host_type == 'domain':
-            is_international = False
-            d = ascii_domain_regex().fullmatch(host)
-            if d is None:
-                d = int_domain_regex().fullmatch(host)
-                if d is None:
-                    raise errors.UrlHostError()
-                is_international = True
-
-            tld = d.group('tld')
-            if tld is None and not is_international:
-                d = int_domain_regex().fullmatch(host)
-                assert d is not None
-                tld = d.group('tld')
-                is_international = True
-
-            if tld is not None:
-                tld = tld[1:]
-            elif cls.tld_required:
-                raise errors.UrlHostTldError()
-
-            if is_international:
-                host_type = 'int_domain'
-                rebuild = True
-                host = host.encode('idna').decode('ascii')
-                if tld is not None:
-                    tld = tld.encode('idna').decode('ascii')
-
-        return host, tld, host_type, rebuild  # type: ignore
-
-    @staticmethod
-    def get_default_parts(parts: 'Parts') -> 'Parts':
-        return {}
-
-    @classmethod
-    def apply_default_parts(cls, parts: 'Parts') -> 'Parts':
-        for key, value in cls.get_default_parts(parts).items():
-            if not parts[key]:  # type: ignore[literal-required]
-                parts[key] = value  # type: ignore[literal-required]
-        return parts
-
-    def __repr__(self) -> str:
-        extra = ', '.join(f'{n}={getattr(self, n)!r}' for n in self.__slots__ if getattr(self, n) is not None)
-        return f'{self.__class__.__name__}({super().__repr__()}, {extra})'
-
-
-class AnyHttpUrl(AnyUrl):
-    allowed_schemes = {'http', 'https'}
-
-    __slots__ = ()
-
-
-class HttpUrl(AnyHttpUrl):
-    tld_required = True
-    # https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
-    max_length = 2083
-    hidden_parts = {'port'}
-
-    @staticmethod
-    def get_default_parts(parts: 'Parts') -> 'Parts':
-        return {'port': '80' if parts['scheme'] == 'http' else '443'}
-
-
-class FileUrl(AnyUrl):
-    allowed_schemes = {'file'}
-    host_required = False
-
-    __slots__ = ()
-
-
-class MultiHostDsn(AnyUrl):
-    __slots__ = AnyUrl.__slots__ + ('hosts',)
-
-    def __init__(self, *args: Any, hosts: Optional[List['HostParts']] = None, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        self.hosts = hosts
-
-    @staticmethod
-    def _match_url(url: str) -> Optional[Match[str]]:
-        return multi_host_url_regex().match(url)
-
-    @classmethod
-    def validate_parts(cls, parts: 'Parts', validate_port: bool = True) -> 'Parts':
-        return super().validate_parts(parts, validate_port=False)
-
-    @classmethod
-    def _build_url(cls, m: Match[str], url: str, parts: 'Parts') -> 'MultiHostDsn':
-        hosts_parts: List['HostParts'] = []
-        host_re = host_regex()
-        for host in m.groupdict()['hosts'].split(','):
-            d: Parts = host_re.match(host).groupdict()  # type: ignore
-            host, tld, host_type, rebuild = cls.validate_host(d)
-            port = d.get('port')
-            cls._validate_port(port)
-            hosts_parts.append(
-                {
-                    'host': host,
-                    'host_type': host_type,
-                    'tld': tld,
-                    'rebuild': rebuild,
-                    'port': port,
-                }
-            )
-
-        if len(hosts_parts) > 1:
-            return cls(
-                None if any([hp['rebuild'] for hp in hosts_parts]) else url,
-                scheme=parts['scheme'],
-                user=parts['user'],
-                password=parts['password'],
-                path=parts['path'],
-                query=parts['query'],
-                fragment=parts['fragment'],
-                host_type=None,
-                hosts=hosts_parts,
-            )
-        else:
-            # backwards compatibility with single host
-            host_part = hosts_parts[0]
-            return cls(
-                None if host_part['rebuild'] else url,
-                scheme=parts['scheme'],
-                user=parts['user'],
-                password=parts['password'],
-                host=host_part['host'],
-                tld=host_part['tld'],
-                host_type=host_part['host_type'],
-                port=host_part.get('port'),
-                path=parts['path'],
-                query=parts['query'],
-                fragment=parts['fragment'],
-            )
-
-
-class PostgresDsn(MultiHostDsn):
-    allowed_schemes = {
-        'postgres',
-        'postgresql',
-        'postgresql+asyncpg',
-        'postgresql+pg8000',
-        'postgresql+psycopg',
-        'postgresql+psycopg2',
-        'postgresql+psycopg2cffi',
-        'postgresql+py-postgresql',
-        'postgresql+pygresql',
-    }
-    user_required = True
-
-    __slots__ = ()
-
-
-class CockroachDsn(AnyUrl):
-    allowed_schemes = {
-        'cockroachdb',
-        'cockroachdb+psycopg2',
-        'cockroachdb+asyncpg',
-    }
-    user_required = True
-
-
-class AmqpDsn(AnyUrl):
-    allowed_schemes = {'amqp', 'amqps'}
-    host_required = False
-
-
-class RedisDsn(AnyUrl):
-    __slots__ = ()
-    allowed_schemes = {'redis', 'rediss'}
-    host_required = False
-
-    @staticmethod
-    def get_default_parts(parts: 'Parts') -> 'Parts':
-        return {
-            'domain': 'localhost' if not (parts['ipv4'] or parts['ipv6']) else '',
-            'port': '6379',
-            'path': '/0',
-        }
-
-
-class MongoDsn(AnyUrl):
-    allowed_schemes = {'mongodb'}
-
-    # TODO: Needed to generic "Parts" for "Replica Set", "Sharded Cluster", and other mongodb deployment modes
-    @staticmethod
-    def get_default_parts(parts: 'Parts') -> 'Parts':
-        return {
-            'port': '27017',
-        }
-
-
-class KafkaDsn(AnyUrl):
-    allowed_schemes = {'kafka'}
-
-    @staticmethod
-    def get_default_parts(parts: 'Parts') -> 'Parts':
-        return {
-            'domain': 'localhost',
-            'port': '9092',
-        }
-
-
-def stricturl(
-    *,
-    strip_whitespace: bool = True,
-    min_length: int = 1,
-    max_length: int = 2**16,
-    tld_required: bool = True,
-    host_required: bool = True,
-    allowed_schemes: Optional[Collection[str]] = None,
-) -> Type[AnyUrl]:
-    # use kwargs then define conf in a dict to aid with IDE type hinting
-    namespace = dict(
-        strip_whitespace=strip_whitespace,
-        min_length=min_length,
-        max_length=max_length,
-        tld_required=tld_required,
-        host_required=host_required,
-        allowed_schemes=allowed_schemes,
-    )
-    return type('UrlValue', (AnyUrl,), namespace)
-
-
-def import_email_validator() -> None:
-    global email_validator
-    try:
-        import email_validator
-    except ImportError as e:
-        raise ImportError('email-validator is not installed, run `pip install pydantic[email]`') from e
-
-
-class EmailStr(str):
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type='string', format='email')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        # included here and below so the error happens straight away
-        import_email_validator()
-
-        yield str_validator
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: Union[str]) -> str:
-        return validate_email(value)[1]
-
-
-class NameEmail(Representation):
-    __slots__ = 'name', 'email'
-
-    def __init__(self, name: str, email: str):
-        self.name = name
-        self.email = email
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NameEmail) and (self.name, self.email) == (other.name, other.email)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type='string', format='name-email')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        import_email_validator()
-
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: Any) -> 'NameEmail':
-        if value.__class__ == cls:
-            return value
-        value = str_validator(value)
-        return cls(*validate_email(value))
-
-    def __str__(self) -> str:
-        return f'{self.name} <{self.email}>'
-
-
-class IPvAnyAddress(_BaseAddress):
-    __slots__ = ()
-
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type='string', format='ipvanyaddress')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: Union[str, bytes, int]) -> Union[IPv4Address, IPv6Address]:
-        try:
-            return IPv4Address(value)
-        except ValueError:
-            pass
-
-        try:
-            return IPv6Address(value)
-        except ValueError:
-            raise errors.IPvAnyAddressError()
-
-
-class IPvAnyInterface(_BaseAddress):
-    __slots__ = ()
-
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type='string', format='ipvanyinterface')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: NetworkType) -> Union[IPv4Interface, IPv6Interface]:
-        try:
-            return IPv4Interface(value)
-        except ValueError:
-            pass
-
-        try:
-            return IPv6Interface(value)
-        except ValueError:
-            raise errors.IPvAnyInterfaceError()
-
-
-class IPvAnyNetwork(_BaseNetwork):  # type: ignore
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(type='string', format='ipvanynetwork')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: NetworkType) -> Union[IPv4Network, IPv6Network]:
-        # Assume IP Network is defined with a default value for ``strict`` argument.
-        # Define your own class if you want to specify network address check strictness.
-        try:
-            return IPv4Network(value)
-        except ValueError:
-            pass
-
-        try:
-            return IPv6Network(value)
-        except ValueError:
-            raise errors.IPvAnyNetworkError()
-
-
-pretty_email_regex = re.compile(r'([\w ]*?) *<(.*)> *')
-MAX_EMAIL_LENGTH = 2048
-"""Maximum length for an email.
-A somewhat arbitrary but very generous number compared to what is allowed by most implementations.
-"""
-
-
-def validate_email(value: Union[str]) -> Tuple[str, str]:
-    """
-    Email address validation using https://pypi.org/project/email-validator/
-    Notes:
-    * raw ip address (literal) domain parts are not allowed.
-    * "John Doe <local_part@domain.com>" style "pretty" email addresses are processed
-    * spaces are striped from the beginning and end of addresses but no error is raised
-    """
-    if email_validator is None:
-        import_email_validator()
-
-    if len(value) > MAX_EMAIL_LENGTH:
-        raise errors.EmailError()
-
-    m = pretty_email_regex.fullmatch(value)
-    name: Union[str, None] = None
-    if m:
-        name, value = m.groups()
-    email = value.strip()
-    try:
-        parts = email_validator.validate_email(email, check_deliverability=False)
-    except email_validator.EmailNotValidError as e:
-        raise errors.EmailError from e
-
-    if hasattr(parts, 'normalized'):
-        # email-validator >= 2
-        email = parts.normalized
-        assert email is not None
-        name = name or parts.local_part
-        return name, email
-    else:
-        # email-validator >1, <2
-        at_index = email.index('@')
-        local_part = email[:at_index]  # RFC 5321, local part must be case-sensitive.
-        global_part = email[at_index:].lower()
-
-        return name or local_part, local_part + global_part
-
-
----------------------------------------------------------------------
-### FILE_END: networks.py ###
-
-
-### FILE_START: networks.cpython-314.pyc | PATH: D:\DairyOS\.venv\Lib\site-packages\pydantic\__pycache__\networks.cpython-314.pyc ###
----------------------------------------------------------------------
-+
-    H2kjv¤  ã                  ó|  a € 0 t $ R t^ RIHt ^ RIt^ RIt^ RIHt ^ RI	H
-t
- ^ RIHt ^ RIHtHtHtHtHtHt ^ RIHtHtHtHt ^ RIHtHtHtHtHt ^ R	IHt  ^ R
-IH!t" ^ RI#H$t$H%t% ^ RI&H't' ^RI(H)t)H*t* ^RI+H,t, ^RI-H.t. ^RI/H0t0 ^RI1H2t2 ]'       d   ^ RI3s3Rt4R]5R&   MRs3. RYOt6]Pn                   ! R- R4      4       t8 ! R. R/4      t9 ! R0 R14      t:]
-R2 R3 l4       t; ! R4 R]94      t< ! R5 R]<4      t= ! R6 R]<4      t> ! R7 R]<4      t? ! R8 R]<4      t@ ! R9 R]<4      tA ! R: R]<4      tB ! R; R"]:4      tC ! R< R#]<4      tD ! R= R$]<4      tE ! R> R%]<4      tF ! R? R&]:4      tG ! R@ R']<4      tH ! RA R(]:4      tI ! RB R)]<4      tJ ! RC R*]<4      tK ! RD R+]<4      tL ! RE R,]<4      tMRF RG ltN]'       d   ]]ORH3,          tPM
- ! RI R4      tP ! RJ R])P¢                  4      tRRKtSR]5RL&   RMtTR]5RN&   ROtUR]5RP&   ]'       d   ]StV]TtW]UtXM ! RQ R4      tV ! RR R 4      tW ! RS R!4      tXRT RU ltY]Y! 4       tZRVt[ RW RX lt\],! ]]4      t^R# )ZzEThe networks module contains types for common network-related fields.)ÚannotationsN)Úfields)Ú	lru_cache)Úversion)ÚIPv4AddressÚIPv4InterfaceÚIPv4NetworkÚIPv6AddressÚIPv6InterfaceÚIPv6Network)ÚTYPE_CHECKINGÚ	AnnotatedÚAnyÚClassVar)ÚMultiHostHostÚPydanticCustomErrorÚ$PydanticSerializationUnexpectedValueÚSchemaSerializerÚcore_schema)ÚMultiHostUrl)ÚUrl)ÚSelfÚ	TypeAlias)ÚPydanticUserError)Ú_reprÚ_schema_generation_shared)Úgetattr_migration)ÚGetCoreSchemaHandler)ÚJsonSchemaValue©ÚTypeAdapterz7str | bytes | int | tuple[str | bytes | int, str | int]r   ÚNetworkTypeÚAnyUrlÚ
-AnyHttpUrlÚFileUrlÚFtpUrlÚHttpUrlÚWebsocketUrlÚAnyWebsocketUrlÚUrlConstraintsÚEmailStrÚ	NameEmailÚIPvAnyAddressÚIPvAnyInterfaceÚIPvAnyNetworkÚPostgresDsnÚCockroachDsnÚAmqpDsnÚRedisDsnÚMongoDsnÚKafkaDsnÚNatsDsnÚMySQLDsnÚ
-MariaDBDsnÚClickHouseDsnÚSnowflakeDsnc                  ó¬   € ] tR t^Ft$ RtRtR]R&   RtR]R&   RtR]R&   Rt	R	]R
-&   Rt
-R]R&   RtR	]R&   RtR]R&   R R lt]R R l4       tR R ltRtR# )r)   aÞ  Url constraints.
-
-Attributes:
-    max_length: The maximum length of the url. Defaults to `None`.
-    allowed_schemes: The allowed schemes. Defaults to `None`.
-    host_required: Whether the host is required. Defaults to `None`.
-    default_host: The default host. Defaults to `None`.
-    default_port: The default port. Defaults to `None`.
-    default_path: The default path. Defaults to `None`.
-    preserve_empty_path: Whether to preserve empty URL paths. Defaults to `None`.
-Nú
-int | NoneÚ
-max_lengthzlist[str] | NoneÚallowed_schemeszbool | NoneÚhost_requiredú
-str | NoneÚdefault_hostÚdefault_portÚdefault_pathÚpreserve_empty_pathc               ó   € V ^8„  d   QhRR/# ©é   ÚreturnÚint© )Úformats   "Ú7D:\DairyOS\.venv\Lib\site-packages\pydantic\networks.pyÚ__annotate__ÚUrlConstraints.__annotate__\   s   € ÷ 
-ñ 
-˜#ñ 
-ó    c           	     	óä   € \        V P                  V P                  e   \        V P                  4      MR V P                  V P
-                  V P                  V P                  V P                  34      # ©N)	Úhashr<   r=   Útupler>   r@   rA   rB   rC   ©Úselfs   &rK   Ú__hash__ÚUrlConstraints.__hash__\   sd   € Üà—‘Ø/3×/CÑ/CÒ/O”d×*Ñ*Ô+ÐUYØ×"Ñ"Ø×!Ñ!Ø×!Ñ!Ø×!Ñ!Ø×(Ñ(ðó
-
-ð 
-	
-rN   c               ó   € V ^8„  d   QhRR/# )rF   rG   zdict[str, Any]rI   )rJ   s   "rK   rL   rM   j   s   € ÷ qñ q ^ñ qrN   c                óŽ   € \        V 4       Uu/ uF+  p\        WP                  4      ;pf   K  VP                  VbK-  	  up# u upi )zeFetch a key / value mapping of constraints to values that are not None. Used for core schema updates.)r   ÚgetattrÚname)rT   ÚfieldÚvalues   &  rK   Údefined_constraintsÚ"UrlConstraints.defined_constraintsi   s?   € ô 06°d¬|Óp©| eÌÐQU×WaÑWaÓIbÐ@bÀÔ!—
-‘
-˜EÒ!©|ÑpÐpùÒps
-   ŽA®Ac               ó$   € V ^8„  d   QhRRRRRR/# )rF   Úsourcer   Úhandlerr   rG   úcore_schema.CoreSchemarI   )rJ   s   "rK   rL   rM   n   s#   € ÷ ñ °3ð ÐAUð ÐZpñ rN   c                	óØ   € V! V4      pVR ,          R8X  d
-   VR,          MTpVR ,          ;pR9  d   \        RV R2RR7      hV P                  P                  4        F	  w  rgWtV&   K  	  V# )Útypeúfunction-wrapÚschemaz"'UrlConstraints' cannot annotate 'z'.zinvalid-annotated-type)Úcode)Úurlzmulti-host-url)r   r]   Úitems)rT   r`   ra   rf   Úschema_to_mutateÚannotated_typeÚconstraint_keyÚconstraint_values   &&&     rK   Ú__get_pydantic_core_schema__Ú+UrlConstraints.__get_pydantic_core_schema__n   s‚   € Ù˜“ˆð
- 06°f­~ÀÔ/P˜6 (Ö+ÐV\ÐØ.¨vÕ6Ð6ˆNÐ?XÔXÜ#Ø4°^Ð4DÀBÐGÐNfôð ð 15×0HÑ0H×0NÑ0NÖ0PÑ,ˆNØ/?˜^Ó,ñ 1QàˆrN   rI   )Ú__name__Ú
-__module__Ú__qualname__Ú__firstlineno__Ú__doc__r<   Ú__annotations__r=   r>   r@   rA   rB   rC   rU   Úpropertyr]   rn   Ú__static_attributes__rI   rN   rK   r)   r)   F   sv   ‡ ñ
-ð "€J
-Ó!Ø(,€OÐ%Ó,Ø!%€M;Ó%Ø#€L*Ó#Ø#€L*Ó#Ø#€L*Ó#Ø'+Ð˜Ó+õ
-ð ôqó ðq÷ñ rN   c                  ób  € ] tR t^~t$ ]! 4       tR]R&   R]R&   R R lt]R R l4       t	]R	 R
- l4       t
-]R R l4       t]R R l4       tR R lt]R R l4       t]R R l4       t]R R l4       tR R lt]R R l4       tR R ltR R ltR R  ltR! R" ltR# R$ ltR% R& ltR' R( ltR) R* ltR+ R, ltR- R. ltR/ R0 ltR1 R2 lt]R3R4R5R4R6R4R7R4R8R4R9R4/R: R; ll4       t ]R< R= l4       t!]R> R? l4       t"]R@ RA l4       t#]$! ]%PL                  ! ]%PN                  ! 4       RB7      4      t(RCt)R4# )DÚ_BaseUrlúClassVar[UrlConstraints]Ú_constraintsÚ_CoreUrlÚ_urlc               ó    € V ^8„  d   QhRRRR/# )rF   rh   zstr | _CoreUrl | _BaseUrlrG   ÚNonerI   )rJ   s   "rK   rL   Ú_BaseUrl.__annotate__‚   s   € ÷ Rñ RÐ5ð R¸$ñ RrN   c                	ól   € \        V P                  4      P                  V4      P                  V n        R # rP   ©Ú_build_type_adapterÚ	__class__Úvalidate_pythonr}   ©rT   rh   s   &&rK   Ú__init__Ú_BaseUrl.__init__‚   ó#   € Ü'¨¯©Ó7×GÑGÈÓL×QÑQˆŽ	rN   c               ó   € V ^8„  d   QhRR/# ©rF   rG   ÚstrrI   )rJ   s   "rK   rL   r€   †   ó   € ÷  ñ  ˜ñ  rN   c                ó.   € V P                   P                  # )z_The scheme part of the URL.
-
-e.g. `https` in `https://user:pass@host:port/path?query#fragment`
-©r}   ÚschemerS   s   &rK   r   Ú_BaseUrl.scheme…   ó   € ð y‰y×ÑÐrN   c               ó   € V ^8„  d   QhRR/# ©rF   rG   r?   rI   )rJ   s   "rK   rL   r€   Ž   ó   € ÷ "ñ "˜*ñ "rN   c                ó.   € V P                   P                  # )zkThe username part of the URL, or `None`.
-
-e.g. `user` in `https://user:pass@host:port/path?query#fragment`
-)r}   ÚusernamerS   s   &rK   r—   Ú_BaseUrl.username   ó   € ð y‰y×!Ñ!Ð!rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   –   r•   rN   c                ó.   € V P                   P                  # )zkThe password part of the URL, or `None`.
-
-e.g. `pass` in `https://user:pass@host:port/path?query#fragment`
-)r}   ÚpasswordrS   s   &rK   rœ   Ú_BaseUrl.password•   r™   rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   ž   s   € ÷ ñ jñ rN   c                ó.   € V P                   P                  # )u±   The host part of the URL, or `None`.
-
-If the URL must be punycode encoded, this is the encoded host, e.g if the input URL is `https://Â£Â£Â£.com`,
-`host` will be `xn--9aaa.com`
-©r}   ÚhostrS   s   &rK   r¡   Ú_BaseUrl.host   s   € ð y‰y~‰~ÐrN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   ¦   s   € ÷ (ñ (˜jñ (rN   c                ó6   € V P                   P                  4       # )u  The host part of the URL as a unicode string, or `None`.
-
-e.g. `host` in `https://user:pass@host:port/path?query#fragment`
-
-If the URL must be punycode encoded, this is the decoded host, e.g if the input URL is `https://Â£Â£Â£.com`,
-`unicode_host()` will be `Â£Â£Â£.com`
-)r}   Úunicode_hostrS   s   &rK   r¥   Ú_BaseUrl.unicode_host¦   s   € ð y‰y×%Ñ%Ó'Ð'rN   c               ó   € V ^8„  d   QhRR/# )rF   rG   r;   rI   )rJ   s   "rK   rL   r€   ±   ó   € ÷ ñ jñ rN   c                ó.   € V P                   P                  # )zgThe port part of the URL, or `None`.
-
-e.g. `port` in `https://user:pass@host:port/path?query#fragment`
-)r}   ÚportrS   s   &rK   rª   Ú_BaseUrl.port°   ó   € ð y‰y~‰~ÐrN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   ¹   r¨   rN   c                ó.   € V P                   P                  # )zhThe path part of the URL, or `None`.
-
-e.g. `/path` in `https://user:pass@host:port/path?query#fragment`
-©r}   ÚpathrS   s   &rK   r°   Ú_BaseUrl.path¸   r¬   rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   Á   ó   € ÷ ñ zñ rN   c                ó.   € V P                   P                  # )ziThe query part of the URL, or `None`.
-
-e.g. `query` in `https://user:pass@host:port/path?query#fragment`
-©r}   ÚqueryrS   s   &rK   r¶   Ú_BaseUrl.queryÀ   ó   € ð y‰y‰ÐrN   c               ó   € V ^8„  d   QhRR/# ©rF   rG   zlist[tuple[str, str]]rI   )rJ   s   "rK   rL   r€   È   ó   € ÷ (ñ (Ð3ñ (rN   c                ó6   € V P                   P                  4       # )zˆThe query part of the URL as a list of key-value pairs.
-
-e.g. `[('foo', 'bar')]` in `https://user:pass@host:port/path?foo=bar#fragment`
-©r}   Úquery_paramsrS   s   &rK   r¾   Ú_BaseUrl.query_paramsÈ   ó   € ð
- y‰y×%Ñ%Ó'Ð'rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   r€   Ð   r•   rN   c                ó.   € V P                   P                  # )zoThe fragment part of the URL, or `None`.
-
-e.g. `fragment` in `https://user:pass@host:port/path?query#fragment`
-©r}   ÚfragmentrS   s   &rK   rÄ   Ú_BaseUrl.fragmentÏ   r™   rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   r€   ×   s   € ÷ *ñ * ñ *rN   c                ó6   € V P                   P                  4       # )uø   The URL as a unicode string, unlike `__str__()` this will not punycode encode the host.
-
-If the URL must be punycode encoded, this is the decoded string, e.g if the input URL is `https://Â£Â£Â£.com`,
-`unicode_string()` will be `https://Â£Â£Â£.com`
-©r}   Úunicode_stringrS   s   &rK   rÉ   Ú_BaseUrl.unicode_string×   s   € ð y‰y×'Ñ'Ó)Ð)rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   r€   ß   ó   € ÷ ñ  ñ rN   c                ó   € \        V 4      # ©zThe URL's encoded string representation via __str__().
-
-This returns the punycode-encoded host version of the URL as a string.
-©rŒ   rS   s   &rK   Úencoded_stringÚ_BaseUrl.encoded_stringß   ó   € ô
- 4‹yÐrN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   r€   æ   ó   € ÷ ñ ˜ñ rN   c                ó,   € \        V P                  4      # ©zDThe URL as a string, this will punycode encode the host if required.©rŒ   r}   rS   s   &rK   Ú__str__Ú_BaseUrl.__str__æ   ó   € ä4—9‘9‹~ÐrN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   r€   ê   ó   € ÷ @ñ @˜#ñ @rN   c                	ób   € V P                   P                   R \        V P                  4      : R2# ©Ú(Ú)©r„   rp   rŒ   r}   rS   s   &rK   Ú__repr__Ú_BaseUrl.__repr__ê   ó)   € Ø—.‘.×)Ñ)Ð*¨!¬C°·	±	«NÑ+=¸QÐ?Ð?rN   c               ó    € V ^8„  d   QhRRRR/# ©rF   ÚmemoÚdictrG   r   rI   )rJ   s   "rK   rL   r€   í   ó   € ÷ )ñ ) ð )¨$ñ )rN   c                	ó8   € V P                  V P                  4      # rP   ©r„   r}   ©rT   rç   s   &&rK   Ú__deepcopy__Ú_BaseUrl.__deepcopy__í   ó   € Ø~‰~˜dŸi™iÓ(Ð(rN   c               ó    € V ^8„  d   QhRRRR/# ©rF   Úotherr   rG   ÚboolrI   )rJ   s   "rK   rL   r€   ð   ó   € ÷ Mñ M˜Cð M Dñ MrN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8H  # rP   rë   ©rT   rò   s   &&rK   Ú__eq__Ú_BaseUrl.__eq__ð   ó*   € Ø~‰~ §¡Ð0×LÐL°T·Y±YÀ%Ç*Á*Ñ5LÐLrN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   r€   ó   ó   € ÷ Lñ L˜Cð L Dñ LrN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8  # rP   rë   rö   s   &&rK   Ú__lt__Ú_BaseUrl.__lt__ó   ó*   € Ø~‰~ §¡Ð0×KÐK°T·Y±YÀÇÁÑ5KÐKrN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   r€   ö   rû   rN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8„  # rP   rë   rö   s   &&rK   Ú__gt__Ú_BaseUrl.__gt__ö   rÿ   rN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   r€   ù   rô   rN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8*  # rP   rë   rö   s   &&rK   Ú__le__Ú_BaseUrl.__le__ù   rù   rN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   r€   ü   rô   rN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8¬  # rP   rë   rö   s   &&rK   Ú__ge__Ú_BaseUrl.__ge__ü   rù   rN   c               ó   € V ^8„  d   QhRR/# rE   rI   )rJ   s   "rK   rL   r€   ÿ   ó   € ÷ ñ ˜#ñ rN   c                	ó,   € \        V P                  4      # rP   ©rQ   r}   rS   s   &rK   rU   Ú_BaseUrl.__hash__ÿ   ó   € ÜD—I‘I‹ÐrN   c               ó   € V ^8„  d   QhRR/# rE   rI   )rJ   s   "rK   rL   r€     ó   € ÷ #ñ #˜ñ #rN   c                	ó>   € \        \        V P                  4      4      # rP   ©ÚlenrŒ   r}   rS   s   &rK   Ú__len__Ú_BaseUrl.__len__  ó   € Ü”3t—y‘y“>Ó"Ð"rN   r—   Nrœ   rª   r°   r¶   rÄ   c               ó<   € V ^8„  d   QhRRRRRRRRRRR	RR
-RRRRR/	# )rF   r   rŒ   r—   r?   rœ   r¡   rª   r;   r°   r¶   rÄ   rG   r   rI   )rJ   s   "rK   rL   r€     sf   € ÷ &
-ñ &
-ð ð&
-ð ð	&
-ð
- ð&
-ð ð&
-ð ð&
-ð ð&
-ð ð&
-ð ð&
-ð 
-ñ&
-rN   c               óJ   € V ! \         P                  ! VVVVVVVVR7      4      # )a&  Build a new `Url` instance from its component parts.
-
-Args:
-    scheme: The scheme part of the URL.
-    username: The username part of the URL, or omit for no username.
-    password: The password part of the URL, or omit for no password.
-    host: The host part of the URL.
-    port: The port part of the URL, or omit for no port.
-    path: The path part of the URL, or omit for no path.
-    query: The query part of the URL, or omit for no query.
-    fragment: The fragment part of the URL, or omit for no fragment.
-
-Returns:
-    An instance of URL
-)r   r—   rœ   r¡   rª   r°   r¶   rÄ   )r|   Úbuild)	Úclsr   r—   rœ   r¡   rª   r°   r¶   rÄ   s	   &$$$$$$$$rK   r  Ú_BaseUrl.build  s5   € ñ8 ÜNŠNØØ!Ø!ØØØØØ!ô	ó
-ð 	
-rN   c               ó$   € V ^8„  d   QhRRRRRR/# ©rF   rh   r   Úinfozcore_schema.SerializationInforG   z
-str | SelfrI   )rJ   s   "rK   rL   r€   /  ó"   € ÷ ñ  ð Ð+Hð ÈZñ rN   c           	     	óœ   € \        W4      '       g   \        R V  R\        V4       RV R24      hVP                  R8X  d   \	        V4      # V# ©z
-Expected `z` but got `z` with value `'z-'` - serialized value may not be as expected.Újson©Ú
-isinstancer   rd   ÚmoderŒ   ©r  rh   r!  s   &&&rK   Úserialize_urlÚ_BaseUrl.serialize_url.  óS   € ä˜#×#Ò#Ü6Ø˜S˜E ¬T°#«Y¨K°ÀsÀeÐKxÐyóð ð 9‰9˜ÔÜs“8ˆOØˆ
-rN   c               ó$   € V ^8„  d   QhRRRRRR/# )rF   r`   ztype[_BaseUrl]ra   r   rG   rb   rI   )rJ   s   "rK   rL   r€   9  s$   € ÷ 
-ñ 
-Ø#ð
-Ø.Bð
-à	ñ
-rN   c           
-     	óÔ   a€ V3R  lp\         P                  ! V\         P                  ! R/ V P                  P                  B \         P
-                  ! V P                  RRR7      R7      # )c                ó°   <€ \        V S4      '       d   V # \        V \        4      '       d   \        V 4      p V! V 4      pSP                  S4      pW#n        V# rP   )r'  ry   rŒ   Ú__new__r}   ©ÚvÚhÚcore_urlÚinstancer`   s   &&  €rK   Úwrap_valÚ7_BaseUrl.__get_pydantic_core_schema__.<locals>.wrap_val<  sL   ø€ Ü˜!˜V×$Ò$ØÜ˜!œX×&Ò&Ü˜“FÙ˜“tˆHØ—~‘~ fÓ-ˆHØ$ŒMØˆOrN   TÚalways©Úinfo_argÚ	when_used©rf   ÚserializationrI   )r   Úno_info_wrap_validator_functionÚ
-url_schemar{   r]   Ú$plain_serializer_function_ser_schemar*  ©r  r`   ra   r6  s   &f& rK   rn   Ú%_BaseUrl.__get_pydantic_core_schema__8  sX   ø€ õ	ô ×:Ò:ØÜ×)Ò)ÑQ¨C×,<Ñ,<×,PÑ,PÑQÜ%×JÒJØ×!Ñ!¨D¸Hôô
-ð 	
-rN   c               ó$   € V ^8„  d   QhRRRRRR/# ©rF   r   rb   ra   z._schema_generation_shared.GetJsonSchemaHandlerrG   r   rI   )rJ   s   "rK   rL   r€   O  ó$   € ÷ %ñ %Ø0ð%Ø;ið%à	ñ%rN   c                	óD   € VR ,          R8X  d
-   VR,          MTpV! V4      # ©rd   re   rf   rI   ©r  r   ra   Úinner_schemas   &&& rK   Ú__get_pydantic_json_schema__Ú%_BaseUrl.__get_pydantic_json_schema__N  ó(   € ð 1<¸FÕ0CÀÔ0V{ 8Ö,Ð\gˆÙ|Ó$Ð$rN   ©r=  ©r}   )*rp   rq   rr   rs   r)   r{   ru   r‡   rv   r   r—   rœ   r¡   r¥   rª   r°   r¶   r¾   rÄ   rÉ   rÐ   rØ   râ   rí   r÷   rý   r  r  r
-  rU   r  Úclassmethodr  r*  rn   rJ  r   r   Ú
-any_schemaÚto_string_ser_schemaÚ__pydantic_serializer__rw   rI   rN   rK   ry   ry   ~   s¶  ‡ Ù-;Ó-=€LÐ*Ó=Ø
-ƒNõRð ô ó ð ð ô"ó ð"ð ô"ó ð"ð ôó ðõ(ð ôó ðð ôó ðð ôó ðõ(ð ô"ó ð"õ*õõõ@õ)õMõLõLõMõMõõ#ð ð&
-ð  $ð	&
-ð
-  $ð&
-ð  ð&
-ð  ð&
-ð !ð&
-ð  $ö&
-ó ð&
-ðP ôó ðð ô
-ó ð
-ð* ô%ó ð%ñ /¨{×/EÒ/EÐT_×TtÒTtÓTvÔ/wÓxÔrN   ry   c                  óâ  € ] tR tRt$ ]! 4       tR]R&   R]R&   R R lt]R R	 l4       t	]R
- R l4       t
-]R R l4       tR R lt]R R l4       tR R ltR R ltR R ltR R ltR R ltR R ltR R ltR  R! ltR" R# lt]R$R%R&R%R'R%R(R%R)R%R*R%R+R%R,R%/R- R. ll4       t]R/ R0 l4       t]R1 R2 l4       t]R3 R4 l4       t]! ]P<                  ! ]P>                  ! 4       R57      4      t R6t!R%# )7Ú_BaseMultiHostUrliZ  rz   r{   Ú_CoreMultiHostUrlr}   c               ó    € V ^8„  d   QhRRRR/# )rF   rh   z+str | _CoreMultiHostUrl | _BaseMultiHostUrlrG   r   rI   )rJ   s   "rK   rL   Ú_BaseMultiHostUrl.__annotate__^  s   € ÷ Rñ RÐGð RÈDñ RrN   c                	ól   € \        V P                  4      P                  V4      P                  V n        R # rP   r‚   r†   s   &&rK   r‡   Ú_BaseMultiHostUrl.__init__^  r‰   rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   rW  b  r   rN   c                ó.   € V P                   P                  # )z[The scheme part of the URL.
-
-e.g. `https` in `https://foo.com,bar.com/path?query#fragment`
-r   rS   s   &rK   r   Ú_BaseMultiHostUrl.schemea  r’   rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   rW  j  r¨   rN   c                ó.   € V P                   P                  # )zdThe path part of the URL, or `None`.
-
-e.g. `/path` in `https://foo.com,bar.com/path?query#fragment`
-r¯   rS   s   &rK   r°   Ú_BaseMultiHostUrl.pathi  r¬   rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   rW  r  r³   rN   c                ó.   € V P                   P                  # )zeThe query part of the URL, or `None`.
-
-e.g. `query` in `https://foo.com,bar.com/path?query#fragment`
-rµ   rS   s   &rK   r¶   Ú_BaseMultiHostUrl.queryq  r¸   rN   c               ó   € V ^8„  d   QhRR/# rº   rI   )rJ   s   "rK   rL   rW  y  r»   rN   c                ó6   € V P                   P                  4       # )z„The query part of the URL as a list of key-value pairs.
-
-e.g. `[('foo', 'bar')]` in `https://foo.com,bar.com/path?foo=bar#fragment`
-r½   rS   s   &rK   r¾   Ú_BaseMultiHostUrl.query_paramsy  rÀ   rN   c               ó   € V ^8„  d   QhRR/# r”   rI   )rJ   s   "rK   rL   rW    r•   rN   c                ó.   € V P                   P                  # )zkThe fragment part of the URL, or `None`.
-
-e.g. `fragment` in `https://foo.com,bar.com/path?query#fragment`
-rÃ   rS   s   &rK   rÄ   Ú_BaseMultiHostUrl.fragment€  r™   rN   c               ó   € V ^8„  d   QhRR/# )rF   rG   zlist[MultiHostHost]rI   )rJ   s   "rK   rL   rW  ˆ  s   € ÷ !ñ !Ð*ñ !rN   c                ó6   € V P                   P                  4       # )a½  The hosts of the `MultiHostUrl` as [`MultiHostHost`][pydantic_core.MultiHostHost] typed dicts.
-
-```python
-from pydantic_core import MultiHostUrl
-
-mhu = MultiHostUrl('https://foo.com:123,foo:bar@bar.com/path')
-print(mhu.hosts())
-"""
-[
-    {'username': None, 'password': None, 'host': 'foo.com', 'port': 123},
-    {'username': 'foo', 'password': 'bar', 'host': 'bar.com', 'port': 443}
-]
-```
-Returns:
-    A list of dicts, each representing a host.
-)r}   ÚhostsrS   s   &rK   rk  Ú_BaseMultiHostUrl.hostsˆ  s   € ð" y‰y‰Ó Ð rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   rW  ›  rÌ   rN   c                ó   € \        V 4      # rÎ   rÏ   rS   s   &rK   rÐ   Ú _BaseMultiHostUrl.encoded_string›  rÒ   rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   rW  ¢  s   € ÷ *ñ * ñ *rN   c                ó6   € V P                   P                  4       # )zXThe URL as a unicode string, unlike `__str__()` this will not punycode encode the hosts.rÈ   rS   s   &rK   rÉ   Ú _BaseMultiHostUrl.unicode_string¢  s   € ày‰y×'Ñ'Ó)Ð)rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   rW  ¦  rÔ   rN   c                ó,   € \        V P                  4      # rÖ   r×   rS   s   &rK   rØ   Ú_BaseMultiHostUrl.__str__¦  rÚ   rN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   rW  ª  rÜ   rN   c                	ób   € V P                   P                   R \        V P                  4      : R2# rÞ   rá   rS   s   &rK   râ   Ú_BaseMultiHostUrl.__repr__ª  rä   rN   c               ó    € V ^8„  d   QhRRRR/# ræ   rI   )rJ   s   "rK   rL   rW  ­  ré   rN   c                	ó8   € V P                  V P                  4      # rP   rë   rì   s   &&rK   rí   Ú_BaseMultiHostUrl.__deepcopy__­  rï   rN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   rW  °  rô   rN   c                	ót   € V P                   VP                   J ;'       d    V P                  VP                  8H  # rP   rë   rö   s   &&rK   r÷   Ú_BaseMultiHostUrl.__eq__°  rù   rN   c               ó   € V ^8„  d   QhRR/# rE   rI   )rJ   s   "rK   rL   rW  ³  r  rN   c                	ó,   € \        V P                  4      # rP   r  rS   s   &rK   rU   Ú_BaseMultiHostUrl.__hash__³  r  rN   c               ó   € V ^8„  d   QhRR/# rE   rI   )rJ   s   "rK   rL   rW  ¶  r  rN   c                	ó>   € \        \        V P                  4      4      # rP   r  rS   s   &rK   r  Ú_BaseMultiHostUrl.__len__¶  r  rN   rk  Nr—   rœ   r¡   rª   r°   r¶   rÄ   c               ó@   € V ^8„  d   QhRRRRRRRRRRR	R
-RRRRRRRR/
-# )rF   r   rŒ   rk  zlist[MultiHostHost] | Noner—   r?   rœ   r¡   rª   r;   r°   r¶   rÄ   rG   r   rI   )rJ   s   "rK   rL   rW  º  sp   € ÷ ,
-ñ ,
-ð ð,
-ð *ð	,
-ð
- ð,
-ð ð,
-ð ð,
-ð ð,
-ð ð,
-ð ð,
-ð ð,
-ð 
-ñ,
-rN   c       	        óL   € V ! \         P                  ! VVVVVVVVV	R7	      4      # )a¢  Build a new `MultiHostUrl` instance from its component parts.
-
-This method takes either `hosts` - a list of `MultiHostHost` typed dicts, or the individual components
-`username`, `password`, `host` and `port`.
-
-Args:
-    scheme: The scheme part of the URL.
-    hosts: Multiple hosts to build the URL from.
-    username: The username part of the URL.
-    password: The password part of the URL.
-    host: The host part of the URL.
-    port: The port part of the URL.
-    path: The path part of the URL.
-    query: The query part of the URL, or omit for no query.
-    fragment: The fragment part of the URL, or omit for no fragment.
-
-Returns:
-    An instance of `MultiHostUrl`
-)	r   rk  r—   rœ   r¡   rª   r°   r¶   rÄ   )rU  r  )
-r  r   rk  r—   rœ   r¡   rª   r°   r¶   rÄ   s
-   &$$$$$$$$$rK   r  Ú_BaseMultiHostUrl.build¹  s;   € ñB Ü×#Ò#ØØØ!Ø!ØØØØØ!ô
-ó
-ð 	
-rN   c               ó$   € V ^8„  d   QhRRRRRR/# r   rI   )rJ   s   "rK   rL   rW  é  r"  rN   c           	     	óœ   € \        W4      '       g   \        R V  R\        V4       RV R24      hVP                  R8X  d   \	        V4      # V# r$  r&  r)  s   &&&rK   r*  Ú_BaseMultiHostUrl.serialize_urlè  r,  rN   c               ó$   € V ^8„  d   QhRRRRRR/# )rF   r`   ztype[_BaseMultiHostUrl]ra   r   rG   rb   rI   )rJ   s   "rK   rL   rW  ó  s$   € ÷ 
-ñ 
-Ø,ð
-Ø7Kð
-à	ñ
-rN   c           
-     	óÔ   a€ V3R  lp\         P                  ! V\         P                  ! R/ V P                  P                  B \         P
-                  ! V P                  RRR7      R7      # )c                ó°   <€ \        V S4      '       d   V # \        V \        4      '       d   \        V 4      p V! V 4      pSP                  S4      pW#n        V# rP   )r'  rT  rŒ   r0  r}   r1  s   &&  €rK   r6  Ú@_BaseMultiHostUrl.__get_pydantic_core_schema__.<locals>.wrap_valö  sM   ø€ Ü˜!˜V×$Ò$ØÜ˜!Ô.×/Ò/Ü˜“FÙ˜“tˆHØ—~‘~ fÓ-ˆHØ$ŒMØˆOrN   Tr8  r9  r<  rI   )r   r>  Úmulti_host_url_schemar{   r]   r@  r*  rA  s   &f& rK   rn   Ú._BaseMultiHostUrl.__get_pydantic_core_schema__ò  sX   ø€ õ	ô ×:Ò:ØÜ×4Ò4Ñ\°s×7GÑ7G×7[Ñ7[Ñ\Ü%×JÒJØ×!Ñ!¨D¸Hôô
-ð 	
-rN   c               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   rW  	  rE  rN   c                	óD   € VR ,          R8X  d
-   VR,          MTpV! V4      # rG  rI   rH  s   &&& rK   rJ  Ú._BaseMultiHostUrl.__get_pydantic_json_schema__  rL  rN   rM  rN  )"rp   rq   rr   rs   r)   r{   ru   r‡   rv   r   r°   r¶   r¾   rÄ   rk  rÐ   rÉ   rØ   râ   rí   r÷   rU   r  rO  r  r*  rn   rJ  r   r   rP  rQ  rR  rw   rI   rN   rK   rT  rT  Z  sc  ‡ Ù-;Ó-=€LÐ*Ó=Ø
-ÓõRð ô ó ð ð ôó ðð ôó ðõ(ð ô"ó ð"õ!õ&õ*õõ@õ)õMõõ#ð ð,
-ð -1ð	,
-ð
-  $ð,
-ð  $ð,
-ð  ð,
-ð  ð,
-ð  ð,
-ð !ð,
-ð  $ö,
-ó ð,
-ð\ ôó ðð ô
-ó ð
-ð* ô%ó ð%ñ /¨{×/EÒ/EÐT_×TtÒTtÓTvÔ/wÓxÔrN   rT  c               ó    € V ^8„  d   QhRRRR/# )rF   r  z"type[_BaseUrl | _BaseMultiHostUrl]rG   r    rI   )rJ   s   "rK   rL   rL     s   € ÷ ñ Ð?ð ÀKñ rN   c                ó   € \        V 4      # rP   r   )r  s   &rK   rƒ   rƒ     s   € äsÓÐrN   c                  ó   € ] tR tRtRtRtR# )r"   i  a±  Base type for all URLs.
-
-* Any scheme allowed
-* Top-level domain (TLD) not required
-* Host not required
-
-Assuming an input URL of `http://samuel:pass@example.com:8000/the/path/?query=here#fragment=is;this=bit`,
-the types export the following properties:
-
-- `scheme`: the URL scheme (`http`), always set.
-- `host`: the URL host (`example.com`).
-- `username`: optional username if included (`samuel`).
-- `password`: optional password if included (`pass`).
-- `port`: optional port (`8000`).
-- `path`: optional path (`/the/path/`).
-- `query`: optional URL query (for example, `GET` arguments or "search string", such as `query=here`).
-- `fragment`: optional fragment (`fragment=is;this=bit`).
-rI   N)rp   rq   rr   rs   rt   rw   rI   rN   rK   r"   r"     s   † õrN   c                  ó0   € ] tR tRtRt]! RR.R7      tRtR# )r#   i2  zWA type that will accept any http or https URL.
-
-* TLD not required
-* Host not required
-ÚhttpÚhttps©r=   rI   N©rp   rq   rr   rs   rt   r)   r{   rw   rI   rN   rK   r#   r#   2  s   † ññ "°6¸7Ð2CÔD„LrN   c                  ó2   € ] tR tRtRt]! RRR.R7      tRtR# )	r&   i<  uÒ	  A type that will accept any http or https URL.
-
-* TLD not required
-* Host not required
-* Max length 2083
-
-```python
-from pydantic import BaseModel, HttpUrl, ValidationError
-
-class MyModel(BaseModel):
-    url: HttpUrl
-
-m = MyModel(url='http://www.example.com')  # (1)!
-print(m.url)
-#> http://www.example.com/
-
-try:
-    MyModel(url='ftp://invalid.url')
-except ValidationError as e:
-    print(e)
-    '''
-    1 validation error for MyModel
-    url
-      URL scheme should be 'http' or 'https' [type=url_scheme, input_value='ftp://invalid.url', input_type=str]
-    '''
-
-try:
-    MyModel(url='not a url')
-except ValidationError as e:
-    print(e)
-    '''
-    1 validation error for MyModel
-    url
-      Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='not a url', input_type=str]
-    '''
-```
-
-1. Note: mypy would prefer `m = MyModel(url=HttpUrl('http://www.example.com'))`, but Pydantic will convert the string to an HttpUrl instance anyway.
-
-"International domains" (e.g. a URL where the host or TLD includes non-ascii characters) will be encoded via
-[punycode](https://en.wikipedia.org/wiki/Punycode) (see
-[this article](https://www.xudongz.com/blog/2017/idn-phishing/) for a good description of why this is important):
-
-```python
-from pydantic import BaseModel, HttpUrl
-
-class MyModel(BaseModel):
-    url: HttpUrl
-
-m1 = MyModel(url='http://punyÂ£code.com')
-print(m1.url)
-#> http://xn--punycode-eja.com/
-m2 = MyModel(url='https://www.Ð°Ñ€Ñ€ÓÐµ.com/')
-print(m2.url)
-#> https://www.xn--80ak6aa92e.com/
-m3 = MyModel(url='https://www.example.ç å®/')
-print(m3.url)
-#> https://www.example.xn--pbt977c/
-```
-
-
-!!! warning "Underscores in Hostnames"
-    In Pydantic, underscores are allowed in all parts of a domain except the TLD.
-    Technically this might be wrong - in theory the hostname cannot have underscores, but subdomains can.
-
-    To explain this; consider the following two cases:
-
-    - `exam_ple.co.uk`: the hostname is `exam_ple`, which should not be allowed since it contains an underscore.
-    - `foo_bar.example.com` the hostname is `example`, which should be allowed since the underscore is in the subdomain.
-
-    Without having an exhaustive list of TLDs, it would be impossible to differentiate between these two. Therefore
-    underscores are allowed, but you can always do further validation in a validator if desired.
-
-    Also, Chrome, Firefox, and Safari all currently accept `http://exam_ple.com` as a URL, so we're in good
-    (or at least big) company.
-é#  r˜  r™  ©r<   r=   rI   Nr›  rI   rN   rK   r&   r&   <  s   † ñKñZ "¨TÀFÈGÐCTÔU„LrN   c                  ó0   € ] tR tRtRt]! RR.R7      tRtR# )r(   i  zSA type that will accept any ws or wss URL.
-
-* TLD not required
-* Host not required
-ÚwsÚwssrš  rI   Nr›  rI   rN   rK   r(   r(     s   † ññ "°4¸°-Ô@„LrN   c                  ó2   € ] tR tRtRt]! RRR.R7      tRtR# )	r'   i—  zeA type that will accept any ws or wss URL.
-
-* TLD not required
-* Host not required
-* Max length 2083
-r  r   r¡  rž  rI   Nr›  rI   rN   rK   r'   r'   —  s   † ññ "¨TÀDÈ%À=ÔQ„LrN   c                  ó.   € ] tR tRtRt]! R.R7      tRtR# )r$   i¢  z;A type that will accept any file URL.
-
-* Host not required
-Úfilerš  rI   Nr›  rI   rN   rK   r$   r$   ¢  s   † ññ
- "°6°(Ô;„LrN   c                  ó.   € ] tR tRtRt]! R.R7      tRtR# )r%   i«  zIA type that will accept ftp URL.
-
-* TLD not required
-* Host not required
-Úftprš  rI   Nr›  rI   rN   rK   r%   r%   «  s   † ññ "°5°'Ô:„LrN   c                  óH   € ] tR tRtRt]! R. R	OR7      t]R R l4       tRt	R# )
-r/   iµ  a~  A type that will accept any Postgres DSN.
-
-* User info required
-* TLD not required
-* Host required
-* Supports multiple hosts
-
-If further validation is required, these properties can be used by validators to enforce specific behaviour:
-
-```python
-from pydantic import (
-    BaseModel,
-    HttpUrl,
-    PostgresDsn,
-    ValidationError,
-    field_validator,
-)
-
-class MyModel(BaseModel):
-    url: HttpUrl
-
-m = MyModel(url='http://www.example.com')
-
-# the repr() method for a url will display all properties of the url
-print(repr(m.url))
-#> HttpUrl('http://www.example.com/')
-print(m.url.scheme)
-#> http
-print(m.url.host)
-#> www.example.com
-print(m.url.port)
-#> 80
-
-class MyDatabaseModel(BaseModel):
-    db: PostgresDsn
-
-    @field_validator('db')
-    def check_db_name(cls, v):
-        assert v.path and len(v.path) > 1, 'database must be provided'
-        return v
-
-m = MyDatabaseModel(db='postgres://user:pass@localhost:5432/foobar')
-print(m.db)
-#> postgres://user:pass@localhost:5432/foobar
-
-try:
-    MyDatabaseModel(db='postgres://user:pass@localhost:5432')
-except ValidationError as e:
-    print(e)
-    '''
-    1 validation error for MyDatabaseModel
-    db
-      Assertion failed, database must be provided
-    assert (None)
-     +  where None = PostgresDsn('postgres://user:pass@localhost:5432').path [type=assertion_error, input_value='postgres://user:pass@localhost:5432', input_type=str]
-    '''
-```
-T©r>   r=   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   ÚPostgresDsn.__annotate__  ó   € ÷ ñ cñ rN   c                ó.   € V P                   P                  # ©zThe required URL host.r    rS   s   &rK   r¡   ÚPostgresDsn.host   ó   € ð y‰y~‰~ÐrN   rI   N)	ÚpostgresÚ
-postgresqlzpostgresql+asyncpgzpostgresql+pg8000zpostgresql+psycopgzpostgresql+psycopg2zpostgresql+psycopg2cffizpostgresql+py-postgresqlzpostgresql+pygresql©
-rp   rq   rr   rs   rt   r)   r{   rv   r¡   rw   rI   rN   rK   r/   r/   µ  s0   † ñ9ñv "Øò
-
-ô€Lð ôó ôrN   c                  óH   € ] tR tRtRt]! R. R	OR7      t]R R l4       tRt	R# )
-r0   i  zdA type that will accept any Cockroach DSN.
-
-* User info required
-* TLD not required
-* Host required
-Tr¨  c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   ÚCockroachDsn.__annotate__  r«  rN   c                ó.   € V P                   P                  # r­  r    rS   s   &rK   r¡   ÚCockroachDsn.host  r¯  rN   rI   N)Úcockroachdbzcockroachdb+psycopg2zcockroachdb+asyncpgr²  rI   rN   rK   r0   r0     s/   † ññ "Øò
-ô€Lð ôó ôrN   c                  ó0   € ] tR tRtRt]! RR.R7      tRtR# )r1   i  zcA type that will accept any AMQP DSN.
-
-* User info required
-* TLD not required
-* Host not required
-ÚamqpÚamqpsrš  rI   Nr›  rI   rN   rK   r1   r1     s   † ññ "°6¸7Ð2CÔD„LrN   c                  óN   € ] tR tRtRt]! RR.RRRRR	7      t]R
- R l4       tRt	R# )r2   i(  zƒA type that will accept any Redis DSN.
-
-* User info required
-* TLD not required
-* Host required (e.g., `rediss://:pass@localhost`)
-ÚredisÚredissÚ	localhostië  z/0T)r=   r@   rA   rB   r>   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   ÚRedisDsn.__annotate__9  r«  rN   c                ó.   € V P                   P                  # r­  r    rS   s   &rK   r¡   ÚRedisDsn.host8  r¯  rN   rI   Nr²  rI   rN   rK   r2   r2   (  s;   † ññ "Ø  (Ð+Ø ØØØô€Lð ôó ôrN   c                  ó2   € ] tR tRtRt]! RR.RR7      tRtR# )	r3   i>  a€  A type that will accept any MongoDB DSN.
-
-* User info not required
-* Database name not required
-* Port not required
-* User info may be passed without user part (e.g., `mongodb://mongodb0.example.com:27017`).
-
-!!! warning
-    If a port isn't specified, the default MongoDB port `27017` will be used. If this behavior is
-    undesirable, you can use the following:
-
-    ```python
-    from typing import Annotated
-
-    from pydantic_core import MultiHostUrl
-
-    from pydantic import UrlConstraints
-
-    MongoDsnNoDefaultPort = Annotated[
-        MultiHostUrl,
-        UrlConstraints(allowed_schemes=['mongodb', 'mongodb+srv']),
-    ]
-    ```
-Úmongodbzmongodb+srvi‰i  ©r=   rA   rI   Nr›  rI   rN   rK   r3   r3   >  s   † ññ2 "°9¸mÐ2LÐ[`Ôa„LrN   c                  ó2   € ] tR tRtRt]! R.RRR7      tRtR# )	r4   i[  zdA type that will accept any Kafka DSN.
-
-* User info required
-* TLD not required
-* Host not required
-Úkafkar¿  i„#  ©r=   r@   rA   rI   Nr›  rI   rN   rK   r4   r4   [  s   † ññ "°7°)È+ÐdhÔi„LrN   c                  ó4   € ] tR tRtRt]! . RORRR7      tRtR# )	r5   if  a8  A type that will accept any NATS DSN.
-
-NATS is a connective technology built for the ever increasingly hyper-connected world.
-It is a single technology that enables applications to securely communicate across
-any combination of cloud vendors, on-premise, edge, web and mobile, and devices.
-More: https://nats.io
-r¿  i~  rÉ  rI   N)ÚnatsÚtlsr   r¡  r›  rI   rN   rK   r5   r5   f  s   † ññ "Ú4À;Ð]aô„LrN   c                  ó4   € ] tR tRtRt]! . RORRR7      tRtR# )	r6   it  zdA type that will accept any MySQL DSN.
-
-* User info required
-* TLD not required
-* Host not required
-éê  T)r=   rA   r>   rI   N)Úmysqlzmysql+mysqlconnectorzmysql+aiomysqlzmysql+asyncmyzmysql+mysqldbzmysql+pymysqlzmysql+cymysqlzmysql+pyodbcr›  rI   rN   rK   r6   r6   t  s    † ññ "ò	
-ð Øô„LrN   c                  ó2   € ] tR tRtRt]! . RORR7      tRtR# )r7   iŒ  zfA type that will accept any MariaDB DSN.
-
-* User info required
-* TLD not required
-* Host not required
-rÎ  rÆ  rI   N)Úmariadbzmariadb+mariadbconnectorzmariadb+pymysqlr›  rI   rN   rK   r7   r7   Œ  s   † ññ "ÚRØô„LrN   c                  ó4   € ] tR tRtRt]! . RORRR7      tRtR# )	r8   iš  ziA type that will accept any ClickHouse DSN.
-
-* User info required
-* TLD not required
-* Host not required
-r¿  i(#  rÉ  rI   N)zclickhouse+nativezclickhouse+asynchzclickhouse+httpÚ
-clickhouseÚclickhousesÚclickhousedbr›  rI   rN   rK   r8   r8   š  s    † ññ "ò
-ð !Øô„LrN   c                  óF   € ] tR tRtRt]! R.RR7      t]R R l4       tRt	R	# )
-r9   i°  zdA type that will accept any Snowflake DSN.
-
-* User info required
-* TLD not required
-* Host required
-Ú	snowflakeT)r=   r>   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   ÚSnowflakeDsn.__annotate__¾  r«  rN   c                ó.   € V P                   P                  # r­  r    rS   s   &rK   r¡   ÚSnowflakeDsn.host½  r¯  rN   rI   Nr²  rI   rN   rK   r9   r9   °  s/   † ññ "Ø$˜Øô€Lð
- ôó ôrN   c               ó   € V ^8„  d   QhRR/# )rF   rG   r   rI   )rJ   s   "rK   rL   rL   Ã  s   € ÷ iñ i ñ irN   c                 ó°   €  ^ RI s \        R4      P                  R4      ^ ,          R8X  g   \        R4      hR#   \         d   p \        R4      T hRp ? ii ; i)é    NzEemail-validator is not installed, run `pip install 'pydantic[email]'`zemail-validatorÚ.Ú2zKemail-validator version >= 2.0 required, run pip install -U email-validator)Úemail_validatorÚImportErrorr   Ú	partition)Úes    rK   Úimport_email_validatorrå  Ã  s_   € ðjÛô Ð$Ó%×/Ñ/°Ó4°QÕ7¸3Ô>ÜÐgÓhÐhñ ?øô ô jÜÐaÓbÐhiÐiûðjús   ‚9 ¹AÁAÁA.c                  ó\   € ] tR tRtRt]R R l4       t]R R l4       t]R R l4       tR	t	R
-# )r*   iÑ  aŒ  
-Info:
-    To use this type, you need to install the optional
-    [`email-validator`](https://github.com/JoshData/python-email-validator) package:
-
-    ```bash
-    pip install email-validator
-    ```
-
-Validate email addresses.
-
-```python
-from pydantic import BaseModel, EmailStr
-
-class Model(BaseModel):
-    email: EmailStr
-
-print(Model(email='contact@mail.com'))
-#> email='contact@mail.com'
-```
-c               ó$   € V ^8„  d   QhRRRRRR/# ©rF   Ú_sourcez	type[Any]Ú_handlerr   rG   rb   rI   )rJ   s   "rK   rL   ÚEmailStr.__annotate__é  s-   € ÷ 	iñ 	iàð	ið +ð	ið $ñ		irN   c                	ó~   € \        4        \        P                  ! V P                  \        P                  ! 4       4      # rP   )rå  r   Ú no_info_after_validator_functionÚ	_validateÚ
-str_schema©r  ré  rê  s   &&&rK   rn   Ú%EmailStr.__get_pydantic_core_schema__è  s*   € ô #Ô$Ü×?Ò?ÀÇÁÌ{×OeÒOeÓOgÓhÐhrN   c               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   rë  ò  ó$   € ÷ 	 ñ 	 Ø4ð	 Ø?mð	 àñ	 rN   c                	ó<   € V! V4      pVP                  R RR7       V# )ÚstringÚemail©rd   rJ   ©Úupdate©r  r   ra   Úfield_schemas   &&& rK   rJ  Ú%EmailStr.__get_pydantic_json_schema__ñ  s'   € ñ # ;Ó/ˆLØ×Ñ X°gÐÔ>ØÐrN   c               ó    € V ^8„  d   QhRRRR/# )rF   Úinput_valuerŒ   rG   rI   )rJ   s   "rK   rL   rë  ú  s   € ÷ 	2ñ 	2¨ð 	2°3ñ 	2rN   c               	ó&   € \        V4      ^,          # )é   )Úvalidate_email©r  rþ  s   ""rK   rî  ÚEmailStr._validateù  s   € ä! +Ó.¨qÕ1Ð1rN   rI   N)
-rp   rq   rr   rs   rt   rO  rn   rJ  rî  rw   rI   rN   rK   r*   r*   Ñ  sE   † ñ	ð, 
-ô	ió 
-ð	ið 
-ô	 ó 
-ð	 ð 
-ô	2ó 
-ô	2rN   c                  ó„   € ] tR tRtRtRtR R ltR R lt]R R l4       t	]R	 R
- l4       t
-]R R l4       tR R ltRtR# )r+   iþ  ad  
-Info:
-    To use this type, you need to install the optional
-    [`email-validator`](https://github.com/JoshData/python-email-validator) package:
-
-    ```bash
-    pip install email-validator
-    ```
-
-Validate a name and email address combination, as specified by
-[RFC 5322](https://datatracker.ietf.org/doc/html/rfc5322#section-3.4).
-
-The `NameEmail` has two properties: `name` and `email`.
-In case the `name` is not provided, it's inferred from the email address.
-
-```python
-from pydantic import BaseModel, NameEmail
-
-class User(BaseModel):
-    email: NameEmail
-
-user = User(email='Fred Bloggs <fred.bloggs@example.com>')
-print(user.email)
-#> Fred Bloggs <fred.bloggs@example.com>
-print(user.email.name)
-#> Fred Bloggs
-
-user = User(email='fred.bloggs@example.com')
-print(user.email)
-#> fred.bloggs <fred.bloggs@example.com>
-print(user.email.name)
-#> fred.bloggs
-```
-c               ó    € V ^8„  d   QhRRRR/# )rF   rZ   rŒ   rö  rI   )rJ   s   "rK   rL   ÚNameEmail.__annotate__$  s   € ÷ ñ ˜Sð ¨ñ rN   c                	ó   € Wn         W n        R # rP   ©rZ   rö  )rT   rZ   rö  s   &&&rK   r‡   ÚNameEmail.__init__$  s   € ØŒ	ØŽ
-rN   c               ó    € V ^8„  d   QhRRRR/# rñ   rI   )rJ   s   "rK   rL   r  (  s   € ÷ eñ e˜Cð e Dñ erN   c                	ó”   € \        V\        4      ;'       d2    V P                  V P                  3VP                  VP                  38H  # rP   )r'  r+   rZ   rö  rö   s   &&rK   r÷   ÚNameEmail.__eq__(  s9   € Ü˜%¤Ó+×dÐd°·±¸D¿J¹JÐ0GÈEÏJÉJÐX]×XcÑXcÐKdÑ0dÐdrN   c               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   r  ,  s$   € ÷ ñ Ø0ðØ;iðà	ñrN   c                	ó<   € V! V4      pVP                  R RR7       V# )rõ  z
-name-emailr÷  rø  rú  s   &&& rK   rJ  Ú&NameEmail.__get_pydantic_json_schema__+  s'   € ñ ˜{Ó+ˆØ×Ñ °,ÐÔ?ØÐrN   c               ó$   € V ^8„  d   QhRRRRRR/# rè  rI   )rJ   s   "rK   rL   r  4  s(   € ÷ 
-ñ 
-àð
-ð 'ð
-ð 
- ñ	
-rN   c                	óR  € \        4        \        P                  ! V P                  \        P                  ! \        P
-                  ! 4       \        P                  ! \        P                  ! V 4      \        P
-                  ! 4       .R RR7      \        P                  ! 4       R7      4      # )Úname_email_typezInput is not a valid NameEmail)Úcustom_error_typeÚcustom_error_message)Újson_schemaÚpython_schemar=  )	rå  r   rí  rî  Újson_or_python_schemarï  Úunion_schemaÚis_instance_schemarQ  rð  s   &&&rK   rn   Ú&NameEmail.__get_pydantic_core_schema__3  s|   € ô 	Ô ä×;Ò;ØM‰MÜ×-Ò-Ü'×2Ò2Ó4Ü)×6Ò6Ü ×3Ò3°CÓ8¼+×:PÒ:PÓ:RÐSØ&7Ø)Iôô
- *×>Ò>Ó@ôó
-ð 	
-rN   c               ó    € V ^8„  d   QhRRRR/# )rF   rþ  z
-Self | strrG   r   rI   )rJ   s   "rK   rL   r  I  s   € ÷ ñ  Jð °dñ rN   c               	ó\   € \        V\        4      '       d   \        V4      w  r#V ! W#4      # V# rP   )r'  rŒ   r  )r  rþ  rZ   rö  s   ""  rK   rî  ÚNameEmail._validateH  s,   € äk¤3×'Ò'Ü(¨Ó5‰KˆDÙtÓ#Ð#àÐrN   c               ó   € V ^8„  d   QhRR/# r‹   rI   )rJ   s   "rK   rL   r  P  s   € ÷ -ñ -˜ñ -rN   c                	ó–   € R V P                   9   d   RV P                    RV P                   R2# V P                    RV P                   R2# )Ú@Ú"z" <Ú>z <r  rS   s   &rK   rØ   ÚNameEmail.__str__P  sF   € Ø$—)‘)ÔØt—y‘yk  T§Z¡Z L°Ð2Ð2à—)‘)˜B˜tŸz™z˜l¨!Ð,Ð,rN   )rö  rZ   Nr  )rp   rq   rr   rs   rt   Ú	__slots__r‡   r÷   rO  rJ  rn   rî  rØ   rw   rI   rN   rK   r+   r+   þ  s`   † ñ!ðF  €Iõõeð ôó ðð ô
-ó ð
-ð( ôó ð÷-ñ -rN   zIPv4Address | IPv6AddressÚIPvAnyAddressTypezIPv4Interface | IPv6InterfaceÚIPvAnyInterfaceTypezIPv4Network | IPv6NetworkÚIPvAnyNetworkTypec                  ól   € ] tR tRtRtRtR R lt]R R l4       t]R R l4       t	]R	 R
- l4       t
-RtR# )r,   ia  a*  Validate an IPv4 or IPv6 address.
-
-```python
-from pydantic import BaseModel
-from pydantic.networks import IPvAnyAddress
-
-class IpModel(BaseModel):
-    ip: IPvAnyAddress
-
-print(IpModel(ip='127.0.0.1'))
-#> ip=IPv4Address('127.0.0.1')
-
-try:
-    IpModel(ip='http://www.example.com')
-except ValueError as e:
-    print(e.errors())
-    '''
-    [
-        {
-            'type': 'ip_any_address',
-            'loc': ('ip',),
-            'msg': 'value is not a valid IPv4 or IPv6 address',
-            'input': 'http://www.example.com',
-        }
-    ]
-    '''
-```
-c               ó    € V ^8„  d   QhRRRR/# )rF   r\   r   rG   r%  rI   )rJ   s   "rK   rL   ÚIPvAnyAddress.__annotate__  s   € ÷ 
-	iñ 
-	i ð 
-	iÐ(9ñ 
-	irN   c                óŠ   €  \        V4      #   \         d     Mi ; i \        T4      #   \         d    \        RR4      hi ; i)z!Validate an IPv4 or IPv6 address.Úip_any_addressz)value is not a valid IPv4 or IPv6 address)r   Ú
-ValueErrorr	   r   ©r  r\   s   &&rK   r0  ÚIPvAnyAddress.__new__  sU   € ðÜ" 5Ó)Ð)øÜô ÙðúðiÜ" 5Ó)Ð)øÜô iÜ)Ð*:Ð<gÓhÐhðiúó   ‚
- šŸ
-* ªAc               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   r*  Ž  ró  rN   c                	ó0   € / pVP                  R RR7       V# )rõ  Úipvanyaddressr÷  rø  rú  s   &&& rK   rJ  Ú*IPvAnyAddress.__get_pydantic_json_schema__  ó"   € ð ˆLØ×Ñ X°oÐÔFØÐrN   c               ó$   € V ^8„  d   QhRRRRRR/# rè  rI   )rJ   s   "rK   rL   r*  –  ó(   € ÷ 	ñ 	àð	ð +ð	ð $ñ		rN   c                	ól   € \         P                  ! V P                  \         P                  ! 4       R 7      # ©rM  ©r   Ú no_info_plain_validator_functionrî  rQ  rð  s   &&&rK   rn   Ú*IPvAnyAddress.__get_pydantic_core_schema__•  ó)   € ô ×?Ò?Ø—‘¬[×-MÒ-MÓ-Oôð rN   c               ó    € V ^8„  d   QhRRRR/# )rF   rþ  r   rG   r%  rI   )rJ   s   "rK   rL   r*     s   € ÷ 	$ñ 	$¨ð 	$Ð3Dñ 	$rN   c               	ó   € V ! V4      # rP   rI   r  s   ""rK   rî  ÚIPvAnyAddress._validateŸ  ó   € á{Ó#Ð#rN   rI   N©rp   rq   rr   rs   rt   r$  r0  rO  rJ  rn   rî  rw   rI   rN   rK   r,   r,   a  sP   † ñ	ð: ˆ	õ
-	ið 
-ô	 ó 
-ð	 ð 
-ô	ó 
-ð	ð 
-ô	$ó 
-ô	$rN   c                  ól   € ] tR tRtRtRtR R lt]R R l4       t]R R l4       t	]R	 R
- l4       t
-RtR# )r-   i£  ú#Validate an IPv4 or IPv6 interface.c               ó    € V ^8„  d   QhRRRR/# )rF   r\   r!   rG   r&  rI   )rJ   s   "rK   rL   ÚIPvAnyInterface.__annotate__¨  s   € ÷ 
-	mñ 
-	m ð 
-	mÐ0Cñ 
-	mrN   c                óŠ   €  \        V4      #   \         d     Mi ; i \        T4      #   \         d    \        RR4      hi ; i)rD  Úip_any_interfacez+value is not a valid IPv4 or IPv6 interface)r   r-  r
-   r   r.  s   &&rK   r0  ÚIPvAnyInterface.__new__¨  sU   € ðÜ$ UÓ+Ð+øÜô ÙðúðmÜ$ UÓ+Ð+øÜô mÜ)Ð*<Ð>kÓlÐlðmúr0  c               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   rF  µ  ró  rN   c                	ó0   € / pVP                  R RR7       V# )rõ  Úipvanyinterfacer÷  rø  rú  s   &&& rK   rJ  Ú,IPvAnyInterface.__get_pydantic_json_schema__´  s#   € ð ˆLØ×Ñ XÐ6GÐÔHØÐrN   c               ó$   € V ^8„  d   QhRRRRRR/# rè  rI   )rJ   s   "rK   rL   rF  ½  r7  rN   c                	ól   € \         P                  ! V P                  \         P                  ! 4       R 7      # r9  r:  rð  s   &&&rK   rn   Ú,IPvAnyInterface.__get_pydantic_core_schema__¼  r=  rN   c               ó    € V ^8„  d   QhRRRR/# )rF   rþ  r!   rG   r&  rI   )rJ   s   "rK   rL   rF  Ç  s   € ÷ 	$ñ 	$¨ð 	$Ð;Nñ 	$rN   c               	ó   € V ! V4      # rP   rI   r  s   ""rK   rî  ÚIPvAnyInterface._validateÆ  rA  rN   rI   NrB  rI   rN   rK   r-   r-   £  sL   † Ù1àˆ	õ
-	mð 
-ô	 ó 
-ð	 ð 
-ô	ó 
-ð	ð 
-ô	$ó 
-ô	$rN   c                  ól   € ] tR tRtRtRtR R lt]R R l4       t]R R l4       t	]R	 R
- l4       t
-RtR# )r.   iÊ  ú!Validate an IPv4 or IPv6 network.c               ó    € V ^8„  d   QhRRRR/# )rF   r\   r!   rG   r'  rI   )rJ   s   "rK   rL   ÚIPvAnyNetwork.__annotate__Ï  s   € ÷ 	iñ 	i ð 	iÐ0Añ 	irN   c                óŠ   €  \        V4      #   \         d     Mi ; i \        T4      #   \         d    \        RR4      hi ; i)rU  Úip_any_networkz)value is not a valid IPv4 or IPv6 network)r   r-  r   r   r.  s   &&rK   r0  ÚIPvAnyNetwork.__new__Ï  sU   € ðÜ" 5Ó)Ð)øÜô ÙðúðiÜ" 5Ó)Ð)øÜô iÜ)Ð*:Ð<gÓhÐhðiúr0  c               ó$   € V ^8„  d   QhRRRRRR/# rD  rI   )rJ   s   "rK   rL   rW  Þ  ró  rN   c                	ó0   € / pVP                  R RR7       V# )rõ  Úipvanynetworkr÷  rø  rú  s   &&& rK   rJ  Ú*IPvAnyNetwork.__get_pydantic_json_schema__Ý  r5  rN   c               ó$   € V ^8„  d   QhRRRRRR/# rè  rI   )rJ   s   "rK   rL   rW  æ  r7  rN   c                	ól   € \         P                  ! V P                  \         P                  ! 4       R 7      # r9  r:  rð  s   &&&rK   rn   Ú*IPvAnyNetwork.__get_pydantic_core_schema__å  r=  rN   c               ó    € V ^8„  d   QhRRRR/# )rF   rþ  r!   rG   r'  rI   )rJ   s   "rK   rL   rW  ð  s   € ÷ 	$ñ 	$¨ð 	$Ð;Lñ 	$rN   c               	ó   € V ! V4      # rP   rI   r  s   ""rK   rî  ÚIPvAnyNetwork._validateï  rA  rN   rI   NrB  rI   rN   rK   r.   r.   Ê  sL   † Ù/àˆ	õ	ið 
-ô	 ó 
-ð	 ð 
-ô	ó 
-ð	ð 
-ô	$ó 
-ô	$rN   c               ó   € V ^8„  d   QhRR/# )rF   rG   zre.Pattern[str]rI   )rJ   s   "rK   rL   rL   ô  s   € ÷ `ñ ` ?ñ `rN   c            	     ó`   € R p RV  RV  R2pRpRp\         P                  ! RV RV RV R	24      # )
-z[\w!#$%&\'*+\-/=?^_`{|}~]z((?:z+\s+)*z+)z"((?:[^"]|\")+)"z<(.+)>z\s*(?:Ú|z)?\s*z\s*)ÚreÚcompile)Ú
-name_charsÚunquoted_name_groupÚquoted_name_groupÚemail_groups       rK   Ú_build_pretty_email_regexrn  ô  sP   € Ø-€JØ! * ¨V°J°<¸rÐBÐØ+ÐØ€KÜ:Š:˜Ð 3Ð4°AÐ6GÐ5HÈÈkÈ]ÐZ]Ð^Ó_Ð_rN   i   c               ó    € V ^8„  d   QhRRRR/# )rF   r\   rŒ   rG   ztuple[str, str]rI   )rJ   s   "rK   rL   rL     s   € ÷ -ñ -˜#ð - /ñ -rN   c           
-     ó.  € \         f   \        4        \        V 4      \        8”  d   \	        RRRR\         R2/4      h\
-        P                  V 4      pRpV'       d    VP                  4       w  r4p T;'       g    TpV P                  4       p \         P                  ! VRR7      pTP                  pTf   Q hT;'       g    TP                  pY%3#   \         P                   d0   p\	        RRR\        TP                  ^ ,          4      /4      ThRp?ii ; i)	a)  Email address validation using [email-validator](https://pypi.org/project/email-validator/).
-
-Returns:
-    A tuple containing the local part of the email (or the name for "pretty" email addresses)
-        and the normalized email.
-
-Raises:
-    PydanticCustomError: If the email is invalid.
-
-Note:
-    Note that:
-
-    * Raw IP address (literal) domain parts are not allowed.
-    * `"John Doe <local_part@domain.com>"` style "pretty" email addresses are processed.
-    * Spaces are striped from the beginning and end of addresses, but no error is raised.
-NÚvalue_errorz,value is not a valid email address: {reason}ÚreasonzLength must not exceed z charactersF)Úcheck_deliverability)rá  rå  r  ÚMAX_EMAIL_LENGTHr   Úpretty_email_regexÚ	fullmatchÚgroupsÚstripr  ÚEmailNotValidErrorrŒ   ÚargsÚ
-normalizedÚ
-local_part)r\   ÚmrZ   Úunquoted_nameÚquoted_namerö  Úpartsrä  s   &       rK   r  r    s  € ô" ÒÜÔ ä
-ˆ5ƒzÔ$Ô$Ü!ØØ:ØÐ0Ô1AÐ0BÀ+ÐNÐOó
-ð 	
-ô 	×$Ñ$ UÓ+€AØ€DßØ,-¯H©H«JÑ)ˆ EØ×+Ð+ ˆàK‰K‹M€EðÜ×.Ò.¨uÈ5ÔQˆð ×Ñ€EØÒÐÐØ×#Ð#5×#Ñ#€DØˆ;Ðøô ×-Ñ-ô Ü!ØÐIÈHÔVYÐZ[×Z`ÑZ`ÐabÕZcÓVdÐKeó
-àð	ûðús   ÂC ÃDÃ%*DÄD)r"   r#   r$   r%   r&   r'   r(   r)   r*   r+   r,   r-   r.   r/   r0   r1   r2   r3   r4   r5   r  r6   r7   r8   r9   )_Ú__conditional_annotations__rt   Ú
-__future__r   Ú_annotationsÚdataclassesÚ_dataclassesrh  r   Ú	functoolsr   Úimportlib.metadatar   Ú	ipaddressr   r   r   r	   r
-   r   Útypingr   r   r   r   Úpydantic_corer   r   r   r   r   r   rU  r   r|   Útyping_extensionsr   r   Úpydantic.errorsr   Ú	_internalr   r   Ú
-_migrationr   Úannotated_handlersr   r  r   Útype_adapterr    rá  r!   ru   Ú__all__Ú	dataclassr)   ry   rT  rƒ   r"   r#   r&   r(   r'   r$   r%   r/   r0   r1   r2   r3   r4   r5   r6   r7   r8   r9   rå  rŒ   r*   ÚRepresentationr+   r%  r&  r'  r,   r-   r.   rn  ru  rt  r  rp   Ú__getattr__)r  s   @rK   Ú<module>r•     sl  øðÜ Kå 2ã "Û 	Ý Ý Ý &ß f× fß :Ó :÷õ õ <Ý )ß -å -ç 7Ý )Ý 4Ý (Ý %çÛàV€KÔVð €Oò€ð: ×Ñ÷4ð 4ó ð4÷nYyñ Yy÷xwyñ wyðt ôó ðôˆXô ô2Eô EôNVˆfô NVôbAfô AôR6ô Rô<ˆfô <ô;ˆVô ;ôNÐ#ô Nôb6ô ô.Eˆfô Eôˆvô ô,bÐ ô bô:jˆvô jôÐô ôˆvô ô0ô ôFô ô,6ô õ&i÷ Ø˜˜c˜Õ"H÷*2ñ *2ôZV-×$Ñ$ô V-ðr  ;Ð 9Ó :Ø!@Ð YÓ @Ø:Ð 9Ó :çØ%€MØ)€OØ%M÷@$ñ @$÷D%$ñ %$÷N'$ñ '$õT`ñ /Ó0Ð àÐ ðõ
--ñ`   Ó)‚rN   
-
----------------------------------------------------------------------
-### FILE_END: networks.cpython-314.pyc ###
-
-
-### FILE_START: networks.py | PATH: D:\DairyOS\.venv\Lib\site-packages\pydantic\networks.py ###
----------------------------------------------------------------------
-"""The networks module contains types for common network-related fields."""
-
-from __future__ import annotations as _annotations
-
-import dataclasses as _dataclasses
-import re
-from dataclasses import fields
-from functools import lru_cache
-from importlib.metadata import version
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar
-
-from pydantic_core import (
-    MultiHostHost,
-    PydanticCustomError,
-    PydanticSerializationUnexpectedValue,
-    SchemaSerializer,
-    core_schema,
-)
-from pydantic_core import MultiHostUrl as _CoreMultiHostUrl
-from pydantic_core import Url as _CoreUrl
-from typing_extensions import Self, TypeAlias
-
-from pydantic.errors import PydanticUserError
-
-from ._internal import _repr, _schema_generation_shared
-from ._migration import getattr_migration
-from .annotated_handlers import GetCoreSchemaHandler
-from .json_schema import JsonSchemaValue
-from .type_adapter import TypeAdapter
-
-if TYPE_CHECKING:
-    import email_validator
-
-    NetworkType: TypeAlias = 'str | bytes | int | tuple[str | bytes | int, str | int]'
-
-else:
-    email_validator = None
-
-
-__all__ = [
-    'AnyUrl',
-    'AnyHttpUrl',
-    'FileUrl',
-    'FtpUrl',
-    'HttpUrl',
-    'WebsocketUrl',
-    'AnyWebsocketUrl',
-    'UrlConstraints',
-    'EmailStr',
-    'NameEmail',
-    'IPvAnyAddress',
-    'IPvAnyInterface',
-    'IPvAnyNetwork',
-    'PostgresDsn',
-    'CockroachDsn',
-    'AmqpDsn',
-    'RedisDsn',
-    'MongoDsn',
-    'KafkaDsn',
-    'NatsDsn',
-    'validate_email',
-    'MySQLDsn',
-    'MariaDBDsn',
-    'ClickHouseDsn',
-    'SnowflakeDsn',
-]
-
-
-@_dataclasses.dataclass
-class UrlConstraints:
-    """Url constraints.
-
-    Attributes:
-        max_length: The maximum length of the url. Defaults to `None`.
-        allowed_schemes: The allowed schemes. Defaults to `None`.
-        host_required: Whether the host is required. Defaults to `None`.
-        default_host: The default host. Defaults to `None`.
-        default_port: The default port. Defaults to `None`.
-        default_path: The default path. Defaults to `None`.
-        preserve_empty_path: Whether to preserve empty URL paths. Defaults to `None`.
-    """
-
-    max_length: int | None = None
-    allowed_schemes: list[str] | None = None
-    host_required: bool | None = None
-    default_host: str | None = None
-    default_port: int | None = None
-    default_path: str | None = None
-    preserve_empty_path: bool | None = None
-
-    def __hash__(self) -> int:
-        return hash(
-            (
-                self.max_length,
-                tuple(self.allowed_schemes) if self.allowed_schemes is not None else None,
-                self.host_required,
-                self.default_host,
-                self.default_port,
-                self.default_path,
-                self.preserve_empty_path,
-            )
-        )
-
-    @property
-    def defined_constraints(self) -> dict[str, Any]:
-        """Fetch a key / value mapping of constraints to values that are not None. Used for core schema updates."""
-        return {field.name: value for field in fields(self) if (value := getattr(self, field.name)) is not None}
-
-    def __get_pydantic_core_schema__(self, source: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
-        schema = handler(source)
-
-        # for function-wrap schemas, url constraints is applied to the inner schema
-        # because when we generate schemas for urls, we wrap a core_schema.url_schema() with a function-wrap schema
-        # that helps with validation on initialization, see _BaseUrl and _BaseMultiHostUrl below.
-        schema_to_mutate = schema['schema'] if schema['type'] == 'function-wrap' else schema
-        if (annotated_type := schema_to_mutate['type']) not in ('url', 'multi-host-url'):
-            raise PydanticUserError(
-                f"'UrlConstraints' cannot annotate '{annotated_type}'.", code='invalid-annotated-type'
-            )
-        for constraint_key, constraint_value in self.defined_constraints.items():
-            schema_to_mutate[constraint_key] = constraint_value
-        return schema
-
-
-class _BaseUrl:
-    _constraints: ClassVar[UrlConstraints] = UrlConstraints()
-    _url: _CoreUrl
-
-    def __init__(self, url: str | _CoreUrl | _BaseUrl) -> None:
-        self._url = _build_type_adapter(self.__class__).validate_python(url)._url
-
-    @property
-    def scheme(self) -> str:
-        """The scheme part of the URL.
-
-        e.g. `https` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.scheme
-
-    @property
-    def username(self) -> str | None:
-        """The username part of the URL, or `None`.
-
-        e.g. `user` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.username
-
-    @property
-    def password(self) -> str | None:
-        """The password part of the URL, or `None`.
-
-        e.g. `pass` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.password
-
-    @property
-    def host(self) -> str | None:
-        """The host part of the URL, or `None`.
-
-        If the URL must be punycode encoded, this is the encoded host, e.g if the input URL is `https://Â£Â£Â£.com`,
-        `host` will be `xn--9aaa.com`
-        """
-        return self._url.host
-
-    def unicode_host(self) -> str | None:
-        """The host part of the URL as a unicode string, or `None`.
-
-        e.g. `host` in `https://user:pass@host:port/path?query#fragment`
-
-        If the URL must be punycode encoded, this is the decoded host, e.g if the input URL is `https://Â£Â£Â£.com`,
-        `unicode_host()` will be `Â£Â£Â£.com`
-        """
-        return self._url.unicode_host()
-
-    @property
-    def port(self) -> int | None:
-        """The port part of the URL, or `None`.
-
-        e.g. `port` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.port
-
-    @property
-    def path(self) -> str | None:
-        """The path part of the URL, or `None`.
-
-        e.g. `/path` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.path
-
-    @property
-    def query(self) -> str | None:
-        """The query part of the URL, or `None`.
-
-        e.g. `query` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.query
-
-    def query_params(self) -> list[tuple[str, str]]:
-        """The query part of the URL as a list of key-value pairs.
-
-        e.g. `[('foo', 'bar')]` in `https://user:pass@host:port/path?foo=bar#fragment`
-        """
-        return self._url.query_params()
-
-    @property
-    def fragment(self) -> str | None:
-        """The fragment part of the URL, or `None`.
-
-        e.g. `fragment` in `https://user:pass@host:port/path?query#fragment`
-        """
-        return self._url.fragment
-
-    def unicode_string(self) -> str:
-        """The URL as a unicode string, unlike `__str__()` this will not punycode encode the host.
-
-        If the URL must be punycode encoded, this is the decoded string, e.g if the input URL is `https://Â£Â£Â£.com`,
-        `unicode_string()` will be `https://Â£Â£Â£.com`
-        """
-        return self._url.unicode_string()
-
-    def encoded_string(self) -> str:
-        """The URL's encoded string representation via __str__().
-
-        This returns the punycode-encoded host version of the URL as a string.
-        """
-        return str(self)
-
-    def __str__(self) -> str:
-        """The URL as a string, this will punycode encode the host if required."""
-        return str(self._url)
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({str(self._url)!r})'
-
-    def __deepcopy__(self, memo: dict) -> Self:
-        return self.__class__(self._url)
-
-    def __eq__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url == other._url
-
-    def __lt__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url < other._url
-
-    def __gt__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url > other._url
-
-    def __le__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url <= other._url
-
-    def __ge__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url >= other._url
-
-    def __hash__(self) -> int:
-        return hash(self._url)
-
-    def __len__(self) -> int:
-        return len(str(self._url))
-
-    @classmethod
-    def build(
-        cls,
-        *,
-        scheme: str,
-        username: str | None = None,
-        password: str | None = None,
-        host: str,
-        port: int | None = None,
-        path: str | None = None,
-        query: str | None = None,
-        fragment: str | None = None,
-    ) -> Self:
-        """Build a new `Url` instance from its component parts.
-
-        Args:
-            scheme: The scheme part of the URL.
-            username: The username part of the URL, or omit for no username.
-            password: The password part of the URL, or omit for no password.
-            host: The host part of the URL.
-            port: The port part of the URL, or omit for no port.
-            path: The path part of the URL, or omit for no path.
-            query: The query part of the URL, or omit for no query.
-            fragment: The fragment part of the URL, or omit for no fragment.
-
-        Returns:
-            An instance of URL
-        """
-        return cls(
-            _CoreUrl.build(
-                scheme=scheme,
-                username=username,
-                password=password,
-                host=host,
-                port=port,
-                path=path,
-                query=query,
-                fragment=fragment,
-            )
-        )
-
-    @classmethod
-    def serialize_url(cls, url: Any, info: core_schema.SerializationInfo) -> str | Self:
-        if not isinstance(url, cls):
-            raise PydanticSerializationUnexpectedValue(
-                f"Expected `{cls}` but got `{type(url)}` with value `'{url}'` - serialized value may not be as expected."
-            )
-        if info.mode == 'json':
-            return str(url)
-        return url
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source: type[_BaseUrl], handler: GetCoreSchemaHandler
-    ) -> core_schema.CoreSchema:
-        def wrap_val(v, h):
-            if isinstance(v, source):
-                return v
-            if isinstance(v, _BaseUrl):
-                v = str(v)
-            core_url = h(v)
-            instance = source.__new__(source)
-            instance._url = core_url
-            return instance
-
-        return core_schema.no_info_wrap_validator_function(
-            wrap_val,
-            schema=core_schema.url_schema(**cls._constraints.defined_constraints),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                cls.serialize_url, info_arg=True, when_used='always'
-            ),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        # we use the url schema for json schema generation, but we might have to extract it from
-        # the function-wrap schema we use as a tool for validation on initialization
-        inner_schema = core_schema['schema'] if core_schema['type'] == 'function-wrap' else core_schema
-        return handler(inner_schema)
-
-    __pydantic_serializer__ = SchemaSerializer(core_schema.any_schema(serialization=core_schema.to_string_ser_schema()))
-
-
-class _BaseMultiHostUrl:
-    _constraints: ClassVar[UrlConstraints] = UrlConstraints()
-    _url: _CoreMultiHostUrl
-
-    def __init__(self, url: str | _CoreMultiHostUrl | _BaseMultiHostUrl) -> None:
-        self._url = _build_type_adapter(self.__class__).validate_python(url)._url
-
-    @property
-    def scheme(self) -> str:
-        """The scheme part of the URL.
-
-        e.g. `https` in `https://foo.com,bar.com/path?query#fragment`
-        """
-        return self._url.scheme
-
-    @property
-    def path(self) -> str | None:
-        """The path part of the URL, or `None`.
-
-        e.g. `/path` in `https://foo.com,bar.com/path?query#fragment`
-        """
-        return self._url.path
-
-    @property
-    def query(self) -> str | None:
-        """The query part of the URL, or `None`.
-
-        e.g. `query` in `https://foo.com,bar.com/path?query#fragment`
-        """
-        return self._url.query
-
-    def query_params(self) -> list[tuple[str, str]]:
-        """The query part of the URL as a list of key-value pairs.
-
-        e.g. `[('foo', 'bar')]` in `https://foo.com,bar.com/path?foo=bar#fragment`
-        """
-        return self._url.query_params()
-
-    @property
-    def fragment(self) -> str | None:
-        """The fragment part of the URL, or `None`.
-
-        e.g. `fragment` in `https://foo.com,bar.com/path?query#fragment`
-        """
-        return self._url.fragment
-
-    def hosts(self) -> list[MultiHostHost]:
-        '''The hosts of the `MultiHostUrl` as [`MultiHostHost`][pydantic_core.MultiHostHost] typed dicts.
-
-        ```python
-        from pydantic_core import MultiHostUrl
-
-        mhu = MultiHostUrl('https://foo.com:123,foo:bar@bar.com/path')
-        print(mhu.hosts())
-        """
-        [
-            {'username': None, 'password': None, 'host': 'foo.com', 'port': 123},
-            {'username': 'foo', 'password': 'bar', 'host': 'bar.com', 'port': 443}
-        ]
-        ```
-        Returns:
-            A list of dicts, each representing a host.
-        '''
-        return self._url.hosts()
-
-    def encoded_string(self) -> str:
-        """The URL's encoded string representation via __str__().
-
-        This returns the punycode-encoded host version of the URL as a string.
-        """
-        return str(self)
-
-    def unicode_string(self) -> str:
-        """The URL as a unicode string, unlike `__str__()` this will not punycode encode the hosts."""
-        return self._url.unicode_string()
-
-    def __str__(self) -> str:
-        """The URL as a string, this will punycode encode the host if required."""
-        return str(self._url)
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({str(self._url)!r})'
-
-    def __deepcopy__(self, memo: dict) -> Self:
-        return self.__class__(self._url)
-
-    def __eq__(self, other: Any) -> bool:
-        return self.__class__ is other.__class__ and self._url == other._url
-
-    def __hash__(self) -> int:
-        return hash(self._url)
-
-    def __len__(self) -> int:
-        return len(str(self._url))
-
-    @classmethod
-    def build(
-        cls,
-        *,
-        scheme: str,
-        hosts: list[MultiHostHost] | None = None,
-        username: str | None = None,
-        password: str | None = None,
-        host: str | None = None,
-        port: int | None = None,
-        path: str | None = None,
-        query: str | None = None,
-        fragment: str | None = None,
-    ) -> Self:
-        """Build a new `MultiHostUrl` instance from its component parts.
-
-        This method takes either `hosts` - a list of `MultiHostHost` typed dicts, or the individual components
-        `username`, `password`, `host` and `port`.
-
-        Args:
-            scheme: The scheme part of the URL.
-            hosts: Multiple hosts to build the URL from.
-            username: The username part of the URL.
-            password: The password part of the URL.
-            host: The host part of the URL.
-            port: The port part of the URL.
-            path: The path part of the URL.
-            query: The query part of the URL, or omit for no query.
-            fragment: The fragment part of the URL, or omit for no fragment.
-
-        Returns:
-            An instance of `MultiHostUrl`
-        """
-        return cls(
-            _CoreMultiHostUrl.build(
-                scheme=scheme,
-                hosts=hosts,
-                username=username,
-                password=password,
-                host=host,
-                port=port,
-                path=path,
-                query=query,
-                fragment=fragment,
-            )
-        )
-
-    @classmethod
-    def serialize_url(cls, url: Any, info: core_schema.SerializationInfo) -> str | Self:
-        if not isinstance(url, cls):
-            raise PydanticSerializationUnexpectedValue(
-                f"Expected `{cls}` but got `{type(url)}` with value `'{url}'` - serialized value may not be as expected."
-            )
-        if info.mode == 'json':
-            return str(url)
-        return url
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source: type[_BaseMultiHostUrl], handler: GetCoreSchemaHandler
-    ) -> core_schema.CoreSchema:
-        def wrap_val(v, h):
-            if isinstance(v, source):
-                return v
-            if isinstance(v, _BaseMultiHostUrl):
-                v = str(v)
-            core_url = h(v)
-            instance = source.__new__(source)
-            instance._url = core_url
-            return instance
-
-        return core_schema.no_info_wrap_validator_function(
-            wrap_val,
-            schema=core_schema.multi_host_url_schema(**cls._constraints.defined_constraints),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                cls.serialize_url, info_arg=True, when_used='always'
-            ),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        # we use the url schema for json schema generation, but we might have to extract it from
-        # the function-wrap schema we use as a tool for validation on initialization
-        inner_schema = core_schema['schema'] if core_schema['type'] == 'function-wrap' else core_schema
-        return handler(inner_schema)
-
-    __pydantic_serializer__ = SchemaSerializer(core_schema.any_schema(serialization=core_schema.to_string_ser_schema()))
-
-
-@lru_cache
-def _build_type_adapter(cls: type[_BaseUrl | _BaseMultiHostUrl]) -> TypeAdapter:
-    return TypeAdapter(cls)
-
-
-class AnyUrl(_BaseUrl):
-    """Base type for all URLs.
-
-    * Any scheme allowed
-    * Top-level domain (TLD) not required
-    * Host not required
-
-    Assuming an input URL of `http://samuel:pass@example.com:8000/the/path/?query=here#fragment=is;this=bit`,
-    the types export the following properties:
-
-    - `scheme`: the URL scheme (`http`), always set.
-    - `host`: the URL host (`example.com`).
-    - `username`: optional username if included (`samuel`).
-    - `password`: optional password if included (`pass`).
-    - `port`: optional port (`8000`).
-    - `path`: optional path (`/the/path/`).
-    - `query`: optional URL query (for example, `GET` arguments or "search string", such as `query=here`).
-    - `fragment`: optional fragment (`fragment=is;this=bit`).
-    """
-
-
-# Note: all single host urls inherit from `AnyUrl` to preserve compatibility with pre-v2.10 code
-# Where urls were annotated variants of `AnyUrl`, which was an alias to `pydantic_core.Url`
-
-
-class AnyHttpUrl(AnyUrl):
-    """A type that will accept any http or https URL.
-
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['http', 'https'])
-
-
-class HttpUrl(AnyUrl):
-    """A type that will accept any http or https URL.
-
-    * TLD not required
-    * Host not required
-    * Max length 2083
-
-    ```python
-    from pydantic import BaseModel, HttpUrl, ValidationError
-
-    class MyModel(BaseModel):
-        url: HttpUrl
-
-    m = MyModel(url='http://www.example.com')  # (1)!
-    print(m.url)
-    #> http://www.example.com/
-
-    try:
-        MyModel(url='ftp://invalid.url')
-    except ValidationError as e:
-        print(e)
-        '''
-        1 validation error for MyModel
-        url
-          URL scheme should be 'http' or 'https' [type=url_scheme, input_value='ftp://invalid.url', input_type=str]
-        '''
-
-    try:
-        MyModel(url='not a url')
-    except ValidationError as e:
-        print(e)
-        '''
-        1 validation error for MyModel
-        url
-          Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='not a url', input_type=str]
-        '''
-    ```
-
-    1. Note: mypy would prefer `m = MyModel(url=HttpUrl('http://www.example.com'))`, but Pydantic will convert the string to an HttpUrl instance anyway.
-
-    "International domains" (e.g. a URL where the host or TLD includes non-ascii characters) will be encoded via
-    [punycode](https://en.wikipedia.org/wiki/Punycode) (see
-    [this article](https://www.xudongz.com/blog/2017/idn-phishing/) for a good description of why this is important):
-
-    ```python
-    from pydantic import BaseModel, HttpUrl
-
-    class MyModel(BaseModel):
-        url: HttpUrl
-
-    m1 = MyModel(url='http://punyÂ£code.com')
-    print(m1.url)
-    #> http://xn--punycode-eja.com/
-    m2 = MyModel(url='https://www.Ð°Ñ€Ñ€ÓÐµ.com/')
-    print(m2.url)
-    #> https://www.xn--80ak6aa92e.com/
-    m3 = MyModel(url='https://www.example.ç å®/')
-    print(m3.url)
-    #> https://www.example.xn--pbt977c/
-    ```
-
-
-    !!! warning "Underscores in Hostnames"
-        In Pydantic, underscores are allowed in all parts of a domain except the TLD.
-        Technically this might be wrong - in theory the hostname cannot have underscores, but subdomains can.
-
-        To explain this; consider the following two cases:
-
-        - `exam_ple.co.uk`: the hostname is `exam_ple`, which should not be allowed since it contains an underscore.
-        - `foo_bar.example.com` the hostname is `example`, which should be allowed since the underscore is in the subdomain.
-
-        Without having an exhaustive list of TLDs, it would be impossible to differentiate between these two. Therefore
-        underscores are allowed, but you can always do further validation in a validator if desired.
-
-        Also, Chrome, Firefox, and Safari all currently accept `http://exam_ple.com` as a URL, so we're in good
-        (or at least big) company.
-    """
-
-    _constraints = UrlConstraints(max_length=2083, allowed_schemes=['http', 'https'])
-
-
-class AnyWebsocketUrl(AnyUrl):
-    """A type that will accept any ws or wss URL.
-
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['ws', 'wss'])
-
-
-class WebsocketUrl(AnyUrl):
-    """A type that will accept any ws or wss URL.
-
-    * TLD not required
-    * Host not required
-    * Max length 2083
-    """
-
-    _constraints = UrlConstraints(max_length=2083, allowed_schemes=['ws', 'wss'])
-
-
-class FileUrl(AnyUrl):
-    """A type that will accept any file URL.
-
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['file'])
-
-
-class FtpUrl(AnyUrl):
-    """A type that will accept ftp URL.
-
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['ftp'])
-
-
-class PostgresDsn(_BaseMultiHostUrl):
-    """A type that will accept any Postgres DSN.
-
-    * User info required
-    * TLD not required
-    * Host required
-    * Supports multiple hosts
-
-    If further validation is required, these properties can be used by validators to enforce specific behaviour:
-
-    ```python
-    from pydantic import (
-        BaseModel,
-        HttpUrl,
-        PostgresDsn,
-        ValidationError,
-        field_validator,
-    )
-
-    class MyModel(BaseModel):
-        url: HttpUrl
-
-    m = MyModel(url='http://www.example.com')
-
-    # the repr() method for a url will display all properties of the url
-    print(repr(m.url))
-    #> HttpUrl('http://www.example.com/')
-    print(m.url.scheme)
-    #> http
-    print(m.url.host)
-    #> www.example.com
-    print(m.url.port)
-    #> 80
-
-    class MyDatabaseModel(BaseModel):
-        db: PostgresDsn
-
-        @field_validator('db')
-        def check_db_name(cls, v):
-            assert v.path and len(v.path) > 1, 'database must be provided'
-            return v
-
-    m = MyDatabaseModel(db='postgres://user:pass@localhost:5432/foobar')
-    print(m.db)
-    #> postgres://user:pass@localhost:5432/foobar
-
-    try:
-        MyDatabaseModel(db='postgres://user:pass@localhost:5432')
-    except ValidationError as e:
-        print(e)
-        '''
-        1 validation error for MyDatabaseModel
-        db
-          Assertion failed, database must be provided
-        assert (None)
-         +  where None = PostgresDsn('postgres://user:pass@localhost:5432').path [type=assertion_error, input_value='postgres://user:pass@localhost:5432', input_type=str]
-        '''
-    ```
-    """
-
-    _constraints = UrlConstraints(
-        host_required=True,
-        allowed_schemes=[
-            'postgres',
-            'postgresql',
-            'postgresql+asyncpg',
-            'postgresql+pg8000',
-            'postgresql+psycopg',
-            'postgresql+psycopg2',
-            'postgresql+psycopg2cffi',
-            'postgresql+py-postgresql',
-            'postgresql+pygresql',
-        ],
-    )
-
-    @property
-    def host(self) -> str:
-        """The required URL host."""
-        return self._url.host  # pyright: ignore[reportAttributeAccessIssue]
-
-
-class CockroachDsn(AnyUrl):
-    """A type that will accept any Cockroach DSN.
-
-    * User info required
-    * TLD not required
-    * Host required
-    """
-
-    _constraints = UrlConstraints(
-        host_required=True,
-        allowed_schemes=[
-            'cockroachdb',
-            'cockroachdb+psycopg2',
-            'cockroachdb+asyncpg',
-        ],
-    )
-
-    @property
-    def host(self) -> str:
-        """The required URL host."""
-        return self._url.host  # pyright: ignore[reportReturnType]
-
-
-class AmqpDsn(AnyUrl):
-    """A type that will accept any AMQP DSN.
-
-    * User info required
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['amqp', 'amqps'])
-
-
-class RedisDsn(AnyUrl):
-    """A type that will accept any Redis DSN.
-
-    * User info required
-    * TLD not required
-    * Host required (e.g., `rediss://:pass@localhost`)
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=['redis', 'rediss'],
-        default_host='localhost',
-        default_port=6379,
-        default_path='/0',
-        host_required=True,
-    )
-
-    @property
-    def host(self) -> str:
-        """The required URL host."""
-        return self._url.host  # pyright: ignore[reportReturnType]
-
-
-class MongoDsn(_BaseMultiHostUrl):
-    """A type that will accept any MongoDB DSN.
-
-    * User info not required
-    * Database name not required
-    * Port not required
-    * User info may be passed without user part (e.g., `mongodb://mongodb0.example.com:27017`).
-
-    !!! warning
-        If a port isn't specified, the default MongoDB port `27017` will be used. If this behavior is
-        undesirable, you can use the following:
-
-        ```python
-        from typing import Annotated
-
-        from pydantic_core import MultiHostUrl
-
-        from pydantic import UrlConstraints
-
-        MongoDsnNoDefaultPort = Annotated[
-            MultiHostUrl,
-            UrlConstraints(allowed_schemes=['mongodb', 'mongodb+srv']),
-        ]
-        ```
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['mongodb', 'mongodb+srv'], default_port=27017)
-
-
-class KafkaDsn(AnyUrl):
-    """A type that will accept any Kafka DSN.
-
-    * User info required
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(allowed_schemes=['kafka'], default_host='localhost', default_port=9092)
-
-
-class NatsDsn(_BaseMultiHostUrl):
-    """A type that will accept any NATS DSN.
-
-    NATS is a connective technology built for the ever increasingly hyper-connected world.
-    It is a single technology that enables applications to securely communicate across
-    any combination of cloud vendors, on-premise, edge, web and mobile, and devices.
-    More: https://nats.io
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=['nats', 'tls', 'ws', 'wss'], default_host='localhost', default_port=4222
-    )
-
-
-class MySQLDsn(AnyUrl):
-    """A type that will accept any MySQL DSN.
-
-    * User info required
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=[
-            'mysql',
-            'mysql+mysqlconnector',
-            'mysql+aiomysql',
-            'mysql+asyncmy',
-            'mysql+mysqldb',
-            'mysql+pymysql',
-            'mysql+cymysql',
-            'mysql+pyodbc',
-        ],
-        default_port=3306,
-        host_required=True,
-    )
-
-
-class MariaDBDsn(AnyUrl):
-    """A type that will accept any MariaDB DSN.
-
-    * User info required
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=['mariadb', 'mariadb+mariadbconnector', 'mariadb+pymysql'],
-        default_port=3306,
-    )
-
-
-class ClickHouseDsn(AnyUrl):
-    """A type that will accept any ClickHouse DSN.
-
-    * User info required
-    * TLD not required
-    * Host not required
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=[
-            'clickhouse+native',
-            'clickhouse+asynch',
-            'clickhouse+http',
-            'clickhouse',
-            'clickhouses',
-            'clickhousedb',
-        ],
-        default_host='localhost',
-        default_port=9000,
-    )
-
-
-class SnowflakeDsn(AnyUrl):
-    """A type that will accept any Snowflake DSN.
-
-    * User info required
-    * TLD not required
-    * Host required
-    """
-
-    _constraints = UrlConstraints(
-        allowed_schemes=['snowflake'],
-        host_required=True,
-    )
-
-    @property
-    def host(self) -> str:
-        """The required URL host."""
-        return self._url.host  # pyright: ignore[reportReturnType]
-
-
-def import_email_validator() -> None:
-    global email_validator
-    try:
-        import email_validator
-    except ImportError as e:
-        raise ImportError("email-validator is not installed, run `pip install 'pydantic[email]'`") from e
-    if not version('email-validator').partition('.')[0] == '2':
-        raise ImportError('email-validator version >= 2.0 required, run pip install -U email-validator')
-
-
-if TYPE_CHECKING:
-    EmailStr = Annotated[str, ...]
-else:
-
-    class EmailStr:
-        """
-        Info:
-            To use this type, you need to install the optional
-            [`email-validator`](https://github.com/JoshData/python-email-validator) package:
-
-            ```bash
-            pip install email-validator
-            ```
-
-        Validate email addresses.
-
-        ```python
-        from pydantic import BaseModel, EmailStr
-
-        class Model(BaseModel):
-            email: EmailStr
-
-        print(Model(email='contact@mail.com'))
-        #> email='contact@mail.com'
-        ```
-        """  # noqa: D212
-
-        @classmethod
-        def __get_pydantic_core_schema__(
-            cls,
-            _source: type[Any],
-            _handler: GetCoreSchemaHandler,
-        ) -> core_schema.CoreSchema:
-            import_email_validator()
-            return core_schema.no_info_after_validator_function(cls._validate, core_schema.str_schema())
-
-        @classmethod
-        def __get_pydantic_json_schema__(
-            cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-        ) -> JsonSchemaValue:
-            field_schema = handler(core_schema)
-            field_schema.update(type='string', format='email')
-            return field_schema
-
-        @classmethod
-        def _validate(cls, input_value: str, /) -> str:
-            return validate_email(input_value)[1]
-
-
-class NameEmail(_repr.Representation):
-    """
-    Info:
-        To use this type, you need to install the optional
-        [`email-validator`](https://github.com/JoshData/python-email-validator) package:
-
-        ```bash
-        pip install email-validator
-        ```
-
-    Validate a name and email address combination, as specified by
-    [RFC 5322](https://datatracker.ietf.org/doc/html/rfc5322#section-3.4).
-
-    The `NameEmail` has two properties: `name` and `email`.
-    In case the `name` is not provided, it's inferred from the email address.
-
-    ```python
-    from pydantic import BaseModel, NameEmail
-
-    class User(BaseModel):
-        email: NameEmail
-
-    user = User(email='Fred Bloggs <fred.bloggs@example.com>')
-    print(user.email)
-    #> Fred Bloggs <fred.bloggs@example.com>
-    print(user.email.name)
-    #> Fred Bloggs
-
-    user = User(email='fred.bloggs@example.com')
-    print(user.email)
-    #> fred.bloggs <fred.bloggs@example.com>
-    print(user.email.name)
-    #> fred.bloggs
-    ```
-    """  # noqa: D212
-
-    __slots__ = 'name', 'email'
-
-    def __init__(self, name: str, email: str):
-        self.name = name
-        self.email = email
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NameEmail) and (self.name, self.email) == (other.name, other.email)
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        field_schema = handler(core_schema)
-        field_schema.update(type='string', format='name-email')
-        return field_schema
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        _source: type[Any],
-        _handler: GetCoreSchemaHandler,
-    ) -> core_schema.CoreSchema:
-        import_email_validator()
-
-        return core_schema.no_info_after_validator_function(
-            cls._validate,
-            core_schema.json_or_python_schema(
-                json_schema=core_schema.str_schema(),
-                python_schema=core_schema.union_schema(
-                    [core_schema.is_instance_schema(cls), core_schema.str_schema()],
-                    custom_error_type='name_email_type',
-                    custom_error_message='Input is not a valid NameEmail',
-                ),
-                serialization=core_schema.to_string_ser_schema(),
-            ),
-        )
-
-    @classmethod
-    def _validate(cls, input_value: Self | str, /) -> Self:
-        if isinstance(input_value, str):
-            name, email = validate_email(input_value)
-            return cls(name, email)
-        else:
-            return input_value
-
-    def __str__(self) -> str:
-        if '@' in self.name:
-            return f'"{self.name}" <{self.email}>'
-
-        return f'{self.name} <{self.email}>'
-
-
-IPvAnyAddressType: TypeAlias = 'IPv4Address | IPv6Address'
-IPvAnyInterfaceType: TypeAlias = 'IPv4Interface | IPv6Interface'
-IPvAnyNetworkType: TypeAlias = 'IPv4Network | IPv6Network'
-
-if TYPE_CHECKING:
-    IPvAnyAddress = IPvAnyAddressType
-    IPvAnyInterface = IPvAnyInterfaceType
-    IPvAnyNetwork = IPvAnyNetworkType
-else:
-
-    class IPvAnyAddress:
-        """Validate an IPv4 or IPv6 address.
-
-        ```python
-        from pydantic import BaseModel
-        from pydantic.networks import IPvAnyAddress
-
-        class IpModel(BaseModel):
-            ip: IPvAnyAddress
-
-        print(IpModel(ip='127.0.0.1'))
-        #> ip=IPv4Address('127.0.0.1')
-
-        try:
-            IpModel(ip='http://www.example.com')
-        except ValueError as e:
-            print(e.errors())
-            '''
-            [
-                {
-                    'type': 'ip_any_address',
-                    'loc': ('ip',),
-                    'msg': 'value is not a valid IPv4 or IPv6 address',
-                    'input': 'http://www.example.com',
-                }
-            ]
-            '''
-        ```
-        """
-
-        __slots__ = ()
-
-        def __new__(cls, value: Any) -> IPvAnyAddressType:
-            """Validate an IPv4 or IPv6 address."""
-            try:
-                return IPv4Address(value)
-            except ValueError:
-                pass
-
-            try:
-                return IPv6Address(value)
-            except ValueError:
-                raise PydanticCustomError('ip_any_address', 'value is not a valid IPv4 or IPv6 address')
-
-        @classmethod
-        def __get_pydantic_json_schema__(
-            cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-        ) -> JsonSchemaValue:
-            field_schema = {}
-            field_schema.update(type='string', format='ipvanyaddress')
-            return field_schema
-
-        @classmethod
-        def __get_pydantic_core_schema__(
-            cls,
-            _source: type[Any],
-            _handler: GetCoreSchemaHandler,
-        ) -> core_schema.CoreSchema:
-            return core_schema.no_info_plain_validator_function(
-                cls._validate, serialization=core_schema.to_string_ser_schema()
-            )
-
-        @classmethod
-        def _validate(cls, input_value: Any, /) -> IPvAnyAddressType:
-            return cls(input_value)  # type: ignore[return-value]
-
-    class IPvAnyInterface:
-        """Validate an IPv4 or IPv6 interface."""
-
-        __slots__ = ()
-
-        def __new__(cls, value: NetworkType) -> IPvAnyInterfaceType:
-            """Validate an IPv4 or IPv6 interface."""
-            try:
-                return IPv4Interface(value)
-            except ValueError:
-                pass
-
-            try:
-                return IPv6Interface(value)
-            except ValueError:
-                raise PydanticCustomError('ip_any_interface', 'value is not a valid IPv4 or IPv6 interface')
-
-        @classmethod
-        def __get_pydantic_json_schema__(
-            cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-        ) -> JsonSchemaValue:
-            field_schema = {}
-            field_schema.update(type='string', format='ipvanyinterface')
-            return field_schema
-
-        @classmethod
-        def __get_pydantic_core_schema__(
-            cls,
-            _source: type[Any],
-            _handler: GetCoreSchemaHandler,
-        ) -> core_schema.CoreSchema:
-            return core_schema.no_info_plain_validator_function(
-                cls._validate, serialization=core_schema.to_string_ser_schema()
-            )
-
-        @classmethod
-        def _validate(cls, input_value: NetworkType, /) -> IPvAnyInterfaceType:
-            return cls(input_value)  # type: ignore[return-value]
-
-    class IPvAnyNetwork:
-        """Validate an IPv4 or IPv6 network."""
-
-        __slots__ = ()
-
-        def __new__(cls, value: NetworkType) -> IPvAnyNetworkType:
-            """Validate an IPv4 or IPv6 network."""
-            # Assume IP Network is defined with a default value for `strict` argument.
-            # Define your own class if you want to specify network address check strictness.
-            try:
-                return IPv4Network(value)
-            except ValueError:
-                pass
-
-            try:
-                return IPv6Network(value)
-            except ValueError:
-                raise PydanticCustomError('ip_any_network', 'value is not a valid IPv4 or IPv6 network')
-
-        @classmethod
-        def __get_pydantic_json_schema__(
-            cls, core_schema: core_schema.CoreSchema, handler: _schema_generation_shared.GetJsonSchemaHandler
-        ) -> JsonSchemaValue:
-            field_schema = {}
-            field_schema.update(type='string', format='ipvanynetwork')
-            return field_schema
-
-        @classmethod
-        def __get_pydantic_core_schema__(
-            cls,
-            _source: type[Any],
-            _handler: GetCoreSchemaHandler,
-        ) -> core_schema.CoreSchema:
-            return core_schema.no_info_plain_validator_function(
-                cls._validate, serialization=core_schema.to_string_ser_schema()
-            )
-
-        @classmethod
-        def _validate(cls, input_value: NetworkType, /) -> IPvAnyNetworkType:
-            return cls(input_value)  # type: ignore[return-value]
-
-
-def _build_pretty_email_regex() -> re.Pattern[str]:
-    name_chars = r'[\w!#$%&\'*+\-/=?^_`{|}~]'
-    unquoted_name_group = rf'((?:{name_chars}+\s+)*{name_chars}+)'
-    quoted_name_group = r'"((?:[^"]|\")+)"'
-    email_group = r'<(.+)>'
-    return re.compile(rf'\s*(?:{unquoted_name_group}|{quoted_name_group})?\s*{email_group}\s*')
-
-
-pretty_email_regex = _build_pretty_email_regex()
-
-MAX_EMAIL_LENGTH = 2048
-"""Maximum length for an email.
-A somewhat arbitrary but very generous number compared to what is allowed by most implementations.
-"""
-
-
-def validate_email(value: str) -> tuple[str, str]:
-    """Email address validation using [email-validator](https://pypi.org/project/email-validator/).
-
-    Returns:
-        A tuple containing the local part of the email (or the name for "pretty" email addresses)
-            and the normalized email.
-
-    Raises:
-        PydanticCustomError: If the email is invalid.
-
-    Note:
-        Note that:
-
-        * Raw IP address (literal) domain parts are not allowed.
-        * `"John Doe <local_part@domain.com>"` style "pretty" email addresses are processed.
-        * Spaces are striped from the beginning and end of addresses, but no error is raised.
-    """
-    if email_validator is None:
-        import_email_validator()
-
-    if len(value) > MAX_EMAIL_LENGTH:
-        raise PydanticCustomError(
-            'value_error',
-            'value is not a valid email address: {reason}',
-            {'reason': f'Length must not exceed {MAX_EMAIL_LENGTH} characters'},
-        )
-
-    m = pretty_email_regex.fullmatch(value)
-    name: str | None = None
-    if m:
-        unquoted_name, quoted_name, value = m.groups()
-        name = unquoted_name or quoted_name
-
-    email = value.strip()
-
-    try:
-        parts = email_validator.validate_email(email, check_deliverability=False)
-    except email_validator.EmailNotValidError as e:
-        raise PydanticCustomError(
-            'value_error', 'value is not a valid email address: {reason}', {'reason': str(e.args[0])}
-        ) from e
-
-    email = parts.normalized
-    assert email is not None
-    name = name or parts.local_part
-    return name, email
-
-
-__getattr__ = getattr_migration(__name__)
-
-
----------------------------------------------------------------------
-### FILE_END: networks.py ###
-
-
-### FILE_START: build-iso.sh | PATH: D:\DairyOS\os\build\build-iso.sh ###
----------------------------------------------------------------------
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OS_ROOT="$ROOT/os"
-OUT_DIR="${OUT_DIR:-$ROOT/dist/os}"
-WORK_DIR="${WORK_DIR:-/var/tmp/dairyos-os-build}"
-
-DIST="trixie"
-ARCH="amd64"
-
-DEBIAN_MIRROR="https://deb.debian.org/debian/"
-DEBIAN_SECURITY_MIRROR="https://security.debian.org/debian-security/"
-
-require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "ERROR: required command missing: $1" >&2
-    exit 10
-  }
-}
-
-require_cmd lb
-require_cmd sha256sum
-require_cmd python3
-require_cmd rsync
-require_cmd stat
-
-echo "============================================================"
-echo " DairyOS ISO BUILD"
-echo "============================================================"
-echo "Repository : $ROOT"
-echo "OS root    : $OS_ROOT"
-echo "Output     : $OUT_DIR"
-echo "Workspace  : $WORK_DIR"
-echo "Distro     : $DIST"
-echo "Arch       : $ARCH"
-echo "Mirror     : $DEBIAN_MIRROR"
-echo "Security   : $DEBIAN_SECURITY_MIRROR"
-echo ""
-
-mkdir -p "$OUT_DIR" "$WORK_DIR"
-
-WORK_FS="$(stat -f -c "%T" "$WORK_DIR")"
-
-case "$WORK_FS" in
-  9p|v9fs)
-    echo "ERROR: Live-Build workspace is on Windows-mounted filesystem: $WORK_DIR ($WORK_FS)" >&2
-    echo "Use a WSL-native filesystem such as /var/tmp/dairyos-os-build." >&2
-    exit 12
-    ;;
-esac
-
-echo "Native workspace filesystem: $WORK_FS"
-
-rm -rf \
-  "$WORK_DIR/live" \
-  "$WORK_DIR/app-stage"
-
-mkdir -p \
-  "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os" \
-  "$WORK_DIR/live/config/includes.chroot/etc/systemd/system" \
-  "$WORK_DIR/live/config/includes.chroot/opt"
-
-echo "=== STAGING APPLICATION ==="
-"$OS_ROOT/build/stage-app.sh" "$WORK_DIR/app-stage"
-
-mkdir -p "$WORK_DIR/live/config/includes.chroot/opt/dairyos"
-
-cp -a "$WORK_DIR/app-stage/source" "$WORK_DIR/live/config/includes.chroot/opt/dairyos/"
-cp -a "$WORK_DIR/app-stage/wheelhouse" "$WORK_DIR/live/config/includes.chroot/opt/dairyos/"
-
-cd "$WORK_DIR/live"
-
-echo "=== CONFIGURING LIVE-BUILD ==="
-
-lb config \
-  --mode debian \
-  --distribution "$DIST" \
-  --architectures "$ARCH" \
-  --binary-images iso-hybrid \
-  --debian-installer live \
-  --archive-areas "main contrib non-free-firmware" \
-  --apt-indices true \
-  --security true \
-  --mirror-bootstrap "$DEBIAN_MIRROR" \
-  --mirror-chroot "$DEBIAN_MIRROR" \
-  --mirror-binary "$DEBIAN_MIRROR" \
-  --bootappend-live "boot=live components username=dairyos hostname=dairyos-edge" \
-  --iso-application "DairyOS Appliance OS" \
-  --iso-publisher "Trident Dairies" \
-  --iso-volume "DAIRYOS"
-
-echo "=== VERIFYING GENERATED LIVE-BUILD CONFIGURATION ==="
-
-if grep -RniI -E "archive\.ubuntu\.com|security\.ubuntu\.com" config; then
-  echo "ERROR: Ubuntu archive reference detected in generated Live-Build configuration." >&2
-  exit 13
-fi
-
-if ! grep -RniI "deb.debian.org/debian" config >/dev/null 2>&1; then
-  echo "ERROR: Debian main mirror was not written into Live-Build configuration." >&2
-  exit 14
-fi
-
-echo "PASS: Debian main mirror configured."
-
-if grep -RniI "security.debian.org/debian-security" config >/dev/null 2>&1; then
-  echo "PASS: Debian security mirror configured."
-else
-  echo "WARNING: Debian security mirror was not explicitly emitted by this Live-Build release."
-fi
-
-echo "=== LIVE-BUILD CONFIG SNAPSHOT ==="
-grep -RniI -E "mirror|archive|security" config || true
-
-echo "=== STAGING OS HANDOVER ARTIFACTS ==="
-
-cp -a "$OS_ROOT/boot" "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/"
-cp -a "$OS_ROOT/installer" "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/"
-cp -a "$OS_ROOT/partitioning" "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/"
-cp -a "$OS_ROOT/pxe" "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/"
-cp -a "$OS_ROOT/services" "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/"
-
-cp "$OS_ROOT/services/dairyos.service" \
-   "$WORK_DIR/live/config/includes.chroot/etc/systemd/system/"
-
-cp "$OS_ROOT/services/dairyos-firstboot.service" \
-   "$WORK_DIR/live/config/includes.chroot/etc/systemd/system/"
-
-cp "$OS_ROOT/installer/hooks/firstboot.sh" \
-   "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/installer/"
-
-cp "$OS_ROOT/installer/hooks/validate.sh" \
-   "$WORK_DIR/live/config/includes.chroot/opt/dairyos-os/installer/"
-
-echo "=== BUILDING ISO ==="
-
-lb build
-
-ISO="$(find "$WORK_DIR/live" -maxdepth 1 -type f -name "*.iso" -print -quit)"
-
-if [[ -z "$ISO" ]]; then
-  echo "ERROR: live-build produced no ISO." >&2
-  exit 20
-fi
-
-FINAL="$OUT_DIR/dairyos-${DIST}-${ARCH}.iso"
-CHECKSUM="$FINAL.sha256"
-
-rm -f "$FINAL" "$CHECKSUM"
-cp "$ISO" "$FINAL"
-sha256sum "$FINAL" > "$CHECKSUM"
-
-echo ""
-echo "============================================================"
-echo " BUILD COMPLETE"
-echo "============================================================"
-echo "ISO    : $FINAL"
-echo "SHA256 : $CHECKSUM"
-echo ""
-sha256sum "$FINAL"
-
-
----------------------------------------------------------------------
-### FILE_END: build-iso.sh ###
-
-
-### FILE_START: install.sh | PATH: D:\DairyOS\os\installer\install.sh ###
----------------------------------------------------------------------
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-MODE="dry-run"
-TARGET_DEVICE=""
-MOUNT_ROOT="/mnt/dairyos"
-MANIFEST_DIR="/opt/dairyos-os"
-DEBIAN_MIRROR="file:///srv/dairyos-debian"
-
-usage() {
-  cat <<'EOF'
-DairyOS installer
-
-Safe default: dry-run. No disk is modified unless all of the following are true:
-  --apply
-  --target-device /dev/...
-
-Offline deployment is the default: the Debian base repository is expected at
-file:///srv/dairyos-debian. A connected installation may override the mirror
-explicitly with --debian-mirror https://deb.debian.org/debian.
-
-Options:
-  --target-device DEVICE   Entire target disk, e.g. /dev/sda or /dev/nvme0n1
-  --debian-mirror URL      Local file mirror or explicitly approved network mirror
-  --apply                  Actually partition and install
-  --dry-run                Validate only (default)
-  --mount-root PATH        Temporary mount root (default /mnt/dairyos)
-  --help
-EOF
-}
-
-require_root() {
-  [[ "$(id -u)" -eq 0 ]] || { echo "ERROR: run as root." >&2; exit 20; }
-}
-
-require_cmds() {
-  local cmd
-  for cmd in sfdisk wipefs mkfs.vfat mkfs.ext4 mkswap mount umount debootstrap chroot grub-install update-initramfs systemctl blkid partprobe blockdev; do
-    command -v "$cmd" >/dev/null 2>&1 || {
-      echo "ERROR: required command not found: $cmd" >&2
-      exit 21
-    }
-  done
-}
-
-validate_target() {
-  [[ -n "$TARGET_DEVICE" ]] || { echo "ERROR: --target-device is required." >&2; exit 22; }
-  [[ -b "$TARGET_DEVICE" ]] || { echo "ERROR: target is not a block device: $TARGET_DEVICE" >&2; exit 23; }
-  case "$TARGET_DEVICE" in
-    /dev/sda|/dev/sdb|/dev/sdc|/dev/nvme0n1|/dev/vda|/dev/xvda) ;;
-    *) echo "ERROR: target device is outside approved appliance names: $TARGET_DEVICE" >&2; exit 24 ;;
-  esac
-  local size_bytes
-  size_bytes="$(blockdev --getsize64 "$TARGET_DEVICE")"
-  (( size_bytes >= 32 * 1024 * 1024 * 1024 )) || {
-    echo "ERROR: target disk must be at least 32 GiB." >&2
-    exit 25
-  }
-  if [[ -e /var/lock/dairyos-install.lock ]]; then
-    echo "ERROR: installation lock already exists." >&2
-    exit 26
-  fi
-}
-
-validate_mirror() {
-  case "$DEBIAN_MIRROR" in
-    file:///*)
-      local path="${DEBIAN_MIRROR#file://}"
-      [[ -d "$path" ]] || { echo "ERROR: offline Debian mirror not found: $path" >&2; exit 27; }
-      ;;
-    https://*|http://*)
-      echo "WARNING: connected mirror selected: $DEBIAN_MIRROR" >&2
-      ;;
-    *)
-      echo "ERROR: unsupported Debian mirror URL: $DEBIAN_MIRROR" >&2
-      exit 28
-      ;;
-  esac
-}
-
-partition_nodes() {
-  case "$TARGET_DEVICE" in
-    /dev/nvme*|/dev/mmcblk*)
-      EFI_PART="${TARGET_DEVICE}p1"; ROOT_PART="${TARGET_DEVICE}p2"; LOG_PART="${TARGET_DEVICE}p3"; SWAP_PART="${TARGET_DEVICE}p4"; DATA_PART="${TARGET_DEVICE}p5" ;;
-    *)
-      EFI_PART="${TARGET_DEVICE}1"; ROOT_PART="${TARGET_DEVICE}2"; LOG_PART="${TARGET_DEVICE}3"; SWAP_PART="${TARGET_DEVICE}4"; DATA_PART="${TARGET_DEVICE}5" ;;
-  esac
-}
-
-run_dry_run() {
-  echo "DairyOS installer DRY RUN"
-  echo "Target: ${TARGET_DEVICE:-<not supplied>}"
-  echo "Debian mirror: $DEBIAN_MIRROR"
-  echo "Partition manifest: ${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
-  echo "No disk, filesystem, bootloader, or NVRAM changes will be made."
-}
-
-apply_install() {
-  partition_nodes
-  local staged="${MOUNT_ROOT}/.dairyos-install-staged"
-  local committed="${MOUNT_ROOT}/.dairyos-install-committed"
-  mkdir -p "$MOUNT_ROOT"
-  install -m 0600 /dev/null /var/lock/dairyos-install.lock
-  touch "$MOUNT_ROOT/.install-in-progress"
-  trap 'rm -f /var/lock/dairyos-install.lock; umount -R "$MOUNT_ROOT" 2>/dev/null || true' EXIT
-
-  wipefs -a "$TARGET_DEVICE"
-  sfdisk "$TARGET_DEVICE" < "${MANIFEST_DIR}/../partitioning/dairyos.sfdisk"
-  partprobe "$TARGET_DEVICE"
-
-  mkfs.vfat -F32 -n DAIRYOS-EFI "$EFI_PART"
-  mkfs.ext4 -L DAIRYOS-ROOT "$ROOT_PART"
-  mkfs.ext4 -L DAIRYOS-LOG "$LOG_PART"
-  mkswap -L DAIRYOS-SWAP "$SWAP_PART"
-  mkfs.ext4 -L DAIRYOS-DATA "$DATA_PART"
-
-  mount "$ROOT_PART" "$MOUNT_ROOT"
-  mkdir -p "$MOUNT_ROOT/boot/efi" "$MOUNT_ROOT/var/log" "$MOUNT_ROOT/var/lib/dairyos"
-  mount "$EFI_PART" "$MOUNT_ROOT/boot/efi"
-  mount "$LOG_PART" "$MOUNT_ROOT/var/log"
-  mount "$DATA_PART" "$MOUNT_ROOT/var/lib/dairyos"
-
-  debootstrap --arch=amd64 trixie "$MOUNT_ROOT" "$DEBIAN_MIRROR"
-
-  cat > "$MOUNT_ROOT/etc/fstab" <<FSTAB
-LABEL=DAIRYOS-ROOT / ext4 defaults,errors=remount-ro 0 1
-LABEL=DAIRYOS-EFI /boot/efi vfat umask=0077 0 1
-LABEL=DAIRYOS-LOG /var/log ext4 defaults 0 2
-LABEL=DAIRYOS-DATA /var/lib/dairyos ext4 defaults 0 2
-LABEL=DAIRYOS-SWAP none swap sw 0 0
-FSTAB
-
-  cp /etc/resolv.conf "$MOUNT_ROOT/etc/resolv.conf"
-  mount --rbind /dev "$MOUNT_ROOT/dev"
-  mount --make-rslave "$MOUNT_ROOT/dev"
-  mount --rbind /proc "$MOUNT_ROOT/proc"
-  mount --make-rslave "$MOUNT_ROOT/proc"
-  mount --rbind /sys "$MOUNT_ROOT/sys"
-  mount --make-rslave "$MOUNT_ROOT/sys"
-
-  chroot "$MOUNT_ROOT" /bin/bash -c '
-    set -Eeuo pipefail
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y linux-image-amd64 grub-efi-amd64 grub-pc systemd sudo ca-certificates python3 python3-venv postgresql
-    systemctl enable systemd-timesyncd
-    mkdir -p /opt/dairyos-os /var/lib/dairyos/backups /var/lib/dairyos/logs /var/lib/dairyos/storage
-  '
-
-  cp -a "$(dirname "$0")/../services" "$MOUNT_ROOT/opt/dairyos-os/"
-  cp -a "$(dirname "$0")/../config" "$MOUNT_ROOT/opt/dairyos-os/"
-  cp -a "$(dirname "$0")/../partitioning" "$MOUNT_ROOT/opt/dairyos-os/"
-  cp -a "$(dirname "$0")/../boot" "$MOUNT_ROOT/opt/dairyos-os/"
-
-  chroot "$MOUNT_ROOT" /bin/bash -c '
-    set -Eeuo pipefail
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=DairyOS --recheck
-    grub-install --target=i386-pc "'"$TARGET_DEVICE"'" --recheck
-    update-initramfs -c -k all
-    systemctl enable dairyos-firstboot.service
-  '
-
-  touch "$staged"
-  rm -f "$MOUNT_ROOT/.install-in-progress"
-  touch "$committed"
-  sync
-  echo "DairyOS installation committed on ${TARGET_DEVICE}."
-}
-
-while (($#)); do
-  case "$1" in
-    --target-device) TARGET_DEVICE="${2:?missing device}"; shift 2 ;;
-    --debian-mirror) DEBIAN_MIRROR="${2:?missing mirror URL}"; shift 2 ;;
-    --apply) MODE="apply"; shift ;;
-    --dry-run) MODE="dry-run"; shift ;;
-    --mount-root) MOUNT_ROOT="${2:?missing path}"; shift 2 ;;
-    --help|-h) usage; exit 0 ;;
-    *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
-  esac
-done
-
-require_root
-require_cmds
-
-if [[ "$MODE" == "dry-run" ]]; then
-  run_dry_run
-  exit 0
-fi
-
-validate_target
-validate_mirror
-apply_install
-
-
----------------------------------------------------------------------
-### FILE_END: install.sh ###
-
-
-### FILE_START: chart-network.mjs | PATH: D:\DairyOS\src\DairyOS.Web\node_modules\lucide-react\dist\esm\icons\chart-network.mjs ###
----------------------------------------------------------------------
-/**
- * @license lucide-react v1.33.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-import createLucideIcon from '../createLucideIcon.mjs';
-
-const __iconNode = [
-  ["path", { d: "m13.11 7.664 1.78 2.672", key: "go2gg9" }],
-  ["path", { d: "m14.162 12.788-3.324 1.424", key: "11x848" }],
-  ["path", { d: "m20 4-6.06 1.515", key: "1wxxh7" }],
-  ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
-  ["circle", { cx: "12", cy: "6", r: "2", key: "1jj5th" }],
-  ["circle", { cx: "16", cy: "12", r: "2", key: "4ma0v8" }],
-  ["circle", { cx: "9", cy: "15", r: "2", key: "lf2ghp" }]
-];
-const ChartNetwork = createLucideIcon("chart-network", __iconNode);
-
-export { __iconNode, ChartNetwork as default };
-//# sourceMappingURL=chart-network.mjs.map
-
-
----------------------------------------------------------------------
-### FILE_END: chart-network.mjs ###
-
-
-### FILE_START: chart-network.mjs.map | PATH: D:\DairyOS\src\DairyOS.Web\node_modules\lucide-react\dist\esm\icons\chart-network.mjs.map ###
----------------------------------------------------------------------
-{"version":3,"file":"chart-network.mjs","sources":["../../../src/icons/chart-network.ts"],"sourcesContent":["import createLucideIcon from '../createLucideIcon';\nimport { IconNode } from '../types';\n\nexport const __iconNode: IconNode = [\n  ['path', { d: 'm13.11 7.664 1.78 2.672', key: 'go2gg9' }],\n  ['path', { d: 'm14.162 12.788-3.324 1.424', key: '11x848' }],\n  ['path', { d: 'm20 4-6.06 1.515', key: '1wxxh7' }],\n  ['path', { d: 'M3 3v16a2 2 0 0 0 2 2h16', key: 'c24i48' }],\n  ['circle', { cx: '12', cy: '6', r: '2', key: '1jj5th' }],\n  ['circle', { cx: '16', cy: '12', r: '2', key: '4ma0v8' }],\n  ['circle', { cx: '9', cy: '15', r: '2', key: 'lf2ghp' }],\n];\n\n/**\n * @component @name ChartNetwork\n * @description Lucide SVG icon component, renders SVG Element with children.\n *\n * @preview ![img](data:image/svg+xml;base64,PHN2ZyAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIgogIHdpZHRoPSIyNCIKICBoZWlnaHQ9IjI0IgogIHZpZXdCb3g9IjAgMCAyNCAyNCIKICBmaWxsPSJub25lIgogIHN0cm9rZT0iIzAwMCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6ICNmZmY7IGJvcmRlci1yYWRpdXM6IDJweCIKICBzdHJva2Utd2lkdGg9IjIiCiAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogIHN0cm9rZS1saW5lam9pbj0icm91bmQiCj4KICA8cGF0aCBkPSJtMTMuMTEgNy42NjQgMS43OCAyLjY3MiIgLz4KICA8cGF0aCBkPSJtMTQuMTYyIDEyLjc4OC0zLjMyNCAxLjQyNCIgLz4KICA8cGF0aCBkPSJtMjAgNC02LjA2IDEuNTE1IiAvPgogIDxwYXRoIGQ9Ik0zIDN2MTZhMiAyIDAgMCAwIDIgMmgxNiIgLz4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjYiIHI9IjIiIC8+CiAgPGNpcmNsZSBjeD0iMTYiIGN5PSIxMiIgcj0iMiIgLz4KICA8Y2lyY2xlIGN4PSI5IiBjeT0iMTUiIHI9IjIiIC8+Cjwvc3ZnPgo=) - https://lucide.dev/icons/chart-network\n * @see https://lucide.dev/guide/packages/lucide-react - Documentation\n *\n * @param {Object} props - Lucide icons props and any valid SVG attribute\n * @returns {JSX.Element} JSX Element\n *\n */\nconst ChartNetwork = createLucideIcon('chart-network', __iconNode);\n\nexport default ChartNetwork;\n"],"names":[],"mappings":";;;;;;;;;AAGO,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,UAAA,CAAA,CAAA,CAAuB;AAAA,CAAA,CAClC,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAA2B,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CACxD,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAA8B,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CAC3D,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAoB,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CACjD,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAA4B,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CACzD,CAAC,QAAA,CAAA,CAAU,CAAA,CAAE,EAAA,CAAA,CAAI,CAAA,CAAA,CAAA,CAAA,EAAM,CAAA,CAAA,CAAA,CAAI,GAAA,CAAA,CAAK,CAAA,EAAG,CAAA,CAAA,CAAA,CAAA,CAAK,GAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,EAAU,CAAA;AAAA,CAAA,CACvD,CAAC,QAAA,CAAA,CAAU,CAAA,CAAE,EAAA,CAAA,CAAI,CAAA,CAAA,CAAA,CAAA,EAAM,CAAA,CAAA,CAAA,CAAI,IAAA,CAAA,CAAM,CAAA,EAAG,CAAA,CAAA,CAAA,CAAA,CAAK,GAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,EAAU,CAAA;AAAA,CAAA,CACxD,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAU,EAAE,CAAA,CAAA,CAAA,CAAI,GAAA,CAAA,CAAK,CAAA,CAAA,EAAI,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,CAAA,CAAA,CAAG,CAAA,CAAA,CAAA,EAAK,CAAA,CAAA,CAAA,CAAA,CAAK,QAAA,CAAA,CAAU;AACzD,CAAA;AAaA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,YAAA,CAAA,CAAA,CAAe,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAiB,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,EAAiB,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAU,CAAA;;"}
-
----------------------------------------------------------------------
-### FILE_END: chart-network.mjs.map ###
-
-
-### FILE_START: network.mjs | PATH: D:\DairyOS\src\DairyOS.Web\node_modules\lucide-react\dist\esm\icons\network.mjs ###
----------------------------------------------------------------------
-/**
- * @license lucide-react v1.33.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-import createLucideIcon from '../createLucideIcon.mjs';
-
-const __iconNode = [
-  ["rect", { x: "16", y: "16", width: "6", height: "6", rx: "1", key: "4q2zg0" }],
-  ["rect", { x: "2", y: "16", width: "6", height: "6", rx: "1", key: "8cvhb9" }],
-  ["rect", { x: "9", y: "2", width: "6", height: "6", rx: "1", key: "1egb70" }],
-  ["path", { d: "M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3", key: "1jsf9p" }],
-  ["path", { d: "M12 12V8", key: "2874zd" }]
-];
-const Network = createLucideIcon("network", __iconNode);
-
-export { __iconNode, Network as default };
-//# sourceMappingURL=network.mjs.map
-
-
----------------------------------------------------------------------
-### FILE_END: network.mjs ###
-
-
-### FILE_START: network.mjs.map | PATH: D:\DairyOS\src\DairyOS.Web\node_modules\lucide-react\dist\esm\icons\network.mjs.map ###
----------------------------------------------------------------------
-{"version":3,"file":"network.mjs","sources":["../../../src/icons/network.ts"],"sourcesContent":["import createLucideIcon from '../createLucideIcon';\nimport { IconNode } from '../types';\n\nexport const __iconNode: IconNode = [\n  ['rect', { x: '16', y: '16', width: '6', height: '6', rx: '1', key: '4q2zg0' }],\n  ['rect', { x: '2', y: '16', width: '6', height: '6', rx: '1', key: '8cvhb9' }],\n  ['rect', { x: '9', y: '2', width: '6', height: '6', rx: '1', key: '1egb70' }],\n  ['path', { d: 'M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3', key: '1jsf9p' }],\n  ['path', { d: 'M12 12V8', key: '2874zd' }],\n];\n\n/**\n * @component @name Network\n * @description Lucide SVG icon component, renders SVG Element with children.\n *\n * @preview ![img](data:image/svg+xml;base64,PHN2ZyAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIgogIHdpZHRoPSIyNCIKICBoZWlnaHQ9IjI0IgogIHZpZXdCb3g9IjAgMCAyNCAyNCIKICBmaWxsPSJub25lIgogIHN0cm9rZT0iIzAwMCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6ICNmZmY7IGJvcmRlci1yYWRpdXM6IDJweCIKICBzdHJva2Utd2lkdGg9IjIiCiAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogIHN0cm9rZS1saW5lam9pbj0icm91bmQiCj4KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiIHJ4PSIxIiAvPgogIDxyZWN0IHg9IjIiIHk9IjE2IiB3aWR0aD0iNiIgaGVpZ2h0PSI2IiByeD0iMSIgLz4KICA8cmVjdCB4PSI5IiB5PSIyIiB3aWR0aD0iNiIgaGVpZ2h0PSI2IiByeD0iMSIgLz4KICA8cGF0aCBkPSJNNSAxNnYtM2ExIDEgMCAwIDEgMS0xaDEyYTEgMSAwIDAgMSAxIDF2MyIgLz4KICA8cGF0aCBkPSJNMTIgMTJWOCIgLz4KPC9zdmc+Cg==) - https://lucide.dev/icons/network\n * @see https://lucide.dev/guide/packages/lucide-react - Documentation\n *\n * @param {Object} props - Lucide icons props and any valid SVG attribute\n * @returns {JSX.Element} JSX Element\n *\n */\nconst Network = createLucideIcon('network', __iconNode);\n\nexport default Network;\n"],"names":[],"mappings":";;;;;;;;;AAGO,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,UAAA,CAAA,CAAA,CAAuB;AAAA,CAAA,CAClC,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,CAAA,CAAA,CAAG,CAAA,CAAA,CAAA,GAAM,CAAA,CAAA,CAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAO,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,GAAQ,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAI,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CAC9E,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,CAAA,CAAA,CAAG,CAAA,CAAA,GAAK,CAAA,CAAA,CAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAO,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,GAAQ,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAI,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CAC7E,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,CAAA,CAAA,CAAG,CAAA,CAAA,GAAK,CAAA,CAAA,CAAG,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAO,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,GAAQ,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAI,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CAC5E,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAA6C,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU,CAAA;AAAA,CAAA,CAC1E,CAAC,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAQ,CAAA,CAAE,GAAG,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAY,CAAA,CAAA,CAAA,CAAA,CAAK,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,GAAU;AAC3C,CAAA;AAaA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAM,OAAA,CAAA,CAAA,CAAU,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAiB,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,EAAW,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAA,CAAU,CAAA;;"}
-
----------------------------------------------------------------------
-### FILE_END: network.mjs.map ###
-
-
