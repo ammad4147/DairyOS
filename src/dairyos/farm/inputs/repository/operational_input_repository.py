@@ -1,4 +1,7 @@
 import json
+import os
+import tempfile
+import time
 from dairyos.platform.paths import resolve_storage_file
 from datetime import date, datetime
 from pathlib import Path
@@ -82,19 +85,51 @@ class OperationalInputRepository:
                 }
             )
 
-        temporary_path = self.storage_path.with_suffix(
-            self.storage_path.suffix + ".tmp"
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use a unique temporary file per write. A shared .tmp pathname is
+        # unsafe when more than one repository instance persists concurrently,
+        # especially on Windows where an open temp file can block replacement.
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=f"{self.storage_path.name}.",
+            suffix=".tmp",
+            dir=self.storage_path.parent,
+            text=True,
         )
+        temporary_path = Path(temporary_name)
 
-        with open(temporary_path, "w", encoding="utf-8") as file:
-            json.dump(
-                payload,
-                file,
-                indent=2,
-                ensure_ascii=False,
-            )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as file:
+                json.dump(
+                    payload,
+                    file,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                file.flush()
+                os.fsync(file.fileno())
 
-        temporary_path.replace(self.storage_path)
+            # The temp file handle is fully closed before replacement. Windows
+            # otherwise may return WinError 5 even though the write succeeded.
+            last_error = None
+            for attempt in range(3):
+                try:
+                    temporary_path.replace(self.storage_path)
+                    last_error = None
+                    break
+                except PermissionError as exc:
+                    last_error = exc
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+
+            if last_error is not None:
+                raise last_error
+        finally:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _load(self):
         if not self.storage_path.exists():
