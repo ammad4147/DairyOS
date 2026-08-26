@@ -8,14 +8,16 @@ NEGATIVE_RESULTS = {"negative", "no"}
 
 HEAT_DETECTION_EVENTS = {"heat_detection", "heat_detected", "heat", "oestrus", "estrus"}
 INSEMINATION_EVENTS = {"insemination", "service", "ai", "artificial_insemination"}
-# All operator pregnancy-outcome vocabulary is pregnancy-check evidence. A
-# bare pregnancy_confirmed event is authoritative without a result field.
+
+# A pregnancy_confirmed event is pregnancy-outcome evidence, not a separate
+# pregnancy-check encounter. This distinction matters because the operator UI
+# records both pregnancy_diagnosis and pregnancy_confirmed, and multiple
+# positive observations must not inflate the number of conceptions.
 PREGNANCY_CHECK_EVENTS = {
     "pregnancy_check",
     "pregnancy_diagnosis",
     "pregnancy",
     "pregnancy_negative",
-    "pregnancy_confirmed",
 }
 CALVING_EVENTS = {"calving", "calved", "parturition"}
 DRY_OFF_EVENTS = {"dry_off"}
