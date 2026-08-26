@@ -30,7 +30,6 @@ def _run_sc(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _service_sort_key(name: str) -> tuple[int, str]:
-    """Sort PostgreSQL services newest-version first, then by name."""
     match = _PG_VERSION_RE.search(name)
     version = int(match.group(1)) if match else -1
     return (-version, name.casefold())
@@ -51,7 +50,7 @@ def list_postgresql_services() -> list[str]:
     for line in result.stdout.splitlines():
         match = _SERVICE_NAME_RE.match(line)
         if match and match.group(1).lower().startswith("postgresql"):
-            names.append(match.group(1).casefold())
+            names.append(match.group(1))
 
     return sorted(names, key=_service_sort_key)
 
