@@ -34,35 +34,6 @@ class RationPlan(BaseModel):
     farm_id: str = "DEFAULT"
 
 
-REPRODUCTIVE_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
-    gestation_days=283,
-    dry_off_days_before_calving=60,
-)
-
-
-def _breeding_record_to_event(record, operational_date: date) -> dict:
-    timestamp = getattr(record, "timestamp", None)
-    return {
-        "animal_id": record.animal_id,
-        "event_type": record.event_type,
-        "event_date": timestamp.date() if timestamp is not None else operational_date,
-        "result": record.result,
-        "technician": record.technician,
-        "record_id": record.record_id,
-    }
-
-
-def _serialize_historical_record(record) -> dict:
-    return {
-        "record_id": record.record_id,
-        "event_type": record.event_type,
-        "result": record.result,
-        "timestamp": record.timestamp,
-        "technician": record.technician,
-    }
-
-
 _REPRODUCTIVE_POLICY = ReproductivePolicy(
     voluntary_waiting_period_days=60,
     gestation_days=283,
@@ -71,72 +42,39 @@ _REPRODUCTIVE_POLICY = ReproductivePolicy(
 
 
 def _breeding_record_to_resolver_event(record):
-    """Adapt persisted BreedingRecord facts into resolver facts.
-
-    BreedingRecord remains historical persistence authority. This adapter
-    does not mutate or reinterpret persisted records.
-    """
-    raw_type = str(getattr(record, "event_type", "") or "").strip().lower()
+    """Adapt persisted breeding facts without inventing missing events."""
+    raw_type = str(getattr(record, "event_type", "") or "").strip().lower().replace("-", "_")
     result = str(getattr(record, "result", "") or "").strip().lower()
     timestamp = getattr(record, "timestamp", None)
-
     if timestamp is None:
         return None
 
-    negative_results = {
-        "negative",
-        "no",
-        "open",
-        "not_pregnant",
-        "not pregnant",
-    }
+    positive_results = {"pregnant", "confirmed", "positive", "yes"}
+    negative_results = {"negative", "no", "open", "not_pregnant", "not pregnant"}
 
-    if raw_type in {
-        "insemination",
-        "service",
-        "ai",
-        "artificial_insemination",
-    }:
+    if raw_type in {"insemination", "service", "ai", "artificial_insemination"}:
         event_type = "INSEMINATION"
-
-    elif raw_type in {
-        "pregnancy_negative",
-    }:
+    elif raw_type == "pregnancy_negative":
         event_type = "PREGNANCY_NEGATIVE"
-
-    elif raw_type in {
-        "pregnancy_check",
-        "pregnancy_diagnosis",
-        "pregnancy",
-    }:
-        event_type = (
-            "PREGNANCY_LOST"
-            if result in negative_results
-            else "PREGNANCY_CONFIRMED"
-        )
-
+    elif raw_type in {"pregnancy_check", "pregnancy_diagnosis", "pregnancy"}:
+        if result in positive_results:
+            event_type = "PREGNANCY_CONFIRMED"
+        elif result in negative_results:
+            event_type = "PREGNANCY_NEGATIVE"
+        else:
+            # A diagnosis without an explicit outcome is a historical fact,
+            # but it is not evidence of pregnancy. Do not guess.
+            return None
     elif raw_type == "pregnancy_confirmed":
         event_type = "PREGNANCY_CONFIRMED"
-
-    elif raw_type in {
-        "heat_detected",
-        "heat_detection",
-        "heat",
-        "oestrus",
-        "estrus",
-    }:
+    elif raw_type in {"heat_detected", "heat_detection", "heat", "oestrus", "estrus"}:
         event_type = "HEAT_DETECTED"
-
-    elif raw_type in {
-        "calving",
-        "calved",
-        "parturition",
-    }:
+    elif raw_type in {"calving", "calved", "parturition"}:
         event_type = "CALVING"
-
     elif raw_type == "dry_off":
         event_type = "DRY_OFF"
-
+    elif raw_type in {"pregnancy_lost", "abortion", "stillbirth"}:
+        event_type = raw_type.upper()
     else:
         return None
 
@@ -150,14 +88,13 @@ def _breeding_record_to_resolver_event(record):
 
 
 def _resolve_current_reproductive_state(animal_id, records):
-    """Resolve current reproductive state from persisted historical facts.
+    """Resolve current state from persisted breeding records only.
 
-    The resolver remains the sole authority for current state.
-    The persisted BreedingRecord collection remains the sole historical
-    fact authority.
+    In particular, this function never inserts an implicit AI/service record
+    when the farm has not recorded one. A missing breeding fact stays missing
+    and the resolver will reject a pregnancy confirmation that cannot be
+    chronologically anchored to an actual service.
     """
-    from datetime import timedelta
-
     ordered = sorted(
         records,
         key=lambda record: (
@@ -167,46 +104,19 @@ def _resolve_current_reproductive_state(animal_id, records):
     )
 
     events = []
-
     for record in ordered:
         event = _breeding_record_to_resolver_event(record)
         if event is not None:
             events.append(event)
 
     as_of_date = OperationalDateAuthority().current_date()
-
     effective = [
         event
         for event in events
         if event["event_date"].date() <= as_of_date
     ]
 
-    for event in list(effective):
-        if event["event_type"] != "PREGNANCY_CONFIRMED":
-            continue
-
-        prior_insemination_exists = any(
-            candidate["event_type"] == "INSEMINATION"
-            and candidate["event_date"] <= event["event_date"]
-            for candidate in effective
-        )
-
-        if not prior_insemination_exists:
-            effective.insert(
-                0,
-                {
-                    "animal_id": animal_id,
-                    "event_type": "INSEMINATION",
-                    "event_date": event["event_date"] - timedelta(seconds=1),
-                    "result": "IMPLICIT_CHRONOLOGY_ANCHOR",
-                    "source_record_id": None,
-                    "derived": True,
-                },
-            )
-
-    resolver = ReproductiveStateService(_REPRODUCTIVE_POLICY)
-
-    return resolver.resolve(
+    return ReproductiveStateService(_REPRODUCTIVE_POLICY).resolve(
         animal_id,
         effective,
         as_of_date=as_of_date,
@@ -220,29 +130,24 @@ def _current_state_api_value(state):
         and state.last_calving_date == state.as_of_date
     ):
         return "CALVED"
-
     if state.pregnancy_status == "PREGNANT":
         return "PREGNANT"
-
     if state.reproductive_status == "HEAT_DETECTED":
         return "HEAT_OBSERVED"
-
     if state.reproductive_status == "BRED":
         return "INSEMINATED"
-
+    if state.reproductive_status == "DRY_OFF":
+        return "DRY_OFF"
     if state.reproductive_status == "LACTATING":
         return "LACTATING"
-
     return "OPEN"
 
 
 @router.get("/animals/{animal_id}/reproduction")
 def reproductive_status(animal_id: str):
     factory = RepositoryFactory.create()
-
     try:
         animal = factory.animal().get_by_animal_id(animal_id)
-
         if animal is None:
             raise HTTPException(status_code=404, detail="Animal not found")
 
@@ -251,7 +156,6 @@ def reproductive_status(animal_id: str):
             for record in factory.breeding().get_all()
             if record.animal_id == animal_id
         ]
-
         records.sort(
             key=lambda record: (
                 getattr(record, "timestamp", None)
@@ -259,7 +163,13 @@ def reproductive_status(animal_id: str):
             )
         )
 
-        state = _resolve_current_reproductive_state(animal_id, records)
+        try:
+            state = _resolve_current_reproductive_state(animal_id, records)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Persisted reproductive history is internally inconsistent: {exc}",
+            ) from exc
 
         return {
             "animal_id": animal_id,
@@ -290,7 +200,6 @@ def reproductive_status(animal_id: str):
                 for record in records
             ],
         }
-
     finally:
         factory.close()
 
@@ -299,7 +208,9 @@ def reproductive_status(animal_id: str):
 def list_rations(farm_id: str = "DEFAULT"):
     factory = RepositoryFactory.create()
     try:
-        model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == farm_id).first()
+        model = factory.session.query(OperationalStateModel).filter(
+            OperationalStateModel.farm_id == farm_id
+        ).first()
         plans = [] if model is None else (model.state_payload or {}).get("ration_plans", [])
         return {"data_status": "LIVE_PERSISTED" if plans else "NO_RATION_PLANS", "plans": plans}
     finally:
@@ -310,14 +221,20 @@ def list_rations(farm_id: str = "DEFAULT"):
 def save_ration(plan: RationPlan):
     factory = RepositoryFactory.create()
     try:
-        model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == plan.farm_id).first()
+        model = factory.session.query(OperationalStateModel).filter(
+            OperationalStateModel.farm_id == plan.farm_id
+        ).first()
         if model is None:
-            model = OperationalStateModel(farm_id=plan.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
+            model = OperationalStateModel(
+                farm_id=plan.farm_id,
+                operational_date=utcnow().date(),
+                state_payload={},
+                created_at=utcnow(),
+            )
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         plans = [p for p in payload.get("ration_plans", []) if p.get("plan_id") != plan.plan_id]
         plans.append(plan.model_dump())
-        payload["ration_plans"] = plans
         model.state_payload = payload
         factory.session.commit()
         return {"data_status": "PERSISTED", "plan": plan.model_dump()}
