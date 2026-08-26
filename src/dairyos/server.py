@@ -100,6 +100,15 @@ def resolve_configuration(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _run_production_startup_gates() -> None:
+    """Run the same safety gates used by the Windows desktop supervisor."""
+    from dairyos.api.auth import ensure_production_admin_password_configured
+    from dairyos.windows.migrations import migrate_if_needed
+
+    migrate_if_needed()
+    ensure_production_admin_password_configured()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configuration = resolve_configuration(args)
@@ -107,6 +116,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.print_config:
         print(json.dumps(configuration, indent=2))
         return 0
+
+    environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
+    if environment in {"production", "staging", "preprod"}:
+        try:
+            _run_production_startup_gates()
+        except Exception as exc:
+            print(f"DairyOS startup blocked: {exc}", file=sys.stderr)
+            return 1
 
     try:
         import uvicorn
@@ -118,9 +135,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.host not in ("127.0.0.1", "localhost", "::1"):
-        # Binding beyond loopback exposes the API to the farm network. Say so
-        # plainly: at present DairyOS has authentication but no roles, so
-        # anyone who can reach this port can write to it.
         print(
             f"DairyOS is binding to {args.host} and will be reachable from "
             f"other devices on this network.",
