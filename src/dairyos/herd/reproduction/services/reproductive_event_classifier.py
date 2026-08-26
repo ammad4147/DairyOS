@@ -1,37 +1,4 @@
-"""Canonical breeding-event classification (Phase 1 fix, 2026-08-14).
-
-Single source of truth for what a raw ``BreedingRecord.event_type`` means,
-so the three live endpoints that all read the same records —
-``api/farm_planning.py`` (per-animal current state), ``api/
-reproduction_management.py`` (record-level counts, 365-day window) and
-``api/dairy_kpi.py`` (record-level counts + interval KPIs, caller-specified
-window) — classify identically instead of each keeping its own ad hoc
-keyword list.
-
-The real, actually-used vocabulary is the operator UI's breeding entry form
-(``src/DairyOS.Web/src/App.tsx``'s ``entryConfigs.breeding`` field options):
-``heat_detected``, ``insemination``, ``pregnancy_diagnosis``,
-``pregnancy_confirmed``, ``pregnancy_negative``, ``dry_off``, ``calving``,
-``abortion``, ``stillbirth``, ``postpartum_observation``. (Note:
-``reference_data.py``'s ``GOVERNED["breeding_event_types"]`` is a separate,
-unused, uppercase list that nothing actually reads for breeding entry — it
-was reconciled to match this real vocabulary as part of the same fix, but
-the operator UI does not currently source its dropdown from reference-data.
-That's a smaller follow-up, not this fix.)
-
-Before this fix, ``dairy_kpi.py`` never recognized ``pregnancy_diagnosis``
-or ``pregnancy_confirmed`` as pregnancy-check events at all (it only matched
-``pregnancy_check``/``pregnancy-check``/``pregnancy``), so its
-``confirmed_pregnancies``/``conception_rate_percent`` silently undercounted
-relative to ``reproduction_management.py`` for identical underlying data —
-the concrete, provable divergence this closes.
-
-``abortion``, ``stillbirth`` and ``postpartum_observation`` are real UI
-options that none of the three endpoints classify today (they fall through
-uncounted). That is a pre-existing gap, not a disagreement between the
-three — left alone here to keep this fix scoped to reconciliation, not new
-classification behavior; flagged in project memory for follow-up.
-"""
+"""Canonical breeding-event classification for all DairyOS reproduction surfaces."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -41,7 +8,15 @@ NEGATIVE_RESULTS = {"negative", "no"}
 
 HEAT_DETECTION_EVENTS = {"heat_detection", "heat_detected", "heat", "oestrus", "estrus"}
 INSEMINATION_EVENTS = {"insemination", "service", "ai", "artificial_insemination"}
-PREGNANCY_CHECK_EVENTS = {"pregnancy_check", "pregnancy_diagnosis", "pregnancy", "pregnancy_negative"}
+# All operator pregnancy-outcome vocabulary is pregnancy-check evidence. A
+# bare pregnancy_confirmed event is authoritative without a result field.
+PREGNANCY_CHECK_EVENTS = {
+    "pregnancy_check",
+    "pregnancy_diagnosis",
+    "pregnancy",
+    "pregnancy_negative",
+    "pregnancy_confirmed",
+}
 CALVING_EVENTS = {"calving", "calved", "parturition"}
 DRY_OFF_EVENTS = {"dry_off"}
 
@@ -78,14 +53,6 @@ def is_pregnancy_check(record) -> bool:
 
 
 def is_negative_pregnancy_check(record) -> bool:
-    """A pregnancy check whose outcome is negative (open, not pregnant).
-
-    ``pregnancy_negative`` as an event type is unambiguous on its own
-    (that is the point of offering it as a distinct option) and does not
-    require a matching ``result`` value, symmetric with how a bare
-    ``pregnancy_confirmed`` event type is unambiguous in
-    :func:`is_confirmed_pregnancy`.
-    """
     if _event_type(record) == "pregnancy_negative":
         return True
     return is_pregnancy_check(record) and _result(record) in NEGATIVE_RESULTS
@@ -108,14 +75,7 @@ def is_dry_off(record) -> bool:
 
 
 def classify_animal_state(events) -> dict:
-    """Per-animal current reproductive state via a last-event-wins walk.
-
-    ``events`` is any iterable of objects exposing ``.event_type``,
-    ``.result`` and ``.timestamp`` (a ``BreedingRecord`` or equivalent).
-    Returns the fields ``api/farm_planning.py``'s ``/farm/animals/{id}/
-    reproduction`` endpoint has always returned — this function replaces
-    that endpoint's inline loop, it does not change its output shape.
-    """
+    """Per-animal current reproductive state via a last-event-wins walk."""
     ordered = sorted(events, key=lambda event: event.timestamp or _EPOCH_MIN)
 
     state = "UNKNOWN"
