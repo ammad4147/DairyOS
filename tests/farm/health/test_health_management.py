@@ -1,4 +1,4 @@
-﻿from dairyos.farm.health.models.health_record import (
+from dairyos.farm.health.models.health_record import (
     HealthRecord,
 )
 
@@ -11,44 +11,40 @@ from dairyos.farm.health.services.health_management_service import (
 )
 
 
-
 def test_health_attention_detection():
-
-
-    service = HealthManagementService(
-
-        HealthRepository()
-
-    )
-
+    service = HealthManagementService(HealthRepository())
 
     service.record_observation(
-
         HealthRecord(
-
             record_id="H001",
-
             animal_id="HF001",
-
             observation="mastitis signs",
-
             severity="high",
-
             recorded_by="worker",
-
         )
-
     )
 
-
-    attention = (
-        service.animals_needing_attention()
-    )
-
+    attention = service.animals_needing_attention()
 
     assert len(attention) == 1
+    assert attention[0].animal_id == "HF001"
 
-    assert (
-        attention[0].animal_id
-        == "HF001"
+
+def test_critical_health_observation_requires_attention():
+    service = HealthManagementService(HealthRepository())
+
+    service.record_observation(
+        HealthRecord(
+            record_id="H002",
+            animal_id="HF002",
+            observation="40.8 C fever",
+            severity="CRITICAL",
+            recorded_by="Dr Vet",
+        )
     )
+
+    attention = service.animals_needing_attention()
+
+    assert len(attention) == 1
+    assert attention[0].animal_id == "HF002"
+    assert attention[0].severity == "CRITICAL"
