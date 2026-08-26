@@ -79,6 +79,49 @@ class ReproductionKpiService:
         return outcomes
 
     @classmethod
+    def confirmed_pregnancy_count(
+        cls,
+        inseminations,
+        pregnancy_checks,
+        confirmation_events=(),
+    ) -> int:
+        """Count unique observed pregnancy confirmations.
+
+        A positive pregnancy diagnosis and a later ``pregnancy_confirmed``
+        event for the same service represent one conception. Standalone
+        ``pregnancy_confirmed`` evidence is still counted once when no service
+        can be associated with it. This keeps historical observation counts
+        useful without allowing repeated positive checks to inflate
+        conceptions.
+        """
+        ordered_services = [
+            record
+            for record in inseminations
+            if cls._as_utc(getattr(record, "timestamp", None)) is not None
+        ]
+        outcomes = cls.conception_outcomes(ordered_services, pregnancy_checks)
+        confirmed = sum(1 for value in outcomes.values() if value)
+        matched_service_ids = set(outcomes)
+
+        for event in confirmation_events:
+            if not is_confirmed_pregnancy(event):
+                continue
+            event_time = cls._as_utc(getattr(event, "timestamp", None))
+            if event_time is None:
+                continue
+            candidates = [
+                service
+                for service in ordered_services
+                if getattr(service, "animal_id", None) == getattr(event, "animal_id", None)
+                and cls._as_utc(getattr(service, "timestamp", None)) <= event_time
+            ]
+            if candidates and str(getattr(candidates[-1], "record_id", id(candidates[-1]))) in matched_service_ids:
+                continue
+            confirmed += 1
+
+        return confirmed
+
+    @classmethod
     def calculate_observed_conception_rate(cls, inseminations, pregnancy_checks) -> float | None:
         """Calculate conception rate from services with documented outcomes."""
         outcomes = cls.conception_outcomes(inseminations, pregnancy_checks)
