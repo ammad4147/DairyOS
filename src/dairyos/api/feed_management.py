@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -10,6 +9,7 @@ from pydantic import BaseModel, Field
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.core.time_utils import utcnow
 
 router = APIRouter(prefix="/farm/feed", tags=["feed-nutrition"])
@@ -110,39 +110,104 @@ def list_rations(animal_group: str | None = None):
         factory.close()
 
 
+def _inventory_balance(factory, item: str) -> float:
+    return round(
+        sum(
+            float(row.signed_quantity or 0.0)
+            for row in factory.inventory().get_all()
+            if str(row.item).strip() == item
+        ),
+        3,
+    )
+
+
+def _existing_feed_consumption(factory, feed_record_id: int):
+    for row in factory.inventory().get_all():
+        if (
+            str(getattr(row, "source_type", "") or "").upper() == "FEED_RECORD"
+            and str(getattr(row, "source_id", "") or "") == str(feed_record_id)
+        ):
+            return row
+    return None
+
+
 @router.post("/records")
 def record_feed(payload: FeedEntry):
     if not payload.animal_id and not payload.group_or_pen:
         raise HTTPException(status_code=400, detail="animal_id or group_or_pen is required")
-    if payload.animal_id:
-        factory = RepositoryFactory.create()
-        try:
-            if not factory.animal().exists(payload.animal_id):
-                raise HTTPException(status_code=422, detail="Unknown Animal ID")
-        finally:
-            factory.close()
+
     factory = RepositoryFactory.create()
     try:
+        if payload.animal_id and not factory.animal().exists(payload.animal_id):
+            raise HTTPException(status_code=422, detail="Unknown Animal ID")
+
         record = FeedRecord(
             animal_id=payload.animal_id,
             group_or_pen=payload.group_or_pen,
-            feed_type=payload.feed_type,
+            feed_type=payload.feed_type.strip(),
             quantity_kg=payload.quantity_kg,
             feeding_date=payload.feeding_date or utcnow(),
             notes=payload.notes,
             status="RECORDED",
         )
-        saved = factory.feed().add(record)
+
+        # Feed and stock consumption are one operational fact. Persist both
+        # through the same SQLAlchemy transaction so a successful feeding can
+        # never exist without its corresponding stock movement.
+        session = factory.session
+        session.add(record)
+        session.flush()
+
+        existing_consumption = _existing_feed_consumption(factory, record.id)
+        if existing_consumption is None:
+            transaction = InventoryTransaction(
+                item=record.feed_type,
+                movement_type="CONSUMPTION",
+                quantity=float(record.quantity_kg),
+                signed_quantity=-float(record.quantity_kg),
+                unit="kg",
+                notes=(
+                    f"Auto-deducted from feeding record #{record.id}. "
+                    f"{record.notes or ''}"
+                ).strip(),
+                recorded_by="FEED_API",
+                source_type="FEED_RECORD",
+                source_id=str(record.id),
+                recorded_at=record.feeding_date or utcnow(),
+            )
+            session.add(transaction)
+
+        # Do not reject feeding merely because the opening stock is missing;
+        # that would lose a real farm event. Instead the canonical inventory
+        # ledger records the consumption and can expose a negative balance as
+        # a stock-control exception.
+        session.commit()
+        session.refresh(record)
+
+        inventory_balance = _inventory_balance(factory, record.feed_type)
+
         return {
-            "id": saved.id,
-            "animal_id": saved.animal_id,
-            "group_or_pen": saved.group_or_pen,
-            "feed_type": saved.feed_type,
-            "quantity_kg": saved.quantity_kg,
-            "feeding_date": saved.feeding_date,
-            "status": saved.status,
+            "id": record.id,
+            "animal_id": record.animal_id,
+            "group_or_pen": record.group_or_pen,
+            "feed_type": record.feed_type,
+            "quantity_kg": record.quantity_kg,
+            "feeding_date": record.feeding_date,
+            "status": record.status,
+            "inventory_balance_kg": inventory_balance,
+            "inventory_status": (
+                "NEGATIVE_STOCK_EXCEPTION"
+                if inventory_balance < 0
+                else "BALANCED"
+            ),
             "data_status": "LIVE_PERSISTED_DATA",
         }
+    except HTTPException:
+        factory.rollback()
+        raise
+    except Exception:
+        factory.rollback()
+        raise
     finally:
         factory.close()
 
