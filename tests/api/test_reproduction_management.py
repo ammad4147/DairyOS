@@ -61,7 +61,9 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
     assert body["heat_detections"] == 1
     assert body["inseminations"] == 1
     assert body["pregnancy_checks"] == 1
-    assert body["confirmed_pregnancies"] == 2
+    # pregnancy_diagnosis + pregnancy_confirmed are two positive observations
+    # of the same conception. They must not be double-counted as conceptions.
+    assert body["confirmed_pregnancies"] == 1
     assert body["calvings"] == 1
     assert body["conception_rate_percent"] == 100.0
 
