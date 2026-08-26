@@ -81,7 +81,7 @@ jobs:
           test -s dist/os/qemu-uefi.log
           grep -Eiq 'DairyOS|GNU GRUB|Linux|Debian' dist/os/qemu-uefi.log
       - name: Attest ISO artifact
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/os/dairyos-trixie-amd64.iso
       - name: Package build evidence
