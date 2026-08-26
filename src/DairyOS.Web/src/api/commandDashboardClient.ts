@@ -66,15 +66,15 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
 export async function fetchCommandDashboardData(): Promise<CommandDashboardData> {
   const base = API_BASE_URL || "http://127.0.0.1:8000";
 
+  const res = await fetch(`${base}/dashboard`, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Dashboard request failed with HTTP ${res.status}`);
+  }
+
   try {
-    const res = await fetch(`${base}/dashboard`, {
-      headers: { Accept: "application/json" },
-    });
-
-    if (!res.ok) {
-      return EMPTY_DASHBOARD();
-    }
-
     const raw = await res.json();
 
     if (
@@ -173,10 +173,7 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
       },
     };
   } catch (err) {
-    console.warn(
-      "Backend API request failed; serving an explicit empty dashboard state.",
-      err,
-    );
-    return EMPTY_DASHBOARD();
+    console.warn("Backend API response could not be parsed.", err);
+    throw err;
   }
 }
