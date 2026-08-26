@@ -7,7 +7,7 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.core.time_utils import utcnow
@@ -62,8 +62,6 @@ def _breeding_record_to_resolver_event(record):
         elif result in negative_results:
             event_type = "PREGNANCY_NEGATIVE"
         else:
-            # A diagnosis without an explicit outcome is a historical fact,
-            # but it is not evidence of pregnancy. Do not guess.
             return None
     elif raw_type == "pregnancy_confirmed":
         event_type = "PREGNANCY_CONFIRMED"
@@ -88,13 +86,7 @@ def _breeding_record_to_resolver_event(record):
 
 
 def _resolve_current_reproductive_state(animal_id, records):
-    """Resolve current state from persisted breeding records only.
-
-    In particular, this function never inserts an implicit AI/service record
-    when the farm has not recorded one. A missing breeding fact stays missing
-    and the resolver will reject a pregnancy confirmation that cannot be
-    chronologically anchored to an actual service.
-    """
+    """Resolve current state from persisted breeding records only."""
     ordered = sorted(
         records,
         key=lambda record: (
@@ -102,7 +94,6 @@ def _resolve_current_reproductive_state(animal_id, records):
             or datetime.min.replace(tzinfo=timezone.utc)
         ),
     )
-
     events = []
     for record in ordered:
         event = _breeding_record_to_resolver_event(record)
@@ -235,6 +226,7 @@ def save_ration(plan: RationPlan):
         payload = dict(model.state_payload or {})
         plans = [p for p in payload.get("ration_plans", []) if p.get("plan_id") != plan.plan_id]
         plans.append(plan.model_dump())
+        payload["ration_plans"] = plans
         model.state_payload = payload
         factory.session.commit()
         return {"data_status": "PERSISTED", "plan": plan.model_dump()}
