@@ -30,6 +30,7 @@ _bearer = HTTPBearer(auto_error=False)
 _PBKDF2_ITERATIONS = 200_000
 _LEGACY_ADMIN_PASSWORD_HASH_KEY = "legacy_admin_password_hash"
 _LEGACY_ADMIN_PASSWORD_SALT_KEY = "legacy_admin_password_salt"
+_DEFAULT_ADMIN_PASSWORD = "dairyos"
 
 
 class LoginRequest(BaseModel):
@@ -48,7 +49,7 @@ def _configured_username() -> str:
 
 
 def _configured_password() -> str:
-    return os.getenv("DAIRYOS_ADMIN_PASSWORD", "dairyos")
+    return os.getenv("DAIRYOS_ADMIN_PASSWORD", _DEFAULT_ADMIN_PASSWORD)
 
 
 def _configured_role() -> str:
@@ -129,6 +130,46 @@ def _legacy_admin_password_override() -> tuple[str, str] | None:
         return None
     finally:
         factory.close()
+
+
+def bootstrap_production_admin_password(password: str) -> None:
+    """Persist a non-default bootstrap password for a production install."""
+    if not password or len(password) < 12:
+        raise ValueError("The DairyOS production admin password must be at least 12 characters long.")
+    if hmac.compare_digest(password, _DEFAULT_ADMIN_PASSWORD):
+        raise ValueError("The DairyOS production admin password may not use the development default.")
+
+    factory = RepositoryFactory.create()
+    try:
+        password_hash, salt = _hash_password(password)
+        settings = factory.app_settings()
+        settings.set(_LEGACY_ADMIN_PASSWORD_HASH_KEY, password_hash, updated_by="installer")
+        settings.set(_LEGACY_ADMIN_PASSWORD_SALT_KEY, salt, updated_by="installer")
+    finally:
+        factory.close()
+
+
+def ensure_production_admin_password_configured() -> None:
+    """Refuse production startup while the bootstrap password is unsafe."""
+    env = os.getenv("DAIRYOS_ENV", "development").strip().lower()
+    if env not in {"production", "staging", "preprod"}:
+        return
+
+    configured = os.getenv("DAIRYOS_ADMIN_PASSWORD")
+    if configured and not hmac.compare_digest(configured, _DEFAULT_ADMIN_PASSWORD):
+        return
+
+    try:
+        if _legacy_admin_password_override() is not None:
+            return
+    except Exception as exc:
+        raise RuntimeError("DairyOS could not verify the persisted production admin password override.") from exc
+
+    raise RuntimeError(
+        "DairyOS production startup requires DAIRYOS_ADMIN_PASSWORD to be explicitly "
+        "configured to a non-default value, or the bootstrap admin password must "
+        "already have been changed through the application."
+    )
 
 
 def _verify_legacy_admin_password(password: str) -> bool:
@@ -257,7 +298,7 @@ def change_my_password(payload: dict[str, str] = Body(...), current_user: dict[s
             user.password_salt = salt
             factory.session.add(user)
             factory.session.commit()
-            return {"username": user.username, "password_changed": True, "account_type": "persisted"}
+            return {"username": username, "password_changed": True, "account_type": "persisted"}
 
         if username != _configured_username():
             raise HTTPException(status_code=404, detail="Persisted user account not found")
