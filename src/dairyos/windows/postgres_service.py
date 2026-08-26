@@ -51,7 +51,7 @@ def list_postgresql_services() -> list[str]:
     for line in result.stdout.splitlines():
         match = _SERVICE_NAME_RE.match(line)
         if match and match.group(1).lower().startswith("postgresql"):
-            names.append(match.group(1))
+            names.append(match.group(1).casefold())
 
     return sorted(names, key=_service_sort_key)
 
