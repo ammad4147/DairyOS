@@ -9,12 +9,12 @@ from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving as _is_calving,
-    is_confirmed_pregnancy as _is_confirmed_pregnancy,
     is_heat_detection as _is_heat_detection,
     is_insemination as _is_insemination,
     is_pregnancy_check as _is_pregnancy_check,
     normalize_event_type,
 )
+from dairyos.herd.reproduction.services.reproduction_kpi_service import ReproductionKpiService
 
 router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"])
 
@@ -50,44 +50,16 @@ def _event_type(record) -> str:
 
 
 def _conception_outcomes(inseminations, pregnancy_checks):
-    """Map each service to its latest documented pregnancy diagnosis.
-
-    A service is counted in conception-rate denominators only when a diagnosis
-    exists after that service. Multiple pregnancy checks for the same service
-    do not create multiple pregnancies.
-    """
-    ordered_inseminations = sorted(
-        inseminations,
-        key=lambda record: _as_utc(record.timestamp),
-    )
-    ordered_checks = sorted(
-        pregnancy_checks,
-        key=lambda record: _as_utc(record.timestamp),
-    )
-
-    outcomes: dict[str, bool] = {}
-    for check in ordered_checks:
-        if check.timestamp is None:
-            continue
-        candidates = [
-            record
-            for record in ordered_inseminations
-            if record.timestamp is not None
-            and record.animal_id == check.animal_id
-            and _as_utc(record.timestamp) <= _as_utc(check.timestamp)
-        ]
-        if not candidates:
-            continue
-        matched = candidates[-1]
-        outcomes[str(matched.record_id)] = _is_confirmed_pregnancy(check)
-    return outcomes
+    """Compatibility wrapper around the authoritative KPI service."""
+    return ReproductionKpiService.conception_outcomes(inseminations, pregnancy_checks)
 
 
 def _conception_rate(inseminations, pregnancy_checks):
-    outcomes = _conception_outcomes(inseminations, pregnancy_checks)
-    if not outcomes:
-        return None
-    return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
+    """Calculate observed conception rate using the canonical service mapping."""
+    return ReproductionKpiService.calculate_observed_conception_rate(
+        inseminations,
+        pregnancy_checks,
+    )
 
 
 def _management(records):
@@ -127,9 +99,7 @@ def _management(records):
         "confirmed_pregnancies": confirmed,
         "calvings": len(calvings),
         "heat_detections": len(heat_events),
-        "conception_rate_percent": (
-            round((confirmed / len(outcomes)) * 100, 2) if outcomes else None
-        ),
+        "conception_rate_percent": _conception_rate(inseminations, pregnancy_checks),
         "data_status": "NO_DATA" if not recent else "LIVE_PERSISTED_DATA",
         "records": [_serialize(r) for r in recent],
     }
