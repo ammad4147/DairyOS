@@ -16,7 +16,6 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.database.migrations import (
     migrate_finance_feed_opex,
     migrate_feed_inventory,
-    migrate_feed_record_costs,
     migrate_milk_quality,
     migrate_coml,
     migrate_operational_finding_audit,
@@ -40,7 +39,6 @@ email_scheduler = NightlyEmailScheduler(container=container)
 async def lifespan(_app: FastAPI):
     migrated = migrate_finance_feed_opex()
     inventory_migrated = migrate_feed_inventory()
-    feed_cost_migrated = migrate_feed_record_costs()
     quality_migrated = migrate_milk_quality()
     coml_migrated = migrate_coml()
     finding_audit_migrated = migrate_operational_finding_audit()
@@ -48,8 +46,6 @@ async def lifespan(_app: FastAPI):
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
         logging.info("Feed inventory migration created/updated: %s", ", ".join(inventory_migrated))
-    if feed_cost_migrated:
-        logging.info("Feed record cost migration added columns: %s", ", ".join(feed_cost_migrated))
     if quality_migrated:
         logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
     if coml_migrated:
@@ -75,6 +71,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"] ,
+)
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
@@ -98,9 +95,7 @@ def _rewrite_legacy_route(request: Request) -> None:
         request.scope["path"] = LEGACY_ROUTE_ALIASES[path]
         request.scope["raw_path"] = request.scope["path"].encode("utf-8")
         return
-    for legacy_prefix, canonical_prefix in (
-        ("/users/", "/auth/users/"),
-    ):
+    for legacy_prefix, canonical_prefix in (("/users/", "/auth/users/"),):
         if path.startswith(legacy_prefix):
             request.scope["path"] = canonical_prefix + path[len(legacy_prefix):]
             request.scope["raw_path"] = request.scope["path"].encode("utf-8")
@@ -244,20 +239,10 @@ FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 
 @app.get("/", include_in_schema=False)
 def root(request: Request):
-    """Serve React to browsers while retaining a deterministic JSON API root.
-
-    API clients and TestClient use the metadata response. A normal browser or
-    WebView2 requests HTML and receives the production React entrypoint.
-    """
     frontend = frontend_index_response()
     accept = request.headers.get("accept", "")
     if frontend is not None and "text/html" in accept.lower():
         return frontend
     return JSONResponse({"system": "DairyOS", "surface": "api", "operator_ui": {"application": "DairyOS.Web", "technology": "React/Vite", "url": FRONTEND_URL, "authoritative": True}, "legacy_static_ui": {"served": False, "reason": "React/Vite operator shell is authoritative; FastAPI exposes the API/runtime surface."}})
 
-
-# Production desktop/runtime mode: serve the compiled React application from
-# the same FastAPI process. This is deliberately mounted only after all API
-# routers so API paths remain authoritative and the React shell handles
-# browser-side routes/fallbacks.
 mount_frontend(app)
