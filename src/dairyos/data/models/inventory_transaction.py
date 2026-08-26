@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index
 from datetime import datetime
 
 from ..database.base import Base
@@ -6,32 +6,11 @@ from dairyos.core.time_utils import utcnow
 
 
 class InventoryTransaction(Base):
-    """One row per stock movement -- the canonical ledger (G8.1, 2026-08-14).
+    """One row per stock movement -- the canonical inventory ledger.
 
-    Before this model existed, `POST /farm/inventory` was event-journal-only:
-    no queryable stock model, no balance, nothing an operator could ask
-    "how much feed do we have left" against. Decision (build-spec Session 8,
-    reconfirmed via AskUserQuestion 2026-08-14): stock is derived by summing
-    signed movements, never stored as a separately-maintained running total
-    that could drift from its own history.
-
-    Direction of each of the six real movement types the operator UI offers
-    (PURCHASE/RECEIPT/CONSUMPTION/TRANSFER/WASTAGE/ADJUSTMENT):
-
-    - PURCHASE, RECEIPT: always increase stock. `quantity` must be entered
-      positive; `signed_quantity` is `+quantity`.
-    - CONSUMPTION, WASTAGE: always decrease stock. `quantity` must be
-      entered positive; `signed_quantity` is `-quantity`.
-    - TRANSFER, ADJUSTMENT: direction isn't implied by the type name alone
-      (a transfer can be inbound or outbound; an adjustment can correct
-      stock up or down), so the operator enters a signed `quantity`
-      directly and `signed_quantity` equals it unchanged.
-
-    `quantity` is kept as exactly what was submitted (audit fidelity -- what
-    did the operator actually type); `signed_quantity` is the value balance
-    queries sum, so a balance calculation never has to re-derive sign from
-    movement_type and risk disagreeing with what validation already
-    enforced at write time.
+    Every operational movement is preserved with its signed quantity. Source
+    metadata makes automated consumption idempotent and auditable without
+    changing the operator-facing inventory model.
     """
 
     __tablename__ = "inventory_transactions"
@@ -91,4 +70,27 @@ class InventoryTransaction(Base):
         DateTime,
         default=utcnow,
         nullable=False,
+    )
+
+    # Idempotency/audit linkage for automated movements. Nullable so all
+    # historical/manual inventory rows remain valid and unchanged.
+    source_type = Column(
+        String,
+        nullable=True,
+        index=True,
+    )
+
+    source_id = Column(
+        String,
+        nullable=True,
+        index=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_inventory_transaction_source",
+            "source_type",
+            "source_id",
+            unique=True,
+        ),
     )
