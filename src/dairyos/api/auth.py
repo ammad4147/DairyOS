@@ -24,6 +24,7 @@ _bearer = HTTPBearer(auto_error=False)
 _PBKDF2_ITERATIONS = 200_000
 _LEGACY_ADMIN_PASSWORD_HASH_KEY = "legacy_admin_password_hash"
 _LEGACY_ADMIN_PASSWORD_SALT_KEY = "legacy_admin_password_salt"
+_DEFAULT_ADMIN_PASSWORD = "dairyos"
 
 
 class LoginRequest(BaseModel):
@@ -42,7 +43,7 @@ def _configured_username() -> str:
 
 
 def _configured_password() -> str:
-    return os.getenv("DAIRYOS_ADMIN_PASSWORD", "dairyos")
+    return os.getenv("DAIRYOS_ADMIN_PASSWORD", _DEFAULT_ADMIN_PASSWORD)
 
 
 def _configured_role() -> str:
@@ -123,6 +124,37 @@ def _legacy_admin_password_override() -> tuple[str, str] | None:
         return None
     finally:
         factory.close()
+
+
+def ensure_production_admin_password_configured() -> None:
+    """Refuse production startup while the bootstrap password is unsafe.
+
+    An explicit non-default environment password is accepted. Once the legacy
+    admin has changed its password through ``/me/password``, the persisted
+    password override is also accepted so an installer does not need to keep
+    the password in the machine environment forever.
+    """
+    env = os.getenv("DAIRYOS_ENV", "development").strip().lower()
+    if env not in {"production", "staging", "preprod"}:
+        return
+
+    configured = os.getenv("DAIRYOS_ADMIN_PASSWORD")
+    if configured and not hmac.compare_digest(configured, _DEFAULT_ADMIN_PASSWORD):
+        return
+
+    try:
+        if _legacy_admin_password_override() is not None:
+            return
+    except Exception as exc:
+        raise RuntimeError(
+            "DairyOS could not verify the persisted production admin password override."
+        ) from exc
+
+    raise RuntimeError(
+        "DairyOS production startup requires DAIRYOS_ADMIN_PASSWORD to be explicitly "
+        "configured to a non-default value, or the bootstrap admin password must "
+        "already have been changed through the application."
+    )
 
 
 def _verify_legacy_admin_password(password: str) -> bool:
