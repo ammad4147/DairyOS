@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -18,9 +18,7 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
 
 @dataclass(frozen=True)
 class ReproductivePolicy:
-    """
-    Farm-configurable reproductive calculation policy.
-    """
+    """Farm-configurable reproductive calculation policy."""
 
     voluntary_waiting_period_days: int
     gestation_days: int
@@ -28,43 +26,28 @@ class ReproductivePolicy:
 
     def __post_init__(self) -> None:
         if self.voluntary_waiting_period_days < 0:
-            raise ValueError(
-                "voluntary_waiting_period_days must be non-negative"
-            )
-
+            raise ValueError("voluntary_waiting_period_days must be non-negative")
         if self.gestation_days <= 0:
-            raise ValueError(
-                "gestation_days must be greater than zero"
-            )
-
+            raise ValueError("gestation_days must be greater than zero")
         if self.dry_off_days_before_calving < 0:
-            raise ValueError(
-                "dry_off_days_before_calving must be non-negative"
-            )
+            raise ValueError("dry_off_days_before_calving must be non-negative")
 
 
 @dataclass(frozen=True)
 class ReproductiveState:
     animal_id: str
     as_of_date: date
-
     reproductive_status: str
-
     last_calving_date: date | None
     lactation_number: int
-
     days_in_milk: int | None
-
     voluntary_waiting_period_end: date | None
     eligible_to_breed: bool
-
     last_heat_date: date | None
     last_insemination_date: date | None
-
     pregnancy_status: str
     pregnancy_confirmed_date: date | None
     expected_calving_date: date | None
-
     days_open: int | None
     expected_dry_off_date: date | None
     dry_period_status: str
@@ -75,28 +58,11 @@ class ReproductiveStateError(ValueError):
 
 
 class ReproductiveStateService:
-    """
-    Deterministic reproductive/lactation state resolver.
+    """Resolve current reproductive state exclusively from persisted farm facts.
 
-    Authoritative input is the persisted operational breeding stream.
-
-    The service accepts either:
-      - farm.operations BreedingRecord objects, or
-      - mapping-style event dictionaries.
-
-    Internally both are normalized to:
-
-        animal_id
-        event_type
-        result
-        technician
-        event_date
-        expected_calving_date
-        confirmed
-
-    Reproductive calculations are cycle-aware: events before the latest
-    calving belong to a completed reproductive cycle and do not drive the
-    current-cycle breeding or pregnancy state.
+    No benchmark, default pregnancy, implicit service, or projected status is
+    allowed to become an operational fact. Projections such as expected
+    calving are emitted only after a persisted pregnancy confirmation exists.
     """
 
     def __init__(self, policy: ReproductivePolicy):
@@ -106,109 +72,55 @@ class ReproductiveStateService:
     def _value(event: Mapping[str, Any] | Any, key: str, default=None):
         if isinstance(event, Mapping):
             return event.get(key, default)
-
         return getattr(event, key, default)
 
     @classmethod
     def _as_date(cls, value: Any) -> date:
         if isinstance(value, date) and not isinstance(value, datetime):
             return value
-
         if isinstance(value, datetime):
             return value.date()
-
         if hasattr(value, "date"):
             converted = value.date()
             if isinstance(converted, date):
                 return converted
-
         if isinstance(value, str):
             return date.fromisoformat(value[:10])
-
-        raise ValueError(
-            f"Unsupported date value: {value!r}"
-        )
+        raise ValueError(f"Unsupported date value: {value!r}")
 
     @classmethod
-    def _normalize_event(
-        cls,
-        event: Mapping[str, Any] | Any,
-    ) -> dict[str, Any]:
-        animal_id = str(
-            cls._value(event, "animal_id", "")
-        ).strip()
-
+    def _normalize_event(cls, event: Mapping[str, Any] | Any) -> dict[str, Any]:
+        animal_id = str(cls._value(event, "animal_id", "")).strip()
         if not animal_id:
-            raise ReproductiveStateError(
-                "Reproductive event requires animal_id"
-            )
+            raise ReproductiveStateError("Reproductive event requires animal_id")
 
-        raw_event_type = cls._value(
-            event,
-            "event_type",
-            "",
-        )
-
-        event_type = normalize_event_type(raw_event_type)
-
+        event_type = normalize_event_type(cls._value(event, "event_type", ""))
         if not event_type:
-            raise ReproductiveStateError(
-                "Reproductive event requires event_type"
-            )
+            raise ReproductiveStateError("Reproductive event requires event_type")
 
-        raw_event_date = cls._value(
-            event,
-            "event_date",
-            None,
-        )
-
+        raw_event_date = cls._value(event, "event_date", None)
         if raw_event_date is None:
-            raw_event_date = cls._value(
-                event,
-                "timestamp",
-                None,
-            )
-
+            raw_event_date = cls._value(event, "timestamp", None)
         if raw_event_date is None:
             raise ReproductiveStateError(
                 "Reproductive event requires event_date or timestamp"
             )
-
-        event_date = cls._as_date(raw_event_date)
 
         return {
             "animal_id": animal_id,
             "event_type": event_type,
             "result": cls._value(event, "result", None),
             "technician": cls._value(event, "technician", None),
-            "event_date": event_date,
-            "expected_calving_date": cls._value(
-                event,
-                "expected_calving_date",
-                None,
-            ),
-            "confirmed": cls._value(
-                event,
-                "confirmed",
-                None,
-            ),
+            "event_date": cls._as_date(raw_event_date),
+            "expected_calving_date": cls._value(event, "expected_calving_date", None),
+            "confirmed": cls._value(event, "confirmed", None),
         }
 
     @staticmethod
-    def _classifier_record(
-        event: Mapping[str, Any],
-    ) -> SimpleNamespace:
-        """
-        Adapt the normalized mapping to the canonical classifier's
-        attribute-based record contract.
-        """
-
+    def _classifier_record(event: Mapping[str, Any]) -> SimpleNamespace:
         timestamp = datetime.combine(
-            event["event_date"],
-            datetime.min.time(),
-            tzinfo=timezone.utc,
+            event["event_date"], datetime.min.time(), tzinfo=timezone.utc
         )
-
         return SimpleNamespace(
             animal_id=event["animal_id"],
             event_type=event["event_type"],
@@ -224,80 +136,39 @@ class ReproductiveStateService:
         as_of_date: date,
     ) -> list[dict[str, Any]]:
         normalized: list[dict[str, Any]] = []
-
         for raw_event in events:
             event = self._normalize_event(raw_event)
-
             if event["animal_id"] != animal_id:
                 continue
-
             if event["event_date"] > as_of_date:
                 continue
-
             normalized.append(event)
-
-        normalized.sort(
-            key=lambda event: event["event_date"]
-        )
-
+        normalized.sort(key=lambda event: event["event_date"])
         return normalized
 
     @staticmethod
-    def _latest(
-        events: Iterable[Mapping[str, Any]],
-        predicate,
-    ) -> Mapping[str, Any] | None:
+    def _latest(events: Iterable[Mapping[str, Any]], predicate):
         matches = [
             event
             for event in events
-            if predicate(
-                ReproductiveStateService._classifier_record(event)
-            )
+            if predicate(ReproductiveStateService._classifier_record(event))
         ]
-
         return matches[-1] if matches else None
 
     @staticmethod
-    def _latest_raw(
-        events: Iterable[Mapping[str, Any]],
-        event_types: set[str],
-    ) -> Mapping[str, Any] | None:
-        matches = [
-            event
-            for event in events
-            if normalize_event_type(event["event_type"])
-            in event_types
-        ]
-
-        return matches[-1] if matches else None
+    def _is_positive_pregnancy_event(event: Mapping[str, Any]) -> bool:
+        return is_confirmed_pregnancy(ReproductiveStateService._classifier_record(event))
 
     @staticmethod
-    def _is_positive_pregnancy_event(
-        event: Mapping[str, Any],
-    ) -> bool:
-        return is_confirmed_pregnancy(
-            ReproductiveStateService._classifier_record(event)
-        )
+    def _is_negative_pregnancy_event(event: Mapping[str, Any]) -> bool:
+        return is_negative_pregnancy_check(ReproductiveStateService._classifier_record(event))
 
-    @staticmethod
-    def _is_negative_pregnancy_event(
-        event: Mapping[str, Any],
-    ) -> bool:
-        return is_negative_pregnancy_check(
-            ReproductiveStateService._classifier_record(event)
-        )
-
-    def _validate_sequence(
-        self,
-        events: list[dict[str, Any]],
-    ) -> None:
+    def _validate_sequence(self, events: list[dict[str, Any]]) -> None:
         pregnant = False
         last_insemination: date | None = None
 
         for event in events:
-            event_type = normalize_event_type(
-                event["event_type"]
-            )
+            event_type = normalize_event_type(event["event_type"])
             event_date = event["event_date"]
             classifier_record = self._classifier_record(event)
 
@@ -307,22 +178,22 @@ class ReproductiveStateService:
                 continue
 
             if is_insemination(classifier_record):
+                if pregnant:
+                    raise ReproductiveStateError(
+                        "INSEMINATION cannot occur while pregnancy is operationally active"
+                    )
                 last_insemination = event_date
-                pregnant = False
                 continue
 
             if self._is_positive_pregnancy_event(event):
                 if last_insemination is None:
                     raise ReproductiveStateError(
-                        "PREGNANCY_CONFIRMED requires a prior "
-                        "INSEMINATION event"
+                        "PREGNANCY_CONFIRMED requires a prior INSEMINATION event"
                     )
-
                 if event_date < last_insemination:
                     raise ReproductiveStateError(
                         "Pregnancy confirmation cannot precede insemination"
                     )
-
                 pregnant = True
                 continue
 
@@ -331,7 +202,6 @@ class ReproductiveStateService:
                     raise ReproductiveStateError(
                         "PREGNANCY_LOST requires an active pregnancy"
                     )
-
                 pregnant = False
                 continue
 
@@ -340,7 +210,6 @@ class ReproductiveStateService:
                     raise ReproductiveStateError(
                         f"{event_type.upper()} requires an active pregnancy"
                     )
-
                 pregnant = False
                 continue
 
@@ -351,53 +220,33 @@ class ReproductiveStateService:
             if is_heat_detection(classifier_record):
                 if pregnant:
                     raise ReproductiveStateError(
-                        "HEAT_DETECTED cannot occur while pregnancy "
-                        "is operationally active"
+                        "HEAT_DETECTED cannot occur while pregnancy is operationally active"
                     )
-
                 continue
 
             if is_dry_off(classifier_record):
                 if not any(
-                    is_calving(
-                        self._classifier_record(previous)
-                    )
+                    is_calving(self._classifier_record(previous))
                     and previous["event_date"] <= event_date
                     for previous in events
                 ):
-                    raise ReproductiveStateError(
-                        "DRY_OFF requires a prior CALVING event"
-                    )
+                    raise ReproductiveStateError("DRY_OFF requires a prior CALVING event")
 
     @staticmethod
-    def _current_cycle(
-        events: list[dict[str, Any]],
-    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    def _current_cycle(events: list[dict[str, Any]]):
         calvings = [
             event
             for event in events
-            if is_calving(
-                ReproductiveStateService._classifier_record(event)
-            )
+            if is_calving(ReproductiveStateService._classifier_record(event))
         ]
-
-        last_calving = (
-            calvings[-1]
-            if calvings
-            else None
-        )
-
+        last_calving = calvings[-1] if calvings else None
         if last_calving is None:
             return events, None
-
-        current_cycle = [
+        return [
             event
             for event in events
-            if event["event_date"]
-            > last_calving["event_date"]
-        ]
-
-        return current_cycle, last_calving
+            if event["event_date"] > last_calving["event_date"]
+        ], last_calving
 
     def resolve(
         self,
@@ -407,168 +256,123 @@ class ReproductiveStateService:
         as_of_date: date,
     ) -> ReproductiveState:
         as_of_date = self._as_date(as_of_date)
-
-        animal_events = self._events_for_animal(
-            events,
-            animal_id,
-            as_of_date,
-        )
-
+        animal_events = self._events_for_animal(events, animal_id, as_of_date)
         self._validate_sequence(animal_events)
-
-        current_events, last_calving_event = self._current_cycle(
-            animal_events
-        )
+        current_events, last_calving_event = self._current_cycle(animal_events)
 
         last_calving_date = (
-            last_calving_event["event_date"]
-            if last_calving_event
-            else None
+            last_calving_event["event_date"] if last_calving_event else None
         )
-
         lactation_number = sum(
             1
             for event in animal_events
-            if is_calving(
-                self._classifier_record(event)
-            )
+            if is_calving(self._classifier_record(event))
         )
-
         days_in_milk = (
             (as_of_date - last_calving_date).days
             if last_calving_date is not None
             else None
         )
-
         vwp_end = (
-            last_calving_date
-            + timedelta(
-                days=self.policy.voluntary_waiting_period_days
-            )
+            last_calving_date + timedelta(days=self.policy.voluntary_waiting_period_days)
             if last_calving_date is not None
             else None
         )
 
-        last_heat = self._latest(
-            current_events,
-            is_heat_detection,
-        )
-
-        last_heat_date = (
-            last_heat["event_date"]
-            if last_heat
-            else None
-        )
+        last_heat = self._latest(current_events, is_heat_detection)
+        last_heat_date = last_heat["event_date"] if last_heat else None
 
         inseminations = [
             event
             for event in current_events
-            if is_insemination(
-                self._classifier_record(event)
-            )
+            if is_insemination(self._classifier_record(event))
         ]
-
-        last_insemination = (
-            inseminations[-1]
-            if inseminations
-            else None
-        )
-
+        last_insemination = inseminations[-1] if inseminations else None
         last_insemination_date = (
-            last_insemination["event_date"]
-            if last_insemination
-            else None
+            last_insemination["event_date"] if last_insemination else None
         )
 
         pregnancy_status = "NOT_PREGNANT"
         latest_pregnancy: dict[str, Any] | None = None
+        latest_state_event: dict[str, Any] | None = None
 
         for event in current_events:
-            if self._is_positive_pregnancy_event(event):
+            classifier_record = self._classifier_record(event)
+            event_type = normalize_event_type(event["event_type"])
+            if is_heat_detection(classifier_record):
+                latest_state_event = event
+            elif is_insemination(classifier_record):
+                latest_state_event = event
+            elif self._is_positive_pregnancy_event(event):
                 pregnancy_status = "PREGNANT"
                 latest_pregnancy = event
-
+                latest_state_event = event
             elif self._is_negative_pregnancy_event(event):
                 pregnancy_status = "NOT_PREGNANT"
                 latest_pregnancy = None
-
-            elif normalize_event_type(
-                event["event_type"]
-            ) in {
-                "pregnancy_lost",
-                "abortion",
-                "stillbirth",
-                "calving",
-            }:
+                latest_state_event = event
+            elif event_type in {"pregnancy_lost", "abortion", "stillbirth"}:
                 pregnancy_status = "NOT_PREGNANT"
                 latest_pregnancy = None
+                latest_state_event = event
+            elif is_dry_off(classifier_record):
+                latest_state_event = event
+            elif is_calving(classifier_record):
+                pregnancy_status = "NOT_PREGNANT"
+                latest_pregnancy = None
+                latest_state_event = event
 
         pregnancy_confirmed_date = (
             latest_pregnancy["event_date"]
-            if pregnancy_status == "PREGNANT"
-            and latest_pregnancy is not None
+            if pregnancy_status == "PREGNANT" and latest_pregnancy is not None
             else None
         )
 
         expected_calving_date: date | None = None
-
-        if (
-            pregnancy_status == "PREGNANT"
-            and latest_pregnancy is not None
-        ):
-            configured = latest_pregnancy.get(
-                "expected_calving_date"
-            )
-
+        if pregnancy_status == "PREGNANT" and latest_pregnancy is not None:
+            configured = latest_pregnancy.get("expected_calving_date")
             if configured:
-                expected_calving_date = self._as_date(
-                    configured
-                )
+                expected_calving_date = self._as_date(configured)
             elif last_insemination_date is not None:
-                expected_calving_date = (
-                    last_insemination_date
-                    + timedelta(
-                        days=self.policy.gestation_days
-                    )
+                expected_calving_date = last_insemination_date + timedelta(
+                    days=self.policy.gestation_days
                 )
 
-        if last_calving_date is None:
-            days_open = None
-        elif last_insemination_date is not None:
-            days_open = (
-                last_insemination_date
-                - last_calving_date
-            ).days
-        else:
-            days_open = (
-                as_of_date
-                - last_calving_date
-            ).days
+        # Days open is a completed fertility outcome: calving -> successful
+        # conception. An open cow has no valid days-open result yet. Returning
+        # elapsed DIM as "days open" falsely converts an unconfirmed future
+        # event into an observed conception date.
+        days_open = None
+        if pregnancy_status == "PREGNANT" and last_calving_date is not None:
+            successful_service = last_insemination_date
+            if successful_service is not None:
+                days_open = (successful_service - last_calving_date).days
 
         expected_dry_off_date = (
-            expected_calving_date
-            - timedelta(
-                days=self.policy.dry_off_days_before_calving
-            )
+            expected_calving_date - timedelta(days=self.policy.dry_off_days_before_calving)
             if expected_calving_date is not None
             else None
         )
-
         dry_period_status = "NOT_PLANNED"
-
         if expected_dry_off_date is not None:
-            dry_period_status = (
-                "DUE_OR_ACTIVE"
-                if as_of_date >= expected_dry_off_date
-                else "NOT_DUE"
-            )
+            dry_period_status = "DUE_OR_ACTIVE" if as_of_date >= expected_dry_off_date else "NOT_DUE"
 
         if pregnancy_status == "PREGNANT":
             reproductive_status = "PREGNANT"
-        elif last_insemination_date is not None:
-            reproductive_status = "BRED"
-        elif last_heat_date is not None:
-            reproductive_status = "HEAT_DETECTED"
+        elif latest_state_event is not None:
+            latest_type = normalize_event_type(latest_state_event["event_type"])
+            if latest_type in {"pregnancy_negative", "pregnancy_lost", "abortion", "stillbirth"}:
+                reproductive_status = "OPEN"
+            elif is_insemination(self._classifier_record(latest_state_event)):
+                reproductive_status = "BRED"
+            elif is_heat_detection(self._classifier_record(latest_state_event)):
+                reproductive_status = "HEAT_DETECTED"
+            elif is_dry_off(self._classifier_record(latest_state_event)):
+                reproductive_status = "DRY_OFF"
+            elif is_calving(self._classifier_record(latest_state_event)):
+                reproductive_status = "LACTATING"
+            else:
+                reproductive_status = "OPEN"
         elif last_calving_date is not None:
             reproductive_status = "LACTATING"
         else:
@@ -576,10 +380,7 @@ class ReproductiveStateService:
 
         eligible_to_breed = (
             pregnancy_status != "PREGNANT"
-            and (
-                vwp_end is None
-                or as_of_date >= vwp_end
-            )
+            and (vwp_end is None or as_of_date >= vwp_end)
         )
 
         return ReproductiveState(
