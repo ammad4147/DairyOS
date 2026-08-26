@@ -21,7 +21,6 @@ FINANCE_COLUMNS = {
     "due_date": "DATE",
     "settled_date": "DATE",
 }
-
 MILK_PRODUCTION_COLUMNS = {"notes": "VARCHAR"}
 MILK_DISPOSITION_COLUMNS = {"status": "VARCHAR NOT NULL DEFAULT 'RECORDED'"}
 OPERATIONAL_FINDING_COLUMNS = {
@@ -97,7 +96,6 @@ def migrate_feed_inventory() -> list[str]:
     with engine.begin() as connection:
         inspector = inspect(connection)
         tables = set(inspector.get_table_names())
-
         if "feed_inventory_items" not in tables:
             connection.execute(text("""
                 CREATE TABLE feed_inventory_items (
@@ -115,52 +113,24 @@ def migrate_feed_inventory() -> list[str]:
             """))
             changed.append("feed_inventory_items")
             tables.add("feed_inventory_items")
-
         if "inventory_transactions" in tables:
-            existing = {
-                column["name"]
-                for column in inspector.get_columns("inventory_transactions")
-            }
+            existing = {column["name"] for column in inspector.get_columns("inventory_transactions")}
             for name, sql_type in INVENTORY_SOURCE_COLUMNS.items():
                 if name in existing:
                     continue
-                connection.execute(
-                    text(
-                        f'ALTER TABLE inventory_transactions '
-                        f'ADD COLUMN "{name}" {sql_type}'
-                    )
-                )
+                connection.execute(text(f'ALTER TABLE inventory_transactions ADD COLUMN "{name}" {sql_type}'))
                 changed.append(f"inventory_transactions.{name}")
-
-            indexes = {
-                index["name"]
-                for index in inspect(connection).get_indexes("inventory_transactions")
-            }
+            indexes = {index["name"] for index in inspect(connection).get_indexes("inventory_transactions")}
             if "uq_inventory_transaction_source" not in indexes:
-                connection.execute(
-                    text(
-                        "CREATE UNIQUE INDEX uq_inventory_transaction_source "
-                        "ON inventory_transactions (source_type, source_id)"
-                    )
-                )
+                connection.execute(text("CREATE UNIQUE INDEX uq_inventory_transaction_source ON inventory_transactions (source_type, source_id)"))
                 changed.append("uq_inventory_transaction_source")
-
         if "feed_record" in tables:
-            existing = {
-                column["name"]
-                for column in inspector.get_columns("feed_record")
-            }
+            existing = {column["name"] for column in inspector.get_columns("feed_record")}
             for name, sql_type in FEED_RECORD_COST_COLUMNS.items():
                 if name in existing:
                     continue
-                connection.execute(
-                    text(
-                        f'ALTER TABLE feed_record '
-                        f'ADD COLUMN "{name}" {sql_type}'
-                    )
-                )
+                connection.execute(text(f'ALTER TABLE feed_record ADD COLUMN "{name}" {sql_type}'))
                 changed.append(f"feed_record.{name}")
-
     return changed
 
 
@@ -203,7 +173,7 @@ def migrate_coml() -> list[str]:
                 month_start DATE NOT NULL UNIQUE,
                 feed_cost_per_liter DOUBLE PRECISION NOT NULL,
                 opex_cost_per_liter DOUBLE PRECISION NOT NULL,
-                total_compl_per_liter DOUBLE PRECISION NOT NULL,
+                total_coml_per_liter DOUBLE PRECISION NOT NULL,
                 status VARCHAR NOT NULL DEFAULT 'OFFICIAL',
                 notes VARCHAR NULL,
                 created_at TIMESTAMP NOT NULL,
