@@ -22,6 +22,11 @@ from dairyos.data.database.base import Base
 class BreedingRecordModel(Base):
     """
     PostgreSQL representation of operational breeding records.
+
+    ``timestamp`` is nullable because legacy/imported operational records may
+    legitimately lack an observed timestamp. Analytics and reproductive KPI
+    projections must exclude such records from time-window calculations rather
+    than inventing a date.
     """
 
     __tablename__ = "breeding_records"
@@ -55,6 +60,6 @@ class BreedingRecordModel(Base):
 
     timestamp = Column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
         default=lambda: datetime.now(UTC),
     )
