@@ -75,9 +75,38 @@ app.add_middleware(
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
+# Pre-/auth API paths are retained as compatibility aliases for existing local
+# operator tooling and tests. The canonical production routes remain under
+# /auth and /authz; rewriting the ASGI path here means both paths execute the
+# exact same authentication/authorization implementation.
+LEGACY_ROUTE_ALIASES = {
+    "/login": "/auth/login",
+    "/me": "/auth/me",
+    "/users": "/auth/users",
+    "/me/password": "/auth/me/password",
+    "/permissions": "/authz/permissions",
+    "/matrix": "/authz/matrix",
+}
+
+
+def _rewrite_legacy_route(request: Request) -> None:
+    path = request.scope.get("path", "")
+    if path in LEGACY_ROUTE_ALIASES:
+        request.scope["path"] = LEGACY_ROUTE_ALIASES[path]
+        request.scope["raw_path"] = request.scope["path"].encode("utf-8")
+        return
+    for legacy_prefix, canonical_prefix in (
+        ("/users/", "/auth/users/"),
+    ):
+        if path.startswith(legacy_prefix):
+            request.scope["path"] = canonical_prefix + path[len(legacy_prefix):]
+            request.scope["raw_path"] = request.scope["path"].encode("utf-8")
+            return
+
 
 @app.middleware("http")
 async def enforce_permissions(request: Request, call_next):
+    _rewrite_legacy_route(request)
     body = None
     payload = {}
     if request.method in {"POST", "PATCH", "PUT"}:
