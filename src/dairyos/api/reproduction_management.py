@@ -1,4 +1,4 @@
-﻿"""Persistent reproduction-management projections and operational KPIs."""
+"""Persistent reproduction-management projections and operational KPIs."""
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -16,15 +16,10 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     normalize_event_type,
 )
 
-
-router = APIRouter(
-    prefix="/farm/reproduction",
-    tags=["Reproduction Management"],
-)
+router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"])
 
 
 def _as_utc(value: datetime | None) -> datetime:
-    """Safely normalize naive or aware datetimes to UTC to prevent comparison errors."""
     if value is None:
         return datetime.min.replace(tzinfo=timezone.utc)
     if value.tzinfo is None:
@@ -51,12 +46,16 @@ def _serialize(record):
 
 
 def _event_type(record) -> str:
-    """Normalize this record's event_type against the shared classifier vocabulary."""
     return normalize_event_type(getattr(record, "event_type", None))
 
 
-def _conception_rate(inseminations, pregnancy_checks):
-    """Return conception rate only for inseminations with a documented outcome."""
+def _conception_outcomes(inseminations, pregnancy_checks):
+    """Map each service to its latest documented pregnancy diagnosis.
+
+    A service is counted in conception-rate denominators only when a diagnosis
+    exists after that service. Multiple pregnancy checks for the same service
+    do not create multiple pregnancies.
+    """
     ordered_inseminations = sorted(
         inseminations,
         key=lambda record: _as_utc(record.timestamp),
@@ -66,24 +65,26 @@ def _conception_rate(inseminations, pregnancy_checks):
         key=lambda record: _as_utc(record.timestamp),
     )
 
-    outcomes = {}
+    outcomes: dict[str, bool] = {}
     for check in ordered_checks:
-        check_time = check.timestamp
+        if check.timestamp is None:
+            continue
         candidates = [
             record
             for record in ordered_inseminations
-            if record.animal_id == check.animal_id
-            and (
-                check_time is None
-                or record.timestamp is None
-                or _as_utc(record.timestamp) <= _as_utc(check_time)
-            )
+            if record.timestamp is not None
+            and record.animal_id == check.animal_id
+            and _as_utc(record.timestamp) <= _as_utc(check.timestamp)
         ]
         if not candidates:
             continue
         matched = candidates[-1]
-        outcomes[matched.record_id] = _is_confirmed_pregnancy(check)
+        outcomes[str(matched.record_id)] = _is_confirmed_pregnancy(check)
+    return outcomes
 
+
+def _conception_rate(inseminations, pregnancy_checks):
+    outcomes = _conception_outcomes(inseminations, pregnancy_checks)
     if not outcomes:
         return None
     return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
@@ -92,14 +93,24 @@ def _conception_rate(inseminations, pregnancy_checks):
 def _management(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=365)
-    recent = [r for r in records if r.timestamp is None or _as_utc(r.timestamp) >= cutoff]
+
+    # Records without a real event timestamp are historical/incomplete facts,
+    # not evidence that the event occurred inside this KPI window. Do not let
+    # missing timestamps silently enter current reproductive calculations.
+    recent = [
+        r
+        for r in records
+        if r.timestamp is not None and _as_utc(r.timestamp) >= cutoff and _as_utc(r.timestamp) <= now
+    ]
 
     event_counts = Counter(_event_type(r) for r in recent)
     inseminations = [r for r in recent if _is_insemination(r)]
     pregnancy_checks = [r for r in recent if _is_pregnancy_check(r)]
-    confirmed = [r for r in recent if _is_confirmed_pregnancy(r)]
     calvings = [r for r in recent if _is_calving(r)]
     heat_events = [r for r in recent if _is_heat_detection(r)]
+
+    outcomes = _conception_outcomes(inseminations, pregnancy_checks)
+    confirmed = sum(outcomes.values())
 
     return {
         "period": {
@@ -112,10 +123,13 @@ def _management(records):
         "animals_with_reproductive_records": len({r.animal_id for r in recent}),
         "inseminations": len(inseminations),
         "pregnancy_checks": len(pregnancy_checks),
-        "confirmed_pregnancies": len(confirmed),
+        "services_with_documented_outcome": len(outcomes),
+        "confirmed_pregnancies": confirmed,
         "calvings": len(calvings),
         "heat_detections": len(heat_events),
-        "conception_rate_percent": _conception_rate(inseminations, pregnancy_checks),
+        "conception_rate_percent": (
+            round((confirmed / len(outcomes)) * 100, 2) if outcomes else None
+        ),
         "data_status": "NO_DATA" if not recent else "LIVE_PERSISTED_DATA",
         "records": [_serialize(r) for r in recent],
     }
