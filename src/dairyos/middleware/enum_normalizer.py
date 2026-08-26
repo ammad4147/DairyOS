@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Centralized payload normalization and operational input boundary guards for DairyOS."""
 import json
 
@@ -139,14 +139,24 @@ class PayloadNormalizationMiddleware:
                                 return
 
                     # 4. Reject operational entries for inactive animals.
-                    # The existing guard previously checked only that the ID existed.
+                    # The integrity lookup must fail closed: if DairyOS cannot verify
+                    # the animal state, the operational write must not proceed.
                     if path in ANIMAL_LINKED_POSTS and data.get("animal_id"):
                         animal_id = str(data["animal_id"])
-                        factory = RepositoryFactory.create()
                         try:
-                            animal = factory.animal().get_by_animal_id(animal_id)
-                        finally:
-                            factory.close()
+                            factory = RepositoryFactory.create()
+                            try:
+                                animal = factory.animal().get_by_animal_id(animal_id)
+                            finally:
+                                factory.close()
+                        except Exception:
+                            await _json_response(
+                                send,
+                                503,
+                                "Animal integrity verification is temporarily unavailable; operational entry was not accepted.",
+                                animal_id=animal_id,
+                            )()
+                            return
 
                         if animal is None:
                             await _json_response(
