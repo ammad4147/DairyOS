@@ -121,7 +121,24 @@ jobs:
       - name: Verify production admin configuration gate
         run: python -c "from dairyos.api.auth import ensure_production_admin_password_configured; ensure_production_admin_password_configured(); print('production admin password gate passed')"
       - name: Verify authorization fails closed without credentials
-        run: python -c "from types import SimpleNamespace; from dairyos.api.authorization import authorize_request; from fastapi import HTTPException; request = SimpleNamespace(method='GET', url=SimpleNamespace(path='/dashboard'), headers={});\ntry:\n authorize_request(request)\nexcept HTTPException as exc:\n assert exc.status_code == 401, exc.status_code\nelse:\n raise SystemExit('authorization unexpectedly allowed an unauthenticated production request')"
+        run: |
+          python - <<'PY'
+          from types import SimpleNamespace
+          from fastapi import HTTPException
+          from dairyos.api.authorization import authorize_request
+
+          request = SimpleNamespace(
+              method="GET",
+              url=SimpleNamespace(path="/dashboard"),
+              headers={},
+          )
+          try:
+              authorize_request(request)
+          except HTTPException as exc:
+              assert exc.status_code == 401, exc.status_code
+          else:
+              raise SystemExit("authorization unexpectedly allowed an unauthenticated production request")
+          PY
 
   frontend-build:
     runs-on: ubuntu-latest
