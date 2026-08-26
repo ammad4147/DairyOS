@@ -30,8 +30,9 @@ class MilkReconciliationService:
     from saleable reconciliation.
     """
 
-    def __init__(self, disposition_repository=None):
+    def __init__(self, disposition_repository=None, production_repository=None):
         self.disposition_repository = disposition_repository
+        self.production_repository = production_repository
 
     def _repo(self):
         if self.disposition_repository is not None:
@@ -41,21 +42,26 @@ class MilkReconciliationService:
         return factory.milk_dispositions(), factory
 
     @staticmethod
-    def _production_total(production_date: date) -> dict:
-        """Return biological and saleable production for one date."""
+    def _as_production_date(value):
+        if value is None:
+            return None
+        if hasattr(value, "date"):
+            return value.date()
+        return value
+
+    @classmethod
+    def _production_total(cls, production_date: date, production_repository=None) -> dict:
+        """Return biological and saleable production for one date.
+
+        The persisted production repository is optional so isolated
+        reconciliation tests can continue to exercise only the disposition
+        contract. Production runtime supplies it to account for WITHDRAWAL
+        milk explicitly.
+        """
         trend = MilkProductionTrendIntelligenceService()
-        snapshot = trend.generate(
-            as_of_date=production_date,
-            period_days=7,
-        ).summary()
+        snapshot = trend.generate(as_of_date=production_date, period_days=7).summary()
 
-        complete = bool(
-            snapshot.get(
-                "complete",
-                snapshot.get("is_complete", False),
-            )
-        )
-
+        complete = bool(snapshot.get("complete", snapshot.get("is_complete", False)))
         if not complete:
             return {
                 "date": production_date.isoformat(),
@@ -86,14 +92,10 @@ class MilkReconciliationService:
         saleable = total
         withdrawal = 0.0
 
-        factory = RepositoryFactory.create()
-        try:
-            rows = factory.milk().get_all()
+        if production_repository is not None:
             dated_rows = []
-            for row in rows:
-                row_date = getattr(row, "production_date", None)
-                if row_date is not None:
-                    row_date = row_date.date() if hasattr(row_date, "date") else row_date
+            for row in production_repository.get_all():
+                row_date = cls._as_production_date(getattr(row, "production_date", None))
                 if row_date == production_date:
                     dated_rows.append(row)
 
@@ -106,14 +108,10 @@ class MilkReconciliationService:
                     if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "WITHDRAWAL":
                         row_withdrawal += litres
 
-                # The trend service remains authoritative for completeness;
-                # persisted rows provide the authoritative saleability split.
                 if row_total > 0.0 or total == 0.0:
                     total = max(total, row_total)
                 withdrawal = row_withdrawal
                 saleable = max(total - withdrawal, 0.0)
-        finally:
-            factory.close()
 
         return {
             "date": production_date.isoformat(),
@@ -124,21 +122,21 @@ class MilkReconciliationService:
             "withdrawal_litres": withdrawal,
         }
 
-    def reconcile(
-        self,
-        production_date: date,
-        *,
-        raise_finding: bool = True,
-    ):
+    def reconcile(self, production_date: date, *, raise_finding: bool = True):
         repo, owned_factory = self._repo()
 
         try:
-            current = self._production_total(production_date)
+            production_repository = self.production_repository
+            if production_repository is None and owned_factory is not None:
+                production_repository = owned_factory.milk()
+
+            current = self._production_total(
+                production_date,
+                production_repository=production_repository,
+            )
             dispositions = repo.get_by_date(production_date)
 
-            production_complete = bool(current.get("complete", False))
-
-            if not production_complete:
+            if not current.get("complete", False):
                 return {
                     "production_date": production_date.isoformat(),
                     "production_complete": False,
@@ -164,13 +162,11 @@ class MilkReconciliationService:
             accounted = sum(float(item.quantity_litres) for item in dispositions)
             sold = sum(float(item.quantity_litres) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
             non_sale = accounted - sold
-
             sale_value = sum(float(item.amount_due or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
             cash_received = sum(float(item.amount_received or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
             receivable = max(sale_value - cash_received, 0.0)
 
             delta = produced - accounted
-
             if delta > 0.01:
                 status = "UNACCOUNTED_PRODUCTION"
             elif delta < -0.01:
@@ -252,10 +248,8 @@ class MilkReconciliationService:
         recorded_by: str | None = None,
     ):
         disposition_type = str(disposition_type).strip().upper()
-
         if disposition_type not in VALID_DISPOSITIONS:
             raise ValueError(f"Unknown milk disposition: {disposition_type}")
-
         if quantity_litres <= 0:
             raise ValueError("Milk disposition quantity must be greater than zero.")
 
@@ -277,36 +271,43 @@ class MilkReconciliationService:
 
         repo, owned_factory = self._repo()
         try:
-            production_basis = self._production_total(production_date)
+            production_repository = self.production_repository
+            if production_repository is None and owned_factory is not None:
+                production_repository = owned_factory.milk()
+
+            production_basis = self._production_total(
+                production_date,
+                production_repository=production_repository,
+            )
 
             if production_basis.get("complete"):
                 produced_litres = float(production_basis["saleable_litres"])
                 already_accounted = sum(float(item.quantity_litres) for item in repo.get_by_date(production_date))
                 proposed_total = already_accounted + float(quantity_litres)
-
                 if proposed_total > produced_litres + 0.01:
                     raise ValueError(
-                        "Milk disposition quantity exceeds available saleable production "
+                        "Milk disposition quantity exceeds available production "
                         f"for {production_date.isoformat()}: already accounted {already_accounted:.3f} L, "
-                        f"requested {float(quantity_litres):.3f} L, saleable {produced_litres:.3f} L."
+                        f"requested {float(quantity_litres):.3f} L, saleable production {produced_litres:.3f} L."
                     )
 
             if disposition_type == "SOLD" and repo.get_by_sale_id(sale_id) is not None:
                 raise ValueError(f"Sale ID {sale_id} is already recorded.")
 
-            item = MilkDisposition(
-                production_date=production_date,
-                disposition_type=disposition_type,
-                quantity_litres=float(quantity_litres),
-                sale_id=sale_id,
-                counterparty=counterparty,
-                selling_price_per_litre=selling_price_per_litre,
-                amount_due=amount_due,
-                amount_received=0.0,
-                notes=notes,
-                recorded_by=recorded_by,
+            return repo.add(
+                MilkDisposition(
+                    production_date=production_date,
+                    disposition_type=disposition_type,
+                    quantity_litres=float(quantity_litres),
+                    sale_id=sale_id,
+                    counterparty=counterparty,
+                    selling_price_per_litre=selling_price_per_litre,
+                    amount_due=amount_due,
+                    amount_received=0.0,
+                    notes=notes,
+                    recorded_by=recorded_by,
+                )
             )
-            return repo.add(item)
         finally:
             if owned_factory is not None:
                 owned_factory.close()
