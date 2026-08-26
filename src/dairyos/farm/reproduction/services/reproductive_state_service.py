@@ -61,8 +61,7 @@ class ReproductiveStateService:
     """Resolve current reproductive state exclusively from persisted farm facts.
 
     No benchmark, default pregnancy, implicit service, or projected status is
-    allowed to become an operational fact. Projections such as expected
-    calving are emitted only after a persisted pregnancy confirmation exists.
+    allowed to become an operational fact.
     """
 
     def __init__(self, policy: ReproductivePolicy):
@@ -163,7 +162,12 @@ class ReproductiveStateService:
     def _is_negative_pregnancy_event(event: Mapping[str, Any]) -> bool:
         return is_negative_pregnancy_check(ReproductiveStateService._classifier_record(event))
 
-    def _validate_sequence(self, events: list[dict[str, Any]]) -> None:
+    def _validate_sequence(
+        self,
+        events: list[dict[str, Any]],
+        *,
+        allow_unlinked_confirmation: bool = False,
+    ) -> None:
         pregnant = False
         last_insemination: date | None = None
 
@@ -187,10 +191,11 @@ class ReproductiveStateService:
 
             if self._is_positive_pregnancy_event(event):
                 if last_insemination is None:
-                    raise ReproductiveStateError(
-                        "PREGNANCY_CONFIRMED requires a prior INSEMINATION event"
-                    )
-                if event_date < last_insemination:
+                    if not allow_unlinked_confirmation:
+                        raise ReproductiveStateError(
+                            "PREGNANCY_CONFIRMED requires a prior INSEMINATION event"
+                        )
+                elif event_date < last_insemination:
                     raise ReproductiveStateError(
                         "Pregnancy confirmation cannot precede insemination"
                     )
@@ -254,10 +259,14 @@ class ReproductiveStateService:
         events: Iterable[Mapping[str, Any] | Any],
         *,
         as_of_date: date,
+        allow_unlinked_confirmation: bool = False,
     ) -> ReproductiveState:
         as_of_date = self._as_date(as_of_date)
         animal_events = self._events_for_animal(events, animal_id, as_of_date)
-        self._validate_sequence(animal_events)
+        self._validate_sequence(
+            animal_events,
+            allow_unlinked_confirmation=allow_unlinked_confirmation,
+        )
         current_events, last_calving_event = self._current_cycle(animal_events)
 
         last_calving_date = (
@@ -338,10 +347,6 @@ class ReproductiveStateService:
                     days=self.policy.gestation_days
                 )
 
-        # Days open is a completed fertility outcome: calving -> successful
-        # conception. An open cow has no valid days-open result yet. Returning
-        # elapsed DIM as "days open" falsely converts an unconfirmed future
-        # event into an observed conception date.
         days_open = None
         if pregnancy_status == "PREGNANT" and last_calving_date is not None:
             successful_service = last_insemination_date
@@ -362,13 +367,6 @@ class ReproductiveStateService:
         elif latest_state_event is not None:
             latest_type = normalize_event_type(latest_state_event["event_type"])
             if latest_type in {"pregnancy_negative", "pregnancy_lost", "abortion", "stillbirth"}:
-                # A failed/negative pregnancy outcome closes the pregnancy but
-                # does not erase the fact that the animal was serviced in the
-                # current reproductive cycle. Keep reproductive_status=BRED
-                # until a subsequent calving or new reproductive event starts a
-                # different state. This preserves the operational meaning used
-                # by the breeding workflow while pregnancy_status remains
-                # NOT_PREGNANT.
                 reproductive_status = "BRED" if last_insemination_date is not None else "OPEN"
             elif is_insemination(self._classifier_record(latest_state_event)):
                 reproductive_status = "BRED"
