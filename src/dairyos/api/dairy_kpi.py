@@ -54,23 +54,12 @@ def _record_date(record, *names):
 
 
 def _has_entered_yield(record) -> bool:
-    """Whether an operator actually entered a figure for this record.
-
-    G1.6 made the yield columns nullable precisely so this question has an
-    answer: NULL means nobody entered anything, 0.0 means someone looked and
-    recorded zero. Only the second is an observation.
-    """
-
+    """Whether an operator actually entered a figure for this record."""
     if getattr(record, "total_yield", None) is not None:
         return True
-
     return any(
         getattr(record, field, None) is not None
-        for field in (
-            "morning_yield",
-            "afternoon_yield",
-            "evening_yield",
-        )
+        for field in ("morning_yield", "afternoon_yield", "evening_yield")
     )
 
 
@@ -79,41 +68,46 @@ def _in_period(record, start, end, *date_fields):
     return timestamp is not None and start <= timestamp < end
 
 
-def _conception_rate(inseminations, pregnancy_checks):
+def _conception_outcomes(inseminations, pregnancy_checks):
     ordered_inseminations = sorted(
-        inseminations,
-        key=lambda record: _record_date(record, "timestamp") or datetime.min.replace(tzinfo=timezone.utc),
+        [r for r in inseminations if _record_date(r, "timestamp") is not None],
+        key=lambda record: _record_date(record, "timestamp"),
     )
     ordered_checks = sorted(
-        pregnancy_checks,
-        key=lambda record: _record_date(record, "timestamp") or datetime.max.replace(tzinfo=timezone.utc),
+        [r for r in pregnancy_checks if _record_date(r, "timestamp") is not None],
+        key=lambda record: _record_date(record, "timestamp"),
     )
     outcomes = {}
     for check in ordered_checks:
         check_time = _record_date(check, "timestamp")
         candidates = [
-            record for record in ordered_inseminations
+            record
+            for record in ordered_inseminations
             if record.animal_id == check.animal_id
-            and (
-                check_time is None
-                or _record_date(record, "timestamp") is None
-                or _record_date(record, "timestamp") <= check_time
-            )
+            and _record_date(record, "timestamp") <= check_time
         ]
         if not candidates:
             continue
         matched = candidates[-1]
         outcomes[getattr(matched, "record_id", id(matched))] = _is_confirmed_pregnancy(check)
+    return outcomes
+
+
+def _conception_rate(inseminations, pregnancy_checks):
+    outcomes = _conception_outcomes(inseminations, pregnancy_checks)
     if not outcomes:
         return None
     return round((sum(outcomes.values()) / len(outcomes)) * 100, 2)
 
 
 def _interval_metrics(breeding):
-    """Derive reproductive intervals only where event chronology is explicit."""
-    # AUDIT-FIX [LOGIC-REP-01]: Correct Days Open calculation. Days Open measures
-    # the interval from calving to subsequent conception (or subsequent insemination),
-    # NOT the gestation interval (calving minus prior service before calving).
+    """Calculate calving interval and observed days-open outcomes only.
+
+    Days open is not an estimate for an open cow. It is recorded only when a
+    persisted pregnancy diagnosis confirms a conception and that diagnosis can
+    be chronologically linked to a persisted service after the preceding
+    calving.
+    """
     by_animal = defaultdict(list)
     for record in breeding:
         timestamp = _record_date(record, "timestamp")
@@ -124,19 +118,28 @@ def _interval_metrics(breeding):
     days_open = []
     for events in by_animal.values():
         events.sort(key=lambda item: item[0])
-        calvings = [t for t, record in events if _is_calving(record)]
-        services = [t for t, record in events if _is_insemination(record)]
-        for previous, current in zip(calvings, calvings[1:]):
-            calving_intervals.append((current - previous).days)
-            services_in_cycle = [t for t in services if previous < t < current]
-            if services_in_cycle:
-                days_open.append((services_in_cycle[-1] - previous).days)
+        calvings = [(t, r) for t, r in events if _is_calving(r)]
 
-        if calvings:
-            latest_calving = calvings[-1]
-            services_after = [t for t in services if t > latest_calving]
-            if services_after:
-                days_open.append((services_after[-1] - latest_calving).days)
+        for previous, current in zip(calvings, calvings[1:]):
+            calving_intervals.append((current[0] - previous[0]).days)
+
+        # Every confirmed pregnancy is an observed conception outcome. Link it
+        # to the latest service in the same current reproductive cycle.
+        for pregnancy_time, pregnancy_record in events:
+            if not _is_pregnancy_check(pregnancy_record) or not _is_confirmed_pregnancy(pregnancy_record):
+                continue
+
+            prior_calvings = [t for t, _ in calvings if t < pregnancy_time]
+            cycle_start = prior_calvings[-1] if prior_calvings else None
+            services = [
+                t
+                for t, record in events
+                if _is_insemination(record)
+                and t <= pregnancy_time
+                and (cycle_start is None or t > cycle_start)
+            ]
+            if services and cycle_start is not None:
+                days_open.append((services[-1] - cycle_start).days)
 
     return {
         "calving_interval_days": (
@@ -161,15 +164,6 @@ def _overview(factory, start, end):
     treatments = [r for r in factory.treatment().get_all() if _in_period(r, start, end, "treated_at")]
     finance = [r for r in factory.finance().get_all() if _in_period(r, start, end, "transaction_date")]
 
-    # Classification delegated to the shared, single-source-of-truth
-    # predicates (dairyos.herd.reproduction.services.
-    # reproductive_event_classifier) so this endpoint agrees with
-    # /farm/reproduction/overview and /farm/animals/{id}/reproduction on
-    # identical underlying BreedingRecord data. Before this fix this
-    # endpoint's own narrower keyword lists never recognized
-    # "pregnancy_diagnosis" or "pregnancy_confirmed" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the operator UI's
-    # actual event-type values ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so confirmed_pregnancies/conception_rate
-    # silently undercounted relative to /farm/reproduction/overview.
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
     confirmed_pregnancies = [r for r in breeding if _is_confirmed_pregnancy(r)]
@@ -177,12 +171,8 @@ def _overview(factory, start, end):
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
     production_by_animal_day = defaultdict(float)
     for record in milk:
-        # An animal-day with nothing entered is not an observation of zero
-        # milk, and must not sit in the denominator of the herd average --
-        # that is how a missed entry becomes an apparent production drop.
         if not _has_entered_yield(record):
             continue
-
         timestamp = _record_date(record, "production_date")
         if timestamp is not None:
             production_by_animal_day[(record.animal_id, timestamp.date())] += float(getattr(record, "total_yield", 0.0) or 0.0)
@@ -199,7 +189,11 @@ def _overview(factory, start, end):
     ]
 
     average_milk_per_animal_day = milk_total / len(production_by_animal_day) if production_by_animal_day else None
-    feed_per_liter = feed_total / milk_total if milk_total > 0 else None
+    # FeedRecord.quantity_kg is an as-fed quantity. Dairy feed conversion/FCE
+    # must use DMI (dry matter intake), and DairyOS does not currently persist
+    # an observed DMI value per feeding record. Therefore the engine refuses to
+    # publish a scientifically misleading kg-as-fed/L "feed conversion" KPI.
+    feed_per_liter = None
     health_per_100_animals = (len(health) / len(animals)) * 100 if animals else None
     treatment_rate = (len({r.animal_id for r in treatments}) / len(animals)) * 100 if animals else None
 
@@ -215,7 +209,7 @@ def _overview(factory, start, end):
         "conception_rate": conception_rate is not None,
         "calving_interval": interval_metrics["calving_interval_days"] is not None,
         "days_open": interval_metrics["days_open"] is not None,
-        "feed_conversion": feed_per_liter is not None,
+        "feed_conversion": False,
         "feed_cost_per_litre": "FEED" in expense_categories and milk_total > 0,
         "cost_per_litre": cost.get("cost_per_litre") is not None,
         "labour_per_litre": "LABOUR" in expense_categories and milk_total > 0,
@@ -225,9 +219,6 @@ def _overview(factory, start, end):
         "persistency": False,
     }
 
-    # A standard dairy KPI dataset is anchored by persisted milk production.
-    # Other operational records may exist independently, but must not make an
-    # otherwise empty KPI period appear to contain a live dairy dataset.
     has_kpi_anchor_data = bool(milk)
 
     return {
@@ -246,7 +237,7 @@ def _overview(factory, start, end):
             "average_milk_liters_per_animal_day": round(average_milk_per_animal_day, 3) if average_milk_per_animal_day is not None else None,
             "peak_daily_milk_liters": round(max(daily_totals.values()), 3) if daily_totals else None,
             "feed_consumption_kg": round(feed_total, 3) if feed else None,
-            "feed_kg_per_liter_milk": round(feed_per_liter, 4) if feed_per_liter is not None else None,
+            "feed_kg_per_liter_milk": None,
             "health_observations": len(health) if health else None,
             "health_observations_per_100_active_animals": round(health_per_100_animals, 2) if health_per_100_animals is not None else None,
             "treatment_rate_percent": round(treatment_rate, 2) if treatment_rate is not None else None,
@@ -263,9 +254,10 @@ def _overview(factory, start, end):
             "complete_metrics": [name for name, value in covered.items() if value],
             "missing_metrics": [name for name, value in covered.items() if not value],
             "definitions": {
-                "milk_per_cow_day": "persisted milk litres divided by animal-days with milk records",
+                "milk_per_cow_day": "persisted milk litres divided by animal-days with actual milk observations",
                 "peak_daily_milk": "maximum aggregate litres across persisted animal/day milk records",
                 "treatment_rate": "distinct treated animals divided by active animals for the period",
+                "feed_conversion": "not calculated: persisted feed quantities are as-fed kg, while scientifically valid feed conversion requires observed DMI",
                 "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
                 "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
             },
@@ -274,7 +266,7 @@ def _overview(factory, start, end):
             "source": "persisted operational repositories",
             "synthetic_values": False,
             "derived_values": "calculated only when required persisted inputs exist",
-            "unsupported_without_history": ["mortality_rate", "culling_rate", "persistency"],
+            "unsupported_without_history": ["mortality_rate", "culling_rate", "persistency", "feed_conversion"],
         },
     }
 
@@ -283,11 +275,7 @@ def _overview(factory, start, end):
 @router.get("")
 def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), container=Depends(get_container)):
     operational_date = OperationalDateAuthority().current_date()
-    end = datetime.combine(
-        operational_date + timedelta(days=1),
-        datetime.min.time(),
-        tzinfo=timezone.utc,
-    )
+    end = datetime.combine(operational_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
     start = end - timedelta(days=days)
     factory, owns_factory = _fresh_factory(container)
     try:
