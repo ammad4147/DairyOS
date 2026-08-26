@@ -56,13 +56,15 @@ def permission_for_request(method: str, path: str, payload: dict[str, Any] | Non
 
 def _deployment_enforcement_enabled() -> bool:
     explicit = os.getenv("DAIRYOS_ENFORCE_AUTHZ")
-    if explicit is not None: return explicit.strip().lower() in {"1", "true", "yes", "on"}
-    return os.getenv("DAIRYOS_ENV", "development").strip().lower() in {"production", "staging", "preprod"}
+    if explicit is not None:
+        return explicit.strip().lower() in {"1", "true", "yes", "on"}
+    return os.getenv("DAIRYOS_ENV", "development").strip().lower() != "development"
 
 
 def authorize_request(request: Request, payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
     required = permission_for_request(request.method, request.url.path, payload)
-    if required is None: return None
+    if required is None:
+        return None
     credentials = request.headers.get("Authorization")
     if not credentials or not credentials.lower().startswith("bearer "):
         if _deployment_enforcement_enabled():
@@ -70,9 +72,8 @@ def authorize_request(request: Request, payload: dict[str, Any] | None = None) -
         return None
     user = _decode_token(credentials.split(" ", 1)[1].strip())
     permissions = _resolved_permissions(user)
-    if required in permissions: return user
-    role = str(user.get("role") or "").upper()
-    if not _deployment_enforcement_enabled() and role not in ROLE_PERMISSIONS and not permissions: return user
+    if required in permissions:
+        return user
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission required: {required}")
 
 
