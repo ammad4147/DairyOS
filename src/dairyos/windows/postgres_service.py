@@ -13,6 +13,7 @@ class PostgreSQLServiceError(RuntimeError):
 
 
 _SERVICE_NAME_RE = re.compile(r"^\s*SERVICE_NAME:\s*(\S+)\s*$", re.IGNORECASE)
+_PG_VERSION_RE = re.compile(r"postgresql(?:-x64)?-(\d+)$", re.IGNORECASE)
 _STATE_RUNNING_RE = re.compile(r"^\s*STATE\s*:\s*4\s+RUNNING\b", re.IGNORECASE)
 
 
@@ -28,8 +29,15 @@ def _run_sc(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _service_sort_key(name: str) -> tuple[int, str]:
+    """Sort PostgreSQL services newest-version first, then by name."""
+    match = _PG_VERSION_RE.search(name)
+    version = int(match.group(1)) if match else -1
+    return (-version, name.casefold())
+
+
 def list_postgresql_services() -> list[str]:
-    """Return installed PostgreSQL service names in stable order."""
+    """Return installed PostgreSQL service names in stable newest-first order."""
     if os.name != "nt":
         return []
 
@@ -45,7 +53,7 @@ def list_postgresql_services() -> list[str]:
         if match and match.group(1).lower().startswith("postgresql"):
             names.append(match.group(1))
 
-    return sorted(names)
+    return sorted(names, key=_service_sort_key)
 
 
 def configured_service_name() -> str | None:
