@@ -362,7 +362,14 @@ class ReproductiveStateService:
         elif latest_state_event is not None:
             latest_type = normalize_event_type(latest_state_event["event_type"])
             if latest_type in {"pregnancy_negative", "pregnancy_lost", "abortion", "stillbirth"}:
-                reproductive_status = "OPEN"
+                # A failed/negative pregnancy outcome closes the pregnancy but
+                # does not erase the fact that the animal was serviced in the
+                # current reproductive cycle. Keep reproductive_status=BRED
+                # until a subsequent calving or new reproductive event starts a
+                # different state. This preserves the operational meaning used
+                # by the breeding workflow while pregnancy_status remains
+                # NOT_PREGNANT.
+                reproductive_status = "BRED" if last_insemination_date is not None else "OPEN"
             elif is_insemination(self._classifier_record(latest_state_event)):
                 reproductive_status = "BRED"
             elif is_heat_detection(self._classifier_record(latest_state_event)):
