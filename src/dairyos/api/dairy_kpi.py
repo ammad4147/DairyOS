@@ -25,6 +25,7 @@ router = APIRouter(prefix="/farm/kpis", tags=["Standard Dairy KPIs"])
 def _fresh_factory(container):
     factory = getattr(container, "repository_factory", None)
     if factory is not None:
+        factory.session.expire_all()
         return factory, False
     return RepositoryFactory.create(), True
 
@@ -68,6 +69,19 @@ def _conception_rate(inseminations, pregnancy_checks):
     return ReproductionKpiService.calculate_observed_conception_rate(inseminations, pregnancy_checks)
 
 
+def _confirmed_pregnancy_count(breeding, inseminations, pregnancy_checks):
+    confirmations = [
+        record
+        for record in breeding
+        if _is_confirmed_pregnancy(record) and not _is_pregnancy_check(record)
+    ]
+    return ReproductionKpiService.confirmed_pregnancy_count(
+        inseminations,
+        pregnancy_checks,
+        confirmations,
+    )
+
+
 def _interval_metrics(breeding):
     """Calculate observed calving interval and days open.
 
@@ -92,10 +106,6 @@ def _interval_metrics(breeding):
         for previous, current in zip(calvings, calvings[1:]):
             calving_intervals.append((current[0] - previous[0]).days)
 
-        # Each observed calving starts a reproductive cycle. The first
-        # subsequent insemination is the observed conception-service point for
-        # days-open purposes. If no subsequent calving is present, the latest
-        # service is still an observed days-open value for the current cycle.
         for index, (calving_time, _) in enumerate(calvings):
             next_calving_time = calvings[index + 1][0] if index + 1 < len(calvings) else None
             services = [
@@ -127,7 +137,7 @@ def _overview(factory, start, end):
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
     conception_outcomes = _conception_outcomes(inseminations, pregnancy_checks)
-    confirmed_pregnancies = sum(conception_outcomes.values())
+    confirmed_pregnancies = _confirmed_pregnancy_count(breeding, inseminations, pregnancy_checks)
 
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
     production_by_animal_day = defaultdict(float)
@@ -191,7 +201,7 @@ def _overview(factory, start, end):
             "treatment_rate_percent": round(treatment_rate, 2) if treatment_rate is not None else None,
             "inseminations": len(inseminations) if inseminations else None,
             "pregnancy_checks": len(pregnancy_checks) if pregnancy_checks else None,
-            "confirmed_pregnancies": confirmed_pregnancies if conception_outcomes else None,
+            "confirmed_pregnancies": confirmed_pregnancies if confirmed_pregnancies else None,
             "conception_rate_percent": conception_rate,
             **interval_metrics,
             "feed_cost_per_litre": round(float(expense_categories.get("FEED", 0)) / milk_total, 4) if covered["feed_cost_per_litre"] else None,
@@ -209,7 +219,7 @@ def _overview(factory, start, end):
                 "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
                 "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
                 "conception_rate": "confirmed conceptions divided by services with a documented pregnancy diagnosis outcome",
-                "confirmed_pregnancies": "one confirmed conception per insemination with a documented positive pregnancy diagnosis; repeated diagnoses do not create additional conceptions",
+                "confirmed_pregnancies": "one confirmed conception per insemination with documented positive pregnancy evidence; repeated positive checks do not create additional conceptions",
             },
         },
         "methodology": {
@@ -218,32 +228,3 @@ def _overview(factory, start, end):
             "derived_values": "calculated only when required persisted inputs exist",
             "unsupported_without_history": ["mortality_rate", "culling_rate", "persistency", "feed_conversion"],
         },
-    }
-
-
-@router.get("/overview")
-@router.get("")
-def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), container=Depends(get_container)):
-    operational_date = OperationalDateAuthority().current_date()
-    end = datetime.combine(operational_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
-    start = end - timedelta(days=days)
-    factory, owns_factory = _fresh_factory(container)
-    try:
-        return _overview(factory, start, end)
-    finally:
-        if owns_factory:
-            factory.close()
-
-
-@router.get("/period")
-def standard_dairy_kpi_period(start_date: date, end_date: date, container=Depends(get_container)):
-    if end_date <= start_date:
-        raise HTTPException(status_code=400, detail="end_date must be after start_date")
-    start = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-    end = datetime.combine(end_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
-    factory, owns_factory = _fresh_factory(container)
-    try:
-        return _overview(factory, start, end)
-    finally:
-        if owns_factory:
-            factory.close()
