@@ -146,7 +146,8 @@ def _overview(factory, start, end):
 
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
-    confirmed_pregnancies = [r for r in breeding if _is_confirmed_pregnancy(r)]
+    conception_outcomes = _conception_outcomes(inseminations, pregnancy_checks)
+    confirmed_pregnancies = sum(conception_outcomes.values())
 
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
     production_by_animal_day = defaultdict(float)
@@ -181,7 +182,10 @@ def _overview(factory, start, end):
     expense_categories = cost.get("expense_by_category", {})
 
     interval_metrics = _interval_metrics(breeding)
-    conception_rate = _conception_rate(inseminations, pregnancy_checks)
+    conception_rate = ReproductionKpiService.calculate_observed_conception_rate(
+        inseminations,
+        pregnancy_checks,
+    )
     covered = {
         "milk_per_cow_day": average_milk_per_animal_day is not None,
         "herd_average": average_milk_per_animal_day is not None,
@@ -223,7 +227,7 @@ def _overview(factory, start, end):
             "treatment_rate_percent": round(treatment_rate, 2) if treatment_rate is not None else None,
             "inseminations": len(inseminations) if inseminations else None,
             "pregnancy_checks": len(pregnancy_checks) if pregnancy_checks else None,
-            "confirmed_pregnancies": len(confirmed_pregnancies) if confirmed_pregnancies else None,
+            "confirmed_pregnancies": confirmed_pregnancies if conception_outcomes else None,
             "conception_rate_percent": conception_rate,
             **interval_metrics,
             "feed_cost_per_litre": round(float(expense_categories.get("FEED", 0)) / milk_total, 4) if covered["feed_cost_per_litre"] else None,
@@ -241,6 +245,7 @@ def _overview(factory, start, end):
                 "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
                 "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
                 "conception_rate": "confirmed conceptions divided by services with a documented pregnancy diagnosis outcome",
+                "confirmed_pregnancies": "one confirmed conception per insemination with a documented positive pregnancy diagnosis; repeated diagnoses do not create additional conceptions",
             },
         },
         "methodology": {
