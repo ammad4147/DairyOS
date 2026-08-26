@@ -29,6 +29,10 @@ OPERATIONAL_FINDING_COLUMNS = {
     "reinstated_by": "VARCHAR",
     "reinstate_reason": "VARCHAR",
 }
+INVENTORY_SOURCE_COLUMNS = {
+    "source_type": "VARCHAR",
+    "source_id": "VARCHAR",
+}
 
 
 def migrate_finance_feed_opex() -> list[str]:
@@ -83,25 +87,61 @@ def migrate_milk_crud() -> list[str]:
 
 
 def migrate_feed_inventory() -> list[str]:
+    changed: list[str] = []
     with engine.begin() as connection:
         inspector = inspect(connection)
-        if "feed_inventory_items" in inspector.get_table_names():
-            return []
-        connection.execute(text("""
-            CREATE TABLE feed_inventory_items (
-                id SERIAL PRIMARY KEY,
-                item VARCHAR NOT NULL UNIQUE,
-                category VARCHAR NOT NULL DEFAULT 'FEED',
-                unit VARCHAR NOT NULL DEFAULT 'kg',
-                location VARCHAR NULL,
-                reorder_level DOUBLE PRECISION NOT NULL DEFAULT 0,
-                active BOOLEAN NOT NULL DEFAULT TRUE,
-                notes VARCHAR NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
+        tables = set(inspector.get_table_names())
+
+        if "feed_inventory_items" not in tables:
+            connection.execute(text("""
+                CREATE TABLE feed_inventory_items (
+                    id SERIAL PRIMARY KEY,
+                    item VARCHAR NOT NULL UNIQUE,
+                    category VARCHAR NOT NULL DEFAULT 'FEED',
+                    unit VARCHAR NOT NULL DEFAULT 'kg',
+                    location VARCHAR NULL,
+                    reorder_level DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    active BOOLEAN NOT NULL DEFAULT TRUE,
+                    notes VARCHAR NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+            """))
+            changed.append("feed_inventory_items")
+            tables.add("feed_inventory_items")
+
+        if "inventory_transactions" not in tables:
+            return changed
+
+        existing = {
+            column["name"]
+            for column in inspector.get_columns("inventory_transactions")
+        }
+        for name, sql_type in INVENTORY_SOURCE_COLUMNS.items():
+            if name in existing:
+                continue
+            connection.execute(
+                text(
+                    f'ALTER TABLE inventory_transactions '
+                    f'ADD COLUMN "{name}" {sql_type}'
+                )
             )
-        """))
-    return ["feed_inventory_items"]
+            changed.append(f"inventory_transactions.{name}")
+
+        indexes = {
+            index["name"]
+            for index in inspect(connection).get_indexes("inventory_transactions")
+        }
+        if "uq_inventory_transaction_source" not in indexes:
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX uq_inventory_transaction_source "
+                    "ON inventory_transactions (source_type, source_id)"
+                )
+            )
+            changed.append("uq_inventory_transaction_source")
+
+    return changed
 
 
 def migrate_milk_quality() -> list[str]:
