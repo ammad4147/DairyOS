@@ -124,7 +124,7 @@ try {
     Invoke-DairyOsLifecycle $validateCommandArgs
 
     Write-Step "WRITE LAUNCHER"
-    $launcher = Join-Path $InstallRoot "DairyOS-Server.ps1"
+    $launcher = Join-Path $InstallRoot "DairyOS-Desktop.ps1"
     $launcherContent = @"
 `$ErrorActionPreference = 'Stop'
 `$env:DAIRYOS_ENV = 'production'
@@ -132,7 +132,8 @@ try {
 if (-not `$env:DAIRYOS_DATABASE_URL -and (`$env:DAIRYOS_DB_PASSWORD -or `$env:DAIRYOS_DB_HOST)) {
     Write-Host 'Using DAIRYOS_DB_* environment variables for the production database.'
 }
-& '$VenvPython' -m dairyos.server --host 127.0.0.1 --port 8000
+`$env:PYTHONPATH = '$InstallRoot\src'
+& '$VenvPython' -m dairyos.windows.supervisor
 "@
     [IO.File]::WriteAllText(
         $launcher,
