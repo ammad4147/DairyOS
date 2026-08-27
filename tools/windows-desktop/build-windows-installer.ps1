@@ -11,14 +11,31 @@ if (-not (Test-Path $portableBuild)) {
     throw "Release-candidate build script missing: $portableBuild"
 }
 
-$iscc = @(
-    "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+# Support both Inno Setup 6 and 7. The compiler executable is stable across
+# major versions; do not require a particular installed major version.
+$isccCandidates = @(
+    "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles(x86)\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe"
+)
+
+$iscc = $isccCandidates |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+    Select-Object -First 1
 
 if (-not $iscc) {
-    throw 'Inno Setup 6 ISCC.exe was not found. Install Inno Setup 6 before creating the Windows installer.'
+    $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($command) {
+        $iscc = $command.Source
+    }
 }
+
+if (-not $iscc) {
+    throw 'Inno Setup ISCC.exe was not found. Install a supported Inno Setup release (6.x or 7.x) before creating the Windows installer.'
+}
+
+Write-Host "Using Inno Setup compiler: $iscc"
 
 Write-Host '=== BUILDING FRESH RELEASE-CANDIDATE BUNDLE ==='
 & $portableBuild
