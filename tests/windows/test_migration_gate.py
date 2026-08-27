@@ -1,52 +1,81 @@
-from pathlib import Path
-from unittest.mock import Mock
+from types import SimpleNamespace
 
 import pytest
 
 from dairyos.windows import migrations
 
 
-def test_empty_database_bootstrap_creates_schema_and_stamps_head(monkeypatch):
-    connection = Mock()
-    config = Mock()
+class _Connection:
+    def execute(self, *_args, **_kwargs):
+        return self
+
+    def scalar_one(self):
+        return 0
+
+
+class _BeginContext:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __enter__(self):
+        return self.connection
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+class _Engine:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def begin(self):
+        return _BeginContext(self.connection)
+
+    def dispose(self):
+        pass
+
+
+def _patch_migration_environment(monkeypatch, current_heads, target_heads, application_tables):
+    connection = _Connection()
+    engine = _Engine(connection)
+    config = SimpleNamespace(attributes={})
+    script = SimpleNamespace(get_heads=lambda: target_heads)
+    context = SimpleNamespace(get_current_heads=lambda: current_heads)
+
+    monkeypatch.setattr(migrations, "_database_url", lambda: "postgresql+psycopg://dairyos:test@127.0.0.1:5432/dairyos")
+    monkeypatch.setattr(migrations, "_build_config", lambda: (config, script))
+    monkeypatch.setattr(migrations, "create_engine", lambda *_args, **_kwargs: engine)
+    monkeypatch.setattr(migrations.MigrationContext, "configure", lambda *_args, **_kwargs: context)
+    monkeypatch.setattr(migrations, "_public_application_table_count", lambda _connection: application_tables)
+
+    return config
+
+
+def test_empty_database_uses_explicit_bootstrap(monkeypatch):
     target = ("20260826_01",)
+    config = _patch_migration_environment(monkeypatch, (), target, 0)
+    calls = []
 
-    base = Mock()
-    metadata = Mock()
-    base.metadata = metadata
+    def bootstrap(connection, received_config, received_target):
+        calls.append((connection, received_config, received_target))
 
-    monkeypatch.setattr(
-        "dairyos.data.database.base.Base",
-        base,
-        raising=False,
-    )
+    monkeypatch.setattr(migrations, "_bootstrap_empty_database", bootstrap)
 
-    import dairyos.data.database.database as database_module
+    result = migrations.migrate_if_needed()
 
-    monkeypatch.setattr(migrations, "MigrationContext", Mock())
-    monkeypatch.setattr(migrations.command, "stamp", Mock())
-
-    def fake_create_all(bind):
-        assert bind is connection
-
-    metadata.create_all.side_effect = fake_create_all
-
-    class Verification:
-        @staticmethod
-        def configure(_connection):
-            context = Mock()
-            context.get_current_heads.return_value = target
-            return context
-
-    monkeypatch.setattr(migrations, "MigrationContext", Verification)
-
-    migrations._bootstrap_empty_database(connection, config, target)
-
-    metadata.create_all.assert_called_once_with(bind=connection)
-    migrations.command.stamp.assert_called_once_with(config, "heads")
+    assert result.migrated is True
+    assert result.current_heads == ()
+    assert result.target_heads == target
+    assert len(calls) == 1
+    assert calls[0][1] is config
+    assert calls[0][2] == target
 
 
-def test_non_empty_database_without_history_is_rejected():
-    expected = "DairyOS database has application tables but no Alembic history"
-    error = migrations.MigrationGateError(expected)
-    assert expected in str(error)
+def test_non_empty_database_without_history_is_rejected(monkeypatch):
+    _patch_migration_environment(monkeypatch, (), ("20260826_01",), 1)
+
+    with pytest.raises(
+        migrations.MigrationGateError,
+        match="application tables but no Alembic history",
+    ):
+        migrations.migrate_if_needed()
