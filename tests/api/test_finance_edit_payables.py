@@ -61,7 +61,12 @@ def test_settled_expense_requires_governed_correction(finance_test_ids):
 
 
 def test_void_transaction_cannot_be_edited(finance_test_ids):
-    created = create_expense(finance_test_ids)
+    created = create_expense(
+        finance_test_ids,
+        status="PAYABLE",
+        payment_method="CREDIT",
+        due_date=(date.today() + timedelta(days=7)).isoformat(),
+    )
     assert created.status_code == 200, created.text
     transaction_id = created.json()["id"]
 
