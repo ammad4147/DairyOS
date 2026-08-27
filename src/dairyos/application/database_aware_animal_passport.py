@@ -25,8 +25,7 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             as_of_date,
         )
         open_cases = [
-            case
-            for case in cases
+            case for case in cases
             if str(getattr(case, "status", "")).upper() == "OPEN"
         ]
 
@@ -35,32 +34,27 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             withdrawal_until = getattr(treatment, "milk_withdrawal_until", None)
             withdrawal_date = withdrawal_until.date() if hasattr(withdrawal_until, "date") else withdrawal_until
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
-                active_withdrawals.append(
-                    {
-                        "source": "TREATMENT",
-                        "treatment_id": getattr(treatment, "id", None),
-                        "medicine": getattr(treatment, "medicine", None),
-                        "withdrawal_until": withdrawal_date.isoformat(),
-                        "withdrawal_source": getattr(treatment, "withdrawal_source", None),
-                    }
-                )
+                active_withdrawals.append({
+                    "source": "TREATMENT",
+                    "treatment_id": getattr(treatment, "id", None),
+                    "medicine": getattr(treatment, "medicine", None),
+                    "withdrawal_until": withdrawal_date.isoformat(),
+                    "withdrawal_source": getattr(treatment, "withdrawal_source", None),
+                })
 
         for case in cases:
             withdrawal_until = getattr(case, "withdrawal_until", None)
             withdrawal_date = withdrawal_until.date() if hasattr(withdrawal_until, "date") else withdrawal_until
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
-                active_withdrawals.append(
-                    {
-                        "source": "HEALTH_CASE",
-                        "case_id": getattr(case, "case_id", None),
-                        "withdrawal_until": withdrawal_date.isoformat(),
-                    }
-                )
+                active_withdrawals.append({
+                    "source": "HEALTH_CASE",
+                    "case_id": getattr(case, "case_id", None),
+                    "withdrawal_until": withdrawal_date.isoformat(),
+                })
 
         latest_observation = (
             max(observations, key=lambda item: self._record_date(item) or date.min)
-            if observations
-            else None
+            if observations else None
         )
         return {
             "summary": {
@@ -74,10 +68,9 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
                     else None
                 ),
                 "latest_observation": (
-                    getattr(latest_observation, "observation", None)
-                    or getattr(latest_observation, "symptom", None)
-                    if latest_observation
-                    else None
+                    (getattr(latest_observation, "observation", None)
+                     or getattr(latest_observation, "symptom", None))
+                    if latest_observation else None
                 ),
             },
             "open_cases": [
@@ -102,45 +95,21 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             return None
 
         projection_date = as_of_date or utcnow().date()
+        # Lineage projection genuinely needs the animal graph. History facts
+        # below are independently scoped to this animal in PostgreSQL.
         all_animals = self.factory.animal().get_all()
         lineage = self._lineage_projection(animal, all_animals)
 
-        milk = self._through_date(
-            self.factory.milk().get_by_animal_id(animal_id),
+        milk = self._through_date(self.factory.milk().get_by_animal_id(animal_id), as_of_date)
+        health = self._through_date(self.factory.health().get_by_animal_id(animal_id), as_of_date)
+        breeding = self._through_date(self.factory.breeding().get_by_animal_id(animal_id), as_of_date)
+        treatments = self._through_date(self.factory.treatment().get_by_animal(animal_id), as_of_date)
+        feed = self._through_date(self.factory.feed().get_by_animal_id(animal_id), as_of_date)
+        finance = self._through_date(self.factory.finance().get_by_animal_id(animal_id), as_of_date)
+        events = self._through_date(
+            self.factory.operational_events().get_by_animal_id(animal_id),
             as_of_date,
         )
-        health = self._through_date(
-            self.factory.health().get_by_animal_id(animal_id),
-            as_of_date,
-        )
-        breeding = self._through_date(
-            self.factory.breeding().get_by_animal_id(animal_id),
-            as_of_date,
-        )
-        treatments = self._through_date(
-            self.factory.treatment().get_by_animal(animal_id),
-            as_of_date,
-        )
-        feed = self._through_date(
-            self.factory.feed().get_by_animal_id(animal_id),
-            as_of_date,
-        )
-        finance = self._through_date(
-            self.factory.finance().get_by_animal_id(animal_id),
-            as_of_date,
-        )
-        events = [
-            event
-            for event in self.factory.operational_events().get_all()
-            if self._event_for_animal(event, animal_id)
-            and (
-                as_of_date is None
-                or (
-                    (event_date := self._record_date(event)) is not None
-                    and event_date <= as_of_date
-                )
-            )
-        ]
 
         history = {
             "milk": [self._serialize(item) for item in milk],
@@ -186,8 +155,7 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
                 "operational_date": as_of_date.isoformat() if as_of_date is not None else None,
                 "historical_state_basis": (
                     "Persisted domain records through the selected operational date plus effective-dated milking schedule authority."
-                    if as_of_date is not None
-                    else None
+                    if as_of_date is not None else None
                 ),
             },
             "lineage": lineage,
