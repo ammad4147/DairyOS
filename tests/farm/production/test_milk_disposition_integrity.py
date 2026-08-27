@@ -53,6 +53,26 @@ def test_withdrawal_disposition_uses_withdrawal_pool_only():
         )
 
 
+def test_withdrawal_and_saleable_pools_do_not_cross_consume():
+    existing = [
+        Disposition(1, 15.0, "WITHDRAWAL"),
+        Disposition(2, 70.0, "SOLD"),
+    ]
+    MilkReconciliationService.validate_disposition_quantity(
+        production_basis=basis(),
+        dispositions=existing,
+        disposition_type="WITHDRAWAL",
+        quantity_litres=5.0,
+    )
+    with pytest.raises(ValueError, match="saleable production"):
+        MilkReconciliationService.validate_disposition_quantity(
+            production_basis=basis(),
+            dispositions=existing,
+            disposition_type="WASTAGE",
+            quantity_litres=11.0,
+        )
+
+
 def test_void_disposition_does_not_consume_available_litres():
     existing = [Disposition(1, 80.0, "SOLD", status="VOID")]
     MilkReconciliationService.validate_disposition_quantity(
@@ -60,4 +80,15 @@ def test_void_disposition_does_not_consume_available_litres():
         dispositions=existing,
         disposition_type="SOLD",
         quantity_litres=80.0,
+    )
+
+
+def test_disposition_edit_excluding_current_row_uses_remaining_pool():
+    existing = [Disposition(1, 20.0, "SOLD")]
+    MilkReconciliationService.validate_disposition_quantity(
+        production_basis=basis(total=100.0, withdrawal=20.0),
+        dispositions=existing,
+        disposition_type="SOLD",
+        quantity_litres=80.0,
+        exclude_id=1,
     )
