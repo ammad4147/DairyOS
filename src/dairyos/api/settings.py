@@ -68,13 +68,13 @@ class ResetProtectionRequest(BaseModel):
 
 class ResetTestDataRequest(BaseModel):
     confirm: str
-    password: str
+    password: str | None = None
     updated_by: str = Field(default="UI Operator")
 
 
 class DeployRequest(BaseModel):
     confirm: str
-    password: str
+    password: str | None = None
     updated_by: str = Field(default="UI Operator")
 
 
@@ -162,7 +162,7 @@ def activate_deployment(payload: DeployRequest):
             status = service.activate(password=payload.password, updated_by=payload.updated_by)
         except DeploymentControlError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
-        return {"status": "deployed", **status}
+        return {"status": "deployed", "deployment": status}
     finally:
         rf.close()
 
