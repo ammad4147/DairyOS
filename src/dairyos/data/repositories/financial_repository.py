@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from ..models.financial_transaction import FinancialTransaction
 
 
@@ -96,25 +98,37 @@ class FinancialRepository:
 
 
     def delete(self, record_id):
+        """Backward-compatible guard against destructive finance deletion.
 
-        if self.session:
+        Financial facts are append-only. Existing callers receive a hard
+        failure rather than physically deleting a ledger record; use the
+        governed Finance status endpoint to move a transaction to VOID.
+        """
+        raise RuntimeError(
+            "Destructive deletion of financial transactions is prohibited. "
+            "Use the governed VOID transition instead."
+        )
 
-            entity = self.get_by_id(record_id)
 
-            if entity is None:
-                return False
-
-            self.session.delete(entity)
-            self.session.commit()
-            return True
-
+    def void(self, record_id, reason=""):
+        """Soft-void a financial transaction while retaining its audit trail."""
         entity = self.get_by_id(record_id)
-
         if entity is None:
             return False
+        if str(getattr(entity, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+            return entity
 
-        self.records.remove(entity)
-        return True
+        note = (getattr(entity, "notes", None) or "").strip()
+        stamp = datetime.now(timezone.utc).isoformat()
+        audit = f"VOIDED_AT={stamp} REASON={(reason or 'No reason supplied').strip()}"
+        entity.notes = f"{note}\n{audit}".strip()
+        entity.status = "VOID"
+
+        if self.session:
+            self.session.add(entity)
+            self.session.commit()
+            self.session.refresh(entity)
+        return entity
 
 
     def count(self):
