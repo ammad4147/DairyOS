@@ -37,12 +37,15 @@ def resolve_configuration(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _run_production_startup_gates() -> None:
-    """Run the production migration and administrator-safety gates."""
-    from dairyos.api.auth import ensure_production_admin_password_configured
+    """Run the production database startup gate.
+
+    DairyOS is a local farm application. Database schema preparation remains
+    mandatory, but application login/password configuration is intentionally
+    outside the startup path.
+    """
     from dairyos.windows.migrations import migrate_if_needed
 
     migrate_if_needed()
-    ensure_production_admin_password_configured()
 
 
 def main(argv: list[str] | None = None) -> int:
