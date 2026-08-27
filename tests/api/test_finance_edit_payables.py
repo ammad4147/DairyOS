@@ -41,7 +41,7 @@ def create_expense(test_ids: list[int], **overrides):
     payload.update(overrides)
     response = client.post("/farm/finance-ledger", json=payload)
     if response.status_code < 300:
-        ids.append(response.json()["id"])
+        test_ids.append(response.json()["id"])
     return response
 
 
