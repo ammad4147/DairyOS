@@ -6,16 +6,21 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = Path(SPECPATH).resolve()
 WEB_DIST = ROOT / "src" / "DairyOS.Web" / "dist"
+POSTGRES_RUNTIME = ROOT / "runtime" / "PostgreSQL"
 
 
 datas = [
     (str(ROOT / "alembic.ini"), "."),
     (str(ROOT / "db_migrations"), "db_migrations"),
     (str(WEB_DIST), "src/DairyOS.Web/dist"),
+    (str(POSTGRES_RUNTIME), "runtime/PostgreSQL"),
 ]
 binaries = []
 hiddenimports = []
-hiddenimports += collect_submodules("dairyos")
+hiddenimports += collect_submodules(
+    "dairyos",
+    filter=lambda name: not name.startswith("dairyos.herd.dashboard"),
+)
 hiddenimports += collect_submodules("alembic")
 hiddenimports += collect_submodules("sqlalchemy")
 tmp_ret = collect_all("webview")
@@ -33,7 +38,7 @@ analysis = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["dairyos.herd.dashboard"],
     noarchive=False,
     optimize=0,
 )
