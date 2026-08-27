@@ -1,7 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$releaseRoot = Join-Path $repo '..\Desktop\DairyOS-Release-Candidate'
 $bundle = Join-Path $repo 'dist\DairyOS-Release\DairyOS'
 $desktopRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'DairyOS-Release-Candidate'
 $desktopBundle = Join-Path $desktopRoot 'dist\DairyOS'
