@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from ..models.animal import Animal
 from ..models.animal_milking_schedule_history import (
@@ -19,18 +19,20 @@ class AnimalRepository:
         self.session = session
         self.records = []
 
-    def add(self, animal):
+    def add(self, animal, *, commit=True):
         if self.session:
             self.session.add(animal)
-            self.session.commit()
-            self.session.refresh(animal)
+            self.session.flush()
+            if commit:
+                self.session.commit()
+                self.session.refresh(animal)
             return animal
 
         self.records.append(animal)
         return animal
 
-    def save(self, animal):
-        return self.add(animal)
+    def save(self, animal, *, commit=True):
+        return self.add(animal, commit=commit)
 
     def get_all(self):
         if self.session:
@@ -80,8 +82,7 @@ class AnimalRepository:
             )
 
         return [
-            a
-            for a in self.records
+            a for a in self.records
             if a.lifecycle_status == lifecycle_status
         ]
 
@@ -104,8 +105,7 @@ class AnimalRepository:
             )
 
         return [
-            a
-            for a in self.records
+            a for a in self.records
             if a.production_group == production_group
         ]
 
@@ -121,8 +121,7 @@ class AnimalRepository:
             )
 
         return [
-            a
-            for a in self.records
+            a for a in self.records
             if getattr(a, "dam_id", None) == str(dam_id)
         ]
 
@@ -138,8 +137,7 @@ class AnimalRepository:
             )
 
         return [
-            a
-            for a in self.records
+            a for a in self.records
             if getattr(a, "sire_id", None) == str(sire_id)
         ]
 
@@ -176,8 +174,7 @@ class AnimalRepository:
             )
 
         return [
-            a
-            for a in self.records
+            a for a in self.records
             if a.is_currently_milking and a.active
         ]
 
@@ -242,18 +239,15 @@ class AnimalRepository:
         changed_by=None,
         reason=None,
         effective_date=None,
+        *,
+        commit=True,
     ):
         """
         Change an animal's milking frequency with effective-dated history.
 
-        Semantics:
-
-        * A normal/current change starts at the requested effective time and
-          closes the previous explicit schedule.
-        * A backdated explicit change remains effective until the next
-          explicit schedule change.
-        * The automatically-created ``initial`` schedule never truncates a
-          later explicit backdated change.
+        ``commit=False`` lets a compound application command keep the animal
+        and its initial schedule in one database transaction. Existing callers
+        retain the historical default of committing immediately.
         """
         if not self.session:
             raise RuntimeError(
@@ -301,14 +295,13 @@ class AnimalRepository:
             animal.milking_frequency = new_frequency
             animal.updated_at = now
 
-            self.session.commit()
-            self.session.refresh(animal)
+            self.session.flush()
+            if commit:
+                self.session.commit()
+                self.session.refresh(animal)
 
             return animal
 
-        # The next boundary is the first EXPLICIT schedule beginning after
-        # the requested date. The automatic "initial" baseline is not such a
-        # boundary because it must not truncate a backdated operator change.
         next_history = next(
             (
                 record
@@ -322,7 +315,6 @@ class AnimalRepository:
             None,
         )
 
-        # Find the most recent history before the requested date.
         previous_history = None
 
         for record in histories:
@@ -334,9 +326,6 @@ class AnimalRepository:
             else:
                 break
 
-        # Only close a predecessor if it is genuinely before the new
-        # effective date. The initial baseline may begin after the requested
-        # date and therefore must not be given an inverted interval.
         if previous_history is not None:
             previous_history.effective_to = effective_from
 
@@ -354,10 +343,6 @@ class AnimalRepository:
         )
         self.session.add(new_history)
 
-        # For a historical explicit change, do not alter the current Animal
-        # fact away from the latest known schedule. This remains the live
-        # current value while the history table remains authoritative for
-        # date-aware reads.
         latest_explicit = max(
             (
                 record
@@ -379,8 +364,10 @@ class AnimalRepository:
 
         animal.updated_at = now
 
-        self.session.commit()
-        self.session.refresh(animal)
+        self.session.flush()
+        if commit:
+            self.session.commit()
+            self.session.refresh(animal)
 
         return animal
 
