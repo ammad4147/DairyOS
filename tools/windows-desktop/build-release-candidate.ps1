@@ -81,3 +81,7 @@ Write-Host ''
 Write-Host '=== RELEASE CANDIDATE BUNDLE ==='
 Write-Host $bundle
 Get-FileHash $exe -Algorithm SHA256
+
+# Explicitly clear the native executable status. robocopy returns 1 for a
+# successful copy that made changes, which must not make this script fail.
+exit 0
