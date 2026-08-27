@@ -31,17 +31,23 @@ class DeploymentControlService:
             return environment not in {"production", "staging", "preprod"}
         return str(value).strip().lower() == "true"
 
+    def is_password_configured(self) -> bool:
+        return self.settings.is_reset_protected()
+
     def status(self) -> dict[str, object]:
         return {
             "deployed": self.is_deployed(),
             "activated_at": self.repository.get(DEPLOYMENT_ACTIVATED_AT_KEY),
             "activated_by": self.repository.get(DEPLOYMENT_ACTIVATED_BY_KEY),
             "last_action": self.repository.get(DEPLOYMENT_LAST_ACTION_KEY),
-            "reset_protected": self.settings.is_reset_protected(),
+            "reset_protected": self.is_password_configured(),
         }
 
+    def verify_password(self, password: str | None) -> bool:
+        return self.settings.verify_reset_password(password)
+
     def _require_password(self, password: str | None) -> None:
-        if not self.settings.verify_reset_password(password):
+        if not self.verify_password(password):
             raise DeploymentControlError(
                 "Deployment/reset password is not configured or is incorrect. "
                 "Configure Reset Protection before using Deployment Controls."
