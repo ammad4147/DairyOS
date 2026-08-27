@@ -11,54 +11,11 @@ from dairyos.data.database.base import Base
 # Database connection configuration
 # ------------------------------------------------------------------
 #
-# Sprint / Gap-analysis Tier 1b
-# ==============================
-#
-# Previously this module hardcoded
-# "postgresql+psycopg2://postgres:postgres@localhost:5432/dairyos" as a
-# literal string -- every deployment (including a real farm's
-# production database) was forced onto that exact host, port,
-# username, password and database name, with the password checked
-# into source control. This module is now the single place DairyOS
-# reads its database connection from, resolved (in order):
-#
-# ALSO FIXED while rebuilding this module: the driver in that hardcoded
-# string was "postgresql+psycopg2", but pyproject.toml/requirements.txt
-# declare "psycopg[binary]>=3.2" -- psycopg **3**, a different package
-# that does not provide the "psycopg2" import name. A truly clean
-# `pip install -e .` (only the project's own declared dependencies, no
-# extra manual install) could not open a database connection at all --
-# confirmed directly: create_engine("postgresql+psycopg2://...") raises
-# ModuleNotFoundError: No module named 'psycopg2' in a venv built from
-# nothing but this project's own dependency list. The driver below is
-# now "postgresql+psycopg", SQLAlchemy 2.0's dialect name for psycopg 3,
-# matching what the project actually declares and installs.
-#
-#   1. DAIRYOS_DATABASE_URL, a full SQLAlchemy connection string, for
-#      deployments that need something this module's simpler
-#      host/port/user/password/name knobs cannot express (custom SSL
-#      parameters, a Unix socket path, a managed-cloud-database
-#      connection string, etc.).
-#   2. Otherwise, the individual DAIRYOS_DB_* environment variables
-#      below, assembled into a connection string with
-#      sqlalchemy.engine.URL.create() (NOT raw string interpolation,
-#      so special characters in a password/host cannot corrupt or
-#      inject into the DSN).
-#
-# A local ".env" file at the project root is loaded automatically
-# (via python-dotenv, already a declared project dependency that was
-# unused until now) so a developer machine or a single farm server
-# can keep real credentials out of the shell profile and out of git
-# without any extra wiring. load_dotenv() is a safe no-op when no
-# ".env" file exists.
-#
-# The previous hardcoded values remain the *development* defaults, so
-# an existing local/dev setup keeps working unmodified. In production
-# (DAIRYOS_ENV=production) an explicit DAIRYOS_DB_PASSWORD or
-# DAIRYOS_DATABASE_URL is required -- DairyOS refuses to silently run
-# a farm's production database on the well-known "postgres" default
-# password, mirroring the existing DAIRYOS_AUTH_SECRET production
-# safety check in api/auth.py.
+# This module is the single place DairyOS reads its database connection
+# configuration. Production deployments may provide a full
+# DAIRYOS_DATABASE_URL or explicit DAIRYOS_DB_* settings. A local Windows
+# installation can use the dedicated ``dairyos`` PostgreSQL role over
+# localhost with trust authentication, in which case no password is needed.
 
 load_dotenv()
 
@@ -74,13 +31,20 @@ def _build_database_url() -> str:
     user = os.getenv("DAIRYOS_DB_USER", "postgres")
     password = os.getenv("DAIRYOS_DB_PASSWORD")
 
-    if password is None:
-        if os.getenv("DAIRYOS_ENV", "development").lower() == "production":
+    environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
+    local_passwordless = (
+        not password
+        and user == "dairyos"
+        and host in {"localhost", "127.0.0.1", "::1"}
+        and environment in {"production", "staging", "preprod", "development", "test"}
+    )
+
+    if password is None and not local_passwordless:
+        if environment in {"production", "staging", "preprod"}:
             raise RuntimeError(
-                "DAIRYOS_DB_PASSWORD (or DAIRYOS_DATABASE_URL) must be "
-                "configured in production -- refusing to start a "
-                "production deployment on the development default "
-                "database password."
+                "DAIRYOS_DB_PASSWORD (or DAIRYOS_DATABASE_URL) must be configured "
+                "unless the dedicated local DairyOS PostgreSQL role is configured "
+                "for passwordless localhost access."
             )
         password = "postgres"
 
@@ -94,17 +58,12 @@ def _build_database_url() -> str:
     url = URL.create(
         drivername="postgresql+psycopg",
         username=user,
-        password=password,
+        password=password if password else None,
         host=host,
         port=port_number,
         database=name,
     )
 
-    # render_as_string(hide_password=False) returns the same DSN
-    # create_engine() would build internally from a URL object; kept
-    # as a plain string so DATABASE_URL below stays a drop-in
-    # replacement for the previous hardcoded literal for any external
-    # code/tooling that reads it.
     return url.render_as_string(hide_password=False)
 
 
