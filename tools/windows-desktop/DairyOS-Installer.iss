@@ -24,7 +24,6 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExeName}
-SetupIconFile={app}\{#AppExeName}
 DisableProgramGroupPage=yes
 
 [Files]
@@ -44,12 +43,11 @@ Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{ap
 Name: "{commonappdata}\DairyOS"
 
 [UninstallDelete]
-; Do NOT delete {commonappdata}\DairyOS. Farm data, database cluster, backups,
-; configuration and deployment state must survive uninstall/reinstall.
+; Deliberately empty: ProgramData is farm data and survives uninstall/reinstall.
 
 [Code]
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  NeedsRestart := True;
+  NeedsRestart := False;
 end;
