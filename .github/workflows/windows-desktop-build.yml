@@ -65,15 +65,51 @@ jobs:
           $hash = Get-FileHash -Algorithm SHA256 $exe
           Write-Host "DairyOS.exe SHA256: $($hash.Hash)"
 
-          $legacyImport = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
-            Select-String -Pattern "src\\dairyos\\herd\\dashboard|from src\.dairyos\.herd\.dashboard" -SimpleMatch -ErrorAction SilentlyContinue
+          $legacyFiles = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in @('.py', '.pyc') }
+          $legacyImport = $legacyFiles | Select-String -Pattern 'from src\.dairyos\.herd\.dashboard|import src\.dairyos\.herd\.dashboard' -ErrorAction SilentlyContinue
           if ($legacyImport) {
-            throw "Legacy dairyos.herd.dashboard import text was found in the packaged Desktop bundle."
+            throw "Legacy dairyos.herd.dashboard import was found in the packaged Desktop bundle."
           }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          if (-not $candidates) {
+            choco install innosetup --yes --no-progress
+          }
+          $iscc = @(
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+          if (-not $iscc) { throw "Inno Setup compiler was not found after installation." }
+          Write-Host "Inno Setup: $iscc"
+          & $iscc .\installer\DairyOS.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed with exit code $LASTEXITCODE." }
+
+      - name: Verify installer artifact
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path "dist\installer" -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "No Windows installer executable was produced." }
+          $hash = Get-FileHash -Algorithm SHA256 $installer.FullName
+          Write-Host "Installer: $($installer.FullName)"
+          Write-Host "Installer SHA256: $($hash.Hash)"
 
       - name: Upload Desktop bundle
         uses: actions/upload-artifact@v4
         with:
           name: DairyOS-Windows-Desktop-${{ github.sha }}
           path: dist/DairyOS/
+          if-no-files-found: error
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer-${{ github.sha }}
+          path: dist/installer/*.exe
           if-no-files-found: error
