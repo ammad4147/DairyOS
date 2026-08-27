@@ -4,6 +4,7 @@ from sqlalchemy import (
     String,
     Float,
     DateTime,
+    ForeignKey,
 )
 
 from datetime import datetime
@@ -16,19 +17,18 @@ class HealthObservation(Base):
 
     __tablename__ = "health_observation"
 
-
     id = Column(
         Integer,
         primary_key=True,
         autoincrement=True,
     )
 
-
     animal_id = Column(
         String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     )
-
 
     observed_at = Column(
         DateTime,
@@ -36,71 +36,51 @@ class HealthObservation(Base):
         nullable=False,
     )
 
-
-    #
-    # Operational health fields
-    #
-
     observation = Column(
         String,
         nullable=True,
     )
-
 
     reported_by = Column(
         String,
         nullable=True,
     )
 
-
     temperature = Column(
         Float,
         nullable=True,
     )
-
-
-    #
-    # Existing compatibility fields
-    #
 
     symptom = Column(
         String,
         nullable=True,
     )
 
-
     temperature_c = Column(
         Float,
         nullable=True,
     )
-
 
     observer = Column(
         String,
         nullable=True,
     )
 
-
     notes = Column(
         String,
         nullable=True,
     )
-
 
     severity = Column(
         String,
         default="NORMAL",
     )
 
-
     status = Column(
         String,
         default="OPEN",
     )
 
-    # Nullable link to a HealthCase (G5.1, 2026-08-14). An observation can
-    # still be recorded standalone (unlinked) exactly as before -- this is
-    # additive, not a required field on the existing write path.
     health_case_id = Column(
         Integer,
         nullable=True,
