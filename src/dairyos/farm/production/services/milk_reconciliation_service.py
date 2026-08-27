@@ -187,7 +187,7 @@ class MilkReconciliationService:
         repo, owned_factory = self._repo()
         try:
             if sale_id and repo.get_by_sale_id(sale_id) is not None:
-                raise ValueError(f"Milk sale_id already exists: {sale_id}")
+                raise ValueError(f"Milk sale_id {sale_id} is already recorded.")
             production_repository = self.production_repository
             if production_repository is None and owned_factory is not None:
                 production_repository = owned_factory.milk()
