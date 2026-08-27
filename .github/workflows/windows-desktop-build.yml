@@ -44,15 +44,32 @@ jobs:
       - name: Build Desktop bundle
         run: pyinstaller --clean --noconfirm .\DairyOS.spec
 
-      - name: Verify Desktop executable
+      - name: Verify Desktop bundle contract
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD "dist\DairyOS\DairyOS.exe"
-          if (-not (Test-Path $exe)) {
-            throw "Desktop executable was not produced: $exe"
-          }
+          $root = Join-Path $PWD "dist\DairyOS"
+          $exe = Join-Path $root "DairyOS.exe"
+          $postgres = Join-Path $root "runtime\PostgreSQL\bin\postgres.exe"
+          $migrations = Join-Path $root "db_migrations"
+          $web = Join-Path $root "src\DairyOS.Web\dist"
+
+          if (-not (Test-Path $exe)) { throw "Desktop executable was not produced: $exe" }
+          if (-not (Test-Path $postgres)) { throw "Private PostgreSQL runtime was not packaged: $postgres" }
+          if (-not (Test-Path $migrations)) { throw "Database migrations were not packaged: $migrations" }
+          if (-not (Test-Path $web)) { throw "Frontend distribution was not packaged: $web" }
+
+          $version = & $postgres --version 2>&1
+          if ($LASTEXITCODE -ne 0) { throw "Bundled PostgreSQL executable did not run: $version" }
+          Write-Host "Bundled PostgreSQL: $version"
+
           $hash = Get-FileHash -Algorithm SHA256 $exe
           Write-Host "DairyOS.exe SHA256: $($hash.Hash)"
+
+          $legacyImport = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+            Select-String -Pattern "src\\dairyos\\herd\\dashboard|from src\.dairyos\.herd\.dashboard" -SimpleMatch -ErrorAction SilentlyContinue
+          if ($legacyImport) {
+            throw "Legacy dairyos.herd.dashboard import text was found in the packaged Desktop bundle."
+          }
 
       - name: Upload Desktop bundle
         uses: actions/upload-artifact@v4
