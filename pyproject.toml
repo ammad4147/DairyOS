@@ -25,6 +25,10 @@ dependencies = [
 
 [project.optional-dependencies]
 desktop = ["pywebview>=6.2.1"]
+desktop-build = [
+  "pywebview>=6.2.1",
+  "pyinstaller>=6.19"
+]
 
 [project.scripts]
 dairyos-server = "dairyos.server:main"
