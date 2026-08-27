@@ -45,5 +45,5 @@ def test_financial_repository_void_cannot_bypass_settled_immutability():
         repository = FinancialRepository()
         repository.records.append(transaction)
 
-        with pytest.raises(RuntimeError, match="settled financial transactions"):
+        with pytest.raises(RuntimeError, match="Settled financial transactions"):
             repository.void(1, "Correction")
