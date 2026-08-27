@@ -21,6 +21,15 @@ from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOp
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
 
 VALID_STATUSES = {"RECORDED", "RECEIVED", "RECEIVABLE", "PAID", "PAYABLE", "VOID"}
+ALLOWED_STATUS_TRANSITIONS = {
+    "RECORDED": frozenset({"RECORDED", "PAYABLE", "RECEIVABLE", "VOID"}),
+    "PAYABLE": frozenset({"PAYABLE", "PAID", "VOID"}),
+    "RECEIVABLE": frozenset({"RECEIVABLE", "RECEIVED", "VOID"}),
+    "PAID": frozenset({"PAID"}),
+    "RECEIVED": frozenset({"RECEIVED"}),
+    "VOID": frozenset({"VOID"}),
+}
+SETTLED_STATUSES = frozenset({"PAID", "RECEIVED"})
 
 
 class FinanceLedgerEntry(BaseModel):
@@ -132,6 +141,25 @@ def _validate_dates(transaction_date: date | None, due_date: date | None) -> Non
         raise HTTPException(status_code=422, detail="due_date cannot be earlier than transaction_date.")
 
 
+def _validate_transition(current_status: str | None, requested_status: str) -> str:
+    current = (current_status or "RECORDED").strip().upper()
+    requested = requested_status.strip().upper()
+    if requested not in VALID_STATUSES:
+        raise HTTPException(status_code=422, detail="Unsupported financial status.")
+    allowed = ALLOWED_STATUS_TRANSITIONS.get(current, frozenset())
+    if requested not in allowed:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid financial status transition: {current} -> {requested}.",
+        )
+    return requested
+
+
+def _require_void_reason(status: str, reason: str | None) -> None:
+    if status == "VOID" and not (reason or "").strip():
+        raise HTTPException(status_code=422, detail="A reason is required to void a financial transaction.")
+
+
 def _age_bucket(due_date: date | None, as_of: date | None = None) -> str:
     if due_date is None:
         return "NO_DUE_DATE"
@@ -208,8 +236,8 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry):
     if entry.payment_method is not None and entry.payment_method not in GOVERNED["payment_types"]:
         raise HTTPException(status_code=422, detail="Unsupported payment_method.")
     status = entry.status.strip().upper()
-    if status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail="Unsupported financial status.")
+    if status not in {"RECORDED", "PAYABLE", "RECEIVABLE", "PAID", "RECEIVED"}:
+        raise HTTPException(status_code=422, detail="New financial transactions must begin in RECORDED, PAYABLE, RECEIVABLE, PAID or RECEIVED state.")
     _validate_dates(entry.transaction_date, entry.due_date)
     if status in {"PAYABLE", "RECEIVABLE"} and entry.due_date is None:
         raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
@@ -238,7 +266,7 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry):
             unit=entry.unit if transaction_type in classifier.EXPENSE_TYPES else None,
             unit_rate=entry.unit_rate if transaction_type in classifier.EXPENSE_TYPES else None,
             due_date=entry.due_date,
-            settled_date=date.today() if status in {"PAID", "RECEIVED"} else None,
+            settled_date=date.today() if status in SETTLED_STATUSES else None,
         )
         if entry.transaction_date is not None:
             transaction.transaction_date = datetime.combine(entry.transaction_date, datetime.min.time())
@@ -255,8 +283,18 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
         row = factory.finance().get_by_id(transaction_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Financial transaction not found.")
-        if row.status == "VOID":
+
+        current_status = (row.status or "RECORDED").strip().upper()
+        if current_status == "VOID":
             raise HTTPException(status_code=409, detail="VOID transactions cannot be edited.")
+        if current_status in SETTLED_STATUSES:
+            supplied_fields = set(payload.model_dump(exclude_unset=True))
+            if supplied_fields:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Settled transactions in {current_status} state are immutable; create a governed correction entry instead.",
+                )
+            return _row_dict(row)
 
         transaction_type = classifier.normalize_transaction_type(row.transaction_type)
         if transaction_type in classifier.EXPENSE_TYPES:
@@ -290,9 +328,8 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
         transaction_date = payload.transaction_date or (row.transaction_date.date() if row.transaction_date else None)
         due_date = payload.due_date if payload.due_date is not None else row.due_date
         _validate_dates(transaction_date, due_date)
-        status = payload.status.strip().upper() if payload.status else row.status
-        if status not in VALID_STATUSES:
-            raise HTTPException(status_code=422, detail="Unsupported financial status.")
+        status = _validate_transition(current_status, payload.status if payload.status else current_status)
+        _require_void_reason(status, payload.notes)
         if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
             raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
 
@@ -314,7 +351,7 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
             row.notes = payload.notes
         row.status = status
         row.due_date = due_date
-        row.settled_date = date.today() if status in {"PAID", "RECEIVED"} else None
+        row.settled_date = date.today() if status in SETTLED_STATUSES else None
 
         saved = factory.finance().add(row)
         return _row_dict(saved)
@@ -334,15 +371,21 @@ def list_payables():
 
 @router.post("/{transaction_id}/status")
 def update_finance_status(transaction_id: int, payload: FinanceStatusUpdate):
-    status = payload.status.strip().upper()
-    if status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail="Unsupported financial status.")
-
     factory = RepositoryFactory.create()
     try:
         row = factory.finance().get_by_id(transaction_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Financial transaction not found.")
+        current_status = (row.status or "RECORDED").strip().upper()
+        status = _validate_transition(current_status, payload.status)
+        if current_status in SETTLED_STATUSES:
+            if status == current_status and payload.reason is None and payload.due_date is None:
+                return _row_dict(row)
+            raise HTTPException(
+                status_code=409,
+                detail=f"Settled transactions in {current_status} state are immutable.",
+            )
+        _require_void_reason(status, payload.reason)
         due_date = payload.due_date if payload.due_date is not None else row.due_date
         transaction_date = row.transaction_date.date() if row.transaction_date else None
         _validate_dates(transaction_date, due_date)
@@ -350,7 +393,7 @@ def update_finance_status(transaction_id: int, payload: FinanceStatusUpdate):
             raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
         row.status = status
         row.due_date = due_date
-        row.settled_date = date.today() if status in {"PAID", "RECEIVED"} else None
+        row.settled_date = date.today() if status in SETTLED_STATUSES else None
         if payload.reason:
             row.notes = f"{row.notes or ''}\n[{status}] {payload.reason}".strip()
         saved = factory.finance().add(row)

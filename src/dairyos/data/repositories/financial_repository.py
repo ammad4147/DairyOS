@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from ..models.financial_transaction import FinancialTransaction
 
 
@@ -91,30 +93,47 @@ class FinancialRepository:
 
 
     def exists(self, record_id):
-
         return self.get_by_id(record_id) is not None
 
 
     def delete(self, record_id):
+        """Backward-compatible guard against destructive finance deletion."""
+        raise RuntimeError(
+            "Destructive deletion of financial transactions is prohibited. "
+            "Use the governed VOID transition instead."
+        )
 
-        if self.session:
 
-            entity = self.get_by_id(record_id)
-
-            if entity is None:
-                return False
-
-            self.session.delete(entity)
-            self.session.commit()
-            return True
-
+    def void(self, record_id, reason=""):
+        """Soft-void an unsettled financial transaction with an audit note."""
         entity = self.get_by_id(record_id)
-
         if entity is None:
             return False
 
-        self.records.remove(entity)
-        return True
+        status = str(getattr(entity, "status", "RECORDED") or "RECORDED").upper()
+        if status == "VOID":
+            return entity
+        if status in {"PAID", "RECEIVED"}:
+            raise RuntimeError(
+                f"Settled financial transactions in {status} state are immutable; "
+                "use a governed correction entry instead."
+            )
+
+        cleaned_reason = (reason or "").strip()
+        if not cleaned_reason:
+            raise ValueError("A reason is required to void a financial transaction.")
+
+        note = (getattr(entity, "notes", None) or "").strip()
+        stamp = datetime.now(timezone.utc).isoformat()
+        audit = f"VOIDED_AT={stamp} REASON={cleaned_reason}"
+        entity.notes = f"{note}\n{audit}".strip()
+        entity.status = "VOID"
+
+        if self.session:
+            self.session.add(entity)
+            self.session.commit()
+            self.session.refresh(entity)
+        return entity
 
 
     def count(self):

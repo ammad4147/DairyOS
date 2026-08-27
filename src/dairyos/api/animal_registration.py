@@ -45,15 +45,10 @@ def _animal_id_prefix(container) -> str:
 def _new_animal_id(repository, prefix: str) -> str:
     """Generate a collision-safe, farm-branded permanent identifier.
 
-    2026-08-14: replaces the previous ``AN-{32 hex chars}`` scheme (an
-    operator-illegible random ID) with a short, sequential, farm-branded
-    one -- "TD-001", "TD-002", ... for a farm whose Settings prefix is
-    "TD". The next number is the highest existing sequence under this
-    prefix, plus one -- not ``repository.count()``, which drifts under
-    deletions or a test-data reset -- with a short collision-retry loop
-    for the rare case a concurrent request claims the same number first
-    (the same allocator shape already used for OperationalFinding and
-    HealthCase ids elsewhere in this codebase).
+    The next number is the highest existing sequence under this prefix, plus
+    one, rather than ``repository.count()`` so deletions or resets do not
+    cause identifier reuse. A short collision-retry loop handles a concurrent
+    request where the unique database index wins the race.
     """
     pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
     try:
@@ -152,16 +147,25 @@ def register_animal(
         fromlist=["Animal"],
     ).Animal
 
-    animal = repository.save(animal_model(**animal_payload))
+    session = container.repository_factory.session
+    try:
+        animal = repository.save(animal_model(**animal_payload), commit=False)
 
-    if payload.get("milking_frequency"):
-        repository.set_milking_frequency(
-            animal_id=animal_id,
-            new_frequency=payload["milking_frequency"],
-            changed_by=None,
-            reason="initial",
-        )
-        animal = repository.get_by_animal_id(animal_id)
+        if payload.get("milking_frequency"):
+            repository.set_milking_frequency(
+                animal_id=animal_id,
+                new_frequency=payload["milking_frequency"],
+                changed_by=None,
+                reason="initial",
+                commit=False,
+            )
+
+        session.flush()
+        session.commit()
+        session.refresh(animal)
+    except Exception:
+        session.rollback()
+        raise
 
     try:
         container.operations.handle_command(
@@ -176,7 +180,8 @@ def register_animal(
             )
         )
     except Exception:
-        # Persistence above is authoritative. Command projection is ancillary.
+        # The database transaction above is authoritative. Command projection
+        # is ancillary and must not invalidate an otherwise valid registration.
         pass
 
     return {

@@ -45,27 +45,28 @@ def create_expense(test_ids: list[int], **overrides):
     return response
 
 
-def test_edit_recalculates_expense_and_preserves_transaction_id(finance_test_ids):
+def test_settled_expense_requires_governed_correction(finance_test_ids):
     created = create_expense(finance_test_ids)
     assert created.status_code == 200, created.text
     original = created.json()
     assert original["amount"] == 1000
+    assert original["status"] == "PAID"
 
     edited = client.patch(
         f"/farm/finance-ledger/{original['id']}",
         json={"quantity": 15, "unit": "kg", "unit_rate": 120},
     )
-    assert edited.status_code == 200, edited.text
-    updated = edited.json()
-
-    assert updated["id"] == original["id"]
-    assert updated["quantity"] == 15
-    assert updated["unit_rate"] == 120
-    assert updated["amount"] == 1800
+    assert edited.status_code == 409, edited.text
+    assert "Settled transactions" in edited.json()["detail"]
 
 
 def test_void_transaction_cannot_be_edited(finance_test_ids):
-    created = create_expense(finance_test_ids)
+    created = create_expense(
+        finance_test_ids,
+        status="PAYABLE",
+        payment_method="CREDIT",
+        due_date=(date.today() + timedelta(days=7)).isoformat(),
+    )
     assert created.status_code == 200, created.text
     transaction_id = created.json()["id"]
 

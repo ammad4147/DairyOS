@@ -718,6 +718,7 @@ def test_incomplete_production_never_creates_finding(
 
     assert result["status"] == "PRODUCTION_INCOMPLETE"
     assert findings.rows == []
+
 def test_complete_wastage_is_accounted_separately(
     monkeypatch,
 ):
@@ -902,7 +903,7 @@ def test_disposition_quantity_must_not_over_allocate_known_production(
 
     with pytest.raises(
         ValueError,
-        match="exceeds available production",
+        match="exceeds available saleable production",
     ):
         service.record_disposition(
             production_date=production_date,

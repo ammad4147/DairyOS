@@ -17,6 +17,7 @@ VALID_DISPOSITIONS = frozenset(
         "DOMESTIC_USE",
         "WASTAGE",
         "OTHER",
+        "WITHDRAWAL",
     }
 )
 
@@ -24,10 +25,10 @@ VALID_DISPOSITIONS = frozenset(
 class MilkReconciliationService:
     """Read/write boundary for daily milk destination accounting.
 
-    Total biological production remains visible, but only saleable milk is
-    available for ordinary destination accounting. Milk recorded under an
-    active veterinary withdrawal is retained as production while excluded
-    from saleable reconciliation.
+    Biological production is always retained as production. Active veterinary
+    withdrawal litres are non-saleable and must be accounted explicitly as a
+    WITHDRAWAL destination. All ordinary destinations are limited to the
+    remaining saleable litres.
     """
 
     def __init__(self, disposition_repository=None, production_repository=None):
@@ -51,13 +52,7 @@ class MilkReconciliationService:
 
     @classmethod
     def _production_total(cls, production_date: date, production_repository=None) -> dict:
-        """Return biological and saleable production for one date.
-
-        The persisted production repository is optional so isolated
-        reconciliation tests can continue to exercise only the disposition
-        contract. Production runtime supplies it to account for WITHDRAWAL
-        milk explicitly.
-        """
+        """Return biological, withdrawal and saleable production for one date."""
         trend = MilkProductionTrendIntelligenceService()
         snapshot = trend.generate(as_of_date=production_date, period_days=7).summary()
 
@@ -89,7 +84,6 @@ class MilkReconciliationService:
             }
 
         total = float(daily_total)
-        saleable = total
         withdrawal = 0.0
 
         if production_repository is not None:
@@ -104,15 +98,17 @@ class MilkReconciliationService:
                 row_withdrawal = 0.0
                 for row in dated_rows:
                     litres = float(getattr(row, "total_yield", 0.0) or 0.0)
+                    if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+                        continue
                     row_total += litres
                     if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "WITHDRAWAL":
                         row_withdrawal += litres
 
                 if row_total > 0.0 or total == 0.0:
                     total = max(total, row_total)
-                withdrawal = row_withdrawal
-                saleable = max(total - withdrawal, 0.0)
+                withdrawal = min(max(row_withdrawal, 0.0), max(total, 0.0))
 
+        saleable = max(total - withdrawal, 0.0)
         return {
             "date": production_date.isoformat(),
             "complete": True,
@@ -121,6 +117,81 @@ class MilkReconciliationService:
             "saleable_litres": saleable,
             "withdrawal_litres": withdrawal,
         }
+
+    @staticmethod
+    def _active_disposition_sum(dispositions, disposition_type_filter=None):
+        return sum(
+            float(item.quantity_litres or 0.0)
+            for item in dispositions
+            if str(getattr(item, "status", "RECORDED") or "RECORDED").upper() != "VOID"
+            and (
+                disposition_type_filter is None
+                or str(item.disposition_type).upper() == disposition_type_filter
+            )
+        )
+
+    @classmethod
+    def validate_disposition_quantity(
+        cls,
+        *,
+        production_basis: dict,
+        dispositions,
+        disposition_type: str,
+        quantity_litres: float,
+        exclude_id: int | None = None,
+    ) -> None:
+        """Validate one destination against the same canonical available basis used everywhere."""
+        if not production_basis.get("complete", False):
+            return
+
+        disposition_type = str(disposition_type).strip().upper()
+        if quantity_litres <= 0:
+            raise ValueError("Milk disposition quantity must be greater than zero.")
+
+        active = [
+            item
+            for item in dispositions
+            if str(getattr(item, "status", "RECORDED") or "RECORDED").upper() != "VOID"
+            and (exclude_id is None or getattr(item, "id", None) != exclude_id)
+        ]
+
+        if disposition_type == "WITHDRAWAL":
+            available = max(
+                float(production_basis.get("withdrawal_litres") or 0.0)
+                - cls._active_disposition_sum(active, "WITHDRAWAL"),
+                0.0,
+            )
+            if float(quantity_litres) > available + 0.01:
+                raise ValueError(
+                    "WITHDRAWAL milk disposition exceeds recorded withdrawal litres: "
+                    f"available {available:.3f} L, requested {float(quantity_litres):.3f} L."
+                )
+            return
+
+        available = max(
+            float(production_basis.get("saleable_litres") or 0.0)
+            - cls._active_disposition_sum(
+                active,
+                None,
+            ),
+            0.0,
+        )
+        already_withdrawal = cls._active_disposition_sum(active, "WITHDRAWAL")
+        ordinary_active = sum(
+            float(item.quantity_litres or 0.0)
+            for item in active
+            if str(item.disposition_type).upper() != "WITHDRAWAL"
+        )
+        available = max(
+            float(production_basis.get("saleable_litres") or 0.0) - ordinary_active,
+            0.0,
+        )
+        if float(quantity_litres) > available + 0.01:
+            raise ValueError(
+                "Milk disposition quantity exceeds available saleable production: "
+                f"already accounted {ordinary_active:.3f} L, requested {float(quantity_litres):.3f} L, "
+                f"saleable production {float(production_basis['saleable_litres']):.3f} L."
+            )
 
     def reconcile(self, production_date: date, *, raise_finding: bool = True):
         repo, owned_factory = self._repo()
@@ -159,17 +230,51 @@ class MilkReconciliationService:
             biological_production = float(current["daily_total"])
             withdrawal_litres = float(current.get("withdrawal_litres") or 0.0)
 
-            accounted = sum(float(item.quantity_litres) for item in dispositions)
-            sold = sum(float(item.quantity_litres) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
-            non_sale = accounted - sold
-            sale_value = sum(float(item.amount_due or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
-            cash_received = sum(float(item.amount_received or 0.0) for item in dispositions if str(item.disposition_type).upper() == "SOLD")
+            active = [
+                item
+                for item in dispositions
+                if str(getattr(item, "status", "RECORDED") or "RECORDED").upper() != "VOID"
+            ]
+            withdrawal_accounted = sum(
+                float(item.quantity_litres)
+                for item in active
+                if str(item.disposition_type).upper() == "WITHDRAWAL"
+            )
+            ordinary_accounted = sum(
+                float(item.quantity_litres)
+                for item in active
+                if str(item.disposition_type).upper() != "WITHDRAWAL"
+            )
+            accounted = ordinary_accounted + withdrawal_accounted
+            sold = sum(
+                float(item.quantity_litres)
+                for item in active
+                if str(item.disposition_type).upper() == "SOLD"
+            )
+            non_sale = sum(
+                float(item.quantity_litres)
+                for item in active
+                if str(item.disposition_type).upper() not in {"SOLD", "WITHDRAWAL"}
+            )
+            sale_value = sum(
+                float(item.amount_due or 0.0)
+                for item in active
+                if str(item.disposition_type).upper() == "SOLD"
+            )
+            cash_received = sum(
+                float(item.amount_received or 0.0)
+                for item in active
+                if str(item.disposition_type).upper() == "SOLD"
+            )
             receivable = max(sale_value - cash_received, 0.0)
 
-            delta = produced - accounted
-            if delta > 0.01:
+            saleable_delta = produced - ordinary_accounted
+            withdrawal_delta = withdrawal_litres - withdrawal_accounted
+            delta = saleable_delta + withdrawal_delta
+
+            if saleable_delta > 0.01 or withdrawal_delta > 0.01:
                 status = "UNACCOUNTED_PRODUCTION"
-            elif delta < -0.01:
+            elif saleable_delta < -0.01 or withdrawal_delta < -0.01:
                 status = "OVER_ACCOUNTED"
             else:
                 status = "RECONCILED"
@@ -181,11 +286,14 @@ class MilkReconciliationService:
                 "biological_production_litres": round(biological_production, 3),
                 "saleable_litres": round(produced, 3),
                 "withdrawal_litres": round(withdrawal_litres, 3),
+                "withdrawal_accounted_litres": round(withdrawal_accounted, 3),
                 "accounted_litres": round(accounted, 3),
                 "sold_litres": round(sold, 3),
                 "non_sale_accounted_litres": round(non_sale, 3),
                 "unaccounted_litres": round(max(delta, 0.0), 3),
                 "over_accounted_litres": round(max(-delta, 0.0), 3),
+                "unaccounted_saleable_litres": round(max(saleable_delta, 0.0), 3),
+                "unaccounted_withdrawal_litres": round(max(withdrawal_delta, 0.0), 3),
                 "sale_value": round(sale_value, 2),
                 "cash_received": round(cash_received, 2),
                 "receivable_outstanding": round(receivable, 2),
@@ -203,8 +311,10 @@ class MilkReconciliationService:
                         detail=(
                             f"Biological production {biological_production:.1f} L; "
                             f"saleable {produced:.1f} L; withdrawal {withdrawal_litres:.1f} L; "
-                            f"accounted {accounted:.1f} L; unaccounted {max(delta, 0.0):.1f} L; "
-                            f"over-accounted {max(-delta, 0.0):.1f} L."
+                            f"ordinary accounted {ordinary_accounted:.1f} L; withdrawal accounted "
+                            f"{withdrawal_accounted:.1f} L; unaccounted saleable "
+                            f"{max(saleable_delta, 0.0):.1f} L; unaccounted withdrawal "
+                            f"{max(withdrawal_delta, 0.0):.1f} L."
                         ),
                         subject_type="FARM",
                         subject_id="MILK",
@@ -258,6 +368,10 @@ class MilkReconciliationService:
                 raise ValueError("SOLD milk requires a sale_id.")
             if selling_price_per_litre is None or selling_price_per_litre < 0:
                 raise ValueError("SOLD milk requires a non-negative selling price per litre.")
+        elif disposition_type != "WITHDRAWAL":
+            sale_id = None
+            counterparty = None
+            selling_price_per_litre = None
         else:
             sale_id = None
             counterparty = None
@@ -279,17 +393,13 @@ class MilkReconciliationService:
                 production_date,
                 production_repository=production_repository,
             )
-
-            if production_basis.get("complete"):
-                produced_litres = float(production_basis["saleable_litres"])
-                already_accounted = sum(float(item.quantity_litres) for item in repo.get_by_date(production_date))
-                proposed_total = already_accounted + float(quantity_litres)
-                if proposed_total > produced_litres + 0.01:
-                    raise ValueError(
-                        "Milk disposition quantity exceeds available production "
-                        f"for {production_date.isoformat()}: already accounted {already_accounted:.3f} L, "
-                        f"requested {float(quantity_litres):.3f} L, saleable production {produced_litres:.3f} L."
-                    )
+            existing = repo.get_by_date(production_date)
+            self.validate_disposition_quantity(
+                production_basis=production_basis,
+                dispositions=existing,
+                disposition_type=disposition_type,
+                quantity_litres=float(quantity_litres),
+            )
 
             if disposition_type == "SOLD" and repo.get_by_sale_id(sale_id) is not None:
                 raise ValueError(f"Sale ID {sale_id} is already recorded.")

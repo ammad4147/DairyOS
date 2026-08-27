@@ -325,7 +325,8 @@ def create_milk_disposition(
 ):
     try:
         item = MilkReconciliationService(
-            container.repository_factory.milk_dispositions()
+            container.repository_factory.milk_dispositions(),
+            production_repository=container.repository_factory.milk(),
         ).record_disposition(
             production_date=entry.production_date,
             disposition_type=entry.disposition_type,
@@ -356,18 +357,23 @@ def update_milk_disposition(
 
     new_date = patch.production_date or item.production_date
     new_qty = float(patch.quantity_litres) if patch.quantity_litres is not None else float(item.quantity_litres)
-    produced = MilkReconciliationService._production_total(new_date)
-    if produced.get("complete"):
-        active_other = _active_disposition_sum(session, new_date, exclude_id=item.id)
-        if active_other + new_qty > float(produced["daily_total"]) + 0.01:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"Milk disposition exceeds available production for {new_date.isoformat()}: "
-                    f"active other destinations {active_other:.3f} L, requested {new_qty:.3f} L, "
-                    f"produced {float(produced['daily_total']):.3f} L."
-                ),
-            )
+    production_repository = container.repository_factory.milk()
+    production_basis = MilkReconciliationService._production_total(
+        new_date,
+        production_repository=production_repository,
+    )
+    existing_dispositions = container.repository_factory.milk_dispositions().get_by_date(new_date)
+
+    try:
+        MilkReconciliationService.validate_disposition_quantity(
+            production_basis=production_basis,
+            dispositions=existing_dispositions,
+            disposition_type=item.disposition_type,
+            quantity_litres=new_qty,
+            exclude_id=item.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     item.production_date = new_date
     item.quantity_litres = new_qty
