@@ -81,3 +81,7 @@ Write-Host ''
 Write-Host '=== RELEASE CANDIDATE BUNDLE ==='
 Write-Host $bundle
 Get-FileHash $exe -Algorithm SHA256
+
+# robocopy returns 1 when files were copied successfully. Clear the native
+# process exit code explicitly so callers can distinguish success from failure.
+exit 0
