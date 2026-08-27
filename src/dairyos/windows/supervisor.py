@@ -21,7 +21,13 @@ import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from dairyos.windows.appliance_database import (
+    ApplianceDatabaseError,
+    apply_database_environment,
+    prepare_database,
+)
 from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
+from dairyos.windows.private_postgres import stop as stop_private_postgres
 from dairyos.windows.postgres_service import PostgreSQLServiceError, ensure_postgresql_running
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
@@ -143,11 +149,66 @@ class JobObject:
     def assign(self, process: subprocess.Popen) -> None:
         if os.name != "nt" or not self.handle:
             return
+
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
         kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
-        if not kernel32.AssignProcessToJobObject(self.handle, wintypes.HANDLE(process._handle)):
+
+        if not kernel32.AssignProcessToJobObject(
+            self.handle,
+            wintypes.HANDLE(process._handle),
+        ):
             raise ctypes.WinError(ctypes.get_last_error())
+
+    def assign_pid(self, pid: int) -> None:
+        """Assign an already-running Windows process to this Job Object."""
+        if os.name != "nt" or not self.handle:
+            return
+
+        if pid <= 0:
+            raise ValueError("pid must be positive")
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        PROCESS_TERMINATE = 0x0001
+        PROCESS_SET_QUOTA = 0x0100
+
+        kernel32.OpenProcess.argtypes = [
+            wintypes.DWORD,
+            wintypes.BOOL,
+            wintypes.DWORD,
+        ]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        process_handle = kernel32.OpenProcess(
+            PROCESS_TERMINATE | PROCESS_SET_QUOTA,
+            False,
+            pid,
+        )
+
+        if not process_handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        try:
+            if not kernel32.AssignProcessToJobObject(
+                self.handle,
+                process_handle,
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+        finally:
+            kernel32.CloseHandle(process_handle)
 
     def close(self) -> None:
         if self.handle and os.name == "nt":
@@ -385,18 +446,67 @@ def run(config: SupervisorConfig) -> int:
     job = JobObject()
     backend = None
     watchdog = None
+    private_database = None
     try:
+        job.create()
+
         try:
-            service_name = ensure_postgresql_running(timeout=config.postgres_timeout)
-            if service_name != "non-windows":
-                LOG.info("PostgreSQL Windows Service is running: %s", service_name)
-        except PostgreSQLServiceError as exc:
-            LOG.exception("DairyOS PostgreSQL service preflight failed")
+            if getattr(sys, "frozen", False):
+                database = prepare_database(
+                    postgres_timeout=config.postgres_timeout
+                )
+                private_database = database.private_postgres
+
+                if private_database is not None and os.name == "nt":
+                    pid_file = private_database.data_root / "postmaster.pid"
+
+                    if not pid_file.is_file():
+                        raise ApplianceDatabaseError(
+                            "Private PostgreSQL started without a postmaster PID file."
+                        )
+
+                    pid_text = pid_file.read_text(
+                        encoding="utf-8",
+                        errors="replace",
+                    ).splitlines()
+
+                    if not pid_text or not pid_text[0].strip().isdigit():
+                        raise ApplianceDatabaseError(
+                            "Private PostgreSQL postmaster PID file is invalid."
+                        )
+
+                    private_pid = int(pid_text[0].strip())
+                    job.assign_pid(private_pid)
+
+                    LOG.info(
+                        "Private PostgreSQL PID %s assigned to DairyOS Job Object",
+                        private_pid,
+                    )
+
+                apply_database_environment(database)
+
+                LOG.info(
+                    "DairyOS packaged database ready: mode=%s host=%s port=%s",
+                    database.mode,
+                    database.host,
+                    database.port,
+                )
+            else:
+                service_name = ensure_postgresql_running(
+                    timeout=config.postgres_timeout
+                )
+                if service_name != "non-windows":
+                    LOG.info(
+                        "PostgreSQL Windows Service is running: %s",
+                        service_name,
+                    )
+        except (PostgreSQLServiceError, ApplianceDatabaseError) as exc:
+            LOG.exception("DairyOS database runtime preflight failed")
             show_startup_error(
-                "DairyOS database service unavailable",
-                "DairyOS could not start PostgreSQL.\n\n"
+                "DairyOS database unavailable",
+                "DairyOS could not prepare its database runtime.\n\n"
                 f"{exc}\n\n"
-                "No application window was started. Farm data was not modified.",
+                "No application window was started. Existing farm data was not intentionally deleted.",
             )
             return 4
 
@@ -419,7 +529,6 @@ def run(config: SupervisorConfig) -> int:
             )
             return 3
 
-        job.create()
         attempts = config.restart_attempts + 1
         for attempt in range(attempts):
             try:
@@ -448,6 +557,15 @@ def run(config: SupervisorConfig) -> int:
         if watchdog is not None:
             watchdog.stop()
         terminate_backend(watchdog.process if watchdog is not None else backend)
+
+        if private_database is not None:
+            try:
+                stop_private_postgres(private_database)
+            except Exception:
+                LOG.exception(
+                    "Failed to stop private DairyOS PostgreSQL cleanly"
+                )
+
         job.close()
         instance.release()
 

@@ -45,6 +45,10 @@ from dairyos.data.models.milk_production import (
     MilkProduction,
 )
 
+from dairyos.data.models.operational_finding import (
+    OperationalFinding,
+)
+
 from dairyos.data.models.milk_disposition import (
     MilkDisposition,
 )

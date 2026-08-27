@@ -156,4 +156,4 @@ def test_migration_failure_does_not_start_backend(monkeypatch):
 
     assert supervisor.run(config) == 3
     assert "start-backend" not in calls
-    assert job.created is False
+    assert job.created is True
