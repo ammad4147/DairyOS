@@ -9,12 +9,25 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
 from dairyos.farm.production.services.milk_finding_service import (
     MilkFindingService,
 )
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
 class MilkHerdDailyDropMonitoringService:
     """Raises one farm-level milk decline finding from complete dated totals."""
 
     def monitor(self, production_date: date) -> dict:
+        rf = RepositoryFactory.create()
+        try:
+            deployment = DeploymentControlService(FarmSettingsService(rf.app_settings()))
+            if not deployment.is_deployed():
+                return {
+                    "comparison_status": "PRE_DEPLOYMENT",
+                    "operational_date": production_date.isoformat(),
+                }
+        finally:
+            rf.close()
+
         trend = MilkProductionTrendIntelligenceService().generate(
             as_of_date=production_date,
             period_days=7,
