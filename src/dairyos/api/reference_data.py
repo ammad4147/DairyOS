@@ -22,6 +22,9 @@ GOVERNED = {
         "EQUIPMENT_FAILURE", "POWER_OUTAGE", "LABOUR_UNAVAILABLE", "WEATHER",
         "HERD_MOVEMENT", "VETERINARY_HOLD", "OTHER",
     ],
+    "milk_disposition_types": [
+        "SOLD", "CALF_FEED", "DOMESTIC_USE", "WASTAGE", "OTHER", "WITHDRAWAL",
+    ],
     "feed_types": [
         "SILAGE", "VANDA", "WHEAT_STRAW", "SOYBEAN_MEAL", "MOLASSES",
         "MINERAL_MIXTURE", "BYPASS_FAT", "ANIONIC_SALTS", "TOXIN_BINDER", "AMINO_ACIDS",
