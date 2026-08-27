@@ -28,6 +28,12 @@ class MilkDisposition(Base):
 
     __table_args__ = (
         Index("ix_milk_dispositions_date_type", "production_date", "disposition_type"),
+        Index(
+            "uq_milk_dispositions_sale_id",
+            "sale_id",
+            unique=True,
+            postgresql_where=(sale_id.is_not(None)),
+        ),
     )
 
     @property
