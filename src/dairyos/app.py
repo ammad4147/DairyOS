@@ -24,10 +24,8 @@ from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkC
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
-from dairyos.api.authorization import authorize_request
 from dairyos.email.scheduler import NightlyEmailScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
-from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -75,53 +73,6 @@ app.add_middleware(
 
 ANIMAL_LINKED_POSTS = {"/farm/milk", "/farm/health-observations", "/farm/treatments", "/farm/breeding", "/farm/feed/records", "/farm/welfare/observations"}
 
-# Pre-/auth API paths are retained as compatibility aliases for existing local
-# operator tooling and tests. The canonical production routes remain under
-# /auth and /authz; rewriting the ASGI path here means both paths execute the
-# exact same authentication/authorization implementation.
-LEGACY_ROUTE_ALIASES = {
-    "/login": "/auth/login",
-    "/me": "/auth/me",
-    "/users": "/auth/users",
-    "/me/password": "/auth/me/password",
-    "/permissions": "/authz/permissions",
-    "/matrix": "/authz/matrix",
-}
-
-
-def _rewrite_legacy_route(request: Request) -> None:
-    path = request.scope.get("path", "")
-    if path in LEGACY_ROUTE_ALIASES:
-        request.scope["path"] = LEGACY_ROUTE_ALIASES[path]
-        request.scope["raw_path"] = request.scope["path"].encode("utf-8")
-        return
-    for legacy_prefix, canonical_prefix in (("/users/", "/auth/users/"),):
-        if path.startswith(legacy_prefix):
-            request.scope["path"] = canonical_prefix + path[len(legacy_prefix):]
-            request.scope["raw_path"] = request.scope["path"].encode("utf-8")
-            return
-
-
-@app.middleware("http")
-async def enforce_permissions(request: Request, call_next):
-    _rewrite_legacy_route(request)
-    body = None
-    payload = {}
-    if request.method in {"POST", "PATCH", "PUT"}:
-        body = await request.body()
-        try:
-            payload = json.loads(body.decode("utf-8") or "{}")
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            payload = {}
-        async def receive():
-            return {"type": "http.request", "body": body, "more_body": False}
-        request._receive = receive
-    try:
-        authorize_request(request, payload)
-    except HTTPException as exc:
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers or {})
-    return await call_next(request)
-
 
 @app.middleware("http")
 async def enforce_animal_identity(request: Request, call_next):
@@ -160,8 +111,6 @@ async def enforce_animal_identity(request: Request, call_next):
 
     return response
 
-from dairyos.api.auth import router as auth_router
-from dairyos.api.authorization import router as authorization_router
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.equipment_management import router as equipment_router
@@ -197,8 +146,6 @@ from dairyos.api.milk_production_summary import router as milk_production_summar
 from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.coml import router as coml_router
 
-app.include_router(auth_router)
-app.include_router(authorization_router)
 app.include_router(command_router)
 app.include_router(dashboard_router)
 app.include_router(equipment_router)
