@@ -93,17 +93,11 @@ class FinancialRepository:
 
 
     def exists(self, record_id):
-
         return self.get_by_id(record_id) is not None
 
 
     def delete(self, record_id):
-        """Backward-compatible guard against destructive finance deletion.
-
-        Financial facts are append-only. Existing callers receive a hard
-        failure rather than physically deleting a ledger record; use the
-        governed Finance status endpoint to move a transaction to VOID.
-        """
+        """Backward-compatible guard against destructive finance deletion."""
         raise RuntimeError(
             "Destructive deletion of financial transactions is prohibited. "
             "Use the governed VOID transition instead."
@@ -111,16 +105,27 @@ class FinancialRepository:
 
 
     def void(self, record_id, reason=""):
-        """Soft-void a financial transaction while retaining its audit trail."""
+        """Soft-void an unsettled financial transaction with an audit note."""
         entity = self.get_by_id(record_id)
         if entity is None:
             return False
-        if str(getattr(entity, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+
+        status = str(getattr(entity, "status", "RECORDED") or "RECORDED").upper()
+        if status == "VOID":
             return entity
+        if status in {"PAID", "RECEIVED"}:
+            raise RuntimeError(
+                f"Settled financial transactions in {status} state are immutable; "
+                "use a governed correction entry instead."
+            )
+
+        cleaned_reason = (reason or "").strip()
+        if not cleaned_reason:
+            raise ValueError("A reason is required to void a financial transaction.")
 
         note = (getattr(entity, "notes", None) or "").strip()
         stamp = datetime.now(timezone.utc).isoformat()
-        audit = f"VOIDED_AT={stamp} REASON={(reason or 'No reason supplied').strip()}"
+        audit = f"VOIDED_AT={stamp} REASON={cleaned_reason}"
         entity.notes = f"{note}\n{audit}".strip()
         entity.status = "VOID"
 
