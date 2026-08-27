@@ -187,16 +187,35 @@ def wait_for_ready(base_url: str, config: SupervisorConfig) -> None:
 
 
 def backend_command(host: str, port: int) -> list[str]:
-    """Resolve the frozen backend executable, with a development fallback."""
+    """Resolve the backend command.
+
+    Frozen Windows builds use a single DairyOS.exe. The same executable is
+    launched in hidden backend mode. Development runs use the normal Python
+    module entry point.
+    """
+    if getattr(sys, "frozen", False):
+        return [
+            sys.executable,
+            "--dairyos-backend",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ]
+
     configured = os.environ.get("DAIRYOS_BACKEND_EXE")
     if configured:
         return [configured, "--host", host, "--port", str(port)]
 
-    sibling = Path(sys.executable).with_name("DairyOS-Server.exe")
-    if os.name == "nt" and sibling.is_file():
-        return [str(sibling), "--host", host, "--port", str(port)]
-
-    return [sys.executable, "-m", "dairyos.server", "--host", host, "--port", str(port)]
+    return [
+        sys.executable,
+        "-m",
+        "dairyos.server",
+        "--host",
+        host,
+        "--port",
+        str(port),
+    ]
 
 
 def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = None) -> tuple[subprocess.Popen, str]:
@@ -206,9 +225,28 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
     LOG.info("Starting DairyOS backend on %s:%s", config.host, selected_port)
+
+    # The frozen desktop build is windowed, so the backend child has no
+    # visible console. Persist stdout/stderr so a frozen-startup failure
+    # can be diagnosed without changing application behavior.
+    runtime_log_dir = Path(os.environ.get("DAIRYOS_RUNTIME_LOG_DIR", os.environ.get("TEMP", ".")))
+    runtime_log_dir.mkdir(parents=True, exist_ok=True)
+    backend_log_path = runtime_log_dir / "dairyos-backend.log"
+    backend_log = open(backend_log_path, "ab", buffering=0)
+
+    env["DAIRYOS_BACKEND_LOG"] = str(backend_log_path)
+
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    process = subprocess.Popen(command, env=env, creationflags=creationflags)
+    process = subprocess.Popen(
+        command,
+        env=env,
+        creationflags=creationflags,
+        stdout=backend_log,
+        stderr=backend_log,
+    )
     job.assign(process)
+
+    LOG.info("DairyOS backend child log: %s", backend_log_path)
     return process, f"http://{config.host}:{selected_port}"
 
 
@@ -323,7 +361,14 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
             LOG.exception("Failed to reload the DairyOS WebView after backend recovery")
 
     watchdog.on_restart = reload_url
-    window.events.closed += lambda: on_closed()
+
+    def close_application() -> None:
+        # Signal the watchdog first so an intentional backend termination
+        # cannot be classified as a crash/restart-limit failure.
+        watchdog.stop()
+        on_closed()
+
+    window.events.closed += close_application
     watchdog.start()
     try:
         webview.start(gui="edgechromium", debug=False)
@@ -419,6 +464,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if "--dairyos-backend" in argv:
+        backend_argv = [arg for arg in argv if arg != "--dairyos-backend"]
+        from dairyos.server import main as server_main
+
+        return server_main(backend_argv)
+
     args = build_parser().parse_args(argv)
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),

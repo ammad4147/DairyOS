@@ -49,6 +49,17 @@ def _run_production_startup_gates() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # PyInstaller windowed builds do not provide normal console streams.
+    # Uvicorn's logging formatter may call isatty() on those streams.
+    if getattr(sys, "frozen", False) and os.environ.get("DAIRYOS_BACKEND_MODE") == "1":
+        if sys.stdout is None:
+            sys.stdout = open(os.devnull, "w", encoding="utf-8")
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
     args = build_parser().parse_args(argv)
     configuration = resolve_configuration(args)
 
@@ -77,12 +88,24 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
 
+    frozen_backend = (
+        getattr(sys, "frozen", False)
+        and os.environ.get("DAIRYOS_BACKEND_MODE") == "1"
+    )
+
+    uvicorn_kwargs = {
+        "host": args.host,
+        "port": args.port,
+        "log_level": args.log_level,
+        "reload": args.reload,
+    }
+
+    if frozen_backend:
+        uvicorn_kwargs["log_config"] = None
+
     uvicorn.run(
         "dairyos.app:app",
-        host=args.host,
-        port=args.port,
-        log_level=args.log_level,
-        reload=args.reload,
+        **uvicorn_kwargs,
     )
     return 0
 
