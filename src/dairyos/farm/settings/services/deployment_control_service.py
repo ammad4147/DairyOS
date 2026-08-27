@@ -37,7 +37,7 @@ class DeploymentControlService:
             "activated_at": self.repository.get(DEPLOYMENT_ACTIVATED_AT_KEY),
             "activated_by": self.repository.get(DEPLOYMENT_ACTIVATED_BY_KEY),
             "last_action": self.repository.get(DEPLOYMENT_LAST_ACTION_KEY),
-            "reset_protected": self.settings.verify_reset_password("__probe__"),
+            "reset_protected": self.settings.is_reset_protected(),
         }
 
     def _require_password(self, password: str | None) -> None:
