@@ -1,0 +1,1 @@
+The release-candidate PowerShell script explicitly exits with code 0 after all validations pass. This matters because robocopy returns exit code 1 for a successful copy operation that made changes, and PowerShell otherwise preserves that native exit code for the calling script.
