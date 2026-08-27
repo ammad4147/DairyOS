@@ -111,8 +111,22 @@ def test_missing_password_defaults_in_development(clean_db_env):
     )
 
 
-def test_missing_password_raises_in_production(clean_db_env):
+def test_passwordless_local_dairyos_connection_is_allowed_in_production(clean_db_env):
     clean_db_env.setenv("DAIRYOS_ENV", "production")
+    clean_db_env.setenv("DAIRYOS_DB_USER", "dairyos")
+    clean_db_env.setenv("DAIRYOS_DB_HOST", "127.0.0.1")
+    clean_db_env.setenv("DAIRYOS_DB_NAME", "dairyos")
+
+    assert (
+        _build_database_url()
+        == "postgresql+psycopg://dairyos@127.0.0.1:5432/dairyos"
+    )
+
+
+def test_missing_password_raises_in_production_for_non_local_deployment(clean_db_env):
+    clean_db_env.setenv("DAIRYOS_ENV", "production")
+    clean_db_env.setenv("DAIRYOS_DB_USER", "farm1_svc")
+    clean_db_env.setenv("DAIRYOS_DB_HOST", "prod-db.farm.internal")
 
     with pytest.raises(RuntimeError, match="DAIRYOS_DB_PASSWORD"):
         _build_database_url()
@@ -122,11 +136,12 @@ def test_production_with_explicit_password_succeeds(clean_db_env):
     clean_db_env.setenv("DAIRYOS_ENV", "production")
     clean_db_env.setenv("DAIRYOS_DB_PASSWORD", "real-prod-password")
     clean_db_env.setenv("DAIRYOS_DB_HOST", "prod-db.farm.internal")
+    clean_db_env.setenv("DAIRYOS_DB_USER", "farm1_svc")
 
     url = _build_database_url()
 
     assert "prod-db.farm.internal" in url
-    assert url.startswith("postgresql+psycopg://postgres:")
+    assert url.startswith("postgresql+psycopg://farm1_svc:")
 
 
 def test_production_with_database_url_override_succeeds_without_password(
@@ -154,8 +169,10 @@ def test_invalid_port_raises_clear_error(clean_db_env):
         _build_database_url()
 
 
-def test_env_check_is_case_insensitive(clean_db_env):
+def test_env_check_is_case_insensitive_for_non_local_production(clean_db_env):
     clean_db_env.setenv("DAIRYOS_ENV", "PRODUCTION")
+    clean_db_env.setenv("DAIRYOS_DB_USER", "farm1_svc")
+    clean_db_env.setenv("DAIRYOS_DB_HOST", "prod-db.farm.internal")
 
     with pytest.raises(RuntimeError, match="DAIRYOS_DB_PASSWORD"):
         _build_database_url()
