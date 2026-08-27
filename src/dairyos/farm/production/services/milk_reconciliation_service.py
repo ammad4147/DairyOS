@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 
 from dairyos.data.models.milk_disposition import MilkDisposition
@@ -16,9 +17,10 @@ VALID_DISPOSITIONS = frozenset({"SOLD", "CALF_FEED", "DOMESTIC_USE", "WASTAGE", 
 class MilkReconciliationService:
     """Read/write boundary for daily milk destination accounting."""
 
-    def __init__(self, disposition_repository=None, production_repository=None):
+    def __init__(self, disposition_repository=None, production_repository=None, deployment_checker: Callable[[], bool] | None = None):
         self.disposition_repository = disposition_repository
         self.production_repository = production_repository
+        self.deployment_checker = deployment_checker
 
     def _repo(self):
         if self.disposition_repository is not None:
@@ -52,19 +54,21 @@ class MilkReconciliationService:
         total = float(daily_total)
         withdrawal = 0.0
         if production_repository is not None:
-            dated_rows = []
-            for row in production_repository.get_all():
-                if cls._as_production_date(getattr(row, "production_date", None)) == production_date:
-                    dated_rows.append(row)
+            getter = getattr(production_repository, "get_by_date", None)
+            dated_rows = getter(production_date) if getter is not None else [
+                row for row in production_repository.get_all()
+                if cls._as_production_date(getattr(row, "production_date", None)) == production_date
+            ]
             if dated_rows:
                 row_total = 0.0
                 row_withdrawal = 0.0
                 for row in dated_rows:
-                    if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+                    status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+                    if status == "VOID":
                         continue
                     litres = float(getattr(row, "total_yield", 0.0) or 0.0)
                     row_total += litres
-                    if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "WITHDRAWAL":
+                    if status == "WITHDRAWAL":
                         row_withdrawal += litres
                 if row_total > 0.0 or total == 0.0:
                     total = max(total, row_total)
@@ -98,7 +102,20 @@ class MilkReconciliationService:
         ordinary_active = sum(float(item.quantity_litres or 0.0) for item in active if str(item.disposition_type).upper() != "WITHDRAWAL")
         available = max(float(production_basis.get("saleable_litres") or 0.0) - ordinary_active, 0.0)
         if float(quantity_litres) > available + 0.01:
-            raise ValueError("Milk disposition quantity exceeds available production (saleable): " f"already accounted {ordinary_active:.3f} L, requested {float(quantity_litres):.3f} L, saleable production {float(production_basis['saleable_litres']):.3f} L.")
+            raise ValueError("Milk disposition quantity exceeds available saleable production: " f"already accounted {ordinary_active:.3f} L, requested {float(quantity_litres):.3f} L, saleable production {float(production_basis['saleable_litres']):.3f} L.")
+
+    def _is_deployed_for_findings(self) -> bool:
+        if self.deployment_checker is not None:
+            return bool(self.deployment_checker())
+        if self.disposition_repository is not None:
+            factory = getattr(self.disposition_repository, "factory", None)
+            if factory is None:
+                return True
+        factory = RepositoryFactory.create()
+        try:
+            return DeploymentControlService(FarmSettingsService(factory.app_settings())).is_deployed()
+        finally:
+            factory.close()
 
     def reconcile(self, production_date: date, *, raise_finding: bool = True):
         repo, owned_factory = self._repo()
@@ -136,19 +153,13 @@ class MilkReconciliationService:
 
             result = {"production_date": production_date.isoformat(), "production_complete": True, "produced_litres": round(produced, 3), "biological_production_litres": round(biological_production, 3), "saleable_litres": round(produced, 3), "withdrawal_litres": round(withdrawal_litres, 3), "withdrawal_accounted_litres": round(withdrawal_accounted, 3), "accounted_litres": round(accounted, 3), "sold_litres": round(sold, 3), "non_sale_accounted_litres": round(non_sale, 3), "unaccounted_litres": round(max(delta, 0.0), 3), "over_accounted_litres": round(max(-delta, 0.0), 3), "unaccounted_saleable_litres": round(max(saleable_delta, 0.0), 3), "unaccounted_withdrawal_litres": round(max(withdrawal_delta, 0.0), 3), "sale_value": round(sale_value, 2), "cash_received": round(cash_received, 2), "receivable_outstanding": round(receivable, 2), "status": status, "dispositions": [self._serialize_disposition(item) for item in dispositions]}
 
-            if raise_finding and status in {"UNACCOUNTED_PRODUCTION", "OVER_ACCOUNTED"}:
-                deployment_factory = RepositoryFactory.create()
+            if raise_finding and status in {"UNACCOUNTED_PRODUCTION", "OVER_ACCOUNTED"} and self._is_deployed_for_findings():
+                finding_factory = RepositoryFactory.create()
                 try:
-                    deployed = DeploymentControlService(FarmSettingsService(deployment_factory.app_settings())).is_deployed()
+                    severity = "CRITICAL" if status == "OVER_ACCOUNTED" else "HIGH"
+                    MilkFindingService(finding_factory.operational_findings()).raise_or_update(severity=severity, title=f"Milk destination reconciliation exception for {production_date.isoformat()}", detail=(f"Biological production {biological_production:.1f} L; saleable {produced:.1f} L; withdrawal {withdrawal_litres:.1f} L; ordinary accounted {ordinary_accounted:.1f} L; withdrawal accounted {withdrawal_accounted:.1f} L; unaccounted saleable {max(saleable_delta, 0.0):.1f} L; unaccounted withdrawal {max(withdrawal_delta, 0.0):.1f} L."), subject_type="FARM", subject_id="MILK", route="/farm/milk", dedupe_key=f"MILK_RECONCILIATION:{production_date.isoformat()}")
                 finally:
-                    deployment_factory.close()
-                if deployed:
-                    finding_factory = RepositoryFactory.create()
-                    try:
-                        severity = "CRITICAL" if status == "OVER_ACCOUNTED" else "HIGH"
-                        MilkFindingService(finding_factory.operational_findings()).raise_or_update(severity=severity, title=f"Milk destination reconciliation exception for {production_date.isoformat()}", detail=(f"Biological production {biological_production:.1f} L; saleable {produced:.1f} L; withdrawal {withdrawal_litres:.1f} L; ordinary accounted {ordinary_accounted:.1f} L; withdrawal accounted {withdrawal_accounted:.1f} L; unaccounted saleable {max(saleable_delta, 0.0):.1f} L; unaccounted withdrawal {max(withdrawal_delta, 0.0):.1f} L."), subject_type="FARM", subject_id="MILK", route="/farm/milk", dedupe_key=f"MILK_RECONCILIATION:{production_date.isoformat()}")
-                    finally:
-                        finding_factory.close()
+                    finding_factory.close()
             return result
         finally:
             if owned_factory is not None:
@@ -171,18 +182,19 @@ class MilkReconciliationService:
                 raise ValueError("SOLD milk requires a non-negative selling price per litre.")
         else:
             sale_id = None
-            if disposition_type != "SOLD":
-                counterparty = None
-                selling_price_per_litre = None
-        amount_due = float(quantity_litres) * float(selling_price_per_litre) if disposition_type == "SOLD" else 0.0
+            counterparty = None
+            selling_price_per_litre = None
         repo, owned_factory = self._repo()
         try:
+            if sale_id and repo.get_by_sale_id(sale_id) is not None:
+                raise ValueError(f"Milk sale_id already exists: {sale_id}")
             production_repository = self.production_repository
             if production_repository is None and owned_factory is not None:
                 production_repository = owned_factory.milk()
             production_basis = self._production_total(production_date, production_repository=production_repository)
             existing = repo.get_by_date(production_date)
             self.validate_disposition_quantity(production_basis=production_basis, dispositions=existing, disposition_type=disposition_type, quantity_litres=float(quantity_litres))
+            amount_due = float(quantity_litres) * float(selling_price_per_litre) if disposition_type == "SOLD" else 0.0
             disposition = MilkDisposition(production_date=production_date, disposition_type=disposition_type, quantity_litres=float(quantity_litres), sale_id=sale_id, counterparty=counterparty, selling_price_per_litre=selling_price_per_litre, amount_due=amount_due, amount_received=0.0, notes=notes, recorded_by=recorded_by)
             repo.add(disposition)
             if getattr(repo, "session", None) is not None:
