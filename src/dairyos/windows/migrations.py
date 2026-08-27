@@ -79,20 +79,62 @@ def _database_url() -> str:
     return url
 
 
+def _public_application_table_count(connection) -> int:
+    """Return the number of non-Alembic tables in PostgreSQL's public schema."""
+    result = connection.execute(
+        text(
+            """
+            SELECT count(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_type = 'BASE TABLE'
+              AND table_name <> 'alembic_version'
+            """
+        )
+    )
+    return int(result.scalar_one())
+
+
+def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...]) -> None:
+    """Create the current ORM schema once for a genuinely empty database.
+
+    Production remains migration-owned: the normal application initializer
+    still refuses to call ``create_all()`` in production. This explicit empty-
+    database bootstrap belongs to the migration gate and is immediately
+    recorded at the current Alembic head. Non-empty databases without history
+    are still rejected rather than guessed at.
+    """
+    from dairyos.data.database.base import Base
+    import dairyos.data.database.database  # noqa: F401  # registers all ORM models
+
+    Base.metadata.create_all(bind=connection)
+    config.attributes["connection"] = connection
+    command.stamp(config, "heads")
+
+    verification = MigrationContext.configure(connection)
+    final_heads = tuple(sorted(verification.get_current_heads()))
+    if final_heads != target:
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap did not reach all expected heads. "
+            f"Expected {target}; found {final_heads}."
+        )
+
+
 def migrate_if_needed() -> MigrationResult:
-    """Backup and migrate only when the database is behind the packaged head.
+    """Safely prepare a DairyOS database for production startup.
 
     A PostgreSQL transaction-level advisory lock serializes migration checks
     across processes. The same SQLAlchemy connection is handed to Alembic so
-    the lock remains active for the actual migration transaction. A verified
-    pre-migration backup is created before any schema change. Migration
-    failures are propagated without an automatic restore; the backup remains
-    available for controlled recovery.
+    the lock remains active for the actual migration transaction.
 
-    A database without Alembic history is deliberately not auto-stamped.
-    DairyOS refuses to guess at an existing schema because doing so could hide
-    an incomplete legacy installation. A fresh supported deployment must be
-    initialized through the packaged migration chain before production use.
+    A genuinely empty database is initialized once from the current canonical
+    ORM schema and immediately stamped at the packaged Alembic head. This is
+    deliberately restricted to databases with no application tables.
+
+    A non-empty database without Alembic history is still refused: DairyOS will
+    never guess whether an unknown schema is complete enough to upgrade safely.
+    Existing databases that already have migration history continue through the
+    normal Alembic migration chain, with a verified pre-migration backup.
     """
     database_url = _database_url()
     config, script = _build_config()
@@ -111,6 +153,18 @@ def migrate_if_needed() -> MigrationResult:
 
             if current == target:
                 return MigrationResult(False, current, target)
+
+            application_tables = _public_application_table_count(connection)
+
+            if not current and application_tables == 0:
+                _bootstrap_empty_database(connection, config, target)
+                return MigrationResult(True, current, target, None)
+
+            if not current:
+                raise MigrationGateError(
+                    "DairyOS database has application tables but no Alembic history. "
+                    "Startup is blocked because the existing schema cannot be safely inferred."
+                )
 
             manager = LifecycleManager(
                 installation_root=Path(sys.executable).resolve().parent,
