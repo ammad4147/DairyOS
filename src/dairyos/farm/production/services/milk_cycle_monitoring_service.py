@@ -7,6 +7,8 @@ from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMil
 from dairyos.farm.production.services.milk_daily_semantics import missing_sessions
 from dairyos.farm.production.services.milk_drop_detection_service import detect_drop
 from dairyos.farm.production.services.milk_finding_service import MilkFindingService
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
 SESSION_ORDER = {"MORNING": 0, "AFTERNOON": 1, "EVENING": 2}
@@ -26,6 +28,15 @@ class MilkCycleMonitoringService:
     def monitor(self, *, animal_id: str, milking_session: str, production_date: date) -> dict:
         rf, owns_factory = self._factory()
         try:
+            deployment = DeploymentControlService(
+                FarmSettingsService(rf.app_settings())
+            )
+            if not deployment.is_deployed():
+                return {
+                    "status": "PRE_DEPLOYMENT",
+                    "operational_date": production_date.isoformat(),
+                }
+
             animal = rf.animal().get_by_animal_id(str(animal_id))
             if animal is None:
                 return {"status": "UNKNOWN_ANIMAL"}
