@@ -1,4 +1,4 @@
-﻿from ..models.health_observation import HealthObservation
+from ..models.health_observation import HealthObservation
 
 
 class HealthObservationRepository:
@@ -27,6 +27,25 @@ class HealthObservationRepository:
             ).all()
 
         return self.records
+
+    def get_by_animal_id(self, animal_id):
+        """Fetch one animal's observations in the database, not farm-wide."""
+        if not animal_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(HealthObservation)
+                .filter(HealthObservation.animal_id == str(animal_id))
+                .order_by(HealthObservation.observed_at.asc())
+                .all()
+            )
+
+        return [
+            item
+            for item in self.records
+            if str(getattr(item, "animal_id", "")) == str(animal_id)
+        ]
 
     def get_by_id(self, record_id):
 

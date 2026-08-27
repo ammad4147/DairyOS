@@ -1,12 +1,15 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import date, datetime
+from collections.abc import Callable
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMilkingScheduleService
 from dairyos.farm.production.services.milk_daily_semantics import missing_sessions
 from dairyos.farm.production.services.milk_drop_detection_service import detect_drop
 from dairyos.farm.production.services.milk_finding_service import MilkFindingService
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
 SESSION_ORDER = {"MORNING": 0, "AFTERNOON": 1, "EVENING": 2}
@@ -15,13 +18,22 @@ SESSION_ORDER = {"MORNING": 0, "AFTERNOON": 1, "EVENING": 2}
 class MilkCycleMonitoringService:
     """Observer of authoritative milk-cycle facts for one animal/date."""
 
-    def __init__(self, repository_factory=None):
+    def __init__(self, repository_factory=None, deployment_checker: Callable[[], bool] | None = None):
         self.repository_factory = repository_factory
+        self.deployment_checker = deployment_checker
 
     def _factory(self):
         if self.repository_factory is not None:
             return self.repository_factory, False
         return RepositoryFactory.create(), True
+
+    def _is_deployed(self, rf) -> bool:
+        if self.deployment_checker is not None:
+            return bool(self.deployment_checker())
+        app_settings = getattr(rf, "app_settings", None)
+        if app_settings is None:
+            return True
+        return DeploymentControlService(FarmSettingsService(app_settings())).is_deployed()
 
     def monitor(self, *, animal_id: str, milking_session: str, production_date: date) -> dict:
         rf, owns_factory = self._factory()
@@ -29,6 +41,12 @@ class MilkCycleMonitoringService:
             animal = rf.animal().get_by_animal_id(str(animal_id))
             if animal is None:
                 return {"status": "UNKNOWN_ANIMAL"}
+
+            if not self._is_deployed(rf):
+                return {
+                    "status": "PRE_DEPLOYMENT",
+                    "operational_date": production_date.isoformat(),
+                }
 
             schedule_service = AnimalMilkingScheduleService(repository=rf.animal())
             schedule = schedule_service.get_schedule_snapshot(animal, operational_date=production_date)

@@ -143,6 +143,7 @@ from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
 from dairyos.api.settings import router as settings_router
 from dairyos.api.milk_production_summary import router as milk_production_summary_router
+from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
 from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.coml import router as coml_router
 
@@ -178,6 +179,7 @@ app.include_router(system_router)
 app.include_router(operational_findings_router)
 app.include_router(settings_router)
 app.include_router(milk_production_summary_router)
+app.include_router(milk_legacy_compat_router)
 app.include_router(milk_quality_router)
 app.include_router(coml_router)
 

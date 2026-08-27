@@ -1,4 +1,4 @@
-"""Settings endpoints (AA-013 §17, plus sender email administration)."""
+"""Settings endpoints, including guarded deployment controls."""
 
 from __future__ import annotations
 
@@ -11,15 +11,30 @@ from dairyos.api.dependencies import get_container
 from dairyos.data.database.session import engine
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.email.service import EmailService
+from dairyos.farm.settings.services.deployment_control_service import (
+    DeploymentControlError,
+    DeploymentControlService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
-_PRESERVED_TABLES = {"alembic_version", "app_settings"}
+_PRESERVED_TABLES = {
+    "alembic_version",
+    "app_settings",
+    "users",
+    "drug_withdrawal_reference",
+    "email_sender_settings",
+}
 
 
 def _service() -> tuple[FarmSettingsService, RepositoryFactory]:
     rf = RepositoryFactory.create()
     return FarmSettingsService(rf.app_settings()), rf
+
+
+def _deployment_service() -> tuple[DeploymentControlService, RepositoryFactory]:
+    service, rf = _service()
+    return DeploymentControlService(service), rf
 
 
 class UpdateIdentityRequest(BaseModel):
@@ -54,6 +69,13 @@ class ResetProtectionRequest(BaseModel):
 class ResetTestDataRequest(BaseModel):
     confirm: str
     password: str | None = None
+    updated_by: str = Field(default="UI Operator")
+
+
+class DeployRequest(BaseModel):
+    confirm: str
+    password: str | None = None
+    updated_by: str = Field(default="UI Operator")
 
 
 @router.get("")
@@ -120,6 +142,83 @@ def set_reset_protection(payload: ResetProtectionRequest):
         rf.close()
 
 
+@router.get("/deployment")
+def deployment_status():
+    service, rf = _deployment_service()
+    try:
+        return service.status()
+    finally:
+        rf.close()
+
+
+@router.post("/deployment/activate")
+def activate_deployment(payload: DeployRequest):
+    if payload.confirm != "DEPLOY":
+        raise HTTPException(status_code=422, detail='confirm must be the literal string "DEPLOY" to proceed')
+
+    service, rf = _deployment_service()
+    try:
+        try:
+            status = service.activate(password=payload.password, updated_by=payload.updated_by)
+        except DeploymentControlError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        return {"status": "deployed", "deployment": status}
+    finally:
+        rf.close()
+
+
+def _truncate_all_operational_tables() -> list[str]:
+    inspector = sa.inspect(engine)
+    tables = [table for table in inspector.get_table_names() if table not in _PRESERVED_TABLES]
+    if tables:
+        quoted = ", ".join(f'"{table}"' for table in tables)
+        with engine.begin() as conn:
+            conn.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
+    return sorted(tables)
+
+
+@router.post("/reset")
+@router.post("/reset-test-data", include_in_schema=False)
+def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_container)):
+    if payload.confirm != "RESET":
+        raise HTTPException(status_code=422, detail='confirm must be the literal string "RESET" to proceed')
+
+    service, rf = _deployment_service()
+    try:
+        if not service.verify_password(payload.password):
+            raise HTTPException(
+                status_code=403,
+                detail="Deployment/reset password is not configured or is incorrect. Configure Reset Protection before using Deployment Controls.",
+            )
+    finally:
+        rf.close()
+
+    container_session = getattr(getattr(container, "repository_factory", None), "session", None)
+    if container_session is not None:
+        container_session.rollback()
+
+    tables = _truncate_all_operational_tables()
+
+    if getattr(container, "animal_operational_state_repository", None) is not None:
+        container.animal_operational_state_repository.clear()
+    if getattr(container, "operational_input_repository", None) is not None:
+        container.operational_input_repository.clear()
+
+    container.started = False
+    container.operations = None
+    container.dashboard = None
+
+    service, rf = _deployment_service()
+    try:
+        status = service.deactivate(password=payload.password, updated_by=payload.updated_by)
+    except DeploymentControlError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    finally:
+        rf.close()
+
+    return {"status": "reset", "tables_cleared": tables, "deployment": status}
+
+
 class EmailSettingsRequest(BaseModel):
     sender_email: str = Field(min_length=3)
     sender_display_name: str | None = None
@@ -154,41 +253,3 @@ def send_test_email(payload: EmailTestRequest, _admin=Depends(require_permission
         return {"status": "sent", "recipient": payload.recipient}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"SMTP test failed: {exc}") from exc
-
-
-def _truncate_all_operational_tables() -> list[str]:
-    inspector = sa.inspect(engine)
-    tables = [t for t in inspector.get_table_names() if t not in _PRESERVED_TABLES]
-    if tables:
-        quoted = ", ".join(f'"{t}"' for t in tables)
-        with engine.begin() as conn:
-            conn.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
-    return sorted(tables)
-
-
-@router.post("/reset-test-data")
-def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_container)):
-    if payload.confirm != "RESET":
-        raise HTTPException(status_code=422, detail='confirm must be the literal string "RESET" to proceed')
-
-    service, rf = _service()
-    try:
-        if service.is_reset_protected() and not service.verify_reset_password(payload.password):
-            raise HTTPException(status_code=403, detail="Incorrect reset password")
-    finally:
-        rf.close()
-
-    container_session = getattr(getattr(container, "repository_factory", None), "session", None)
-    if container_session is not None:
-        container_session.rollback()
-
-    tables = _truncate_all_operational_tables()
-    if getattr(container, "animal_operational_state_repository", None) is not None:
-        container.animal_operational_state_repository.clear()
-    if getattr(container, "operational_input_repository", None) is not None:
-        container.operational_input_repository.clear()
-
-    container.started = False
-    container.operations = None
-    container.dashboard = None
-    return {"status": "reset", "tables_cleared": tables}

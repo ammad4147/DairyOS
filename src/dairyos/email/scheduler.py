@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from .digest import DashboardDigestService, expected_digest_date
 
@@ -15,7 +16,7 @@ _LAST_STARTUP_KEY = "email_scheduler_last_startup_utc"
 
 
 class NightlyEmailScheduler:
-    """Lifecycle-owned scheduler using the farm's configured IANA timezone."""
+    """Lifecycle-owned scheduler using farm timezone and deployment activation."""
 
     def __init__(self, *, container, interval_seconds: int = 30):
         self.container = container
@@ -24,22 +25,42 @@ class NightlyEmailScheduler:
         self._thread: threading.Thread | None = None
         self._last_attempted_slot: str | None = None
 
-    def _zone(self) -> ZoneInfo:
+    def _settings(self) -> tuple[ZoneInfo, bool]:
         factory = RepositoryFactory.create()
         try:
-            return FarmSettingsService(factory.app_settings()).get_timezone_info()
+            settings = FarmSettingsService(factory.app_settings())
+            return settings.get_timezone_info(), DeploymentControlService(settings).is_deployed()
         finally:
             factory.close()
+
+    def _zone(self) -> ZoneInfo:
+        zone, _ = self._settings()
+        return zone
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
-        previous = self._previous_startup()
-        current = utcnow()
-        self._record_startup(current)
+
         self._stop.clear()
-        self._run_catch_up(previous, current)
-        self._thread = threading.Thread(target=self._loop, name="dairyos-email-scheduler", daemon=True)
+        self._last_attempted_slot = None
+        current = utcnow()
+        previous = None
+        _zone, deployed = self._settings()
+
+        # Configuration alone must not generate catch-up work. Once deployed,
+        # only later scheduler starts may legitimately perform a catch-up.
+        if deployed:
+            previous = self._previous_startup()
+            self._record_startup(current)
+            self._run_catch_up(previous, current)
+        else:
+            log.info("Nightly email scheduler waiting for explicit deployment activation")
+
+        self._thread = threading.Thread(
+            target=self._loop,
+            name="dairyos-email-scheduler",
+            daemon=True,
+        )
         self._thread.start()
         log.info("Nightly email scheduler started")
 
@@ -66,13 +87,19 @@ class NightlyEmailScheduler:
     def _record_startup(self, when: datetime) -> None:
         factory = RepositoryFactory.create()
         try:
-            factory.app_settings().set(_LAST_STARTUP_KEY, when.isoformat(), updated_by="EMAIL_SCHEDULER")
+            factory.app_settings().set(
+                _LAST_STARTUP_KEY,
+                when.isoformat(),
+                updated_by="EMAIL_SCHEDULER",
+            )
         finally:
             factory.close()
 
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_seconds):
-            zone = self._zone()
+            zone, deployed = self._settings()
+            if not deployed:
+                continue
             now = datetime.now(zone)
             if now.hour == 23 and now.minute == 0:
                 slot = now.date().isoformat()

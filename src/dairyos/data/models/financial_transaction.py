@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, DateTime, Float, Integer, String
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -18,13 +18,16 @@ class FinancialTransaction(Base):
     counterparty = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     currency = Column(String, default="PKR", nullable=False)
-    animal_id = Column(String, nullable=True)
+    animal_id = Column(
+        String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     milk_sale_id = Column(String, nullable=True)
     feed_record_id = Column(String, nullable=True)
     status = Column(String, default="RECORDED")
 
-    # Feed/OPEX analytical dimension. Nullable for historical non-expense rows
-    # and legacy records until migration/backfill has established a category.
     master_category = Column(String, nullable=True)
     sub_category = Column(String, nullable=True)
     custom_specification = Column(String, nullable=True)
@@ -32,8 +35,6 @@ class FinancialTransaction(Base):
     unit = Column(String, nullable=True)
     unit_rate = Column(Float, nullable=True)
 
-    # Credit-control fields. Nullable to preserve historical transactions and
-    # non-credit payment flows.
     due_date = Column(Date, nullable=True)
     settled_date = Column(Date, nullable=True)
 

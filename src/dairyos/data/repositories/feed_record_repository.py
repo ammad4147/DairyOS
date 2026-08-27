@@ -28,6 +28,25 @@ class FeedRecordRepository:
 
         return self.records
 
+    def get_by_animal_id(self, animal_id):
+        """Fetch one animal's feed records directly from the database."""
+        if not animal_id:
+            return []
+
+        if self.session:
+            return (
+                self.session.query(FeedRecord)
+                .filter(FeedRecord.animal_id == str(animal_id))
+                .order_by(FeedRecord.feeding_date.asc())
+                .all()
+            )
+
+        return [
+            item
+            for item in self.records
+            if str(getattr(item, "animal_id", "")) == str(animal_id)
+        ]
+
     def get_by_id(self, record_id):
 
         if self.session:
