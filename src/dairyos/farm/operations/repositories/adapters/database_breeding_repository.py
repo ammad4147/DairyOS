@@ -25,7 +25,7 @@ class DatabaseBreedingRepository(
     """
     SQLAlchemy implementation of breeding persistence.
 
-    A successful save is a durable operational write.  Commit here, as
+    A successful save is a durable operational write. Commit here, as
     the other operational repositories do, so a subsequent repository
     session (including the lifetime Animal Passport projection) can
     observe the breeding record immediately.
@@ -62,6 +62,34 @@ class DatabaseBreedingRepository(
         rows = (
             self.session
             .query(BreedingRecordModel)
+            .all()
+        )
+
+        return [
+            BreedingRecord(
+                animal_id=row.animal_id,
+                event_type=row.event_type,
+                result=row.result,
+                technician=row.technician,
+                record_id=row.record_id,
+                timestamp=row.timestamp,
+            )
+            for row in rows
+        ]
+
+    def get_by_animal_id(
+        self,
+        animal_id: str,
+    ) -> list[BreedingRecord]:
+        """Fetch one animal's breeding history in the database."""
+        if not animal_id:
+            return []
+
+        rows = (
+            self.session
+            .query(BreedingRecordModel)
+            .filter(BreedingRecordModel.animal_id == str(animal_id))
+            .order_by(BreedingRecordModel.timestamp.asc())
             .all()
         )
 
