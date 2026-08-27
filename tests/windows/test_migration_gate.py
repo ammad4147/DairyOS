@@ -1,0 +1,93 @@
+from types import SimpleNamespace
+
+import pytest
+
+from dairyos.windows import migrations
+
+
+class _Connection:
+    def execute(self, *_args, **_kwargs):
+        return self
+
+    def scalar_one(self):
+        return 0
+
+
+class _BeginContext:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __enter__(self):
+        return self.connection
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+class _Engine:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def begin(self):
+        return _BeginContext(self.connection)
+
+    def dispose(self):
+        pass
+
+
+def _patch_migration_environment(monkeypatch, current_heads, target_heads, application_tables):
+    connection = _Connection()
+    engine = _Engine(connection)
+    config = SimpleNamespace(attributes={})
+    script = SimpleNamespace(get_heads=lambda: target_heads)
+    context = SimpleNamespace(get_current_heads=lambda: current_heads)
+
+    monkeypatch.setattr(
+        migrations,
+        "_database_url",
+        lambda: "postgresql+psycopg://dairyos:test@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(migrations, "_build_config", lambda: (config, script))
+    monkeypatch.setattr(migrations, "create_engine", lambda *_args, **_kwargs: engine)
+    monkeypatch.setattr(
+        migrations.MigrationContext,
+        "configure",
+        lambda *_args, **_kwargs: context,
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_public_application_table_count",
+        lambda _connection: application_tables,
+    )
+
+    return config
+
+
+def test_empty_database_uses_explicit_bootstrap(monkeypatch):
+    target = ("20260826_01",)
+    config = _patch_migration_environment(monkeypatch, (), target, 0)
+    calls = []
+
+    def bootstrap(connection, received_config, received_target):
+        calls.append((connection, received_config, received_target))
+
+    monkeypatch.setattr(migrations, "_bootstrap_empty_database", bootstrap)
+
+    result = migrations.migrate_if_needed()
+
+    assert result.migrated is True
+    assert result.current_heads == ()
+    assert result.target_heads == target
+    assert len(calls) == 1
+    assert calls[0][1] is config
+    assert calls[0][2] == target
+
+
+def test_non_empty_database_without_history_is_rejected(monkeypatch):
+    _patch_migration_environment(monkeypatch, (), ("20260826_01",), 1)
+
+    with pytest.raises(
+        migrations.MigrationGateError,
+        match="application tables but no Alembic history",
+    ):
+        migrations.migrate_if_needed()
