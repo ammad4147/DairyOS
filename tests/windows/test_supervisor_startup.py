@@ -1,8 +1,23 @@
 from types import SimpleNamespace
 
-import pytest
-
 from dairyos.windows import supervisor
+
+
+class _FakeProcess:
+    def __init__(self):
+        self.terminated = False
+
+    def poll(self):
+        return None if not self.terminated else 0
+
+    def terminate(self):
+        self.terminated = True
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        self.terminated = True
 
 
 class _FakeJob:
@@ -34,7 +49,7 @@ class _FakeWatchdog:
 def test_successful_migration_continues_to_backend_startup(monkeypatch):
     calls = []
     job = _FakeJob()
-    process = object()
+    process = _FakeProcess()
     config = supervisor.SupervisorConfig(
         host="127.0.0.1",
         port=8000,
@@ -45,9 +60,20 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
         postgres_timeout=1,
     )
 
-    monkeypatch.setattr(supervisor, "SingleInstance", lambda: SimpleNamespace(acquire=lambda: True, release=lambda: calls.append("instance-release")))
+    monkeypatch.setattr(
+        supervisor,
+        "SingleInstance",
+        lambda: SimpleNamespace(
+            acquire=lambda: True,
+            release=lambda: calls.append("instance-release"),
+        ),
+    )
     monkeypatch.setattr(supervisor, "JobObject", lambda: job)
-    monkeypatch.setattr(supervisor, "ensure_postgresql_running", lambda timeout: "postgresql-x64-18")
+    monkeypatch.setattr(
+        supervisor,
+        "ensure_postgresql_running",
+        lambda timeout: "postgresql-x64-18",
+    )
     monkeypatch.setattr(
         supervisor,
         "migrate_if_needed",
@@ -61,16 +87,27 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     monkeypatch.setattr(
         supervisor,
         "start_backend",
-        lambda cfg, fake_job: calls.append("start-backend") or (process, "http://127.0.0.1:8000"),
+        lambda cfg, fake_job: calls.append("start-backend")
+        or (process, "http://127.0.0.1:8000"),
     )
-    monkeypatch.setattr(supervisor, "wait_for_ready", lambda url, cfg: calls.append("ready"))
+    monkeypatch.setattr(
+        supervisor,
+        "wait_for_ready",
+        lambda url, cfg: calls.append("ready"),
+    )
     monkeypatch.setattr(supervisor, "BackendWatchdog", _FakeWatchdog)
-    monkeypatch.setattr(supervisor, "launch_webview", lambda url, watchdog, on_closed: calls.append("webview"))
+    monkeypatch.setattr(
+        supervisor,
+        "launch_webview",
+        lambda url, watchdog, on_closed: calls.append("webview"),
+    )
 
     assert supervisor.run(config) == 0
     assert calls[:4] == ["migrate", "start-backend", "ready", "webview"]
     assert job.created is True
     assert job.closed is True
+    assert "instance-release" in calls
+    assert process.terminated is True
 
 
 def test_migration_failure_does_not_start_backend(monkeypatch):
@@ -84,15 +121,37 @@ def test_migration_failure_does_not_start_backend(monkeypatch):
         postgres_timeout=1,
     )
 
-    monkeypatch.setattr(supervisor, "SingleInstance", lambda: SimpleNamespace(acquire=lambda: True, release=lambda: None))
+    monkeypatch.setattr(
+        supervisor,
+        "SingleInstance",
+        lambda: SimpleNamespace(
+            acquire=lambda: True,
+            release=lambda: None,
+        ),
+    )
     monkeypatch.setattr(supervisor, "JobObject", lambda: job)
-    monkeypatch.setattr(supervisor, "ensure_postgresql_running", lambda timeout: "postgresql-x64-18")
-    monkeypatch.setattr(supervisor, "migrate_if_needed", lambda: (_ for _ in ()).throw(supervisor.MigrationGateError("migration failed")))
-    monkeypatch.setattr(supervisor, "show_startup_error", lambda title, message: calls.append((title, message)))
+    monkeypatch.setattr(
+        supervisor,
+        "ensure_postgresql_running",
+        lambda timeout: "postgresql-x64-18",
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "migrate_if_needed",
+        lambda: (_ for _ in ()).throw(
+            supervisor.MigrationGateError("migration failed")
+        ),
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "show_startup_error",
+        lambda title, message: calls.append((title, message)),
+    )
     monkeypatch.setattr(
         supervisor,
         "start_backend",
-        lambda *args, **kwargs: calls.append("start-backend") or (object(), "http://127.0.0.1:8000"),
+        lambda *args, **kwargs: calls.append("start-backend")
+        or (_FakeProcess(), "http://127.0.0.1:8000"),
     )
 
     assert supervisor.run(config) == 3
