@@ -223,7 +223,11 @@ def reset_test_data(
     service, rf = _deployment_service()
     try:
         try:
-            service._require_password(payload.password)
+            if not service.verify_password(payload.password):
+                raise DeploymentControlError(
+                    "Deployment/reset password is not configured or is incorrect. "
+                    "Configure Reset Protection before using Deployment Controls."
+                )
         except DeploymentControlError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
     finally:
