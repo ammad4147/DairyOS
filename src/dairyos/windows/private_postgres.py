@@ -471,26 +471,39 @@ def start(
     _write_postgresql_conf(data_root, host, selected_port)
     _write_pg_hba_conf(data_root, user, database)
     pg_ctl = _binary("pg_ctl.exe")
-    if _pid_file(data_root).is_file():
-        if not _is_port_open(host, selected_port):
-            # A stale PID file can remain after an abnormal machine shutdown.
-            # pg_ctl can determine the actual cluster state.
-            status = _run(
-                [
-                    str(pg_ctl),
-                    "-D",
-                    str(data_root),
-                    "status",
-                ],
-                check=False,
-                timeout=10,
-            )
-            if status.returncode != 3:
+    pid_path = _pid_file(data_root)
+
+    if pid_path.is_file() and not _is_port_open(host, selected_port):
+        # A postmaster PID file can survive an abnormal termination.
+        # pg_ctl status return code 3 means the cluster is not running.
+        # In that specific case the PID file is stale and the normal start
+        # path is allowed to recover the persistent cluster.
+        status = _run(
+            [
+                str(pg_ctl),
+                "-D",
+                str(data_root),
+                "status",
+            ],
+            check=False,
+            timeout=10,
+        )
+
+        if status.returncode == 3:
+            try:
+                pid_path.unlink()
+            except OSError as exc:
                 raise PrivatePostgreSQLError(
-                    "Private PostgreSQL has a postmaster PID file but is not "
-                    "reachable on its persisted port. Manual recovery is required."
-                )
-    else:
+                    "Private PostgreSQL is stopped but its stale "
+                    "postmaster PID file could not be removed."
+                ) from exc
+        else:
+            raise PrivatePostgreSQLError(
+                "Private PostgreSQL has a postmaster PID file but is not "
+                "reachable on its persisted port. Manual recovery is required."
+            )
+
+    if not pid_path.is_file():
         log_file = paths.logs_dir(create=True) / "private-postgres.log"
 
         pgctl_env = os.environ.copy()

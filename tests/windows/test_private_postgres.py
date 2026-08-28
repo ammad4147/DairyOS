@@ -108,3 +108,102 @@ def test_psql_command_disables_password_prompt(monkeypatch):
     assert result.stdout.strip() == "1"
     assert "-w" in calls[0][0]
     assert calls[0][1]["stdin"] is pg.subprocess.DEVNULL
+
+
+def test_stale_postmaster_pid_is_removed_and_cluster_is_started(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "postgres"
+    data_root.mkdir(parents=True)
+    pid_file = data_root / "postmaster.pid"
+    pid_file.write_text("99999\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        pg,
+        "postgres_data_root",
+        lambda: data_root,
+    )
+    monkeypatch.setattr(
+        pg,
+        "detect_installed_version",
+        lambda: "18.6",
+    )
+    monkeypatch.setattr(
+        pg,
+        "bundled_version",
+        lambda: "18.6",
+    )
+    monkeypatch.setattr(
+        pg,
+        "_configured_port",
+        lambda: 55432,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_binary",
+        lambda name: Path(name),
+    )
+    monkeypatch.setattr(
+        pg,
+        "_is_port_open",
+        lambda host, port: False,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_write_postgresql_conf",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_write_pg_hba_conf",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_ensure_role_and_database",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_wait_for_server",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_write_state",
+        lambda payload: None,
+    )
+    monkeypatch.setattr(
+        pg,
+        "runtime_root",
+        lambda: data_root.parent,
+    )
+
+    calls = []
+
+    class Result:
+        def __init__(self, returncode):
+            self.returncode = returncode
+            self.stdout = ""
+            self.stderr = ""
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+
+        if command[-1] == "status":
+            return Result(3)
+
+        if command[-1] == "start":
+            return Result(0)
+
+        return Result(0)
+
+    monkeypatch.setattr(pg, "_run", fake_run)
+
+    result = pg.start(timeout=1)
+
+    assert result.port == 55432
+    assert not pid_file.exists()
+    assert any(command[-1] == "status" for command in calls)
+    assert any(command[-1] == "start" for command in calls)
