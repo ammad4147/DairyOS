@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 from dairyos.farm.settings.services.deployment_control_service import (
     DEPLOYMENT_ACTIVE_KEY,
     DeploymentControlService,
@@ -41,7 +39,7 @@ def test_development_defaults_to_deployed(monkeypatch):
     assert DeploymentControlService(settings).is_deployed() is True
 
 
-def test_deploy_requires_literal_confirmation_at_api_boundary_only(monkeypatch):
+def test_deploy_does_not_require_password(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     repository = FakeRepository()
     settings = FakeSettings(repository)
