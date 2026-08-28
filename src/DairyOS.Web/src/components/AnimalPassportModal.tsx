@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Database, DollarSign, HeartPulse, Milk, Save, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import OperatorDataBlock from './OperatorDataBlock';
 
 type AnimalData={id:string;category:string;breed:string;age:string;status:string;frequency:string;earTag:string;gender?:string;stage?:string};
 type BackendAnimal={animal_id:string;animal_type?:string;ear_tag?:string|null;rfid?:string|null;breed?:string|null;sex?:string|null;date_of_birth?:string|null;dam_id?:string|null;sire_id?:string|null;lifecycle_status?:string|null;status?:string|null;milking_frequency?:string|null;production_group?:string|null;location?:string|null;active?:boolean};
@@ -12,9 +13,9 @@ function categoryFromLifecycle(l?:string|null,sex?:string|null){const lifecycle=
 function lifecycleFromCategory(category:string){if(category==='Milking Cows')return 'LACTATING';if(category==='Dry Cows')return 'DRY';if(category==='Heifers'||category==='Bulls')return 'HEIFER';return 'CALF'}
 function age(value?:string|null){if(!value)return 'Unknown';const d=new Date(value);if(Number.isNaN(d.getTime()))return 'Unknown';const now=new Date();let y=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))y--;return y>0?`${y} Years`:`${Math.max(0,Math.floor((now.getTime()-d.getTime())/2592000000))} Months`}
 function toUi(a:BackendAnimal):AnimalData{return{id:a.animal_id,category:categoryFromLifecycle(a.lifecycle_status,a.sex),breed:a.breed||'Unknown',age:age(a.date_of_birth),status:a.status||(a.active===false?'INACTIVE':'ACTIVE'),frequency:a.milking_frequency||'NONE',earTag:a.ear_tag||a.animal_id,gender:(a.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:a.lifecycle_status||undefined}}
-function displayKey(k:string){return k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
-function Primitive({value}:{value:any}){if(value===null||value===undefined||value==='')return <span style={{color:'#64748b'}}>—</span>;if(typeof value==='boolean')return <span>{value?'Yes':'No'}</span>;return <span>{typeof value==='object'?JSON.stringify(value):String(value)}</span>}
-function RecordBlock({value,depth=0}:{value:any;depth?:number}):React.ReactNode{if(value===null||value===undefined)return <span style={{color:'#64748b',fontSize:10}}>No linked records available yet.</span>;if(typeof value!=='object')return <Primitive value={value}/>;if(Array.isArray(value))return value.length?<div style={{display:'grid',gap:7}}>{value.map((item,i)=><div key={i} style={{background:'#0f172a',border:'1px solid #1f2937',borderRadius:5,padding:8}}><div style={{fontSize:9,color:'#64748b',marginBottom:4}}>Record {i+1}</div><RecordBlock value={item} depth={depth+1}/></div>)}</div>:<span style={{color:'#64748b',fontSize:10}}>No linked records available yet.</span>;const entries=Object.entries(value);if(!entries.length)return <div style={{padding:'12px 4px',fontSize:10,color:'#64748b'}}>No linked records available yet. This section will populate automatically when the corresponding operational records are entered.</div>;return <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:7}}>{entries.map(([key,val])=><div key={key} style={{background:depth?'#0f172a':'#111827',border:'1px solid #1f2937',borderRadius:5,padding:8,minWidth:0}}><div style={{fontSize:9,color:'#64748b',fontWeight:800,textTransform:'uppercase',marginBottom:4}}>{displayKey(key)}</div><div style={{fontSize:11,color:'#e2e8f0',overflowWrap:'anywhere',lineHeight:1.35}}><RecordBlock value={val} depth={depth+1}/></div></div>)}</div>}
+function RecordBlock({value}:{value:any}):React.ReactNode{
+  return <OperatorDataBlock value={value}/>;
+}
 function findSection(source:any,keys:string[]){for(const key of keys)if(source&&source[key]!==undefined)return source[key];return null}
 
 export default function AnimalPassportModal({animalId,onClose,onSave}:Props){

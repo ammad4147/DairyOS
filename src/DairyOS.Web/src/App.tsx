@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import FinanceTab from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
@@ -28,7 +28,14 @@ export default function MainAppShell(){
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
  const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[todayYield,setTodayYield]=useState(0),[todayMilkSoldLiters,setTodayMilkSoldLiters]=useState(0),[accountsReceivable,setAccountsReceivable]=useState(0);
- const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);setAnimals(await response.json() as BackendAnimal[])}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
+ const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();
+const records = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.value)
+        ? payload.value
+        : [];
+
+setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
  useEffect(()=>{const storedName=localStorage.getItem('dairyos_farm_name');const storedLocation=localStorage.getItem('dairyos_farm_loc');if(storedName)setFarmName(storedName);if(storedLocation)setFarmLocation(storedLocation);void refreshAnimals()},[refreshAnimals]);
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
  const handleRegisterAnimal=()=>{void refreshAnimals()};

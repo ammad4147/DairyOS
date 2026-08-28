@@ -4,6 +4,7 @@ import OperationalEntryPanel, {
     type OperationalEntryConfig,
 } from "./OperationalEntryPanel";
 import { apiUrl } from "../config/api";
+import OperatorDataBlock from "./OperatorDataBlock";
 
 type Mode = "cards" | "entries" | "decisions" | "state";
 type TabId =
@@ -69,9 +70,75 @@ const TAB_HELP: Record<TabId, string> = {
 };
 
 function text(value: unknown): string {
-    if (value === null || value === undefined || value === "") return "—";
-    if (typeof value === "object") return JSON.stringify(value);
-    return String(value);
+    if (value === null || value === undefined || value === "") {
+        return "";
+    }
+
+    if (typeof value === "object") {
+        return "Information available.";
+    }
+
+    if (typeof value === "boolean") {
+        return value ? "Yes" : "No";
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return "";
+
+    const normalized = raw.toUpperCase();
+
+    const friendly: Record<string, string> = {
+        ACTIVE: "Active",
+        INACTIVE: "Inactive",
+        ATTENTION: "Needs attention",
+
+        CURRENT: "Current",
+        COMPLETE: "Complete",
+        COMPLETED: "Completed",
+        OPEN: "Open",
+        CLOSED: "Closed",
+        PENDING: "Pending",
+        WARNING: "Warning",
+        CRITICAL: "Critical",
+        GREEN: "Normal",
+        AMBER: "Needs attention",
+        RED: "Critical",
+        HIGH: "High",
+        MEDIUM: "Medium",
+        LOW: "Low",
+        NONE: "None",
+        TRUE: "Yes",
+        FALSE: "No",
+        HEIFER: "Heifer",
+        LACTATING: "Milking",
+        DRY: "Dry",
+        CALF: "Calf",
+        FEMALE: "Female",
+        MALE: "Male",
+        TWICE_DAILY: "Twice daily",
+        THREE_TIMES_DAILY: "Three times daily",
+        NOT_PREGNANT: "Not pregnant",
+        PREGNANT: "Pregnant",
+        NOT_PLANNED: "Not planned",
+        NON_MILKING: "Not milking",
+        OUT_OF_SERVICE: "Out of service",
+        MAINTENANCE: "Maintenance due",
+        MISSED: "Missed",
+        RECEIVED: "Received",
+        RECEIVABLE: "Receivable",
+        PAYABLE: "Payable",
+        PAID: "Paid",
+        VOID: "Voided",
+        NO_DATA: "",
+    };
+
+    if (friendly[normalized]) {
+        return friendly[normalized];
+    }
+
+    return raw
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function label(value: string): string {
@@ -221,7 +288,8 @@ export default function UnifiedOperationalTab({
 
             <div className="module-summary">
                 <Summary label="Operational date" value={tabState?.operational_date ?? "—"} />
-                <Summary label="Contract" value={tabState?.contract_version ?? "—"} />
+                <Summary label="Farm" value={tabState?.farm_id ?? ""} />
+
                 <Summary label="State" value={tabState?.status ?? "—"} tone={statusClass(tabState?.status)} />
                 <Summary label="Records" value={records.length || (tabId === "animals" ? stateRows(tabId, tabState?.state ?? {}).length : "—")} />
             </div>
@@ -269,7 +337,7 @@ function StateGrid({ entries }: { entries: Array<[string, unknown]> }) {
             {entries.map(([key, value]) => (
                 <div className="state-card" key={key}>
                     <div className="state-card-title">{label(key)}</div>
-                    <div className="state-card-value">{typeof value === "object" ? <pre>{JSON.stringify(value, null, 2)}</pre> : text(value)}</div>
+                    <div className="state-card-value"><OperatorDataBlock value={value} /></div>
                 </div>
             ))}
         </div>
@@ -299,6 +367,31 @@ function AnimalTable({ rows }: { rows: Row[] }) {
     );
 }
 
+function friendlySource(value: unknown): string {
+    if (value === null || value === undefined || value === "") {
+        return "";
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+
+    const friendly: Record<string, string> = {
+        missing_input: "Daily farm records",
+        inventory: "Inventory records",
+        workforce: "Workforce records",
+        equipment: "Equipment records",
+        financial: "Financial records",
+        milk: "Milk records",
+        feeding: "Feeding records",
+        health: "Health records",
+        breeding: "Breeding records",
+        command_center: "Farm operations",
+    };
+
+    return friendly[normalized]
+        ?? normalized
+            .replaceAll("_", " ")
+            .replace(/\b\w/g, (character) => character.toUpperCase());
+}
 function DecisionView({ rows, state }: { rows: Row[]; state: Record<string, unknown> }) {
     const stateRows = [
         ...(Array.isArray(state.exceptions) ? state.exceptions : []),
@@ -318,7 +411,7 @@ function DecisionView({ rows, state }: { rows: Row[]; state: Record<string, unkn
                             <td>{text(row.title ?? row.event_type ?? row.observation ?? row.message)}</td>
                             <td>{text(row.animal_id)}</td>
                             <td>{text(row.action ?? row.recommended_action)}</td>
-                            <td>{text(row.source)}</td>
+                            <td>{friendlySource(row.source)}</td>
                             <td>{text(row.status)}</td>
                         </tr>
                     ))}
@@ -352,5 +445,5 @@ function Cell({ value }: { value: unknown }) {
 }
 
 function EmptyState({ title }: { title: string }) {
-    return <div className="empty-state"><strong>{title}</strong><span>The API is available, but no recorded data matches this view.</span></div>;
+    return <div className="empty-state"><strong>{title}</strong></div>;
 }
