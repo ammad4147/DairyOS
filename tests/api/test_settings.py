@@ -1,4 +1,4 @@
-"""Settings: farm identity, reset protection, and deployment control."""
+"""Settings: farm identity, operational preferences, and deployment control."""
 
 
 def test_default_settings(client):
@@ -7,7 +7,7 @@ def test_default_settings(client):
     body = response.json()
     assert body["farm_name"] == "Trident Dairies"
     assert body["animal_id_prefix"] == "TD"
-    assert body["reset_protected"] is False
+    assert "reset_protected" not in body
 
 
 def test_update_farm_name_and_prefix(client):
@@ -26,7 +26,7 @@ def test_invalid_prefix_is_rejected(client):
     response = client.put("/settings", json={"animal_id_prefix": "12"})
     assert response.status_code == 422, response.text
     too_long = client.put("/settings", json={"animal_id_prefix": "TOOLONG"})
-    assert too_long.status_code == 422, response.text
+    assert too_long.status_code == 422, too_long.text
 
 
 def test_blank_farm_name_is_rejected(client):
@@ -49,43 +49,12 @@ def test_animal_ids_increment_sequentially(client):
     assert second_seq == first_seq + 1
 
 
-def test_enabling_reset_protection_requires_a_password(client):
-    response = client.post("/settings/reset-protection", json={"enabled": True})
-    assert response.status_code == 422, response.text
-
-
-def test_enabling_reset_protection_succeeds_with_a_password(client):
-    response = client.post("/settings/reset-protection", json={"enabled": True, "password": "farmSecret1"})
-    assert response.status_code == 200, response.text
-    assert response.json()["reset_protected"] is True
-    assert client.get("/settings").json()["reset_protected"] is True
-
-
-def test_disabling_reset_protection_needs_no_password(client):
-    client.post("/settings/reset-protection", json={"enabled": True, "password": "farmSecret1"})
-    response = client.post("/settings/reset-protection", json={"enabled": False})
-    assert response.status_code == 200, response.text
-    assert response.json()["reset_protected"] is False
-
-
 def test_reset_requires_literal_confirmation(client):
-    response = client.post("/settings/reset", json={"confirm": "yes please", "password": "unused"})
+    response = client.post("/settings/reset", json={"confirm": "yes please"})
     assert response.status_code == 422, response.text
 
 
-def test_reset_requires_password_even_when_optional_protection_is_off(client, registered_animal):
-    response = client.post("/settings/reset", json={"confirm": "RESET", "password": "anything"})
-    assert response.status_code == 403, response.text
-
-
-def _enable_reset_password(client, password="farmSecret1"):
-    response = client.post("/settings/reset-protection", json={"enabled": True, "password": password})
-    assert response.status_code == 200, response.text
-    return password
-
-
-def test_reset_wipes_operational_data(client, registered_animal):
-    password = _enable_reset_password(client)
+def test_reset_wipes_operational_data_without_password(client, registered_animal):
     milk = client.post(
         "/farm/milk",
         json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 20.0, "production_date": "2026-08-13", "operator": "Tester"},
@@ -93,7 +62,7 @@ def test_reset_wipes_operational_data(client, registered_animal):
     assert milk.status_code == 200, milk.text
     assert len(client.get("/farm/animals").json()) >= 1
 
-    response = client.post("/settings/reset", json={"confirm": "RESET", "password": password})
+    response = client.post("/settings/reset", json={"confirm": "RESET"})
     assert response.status_code == 200, response.text
     assert "animal" in response.json()["tables_cleared"]
     assert client.get("/farm/animals").json() == []
@@ -101,28 +70,16 @@ def test_reset_wipes_operational_data(client, registered_animal):
 
 
 def test_reset_preserves_settings_themselves(client):
-    password = _enable_reset_password(client)
     client.put("/settings", json={"farm_name": "Persisted Farm", "animal_id_prefix": "PF"})
-    response = client.post("/settings/reset", json={"confirm": "RESET", "password": password})
+    response = client.post("/settings/reset", json={"confirm": "RESET"})
     assert response.status_code == 200, response.text
     settings = client.get("/settings").json()
     assert settings["farm_name"] == "Persisted Farm"
     assert settings["animal_id_prefix"] == "PF"
 
 
-def test_reset_blocked_without_correct_password_when_protected(client, registered_animal):
-    _enable_reset_password(client, "correct-horse")
-    wrong = client.post("/settings/reset", json={"confirm": "RESET", "password": "wrong"})
-    assert wrong.status_code == 403, wrong.text
-    missing = client.post("/settings/reset", json={"confirm": "RESET"})
-    assert missing.status_code == 403, missing.text
-    right = client.post("/settings/reset", json={"confirm": "RESET", "password": "correct-horse"})
-    assert right.status_code == 200, right.text
-
-
 def test_reset_after_wipe_new_animal_starts_at_one(client, registered_animal):
-    password = _enable_reset_password(client)
-    response = client.post("/settings/reset", json={"confirm": "RESET", "password": password})
+    response = client.post("/settings/reset", json={"confirm": "RESET"})
     assert response.status_code == 200, response.text
     created = client.post("/farm/animals", json={"animal_type": "COW", "lifecycle_status": "HEIFER"}).json()
     assert created["animal_id"] == "TD-001"
@@ -166,15 +123,12 @@ def test_deployment_status_is_available(client):
     assert response.status_code == 200, response.text
     body = response.json()
     assert "deployed" in body
-    assert "reset_protected" in body
+    assert "reset_protected" not in body
 
 
-def test_deployment_activation_requires_password_and_literal_confirmation(client):
-    _enable_reset_password(client, "deploySecret")
-    wrong_confirmation = client.post("/settings/deployment/activate", json={"confirm": "YES", "password": "deploySecret"})
+def test_deployment_activation_requires_literal_confirmation_but_no_password(client):
+    wrong_confirmation = client.post("/settings/deployment/activate", json={"confirm": "YES"})
     assert wrong_confirmation.status_code == 422, wrong_confirmation.text
-    wrong_password = client.post("/settings/deployment/activate", json={"confirm": "DEPLOY", "password": "wrong"})
-    assert wrong_password.status_code == 403, wrong_password.text
-    deployed = client.post("/settings/deployment/activate", json={"confirm": "DEPLOY", "password": "deploySecret"})
+    deployed = client.post("/settings/deployment/activate", json={"confirm": "DEPLOY"})
     assert deployed.status_code == 200, deployed.text
     assert deployed.json()["deployment"]["deployed"] is True
