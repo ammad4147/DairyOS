@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 from dairyos.farm.settings.services.deployment_control_service import (
     DEPLOYMENT_ACTIVE_KEY,
-    DeploymentControlError,
     DeploymentControlService,
 )
 
@@ -23,15 +20,8 @@ class FakeRepository:
 
 
 class FakeSettings:
-    def __init__(self, repository, password_ok=False):
+    def __init__(self, repository):
         self.repository = repository
-        self.password_ok = password_ok
-
-    def is_reset_protected(self):
-        return self.password_ok
-
-    def verify_reset_password(self, password):
-        return self.password_ok and password == "correct-password"
 
 
 def test_production_defaults_to_not_deployed(monkeypatch):
@@ -51,30 +41,24 @@ def test_development_defaults_to_deployed(monkeypatch):
     assert DeploymentControlService(settings).is_deployed() is True
 
 
-def test_deploy_requires_password(monkeypatch):
+def test_deploy_requires_literal_confirmation_at_api_boundary_only(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     repository = FakeRepository()
-    settings = FakeSettings(repository, password_ok=True)
+    settings = FakeSettings(repository)
     service = DeploymentControlService(settings)
 
-    with pytest.raises(DeploymentControlError):
-        service.activate(password="wrong", updated_by="TEST")
-
-    status = service.activate(password="correct-password", updated_by="TEST")
+    status = service.activate(updated_by="TEST")
     assert status["deployed"] is True
     assert repository.get(DEPLOYMENT_ACTIVE_KEY) == "true"
 
 
-def test_reset_requires_password_and_deactivates(monkeypatch):
+def test_reset_deactivates_without_password(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     repository = FakeRepository()
     repository.set(DEPLOYMENT_ACTIVE_KEY, "true")
-    settings = FakeSettings(repository, password_ok=True)
+    settings = FakeSettings(repository)
     service = DeploymentControlService(settings)
 
-    with pytest.raises(DeploymentControlError):
-        service.deactivate(password="wrong", updated_by="TEST")
-
-    status = service.deactivate(password="correct-password", updated_by="TEST")
+    status = service.deactivate(updated_by="TEST")
     assert status["deployed"] is False
     assert repository.get(DEPLOYMENT_ACTIVE_KEY) == "false"
