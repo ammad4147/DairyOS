@@ -1,5 +1,4 @@
-"""Application settings (AA-013 §17 Settings section; farm identity and
-reset protection, 2026-08-14).
+"""Application settings (AA-013 §17 Settings section; farm identity).
 
 A small key/value store for the handful of operator-configurable settings
 DairyOS needs before the full roles/preferences Settings section (AA-013
@@ -7,16 +6,10 @@ DairyOS needs before the full roles/preferences Settings section (AA-013
 settings (added as the Settings section grows) don't each need their own
 migration.
 
-Two concrete uses exist today:
-
-- ``farm_name`` / ``animal_id_prefix`` -- the short, farm-branded Animal ID
-  scheme (e.g. "Trident Dairies" -> prefix "TD" -> animal IDs "TD-001",
-  "TD-002", ...), replacing the previous 32-character random hex ID.
-- ``reset_protected`` / ``reset_password_hash`` -- gates
-  ``POST /settings/reset-test-data``. Unprotected by default (pre-
-  deployment convenience); the operator can turn on password protection
-  once from Settings before going live, per the decision recorded
-  2026-08-14.
+The concrete farm identity settings include ``farm_name`` and
+``animal_id_prefix`` -- the short, farm-branded Animal ID scheme (e.g.
+"Trident Dairies" -> prefix "TD" -> animal IDs "TD-001", "TD-002", ...),
+replacing the previous 32-character random hex ID.
 """
 
 from sqlalchemy import Column, DateTime, String
