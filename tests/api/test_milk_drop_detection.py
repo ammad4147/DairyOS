@@ -140,6 +140,8 @@ def test_recording_complete_twice_daily_milk_raises_a_real_drop_finding(
     client,
     registered_animal,
 ):
+    client.post("/settings/deployment/activate", json={"confirm": "DEPLOY", "password": "deploySecret"})
+
     frequency_response = client.post(
         f"/farm/animals/{registered_animal}/milking-frequency",
         json={
@@ -169,28 +171,82 @@ def test_recording_complete_thrice_daily_milk_raises_a_real_drop_finding(
     client,
     registered_animal,
 ):
+    client.post(
+        "/settings/deployment/activate",
+        json={
+            "confirm": "DEPLOY",
+            "password": "deploySecret",
+        },
+    )
+
     frequency_response = client.post(
         f"/farm/animals/{registered_animal}/milking-frequency",
         json={
             "milking_frequency": "THRICE_DAILY",
             "changed_by": "test",
             "reason": "Configure thrice-daily drop test",
-            "effective_date": "2026-08-16T00:00:00Z"
+            "effective_date": "2026-08-16T00:00:00Z",
         },
     )
     assert frequency_response.status_code == 200
 
     # Day 1: Normal yield across three sessions (Total: 12.0)
-    for session, yield_val in [("MORNING", 4.0), ("AFTERNOON", 4.0), ("EVENING", 4.0)]:
+    for session, yield_val in [
+        ("MORNING", 4.0),
+        ("AFTERNOON", 4.0),
+        ("EVENING", 4.0),
+    ]:
         field = f"{session.lower()}_yield"
-        client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": session, field: yield_val, "production_date": "2026-08-17", "operator": "Tester"})
 
-    # Day 2: Severe drop across three sessions (Total: 4.0 -> ~66% drop)
-    for session, yield_val in [("MORNING", 1.33), ("AFTERNOON", 1.33), ("EVENING", 1.33)]:
+        response = client.post(
+            "/farm/milk",
+            json={
+                "animal_id": registered_animal,
+                "milking_session": session,
+                field: yield_val,
+                "production_date": "2026-08-17",
+                "operator": "Tester",
+            },
+        )
+
+        assert response.status_code == 200, response.text
+
+    # Day 2: Severe drop across three sessions.
+    # Total = 1.33 + 1.33 + 1.33 = 3.99 L.
+    # Compared with 12.0 L, this is approximately a 66.8% decline.
+    for session, yield_val in [
+        ("MORNING", 1.33),
+        ("AFTERNOON", 1.33),
+        ("EVENING", 1.33),
+    ]:
         field = f"{session.lower()}_yield"
-        res = client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": session, field: yield_val, "production_date": "2026-08-18", "operator": "Tester"})
-        assert res.status_code == 200, res.text
 
-    findings = client.get("/farm/findings", params={"module": "MILK"}).json()["findings"]
-    matching = [f for f in findings if f["subject_id"] == registered_animal and f["severity"] == "CRITICAL"]
-    assert matching, "expected a MILK finding after a complete THRICE_DAILY 60% drop"
+        response = client.post(
+            "/farm/milk",
+            json={
+                "animal_id": registered_animal,
+                "milking_session": session,
+                field: yield_val,
+                "production_date": "2026-08-18",
+                "operator": "Tester",
+            },
+        )
+
+        assert response.status_code == 200, response.text
+
+    findings = client.get(
+        "/farm/findings",
+        params={"module": "MILK"},
+    ).json()["findings"]
+
+    matching = [
+        finding
+        for finding in findings
+        if finding["subject_id"] == registered_animal
+        and finding["severity"] == "CRITICAL"
+    ]
+
+    assert matching, (
+        "expected a MILK finding after a complete "
+        "THRICE_DAILY 60% drop"
+    )
