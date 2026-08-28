@@ -2,15 +2,12 @@
 
 Settings are persisted through the authoritative ``app_settings`` key/value
 repository. They configure farm identity, operational-date interpretation,
-dashboard defaults and reset protection. They never replace domain facts.
+and dashboard defaults. They never replace domain facts.
 """
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
-import secrets
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -28,43 +25,6 @@ DEFAULT_DASHBOARD_CARD_VISIBILITY = {
     "analytics": True,
 }
 DEFAULT_ALERT_PREFERENCES = {}
-_PBKDF2_ITERATIONS = 200_000
-
-
-def _hash_password(
-    password: str,
-    salt: str | None = None,
-) -> str:
-    salt = salt or secrets.token_hex(16)
-
-    derived = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        _PBKDF2_ITERATIONS,
-    )
-
-    return f"{salt}${derived.hex()}"
-
-
-def _verify_password(
-    password: str,
-    stored: str,
-) -> bool:
-    try:
-        salt, _ = stored.split("$", 1)
-    except (ValueError, AttributeError):
-        return False
-
-    candidate = _hash_password(
-        password,
-        salt=salt,
-    )
-
-    return hmac.compare_digest(
-        candidate,
-        stored,
-    )
 
 
 def _json_loads(
@@ -245,7 +205,6 @@ class FarmSettingsService:
             ),
             "dashboard": self.get_dashboard_preferences(),
             "alerts": self.get_alert_preferences(),
-            "reset_protected": self.is_reset_protected(),
         }
 
     # ------------------------------------------------------------------
@@ -426,67 +385,3 @@ class FarmSettingsService:
         )
 
         return self.get_public_settings()
-
-    # ------------------------------------------------------------------
-    # Reset protection
-    # ------------------------------------------------------------------
-
-    def is_reset_protected(self) -> bool:
-        return (
-            self.repository.get(
-                "reset_protected",
-                "false",
-            )
-            == "true"
-        )
-
-    def set_reset_protection(
-        self,
-        *,
-        enabled: bool,
-        password: str | None = None,
-        updated_by: str | None = None,
-    ) -> dict:
-        if enabled:
-            if (
-                not password
-                or len(password) < 4
-            ):
-                raise ValueError(
-                    "A password of at least 4 characters is required "
-                    "to enable reset protection"
-                )
-
-            self.repository.set(
-                "reset_password_hash",
-                _hash_password(password),
-                updated_by=updated_by,
-            )
-
-        self.repository.set(
-            "reset_protected",
-            "true" if enabled else "false",
-            updated_by=updated_by,
-        )
-
-        return self.get_public_settings()
-
-    def verify_reset_password(
-        self,
-        password: str | None,
-    ) -> bool:
-        stored = self.repository.get(
-            "reset_password_hash"
-        )
-
-        if (
-            not stored
-            or not password
-        ):
-            return False
-
-        return _verify_password(
-            password,
-            stored,
-        )
-
