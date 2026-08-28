@@ -1,4 +1,4 @@
-"""Settings endpoints, including guarded deployment controls."""
+"""Settings endpoints, including deployment lifecycle controls."""
 
 from __future__ import annotations
 
@@ -11,10 +11,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.data.database.session import engine
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.email.service import EmailService
-from dairyos.farm.settings.services.deployment_control_service import (
-    DeploymentControlError,
-    DeploymentControlService,
-)
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -60,21 +57,13 @@ class UpdateAlertPreferencesRequest(BaseModel):
     updated_by: str = Field(default="UI Operator")
 
 
-class ResetProtectionRequest(BaseModel):
-    enabled: bool
-    password: str | None = None
-    updated_by: str = Field(default="UI Operator")
-
-
 class ResetTestDataRequest(BaseModel):
     confirm: str
-    password: str | None = None
     updated_by: str = Field(default="UI Operator")
 
 
 class DeployRequest(BaseModel):
     confirm: str
-    password: str | None = None
     updated_by: str = Field(default="UI Operator")
 
 
@@ -131,17 +120,6 @@ def update_alert_preferences(payload: UpdateAlertPreferencesRequest):
         rf.close()
 
 
-@router.post("/reset-protection")
-def set_reset_protection(payload: ResetProtectionRequest):
-    service, rf = _service()
-    try:
-        return service.set_reset_protection(enabled=payload.enabled, password=payload.password, updated_by=payload.updated_by)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    finally:
-        rf.close()
-
-
 @router.get("/deployment")
 def deployment_status():
     service, rf = _deployment_service()
@@ -158,10 +136,7 @@ def activate_deployment(payload: DeployRequest):
 
     service, rf = _deployment_service()
     try:
-        try:
-            status = service.activate(password=payload.password, updated_by=payload.updated_by)
-        except DeploymentControlError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        status = service.activate(updated_by=payload.updated_by)
         return {"status": "deployed", "deployment": status}
     finally:
         rf.close()
@@ -183,16 +158,6 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
     if payload.confirm != "RESET":
         raise HTTPException(status_code=422, detail='confirm must be the literal string "RESET" to proceed')
 
-    service, rf = _deployment_service()
-    try:
-        if not service.verify_password(payload.password):
-            raise HTTPException(
-                status_code=403,
-                detail="Deployment/reset password is not configured or is incorrect. Configure Reset Protection before using Deployment Controls.",
-            )
-    finally:
-        rf.close()
-
     container_session = getattr(getattr(container, "repository_factory", None), "session", None)
     if container_session is not None:
         container_session.rollback()
@@ -210,9 +175,7 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
 
     service, rf = _deployment_service()
     try:
-        status = service.deactivate(password=payload.password, updated_by=payload.updated_by)
-    except DeploymentControlError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        status = service.deactivate(updated_by=payload.updated_by)
     finally:
         rf.close()
 
