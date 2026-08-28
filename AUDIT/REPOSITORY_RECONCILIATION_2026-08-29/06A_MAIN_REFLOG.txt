@@ -1,0 +1,111 @@
+﻿e7b4b2d55 main@{2026-08-29 03:35:45 +0500}: commit: Reconcile validated operational UI and API changes
+0bceec212 main@{2026-08-29 00:01:31 +0500}: commit: Fix broken core model compatibility exports
+4409a4b49 main@{2026-08-28 23:13:44 +0500}: commit: Recover private PostgreSQL after stale PID
+8ad44aaa1 main@{2026-08-28 22:12:49 +0500}: commit: Complete milk drop daily reachability handling
+331b1f6f3 main@{2026-08-28 20:47:51 +0500}: pull --ff-only origin main: Fast-forward
+9d6c1d492 main@{2026-08-28 04:16:20 +0500}: merge origin/main: Fast-forward
+e6776b752 main@{2026-08-28 04:09:28 +0500}: merge origin/main: Fast-forward
+ffaad5d9a main@{2026-08-28 03:59:08 +0500}: merge origin/main: Fast-forward
+54107ca04 main@{2026-08-28 00:28:20 +0500}: pull --ff-only origin main: Fast-forward
+921a57c3b main@{2026-08-27 04:13:37 +0500}: reset: moving to origin/main
+ff1cfd4da main@{2026-08-27 03:16:00 +0500}: commit: fix(migrations): add explicit historical baseline root
+f1c690da6 main@{2026-08-27 01:25:18 +0500}: commit: fix(windows): install single DairyOS application executable
+1950a7a24 main@{2026-08-27 01:23:39 +0500}: commit: fix(windows): launch embedded backend from frozen runtime
+6da6acfdd main@{2026-08-27 01:17:39 +0500}: commit: fix(windows): embed migrations and application icon
+17f897cef main@{2026-08-27 01:07:08 +0500}: commit: feat(windows): integrate PostgreSQL deployment provisioning
+54ead2bdb main@{2026-08-27 00:52:28 +0500}: commit: fix(windows): finalize installer data boundary
+611b92c0d main@{2026-08-27 00:46:23 +0500}: commit: feat(windows): restore reproducible deployment packaging
+921a57c3b main@{2026-08-26 23:45:55 +0500}: commit: fix(windows): preserve PostgreSQL service names while sorting
+c7c64e088 main@{2026-08-26 23:38:05 +0500}: pull --ff-only origin main: Fast-forward
+21e8c7b4f main@{2026-08-26 23:31:10 +0500}: pull --ff-only origin main: Fast-forward
+cd1a3f009 main@{2026-08-26 23:18:50 +0500}: reset: moving to origin/main
+851382ea5 main@{2026-08-26 20:49:10 +0500}: reset: moving to origin/main
+2e09ef61f main@{2026-08-26 20:47:07 +0500}: reset: moving to origin/main
+a44010c65 main@{2026-08-26 03:06:21 +0500}: pull --ff-only origin main: Fast-forward
+b0010f750 main@{2026-08-26 00:23:25 +0500}: merge origin/feature/multi-user-email-digest: Fast-forward
+62295d505 main@{2026-08-26 00:23:25 +0500}: reset: moving to origin/main
+304fdfa9b main@{2026-08-25 20:43:29 +0500}: merge origin/main: Fast-forward
+e44b0b777 main@{2026-08-25 19:51:01 +0500}: commit: Remove orphaned legacy API layer
+122c19f75 main@{2026-08-25 19:11:22 +0500}: commit (cherry-pick): Remove obsolete Windows installer certification infrastructure
+889b2c7d6 main@{2026-08-24 00:20:35 +0500}: reset: moving to origin/main
+70bd7f148 main@{2026-08-23 21:58:14 +0500}: reset: moving to origin/main
+10238a177 main@{2026-08-23 21:57:10 +0500}: reset: moving to origin/main
+829193250 main@{2026-08-23 21:33:28 +0500}: commit: style(dashboard): refresh navigation tab appearance
+e0e0a432e main@{2026-08-23 21:33:27 +0500}: pull --ff-only origin main: Fast-forward
+94a71931e main@{2026-08-23 20:20:39 +0500}: pull --ff-only origin main: Fast-forward
+b03e28a94 main@{2026-08-23 18:31:06 +0500}: pull --rebase origin main (finish): refs/heads/main onto cf2cadcba39af587a71893b00a1e18d795c16778
+6aa5c6ce8 main@{2026-08-23 18:31:02 +0500}: commit: fix(audit): apply forensic remediations and handover certification report
+c1126822c main@{2026-08-23 16:29:13 +0500}: commit: fix(breeding): correct AI semen payload condition
+10b128ce1 main@{2026-08-23 16:18:18 +0500}: pull --ff-only origin main: Fast-forward
+dcc22f4b0 main@{2026-08-23 15:59:36 +0500}: pull --ff-only origin main: Fast-forward
+0fdbd4435 main@{2026-08-23 15:50:31 +0500}: pull --ff-only origin main: Fast-forward
+2a94a16e6 main@{2026-08-23 14:54:38 +0500}: commit: fix(dashboard): remove synthetic zero-state data
+cb8a01dbd main@{2026-08-23 14:42:36 +0500}: commit: fix(feed): source stock purchases from finance ledger
+787c9e1f8 main@{2026-08-23 14:40:53 +0500}: commit: feat(operations): complete finance feed integration and zero-state dashboard
+b38a77b05 main@{2026-08-23 14:01:06 +0500}: commit: feat(authz): complete multi-user access and password management
+5bf92c827 main@{2026-08-23 12:40:34 +0500}: commit: fix(authz): restore frontend compilation and milking compatibility route
+9d1eb090d main@{2026-08-23 12:34:25 +0500}: reset: moving to origin/main
+4be81dfd3 main@{2026-08-23 12:32:46 +0500}: reset: moving to origin/main
+30937492b main@{2026-08-23 12:30:11 +0500}: reset: moving to origin/main
+cced1582c main@{2026-08-23 12:20:31 +0500}: rebase (finish): refs/heads/main onto ac881a9c3183a24d7af7151c041607dd0e674014
+526bf6662 main@{2026-08-23 12:19:32 +0500}: commit: fix(ui): restore finance expense modes and remove top timer
+28e4e6399 main@{2026-08-23 12:06:49 +0500}: reset: moving to origin/main
+642fd7143 main@{2026-08-23 11:53:53 +0500}: reset: moving to origin/main
+5f6333532 main@{2026-08-23 05:08:49 +0500}: merge ui/dashboard-exact-2026-08-23: Fast-forward
+d0381a177 main@{2026-08-23 03:05:04 +0500}: reset: moving to origin/main
+67ff74fae main@{2026-08-23 02:43:49 +0500}: reset: moving to origin/main
+4c9328779 main@{2026-08-23 01:46:31 +0500}: reset: moving to origin/main
+c776039c5 main@{2026-08-23 01:17:09 +0500}: reset: moving to origin/main
+d0d0c9b5c main@{2026-08-23 01:11:51 +0500}: reset: moving to origin/main
+fb20c7800 main@{2026-08-22 18:59:53 +0500}: commit: ci: align security checks with main
+bf0323da1 main@{2026-08-22 18:30:27 +0500}: commit: chore(audit): complete forensic audit of Dashboard, Milk, Finance, Breeding, and Health ledgers with strict mass balance and dynamic time calculations
+f36320cc5 main@{2026-08-22 14:22:13 +0500}: commit: chore: lock whole numbers, fix UI encoding, and track ML yield forecaster
+35a8ca396 main@{2026-08-22 14:05:39 +0500}: commit: feat(ui): finalize top navigation, lock dashboard flexbox, enforce whole numbers, and secure audit UI
+f3bfedea0 main@{2026-08-22 13:33:01 +0500}: commit: chore: recover dashboard updates, restore security context, and merge Analytics engine
+a4386f180 main@{2026-08-22 04:36:53 +0500}: reset: moving to a4386f180
+5a0f7add0 main@{2026-08-22 04:34:51 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+1aafe36bd main@{2026-08-22 04:34:48 +0500}: reset: moving to 1aafe36bd
+a4386f180 main@{2026-08-22 04:21:44 +0500}: pull --rebase (finish): refs/heads/main onto d99e7ebce041e577f0b1655dda1010601040a39e
+cc983dd46 main@{2026-08-22 04:21:43 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+1d89f1005 main@{2026-08-22 04:21:43 +0500}: reset: moving to HEAD~1
+ab732d45d main@{2026-08-22 04:20:42 +0500}: commit: feat(analytics): implement Multivariate Query Engine with environmental cross-correlation
+1d89f1005 main@{2026-08-21 21:58:04 +0500}: commit: feat(UI): add 7 distinct herd category summary cards in Animal Records tab
+09831c66c main@{2026-08-21 21:54:35 +0500}: commit: fix(UI): remove D1-Dn XAxis day labels from Total Farm Yield Trend chart
+855461e53 main@{2026-08-21 21:52:39 +0500}: commit: fix(UI): implement dynamic 7/15/30-day timeline series and adaptive XAxis interval
+12e485e60 main@{2026-08-21 21:51:30 +0500}: commit: fix(UI): add CowIcon to Total Herd and force AreaChart re-render on chartDays change
+b67a4b5d0 main@{2026-08-21 21:44:48 +0500}: commit: fix(UI): fix dropPercent template literal syntax on UnifiedDashboard
+207bb580c main@{2026-08-21 21:36:47 +0500}: commit: fix(UI): Dashboard KPIs, Yield Alerting, Finance Statements, and Animal Records Cleanup
+1aafe36bd main@{2026-08-21 20:24:47 +0500}: commit: fix(audit): repair milk safety and reconciliation service literals
+68de69bf0 main@{2026-08-21 20:15:45 +0500}: rebase (finish): refs/heads/main onto 505dd7ea715777e2e22164a6c706d12657215891
+6fa07e2ea main@{2026-08-21 20:13:38 +0500}: commit: fix(audit): calculation integrity guards + 4 new capabilities
+1cf6d7ddc main@{2026-08-21 18:45:30 +0500}: commit: chore(audit): Remove bloat ΓÇö .venv, node_modules, ISO, orphan folders, AI dump files
+d3e8b2760 main@{2026-08-21 18:12:58 +0500}: commit: fix(installer): reconcile validation and rollback hooks
+aa4a4e00d main@{2026-08-21 17:58:10 +0500}: commit: chore(release): Full regression reconciliation and PWA offline edge sync integration
+9e5f0b580 main@{2026-08-21 16:53:51 +0500}: commit: feat(passport): Inject 3-picture visual identification gallery with lightbox fail-safe
+3252a75ed main@{2026-08-21 16:46:37 +0500}: commit: chore(audit): Archive OS bare-metal handover certification and disaster simulation results
+924ed1ca1 main@{2026-08-21 16:46:00 +0500}: commit: fix(operations): Enforce milk mass balance, correct CMPL sellable yield, wire financial persistence
+325137267 main@{2026-08-21 16:28:22 +0500}: pull --rebase origin main (finish): refs/heads/main onto bfc317f4a7e9b726d265db45c1226270bc0f9357
+85b5ee7f6 main@{2026-08-21 16:28:21 +0500}: commit: Refactor DairyOS: Auth gate, isolated settings & audit register, dashboard fixes, finance ledger overhaul, breeding entries, and analytics update
+3e85e02a0 main@{2026-08-21 14:07:59 +0500}: reset: moving to origin/main
+d4fed3872 main@{2026-08-21 14:01:54 +0500}: pull --ff-only origin main: Fast-forward
+5c246fe08 main@{2026-08-21 13:08:10 +0500}: reset: moving to origin/main
+093d09177 main@{2026-08-21 12:59:19 +0500}: reset: moving to origin/main
+3b6a5d416 main@{2026-08-21 12:48:51 +0500}: reset: moving to origin/main
+1256c163d main@{2026-08-21 12:15:39 +0500}: commit: Auto-commit: Reconciling branch prior to full regression testing
+fc8593e57 main@{2026-08-21 10:47:58 +0500}: commit: docs: complete executive forensic audit report for all 7 core domains
+4acfa820c main@{2026-08-21 04:40:48 +0500}: commit: chore: ignore generated reports directory
+a9af4226d main@{2026-08-21 04:39:58 +0500}: commit: fix(core): harden health dual-lookup, treatment autolink, enum normalizer, and trigger sync
+179e11673 main@{2026-08-20 23:53:06 +0500}: commit: build: fix encoding issues and finalize production build
+cdad5aca3 main@{2026-08-20 23:43:23 +0500}: commit: feat: Integrated CMPL Calculator, Advanced Analytics, Unified Settings Hub, and TMR Life-Cycle Manager
+dfc46aa66 main@{2026-08-20 19:08:35 +0500}: commit (merge): chore: resolved merge conflicts by preserving local dairy ledger and operational modules
+6b55ce68c main@{2026-08-20 19:05:01 +0500}: commit: feat: integrated professional dairy finance ledger, inventory linking, and operational modules
+36f5e7865 main@{2026-08-20 16:21:21 +0500}: merge 36f5e7865dd6b914f7947e36aec08ce81466b44f: Fast-forward
+8e15a0b43 main@{2026-08-20 02:38:55 +0500}: commit: chore: ignore transient reconciliation build logs
+dc6b90496 main@{2026-08-20 02:38:28 +0500}: commit: chore: ignore local reconciliation run directories
+30031c7b3 main@{2026-08-20 02:38:18 +0500}: commit: feat(audit): add OS build validation tools and handover audit results
+2ab951354 main@{2026-08-20 02:38:03 +0500}: commit: fix(os): add binary file exclusion flag to grep in build-iso script
+ce4e5440e main@{2026-08-20 00:57:30 +0500}: merge audit/os-handover-2026-08-19: Merge made by the 'ort' strategy.
+aeb5cc98a main@{2026-08-19 22:25:57 +0500}: reset: moving to origin/main
+81ced5b27 main@{2026-08-13 04:21:00 +0500}: reset: moving to origin/main
+a6855c533 main@{2026-08-10 02:51:28 +0500}: Branch: renamed refs/heads/main to refs/heads/main
+a6855c533 main@{2026-08-10 02:51:14 +0500}: commit (initial): Fresh start

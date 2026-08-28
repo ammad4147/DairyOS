@@ -1,0 +1,17 @@
+﻿  audit/windows-rc-build-2026-08-28                           130c2ec48705b07f2dcbf938dacf6120a43bf691 [origin/audit/windows-rc-build-2026-08-28] Add concise Windows build audit summary
+  auth-free-dashboard-2026-08-27                              f82cdbdd56bedc8fd984db6200a448852b23c5f5 [origin/auth-free-dashboard-2026-08-27] Complete Windows DairyOS appliance runtime
+  backend-desktop-stability-2026-08-27                        c4a16a5177e534fa60ca0ab09895f450fae84ab5 [origin/backend-desktop-stability-2026-08-27: behind 2] Remove unnecessary Windows test package marker
+* main                                                        e7b4b2d5594b6eec5282060f8217a8bead27e323 [origin/main] Reconcile validated operational UI and API changes
+  windows-desktop-build-2026-08-27                            ec3d9cd9dab12f14389d5ca58405aae8ce64a29f [origin/windows-desktop-build-2026-08-27: ahead 20] fix(windows): make Alembic honor runtime database URL
+  remotes/origin/HEAD                                         -> origin/main
+  remotes/origin/audit/windows-rc-build-2026-08-28            130c2ec48705b07f2dcbf938dacf6120a43bf691 Add concise Windows build audit summary
+  remotes/origin/auth-free-dashboard-2026-08-27               f82cdbdd56bedc8fd984db6200a448852b23c5f5 Complete Windows DairyOS appliance runtime
+  remotes/origin/backend-desktop-stability-2026-08-27         0525bebab7ea07980ba9ba1e3037e597265dfed1 Test passwordless local PostgreSQL configuration
+  remotes/origin/main                                         e7b4b2d5594b6eec5282060f8217a8bead27e323 Reconcile validated operational UI and API changes
+  remotes/origin/operational-integrity-remediation-2026-08-28 91534078ae496df68ee6e4dda44187ac8dc551e1 test(milk): align error assertion with canonical validator
+  remotes/origin/pre-release-hardening-2026-08-28             8398bafbe68c58506a3538797d82572003479869 Merge Windows installer and release packaging
+  remotes/origin/rc-build-exit-status-2026-08-28              68accfe063b669a0c8b43a346ca8211047642276 Fix RC build success exit status
+  remotes/origin/release-candidate/2026-08-28                 2d5ad7be66f746119db56976dc72b7dee337dc6c ci: build and verify Windows installer for RC
+  remotes/origin/windows-desktop-build-2026-08-27             921a57c3b16d4aedc737999d5fd100f7072b1093 fix(windows): preserve PostgreSQL service names while sorting
+  remotes/origin/windows-installer-2026-08-28                 ecc15f5185195b40e16d00dae2f7d75b8cbe4371 Add reproducible Windows release-candidate bundle build
+  remotes/origin/windows-installer-inno7-compat-2026-08-28    e6536d5a92dc751e01bf04360c91411d9051e03a Remove temporary RC build note

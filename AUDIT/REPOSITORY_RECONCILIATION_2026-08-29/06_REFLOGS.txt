@@ -1,0 +1,958 @@
+﻿e7b4b2d55 refs/remotes/origin/main@{2026-08-29 03:35:58 +0500}: update by push
+e7b4b2d55 refs/heads/main@{2026-08-29 03:35:45 +0500}: commit: Reconcile validated operational UI and API changes
+e7b4b2d55 HEAD@{2026-08-29 03:35:45 +0500}: commit: Reconcile validated operational UI and API changes
+0bceec212 refs/remotes/origin/main@{2026-08-29 00:01:36 +0500}: update by push
+0bceec212 refs/heads/main@{2026-08-29 00:01:31 +0500}: commit: Fix broken core model compatibility exports
+0bceec212 HEAD@{2026-08-29 00:01:31 +0500}: commit: Fix broken core model compatibility exports
+4409a4b49 HEAD@{2026-08-28 23:56:25 +0500}: checkout: moving from audit/windows-rc-build-2026-08-28 to main
+130c2ec48 refs/remotes/origin/audit/windows-rc-build-2026-08-28@{2026-08-28 23:33:54 +0500}: update by push
+130c2ec48 refs/heads/audit/windows-rc-build-2026-08-28@{2026-08-28 23:33:50 +0500}: commit: Add concise Windows build audit summary
+130c2ec48 HEAD@{2026-08-28 23:33:50 +0500}: commit: Add concise Windows build audit summary
+2775167af refs/remotes/origin/audit/windows-rc-build-2026-08-28@{2026-08-28 23:30:40 +0500}: update by push
+2775167af refs/heads/audit/windows-rc-build-2026-08-28@{2026-08-28 23:30:36 +0500}: commit: Add clean Windows build audit report
+2775167af HEAD@{2026-08-28 23:30:36 +0500}: commit: Add clean Windows build audit report
+7f589c879 refs/remotes/origin/audit/windows-rc-build-2026-08-28@{2026-08-28 23:26:32 +0500}: update by push
+7f589c879 refs/heads/audit/windows-rc-build-2026-08-28@{2026-08-28 23:26:26 +0500}: commit: Add Windows release candidate build audit report
+4409a4b49 refs/heads/audit/windows-rc-build-2026-08-28@{2026-08-28 23:26:26 +0500}: branch: Created from HEAD
+7f589c879 HEAD@{2026-08-28 23:26:26 +0500}: commit: Add Windows release candidate build audit report
+4409a4b49 HEAD@{2026-08-28 23:26:26 +0500}: checkout: moving from main to audit/windows-rc-build-2026-08-28
+4409a4b49 refs/remotes/origin/main@{2026-08-28 23:13:49 +0500}: update by push
+4409a4b49 refs/heads/main@{2026-08-28 23:13:44 +0500}: commit: Recover private PostgreSQL after stale PID
+4409a4b49 HEAD@{2026-08-28 23:13:44 +0500}: commit: Recover private PostgreSQL after stale PID
+8ad44aaa1 refs/remotes/origin/main@{2026-08-28 22:14:01 +0500}: update by push
+8ad44aaa1 refs/heads/main@{2026-08-28 22:12:49 +0500}: commit: Complete milk drop daily reachability handling
+8ad44aaa1 HEAD@{2026-08-28 22:12:49 +0500}: commit: Complete milk drop daily reachability handling
+331b1f6f3 refs/heads/main@{2026-08-28 20:47:51 +0500}: pull --ff-only origin main: Fast-forward
+331b1f6f3 HEAD@{2026-08-28 20:47:51 +0500}: pull --ff-only origin main: Fast-forward
+331b1f6f3 refs/remotes/origin/main@{2026-08-28 20:47:50 +0500}: fetch origin: fast-forward
+9d6c1d492 HEAD@{2026-08-28 20:47:48 +0500}: checkout: moving from main to main
+9d6c1d492 HEAD@{2026-08-28 12:48:51 +0500}: checkout: moving from main to main
+9d6c1d492 refs/heads/main@{2026-08-28 04:16:20 +0500}: merge origin/main: Fast-forward
+9d6c1d492 refs/remotes/origin/main@{2026-08-28 04:16:20 +0500}: fetch origin --prune: fast-forward
+68accfe06 refs/remotes/origin/rc-build-exit-status-2026-08-28@{2026-08-28 04:16:20 +0500}: fetch origin --prune: storing head
+e6536d5a9 refs/remotes/origin/windows-installer-inno7-compat-2026-08-28@{2026-08-28 04:16:20 +0500}: fetch origin --prune: fast-forward
+9d6c1d492 HEAD@{2026-08-28 04:16:20 +0500}: merge origin/main: Fast-forward
+e6776b752 HEAD@{2026-08-28 04:16:20 +0500}: checkout: moving from main to main
+e6776b752 refs/heads/main@{2026-08-28 04:09:28 +0500}: merge origin/main: Fast-forward
+e6776b752 HEAD@{2026-08-28 04:09:28 +0500}: merge origin/main: Fast-forward
+e6776b752 refs/remotes/origin/main@{2026-08-28 04:09:27 +0500}: fetch origin --prune: fast-forward
+529aff321 refs/remotes/origin/windows-installer-inno7-compat-2026-08-28@{2026-08-28 04:09:27 +0500}: fetch origin --prune: storing head
+ffaad5d9a HEAD@{2026-08-28 04:09:27 +0500}: checkout: moving from main to main
+ffaad5d9a refs/heads/main@{2026-08-28 03:59:08 +0500}: merge origin/main: Fast-forward
+ffaad5d9a HEAD@{2026-08-28 03:59:08 +0500}: merge origin/main: Fast-forward
+54107ca04 HEAD@{2026-08-28 03:59:07 +0500}: checkout: moving from main to main
+ffaad5d9a refs/remotes/origin/main@{2026-08-28 03:44:48 +0500}: fetch origin --prune: fast-forward
+91534078a refs/remotes/origin/operational-integrity-remediation-2026-08-28@{2026-08-28 03:44:48 +0500}: fetch origin --prune: storing head
+8398bafbe refs/remotes/origin/pre-release-hardening-2026-08-28@{2026-08-28 03:44:48 +0500}: fetch origin --prune: storing head
+2d5ad7be6 refs/remotes/origin/release-candidate/2026-08-28@{2026-08-28 03:44:48 +0500}: fetch origin --prune: storing head
+ecc15f518 refs/remotes/origin/windows-installer-2026-08-28@{2026-08-28 03:44:48 +0500}: fetch origin --prune: storing head
+54107ca04 refs/heads/main@{2026-08-28 00:28:20 +0500}: pull --ff-only origin main: Fast-forward
+54107ca04 HEAD@{2026-08-28 00:28:20 +0500}: pull --ff-only origin main: Fast-forward
+54107ca04 refs/remotes/origin/main@{2026-08-28 00:28:17 +0500}: fetch origin --prune: fast-forward
+921a57c3b HEAD@{2026-08-28 00:28:17 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to main
+f82cdbdd5 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-28 00:20:39 +0500}: update by push
+f82cdbdd5 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-28 00:19:31 +0500}: commit: Complete Windows DairyOS appliance runtime
+f82cdbdd5 HEAD@{2026-08-28 00:19:31 +0500}: commit: Complete Windows DairyOS appliance runtime
+30bd8099d refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 23:32:43 +0500}: update by push
+30bd8099d HEAD@{2026-08-27 23:30:43 +0500}: reset: moving to HEAD
+30bd8099d HEAD@{2026-08-27 23:28:33 +0500}: reset: moving to HEAD
+30bd8099d refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 16:34:26 +0500}: commit: Stabilize passwordless single-exe Windows runtime
+30bd8099d HEAD@{2026-08-27 16:34:26 +0500}: commit: Stabilize passwordless single-exe Windows runtime
+780e9c6d8 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 15:53:52 +0500}: pull --ff-only: Fast-forward
+780e9c6d8 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 15:53:52 +0500}: pull --ff-only: fast-forward
+780e9c6d8 HEAD@{2026-08-27 15:53:52 +0500}: pull --ff-only: Fast-forward
+2923e1835 HEAD@{2026-08-27 15:53:51 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+2923e1835 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 15:24:08 +0500}: pull --ff-only: Fast-forward
+2923e1835 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 15:24:08 +0500}: pull --ff-only: fast-forward
+0525bebab refs/remotes/origin/backend-desktop-stability-2026-08-27@{2026-08-27 15:24:08 +0500}: pull --ff-only: fast-forward
+2923e1835 HEAD@{2026-08-27 15:24:08 +0500}: pull --ff-only: Fast-forward
+c070c0359 HEAD@{2026-08-27 15:24:06 +0500}: checkout: moving from backend-desktop-stability-2026-08-27 to auth-free-dashboard-2026-08-27
+c4a16a517 HEAD@{2026-08-27 14:43:04 +0500}: checkout: moving from backend-desktop-stability-2026-08-27 to backend-desktop-stability-2026-08-27
+c4a16a517 refs/heads/backend-desktop-stability-2026-08-27@{2026-08-27 14:30:57 +0500}: branch: Created from refs/remotes/origin/backend-desktop-stability-2026-08-27
+c4a16a517 refs/remotes/origin/backend-desktop-stability-2026-08-27@{2026-08-27 14:30:57 +0500}: fetch origin: storing head
+c4a16a517 HEAD@{2026-08-27 14:30:57 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to backend-desktop-stability-2026-08-27
+c070c0359 HEAD@{2026-08-27 14:18:59 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+c070c0359 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 14:16:16 +0500}: pull --ff-only: Fast-forward
+c070c0359 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 14:16:16 +0500}: pull --ff-only: fast-forward
+c070c0359 HEAD@{2026-08-27 14:16:16 +0500}: pull --ff-only: Fast-forward
+f50083191 HEAD@{2026-08-27 14:16:15 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+f50083191 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 14:11:43 +0500}: pull --ff-only: Fast-forward
+f50083191 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 14:11:43 +0500}: pull --ff-only: fast-forward
+f50083191 HEAD@{2026-08-27 14:11:43 +0500}: pull --ff-only: Fast-forward
+d853f1213 HEAD@{2026-08-27 14:11:42 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+d853f1213 HEAD@{2026-08-27 09:27:42 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+d853f1213 refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 09:27:22 +0500}: pull --ff-only: Fast-forward
+d853f1213 refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 09:27:22 +0500}: pull --ff-only: fast-forward
+d853f1213 HEAD@{2026-08-27 09:27:22 +0500}: pull --ff-only: Fast-forward
+3e6e9f61a HEAD@{2026-08-27 09:27:20 +0500}: checkout: moving from auth-free-dashboard-2026-08-27 to auth-free-dashboard-2026-08-27
+3e6e9f61a refs/heads/auth-free-dashboard-2026-08-27@{2026-08-27 09:14:46 +0500}: branch: Created from refs/remotes/origin/auth-free-dashboard-2026-08-27
+3e6e9f61a refs/remotes/origin/auth-free-dashboard-2026-08-27@{2026-08-27 09:14:46 +0500}: fetch origin: storing head
+f8e35e837 refs/remotes/origin/main@{2026-08-27 09:14:46 +0500}: fetch origin: fast-forward
+3e6e9f61a HEAD@{2026-08-27 09:14:46 +0500}: checkout: moving from main to auth-free-dashboard-2026-08-27
+921a57c3b refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 08:49:11 +0500}: fetch origin: forced-update
+921a57c3b HEAD@{2026-08-27 08:49:11 +0500}: reset: moving to origin/main
+921a57c3b HEAD@{2026-08-27 08:49:11 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to main
+ec3d9cd9d refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 08:46:26 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+ec3d9cd9d HEAD@{2026-08-27 08:46:26 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+67d34f8c4 HEAD@{2026-08-27 08:46:26 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+ec3d9cd9d refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 08:46:25 +0500}: fetch origin: fast-forward
+67d34f8c4 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 08:44:06 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+67d34f8c4 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 08:44:06 +0500}: fetch origin: fast-forward
+67d34f8c4 HEAD@{2026-08-27 08:44:06 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+d3dc513b6 HEAD@{2026-08-27 08:44:06 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+d3dc513b6 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 08:41:43 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+d3dc513b6 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 08:41:43 +0500}: fetch origin: fast-forward
+d3dc513b6 HEAD@{2026-08-27 08:41:43 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+68630751f HEAD@{2026-08-27 08:41:43 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+68630751f HEAD@{2026-08-27 08:39:17 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+68630751f HEAD@{2026-08-27 08:39:17 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+68630751f HEAD@{2026-08-27 08:36:01 +0500}: reset: moving to origin/windows-desktop-build-2026-08-27
+68630751f HEAD@{2026-08-27 08:36:01 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+68630751f refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 08:33:08 +0500}: pull --ff-only: Fast-forward
+68630751f refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 08:33:08 +0500}: pull --ff-only: fast-forward
+68630751f HEAD@{2026-08-27 08:33:08 +0500}: pull --ff-only: Fast-forward
+17db80bb1 HEAD@{2026-08-27 08:33:07 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+17db80bb1 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 07:57:40 +0500}: pull --ff-only: Fast-forward
+17db80bb1 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 07:57:40 +0500}: pull --ff-only: fast-forward
+17db80bb1 HEAD@{2026-08-27 07:57:40 +0500}: pull --ff-only: Fast-forward
+c6cc404d0 HEAD@{2026-08-27 07:57:39 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+c6cc404d0 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 07:43:20 +0500}: pull --ff-only: Fast-forward
+c6cc404d0 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 07:43:20 +0500}: pull --ff-only: fast-forward
+c6cc404d0 HEAD@{2026-08-27 07:43:20 +0500}: pull --ff-only: Fast-forward
+6e0f1c951 HEAD@{2026-08-27 07:43:18 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+6e0f1c951 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 06:54:13 +0500}: pull --ff-only: Fast-forward
+6e0f1c951 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 06:54:13 +0500}: pull --ff-only: fast-forward
+6e0f1c951 HEAD@{2026-08-27 06:54:13 +0500}: pull --ff-only: Fast-forward
+e29fb965c HEAD@{2026-08-27 06:54:11 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+e29fb965c HEAD@{2026-08-27 06:50:35 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+e29fb965c refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 06:49:02 +0500}: pull --ff-only: Fast-forward
+e29fb965c refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 06:49:02 +0500}: pull --ff-only: fast-forward
+e29fb965c HEAD@{2026-08-27 06:49:02 +0500}: pull --ff-only: Fast-forward
+4b2369b80 HEAD@{2026-08-27 06:49:00 +0500}: checkout: moving from windows-desktop-build-2026-08-27 to windows-desktop-build-2026-08-27
+4b2369b80 refs/heads/windows-desktop-build-2026-08-27@{2026-08-27 06:39:47 +0500}: branch: Created from refs/remotes/origin/windows-desktop-build-2026-08-27
+4b2369b80 refs/remotes/origin/windows-desktop-build-2026-08-27@{2026-08-27 06:39:47 +0500}: fetch origin: storing head
+4b2369b80 HEAD@{2026-08-27 06:39:47 +0500}: checkout: moving from main to windows-desktop-build-2026-08-27
+921a57c3b refs/heads/main@{2026-08-27 04:13:37 +0500}: reset: moving to origin/main
+921a57c3b HEAD@{2026-08-27 04:13:37 +0500}: reset: moving to origin/main
+ff1cfd4da refs/heads/main@{2026-08-27 03:16:00 +0500}: commit: fix(migrations): add explicit historical baseline root
+ff1cfd4da HEAD@{2026-08-27 03:16:00 +0500}: commit: fix(migrations): add explicit historical baseline root
+f86358047 worktrees/DairyOS-Historical-Baseline/HEAD@{2026-08-27 02:13:52 +0500}: 
+f1c690da6 refs/heads/main@{2026-08-27 01:25:18 +0500}: commit: fix(windows): install single DairyOS application executable
+f1c690da6 HEAD@{2026-08-27 01:25:18 +0500}: commit: fix(windows): install single DairyOS application executable
+1950a7a24 refs/heads/main@{2026-08-27 01:23:39 +0500}: commit: fix(windows): launch embedded backend from frozen runtime
+1950a7a24 HEAD@{2026-08-27 01:23:39 +0500}: commit: fix(windows): launch embedded backend from frozen runtime
+6da6acfdd refs/heads/main@{2026-08-27 01:17:39 +0500}: commit: fix(windows): embed migrations and application icon
+6da6acfdd HEAD@{2026-08-27 01:17:39 +0500}: commit: fix(windows): embed migrations and application icon
+17f897cef refs/heads/main@{2026-08-27 01:07:08 +0500}: commit: feat(windows): integrate PostgreSQL deployment provisioning
+17f897cef HEAD@{2026-08-27 01:07:08 +0500}: commit: feat(windows): integrate PostgreSQL deployment provisioning
+54ead2bdb refs/heads/main@{2026-08-27 00:52:28 +0500}: commit: fix(windows): finalize installer data boundary
+54ead2bdb HEAD@{2026-08-27 00:52:28 +0500}: commit: fix(windows): finalize installer data boundary
+611b92c0d refs/heads/main@{2026-08-27 00:46:23 +0500}: commit: feat(windows): restore reproducible deployment packaging
+611b92c0d HEAD@{2026-08-27 00:46:23 +0500}: commit: feat(windows): restore reproducible deployment packaging
+921a57c3b HEAD@{2026-08-26 23:49:02 +0500}: checkout: moving from main to main
+921a57c3b refs/remotes/origin/main@{2026-08-26 23:45:58 +0500}: update by push
+921a57c3b refs/heads/main@{2026-08-26 23:45:55 +0500}: commit: fix(windows): preserve PostgreSQL service names while sorting
+921a57c3b HEAD@{2026-08-26 23:45:55 +0500}: commit: fix(windows): preserve PostgreSQL service names while sorting
+c7c64e088 refs/heads/main@{2026-08-26 23:38:05 +0500}: pull --ff-only origin main: Fast-forward
+c7c64e088 HEAD@{2026-08-26 23:38:05 +0500}: pull --ff-only origin main: Fast-forward
+c7c64e088 refs/remotes/origin/main@{2026-08-26 23:38:04 +0500}: fetch origin: fast-forward
+21e8c7b4f refs/heads/main@{2026-08-26 23:31:10 +0500}: pull --ff-only origin main: Fast-forward
+21e8c7b4f HEAD@{2026-08-26 23:31:10 +0500}: pull --ff-only origin main: Fast-forward
+21e8c7b4f refs/remotes/origin/main@{2026-08-26 23:31:09 +0500}: fetch origin --prune: fast-forward
+cd1a3f009 HEAD@{2026-08-26 23:31:09 +0500}: checkout: moving from main to main
+cd1a3f009 refs/heads/main@{2026-08-26 23:18:50 +0500}: reset: moving to origin/main
+cd1a3f009 HEAD@{2026-08-26 23:18:50 +0500}: reset: moving to origin/main
+851382ea5 HEAD@{2026-08-26 23:18:50 +0500}: checkout: moving from security-hardening-fixes to main
+cd1a3f009 refs/remotes/origin/main@{2026-08-26 23:18:26 +0500}: fetch origin --prune: fast-forward
+0fb4ef2d5 refs/remotes/origin/main@{2026-08-26 23:08:19 +0500}: fetch origin: fast-forward
+0fb4ef2d5 HEAD@{2026-08-26 23:08:19 +0500}: merge origin/main: Fast-forward
+257f3b245 refs/remotes/origin/main@{2026-08-26 22:34:58 +0500}: fetch origin: fast-forward
+257f3b245 HEAD@{2026-08-26 22:34:58 +0500}: merge origin/main: Fast-forward
+3ffb8ce49 refs/remotes/origin/main@{2026-08-26 22:27:38 +0500}: fetch origin: fast-forward
+3ffb8ce49 HEAD@{2026-08-26 22:27:38 +0500}: merge origin/main: Fast-forward
+57135ae9c HEAD@{2026-08-26 22:22:38 +0500}: merge origin/main: Fast-forward
+57135ae9c refs/remotes/origin/main@{2026-08-26 22:21:34 +0500}: fetch: fast-forward
+435525cea refs/remotes/origin/main@{2026-08-26 22:17:14 +0500}: fetch origin: fast-forward
+435525cea HEAD@{2026-08-26 22:17:14 +0500}: merge origin/main: Fast-forward
+d13698c9c refs/remotes/origin/main@{2026-08-26 22:13:27 +0500}: fetch origin: fast-forward
+d13698c9c HEAD@{2026-08-26 22:13:27 +0500}: merge origin/main: Fast-forward
+a558b1899 refs/remotes/origin/main@{2026-08-26 22:12:30 +0500}: fetch: fast-forward
+c92cd1830 refs/remotes/origin/main@{2026-08-26 22:10:12 +0500}: fetch origin: fast-forward
+c92cd1830 HEAD@{2026-08-26 22:10:12 +0500}: merge origin/main: Fast-forward
+e7463e57a refs/remotes/origin/main@{2026-08-26 22:09:29 +0500}: fetch: fast-forward
+1b7a80476 refs/remotes/origin/main@{2026-08-26 22:06:28 +0500}: fetch: fast-forward
+794d8b38d refs/remotes/origin/main@{2026-08-26 22:03:56 +0500}: fetch origin: fast-forward
+794d8b38d HEAD@{2026-08-26 22:03:56 +0500}: merge origin/main: Fast-forward
+15077f84c refs/remotes/origin/main@{2026-08-26 22:02:21 +0500}: fetch origin: fast-forward
+15077f84c HEAD@{2026-08-26 22:02:21 +0500}: merge origin/main: Fast-forward
+608a90205 refs/remotes/origin/main@{2026-08-26 22:00:25 +0500}: fetch: fast-forward
+c674ba8da HEAD@{2026-08-26 21:57:52 +0500}: pull --ff-only origin main: Fast-forward
+c674ba8da refs/remotes/origin/main@{2026-08-26 21:51:22 +0500}: fetch: fast-forward
+4ad320716 HEAD@{2026-08-26 21:36:50 +0500}: reset: moving to origin/main
+4ad320716 refs/remotes/origin/main@{2026-08-26 21:36:16 +0500}: fetch: fast-forward
+1937b3ff5 HEAD@{2026-08-26 21:26:57 +0500}: reset: moving to origin/main
+1937b3ff5 refs/remotes/origin/main@{2026-08-26 21:24:13 +0500}: fetch: fast-forward
+78248fef6 refs/remotes/origin/main@{2026-08-26 21:24:12 +0500}: fetch: fast-forward
+b58c76685 refs/remotes/origin/main@{2026-08-26 21:19:01 +0500}: fetch origin main: fast-forward
+b58c76685 HEAD@{2026-08-26 21:19:01 +0500}: reset: moving to origin/main
+4e13997e8 refs/remotes/origin/main@{2026-08-26 21:18:09 +0500}: fetch: fast-forward
+9032c2f1f HEAD@{2026-08-26 21:14:54 +0500}: reset: moving to origin/main
+9032c2f1f refs/remotes/origin/main@{2026-08-26 21:14:53 +0500}: fetch origin main: fast-forward
+1e76d3b79 refs/remotes/origin/main@{2026-08-26 21:07:38 +0500}: fetch origin main: fast-forward
+1e76d3b79 HEAD@{2026-08-26 21:07:38 +0500}: reset: moving to origin/main
+e47e9884c refs/remotes/origin/main@{2026-08-26 20:54:43 +0500}: fetch origin main: fast-forward
+e47e9884c HEAD@{2026-08-26 20:54:43 +0500}: reset: moving to origin/main
+4c09d46ca refs/remotes/origin/main@{2026-08-26 20:51:52 +0500}: fetch origin main: fast-forward
+4c09d46ca HEAD@{2026-08-26 20:51:52 +0500}: reset: moving to origin/main
+851382ea5 refs/heads/main@{2026-08-26 20:49:10 +0500}: reset: moving to origin/main
+851382ea5 refs/remotes/origin/main@{2026-08-26 20:49:09 +0500}: fetch origin main: fast-forward
+2e09ef61f refs/heads/main@{2026-08-26 20:47:07 +0500}: reset: moving to origin/main
+2e09ef61f refs/remotes/origin/main@{2026-08-26 20:47:07 +0500}: fetch origin main: fast-forward
+aaef5a6a5 HEAD@{2026-08-26 20:21:20 +0500}: rebase (finish): returning to refs/heads/security-hardening-fixes
+aaef5a6a5 HEAD@{2026-08-26 20:21:20 +0500}: rebase (pick): wip: preserve security hardening before main reconciliation
+0e37c9caf HEAD@{2026-08-26 20:21:20 +0500}: rebase (start): checkout origin/main
+ca245bd8b HEAD@{2026-08-26 20:18:42 +0500}: commit: wip: preserve security hardening before main reconciliation
+0e37c9caf refs/remotes/origin/main@{2026-08-26 20:15:48 +0500}: fetch origin: fast-forward
+a44010c65 HEAD@{2026-08-26 12:42:05 +0500}: checkout: moving from main to security-hardening-fixes
+a44010c65 HEAD@{2026-08-26 12:42:05 +0500}: checkout: moving from security-hardening-fixes to main
+a44010c65 HEAD@{2026-08-26 12:40:32 +0500}: checkout: moving from main to security-hardening-fixes
+a44010c65 HEAD@{2026-08-26 12:40:32 +0500}: checkout: moving from security-hardening-fixes to main
+a44010c65 HEAD@{2026-08-26 12:36:55 +0500}: am --abort
+a44010c65 HEAD@{2026-08-26 12:34:00 +0500}: checkout: moving from main to security-hardening-fixes
+a44010c65 refs/heads/main@{2026-08-26 03:06:21 +0500}: pull --ff-only origin main: Fast-forward
+a44010c65 refs/remotes/origin/main@{2026-08-26 03:06:21 +0500}: pull --ff-only origin main: fast-forward
+a44010c65 HEAD@{2026-08-26 03:06:21 +0500}: pull --ff-only origin main: Fast-forward
+b0010f750 refs/remotes/origin/main@{2026-08-26 00:23:28 +0500}: update by push
+b0010f750 refs/heads/main@{2026-08-26 00:23:25 +0500}: merge origin/feature/multi-user-email-digest: Fast-forward
+62295d505 refs/heads/main@{2026-08-26 00:23:25 +0500}: reset: moving to origin/main
+b0010f750 HEAD@{2026-08-26 00:23:25 +0500}: merge origin/feature/multi-user-email-digest: Fast-forward
+62295d505 HEAD@{2026-08-26 00:23:25 +0500}: reset: moving to origin/main
+304fdfa9b HEAD@{2026-08-26 00:23:25 +0500}: checkout: moving from feature/multi-user-email-digest to main
+b0010f750 HEAD@{2026-08-26 00:22:42 +0500}: commit: Align operational input normalization and projection vocabulary
+62295d505 refs/remotes/origin/main@{2026-08-25 23:25:15 +0500}: update by push
+62295d505 HEAD@{2026-08-25 23:23:46 +0500}: commit: Fix transient Windows backend recovery state
+31225d070 refs/remotes/origin/main@{2026-08-25 22:53:03 +0500}: pull --ff-only origin main: fast-forward
+31225d070 HEAD@{2026-08-25 22:53:03 +0500}: pull --ff-only origin main: Fast-forward
+801ccbb85 HEAD@{2026-08-25 22:51:41 +0500}: pull --ff-only origin main: Fast-forward
+801ccbb85 refs/remotes/origin/main@{2026-08-25 22:51:40 +0500}: pull --ff-only origin main: fast-forward
+eb81422df refs/remotes/origin/main@{2026-08-25 22:48:26 +0500}: pull --ff-only origin main: fast-forward
+eb81422df HEAD@{2026-08-25 22:48:26 +0500}: pull --ff-only origin main: Fast-forward
+2813075e1 refs/remotes/origin/main@{2026-08-25 22:45:55 +0500}: pull --ff-only origin main: fast-forward
+2813075e1 HEAD@{2026-08-25 22:45:55 +0500}: pull --ff-only origin main: Fast-forward
+08aa6c156 refs/remotes/origin/main@{2026-08-25 22:35:43 +0500}: pull --ff-only origin main: fast-forward
+08aa6c156 HEAD@{2026-08-25 22:35:43 +0500}: pull --ff-only origin main: Fast-forward
+a31a478a5 HEAD@{2026-08-25 21:37:03 +0500}: pull --ff-only origin feature/multi-user-email-digest: Fast-forward
+a2cda806c HEAD@{2026-08-25 21:35:17 +0500}: pull --ff-only origin feature/multi-user-email-digest: Fast-forward
+46b93a05a HEAD@{2026-08-25 21:33:49 +0500}: pull --ff-only origin feature/multi-user-email-digest: Fast-forward
+217592785 HEAD@{2026-08-25 21:33:48 +0500}: checkout: moving from feature/multi-user-email-digest to feature/multi-user-email-digest
+217592785 HEAD@{2026-08-25 21:17:30 +0500}: pull --ff-only origin feature/multi-user-email-digest: Fast-forward
+241e5d9e0 HEAD@{2026-08-25 20:44:00 +0500}: checkout: moving from main to feature/multi-user-email-digest
+304fdfa9b refs/heads/main@{2026-08-25 20:43:29 +0500}: merge origin/main: Fast-forward
+304fdfa9b HEAD@{2026-08-25 20:43:29 +0500}: merge origin/main: Fast-forward
+e44b0b777 HEAD@{2026-08-25 20:43:28 +0500}: checkout: moving from main to main
+304fdfa9b refs/remotes/origin/main@{2026-08-25 20:42:57 +0500}: fetch origin --prune: fast-forward
+e44b0b777 refs/remotes/origin/main@{2026-08-25 19:52:03 +0500}: update by push
+e44b0b777 refs/heads/main@{2026-08-25 19:51:01 +0500}: commit: Remove orphaned legacy API layer
+e44b0b777 HEAD@{2026-08-25 19:51:01 +0500}: commit: Remove orphaned legacy API layer
+122c19f75 HEAD@{2026-08-25 19:18:34 +0500}: checkout: moving from main to main
+122c19f75 refs/remotes/origin/main@{2026-08-25 19:14:33 +0500}: update by push
+122c19f75 refs/heads/main@{2026-08-25 19:11:22 +0500}: commit (cherry-pick): Remove obsolete Windows installer certification infrastructure
+122c19f75 HEAD@{2026-08-25 19:11:22 +0500}: commit (cherry-pick): Remove obsolete Windows installer certification infrastructure
+889b2c7d6 HEAD@{2026-08-25 19:09:14 +0500}: reset: moving to origin/main
+889b2c7d6 HEAD@{2026-08-25 19:09:13 +0500}: checkout: moving from windows-installer-certification-2026-08-23 to main
+37b3257d2 HEAD@{2026-08-25 19:07:39 +0500}: commit: Remove obsolete Windows installer certification infrastructure
+4427284d1 HEAD@{2026-08-25 18:58:30 +0500}: checkout: moving from archive/windows-installer-experiment-2026-08-25 to windows-installer-certification-2026-08-23
+4427284d1 HEAD@{2026-08-25 18:58:22 +0500}: checkout: moving from windows-installer-certification-2026-08-23 to archive/windows-installer-experiment-2026-08-25
+4427284d1 HEAD@{2026-08-25 15:33:26 +0500}: commit: feat(auth): add logout endpoint
+087a19a65 HEAD@{2026-08-25 13:47:58 +0500}: checkout: moving from main to windows-installer-certification-2026-08-23
+889b2c7d6 HEAD@{2026-08-25 13:47:54 +0500}: reset: moving to HEAD
+889b2c7d6 HEAD@{2026-08-25 13:47:53 +0500}: checkout: moving from windows-installer-certification-2026-08-23 to main
+087a19a65 HEAD@{2026-08-25 02:21:23 +0500}: commit: certification(windows): finalize installer lifecycle and runtime hardening
+502beaea4 HEAD@{2026-08-25 01:44:25 +0500}: pull --ff-only: Fast-forward
+a7e7026ac refs/stash@{2026-08-25 01:44:11 +0500}: On windows-installer-certification-2026-08-23: DairyOS local installer work before remote reconciliation 2026-08-24
+11b929be7 HEAD@{2026-08-25 01:44:11 +0500}: reset: moving to HEAD
+11b929be7 HEAD@{2026-08-24 17:57:03 +0500}: pull --ff-only: Fast-forward
+eac05825c HEAD@{2026-08-24 16:47:14 +0500}: rebase (finish): returning to refs/heads/windows-installer-certification-2026-08-23
+eac05825c HEAD@{2026-08-24 16:47:14 +0500}: rebase (pick): fix(windows): remove UTF-8 BOM from package.json and build.ps1
+be18974e2 HEAD@{2026-08-24 16:47:14 +0500}: rebase (start): checkout origin/windows-installer-certification-2026-08-23
+76b6137f9 HEAD@{2026-08-24 16:47:14 +0500}: reset: moving to 76b6137f9
+7e4a3abf5 HEAD@{2026-08-24 16:45:50 +0500}: commit (merge): Merge branch 'windows-installer-certification-2026-08-23' of origin
+76b6137f9 HEAD@{2026-08-24 16:42:16 +0500}: commit: fix(windows): remove UTF-8 BOM from package.json and build.ps1
+c07762abd HEAD@{2026-08-24 16:15:10 +0500}: commit: certification(windows): switch NSIS to non-interactive one-click machine-wide install; fix dist path and detect install hang
+34e75e25c HEAD@{2026-08-24 15:46:31 +0500}: pull: Fast-forward
+aa7240dae HEAD@{2026-08-24 15:46:08 +0500}: checkout: moving from fix-milk-finance-reconciliation-2026-08-24 to windows-installer-certification-2026-08-23
+7736fde87 refs/stash@{2026-08-24 15:46:06 +0500}: WIP on fix-milk-finance-reconciliation-2026-08-24: 94ae47f1b Harden Milk finance reconciliation and workflow simulations
+94ae47f1b HEAD@{2026-08-24 15:46:06 +0500}: reset: moving to HEAD
+94ae47f1b HEAD@{2026-08-24 01:25:46 +0500}: commit: Harden Milk finance reconciliation and workflow simulations
+d4296882f HEAD@{2026-08-24 00:44:45 +0500}: checkout: moving from fix-cors-preflight-2026-08-24 to fix-milk-finance-reconciliation-2026-08-24
+d4296882f HEAD@{2026-08-24 00:25:21 +0500}: checkout: moving from main to fix-cors-preflight-2026-08-24
+889b2c7d6 refs/heads/main@{2026-08-24 00:20:35 +0500}: reset: moving to origin/main
+889b2c7d6 HEAD@{2026-08-24 00:20:35 +0500}: reset: moving to origin/main
+70bd7f148 HEAD@{2026-08-24 00:20:35 +0500}: checkout: moving from main to main
+b50f4eba4 refs/stash@{2026-08-24 00:20:34 +0500}: On main: Local work before DairyOS main reconciliation 2026-08-24
+70bd7f148 HEAD@{2026-08-24 00:20:34 +0500}: reset: moving to HEAD
+889b2c7d6 refs/remotes/origin/main@{2026-08-24 00:18:19 +0500}: fetch origin: fast-forward
+70bd7f148 HEAD@{2026-08-24 00:18:19 +0500}: checkout: moving from main to main
+70bd7f148 refs/heads/main@{2026-08-23 21:58:14 +0500}: reset: moving to origin/main
+70bd7f148 refs/remotes/origin/main@{2026-08-23 21:58:14 +0500}: fetch origin: fast-forward
+70bd7f148 HEAD@{2026-08-23 21:58:14 +0500}: reset: moving to origin/main
+10238a177 refs/heads/main@{2026-08-23 21:57:10 +0500}: reset: moving to origin/main
+10238a177 HEAD@{2026-08-23 21:57:10 +0500}: reset: moving to origin/main
+10238a177 refs/remotes/origin/main@{2026-08-23 21:57:09 +0500}: fetch origin: fast-forward
+3e7ab7e31 refs/stash@{2026-08-23 21:57:09 +0500}: On main: pre-scientific-remediation-local-20260823-215709
+829193250 HEAD@{2026-08-23 21:57:09 +0500}: reset: moving to HEAD
+829193250 refs/remotes/origin/main@{2026-08-23 21:37:46 +0500}: update by push
+829193250 refs/heads/main@{2026-08-23 21:33:28 +0500}: commit: style(dashboard): refresh navigation tab appearance
+829193250 HEAD@{2026-08-23 21:33:28 +0500}: commit: style(dashboard): refresh navigation tab appearance
+e0e0a432e HEAD@{2026-08-23 21:33:28 +0500}: reset: moving to HEAD
+e0e0a432e refs/heads/main@{2026-08-23 21:33:27 +0500}: pull --ff-only origin main: Fast-forward
+e0e0a432e HEAD@{2026-08-23 21:33:27 +0500}: pull --ff-only origin main: Fast-forward
+e0e0a432e refs/remotes/origin/main@{2026-08-23 21:33:26 +0500}: fetch origin --prune: fast-forward
+94a71931e HEAD@{2026-08-23 21:33:26 +0500}: checkout: moving from windows-installer-certification-2026-08-23 to main
+aa7240dae HEAD@{2026-08-23 21:33:25 +0500}: reset: moving to HEAD
+aa7240dae HEAD@{2026-08-23 20:29:54 +0500}: commit: build(windows): prepare deployable installer certification package
+94a71931e HEAD@{2026-08-23 20:25:12 +0500}: checkout: moving from main to windows-installer-certification-2026-08-23
+94a71931e refs/heads/main@{2026-08-23 20:20:39 +0500}: pull --ff-only origin main: Fast-forward
+94a71931e HEAD@{2026-08-23 20:20:39 +0500}: pull --ff-only origin main: Fast-forward
+b03e28a94 HEAD@{2026-08-23 20:20:38 +0500}: reset: moving to HEAD
+94a71931e refs/remotes/origin/main@{2026-08-23 20:11:27 +0500}: fetch: fast-forward
+b03e28a94 refs/remotes/origin/main@{2026-08-23 19:56:21 +0500}: fetch: forced-update
+8bf2ad758 refs/remotes/origin/main@{2026-08-23 19:53:20 +0500}: fetch: fast-forward
+b03e28a94 refs/remotes/origin/main@{2026-08-23 18:31:13 +0500}: update by push
+b03e28a94 refs/heads/main@{2026-08-23 18:31:06 +0500}: pull --rebase origin main (finish): refs/heads/main onto cf2cadcba39af587a71893b00a1e18d795c16778
+b03e28a94 HEAD@{2026-08-23 18:31:06 +0500}: pull --rebase origin main (finish): returning to refs/heads/main
+b03e28a94 HEAD@{2026-08-23 18:31:06 +0500}: pull --rebase origin main (pick): fix(audit): apply forensic remediations and handover certification report
+cf2cadcba HEAD@{2026-08-23 18:31:06 +0500}: pull --rebase origin main (start): checkout cf2cadcba39af587a71893b00a1e18d795c16778
+6aa5c6ce8 refs/heads/main@{2026-08-23 18:31:02 +0500}: commit: fix(audit): apply forensic remediations and handover certification report
+6aa5c6ce8 HEAD@{2026-08-23 18:31:02 +0500}: commit: fix(audit): apply forensic remediations and handover certification report
+cf2cadcba refs/remotes/origin/main@{2026-08-23 18:16:44 +0500}: fetch: fast-forward
+c1126822c refs/remotes/origin/main@{2026-08-23 16:29:16 +0500}: update by push
+c1126822c refs/heads/main@{2026-08-23 16:29:13 +0500}: commit: fix(breeding): correct AI semen payload condition
+c1126822c HEAD@{2026-08-23 16:29:13 +0500}: commit: fix(breeding): correct AI semen payload condition
+10b128ce1 refs/heads/main@{2026-08-23 16:18:18 +0500}: pull --ff-only origin main: Fast-forward
+10b128ce1 HEAD@{2026-08-23 16:18:18 +0500}: pull --ff-only origin main: Fast-forward
+10b128ce1 refs/remotes/origin/main@{2026-08-23 16:18:17 +0500}: fetch origin --prune: fast-forward
+dcc22f4b0 refs/heads/main@{2026-08-23 15:59:36 +0500}: pull --ff-only origin main: Fast-forward
+dcc22f4b0 refs/remotes/origin/main@{2026-08-23 15:59:36 +0500}: pull --ff-only origin main: fast-forward
+dcc22f4b0 HEAD@{2026-08-23 15:59:36 +0500}: pull --ff-only origin main: Fast-forward
+0fdbd4435 refs/heads/main@{2026-08-23 15:50:31 +0500}: pull --ff-only origin main: Fast-forward
+0fdbd4435 HEAD@{2026-08-23 15:50:31 +0500}: pull --ff-only origin main: Fast-forward
+1049671ea refs/stash@{2026-08-23 15:50:30 +0500}: On main: preserve-local-health-breeding-login-alert-work
+2a94a16e6 HEAD@{2026-08-23 15:50:30 +0500}: reset: moving to HEAD
+0fdbd4435 refs/remotes/origin/main@{2026-08-23 15:45:05 +0500}: fetch origin --prune: fast-forward
+2a94a16e6 refs/remotes/origin/main@{2026-08-23 14:54:40 +0500}: update by push
+2a94a16e6 refs/heads/main@{2026-08-23 14:54:38 +0500}: commit: fix(dashboard): remove synthetic zero-state data
+2a94a16e6 HEAD@{2026-08-23 14:54:38 +0500}: commit: fix(dashboard): remove synthetic zero-state data
+cb8a01dbd refs/remotes/origin/main@{2026-08-23 14:42:38 +0500}: update by push
+cb8a01dbd refs/heads/main@{2026-08-23 14:42:36 +0500}: commit: fix(feed): source stock purchases from finance ledger
+cb8a01dbd HEAD@{2026-08-23 14:42:36 +0500}: commit: fix(feed): source stock purchases from finance ledger
+787c9e1f8 refs/remotes/origin/main@{2026-08-23 14:40:56 +0500}: update by push
+787c9e1f8 refs/heads/main@{2026-08-23 14:40:53 +0500}: commit: feat(operations): complete finance feed integration and zero-state dashboard
+787c9e1f8 HEAD@{2026-08-23 14:40:53 +0500}: commit: feat(operations): complete finance feed integration and zero-state dashboard
+b38a77b05 refs/remotes/origin/main@{2026-08-23 14:01:09 +0500}: update by push
+b38a77b05 refs/heads/main@{2026-08-23 14:01:06 +0500}: commit: feat(authz): complete multi-user access and password management
+b38a77b05 HEAD@{2026-08-23 14:01:06 +0500}: commit: feat(authz): complete multi-user access and password management
+5bf92c827 refs/remotes/origin/main@{2026-08-23 12:40:44 +0500}: update by push
+5bf92c827 refs/heads/main@{2026-08-23 12:40:34 +0500}: commit: fix(authz): restore frontend compilation and milking compatibility route
+5bf92c827 HEAD@{2026-08-23 12:40:34 +0500}: commit: fix(authz): restore frontend compilation and milking compatibility route
+9d1eb090d refs/heads/main@{2026-08-23 12:34:25 +0500}: reset: moving to origin/main
+9d1eb090d refs/remotes/origin/main@{2026-08-23 12:34:25 +0500}: fetch origin --prune: fast-forward
+9d1eb090d HEAD@{2026-08-23 12:34:25 +0500}: reset: moving to origin/main
+4be81dfd3 refs/heads/main@{2026-08-23 12:32:46 +0500}: reset: moving to origin/main
+4be81dfd3 refs/remotes/origin/main@{2026-08-23 12:32:46 +0500}: fetch origin --prune: fast-forward
+4be81dfd3 HEAD@{2026-08-23 12:32:46 +0500}: reset: moving to origin/main
+30937492b refs/heads/main@{2026-08-23 12:30:11 +0500}: reset: moving to origin/main
+30937492b refs/remotes/origin/main@{2026-08-23 12:30:11 +0500}: fetch origin --prune: fast-forward
+30937492b HEAD@{2026-08-23 12:30:11 +0500}: reset: moving to origin/main
+cced1582c refs/remotes/origin/main@{2026-08-23 12:21:31 +0500}: update by push
+cced1582c refs/heads/main@{2026-08-23 12:20:31 +0500}: rebase (finish): refs/heads/main onto ac881a9c3183a24d7af7151c041607dd0e674014
+cced1582c HEAD@{2026-08-23 12:20:31 +0500}: rebase (finish): returning to refs/heads/main
+cced1582c HEAD@{2026-08-23 12:20:31 +0500}: rebase (continue): fix(ui): restore finance expense modes and remove top timer
+ac881a9c3 HEAD@{2026-08-23 12:20:04 +0500}: rebase (start): checkout origin/main
+ac881a9c3 refs/remotes/origin/main@{2026-08-23 12:20:03 +0500}: fetch origin --prune: fast-forward
+526bf6662 refs/heads/main@{2026-08-23 12:19:32 +0500}: commit: fix(ui): restore finance expense modes and remove top timer
+526bf6662 HEAD@{2026-08-23 12:19:32 +0500}: commit: fix(ui): restore finance expense modes and remove top timer
+28e4e6399 refs/heads/main@{2026-08-23 12:06:49 +0500}: reset: moving to origin/main
+28e4e6399 refs/remotes/origin/main@{2026-08-23 12:06:49 +0500}: fetch origin --prune: fast-forward
+28e4e6399 HEAD@{2026-08-23 12:06:49 +0500}: reset: moving to origin/main
+642fd7143 refs/heads/main@{2026-08-23 11:53:53 +0500}: reset: moving to origin/main
+642fd7143 refs/remotes/origin/main@{2026-08-23 11:53:53 +0500}: fetch origin --prune: fast-forward
+642fd7143 HEAD@{2026-08-23 11:53:53 +0500}: reset: moving to origin/main
+5f6333532 HEAD@{2026-08-23 05:09:01 +0500}: reset: moving to origin/main
+5f6333532 HEAD@{2026-08-23 05:09:01 +0500}: checkout: moving from main to main
+5f6333532 refs/remotes/origin/main@{2026-08-23 05:08:58 +0500}: update by push
+5f6333532 refs/heads/main@{2026-08-23 05:08:49 +0500}: merge ui/dashboard-exact-2026-08-23: Fast-forward
+5f6333532 HEAD@{2026-08-23 05:08:49 +0500}: merge ui/dashboard-exact-2026-08-23: Fast-forward
+d0381a177 HEAD@{2026-08-23 05:08:49 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 05:08:48 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+5f6333532 HEAD@{2026-08-23 05:08:46 +0500}: commit: ui(dashboard): refine watchlist and health content
+eb9eb688d HEAD@{2026-08-23 05:00:01 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+eb9eb688d HEAD@{2026-08-23 04:59:01 +0500}: commit: ui(dashboard): apply requested dashboard corrections
+d0381a177 HEAD@{2026-08-23 04:36:52 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:36:52 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:36:52 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+d0381a177 HEAD@{2026-08-23 04:32:01 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:32:01 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:32:00 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+d0381a177 HEAD@{2026-08-23 04:29:12 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:29:12 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:29:12 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+d0381a177 HEAD@{2026-08-23 04:27:29 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:27:29 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:27:29 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+d0381a177 HEAD@{2026-08-23 04:24:46 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:24:45 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:24:45 +0500}: checkout: moving from main to main
+d0381a177 HEAD@{2026-08-23 04:18:26 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:18:26 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to main
+c03286d09 HEAD@{2026-08-23 04:17:18 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+c03286d09 HEAD@{2026-08-23 04:16:08 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+c03286d09 HEAD@{2026-08-23 04:14:42 +0500}: commit: ui(dashboard): apply exact dashboard observations
+d0381a177 HEAD@{2026-08-23 04:14:39 +0500}: reset: moving to d0381a1776422edcf58f8d12be9a7866116efc23
+94ab4225f HEAD@{2026-08-23 04:14:39 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+94ab4225f HEAD@{2026-08-23 04:11:51 +0500}: commit: ui(dashboard): apply exact dashboard observations
+d0381a177 HEAD@{2026-08-23 04:11:38 +0500}: reset: moving to d0381a1776422edcf58f8d12be9a7866116efc23
+a0270cfc8 HEAD@{2026-08-23 04:11:38 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+a0270cfc8 HEAD@{2026-08-23 04:09:00 +0500}: commit: ui(dashboard): apply exact dashboard observations
+d0381a177 HEAD@{2026-08-23 04:08:46 +0500}: checkout: moving from ui/dashboard-exact-2026-08-23 to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:07:39 +0500}: checkout: moving from main to ui/dashboard-exact-2026-08-23
+d0381a177 HEAD@{2026-08-23 04:07:38 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 04:07:38 +0500}: checkout: moving from main to main
+d0381a177 HEAD@{2026-08-23 03:56:14 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 03:56:14 +0500}: checkout: moving from ad422e91b15318d8264c9841dc0d39cadcfe7626 to main
+ad422e91b HEAD@{2026-08-23 03:52:12 +0500}: checkout: moving from 6a668517a512ebc51c636aa1e79960c8319e3875 to origin/revert/ui-consolidation-2026-08-23
+6a668517a HEAD@{2026-08-23 03:46:47 +0500}: checkout: moving from 5320ece12c01a3c9a5109ce867273d9449a67b12 to origin/revert/ui-consolidation-2026-08-23
+5320ece12 HEAD@{2026-08-23 03:18:22 +0500}: checkout: moving from main to origin/revert/ui-consolidation-2026-08-23
+d0381a177 refs/heads/main@{2026-08-23 03:05:04 +0500}: reset: moving to origin/main
+d0381a177 HEAD@{2026-08-23 03:05:04 +0500}: reset: moving to origin/main
+67ff74fae HEAD@{2026-08-23 03:05:04 +0500}: checkout: moving from main to main
+d0381a177 refs/remotes/origin/main@{2026-08-23 03:05:03 +0500}: fetch origin --prune: fast-forward
+67ff74fae HEAD@{2026-08-23 02:45:38 +0500}: reset: moving to origin/main
+67ff74fae HEAD@{2026-08-23 02:45:38 +0500}: checkout: moving from main to main
+67ff74fae refs/heads/main@{2026-08-23 02:43:49 +0500}: reset: moving to origin/main
+67ff74fae refs/remotes/origin/main@{2026-08-23 02:43:49 +0500}: fetch origin --prune: fast-forward
+67ff74fae HEAD@{2026-08-23 02:43:49 +0500}: reset: moving to origin/main
+4c9328779 HEAD@{2026-08-23 02:43:49 +0500}: checkout: moving from main to main
+4c9328779 HEAD@{2026-08-23 01:52:36 +0500}: checkout: moving from main to main
+4c9328779 HEAD@{2026-08-23 01:51:41 +0500}: reset: moving to origin/main
+4c9328779 HEAD@{2026-08-23 01:51:41 +0500}: checkout: moving from main to main
+4c9328779 HEAD@{2026-08-23 01:49:11 +0500}: reset: moving to origin/main
+4c9328779 HEAD@{2026-08-23 01:49:10 +0500}: checkout: moving from main to main
+4c9328779 refs/heads/main@{2026-08-23 01:46:31 +0500}: reset: moving to origin/main
+4c9328779 refs/remotes/origin/main@{2026-08-23 01:46:31 +0500}: fetch origin --prune: fast-forward
+4c9328779 HEAD@{2026-08-23 01:46:31 +0500}: reset: moving to origin/main
+c776039c5 HEAD@{2026-08-23 01:46:31 +0500}: checkout: moving from main to main
+c776039c5 refs/heads/main@{2026-08-23 01:17:09 +0500}: reset: moving to origin/main
+c776039c5 refs/remotes/origin/main@{2026-08-23 01:17:09 +0500}: fetch origin --prune: fast-forward
+c776039c5 HEAD@{2026-08-23 01:17:09 +0500}: reset: moving to origin/main
+d0d0c9b5c HEAD@{2026-08-23 01:17:09 +0500}: checkout: moving from main to main
+d0d0c9b5c refs/heads/main@{2026-08-23 01:11:51 +0500}: reset: moving to origin/main
+d0d0c9b5c refs/remotes/origin/main@{2026-08-23 01:11:51 +0500}: fetch origin --prune: fast-forward
+d0d0c9b5c HEAD@{2026-08-23 01:11:51 +0500}: reset: moving to origin/main
+fb20c7800 HEAD@{2026-08-23 01:11:51 +0500}: checkout: moving from finance/feed-opex-2026-08-22 to main
+92e5ae1be HEAD@{2026-08-22 23:34:28 +0500}: checkout: moving from main to finance/feed-opex-2026-08-22
+fb20c7800 refs/remotes/origin/main@{2026-08-22 19:01:29 +0500}: update by push
+fb20c7800 refs/heads/main@{2026-08-22 18:59:53 +0500}: commit: ci: align security checks with main
+fb20c7800 HEAD@{2026-08-22 18:59:53 +0500}: commit: ci: align security checks with main
+bf0323da1 refs/remotes/origin/main@{2026-08-22 18:30:31 +0500}: update by push
+bf0323da1 refs/heads/main@{2026-08-22 18:30:27 +0500}: commit: chore(audit): complete forensic audit of Dashboard, Milk, Finance, Breeding, and Health ledgers with strict mass balance and dynamic time calculations
+bf0323da1 HEAD@{2026-08-22 18:30:27 +0500}: commit: chore(audit): complete forensic audit of Dashboard, Milk, Finance, Breeding, and Health ledgers with strict mass balance and dynamic time calculations
+f36320cc5 refs/remotes/origin/main@{2026-08-22 14:22:16 +0500}: update by push
+f36320cc5 refs/heads/main@{2026-08-22 14:22:13 +0500}: commit: chore: lock whole numbers, fix UI encoding, and track ML yield forecaster
+f36320cc5 HEAD@{2026-08-22 14:22:13 +0500}: commit: chore: lock whole numbers, fix UI encoding, and track ML yield forecaster
+35a8ca396 refs/remotes/origin/main@{2026-08-22 14:05:42 +0500}: update by push
+35a8ca396 refs/heads/main@{2026-08-22 14:05:39 +0500}: commit: feat(ui): finalize top navigation, lock dashboard flexbox, enforce whole numbers, and secure audit UI
+35a8ca396 HEAD@{2026-08-22 14:05:39 +0500}: commit: feat(ui): finalize top navigation, lock dashboard flexbox, enforce whole numbers, and secure audit UI
+f3bfedea0 refs/remotes/origin/main@{2026-08-22 13:33:05 +0500}: update by push
+f3bfedea0 refs/heads/main@{2026-08-22 13:33:01 +0500}: commit: chore: recover dashboard updates, restore security context, and merge Analytics engine
+f3bfedea0 HEAD@{2026-08-22 13:33:01 +0500}: commit: chore: recover dashboard updates, restore security context, and merge Analytics engine
+a4386f180 refs/remotes/origin/main@{2026-08-22 04:36:56 +0500}: update by push
+a4386f180 refs/heads/main@{2026-08-22 04:36:53 +0500}: reset: moving to a4386f180
+a4386f180 HEAD@{2026-08-22 04:36:53 +0500}: reset: moving to a4386f180
+5a0f7add0 refs/remotes/origin/main@{2026-08-22 04:34:53 +0500}: update by push
+5a0f7add0 refs/heads/main@{2026-08-22 04:34:51 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+5a0f7add0 HEAD@{2026-08-22 04:34:51 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+1aafe36bd refs/remotes/origin/main@{2026-08-22 04:34:50 +0500}: update by push
+1aafe36bd refs/heads/main@{2026-08-22 04:34:48 +0500}: reset: moving to 1aafe36bd
+1aafe36bd HEAD@{2026-08-22 04:34:48 +0500}: reset: moving to 1aafe36bd
+a4386f180 HEAD@{2026-08-22 04:23:11 +0500}: reset: moving to HEAD
+a4386f180 refs/remotes/origin/main@{2026-08-22 04:21:47 +0500}: update by push
+a4386f180 refs/heads/main@{2026-08-22 04:21:44 +0500}: pull --rebase (finish): refs/heads/main onto d99e7ebce041e577f0b1655dda1010601040a39e
+a4386f180 HEAD@{2026-08-22 04:21:44 +0500}: pull --rebase (finish): returning to refs/heads/main
+a4386f180 HEAD@{2026-08-22 04:21:44 +0500}: pull --rebase (pick): feat(analytics): implement Multivariate Query Engine
+d99e7ebce HEAD@{2026-08-22 04:21:44 +0500}: pull --rebase (start): checkout d99e7ebce041e577f0b1655dda1010601040a39e
+cc983dd46 refs/heads/main@{2026-08-22 04:21:43 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+1d89f1005 refs/heads/main@{2026-08-22 04:21:43 +0500}: reset: moving to HEAD~1
+cc983dd46 HEAD@{2026-08-22 04:21:43 +0500}: reset: moving to HEAD
+cc983dd46 HEAD@{2026-08-22 04:21:43 +0500}: commit: feat(analytics): implement Multivariate Query Engine
+1d89f1005 HEAD@{2026-08-22 04:21:43 +0500}: reset: moving to HEAD
+1d89f1005 HEAD@{2026-08-22 04:21:43 +0500}: reset: moving to HEAD~1
+ab732d45d HEAD@{2026-08-22 04:21:43 +0500}: rebase (abort): returning to refs/heads/main
+d99e7ebce HEAD@{2026-08-22 04:20:43 +0500}: pull --rebase (start): checkout d99e7ebce041e577f0b1655dda1010601040a39e
+ab732d45d refs/heads/main@{2026-08-22 04:20:42 +0500}: commit: feat(analytics): implement Multivariate Query Engine with environmental cross-correlation
+ab732d45d HEAD@{2026-08-22 04:20:42 +0500}: commit: feat(analytics): implement Multivariate Query Engine with environmental cross-correlation
+d99e7ebce refs/remotes/origin/main@{2026-08-22 02:43:28 +0500}: fetch origin main --prune: fast-forward
+71ebc260a refs/remotes/origin/main@{2026-08-22 02:25:36 +0500}: fetch origin main: fast-forward
+1d89f1005 refs/remotes/origin/main@{2026-08-21 21:58:06 +0500}: update by push
+1d89f1005 refs/heads/main@{2026-08-21 21:58:04 +0500}: commit: feat(UI): add 7 distinct herd category summary cards in Animal Records tab
+1d89f1005 HEAD@{2026-08-21 21:58:04 +0500}: commit: feat(UI): add 7 distinct herd category summary cards in Animal Records tab
+09831c66c refs/remotes/origin/main@{2026-08-21 21:54:38 +0500}: update by push
+09831c66c refs/heads/main@{2026-08-21 21:54:35 +0500}: commit: fix(UI): remove D1-Dn XAxis day labels from Total Farm Yield Trend chart
+09831c66c HEAD@{2026-08-21 21:54:35 +0500}: commit: fix(UI): remove D1-Dn XAxis day labels from Total Farm Yield Trend chart
+855461e53 refs/remotes/origin/main@{2026-08-21 21:52:42 +0500}: update by push
+855461e53 refs/heads/main@{2026-08-21 21:52:39 +0500}: commit: fix(UI): implement dynamic 7/15/30-day timeline series and adaptive XAxis interval
+855461e53 HEAD@{2026-08-21 21:52:39 +0500}: commit: fix(UI): implement dynamic 7/15/30-day timeline series and adaptive XAxis interval
+12e485e60 refs/remotes/origin/main@{2026-08-21 21:51:33 +0500}: update by push
+12e485e60 refs/heads/main@{2026-08-21 21:51:30 +0500}: commit: fix(UI): add CowIcon to Total Herd and force AreaChart re-render on chartDays change
+12e485e60 HEAD@{2026-08-21 21:51:30 +0500}: commit: fix(UI): add CowIcon to Total Herd and force AreaChart re-render on chartDays change
+b67a4b5d0 refs/remotes/origin/main@{2026-08-21 21:44:51 +0500}: update by push
+b67a4b5d0 refs/heads/main@{2026-08-21 21:44:48 +0500}: commit: fix(UI): fix dropPercent template literal syntax on UnifiedDashboard
+b67a4b5d0 HEAD@{2026-08-21 21:44:48 +0500}: commit: fix(UI): fix dropPercent template literal syntax on UnifiedDashboard
+207bb580c refs/remotes/origin/main@{2026-08-21 21:36:51 +0500}: update by push
+207bb580c refs/heads/main@{2026-08-21 21:36:47 +0500}: commit: fix(UI): Dashboard KPIs, Yield Alerting, Finance Statements, and Animal Records Cleanup
+207bb580c HEAD@{2026-08-21 21:36:47 +0500}: commit: fix(UI): Dashboard KPIs, Yield Alerting, Finance Statements, and Animal Records Cleanup
+1aafe36bd refs/remotes/origin/main@{2026-08-21 20:25:05 +0500}: update by push
+1aafe36bd refs/heads/main@{2026-08-21 20:24:47 +0500}: commit: fix(audit): repair milk safety and reconciliation service literals
+1aafe36bd HEAD@{2026-08-21 20:24:47 +0500}: commit: fix(audit): repair milk safety and reconciliation service literals
+68de69bf0 refs/heads/main@{2026-08-21 20:15:45 +0500}: rebase (finish): refs/heads/main onto 505dd7ea715777e2e22164a6c706d12657215891
+68de69bf0 HEAD@{2026-08-21 20:15:45 +0500}: rebase (finish): returning to refs/heads/main
+68de69bf0 HEAD@{2026-08-21 20:15:45 +0500}: rebase (pick): fix(audit): calculation integrity guards + 4 new capabilities
+505dd7ea7 HEAD@{2026-08-21 20:15:45 +0500}: rebase (start): checkout origin/main
+505dd7ea7 refs/remotes/origin/main@{2026-08-21 20:14:32 +0500}: fetch origin --prune: fast-forward
+6fa07e2ea refs/heads/main@{2026-08-21 20:13:38 +0500}: commit: fix(audit): calculation integrity guards + 4 new capabilities
+6fa07e2ea HEAD@{2026-08-21 20:13:38 +0500}: commit: fix(audit): calculation integrity guards + 4 new capabilities
+1cf6d7ddc refs/remotes/origin/main@{2026-08-21 19:42:29 +0500}: update by push
+1cf6d7ddc refs/heads/main@{2026-08-21 18:45:30 +0500}: commit: chore(audit): Remove bloat ΓÇö .venv, node_modules, ISO, orphan folders, AI dump files
+1cf6d7ddc HEAD@{2026-08-21 18:45:30 +0500}: commit: chore(audit): Remove bloat ΓÇö .venv, node_modules, ISO, orphan folders, AI dump files
+d3e8b2760 refs/remotes/origin/main@{2026-08-21 18:13:33 +0500}: update by push
+d3e8b2760 refs/heads/main@{2026-08-21 18:12:58 +0500}: commit: fix(installer): reconcile validation and rollback hooks
+d3e8b2760 HEAD@{2026-08-21 18:12:58 +0500}: commit: fix(installer): reconcile validation and rollback hooks
+aa4a4e00d refs/heads/main@{2026-08-21 17:58:10 +0500}: commit: chore(release): Full regression reconciliation and PWA offline edge sync integration
+aa4a4e00d HEAD@{2026-08-21 17:58:10 +0500}: commit: chore(release): Full regression reconciliation and PWA offline edge sync integration
+9e5f0b580 refs/remotes/origin/main@{2026-08-21 16:53:54 +0500}: update by push
+9e5f0b580 refs/heads/main@{2026-08-21 16:53:51 +0500}: commit: feat(passport): Inject 3-picture visual identification gallery with lightbox fail-safe
+9e5f0b580 HEAD@{2026-08-21 16:53:51 +0500}: commit: feat(passport): Inject 3-picture visual identification gallery with lightbox fail-safe
+3252a75ed refs/remotes/origin/main@{2026-08-21 16:46:39 +0500}: update by push
+3252a75ed refs/heads/main@{2026-08-21 16:46:37 +0500}: commit: chore(audit): Archive OS bare-metal handover certification and disaster simulation results
+3252a75ed HEAD@{2026-08-21 16:46:37 +0500}: commit: chore(audit): Archive OS bare-metal handover certification and disaster simulation results
+924ed1ca1 refs/remotes/origin/main@{2026-08-21 16:46:03 +0500}: update by push
+924ed1ca1 refs/heads/main@{2026-08-21 16:46:00 +0500}: commit: fix(operations): Enforce milk mass balance, correct CMPL sellable yield, wire financial persistence
+924ed1ca1 HEAD@{2026-08-21 16:46:00 +0500}: commit: fix(operations): Enforce milk mass balance, correct CMPL sellable yield, wire financial persistence
+325137267 refs/remotes/origin/main@{2026-08-21 16:28:25 +0500}: update by push
+325137267 refs/heads/main@{2026-08-21 16:28:22 +0500}: pull --rebase origin main (finish): refs/heads/main onto bfc317f4a7e9b726d265db45c1226270bc0f9357
+325137267 HEAD@{2026-08-21 16:28:22 +0500}: pull --rebase origin main (finish): returning to refs/heads/main
+325137267 HEAD@{2026-08-21 16:28:22 +0500}: pull --rebase origin main (pick): Refactor DairyOS: Auth gate, isolated settings & audit register, dashboard fixes, finance ledger overhaul, breeding entries, and analytics update
+bfc317f4a HEAD@{2026-08-21 16:28:22 +0500}: pull --rebase origin main (start): checkout bfc317f4a7e9b726d265db45c1226270bc0f9357
+85b5ee7f6 refs/heads/main@{2026-08-21 16:28:21 +0500}: commit: Refactor DairyOS: Auth gate, isolated settings & audit register, dashboard fixes, finance ledger overhaul, breeding entries, and analytics update
+bfc317f4a refs/remotes/origin/main@{2026-08-21 16:28:21 +0500}: fetch origin --prune: fast-forward
+85b5ee7f6 HEAD@{2026-08-21 16:28:21 +0500}: commit: Refactor DairyOS: Auth gate, isolated settings & audit register, dashboard fixes, finance ledger overhaul, breeding entries, and analytics update
+3e85e02a0 refs/heads/main@{2026-08-21 14:07:59 +0500}: reset: moving to origin/main
+3e85e02a0 refs/remotes/origin/main@{2026-08-21 14:07:59 +0500}: fetch origin: fast-forward
+3e85e02a0 HEAD@{2026-08-21 14:07:59 +0500}: reset: moving to origin/main
+d4fed3872 refs/heads/main@{2026-08-21 14:01:54 +0500}: pull --ff-only origin main: Fast-forward
+d4fed3872 refs/remotes/origin/main@{2026-08-21 14:01:54 +0500}: pull --ff-only origin main: fast-forward
+d4fed3872 HEAD@{2026-08-21 14:01:54 +0500}: pull --ff-only origin main: Fast-forward
+5c246fe08 HEAD@{2026-08-21 13:09:28 +0500}: reset: moving to origin/main
+5c246fe08 HEAD@{2026-08-21 13:09:28 +0500}: checkout: moving from main to main
+5c246fe08 refs/heads/main@{2026-08-21 13:08:10 +0500}: reset: moving to origin/main
+5c246fe08 refs/remotes/origin/main@{2026-08-21 13:08:10 +0500}: fetch origin --prune: fast-forward
+5c246fe08 HEAD@{2026-08-21 13:08:10 +0500}: reset: moving to origin/main
+093d09177 HEAD@{2026-08-21 13:08:10 +0500}: checkout: moving from main to main
+093d09177 HEAD@{2026-08-21 13:00:07 +0500}: reset: moving to origin/main
+093d09177 HEAD@{2026-08-21 13:00:07 +0500}: checkout: moving from main to main
+093d09177 refs/heads/main@{2026-08-21 12:59:19 +0500}: reset: moving to origin/main
+093d09177 HEAD@{2026-08-21 12:59:19 +0500}: reset: moving to origin/main
+3b6a5d416 HEAD@{2026-08-21 12:59:19 +0500}: checkout: moving from main to main
+093d09177 refs/remotes/origin/main@{2026-08-21 12:58:20 +0500}: fetch origin --prune: fast-forward
+3b6a5d416 refs/heads/main@{2026-08-21 12:48:51 +0500}: reset: moving to origin/main
+3b6a5d416 HEAD@{2026-08-21 12:48:51 +0500}: reset: moving to origin/main
+1256c163d HEAD@{2026-08-21 12:48:50 +0500}: checkout: moving from main to main
+3b6a5d416 refs/remotes/origin/main@{2026-08-21 12:48:36 +0500}: fetch origin --prune: fast-forward
+1256c163d HEAD@{2026-08-21 12:32:05 +0500}: reset: moving to HEAD
+1256c163d HEAD@{2026-08-21 12:31:43 +0500}: reset: moving to HEAD
+1256c163d refs/remotes/origin/main@{2026-08-21 12:15:44 +0500}: update by push
+1256c163d refs/heads/main@{2026-08-21 12:15:39 +0500}: commit: Auto-commit: Reconciling branch prior to full regression testing
+1256c163d HEAD@{2026-08-21 12:15:39 +0500}: checkout: moving from main to main
+1256c163d HEAD@{2026-08-21 12:15:39 +0500}: commit: Auto-commit: Reconciling branch prior to full regression testing
+fc8593e57 refs/remotes/origin/main@{2026-08-21 10:48:03 +0500}: update by push
+fc8593e57 refs/heads/main@{2026-08-21 10:47:58 +0500}: commit: docs: complete executive forensic audit report for all 7 core domains
+fc8593e57 HEAD@{2026-08-21 10:47:58 +0500}: commit: docs: complete executive forensic audit report for all 7 core domains
+4acfa820c refs/remotes/origin/main@{2026-08-21 04:40:51 +0500}: update by push
+4acfa820c refs/heads/main@{2026-08-21 04:40:48 +0500}: commit: chore: ignore generated reports directory
+4acfa820c HEAD@{2026-08-21 04:40:48 +0500}: commit: chore: ignore generated reports directory
+a9af4226d refs/remotes/origin/main@{2026-08-21 04:40:14 +0500}: update by push
+a9af4226d refs/heads/main@{2026-08-21 04:39:58 +0500}: commit: fix(core): harden health dual-lookup, treatment autolink, enum normalizer, and trigger sync
+a9af4226d HEAD@{2026-08-21 04:39:58 +0500}: commit: fix(core): harden health dual-lookup, treatment autolink, enum normalizer, and trigger sync
+179e11673 refs/remotes/origin/main@{2026-08-20 23:53:12 +0500}: update by push
+179e11673 refs/heads/main@{2026-08-20 23:53:06 +0500}: commit: build: fix encoding issues and finalize production build
+179e11673 HEAD@{2026-08-20 23:53:06 +0500}: commit: build: fix encoding issues and finalize production build
+cdad5aca3 refs/remotes/origin/main@{2026-08-20 23:43:27 +0500}: update by push
+cdad5aca3 refs/heads/main@{2026-08-20 23:43:23 +0500}: commit: feat: Integrated CMPL Calculator, Advanced Analytics, Unified Settings Hub, and TMR Life-Cycle Manager
+cdad5aca3 HEAD@{2026-08-20 23:43:23 +0500}: commit: feat: Integrated CMPL Calculator, Advanced Analytics, Unified Settings Hub, and TMR Life-Cycle Manager
+dfc46aa66 refs/remotes/origin/main@{2026-08-20 19:08:39 +0500}: update by push
+dfc46aa66 refs/heads/main@{2026-08-20 19:08:35 +0500}: commit (merge): chore: resolved merge conflicts by preserving local dairy ledger and operational modules
+dfc46aa66 HEAD@{2026-08-20 19:08:35 +0500}: commit (merge): chore: resolved merge conflicts by preserving local dairy ledger and operational modules
+6b55ce68c HEAD@{2026-08-20 19:06:48 +0500}: rebase (abort): returning to refs/heads/main
+ae2b6395b refs/remotes/origin/main@{2026-08-20 19:06:26 +0500}: pull origin main --rebase: fast-forward
+ae2b6395b HEAD@{2026-08-20 19:06:26 +0500}: pull origin main --rebase (start): checkout ae2b6395b7cccb6487c203a43a957688c827119e
+6b55ce68c refs/heads/main@{2026-08-20 19:05:01 +0500}: commit: feat: integrated professional dairy finance ledger, inventory linking, and operational modules
+6b55ce68c HEAD@{2026-08-20 19:05:01 +0500}: commit: feat: integrated professional dairy finance ledger, inventory linking, and operational modules
+36f5e7865 refs/remotes/origin/main@{2026-08-20 16:21:23 +0500}: update by push
+36f5e7865 refs/heads/main@{2026-08-20 16:21:21 +0500}: merge 36f5e7865dd6b914f7947e36aec08ce81466b44f: Fast-forward
+36f5e7865 HEAD@{2026-08-20 16:21:21 +0500}: merge 36f5e7865dd6b914f7947e36aec08ce81466b44f: Fast-forward
+8e15a0b43 HEAD@{2026-08-20 16:21:20 +0500}: checkout: moving from dashboard/consolidation-2026-08-20 to main
+36f5e7865 HEAD@{2026-08-20 16:17:26 +0500}: commit: Accept dashboard and OS lifecycle consolidation work
+bb7a6a753 HEAD@{2026-08-20 13:31:32 +0500}: reset: moving to HEAD
+bb7a6a753 HEAD@{2026-08-20 12:56:50 +0500}: commit: fix(tests): use relative timestamps in heat stress intelligence tests
+51b97f129 HEAD@{2026-08-20 12:45:04 +0500}: checkout: moving from main to dashboard/consolidation-2026-08-20
+8e15a0b43 refs/remotes/origin/main@{2026-08-20 02:38:59 +0500}: update by push
+8e15a0b43 refs/heads/main@{2026-08-20 02:38:55 +0500}: commit: chore: ignore transient reconciliation build logs
+8e15a0b43 HEAD@{2026-08-20 02:38:55 +0500}: commit: chore: ignore transient reconciliation build logs
+dc6b90496 refs/remotes/origin/main@{2026-08-20 02:38:39 +0500}: update by push
+dc6b90496 refs/heads/main@{2026-08-20 02:38:28 +0500}: commit: chore: ignore local reconciliation run directories
+dc6b90496 HEAD@{2026-08-20 02:38:28 +0500}: commit: chore: ignore local reconciliation run directories
+30031c7b3 refs/heads/main@{2026-08-20 02:38:18 +0500}: commit: feat(audit): add OS build validation tools and handover audit results
+30031c7b3 HEAD@{2026-08-20 02:38:18 +0500}: commit: feat(audit): add OS build validation tools and handover audit results
+2ab951354 refs/heads/main@{2026-08-20 02:38:03 +0500}: commit: fix(os): add binary file exclusion flag to grep in build-iso script
+2ab951354 HEAD@{2026-08-20 02:38:03 +0500}: commit: fix(os): add binary file exclusion flag to grep in build-iso script
+ce4e5440e refs/heads/main@{2026-08-20 00:57:30 +0500}: merge audit/os-handover-2026-08-19: Merge made by the 'ort' strategy.
+ce4e5440e HEAD@{2026-08-20 00:57:30 +0500}: merge audit/os-handover-2026-08-19: Merge made by the 'ort' strategy.
+aeb5cc98a HEAD@{2026-08-20 00:57:29 +0500}: checkout: moving from audit/os-handover-2026-08-19 to main
+51b47b554 HEAD@{2026-08-20 00:57:26 +0500}: commit: fix(api): align farm planning with operational date authority and standardize test runner error handling
+158707f4e HEAD@{2026-08-19 23:49:54 +0500}: commit: fix: enforce LF line endings for shell scripts
+c5b5d191d HEAD@{2026-08-19 23:42:11 +0500}: reset: moving to HEAD
+c5b5d191d HEAD@{2026-08-19 23:39:48 +0500}: reset: moving to origin/audit/os-handover-2026-08-19
+c6611eb12 HEAD@{2026-08-19 23:39:48 +0500}: checkout: moving from audit/os-handover-2026-08-19 to audit/os-handover-2026-08-19
+c6611eb12 HEAD@{2026-08-19 23:38:34 +0500}: reset: moving to origin/audit/os-handover-2026-08-19
+b8ef58ae3 HEAD@{2026-08-19 23:38:33 +0500}: checkout: moving from audit/os-handover-2026-08-19 to audit/os-handover-2026-08-19
+b8ef58ae3 HEAD@{2026-08-19 23:36:55 +0500}: reset: moving to origin/audit/os-handover-2026-08-19
+6387d8c9a HEAD@{2026-08-19 23:36:55 +0500}: checkout: moving from audit/os-handover-2026-08-19 to audit/os-handover-2026-08-19
+6387d8c9a HEAD@{2026-08-19 23:02:59 +0500}: reset: moving to origin/audit/os-handover-2026-08-19
+1fccf4f3b HEAD@{2026-08-19 23:02:57 +0500}: checkout: moving from audit/os-handover-2026-08-19 to audit/os-handover-2026-08-19
+1fccf4f3b HEAD@{2026-08-19 22:59:12 +0500}: reset: moving to origin/audit/os-handover-2026-08-19
+1fccf4f3b HEAD@{2026-08-19 22:59:12 +0500}: checkout: moving from main to audit/os-handover-2026-08-19
+aeb5cc98a refs/heads/main@{2026-08-19 22:25:57 +0500}: reset: moving to origin/main
+aeb5cc98a HEAD@{2026-08-19 22:25:57 +0500}: reset: moving to origin/main
+aeb5cc98a refs/remotes/origin/main@{2026-08-19 22:25:56 +0500}: fetch origin --prune: forced-update
+81ced5b27 HEAD@{2026-08-19 22:25:56 +0500}: checkout: moving from post-dashboard-reconciliation to main
+aeb5cc98a HEAD@{2026-08-19 22:04:29 +0500}: pull --ff-only origin post-dashboard-reconciliation: Fast-forward
+a69ff2261 HEAD@{2026-08-19 22:04:27 +0500}: checkout: moving from post-dashboard-reconciliation to post-dashboard-reconciliation
+a69ff2261 HEAD@{2026-08-19 22:03:33 +0500}: checkout: moving from feature/lifetime-biological-animal-passport to post-dashboard-reconciliation
+fd9811e6b HEAD@{2026-08-19 22:02:16 +0500}: reset: moving to origin/feature/lifetime-biological-animal-passport
+48386ed09 HEAD@{2026-08-19 22:02:16 +0500}: checkout: moving from feature/lifetime-biological-animal-passport to feature/lifetime-biological-animal-passport
+48386ed09 HEAD@{2026-08-19 22:00:36 +0500}: reset: moving to origin/feature/lifetime-biological-animal-passport
+cf5ed7823 HEAD@{2026-08-19 22:00:36 +0500}: checkout: moving from feature/lifetime-biological-animal-passport to feature/lifetime-biological-animal-passport
+cf5ed7823 HEAD@{2026-08-19 21:58:36 +0500}: reset: moving to origin/feature/lifetime-biological-animal-passport
+cf5ed7823 HEAD@{2026-08-19 21:58:36 +0500}: checkout: moving from feature/lifetime-biological-animal-passport to feature/lifetime-biological-animal-passport
+cf5ed7823 HEAD@{2026-08-19 21:57:00 +0500}: checkout: moving from post-dashboard-reconciliation to feature/lifetime-biological-animal-passport
+a69ff2261 HEAD@{2026-08-19 20:11:06 +0500}: reset: moving to origin/post-dashboard-reconciliation
+88640251f HEAD@{2026-08-19 20:11:06 +0500}: checkout: moving from docs/operator-technical-manuals to post-dashboard-reconciliation
+d3b8f0d12 HEAD@{2026-08-19 20:09:25 +0500}: reset: moving to origin/docs/operator-technical-manuals
+d3b8f0d12 HEAD@{2026-08-19 20:09:25 +0500}: checkout: moving from post-dashboard-reconciliation to docs/operator-technical-manuals
+88640251f HEAD@{2026-08-19 19:42:19 +0500}: reset: moving to origin/post-dashboard-reconciliation
+528f9655c HEAD@{2026-08-19 19:42:19 +0500}: checkout: moving from ux/animals-herd-list-overhaul to post-dashboard-reconciliation
+51693b911 HEAD@{2026-08-19 19:38:32 +0500}: reset: moving to origin/ux/animals-herd-list-overhaul
+71e6eda62 HEAD@{2026-08-19 19:36:49 +0500}: reset: moving to origin/ux/animals-herd-list-overhaul
+4bfb7c6d0 HEAD@{2026-08-19 19:34:30 +0500}: reset: moving to origin/ux/animals-herd-list-overhaul
+481d50a58 HEAD@{2026-08-19 19:29:49 +0500}: reset: moving to origin/ux/animals-herd-list-overhaul
+37bf116f1 HEAD@{2026-08-19 19:28:15 +0500}: reset: moving to origin/ux/animals-herd-list-overhaul
+37bf116f1 HEAD@{2026-08-19 19:28:15 +0500}: checkout: moving from post-dashboard-reconciliation to ux/animals-herd-list-overhaul
+528f9655c HEAD@{2026-08-19 19:17:39 +0500}: reset: moving to origin/post-dashboard-reconciliation
+1bd63c0ed HEAD@{2026-08-19 19:13:21 +0500}: reset: moving to origin/post-dashboard-reconciliation
+6fb82a49b HEAD@{2026-08-19 19:09:16 +0500}: reset: moving to origin/post-dashboard-reconciliation
+d6bc344dd HEAD@{2026-08-19 18:59:57 +0500}: reset: moving to origin/post-dashboard-reconciliation
+463bd5f9c HEAD@{2026-08-19 18:34:38 +0500}: reset: moving to origin/post-dashboard-reconciliation
+972708f79 HEAD@{2026-08-19 18:32:52 +0500}: reset: moving to origin/post-dashboard-reconciliation
+04b5e91fc HEAD@{2026-08-19 18:19:13 +0500}: reset: moving to origin/post-dashboard-reconciliation
+a4c8185d9 HEAD@{2026-08-19 18:04:52 +0500}: reset: moving to origin/post-dashboard-reconciliation
+f6d6a1bef HEAD@{2026-08-19 18:04:52 +0500}: checkout: moving from post-dashboard-reconciliation to post-dashboard-reconciliation
+f6d6a1bef HEAD@{2026-08-19 17:52:04 +0500}: commit: Fix route contract tests for FastAPI included routers
+c5ff981f5 HEAD@{2026-08-19 16:46:51 +0500}: commit: Reconcile reproductive, heat stress, and operational state persistence
+aa05c322c HEAD@{2026-08-19 06:59:11 +0500}: commit: Add reproductive cycle authority regression tests
+ef046b737 HEAD@{2026-08-19 06:58:29 +0500}: commit: Add date-authoritative reproductive state resolution
+98ef3c07e HEAD@{2026-08-19 06:24:39 +0500}: commit: consolidate milk intelligence around animal schedule authority
+6e5944d13 HEAD@{2026-08-19 05:23:54 +0500}: pull --ff-only origin post-dashboard-reconciliation: Fast-forward
+0511f9d61 HEAD@{2026-08-19 05:21:37 +0500}: pull --ff-only origin post-dashboard-reconciliation: Fast-forward
+1a8f2687a HEAD@{2026-08-19 04:24:00 +0500}: commit: test lifecycle PostgreSQL SQLAlchemy URL validation
+7fb78f394 HEAD@{2026-08-19 04:04:44 +0500}: pull --ff-only origin post-dashboard-reconciliation: Fast-forward
+2ade969f2 HEAD@{2026-08-19 04:04:02 +0500}: reset: moving to HEAD
+2ade969f2 HEAD@{2026-08-19 03:33:29 +0500}: pull --ff-only origin post-dashboard-reconciliation: Fast-forward
+db7707402 HEAD@{2026-08-19 02:56:29 +0500}: commit: make command center and operational state restart durable
+a1c5b9998 HEAD@{2026-08-19 02:54:32 +0500}: merge origin/post-dashboard-reconciliation: Fast-forward
+6d66c99f8 HEAD@{2026-08-19 02:54:30 +0500}: checkout: moving from closure-pre-reconcile-20260819 to post-dashboard-reconciliation
+6d66c99f8 HEAD@{2026-08-19 02:54:30 +0500}: reset: moving to HEAD
+6d66c99f8 HEAD@{2026-08-19 02:54:30 +0500}: checkout: moving from post-dashboard-reconciliation to closure-pre-reconcile-20260819
+6d66c99f8 HEAD@{2026-08-19 01:37:05 +0500}: commit: make operational execution lifecycle restart durable
+68203a4cd HEAD@{2026-08-19 01:19:02 +0500}: commit: enforce animal-specific milking session authority
+a71ae084a HEAD@{2026-08-18 19:22:24 +0500}: commit: reconcile post-restart operational state
+82fba0a7f HEAD@{2026-08-18 17:40:29 +0500}: reset: moving to HEAD
+82fba0a7f HEAD@{2026-08-18 17:40:29 +0500}: reset: moving to HEAD
+82fba0a7f HEAD@{2026-08-18 16:28:04 +0500}: reset: moving to origin/recovery/g3-1-compatible
+2815bf6aa HEAD@{2026-08-18 16:28:04 +0500}: checkout: moving from post-dashboard-reconciliation to post-dashboard-reconciliation
+2815bf6aa HEAD@{2026-08-18 16:23:30 +0500}: commit: fix: reconcile dashboard herd counts with animal registry
+535413b61 HEAD@{2026-08-18 15:45:56 +0500}: reset: moving to origin/recovery/g3-1-compatible
+8d2166091 HEAD@{2026-08-18 15:45:56 +0500}: checkout: moving from post-dashboard-reconciliation to post-dashboard-reconciliation
+8d2166091 HEAD@{2026-08-18 15:33:04 +0500}: commit: feat: simplify operator milking workflow
+2fd0c52d3 HEAD@{2026-08-18 14:27:58 +0500}: merge origin/recovery/g3-1-compatible: Fast-forward
+1f42b84c9 HEAD@{2026-08-18 14:27:33 +0500}: reset: moving to HEAD
+1f42b84c9 HEAD@{2026-08-18 14:27:05 +0500}: checkout: moving from backup/pre-reconcile-20260818-1426 to post-dashboard-reconciliation
+1f42b84c9 HEAD@{2026-08-18 14:27:04 +0500}: checkout: moving from post-dashboard-reconciliation to backup/pre-reconcile-20260818-1426
+1f42b84c9 HEAD@{2026-08-17 06:53:21 +0500}: checkout: moving from dashboard-authority-integration to post-dashboard-reconciliation
+44799af21 HEAD@{2026-08-17 06:46:11 +0500}: commit: Complete authoritative dashboard and milk-cycle integration
+fcd5991a1 HEAD@{2026-08-17 06:07:22 +0500}: merge origin/fix/dashboard-authority-kpis: Merge made by the 'ort' strategy.
+0e84eb977 HEAD@{2026-08-17 06:07:03 +0500}: checkout: moving from dashboard-pre-reconciliation to dashboard-authority-integration
+462fe82fb HEAD@{2026-08-17 06:06:33 +0500}: commit: Preserve local dashboard projection corrections before reconciliation
+0e84eb977 HEAD@{2026-08-17 06:06:24 +0500}: checkout: moving from dashboard-authority-integration to dashboard-pre-reconciliation
+0e84eb977 HEAD@{2026-08-17 06:04:20 +0500}: checkout: moving from fix/dashboard-read-model-authority to dashboard-authority-integration
+0e84eb977 HEAD@{2026-08-17 06:03:58 +0500}: commit: Implement dashboard command UI batch
+ab5326375 HEAD@{2026-08-17 04:57:54 +0500}: pull --ff-only origin fix/dashboard-read-model-authority: Fast-forward
+83649857a HEAD@{2026-08-17 04:54:08 +0500}: pull --ff-only origin fix/dashboard-read-model-authority: Fast-forward
+a2935281c HEAD@{2026-08-17 04:46:21 +0500}: checkout: moving from recovery/g3-1-compatible to fix/dashboard-read-model-authority
+f34a9428c HEAD@{2026-08-17 04:34:26 +0500}: commit: Correct THI analytics route contract
+220ece629 HEAD@{2026-08-17 04:30:43 +0500}: commit: Close analytics and CMP backend contract gate
+d8ff72dd5 HEAD@{2026-08-17 04:23:00 +0500}: commit: Add reconciled backend capability contract gate
+1520ddc21 HEAD@{2026-08-17 03:50:15 +0500}: commit: Retire milk WITHHELD state and establish veterinary non-milking directives
+b749c07cf HEAD@{2026-08-17 01:13:19 +0500}: commit: feat: enforce milk disposition allocation boundaries
+40f06289f HEAD@{2026-08-17 01:01:45 +0500}: commit: feat: account for withheld milk in reconciliation
+f3594c3e8 HEAD@{2026-08-17 00:46:40 +0500}: commit: feat: enforce herd-level milk day completeness
+7b4252655 HEAD@{2026-08-17 00:08:25 +0500}: commit: refactor: remove remaining operational date fallbacks
+51ec4661e HEAD@{2026-08-16 23:53:47 +0500}: commit: refactor: centralize farm operational date authority
+2d2c79508 HEAD@{2026-08-16 23:42:30 +0500}: commit: feat: establish persisted farm operational settings authority
+ba435771f HEAD@{2026-08-16 23:22:37 +0500}: commit: feat: establish governed CMP scenario backend
+03872923f HEAD@{2026-08-16 23:09:45 +0500}: commit: feat: establish governed analytics backend contract
+4cdee1978 HEAD@{2026-08-16 23:04:22 +0500}: commit: feat: add date-aware animal passport read model
+aaf9c6bff HEAD@{2026-08-16 22:55:16 +0500}: commit: refactor: make milk summary date and completeness authoritative
+861e8490a HEAD@{2026-08-16 22:29:40 +0500}: commit: refactor: centralize milking session compliance semantics
+4dc89e8cb HEAD@{2026-08-16 22:26:28 +0500}: commit: refactor: centralize governed daily milk semantics
+4ba9655e4 HEAD@{2026-08-16 22:17:18 +0500}: commit: refactor: use canonical milking schedule in trend intelligence
+619579eb0 HEAD@{2026-08-16 22:00:27 +0500}: commit: refactor: centralize trend schedule resolution
+95fe261d4 HEAD@{2026-08-16 17:01:08 +0500}: commit: fix: preserve historical milking schedule authority
+f39ac3930 HEAD@{2026-08-16 16:51:33 +0500}: commit: fix: reconcile date-based milk drop monitoring
+e086f5aa1 HEAD@{2026-08-16 14:57:47 +0500}: pull --ff-only origin recovery/g3-1-compatible: Fast-forward
+9c95e5e74 HEAD@{2026-08-16 14:43:19 +0500}: pull --ff-only origin recovery/g3-1-compatible: Fast-forward
+b3afe8cb8 HEAD@{2026-08-16 14:43:17 +0500}: checkout: moving from recovery/r002-traceability-verification to recovery/g3-1-compatible
+0e63ba207 refs/remotes/origin/main@{2026-08-16 14:38:44 +0500}: fetch origin: fast-forward
+5d526a7c4 HEAD@{2026-08-16 14:12:55 +0500}: pull --ff-only origin recovery/r002-traceability-verification: Fast-forward
+c863a3780 HEAD@{2026-08-16 13:54:46 +0500}: pull --ff-only: Fast-forward
+147e3088d HEAD@{2026-08-16 13:54:44 +0500}: checkout: moving from recovery/r002-traceability-verification to recovery/r002-traceability-verification
+147e3088d HEAD@{2026-08-16 13:46:42 +0500}: checkout: moving from recovery/r002-traceability-verification to recovery/r002-traceability-verification
+147e3088d HEAD@{2026-08-16 13:43:32 +0500}: checkout: moving from recovery/r002-traceability-verification to recovery/r002-traceability-verification
+147e3088d HEAD@{2026-08-16 13:42:59 +0500}: checkout: moving from recovery/g3-1-compatible to recovery/r002-traceability-verification
+b3afe8cb8 HEAD@{2026-08-16 02:32:02 +0500}: commit: feat: harden animal milking frequency and equipment domain
+7a373e217 HEAD@{2026-08-15 23:54:13 +0500}: commit: fix: harden milk reconciliation and operational date authority
+0404fb1bd HEAD@{2026-08-15 22:37:15 +0500}: reset: moving to origin/recovery/g3-1-compatible
+263ddce1a HEAD@{2026-08-15 22:36:02 +0500}: checkout: moving from reconcile/milk-production to recovery/g3-1-compatible
+c8979536c HEAD@{2026-08-15 22:27:15 +0500}: rebase (finish): returning to refs/heads/reconcile/milk-production
+c8979536c HEAD@{2026-08-15 22:24:33 +0500}: rebase (pick): fix: anchor dashboard dates to farm operational date
+0d3faaca6 HEAD@{2026-08-15 22:24:33 +0500}: rebase (start): checkout origin/recovery/g3-1-compatible
+cf70949f6 HEAD@{2026-08-15 22:22:27 +0500}: cherry-pick: fix: correct dashboard temporal remediation for all date consumers
+67d30f55a HEAD@{2026-08-15 22:22:27 +0500}: cherry-pick: fix audit remediation package quoting
+f73414c9f HEAD@{2026-08-15 22:22:27 +0500}: cherry-pick: audit: package dashboard temporal authority remediation
+340c85dd1 HEAD@{2026-08-15 22:22:09 +0500}: commit: fix: anchor dashboard dates to farm operational date
+35dbd8344 HEAD@{2026-08-15 21:32:24 +0500}: reset: moving to 35dbd8344d914f722971cc4853cd36f785f412de
+35dbd8344 HEAD@{2026-08-15 21:32:24 +0500}: checkout: moving from reconcile/milk-production to reconcile/milk-production
+35dbd8344 HEAD@{2026-08-15 21:32:14 +0500}: reset: moving to 35dbd8344d914f722971cc4853cd36f785f412de
+cee1c9205 HEAD@{2026-08-15 21:32:14 +0500}: checkout: moving from reconcile/milk-production to reconcile/milk-production
+cee1c9205 HEAD@{2026-08-15 18:46:08 +0500}: commit: feat: add missed session resolution and milk sales reconciliation
+da50ac3ad HEAD@{2026-08-15 18:42:02 +0500}: commit: feat: enhance milk intelligence alert links and notification badge contract
+35dbd8344 HEAD@{2026-08-15 18:24:15 +0500}: commit: feat: enforce complete milk production trend sessions
+1d345c827 refs/remotes/origin/main@{2026-08-15 16:39:45 +0500}: fetch: fast-forward
+05f5a900d HEAD@{2026-08-15 16:19:24 +0500}: commit: chore: remove UTF-8 BOMs from milk runtime files
+0947d2ad8 HEAD@{2026-08-15 15:56:24 +0500}: checkout: moving from recovery/g3-1-compatible to reconcile/milk-production
+263ddce1a HEAD@{2026-08-15 15:30:13 +0500}: commit: feat: add milk production dashboard and API client functions
+3995998f3 HEAD@{2026-08-15 15:15:02 +0500}: commit: feat: add explicit date comparisons and alert integrations for milk intelligence
+703d2d4cd HEAD@{2026-08-15 15:04:49 +0500}: commit: fix: remove BOM characters from state service and runtime files
+d23e1948a HEAD@{2026-08-15 15:02:07 +0500}: commit: feat: add milking cycle enforcement and session status tracking
+4b01402f7 HEAD@{2026-08-15 15:00:03 +0500}: commit: feat: enhance milk alert service with thresholds and comparisons
+f3a83edcb HEAD@{2026-08-15 08:37:43 +0500}: commit: fix(milk): correct seven-day intelligence totals
+43e12d69d HEAD@{2026-08-15 08:05:55 +0500}: commit: fix: Implement correct R-002 integration test using existing test infrastructure and fixtures
+396f5c242 HEAD@{2026-08-15 08:00:19 +0500}: commit: fix: implement correct R-002 integration test using existing test fixtures and proper app initialization
+7b37c1056 HEAD@{2026-08-15 07:57:08 +0500}: commit: test: implement R-002 end-to-end integration verification test for animal-milk traceability chain
+027cfa905 HEAD@{2026-08-15 07:41:18 +0500}: commit: fix: normalize legacy milk animal foreign key
+5eb03e820 HEAD@{2026-08-15 07:17:31 +0500}: commit: fix: enhance data linkages across animals, milk, and financial modules
+a32b2ff40 HEAD@{2026-08-15 03:36:01 +0500}: commit: fix(milk): stabilize trend service persistence ownership
+5e3099d07 HEAD@{2026-08-15 00:57:32 +0500}: commit (merge): merge: integrate milk production cycle reconciliation, disposition ledger, and drop detection
+64aff2f48 HEAD@{2026-08-15 00:51:37 +0500}: reset: moving to HEAD
+64aff2f48 HEAD@{2026-08-14 20:58:21 +0500}: commit: Add Operational Finding entity, milk drop detection, Settings, short animal IDs, and one-click launcher
+6cb4ad37e HEAD@{2026-08-14 20:57:36 +0500}: commit: feat(dashboard): build the Main Dashboard shell (Action Queue + 4 panels)
+51525705e HEAD@{2026-08-14 20:57:19 +0500}: commit: docs: update execution roadmap with completed phase-wise work
+bdf6a5f3e HEAD@{2026-08-14 20:57:08 +0500}: commit: fix(dashboard): recognize the full Vite dev-server port range, not just 5173/4173
+5b14249a3 HEAD@{2026-08-14 17:45:26 +0500}: commit: chore: remove obsolete legacy development and database artifacts
+a76a2b95b HEAD@{2026-08-14 17:24:52 +0500}: commit: Fix SQLite engine resource warning in persistence test
+20164a68f HEAD@{2026-08-14 16:26:22 +0500}: commit: Fix datetime.utcnow() deprecation across ~55 call sites; fix 7 dataclasses with a frozen shared timestamp default bug
+17359e2f0 HEAD@{2026-08-14 16:07:09 +0500}: commit: Build HealthCase entity (G5.1): status-transition + withdrawal aggregation
+e57029ec5 HEAD@{2026-08-14 15:52:07 +0500}: commit: Fix identity migration: repair pre-existing users table instead of silently skipping it
+5bbde382f HEAD@{2026-08-14 15:46:33 +0500}: commit: Rebuild identity/RBAC: delete dead trees, add minimal User model (D3)
+2ab2b6830 HEAD@{2026-08-14 15:25:45 +0500}: commit: feat(inventory): build the canonical stock ledger (G8.1)
+f5d1752c2 HEAD@{2026-08-14 15:09:47 +0500}: commit: fix(equipment): wire status into the Command Center attention check
+9427ab0bd HEAD@{2026-08-14 14:41:20 +0500}: commit: fix(finance): govern the category field, fix live vocabulary-drift bug
+76fee9f34 HEAD@{2026-08-14 14:21:21 +0500}: commit: fix(finance): persist payment method and notes, classify all transaction types, allow backdating
+541aaef08 HEAD@{2026-08-14 05:32:56 +0500}: commit: fix(reproduction): unify breeding-event classification across the three live endpoints (G6.1)
+9d48d8c6a HEAD@{2026-08-14 05:15:44 +0500}: commit: fix(vocab): reconcile lifecycle_status/milking_frequency to one governed source
+517af5fca HEAD@{2026-08-14 04:46:48 +0500}: commit: feat(platform): IM-013 Phase 0 prerequisites
+926443bea HEAD@{2026-08-14 04:31:24 +0500}: commit: chore: stop tracking runtime operational state files
+c4d2d2446 HEAD@{2026-08-14 04:29:21 +0500}: commit: docs: recover TMR lifecycle manager from 9e23f01
+ca1f187a5 HEAD@{2026-08-14 04:29:10 +0500}: commit: docs: operator interface, cost of milk production and distribution plan
+d50a9be99 HEAD@{2026-08-14 00:00:15 +0500}: commit: feat(milk): G3.1 session ledger and G1.6 yield integrity
+37df4cd28 HEAD@{2026-08-14 00:00:06 +0500}: commit: fix(tests): resolve route contract against OpenAPI, not app.routes
+9ed775968 HEAD@{2026-08-13 22:55:56 +0500}: commit: Preserve recovered Operator Cockpit v0.3.0 prototype artifact
+bdb7cd0cd HEAD@{2026-08-13 22:52:53 +0500}: commit: G3-2 Animal Passport operational renderer and event persistence validation
+62e7b281e HEAD@{2026-08-13 21:44:04 +0500}: commit: Fix frontend CSS artifacts and recover UI updates
+60d9f8eb1 HEAD@{2026-08-13 18:58:22 +0500}: commit: G3-2 consolidate animal registry and passport foundations
+588ed4b18 HEAD@{2026-08-13 17:12:58 +0500}: commit: fix(milk): enforce governed session with legacy compatibility boundary
+87d204c83 HEAD@{2026-08-13 16:23:05 +0500}: commit: reconcile local operational changes
+bdafbfa3f HEAD@{2026-08-13 15:23:20 +0500}: cherry-pick: db(milk): add milking session column
+9060ef579 HEAD@{2026-08-13 15:23:20 +0500}: cherry-pick: test(milk): enforce session validation and persistence
+ac9b5219c HEAD@{2026-08-13 15:23:20 +0500}: cherry-pick: feat(milk): require and persist milking session
+dfa1c4305 HEAD@{2026-08-13 15:23:20 +0500}: cherry-pick: feat(milk): persist milking session on production records
+c41460e17 HEAD@{2026-08-13 15:23:20 +0500}: checkout: moving from recovery-execution to recovery/g3-1-compatible
+c41460e17 HEAD@{2026-08-13 15:21:49 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+f0395732c HEAD@{2026-08-13 15:21:47 +0500}: reset: moving to HEAD
+f0395732c HEAD@{2026-08-13 15:20:07 +0500}: checkout: moving from build/g3-1-milk-session-schema to recovery-execution
+c41460e17 refs/remotes/origin/main@{2026-08-13 15:18:48 +0500}: fetch origin: forced-update
+f73c79de1 HEAD@{2026-08-13 15:18:48 +0500}: checkout: moving from recovery-execution to build/g3-1-milk-session-schema
+f0395732c HEAD@{2026-08-13 14:03:03 +0500}: rebase (finish): returning to refs/heads/recovery-execution
+f0395732c HEAD@{2026-08-13 14:03:03 +0500}: rebase (continue): checkpoint: consolidate animal registration and operational entry
+c0ffebd82 HEAD@{2026-08-13 13:50:28 +0500}: rebase (start): checkout origin/recovery-execution
+dce9f9de7 HEAD@{2026-08-13 05:25:17 +0500}: commit: checkpoint: consolidate animal registration and operational entry
+9af26e3ee HEAD@{2026-08-13 04:35:56 +0500}: reset: moving to backup/recovery-pre-main-reconcile-20260813-043303
+9af26e3ee HEAD@{2026-08-13 04:34:49 +0500}: reset: moving to backup/recovery-pre-main-reconcile-20260813-043303
+81ced5b27 HEAD@{2026-08-13 04:33:16 +0500}: checkout: moving from recovery-execution to recovery-execution
+81ced5b27 HEAD@{2026-08-13 04:33:10 +0500}: reset: moving to origin/main
+9af26e3ee HEAD@{2026-08-13 04:28:42 +0500}: checkout: moving from recovery-execution to recovery-execution
+9af26e3ee HEAD@{2026-08-13 04:28:42 +0500}: reset: moving to HEAD
+9af26e3ee HEAD@{2026-08-13 04:22:03 +0500}: checkout: moving from main to recovery-execution
+81ced5b27 refs/heads/main@{2026-08-13 04:21:00 +0500}: reset: moving to origin/main
+81ced5b27 HEAD@{2026-08-13 04:21:00 +0500}: reset: moving to origin/main
+a6855c533 HEAD@{2026-08-13 04:21:00 +0500}: checkout: moving from recovery-execution to main
+9af26e3ee HEAD@{2026-08-13 04:18:05 +0500}: reset: moving to origin/recovery-execution
+9af26e3ee HEAD@{2026-08-13 04:18:03 +0500}: checkout: moving from recovery-execution to recovery-execution
+81ced5b27 refs/remotes/origin/main@{2026-08-13 04:17:47 +0500}: fetch origin: fast-forward
+9af26e3ee HEAD@{2026-08-13 02:27:32 +0500}: reset: moving to origin/recovery-execution
+4b4714970 HEAD@{2026-08-13 02:26:31 +0500}: reset: moving to origin/recovery-execution
+0a6d83ff3 HEAD@{2026-08-13 02:20:44 +0500}: reset: moving to origin/recovery-execution
+f6edcc7ed HEAD@{2026-08-13 02:11:03 +0500}: reset: moving to f6edcc7edfb6bc2d373c9eed1a2462693f1742a1
+81f6857b2 HEAD@{2026-08-13 02:00:43 +0500}: reset: moving to 81f6857b247df86c2998ecd1d09a79618e4949a0
+29a523a5e HEAD@{2026-08-13 01:58:11 +0500}: reset: moving to 29a523a5eb2b22ae5ceed94c3254aa1696c0e2db
+0bc235cd0 HEAD@{2026-08-13 01:56:29 +0500}: reset: moving to 0bc235cd0d46cc78465404b994c39ffa392bcde0
+aa7dd663a HEAD@{2026-08-13 01:55:02 +0500}: reset: moving to aa7dd663acaae87af4263bf58e29b6c4a1fbe78b
+b5301a916 HEAD@{2026-08-13 01:50:25 +0500}: reset: moving to b5301a91601afcae1abe1222f755ce0b8d821f16
+94a8877f5 HEAD@{2026-08-13 01:44:41 +0500}: reset: moving to 94a8877f59e14ceeda68fb88308625109e75cfb8
+04e7a87aa HEAD@{2026-08-13 01:41:33 +0500}: reset: moving to 04e7a87aadbdef5d6975a518d61c545ba83466b3
+67e140e9a HEAD@{2026-08-13 01:39:51 +0500}: reset: moving to 67e140e9a4b55a10bea3eabd70b669fdbb017279
+e34410a87 HEAD@{2026-08-13 01:36:39 +0500}: reset: moving to e34410a8765c558ba6ac0ccbd810edddbc48affd
+eda6dd56d HEAD@{2026-08-13 01:30:10 +0500}: reset: moving to eda6dd56d57b9fdf1e70bb91e838a55dfc329537
+2388ae1c6 HEAD@{2026-08-13 01:20:57 +0500}: reset: moving to 2388ae1c62428b0ff7be063aaa0477c3b4d47d8a
+ffd5ff8ea HEAD@{2026-08-13 01:20:02 +0500}: reset: moving to ffd5ff8eadcbc6ad61ac8f95f516282e0c60255f
+942228eb9 HEAD@{2026-08-13 00:46:21 +0500}: reset: moving to 942228eb9bc769f3f465922801dd27736cfe9a7e
+fd904d81f HEAD@{2026-08-13 00:21:34 +0500}: reset: moving to origin/recovery-execution
+3d7a51067 HEAD@{2026-08-12 23:57:49 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+1e0d94605 HEAD@{2026-08-12 22:39:13 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+fa68abf76 HEAD@{2026-08-12 22:29:02 +0500}: commit: Recover operational dashboard and command center
+7b0c81d1e refs/remotes/origin/main@{2026-08-12 19:34:01 +0500}: fetch origin: fast-forward
+564274bf9 HEAD@{2026-08-12 19:27:26 +0500}: reset: moving to origin/recovery-execution
+da3b67875 HEAD@{2026-08-12 19:01:37 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+11aee49d8 HEAD@{2026-08-12 18:42:30 +0500}: pull origin recovery-execution: Fast-forward
+25182b13c HEAD@{2026-08-12 18:39:50 +0500}: pull origin recovery-execution: Fast-forward
+fb6264e25 HEAD@{2026-08-12 18:35:42 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+05f362402 HEAD@{2026-08-12 18:27:05 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+af07395bd HEAD@{2026-08-12 18:14:15 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+0ab6398c1 HEAD@{2026-08-12 17:59:25 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+b14937d32 HEAD@{2026-08-12 17:57:12 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+b3547336d HEAD@{2026-08-12 17:53:10 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+fb45024fa HEAD@{2026-08-12 17:47:45 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+a4e091a9e HEAD@{2026-08-12 17:32:53 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+72b4c96ad HEAD@{2026-08-12 17:26:47 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+395163deb HEAD@{2026-08-12 17:15:36 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+63b4fb352 HEAD@{2026-08-12 17:03:23 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+7854a959f HEAD@{2026-08-12 17:01:08 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+3bbdfa835 HEAD@{2026-08-12 16:57:13 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+75acdb849 HEAD@{2026-08-12 16:48:51 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+a7af605af HEAD@{2026-08-12 16:42:01 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+77f676bc4 HEAD@{2026-08-12 16:39:52 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+b8b6ff33c HEAD@{2026-08-12 16:20:49 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+bca159a1d HEAD@{2026-08-12 16:18:49 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+bceed40bb HEAD@{2026-08-12 16:17:07 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+0001808d9 HEAD@{2026-08-12 16:13:19 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+5a5fdabf1 HEAD@{2026-08-12 15:04:21 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+a1971ccaf HEAD@{2026-08-12 14:56:44 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+c21af20c4 HEAD@{2026-08-12 14:47:14 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+31bd52916 HEAD@{2026-08-12 13:56:47 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+af74e27a6 HEAD@{2026-08-12 13:43:14 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+b55fc5555 HEAD@{2026-08-12 13:32:30 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+4e8411399 HEAD@{2026-08-12 13:14:55 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+5cca0b825 HEAD@{2026-08-12 13:14:51 +0500}: checkout: moving from recovery-execution to recovery-execution
+5cca0b825 HEAD@{2026-08-12 13:03:21 +0500}: pull origin recovery-execution: Fast-forward
+47d83e065 HEAD@{2026-08-12 12:57:16 +0500}: checkout: moving from local-before-frontend-test to recovery-execution
+5829448e0 HEAD@{2026-08-12 12:56:56 +0500}: commit: chore: save local state before frontend integration test
+47d83e065 HEAD@{2026-08-12 12:56:48 +0500}: checkout: moving from recovery-execution to local-before-frontend-test
+47d83e065 HEAD@{2026-08-12 03:35:21 +0500}: commit: feat(operations): persist treatment and withdrawal safety
+5c5ebf252 HEAD@{2026-08-12 03:26:41 +0500}: commit: fix(dashboard): restore exception rail contract
+9d5540a90 HEAD@{2026-08-11 22:49:42 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+d4337bb79 HEAD@{2026-08-11 22:37:44 +0500}: reset: moving to origin/recovery-execution
+d4337bb79 HEAD@{2026-08-11 22:16:01 +0500}: commit: Enforce live dashboard no-synthetic-values contract
+7893b130a HEAD@{2026-08-11 21:59:25 +0500}: pull origin recovery-execution: Fast-forward
+7e707f107 HEAD@{2026-08-11 21:49:08 +0500}: pull origin recovery-execution: Fast-forward
+bc223fae7 HEAD@{2026-08-11 21:43:00 +0500}: pull origin recovery-execution: Fast-forward
+22ad089e8 HEAD@{2026-08-11 21:37:55 +0500}: pull origin recovery-execution: Fast-forward
+76f46f40b HEAD@{2026-08-11 21:37:53 +0500}: checkout: moving from recovery-execution to recovery-execution
+76f46f40b HEAD@{2026-08-11 21:21:29 +0500}: commit: Harden canonical operational execution boundary
+2d14b9203 HEAD@{2026-08-11 21:09:36 +0500}: commit: migrate orchestration execution to canonical operational execution
+0d8b53c2e HEAD@{2026-08-11 20:54:22 +0500}: commit: migrate command execution to canonical operational execution
+bf52504e4 HEAD@{2026-08-11 20:47:43 +0500}: commit: consolidate autonomy execution on canonical operational execution
+90a29f00d HEAD@{2026-08-11 20:37:55 +0500}: pull origin recovery-execution: Fast-forward
+0e53f42bf HEAD@{2026-08-11 20:03:07 +0500}: pull origin recovery-execution: Fast-forward
+cb57ac3c3 HEAD@{2026-08-11 19:59:54 +0500}: pull origin recovery-execution: Fast-forward
+181c8c529 HEAD@{2026-08-11 19:33:10 +0500}: commit: Update farm operational state logic
+900fcf861 HEAD@{2026-08-11 19:07:50 +0500}: commit: R16 harden operational state data contracts
+fd97c0df7 HEAD@{2026-08-11 18:30:27 +0500}: commit: fix: bind application runtime repositories to persistence factory
+9c88e27fc HEAD@{2026-08-11 18:28:59 +0500}: commit: fix: bind application runtime farm repositories to factory
+133d293aa HEAD@{2026-08-11 18:13:51 +0500}: commit: fix: wire execution tracking into farm event bus
+4e055bf88 HEAD@{2026-08-11 16:19:15 +0500}: commit: Recovery: complete replacement 12 event persistence boundary
+0a6dfaa19 HEAD@{2026-08-11 16:12:19 +0500}: commit: Recovery: complete replacement 12 enterprise event persistence wiring
+3bd73622f HEAD@{2026-08-11 16:03:59 +0500}: reset: moving to origin/recovery-execution
+3bd73622f HEAD@{2026-08-11 16:03:57 +0500}: checkout: moving from recovery-execution to recovery-execution
+3bd73622f HEAD@{2026-08-11 15:57:14 +0500}: commit: Recovery: complete replacement 11 enterprise runtime publisher wiring
+3c3ba0bd5 HEAD@{2026-08-11 15:54:47 +0500}: checkout: moving from recovery-execution to recovery-execution
+3c3ba0bd5 HEAD@{2026-08-11 15:49:44 +0500}: commit: Recovery: complete replacement 10 enterprise event publisher wiring
+42aca28b2 HEAD@{2026-08-11 15:43:29 +0500}: checkout: moving from recovery-execution to recovery-execution
+42aca28b2 HEAD@{2026-08-11 15:12:58 +0500}: commit: Recovery: complete replacement 9 execution event boundary
+9e23f0185 HEAD@{2026-08-11 03:26:04 +0500}: commit: Add TMR lifecycle manager to Feed and Nutrition
+dfe917807 HEAD@{2026-08-11 03:18:10 +0500}: commit: Add operational reproduction management workspace
+eee7a4845 HEAD@{2026-08-11 03:11:30 +0500}: commit: Add animal financial dynamics to passport
+174885ff8 HEAD@{2026-08-11 03:07:51 +0500}: commit: Add operational Health and Vaccination workspace
+9b64adccb HEAD@{2026-08-11 03:03:25 +0500}: commit: Advance animal passport and animal management
+2e9e6bdc0 HEAD@{2026-08-11 02:52:02 +0500}: commit: Integrate milk recording navigation
+7d739e84e HEAD@{2026-08-11 02:49:05 +0500}: commit: Advance DairyOS milk recording operations
+bb8dd57f4 HEAD@{2026-08-11 01:03:56 +0500}: commit: Advance DairyOS operational command center and animal passport
+ede980c3f HEAD@{2026-08-11 00:51:50 +0500}: commit: Activate operational farm dashboard UI
+ff03fca48 HEAD@{2026-08-10 23:46:45 +0500}: commit: feat(ui): activate operational dashboard command center
+8ca604253 HEAD@{2026-08-10 23:21:16 +0500}: commit: checkpoint: recovery execution state
+f86358047 HEAD@{2026-08-10 23:20:27 +0500}: commit: checkpoint: recovery execution state
+72f5fbd9b refs/remotes/origin/main@{2026-08-10 19:18:15 +0500}: fetch: fast-forward
+edbea317d HEAD@{2026-08-10 18:34:43 +0500}: commit: fix operator domain endpoint rendering contract
+3cdbeca24 HEAD@{2026-08-10 18:23:12 +0500}: commit: fix(operations): classify pending actions as amber
+94d64fac1 HEAD@{2026-08-10 18:14:05 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+b9b094fc5 HEAD@{2026-08-10 18:08:57 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+60a88b730 HEAD@{2026-08-10 18:06:57 +0500}: pull --ff-only origin recovery-execution: Fast-forward
+1e9776529 HEAD@{2026-08-10 18:04:29 +0500}: checkout: moving from recovery-execution to recovery-execution
+1e9776529 HEAD@{2026-08-10 18:03:58 +0500}: checkout: moving from sprint-038-api-contract-fix to recovery-execution
+81feaa2b4 HEAD@{2026-08-10 18:03:32 +0500}: reset: moving to HEAD
+81feaa2b4 HEAD@{2026-08-10 17:53:15 +0500}: commit: fix: Initialize database and platform runtime in application lifespan manager
+1b5a004c9 HEAD@{2026-08-10 13:32:10 +0500}: rebase (finish): returning to refs/heads/sprint-038-api-contract-fix
+1b5a004c9 HEAD@{2026-08-10 13:32:10 +0500}: rebase (pick): Add complete local repository audit snapshots
+9d4491e7d HEAD@{2026-08-10 13:32:10 +0500}: rebase (pick): Add local repository audit snapshots
+40263d92f HEAD@{2026-08-10 13:32:10 +0500}: rebase (start): checkout origin/sprint-038-api-contract-fix
+4739b1274 HEAD@{2026-08-10 13:32:10 +0500}: reset: moving to HEAD
+4739b1274 HEAD@{2026-08-10 13:29:54 +0500}: commit: Add complete local repository audit snapshots
+50d2e17ff HEAD@{2026-08-10 13:25:51 +0500}: commit: Add local repository audit snapshots
+09b8ea7b1 HEAD@{2026-08-10 04:27:58 +0500}: pull --ff-only origin sprint-038-api-contract-fix: Fast-forward
+8694f30fe HEAD@{2026-08-10 04:10:50 +0500}: checkout: moving from main to sprint-038-api-contract-fix
+a6855c533 refs/remotes/origin/HEAD@{2026-08-10 03:18:54 +0500}: remote set-head
+35d680db7 refs/remotes/origin/HEAD@{2026-08-10 03:12:46 +0500}: fetch
+a6855c533 HEAD@{2026-08-10 03:12:08 +0500}: checkout: moving from main to main
+a6855c533 refs/remotes/origin/main@{2026-08-10 02:51:55 +0500}: update by push
+a6855c533 refs/heads/main@{2026-08-10 02:51:28 +0500}: Branch: renamed refs/heads/main to refs/heads/main
+a6855c533 HEAD@{2026-08-10 02:51:28 +0500}: Branch: renamed refs/heads/main to refs/heads/main
+a6855c533 refs/heads/main@{2026-08-10 02:51:14 +0500}: commit (initial): Fresh start
+a6855c533 HEAD@{2026-08-10 02:51:14 +0500}: commit (initial): Fresh start

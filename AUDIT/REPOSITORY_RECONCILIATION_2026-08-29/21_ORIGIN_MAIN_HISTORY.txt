@@ -1,0 +1,100 @@
+﻿e7b4b2d5594b6eec5282060f8217a8bead27e323	2026-08-29 03:35:45 +0500	Ammad Hassan	 (HEAD -> main, origin/main, origin/HEAD)	Reconcile validated operational UI and API changes
+0bceec212ecbcfb6f2a46f7a35b26f1fea710b6a	2026-08-29 00:01:31 +0500	Ammad Hassan		Fix broken core model compatibility exports
+4409a4b493faa00d2babbdd9403605473673f64d	2026-08-28 23:13:44 +0500	Ammad Hassan		Recover private PostgreSQL after stale PID
+8ad44aaa1b1ab2414c8f6b77b5d9c8a22f1cc268	2026-08-28 22:12:49 +0500	Ammad Hassan		Complete milk drop daily reachability handling
+331b1f6f3c094aeeacd219c77fe77719b077f783	2026-08-28 20:46:21 +0500	ammad4147		Clean deployment control tests
+1d0d7676df211db4c608dae3bc9131424b99fe6d	2026-08-28 20:46:13 +0500	ammad4147		Remove obsolete reset protection documentation
+da89a3457a8343b2414babcb463075e811dff1a7	2026-08-28 20:45:58 +0500	ammad4147		Update settings tests after removing reset protection
+c75c4e7d58651a88c02942a991370aae3a9b3605	2026-08-28 20:45:47 +0500	ammad4147		Update deployment control tests without passwords
+a06cee327900bad41208a882e7af2b0df48c5c17	2026-08-28 20:45:40 +0500	ammad4147		Remove deployment and reset password endpoints
+53cde0e30cfab89eac27eae753f3674886b2bbf9	2026-08-28 20:45:26 +0500	ammad4147		Remove reset password settings
+3ae152febac22fcc17a493471aa6526482984cfc	2026-08-28 20:45:14 +0500	ammad4147		Remove deployment and reset password gates
+9d6c1d492216312d29c1c759906d489263eb9e03	2026-08-28 04:14:07 +0500	ammad4147		Merge pull request #67 from ammad4147/windows-installer-inno7-compat-2026-08-28
+e6536d5a92dc751e01bf04360c91411d9051e03a	2026-08-28 04:12:57 +0500	ammad4147	 (origin/windows-installer-inno7-compat-2026-08-28)	Remove temporary RC build note
+e314b1599911737cde0d61e8c3a18144c00a4289	2026-08-28 04:12:41 +0500	ammad4147		Document RC build success exit handling
+dc6a5b237ddcb2b2d38678f469cb9f1c4b2e5ff0	2026-08-28 04:12:32 +0500	ammad4147		Fix RC build script success exit code
+e6776b75211075bb29ccf90e4a56376ee2c35677	2026-08-28 04:09:19 +0500	ammad4147		Support Inno Setup 7 in Windows installer build
+529aff3216871ece573b750ae6693c8bde1ef65a	2026-08-28 04:08:15 +0500	ammad4147		Document supported Inno Setup versions
+53358e981cefc9af65911f4130b91376b88a1521	2026-08-28 04:08:08 +0500	ammad4147		Support Inno Setup 6 and 7 in Windows installer build
+c83259d6993e21580171e9ae4e0383342ba71b20	2026-08-28 04:05:21 +0500	ammad4147		Remove temporary installer detection bootstrap file
+d5fb13a568c2eb4693dcabbe15f93821c4f5c412	2026-08-28 04:05:00 +0500	ammad4147		Temporary branch bootstrap
+ac16f053e61937a009dae8339f0262ed831e01cc	2026-08-28 04:04:43 +0500	ammad4147		Remove temporary installer detection placeholder
+4fb80ff21909d5d16b86f1f5eefd42f147865a09	2026-08-28 04:04:24 +0500	ammad4147		temporary
+ffaad5d9a298b25d9ed15baeba87e9d0482a1b39	2026-08-28 03:28:19 +0500	ammad4147		Merge Windows installer packaging
+afa29bc8afa5ffd7da8a1f8d38ac1b2e82a4b94a	2026-08-28 03:25:29 +0500	ammad4147		Merge pre-release hardening
+e5e01635e104fd1f307e16447fd1757430eb4012	2026-08-28 03:20:29 +0500	ammad4147		Align duplicate milk sale error with regression contract
+d0539aae09d3d40fbefe57f9cc89ca9e77a6edcb	2026-08-28 03:20:12 +0500	ammad4147		Fix deployment/reset API response and password validation contracts
+ecc15f5185195b40e16d00dae2f7d75b8cbe4371	2026-08-28 03:15:25 +0500	ammad4147	 (origin/windows-installer-2026-08-28)	Add reproducible Windows release-candidate bundle build
+d5234a58f14ebe3f99a60428d5c6cf641510e4b6	2026-08-28 03:15:06 +0500	ammad4147		Make Windows installer build reproducible from fresh RC bundle
+10e28b15495294393f4c786d2d58a1c5428f68db	2026-08-28 03:14:52 +0500	ammad4147		Harden DairyOS Windows installer definition
+0f2ba6a25f3e6f9576fd70255e98a80ec52925fc	2026-08-28 03:14:42 +0500	ammad4147		Enforce unique milk sale identity at database level
+86ba529a4ccbb8271a4cfe552cdb6d7fd55c4448	2026-08-28 03:14:16 +0500	ammad4147		Enforce unique milk sale identity
+a2e9f084c46c2af55726a33f7df06ac3cae8478b	2026-08-28 03:14:07 +0500	ammad4147		Harden milk reconciliation and sale identity rules
+1d26516832cfaf4cb65f442aa33f5022db632037	2026-08-28 03:13:48 +0500	ammad4147		Fix herd milk deployment gate composition
+d24f8ae3b49462ef60a5a2c49ee26a5e1c8d7346	2026-08-28 03:13:37 +0500	ammad4147		Harden milk cycle deployment gate composition
+134ccb7263b083b02e6e84227dc841d9371797f8	2026-08-28 02:53:28 +0500	ammad4147		Fix Desktop path handling in installer build script
+57791182ad970f49e5325f2031d82a092cb73c54	2026-08-28 02:53:16 +0500	ammad4147		Add reproducible Windows installer build script
+9dc0a058556118ff5b3fc2e6151e5d66ec59eb3c	2026-08-28 02:53:07 +0500	ammad4147		Add genuine Windows installer for DairyOS release bundle
+40f0ec83c39c0c83a922c80394fa49df6dd46a07	2026-08-28 02:42:12 +0500	ammad4147		test(settings): require password for destructive reset
+a069468a0de03e7b8fb4b111deaf9d91b2223877	2026-08-28 02:39:13 +0500	ammad4147		fix(ui): normalize authoritative timezone values
+28648ae770bd46697e64e0566602143f525083ee	2026-08-28 02:38:15 +0500	ammad4147		fix(reset): preserve security and reference configuration
+e7a60b2ff23e4e448970e8ccfb27388d71c06d44	2026-08-28 02:37:59 +0500	ammad4147		fix(runtime): suppress reconciliation findings before deployment
+08ba44eb7edbf8c2489710eaa6fed6d5195fe797	2026-08-28 02:37:01 +0500	ammad4147		test(deployment): cover activation and pre-deployment safety boundary
+c44b301cbf88eada607ea89b7e53cdbdaa00923b	2026-08-28 02:36:43 +0500	ammad4147		perf(animal): scope operational history queries by animal
+9b1c8aeba2487e67995c61f809943f9925591fe6	2026-08-28 02:36:23 +0500	ammad4147		perf(events): add animal-scoped operational history query
+d91c112355e3acee1b3cf09358772dd47c5b1eeb	2026-08-28 02:36:03 +0500	ammad4147		fix(api): use database-scoped Animal Passport service
+faa635ac848aa195c93a1822e6267c5276ebb95a	2026-08-28 02:35:51 +0500	ammad4147		perf(animal): add database-scoped lifetime passport projection
+56d109be8c70759276b336db03789706b7d6d86d	2026-08-28 02:35:34 +0500	ammad4147		refactor(settings): use public deployment password contract
+ada18636f450c08a5a02435d2bc9a92c54960c96	2026-08-28 02:35:11 +0500	ammad4147		refactor(deployment): expose explicit password verification API
+49f6853a0797998dd0ae079da17adb96e9071e2d	2026-08-28 02:34:54 +0500	ammad4147		fix(api): register legacy milk summary compatibility route
+47da787d7cc74fe67fda76c63c1b11eb031a9beb	2026-08-28 02:34:34 +0500	ammad4147		fix(api): restore legacy milk summary route compatibility
+358064586eb02e92287ed0b50efcea2dcbb0a2f1	2026-08-28 02:34:18 +0500	ammad4147		style(ui): restore DairyOS cow identity icon
+77b812cec187d61fa174f271c310ccfe419faa7b	2026-08-28 02:33:56 +0500	ammad4147		feat(ui): add deployment controls and authoritative operational settings
+5ee4e3c7596227b9af775ca2a4f05b0a832cf632	2026-08-28 02:33:22 +0500	ammad4147		fix(runtime): gate missing-input findings on deployment
+a29b5e4179ddf106cdcd7af6de08d4a0f2d91a56	2026-08-28 02:33:11 +0500	ammad4147		fix(runtime): suppress herd milk alerts before deployment
+c8666b178efbbedb342337dfee455f2699c95212	2026-08-28 02:33:00 +0500	ammad4147		fix(runtime): suppress milk automation before deployment
+ad372b6b4cabe6e621032cfdf60d3873f1b73c94	2026-08-28 02:32:27 +0500	ammad4147		fix(runtime): gate automated email actions on deployment activation
+fc515bb4b2a71d18c408452a5124ae370824d935	2026-08-28 02:31:58 +0500	ammad4147		feat(settings): add password-gated deployment controls
+69cf2ddeec406feec90d4a1316d5abbf19708120	2026-08-28 02:31:08 +0500	ammad4147		fix(deployment): expose real password-protection state
+156a70343609b01e036856b8d950cb2e8af7f1b6	2026-08-28 02:30:50 +0500	ammad4147		fix(schema): enforce animal foreign keys for health and finance
+d0e29bfa154dbb858a09c3684daef7b01d098c95	2026-08-28 02:30:38 +0500	ammad4147		fix(schema): enforce animal-linked finance referential integrity
+249fcd33e2291426b9c774df11c4b9e074c453d2	2026-08-28 02:30:28 +0500	ammad4147		fix(schema): enforce health observations to registered animals
+d3a9975c832036d0287cad924894eeb70830b383	2026-08-28 02:30:09 +0500	ammad4147		perf(breeding): add animal-scoped history query
+f4cbfa21108386cfa9da0a5199e490cb2a6dd13f	2026-08-28 02:29:59 +0500	ammad4147		perf(feed): add animal-scoped record query
+fc8de90532035da05253639e7f2c082e04d52e47	2026-08-28 02:29:49 +0500	ammad4147		perf(health): add animal-scoped observation query
+942b4bc34b59f0fdf20cf0259b26c3b073ee912b	2026-08-28 02:29:37 +0500	ammad4147		feat(deployment): add guarded deployment activation service
+ff7a7f737075eafd2ecd05e97bd23928f94bbda7	2026-08-28 02:02:30 +0500	ammad4147		Merge operational integrity remediation
+91534078ae496df68ee6e4dda44187ac8dc551e1	2026-08-28 02:00:40 +0500	ammad4147	 (origin/operational-integrity-remediation-2026-08-28)	test(milk): align error assertion with canonical validator
+9972e6915d6f2e290f9b8567965fc0bb485dd00d	2026-08-28 01:59:03 +0500	ammad4147		test(finance): align void lifecycle with governed transitions
+7a0223c8c8d9c2c628ab135985dbb32e5ce90c6d	2026-08-28 01:49:34 +0500	ammad4147		revert(test): restore milk reconciliation regression suite
+d5532600eeaeba073fc331a5987064c318072b63	2026-08-28 01:48:21 +0500	ammad4147		test(milk): retain established over-allocation assertion contract
+d142d9df9160527652694a839e0ba986ea6bca98	2026-08-28 01:48:13 +0500	ammad4147		fix(test): align settled-finance guard assertion
+04475c97329498a3b10a21c10e43c97d1a1cfe5d	2026-08-28 01:47:14 +0500	ammad4147		fix(test): correct finance cleanup list reference
+4611b8418641b3119402fc2607655b9fa958f953	2026-08-28 01:44:46 +0500	ammad4147		feat(milk): expose governed withdrawal disposition type
+0dcc9bd7e359b87f29093f3c822858623041a09d	2026-08-28 01:44:11 +0500	ammad4147		test(finance): cover repository void safety rules
+02be445011b12f2ef4c7c8b19ee049ebc5a8fa41	2026-08-28 01:43:14 +0500	ammad4147		fix(finance): enforce settled-record guard at repository void boundary
+e1350652c73a776055190f60e0879e0ef26600cb	2026-08-28 01:41:39 +0500	ammad4147		fix(finance): make settled ledger records strictly immutable
+55920e83d3f88197cba993a3035439e3da734c16	2026-08-28 01:41:02 +0500	ammad4147		test(milk): cover withdrawal reconciliation boundary cases
+f7b86e2c303d12ed748604bf6adecc97c9ba5492	2026-08-28 01:39:51 +0500	ammad4147		test(finance): require governed correction for settled entries
+98bd0f6bb0aa40828cd7ca3e397b6518f5ab5b12	2026-08-28 01:36:51 +0500	ammad4147		fix(animal): commit registration and initial schedule atomically
+c0e2d425597a22e63e046de2e7fdb004610030fb	2026-08-28 01:36:38 +0500	ammad4147		fix(animal): support atomic registration transactions
+134f0832191220733f7e22153d5fb0f6c55484db	2026-08-28 01:35:29 +0500	ammad4147		test(finance): prohibit destructive repository deletion
+0908b7cf21863f5443ed9f67fda79d663036ce0a	2026-08-28 01:35:23 +0500	ammad4147		test(finance): enforce governed status transitions
+044382c1e2e4f75de515991747c063a5f9e66c34	2026-08-28 01:35:16 +0500	ammad4147		test(milk): protect saleable and withdrawal disposition invariants
+9aa97a40a42c70a717557357272c7b1a1881fcc4	2026-08-28 01:34:58 +0500	ammad4147		fix(finance): replace destructive delete with auditable void
+5d2ae5656621e69816ddcebce9b476a3b5e96970	2026-08-28 01:34:46 +0500	ammad4147		fix(finance): enforce governed financial state transitions
+33dc8ab5fdd9f14b2c2d6fcb1c5b471eb69b5c30	2026-08-28 01:34:21 +0500	ammad4147		fix(milk): apply canonical disposition validation to edits
+c0290508c62a835a78b26626e4b3e0f3aba23409	2026-08-28 01:34:02 +0500	ammad4147		fix(milk): unify saleable and withdrawal disposition reconciliation
+54107ca04666c970e662e4b7a39a1b9eaf1dbabb	2026-08-28 00:27:32 +0500	ammad4147		Merge pull request #61 from ammad4147/auth-free-dashboard-2026-08-27
+f82cdbdd56bedc8fd984db6200a448852b23c5f5	2026-08-28 00:19:31 +0500	Ammad Hassan	 (origin/auth-free-dashboard-2026-08-27, auth-free-dashboard-2026-08-27)	Complete Windows DairyOS appliance runtime
+30bd8099d9668f177a119eda9494c120e70b3185	2026-08-27 16:34:26 +0500	Ammad Hassan		Stabilize passwordless single-exe Windows runtime
+780e9c6d8aaef52f6e109f100cd35ac5b3168273	2026-08-27 15:53:53 +0500	ammad4147		Update database configuration tests for passwordless local DairyOS mode
+2923e1835ac799cee20c3c9d1373f5f92c0d4992	2026-08-27 14:54:44 +0500	ammad4147		Add supervisor lifecycle regression tests
+2cd9f7150564cb4d1eeff41f54cb403a66531386	2026-08-27 14:54:26 +0500	ammad4147		Add migration-gate regression tests
+41f9dd79922938a3419f984623630fafb82c318b	2026-08-27 14:54:10 +0500	ammad4147		Test passwordless local PostgreSQL configuration
+5741bd071bb035f9d86fe6636d8bdfe72b774d8c	2026-08-27 14:54:00 +0500	ammad4147		Fix fresh production database initialization
+8f56e5c286f03cd29449b1cb7049f978e171136b	2026-08-27 14:53:39 +0500	ammad4147		Allow passwordless local DairyOS PostgreSQL runtime
+c070c03591531c86b4f23ce63211c4f9ff810db9	2026-08-27 14:16:03 +0500	ammad4147		Remove local mode header control
+b9bcb0c0f786611a902554db55babd0cff45d98e	2026-08-27 14:15:42 +0500	ammad4147		Remove obsolete user and security settings from local mode
+f5008319137e15f05ac1912273bc5500b3f12338	2026-08-27 14:11:31 +0500	ammad4147		Restore existing nine-tab application shell without login gate
+d853f121311f031586eb8cb32b4418e02ee0528c	2026-08-27 09:26:28 +0500	ammad4147		Retire obsolete user password-management tests for local Dashboard-only mode

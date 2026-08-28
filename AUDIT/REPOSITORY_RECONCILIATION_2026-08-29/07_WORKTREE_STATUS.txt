@@ -1,0 +1,12 @@
+﻿## main...origin/main
+?? git-reconciliation-report-20260829/all-history.txt
+?? git-reconciliation-report-20260829/all-refs.txt
+?? git-reconciliation-report-20260829/branches.txt
+?? git-reconciliation-report-20260829/local-merged-branches.txt
+?? git-reconciliation-report-20260829/local-unmerged-branches.txt
+?? git-reconciliation-report-20260829/reflog-expiry-preview.txt
+?? git-reconciliation-report-20260829/remote-merged-branches.txt
+?? git-reconciliation-report-20260829/remote-unmerged-branches.txt
+?? git-reconciliation-report-20260829/stashes.txt
+?? git-reconciliation-report-20260829/tags.txt
+?? git-reconciliation-report-20260829/unreachable-preview.txt

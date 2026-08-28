@@ -1,0 +1,5 @@
+﻿Branch	MergedIntoMain	AheadOfMain	BehindMain	LastCommit	Subject
+audit/windows-rc-build-2026-08-28	NO	3	2	130c2ec48705b07f2dcbf938dacf6120a43bf691	Add concise Windows build audit summary
+auth-free-dashboard-2026-08-27	YES	0	92	f82cdbdd56bedc8fd984db6200a448852b23c5f5	Complete Windows DairyOS appliance runtime
+backend-desktop-stability-2026-08-27	NO	9	112	c4a16a5177e534fa60ca0ab09895f450fae84ab5	Remove unnecessary Windows test package marker
+windows-desktop-build-2026-08-27	NO	20	122	ec3d9cd9dab12f14389d5ca58405aae8ce64a29f	fix(windows): make Alembic honor runtime database URL
