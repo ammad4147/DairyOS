@@ -1,5 +1,9 @@
+"""Compatibility exports for legacy core model imports."""
 
-from .farm import Farm
-from .user import User
-from .role import Role
 from .audit_event import AuditEvent
+from .farm import Farm
+
+__all__ = [
+    "AuditEvent",
+    "Farm",
+]
