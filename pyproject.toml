@@ -18,6 +18,7 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "pydantic>=2.11",
   "python-dotenv>=1.1",
+  "python-multipart>=0.0.20",
   "uvicorn>=0.35",
   "PyYAML>=6.0",
   "cryptography>=45.0"
