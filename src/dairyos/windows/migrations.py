@@ -15,6 +15,10 @@ from sqlalchemy import create_engine, text
 
 from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.platform import paths
+from dairyos.windows.startup_integrity import (
+    StartupIntegrityError,
+    inspect_startup_integrity,
+)
 
 
 MIGRATION_LOCK_KEY = 746182934517
@@ -157,6 +161,10 @@ def migrate_if_needed() -> MigrationResult:
             application_tables = _public_application_table_count(connection)
 
             if not current and application_tables == 0:
+                try:
+                    inspect_startup_integrity(application_tables=0)
+                except StartupIntegrityError as exc:
+                    raise MigrationGateError(str(exc)) from exc
                 _bootstrap_empty_database(connection, config, target)
                 return MigrationResult(True, current, target, None)
 
