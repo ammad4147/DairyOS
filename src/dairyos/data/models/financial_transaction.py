@@ -26,6 +26,7 @@ class FinancialTransaction(Base):
     )
     milk_sale_id = Column(String, nullable=True)
     feed_record_id = Column(String, nullable=True)
+    payroll_record_id = Column(Integer, nullable=True, index=True)
     status = Column(String, default="RECORDED")
 
     master_category = Column(String, nullable=True)
