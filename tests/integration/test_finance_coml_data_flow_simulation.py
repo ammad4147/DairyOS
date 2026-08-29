@@ -42,9 +42,9 @@ def test_payroll_payment_reaches_finance_once(client):
     assert repeat.status_code == 200, repeat.text
     assert repeat.json()["finance_transaction_id"] == paid["finance_transaction_id"]
 
-    finance = client.get("/farm/financial")
+    finance = client.get("/farm/finance-ledger")
     assert finance.status_code == 200, finance.text
-    records = finance.json()
+    records = finance.json()["transactions"]
     payroll_rows = [
         row
         for row in records
