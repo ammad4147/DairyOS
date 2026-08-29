@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.application.database_aware_animal_passport import (
@@ -26,10 +26,7 @@ router = APIRouter(
 @router.get("/{animal_id}/passport")
 def get_lifetime_passport(
     animal_id: str,
-    as_of_date: date | None = Query(
-        default=None,
-        description="Optional operational date for historical passport state.",
-    ),
+    as_of_date: date | None = None,
     container=Depends(get_container),
 ):
     """Return the authoritative date-aware Animal Passport read model."""
@@ -46,10 +43,7 @@ def get_lifetime_passport(
 @router.get("/{animal_id}/reproduction")
 def get_reproductive_state(
     animal_id: str,
-    as_of_date: date | None = Query(
-        default=None,
-        description="Optional operational date for reproductive state resolution.",
-    ),
+    as_of_date: date | None = None,
     container=Depends(get_container),
 ):
     """Return the authoritative reproductive state for one registered animal."""
