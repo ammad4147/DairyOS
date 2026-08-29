@@ -1,178 +1,39 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Trash2, Calculator, Lock, RefreshCw } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
-export type COMLOutput = {
-  milkProduced: number;
-  feedTotal: number;
-  opexTotal: number;
-  feedCostPerLiter: number;
-  opexCostPerLiter: number;
-  costOfMilkProductionPerLiter: number;
-};
-
-interface COMLProps {
-  onOutputChange?: (output: COMLOutput) => void;
+export type COMLOutput={milkProduced:number;feedTotal:number;opexTotal:number;feedCostPerLiter:number;opexCostPerLiter:number;costOfMilkProductionPerLiter:number};
+interface COMLProps{onOutputChange?:(output:COMLOutput)=>void}
+type Line={id:string;item:string;quantity:string;unit:string;unitRate:string};
+const API_BASE=API_BASE_URL||'http://127.0.0.1:8000';
+const inputStyle:React.CSSProperties={width:'100%',boxSizing:'border-box',background:'#1e293b',border:'1px solid #334155',color:'#fff',borderRadius:6,padding:'8px 9px',fontSize:11};
+const panel:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:14,minWidth:0};
+const button=(bg:string):React.CSSProperties=>({background:bg,color:'#fff',border:0,borderRadius:6,padding:'8px 11px',fontSize:10,fontWeight:900,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5});
+const FEED=['Silage','Alfalfa','Berseem','Wheat Straw','Vanda / Compound Feed','Maize / Corn','Wheat Bran','Rice Polish','Soybean Meal','Canola Meal','Cottonseed Cake','Bypass Fat','Mineral Premix','Sodium Bicarbonate','Toxin Binder','Molasses','Other'];
+const OPEX=['Veterinary','Vaccination','Breeding / AI','Milker Wages','Feeder / Shed Worker Wages','Manager Salary','Electricity','Generator Fuel','Water Pumping','Equipment Maintenance','Shed Maintenance','Hygiene Chemicals','Bedding','Milk Transport','Rent / Lease','Banking / Accounting','Other'];
+const today=()=>new Date().toISOString().slice(0,10);
+const monthStart=()=>{const d=new Date();return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)).toISOString().slice(0,10)};
+const newLine=(item=''):Line=>({id:`${Date.now()}-${Math.random()}`,item,quantity:'',unit:'kg',unitRate:''});
+function LineTable({title,rows,setRows,options,accent}:{title:string;rows:Line[];setRows:React.Dispatch<React.SetStateAction<Line[]>>;options:string[];accent:string}){
+ const add=()=>setRows(x=>[...x,newLine()]);
+ return <section style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><h3 style={{margin:0,fontSize:13,color:accent}}>{title}</h3><button type="button" onClick={add} style={button('#1e293b')}><Plus size={12}/> Add Item</button></div>{rows.length===0?<div style={{fontSize:10,color:'#64748b',padding:'14px 0'}}>No line items. Add an item to calculate this cost category.</div>:rows.map(row=><div key={row.id} style={{display:'grid',gridTemplateColumns:'1.4fr .8fr .7fr .8fr 34px',gap:6,alignItems:'center',marginBottom:6}}><select value={row.item} onChange={e=>setRows(x=>x.map(r=>r.id===row.id?{...r,item:e.target.value}:r))} style={inputStyle}><option value="">Select item…</option>{options.map(item=><option key={item} value={item}>{item}</option>)}</select><input type="number" min="0" step="0.001" placeholder="Quantity" value={row.quantity} onChange={e=>setRows(x=>x.map(r=>r.id===row.id?{...r,quantity:e.target.value}:r))} style={inputStyle}/><select value={row.unit} onChange={e=>setRows(x=>x.map(r=>r.id===row.id?{...r,unit:e.target.value}:r))} style={inputStyle}><option>kg</option><option>g</option><option>L</option><option>unit</option><option>visit</option><option>day</option><option>month</option><option>dose</option></select><input type="number" min="0" step="0.01" placeholder="PKR / unit" value={row.unitRate} onChange={e=>setRows(x=>x.map(r=>r.id===row.id?{...r,unitRate:e.target.value}:r))} style={inputStyle}/><button type="button" onClick={()=>setRows(x=>x.filter(r=>r.id!==row.id))} style={{width:30,height:30,borderRadius:5,border:'1px solid #334155',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={12}/></button></div>)}</section>;
 }
-
-type CostRow = { id: string; item: string; cost: number };
-type Group = { label: string; items: string[] };
-
-type StoredMonthlyOutput = COMLOutput & { month: string };
-
-const COML_STORAGE_KEY = 'dairyos_coml_monthly_output';
-const COML_EVENT = 'dairyos:coml-output';
-
-const FEED_GROUPS: Group[] = [
-  { label: 'Green Fodder & Silage', items: ['Corn / Maize Silage','Alfalfa (Lucerne)','Berseem','Rhodes Grass (Fresh)','Sorghum / Sadabahar','Super Napier / Mott Grass','Rye Grass'] },
-  { label: 'Dry Roughages & Hay', items: ['Wheat Straw (Bhoosa)','Rhodes Grass Hay','Alfalfa Hay','Corn Stover'] },
-  { label: 'Commercial Feeds & Grains', items: ['Commercial Compound Vanda / Cattle Feed','Flaked Corn / Cracked Maize','Wheat Bran (Choker)','Rice Polish','Barley','Broken Rice'] },
-  { label: 'Protein Meals & Cakes', items: ['Canola Meal','Soybean Meal (Hi-Pro)','Mustard Cake (Khal Sarson)','Cottonseed Cake (Khal Banola)','Sunflower Meal','Corn Gluten Meal (30% / 60%)'] },
-  { label: 'Minerals, Premixes & Additives', items: ['Dairy Mineral Premix','Di-Calcium Phosphate (DCP)','Bypass Fat / Rumen-Protected Fat','Sodium Bicarbonate (Buffer)','Toxin Binder','Live Yeast / Probiotics','Molasses','Urea','Rock Salt / Mineral Licking Blocks'] },
-  { label: 'Custom', items: ['Other'] },
-];
-
-const OPEX_GROUPS: Group[] = [
-  { label: 'Veterinary & Herd Health', items: ['Routine Vet Fees / Consultation','Vaccinations (FMD, HS, LSD, Anthrax)','Dewormers & Parasiticides','Mastitis Injectables & Intramammary Tubes','Antibiotics & General Medications','Calving & OB Supplies'] },
-  { label: 'Breeding & Reproduction', items: ['Semen Straws (Sexed / Conventional)','AI Consumables (Sheaths, Gloves, Lube)','Synchronization Hormones (GnRH, PGF2α)','AI Inseminator Service Charges'] },
-  { label: 'Labor & Salaries', items: ['Milker Wages','Feeder / Shed Worker Wages','Supervisor / Farm Manager Salary','Daily / Temporary Labor','Staff Rations & Living Expenses'] },
-  { label: 'Utilities & Energy', items: ['Grid Electricity (WAPDA)','Generator Fuel (Diesel / Petrol)','Solar System Maintenance & Inverter Servicing','Water Pumping & Borehole Maintenance'] },
-  { label: 'Machinery & Infrastructure', items: ['Milking Machine Liners, Tubes & Oil','Milk Chiller / Cooling Tank Maintenance','Silage Cutter / Feed Mixer Repairs','Tractor Diesel & Servicing','Shed Maintenance & Plumbing Repairs'] },
-  { label: 'Dairy Chemicals & Hygiene', items: ['Acid Cleaner (Milkstone Remover)','Alkaline CIP Detergent','Chlorine / Sanitizer','Teat Dip (Pre & Post Dip)','Shed Disinfectants & Lime Powder'] },
-  { label: 'Bedding, Logistics & Miscellaneous', items: ['Animal Bedding (Sand, Sawdust, Straw)','Milk Transport & Delivery Fuel','Packaging / Milk Cans','Farm Land Lease / Rent','Accounting & Banking Fees'] },
-  { label: 'Custom', items: ['Other'] },
-];
-
-const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: 6, padding: '9px 10px', fontSize: 12, outline: 'none' };
-const panelStyle: React.CSSProperties = { background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: 16, minWidth: 0 };
-const money = (v: number) => `PKR ${v.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function TaxonomySelect({ groups, selected, value, onChange, placeholder }: { groups: Group[]; selected: Set<string>; value: string; onChange: (v: string) => void; placeholder: string }) {
-  return <select value={value} onChange={e => onChange(e.target.value)} style={inputStyle}>
-    <option value="">{placeholder}</option>
-    {groups.map(group => {
-      const available = group.items.filter(item => !selected.has(item));
-      return available.length ? <optgroup key={group.label} label={group.label}>{available.map(item => <option key={item} value={item}>{item}</option>)}</optgroup> : null;
-    })}
-  </select>;
+function money(v:number){return `PKR ${v.toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}`}
+export default function COML({onOutputChange}:COMLProps){
+ const [periodStart,setPeriodStart]=useState(monthStart()),[periodEnd,setPeriodEnd]=useState(today()),[milkProduced,setMilkProduced]=useState(''),[feedRows,setFeedRows]=useState<Line[]>([]),[opexRows,setOpexRows]=useState<Line[]>([]),[result,setResult]=useState<any>(null),[official,setOfficial]=useState<any>(null),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ useEffect(()=>{void loadOfficial()},[]);
+ const loadOfficial=async()=>{try{const response=await fetch(`${API_BASE}/farm/coml/current`);if(response.ok)setOfficial(await response.json())}catch{}}
+ const calculate=async(e?:React.FormEvent)=>{e?.preventDefault();setError('');setMessage('');setResult(null);setLoading(true);try{if(new Date(periodEnd)<new Date(periodStart))throw new Error('Calculation end date must be on or after start date.');if(!(Number(milkProduced)>0))throw new Error('Milk produced must be greater than zero.');const clean=(rows:Line[])=>rows.filter(r=>r.item&&Number(r.quantity)>0&&Number(r.unitRate)>=0).map(r=>({item:r.item,quantity:Number(r.quantity),unit:r.unit,unit_rate:Number(r.unitRate)}));const response=await fetch(`${API_BASE}/farm/coml/calculate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period_start:periodStart,period_end:periodEnd,milk_produced_liters:Number(milkProduced),feed_items:clean(feedRows),operating_items:clean(opexRows)})});const data=await response.json();if(!response.ok)throw new Error(data.detail||'COML calculation failed.');setResult(data);onOutputChange?.({milkProduced:Number(data.milk_produced_liters),feedTotal:Number(data.feed_total),opexTotal:Number(data.operating_total),feedCostPerLiter:Number(data.feed_cost_per_liter),opexCostPerLiter:Number(data.opex_cost_per_liter),costOfMilkProductionPerLiter:Number(data.total_coml_per_liter)});}catch(exc){setError(exc instanceof Error?exc.message:'COML calculation failed.')}finally{setLoading(false)}};
+ const lock=async()=>{if(!result)return;setSaving(true);setError('');setMessage('');try{const response=await fetch(`${API_BASE}/farm/coml/lock`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({month_start:periodStart.slice(0,8)+'01',feed_cost_per_liter:Number(result.feed_cost_per_liter),opex_cost_per_liter:Number(result.opex_cost_per_liter),notes:`Manual calculation ${result.period_start} to ${result.period_end}; ${result.period_days} days.`,updated_by:'UI Operator'})});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Unable to lock COML record.');setOfficial(data);setMessage('COML result persisted and locked as the official monthly record.');}catch(exc){setError(exc instanceof Error?exc.message:'Unable to lock COML record.')}finally{setSaving(false)}};
+ const days=result?.period_days||0;
+ return <div style={{padding:14,color:'#fff',height:'100%',overflowY:'auto',boxSizing:'border-box'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}}><div><h2 style={{margin:'0 0 4px',fontSize:18,color:'#a78bfa',display:'flex',alignItems:'center',gap:7}}><Calculator size={18}/> Cost of Milk Production (COML)</h2><div style={{fontSize:10,color:'#94a3b8'}}>Manual calculator retained as an operator instrument; official monthly COML is persisted by the backend after explicit lock.</div></div><button onClick={()=>void loadOfficial()} style={button('#1e293b')}><RefreshCw size={12}/> Refresh Official</button></div>
+ {error&&<div style={{...panel,borderColor:'#ef4444',color:'#fecaca',fontSize:10,marginBottom:9}}>{error}</div>}{message&&<div style={{...panel,borderColor:'#34d399',color:'#bbf7d0',fontSize:10,marginBottom:9}}>{message}</div>}
+ <form onSubmit={calculate}><section style={{...panel,marginBottom:9}}><div style={{fontSize:11,fontWeight:900,color:'#cbd5e1',marginBottom:8}}>Calculation Period & Production</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7}}><label style={label}>Period Start<input required type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} style={inputStyle}/></label><label style={label}>Period End<input required type="date" value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)} style={inputStyle}/></label><label style={label}>Milk Produced (litres)<input required type="number" min="0.01" step="0.01" value={milkProduced} onChange={e=>setMilkProduced(e.target.value)} placeholder="Total litres for period" style={inputStyle}/></label></div><div style={{fontSize:9,color:'#64748b',marginTop:6}}>Period length is calculated automatically and is part of the result. Enter quantities and per-unit prices/rates below; do not enter unexplained totals.</div></section>
+ <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}><LineTable title="Feed Cost Inputs" rows={feedRows} setRows={setFeedRows} options={FEED} accent="#34d399"/><LineTable title="Operating Cost Inputs" rows={opexRows} setRows={setOpexRows} options={OPEX} accent="#f59e0b"/></div>
+ <button disabled={loading} type="submit" style={{...button('#7c3aed'),width:'100%',justifyContent:'center',marginTop:9}}>{loading?'Calculating…':'Calculate COML from Defined Inputs'}</button></form>
+ {result&&<section style={{...panel,marginTop:9}}><div style={{fontSize:11,fontWeight:900,marginBottom:8}}>Calculated Result — {result.period_start} to {result.period_end} ({days} days)</div><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7}}><Metric title="Feed Cost" value={money(Number(result.feed_total))}/><Metric title="OPEX" value={money(Number(result.operating_total))}/><Metric title="Feed Cost / L" value={money(Number(result.feed_cost_per_liter))}/><Metric title="COML / L" value={money(Number(result.total_coml_per_liter))}/></div><div style={{marginTop:8,display:'flex',justifyContent:'flex-end'}}><button disabled={saving} onClick={()=>void lock()} style={button('#059669')}><Lock size={12}/>{saving?'Locking…':'Lock Official Monthly COML'}</button></div></section>}
+ {official&&<section style={{...panel,marginTop:9,borderColor:'#22c55e'}}><div style={{fontSize:11,fontWeight:900,color:'#86efac'}}>Official Backend COML</div><div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>{official.month_label||official.record?.month_label||'Current month'} · Status: {official.record?.status||official.status||'UNKNOWN'}</div>{official.record&&<div style={{marginTop:7,fontSize:11}}>Feed/L: <strong>{money(Number(official.record.feed_cost_per_liter))}</strong> · OPEX/L: <strong>{money(Number(official.record.opex_cost_per_liter))}</strong> · COML/L: <strong>{money(Number(official.record.total_coml_per_liter))}</strong></div>}</section>}
+ </div>;
 }
-
-function Rows({ rows, accent, remove }: { rows: CostRow[]; accent: string; remove: (id: string) => void }) {
-  if (!rows.length) return <div style={{ marginTop: 12, padding: 18, textAlign: 'center', borderTop: '1px solid #1f2937', color: '#64748b', fontSize: 11 }}>No entries added yet.</div>;
-  return <div style={{ marginTop: 12, borderTop: '1px solid #1f2937' }}>{rows.map(row => <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #1a2234' }}>
-    <div style={{ flex: 1, minWidth: 0, color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>{row.item}</div>
-    <div style={{ color: accent, fontSize: 12, fontWeight: 900, whiteSpace: 'nowrap' }}>{money(row.cost)}</div>
-    <button type="button" onClick={() => remove(row.id)} title="Remove entry" style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid #334155', background: '#1e293b', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={12} /></button>
-  </div>)}</div>;
-}
-
-function Metric({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
-  return <div style={{ ...panelStyle, borderLeft: `4px solid ${accent}`, minHeight: 86 }}>
-    <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>{title}</div>
-    <div style={{ fontSize: 19, fontWeight: 900, color: accent, marginTop: 8 }}>{children}</div>
-  </div>;
-}
-
-function monthKey() {
-  return new Date().toISOString().slice(0, 7);
-}
-
-function publishMonthlyOutput(output: COMLOutput) {
-  const month = monthKey();
-  const stored: Record<string, StoredMonthlyOutput> = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(COML_STORAGE_KEY) || '{}') as Record<string, StoredMonthlyOutput>;
-    } catch {
-      return {};
-    }
-  })();
-
-  stored[month] = { month, ...output };
-  localStorage.setItem(COML_STORAGE_KEY, JSON.stringify(stored));
-
-  window.dispatchEvent(new CustomEvent(COML_EVENT, { detail: stored[month] }));
-}
-
-export default function COML({ onOutputChange }: COMLProps) {
-  const [milkProduced, setMilkProduced] = useState('');
-  const [feedItem, setFeedItem] = useState('');
-  const [feedCostInput, setFeedCostInput] = useState('');
-  const [opexItem, setOpexItem] = useState('');
-  const [opexCostInput, setOpexCostInput] = useState('');
-  const [feedRows, setFeedRows] = useState<CostRow[]>([]);
-  const [opexRows, setOpexRows] = useState<CostRow[]>([]);
-
-  const selectedFeed = useMemo(() => new Set(feedRows.map(r => r.item)), [feedRows]);
-  const selectedOpex = useMemo(() => new Set(opexRows.map(r => r.item)), [opexRows]);
-  const feedTotal = useMemo(() => feedRows.reduce((s, r) => s + r.cost, 0), [feedRows]);
-  const opexTotal = useMemo(() => opexRows.reduce((s, r) => s + r.cost, 0), [opexRows]);
-  const litres = Math.max(0, Number(milkProduced) || 0);
-  const feedPerL = litres > 0 ? feedTotal / litres : 0;
-  const opexPerL = litres > 0 ? opexTotal / litres : 0;
-  const comlPerL = feedPerL + opexPerL;
-
-  useEffect(() => {
-    const output: COMLOutput = {
-      milkProduced: litres,
-      feedTotal,
-      opexTotal,
-      feedCostPerLiter: feedPerL,
-      opexCostPerLiter: opexPerL,
-      costOfMilkProductionPerLiter: comlPerL,
-    };
-
-    publishMonthlyOutput(output);
-    onOutputChange?.(output);
-  }, [onOutputChange, litres, feedTotal, opexTotal, feedPerL, opexPerL, comlPerL]);
-
-  const addFeed = () => {
-    const cost = Number(feedCostInput);
-    if (!feedItem || !Number.isFinite(cost) || cost < 0) return;
-    setFeedRows(rows => [...rows, { id: `feed-${Date.now()}-${Math.random()}`, item: feedItem, cost }]);
-    setFeedItem(''); setFeedCostInput('');
-  };
-
-  const addOpex = () => {
-    const cost = Number(opexCostInput);
-    if (!opexItem || !Number.isFinite(cost) || cost < 0) return;
-    setOpexRows(rows => [...rows, { id: `opex-${Date.now()}-${Math.random()}`, item: opexItem, cost }]);
-    setOpexItem(''); setOpexCostInput('');
-  };
-
-  return <div style={{ padding: 20, color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-    <div style={{ marginBottom: 16 }}>
-      <h2 style={{ margin: '0 0 4px 0', fontSize: 18, color: '#34d399' }}>Cost of Production/Liter</h2>
-      <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>Independent manual cost calculator.</p>
-    </div>
-
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-      <Metric title="Milk Produced" accent="#38bdf8"><input type="number" min="0" step="0.01" value={milkProduced} onChange={e => setMilkProduced(e.target.value)} placeholder="Litres" style={{ ...inputStyle, marginTop: 7, fontSize: 16, fontWeight: 900 }} /></Metric>
-      <Metric title="Feed Cost/Liter" accent="#34d399">{money(feedPerL)}</Metric>
-      <Metric title="Operational Expenses/Liter" accent="#f59e0b">{money(opexPerL)}</Metric>
-      <Metric title="Cost of Milk Production/Liter" accent="#a78bfa">{money(comlPerL)}</Metric>
-    </div>
-
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
-      <section style={panelStyle}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#34d399' }}>Feed Cost Calculator</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px auto', gap: 8, alignItems: 'end' }}>
-          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Feed Item<div style={{ marginTop: 5 }}><TaxonomySelect groups={FEED_GROUPS} selected={selectedFeed} value={feedItem} onChange={setFeedItem} placeholder="Select feed item" /></div></label>
-          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cost<input type="number" min="0" step="0.01" value={feedCostInput} onChange={e => setFeedCostInput(e.target.value)} placeholder="PKR" style={{ ...inputStyle, marginTop: 5 }} /></label>
-          <button type="button" onClick={addFeed} disabled={!feedItem || feedCostInput === ''} style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, opacity: !feedItem || feedCostInput === '' ? 0.45 : 1 }}><Plus size={12} /> Add</button>
-        </div>
-        <Rows rows={feedRows} accent="#34d399" remove={id => setFeedRows(rows => rows.filter(r => r.id !== id))} />
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Feed Total</span><span style={{ color: '#34d399', fontSize: 16, fontWeight: 900 }}>{money(feedTotal)}</span></div>
-      </section>
-
-      <section style={panelStyle}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#f59e0b' }}>Operational Cost Calculator</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px auto', gap: 8, alignItems: 'end' }}>
-          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Operating Expense<div style={{ marginTop: 5 }}><TaxonomySelect groups={OPEX_GROUPS} selected={selectedOpex} value={opexItem} onChange={setOpexItem} placeholder="Select operating expense" /></div></label>
-          <label style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cost<input type="number" min="0" step="0.01" value={opexCostInput} onChange={e => setOpexCostInput(e.target.value)} placeholder="PKR" style={{ ...inputStyle, marginTop: 5 }} /></label>
-          <button type="button" onClick={addOpex} disabled={!opexItem || opexCostInput === ''} style={{ background: '#d97706', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, opacity: !opexItem || opexCostInput === '' ? 0.45 : 1 }}><Plus size={12} /> Add</button>
-        </div>
-        <Rows rows={opexRows} accent="#f59e0b" remove={id => setOpexRows(rows => rows.filter(r => r.id !== id))} />
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Operational Total</span><span style={{ color: '#f59e0b', fontSize: 16, fontWeight: 900 }}>{money(opexTotal)}</span></div>
-      </section>
-    </div>
-  </div>;
-}
+const label:React.CSSProperties={fontSize:9,color:'#94a3b8',display:'block',fontWeight:800,textTransform:'uppercase'};
+function Metric({title,value}:{title:string;value:string}){return <div style={{background:'#0f172a',border:'1px solid #1f2937',borderRadius:6,padding:9}}><div style={{fontSize:8,color:'#64748b',textTransform:'uppercase',fontWeight:800}}>{title}</div><div style={{fontSize:15,fontWeight:900,color:'#a78bfa',marginTop:3}}>{value}</div></div>}
