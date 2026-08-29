@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import json
 import pytest
 
 from dairyos.admin.service import AdminService, RESET_CONFIRMATION
@@ -19,7 +20,10 @@ class FakeManager:
 
     def backup(self, label="pre-change"):
         self.calls.append(("backup", label))
-        return self.tmp_path / label
+        path = self.tmp_path / label
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "backup.json").write_text(json.dumps({"files": []}), encoding="utf-8")
+        return path
 
     def rollback(self, backup):
         self.calls.append(("rollback", backup))
@@ -54,6 +58,6 @@ def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
     manager = FakeManager(tmp_path)
     manager.database_url = "postgresql+psycopg://example"
     monkeypatch.setattr(manager, "validate", lambda require_database=True: {"valid": True})
-    with pytest.raises(LifecycleError, match="Backup manifest is missing"):
+    with pytest.raises(LifecycleError, match="PostgreSQL backup"):
         AdminService(manager).reset(RESET_CONFIRMATION)
     assert manager.calls == [("backup", "pre-reset")]
