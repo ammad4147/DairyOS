@@ -10,6 +10,7 @@ from sqlalchemy.engine import make_url
 
 
 COMMAND_TIMEOUT_SECONDS = 120
+LOCK_WAIT_TIMEOUT = "15s"
 
 
 class PostgreSQLBackupError(RuntimeError):
@@ -54,7 +55,11 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _run_postgresql_command(command: list[str], env: dict[str, str], operation: str) -> subprocess.CompletedProcess[str]:
+def _run_postgresql_command(
+    command: list[str],
+    env: dict[str, str],
+    operation: str,
+) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             command,
@@ -79,6 +84,8 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
         _tool("pg_dump"),
         "--format=custom",
         "--no-owner",
+        f"--lock-wait-timeout={LOCK_WAIT_TIMEOUT}",
+        "--verbose",
         *args,
         "--file",
         str(destination),
@@ -86,7 +93,8 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
     completed = _run_postgresql_command(command, env, "pg_dump")
     if completed.returncode != 0:
         destination.unlink(missing_ok=True)
-        raise PostgreSQLBackupError(completed.stderr.strip() or "pg_dump failed")
+        detail = completed.stderr.strip() or completed.stdout.strip() or "pg_dump failed"
+        raise PostgreSQLBackupError(detail)
     if not destination.is_file() or destination.stat().st_size == 0:
         raise PostgreSQLBackupError("pg_dump completed without producing a backup artifact.")
     return destination
@@ -104,12 +112,15 @@ def restore_backup(database_url: str, backup: str | Path) -> None:
         "--no-owner",
         "--clean",
         "--if-exists",
+        f"--lock-wait-timeout={LOCK_WAIT_TIMEOUT}",
+        "--verbose",
         *args,
         str(backup),
     ]
     completed = _run_postgresql_command(command, env, "pg_restore")
     if completed.returncode != 0:
-        raise PostgreSQLBackupError(completed.stderr.strip() or "pg_restore failed")
+        detail = completed.stderr.strip() or completed.stdout.strip() or "pg_restore failed"
+        raise PostgreSQLBackupError(detail)
 
 
 def verify_backup_artifact(backup: str | Path) -> dict[str, int | str]:
