@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.pool import NullPool
 
 from dairyos.lifecycle.manager import LifecycleError
 
@@ -38,12 +39,13 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
     snapshot before invoking this function.
 
     The preserved ``app_settings`` table is updated directly through the same
-    SQL transaction as the operational-table truncation. This keeps the
-    destructive lifecycle boundary independent of ORM transaction semantics.
-    PostgreSQL lock and statement timeouts are explicit so a live production
-    blocker fails closed rather than leaving an administrative Reset hanging.
+    SQL transaction as the operational-table truncation. The reset engine uses
+    ``NullPool`` so no connection is retained after the lifecycle operation.
+    The destructive statement targets only the explicitly non-preserved tables;
+    it deliberately does not use ``CASCADE`` because preserved tables must
+    never be deleted implicitly by Reset.
     """
-    engine = create_engine(database_url)
+    engine = create_engine(database_url, poolclass=NullPool)
     try:
         inspector = inspect(engine)
         tables = tuple(
@@ -55,8 +57,8 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
         )
 
         with engine.begin() as connection:
-            connection.execute(sa.text("SET LOCAL lock_timeout = :timeout"), {"timeout": RESET_LOCK_TIMEOUT})
-            connection.execute(sa.text("SET LOCAL statement_timeout = :timeout"), {"timeout": RESET_STATEMENT_TIMEOUT})
+            connection.execute(sa.text("SET LOCAL lock_timeout = '10s'"))
+            connection.execute(sa.text("SET LOCAL statement_timeout = '60s'"))
 
             connection.execute(
                 sa.text(
@@ -79,7 +81,7 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
                 )
                 connection.execute(
                     sa.text(
-                        f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"
+                        f"TRUNCATE TABLE {quoted} RESTART IDENTITY"
                     )
                 )
 
@@ -100,7 +102,7 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
 
 def verify_zero_state(database_url: str) -> dict[str, int]:
     """Return non-preserved tables that still contain rows."""
-    engine = create_engine(database_url)
+    engine = create_engine(database_url, poolclass=NullPool)
     try:
         remaining: dict[str, int] = {}
         inspector = inspect(engine)
