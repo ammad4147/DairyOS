@@ -154,19 +154,27 @@ def migrate_if_needed() -> MigrationResult:
             migration_context = MigrationContext.configure(connection)
             current = tuple(sorted(migration_context.get_current_heads()))
             target = tuple(sorted(script.get_heads()))
-
-            if current == target:
-                return MigrationResult(False, current, target)
-
             application_tables = _public_application_table_count(connection)
 
-            if not current and application_tables == 0:
+            if application_tables == 0:
                 try:
                     inspect_startup_integrity(application_tables=0)
                 except StartupIntegrityError as exc:
                     raise MigrationGateError(str(exc)) from exc
-                _bootstrap_empty_database(connection, config, target)
-                return MigrationResult(True, current, target, None)
+
+                if current == target:
+                    raise MigrationGateError(
+                        "DairyOS database reports the packaged migration head but contains no "
+                        "application tables. Startup is blocked because farm data may have been "
+                        "removed or the database is otherwise inconsistent. Data recovery is required."
+                    )
+
+                if not current:
+                    _bootstrap_empty_database(connection, config, target)
+                    return MigrationResult(True, current, target, None)
+
+            if current == target:
+                return MigrationResult(False, current, target)
 
             if not current:
                 raise MigrationGateError(
