@@ -14,6 +14,21 @@ from dairyos.platform.knowledge_graph.services.animal_passport_graph_service imp
 class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
     """Use animal-scoped repository queries for history collections."""
 
+    @staticmethod
+    def _single_animal(repository, animal_id: str):
+        """Resolve a repository lookup that may return one record or a list."""
+        result = repository.get_by_animal_id(animal_id)
+        if isinstance(result, (list, tuple)):
+            return next(
+                (
+                    record
+                    for record in result
+                    if str(getattr(record, "animal_id", "")) == animal_id
+                ),
+                None,
+            )
+        return result
+
     def _health_projection(self, animal_id: str, as_of_date: date):
         observations = self._through_date(self.factory.health().get_by_animal_id(animal_id), as_of_date)
         cases = self._through_date(self.factory.health_cases().get_by_animal(animal_id), as_of_date)
@@ -38,7 +53,7 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
         }
 
     def build(self, animal_id: str, as_of_date: date | None = None):
-        animal = self.factory.animal().get_by_animal_id(animal_id)
+        animal = self._single_animal(self.factory.animal(), animal_id)
         if animal is None:
             return None
 
