@@ -15,8 +15,15 @@ def get_dashboard(
     """Return the established dashboard contract from its projection service."""
     payload = container.dashboard_projection_service.project_api_contract(container)
 
-    active_animals = container.repository_factory.animal().active_animals()
-    finance_rows = container.repository_factory.finance().get_all()
+    # The RuntimeContainer exposes the exact repository instance owned by the
+    # ApplicationRuntime. Dashboard must not reacquire another repository
+    # instance from RepositoryFactory, or a disposition made through the
+    # authoritative Animals surface can be invisible here until refresh/rebind.
+    animal_repository = container.animal_repository
+    finance_repository = container.finance_repository if hasattr(container, "finance_repository") else container.repository_factory.finance()
+
+    active_animals = animal_repository.active_animals()
+    finance_rows = finance_repository.get_all()
     receivables = sum(
         float(row.amount or 0)
         for row in finance_rows
