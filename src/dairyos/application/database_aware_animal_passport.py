@@ -3,8 +3,8 @@
 The application-wide Passport build pipeline is owned by
 ``LifetimeAnimalPassportService``. This module remains only so established
 imports continue to work while cross-domain projections such as the
-Knowledge Graph and persisted animal-welfare observations are attached to
-the canonical Passport read model.
+Knowledge Graph, persisted animal-welfare observations, and normalized
+operational-event linkage are attached to the canonical Passport read model.
 """
 
 from __future__ import annotations
@@ -20,6 +20,55 @@ from dairyos.platform.knowledge_graph.services.animal_passport_graph_service imp
 
 class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
     """Backward-compatible Passport service with database projections."""
+
+    @staticmethod
+    def _event_matches_animal(event, animal_id: str) -> bool:
+        target = str(animal_id)
+        for key in ("animal_id", "entity_id"):
+            value = getattr(event, key, None)
+            if value is not None and str(value) == target:
+                return True
+
+        payload = getattr(event, "payload", None)
+        if isinstance(payload, dict):
+            for key in ("animal_id", "entity_id", "animalId", "entityId"):
+                value = payload.get(key)
+                if value is not None and str(value) == target:
+                    return True
+
+        description = str(getattr(event, "description", ""))
+        return (
+            f"entity_id={target}" in description
+            or f"animal_id={target}" in description
+        )
+
+    @staticmethod
+    def _event_date(event):
+        for key in ("event_date", "timestamp", "created_at", "updated_at"):
+            value = getattr(event, key, None)
+            if isinstance(value, datetime):
+                return value.date()
+            if isinstance(value, date):
+                return value
+            if value:
+                try:
+                    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+                except ValueError:
+                    continue
+        return None
+
+    def _operational_event_projection(self, animal_id: str, as_of_date: date | None):
+        events = []
+        for event in self.factory.operational_events().get_all():
+            if not self._event_matches_animal(event, animal_id):
+                continue
+            event_date = self._event_date(event)
+            if as_of_date is not None and (
+                event_date is None or event_date > as_of_date
+            ):
+                continue
+            events.append(event)
+        return events
 
     def _welfare_projection(self, animal_id: str, as_of_date: date | None):
         session = getattr(self.factory, "session", None)
@@ -65,6 +114,22 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
         passport = super().build(animal_id, as_of_date=as_of_date)
         if passport is None:
             return None
+
+        operational_events = self._operational_event_projection(animal_id, as_of_date)
+        passport["history"]["operational_events"] = [
+            self._serialize(item) for item in operational_events
+        ]
+        passport["record_counts"]["operational_events"] = len(operational_events)
+        passport["timeline"] = [
+            {
+                "domain": domain,
+                "timestamp": self._record_timestamp(record),
+                "record": record,
+            }
+            for domain, records in passport["history"].items()
+            for record in records
+        ]
+        passport["timeline"].sort(key=lambda item: str(item["timestamp"]))
 
         welfare = self._welfare_projection(animal_id, as_of_date)
         health_state = passport.setdefault("health_state", {})
