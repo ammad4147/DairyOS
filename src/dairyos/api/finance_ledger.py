@@ -99,6 +99,7 @@ def _row_dict(row: FinancialTransaction) -> dict:
         "currency": row.currency,
         "due_date": row.due_date.isoformat() if row.due_date else None,
         "settled_date": row.settled_date.isoformat() if row.settled_date else None,
+        "payroll_record_id": getattr(row, "payroll_record_id", None),
     }
 
 
@@ -324,54 +325,62 @@ def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit, c
         row.notes = payload.notes
     row.status = status
     row.due_date = due_date
-    row.settled_date = date.today() if status in SETTLED_STATUSES else None
-    return _row_dict(repository.add(row))
+    if status in SETTLED_STATUSES and row.settled_date is None:
+        row.settled_date = date.today()
+    if status not in SETTLED_STATUSES:
+        row.settled_date = None
+
+    repository.add(row)
+    return _row_dict(row)
 
 
-@router.get("/payables")
-def list_payables(container=Depends(get_container)):
+@router.delete("/{transaction_id}")
+def delete_finance_ledger_entry(transaction_id: int, container=Depends(get_container)):
     factory = _factory(container)
-    rows = factory.finance().get_all()
-    return _ageing_payload([row for row in rows if row.status == "PAYABLE"])
+    repository = factory.finance()
+    try:
+        repository.delete(transaction_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/{transaction_id}/status")
-def update_finance_status(transaction_id: int, payload: FinanceStatusUpdate, container=Depends(get_container)):
+def update_finance_ledger_status(transaction_id: int, payload: FinanceStatusUpdate, container=Depends(get_container)):
     factory = _factory(container)
     repository = factory.finance()
     row = repository.get_by_id(transaction_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Financial transaction not found.")
-    current_status = (row.status or "RECORDED").strip().upper()
-    status = _validate_transition(current_status, payload.status)
-    if current_status in SETTLED_STATUSES:
-        if status == current_status and payload.reason is None and payload.due_date is None:
-            return _row_dict(row)
-        raise HTTPException(status_code=409, detail=f"Settled transactions in {current_status} state are immutable.")
+    status = _validate_transition(row.status, payload.status)
     _require_void_reason(status, payload.reason)
-    due_date = payload.due_date if payload.due_date is not None else row.due_date
-    transaction_date = row.transaction_date.date() if row.transaction_date else None
-    _validate_dates(transaction_date, due_date)
-    if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
+    if payload.due_date is not None:
+        transaction_date = row.transaction_date.date() if row.transaction_date else None
+        _validate_dates(transaction_date, payload.due_date)
+        row.due_date = payload.due_date
+    if status in {"PAYABLE", "RECEIVABLE"} and row.due_date is None:
         raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
     row.status = status
-    row.due_date = due_date
     row.settled_date = date.today() if status in SETTLED_STATUSES else None
     if payload.reason:
-        row.notes = f"{row.notes or ''}\n[{status}] {payload.reason}".strip()
-    return _row_dict(repository.add(row))
+        stamp = datetime.utcnow().isoformat()
+        row.notes = f"{row.notes or ''}\nSTATUS_TRANSITION_AT={stamp} REASON={payload.reason.strip()}".strip()
+    repository.add(row)
+    return _row_dict(row)
 
 
-@router.get("/taxonomy")
-def finance_taxonomy():
-    return {
-        "master_categories": sorted(MASTER_CATEGORIES),
-        "taxonomies": GOVERNED["finance_expense_taxonomy"],
-        "items": {master: all_items(master) for master in sorted(MASTER_CATEGORIES)},
-    }
-
-
-@router.get("/cost-of-production")
-def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366), container=Depends(get_container)):
+@router.get("/ageing")
+def finance_ledger_ageing(container=Depends(get_container)):
     factory = _factory(container)
-    return FeedOpexCostService().evaluate(factory.milk().get_all(), factory.finance().get_all(), days=days)
+    rows = factory.finance().get_all()
+    return _ageing_payload(rows)
+
+
+@router.get("/profitability/feed-opex")
+def feed_opex_profitability(
+    period_start: date = Query(...),
+    period_end: date = Query(...),
+    container=Depends(get_container),
+):
+    if period_end < period_start:
+        raise HTTPException(status_code=422, detail="period_end cannot be earlier than period_start.")
+    return FeedOpexCostService(container).calculate(period_start, period_end)
