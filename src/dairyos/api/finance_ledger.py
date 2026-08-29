@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import MASTER_CATEGORIES, all_items, legacy_category, valid_item
 from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
@@ -148,10 +148,7 @@ def _validate_transition(current_status: str | None, requested_status: str) -> s
         raise HTTPException(status_code=422, detail="Unsupported financial status.")
     allowed = ALLOWED_STATUS_TRANSITIONS.get(current, frozenset())
     if requested not in allowed:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Invalid financial status transition: {current} -> {requested}.",
-        )
+        raise HTTPException(status_code=409, detail=f"Invalid financial status transition: {current} -> {requested}.")
     return requested
 
 
@@ -195,44 +192,37 @@ def _ageing_payload(rows: list[FinancialTransaction]) -> dict:
         "overdue_total": overdue,
         "count": len(outstanding),
         "ageing_buckets": buckets,
-        "supplier_rollup": [
-            {"supplier": supplier, "outstanding": amount}
-            for supplier, amount in sorted(suppliers.items(), key=lambda item: item[1], reverse=True)
-        ],
+        "supplier_rollup": [{"supplier": supplier, "outstanding": amount} for supplier, amount in sorted(suppliers.items(), key=lambda item: item[1], reverse=True)],
         "transactions": [
-            {
-                **_row_dict(row),
-                "days_overdue": max(0, (as_of - row.due_date).days) if row.due_date else None,
-                "age_bucket": _age_bucket(row.due_date, as_of),
-            }
+            {**_row_dict(row), "days_overdue": max(0, (as_of - row.due_date).days) if row.due_date else None, "age_bucket": _age_bucket(row.due_date, as_of)}
             for row in sorted(outstanding, key=lambda item: (item.due_date or date.max, item.transaction_date or datetime.min))
         ],
     }
 
 
+def _factory(container):
+    factory = getattr(container, "repository_factory", None)
+    if factory is None:
+        raise HTTPException(status_code=503, detail="Canonical repository factory is not available")
+    return factory
+
+
 @router.get("")
-def list_finance_ledger():
-    factory = RepositoryFactory.create()
-    try:
-        rows = factory.finance().get_all()
-        return {
-            "data_status": "LIVE_PERSISTED_DATA",
-            "transactions": [
-                _row_dict(row)
-                for row in sorted(rows, key=lambda r: r.transaction_date or datetime.min, reverse=True)
-            ],
-        }
-    finally:
-        factory.close()
+def list_finance_ledger(container=Depends(get_container)):
+    factory = _factory(container)
+    rows = factory.finance().get_all()
+    return {
+        "data_status": "LIVE_PERSISTED_DATA",
+        "transactions": [_row_dict(row) for row in sorted(rows, key=lambda r: r.transaction_date or datetime.min, reverse=True)],
+    }
 
 
 @router.post("")
-def create_finance_ledger_entry(entry: FinanceLedgerEntry):
+def create_finance_ledger_entry(entry: FinanceLedgerEntry, container=Depends(get_container)):
     transaction_type = classifier.normalize_transaction_type(entry.transaction_type)
     if transaction_type not in GOVERNED["financial_transaction_types"]:
         raise HTTPException(status_code=422, detail="Unsupported transaction_type.")
     amount, legacy_category_value = _validate_expense_payload(entry, transaction_type)
-
     if entry.payment_method is not None and entry.payment_method not in GOVERNED["payment_types"]:
         raise HTTPException(status_code=422, detail="Unsupported payment_method.")
     status = entry.status.strip().upper()
@@ -241,165 +231,135 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry):
     _validate_dates(entry.transaction_date, entry.due_date)
     if status in {"PAYABLE", "RECEIVABLE"} and entry.due_date is None:
         raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
-
     if transaction_type in classifier.EXPENSE_TYPES:
         category_value = legacy_category_value or "OTHER_OPERATING"
     else:
         category_value = entry.category or ("MILK_SALES" if transaction_type in classifier.INCOME_TYPES else "OTHER_OPERATING")
 
-    factory = RepositoryFactory.create()
-    try:
-        transaction = FinancialTransaction(
-            transaction_type=transaction_type,
-            category=category_value,
-            amount=amount,
-            reference=entry.reference or entry.counterparty or entry.notes or "",
-            payment_method=entry.payment_method,
-            counterparty=entry.counterparty,
-            notes=entry.notes,
-            currency=entry.currency,
-            status=status,
-            master_category=entry.master_category if transaction_type in classifier.EXPENSE_TYPES else None,
-            sub_category=entry.sub_category if transaction_type in classifier.EXPENSE_TYPES else None,
-            custom_specification=entry.custom_specification if transaction_type in classifier.EXPENSE_TYPES else None,
-            quantity=entry.quantity if transaction_type in classifier.EXPENSE_TYPES else None,
-            unit=entry.unit if transaction_type in classifier.EXPENSE_TYPES else None,
-            unit_rate=entry.unit_rate if transaction_type in classifier.EXPENSE_TYPES else None,
-            due_date=entry.due_date,
-            settled_date=date.today() if status in SETTLED_STATUSES else None,
-        )
-        if entry.transaction_date is not None:
-            transaction.transaction_date = datetime.combine(entry.transaction_date, datetime.min.time())
-        saved = factory.finance().add(transaction)
-        return _row_dict(saved)
-    finally:
-        factory.close()
+    factory = _factory(container)
+    transaction = FinancialTransaction(
+        transaction_type=transaction_type,
+        category=category_value,
+        amount=amount,
+        reference=entry.reference or entry.counterparty or entry.notes or "",
+        payment_method=entry.payment_method,
+        counterparty=entry.counterparty,
+        notes=entry.notes,
+        currency=entry.currency,
+        status=status,
+        master_category=entry.master_category if transaction_type in classifier.EXPENSE_TYPES else None,
+        sub_category=entry.sub_category if transaction_type in classifier.EXPENSE_TYPES else None,
+        custom_specification=entry.custom_specification if transaction_type in classifier.EXPENSE_TYPES else None,
+        quantity=entry.quantity if transaction_type in classifier.EXPENSE_TYPES else None,
+        unit=entry.unit if transaction_type in classifier.EXPENSE_TYPES else None,
+        unit_rate=entry.unit_rate if transaction_type in classifier.EXPENSE_TYPES else None,
+        due_date=entry.due_date,
+        settled_date=date.today() if status in SETTLED_STATUSES else None,
+    )
+    if entry.transaction_date is not None:
+        transaction.transaction_date = datetime.combine(entry.transaction_date, datetime.min.time())
+    return _row_dict(factory.finance().add(transaction))
 
 
 @router.patch("/{transaction_id}")
-def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit):
-    factory = RepositoryFactory.create()
-    try:
-        row = factory.finance().get_by_id(transaction_id)
-        if row is None:
-            raise HTTPException(status_code=404, detail="Financial transaction not found.")
+def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit, container=Depends(get_container)):
+    factory = _factory(container)
+    repository = factory.finance()
+    row = repository.get_by_id(transaction_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Financial transaction not found.")
+    current_status = (row.status or "RECORDED").strip().upper()
+    if current_status == "VOID":
+        raise HTTPException(status_code=409, detail="VOID transactions cannot be edited.")
+    if current_status in SETTLED_STATUSES:
+        supplied_fields = set(payload.model_dump(exclude_unset=True))
+        if supplied_fields:
+            raise HTTPException(status_code=409, detail=f"Settled transactions in {current_status} state are immutable; create a governed correction entry instead.")
+        return _row_dict(row)
 
-        current_status = (row.status or "RECORDED").strip().upper()
-        if current_status == "VOID":
-            raise HTTPException(status_code=409, detail="VOID transactions cannot be edited.")
-        if current_status in SETTLED_STATUSES:
-            supplied_fields = set(payload.model_dump(exclude_unset=True))
-            if supplied_fields:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Settled transactions in {current_status} state are immutable; create a governed correction entry instead.",
-                )
-            return _row_dict(row)
+    transaction_type = classifier.normalize_transaction_type(row.transaction_type)
+    if transaction_type in classifier.EXPENSE_TYPES:
+        master = payload.master_category if payload.master_category is not None else row.master_category
+        sub = payload.sub_category if payload.sub_category is not None else row.sub_category
+        custom = payload.custom_specification if payload.custom_specification is not None else row.custom_specification
+        values = payload.model_dump(exclude_unset=True)
+        values.update({"master_category": master, "sub_category": sub, "custom_specification": custom, "quantity": payload.quantity if payload.quantity is not None else row.quantity, "unit": payload.unit if payload.unit is not None else row.unit, "unit_rate": payload.unit_rate if payload.unit_rate is not None else row.unit_rate, "amount": payload.amount if payload.amount is not None else row.amount})
+        temp = FinanceLedgerEdit(**values)
+        amount, legacy_category_value = _validate_expense_payload(temp, transaction_type)
+        row.master_category = master
+        row.sub_category = sub
+        row.custom_specification = custom
+        row.quantity = temp.quantity
+        row.unit = temp.unit
+        row.unit_rate = temp.unit_rate
+        row.category = legacy_category_value or row.category
+    else:
+        amount = payload.amount if payload.amount is not None else row.amount
+        if amount <= 0:
+            raise HTTPException(status_code=422, detail="amount must be greater than zero.")
 
-        transaction_type = classifier.normalize_transaction_type(row.transaction_type)
-        if transaction_type in classifier.EXPENSE_TYPES:
-            master = payload.master_category if payload.master_category is not None else row.master_category
-            sub = payload.sub_category if payload.sub_category is not None else row.sub_category
-            custom = payload.custom_specification if payload.custom_specification is not None else row.custom_specification
-            values = payload.model_dump(exclude_unset=True)
-            values.update({
-                "master_category": master,
-                "sub_category": sub,
-                "custom_specification": custom,
-                "quantity": payload.quantity if payload.quantity is not None else row.quantity,
-                "unit": payload.unit if payload.unit is not None else row.unit,
-                "unit_rate": payload.unit_rate if payload.unit_rate is not None else row.unit_rate,
-                "amount": payload.amount if payload.amount is not None else row.amount,
-            })
-            temp = FinanceLedgerEdit(**values)
-            amount, legacy_category_value = _validate_expense_payload(temp, transaction_type)
-            row.master_category = master
-            row.sub_category = sub
-            row.custom_specification = custom
-            row.quantity = temp.quantity
-            row.unit = temp.unit
-            row.unit_rate = temp.unit_rate
-            row.category = legacy_category_value or row.category
-        else:
-            amount = payload.amount if payload.amount is not None else row.amount
-            if amount <= 0:
-                raise HTTPException(status_code=422, detail="amount must be greater than zero.")
+    transaction_date = payload.transaction_date or (row.transaction_date.date() if row.transaction_date else None)
+    due_date = payload.due_date if payload.due_date is not None else row.due_date
+    _validate_dates(transaction_date, due_date)
+    status = _validate_transition(current_status, payload.status if payload.status else current_status)
+    _require_void_reason(status, payload.notes)
+    if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
+        raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
 
-        transaction_date = payload.transaction_date or (row.transaction_date.date() if row.transaction_date else None)
-        due_date = payload.due_date if payload.due_date is not None else row.due_date
-        _validate_dates(transaction_date, due_date)
-        status = _validate_transition(current_status, payload.status if payload.status else current_status)
-        _require_void_reason(status, payload.notes)
-        if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
-            raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
-
-        if payload.category is not None and transaction_type not in classifier.EXPENSE_TYPES:
-            row.category = payload.category
-        if payload.transaction_date is not None:
-            row.transaction_date = datetime.combine(payload.transaction_date, datetime.min.time())
-        if payload.amount is not None or transaction_type in classifier.EXPENSE_TYPES:
-            row.amount = amount
-        if payload.payment_method is not None:
-            if payload.payment_method not in GOVERNED["payment_types"]:
-                raise HTTPException(status_code=422, detail="Unsupported payment_method.")
-            row.payment_method = payload.payment_method
-        if payload.counterparty is not None:
-            row.counterparty = payload.counterparty
-        if payload.reference is not None:
-            row.reference = payload.reference
-        if payload.notes is not None:
-            row.notes = payload.notes
-        row.status = status
-        row.due_date = due_date
-        row.settled_date = date.today() if status in SETTLED_STATUSES else None
-
-        saved = factory.finance().add(row)
-        return _row_dict(saved)
-    finally:
-        factory.close()
+    if payload.category is not None and transaction_type not in classifier.EXPENSE_TYPES:
+        row.category = payload.category
+    if payload.transaction_date is not None:
+        row.transaction_date = datetime.combine(payload.transaction_date, datetime.min.time())
+    if payload.amount is not None or transaction_type in classifier.EXPENSE_TYPES:
+        row.amount = amount
+    if payload.payment_method is not None:
+        if payload.payment_method not in GOVERNED["payment_types"]:
+            raise HTTPException(status_code=422, detail="Unsupported payment_method.")
+        row.payment_method = payload.payment_method
+    if payload.counterparty is not None:
+        row.counterparty = payload.counterparty
+    if payload.reference is not None:
+        row.reference = payload.reference
+    if payload.notes is not None:
+        row.notes = payload.notes
+    row.status = status
+    row.due_date = due_date
+    row.settled_date = date.today() if status in SETTLED_STATUSES else None
+    return _row_dict(repository.add(row))
 
 
 @router.get("/payables")
-def list_payables():
-    factory = RepositoryFactory.create()
-    try:
-        rows = factory.finance().get_all()
-        return _ageing_payload([row for row in rows if row.status == "PAYABLE"])
-    finally:
-        factory.close()
+def list_payables(container=Depends(get_container)):
+    factory = _factory(container)
+    rows = factory.finance().get_all()
+    return _ageing_payload([row for row in rows if row.status == "PAYABLE"])
 
 
 @router.post("/{transaction_id}/status")
-def update_finance_status(transaction_id: int, payload: FinanceStatusUpdate):
-    factory = RepositoryFactory.create()
-    try:
-        row = factory.finance().get_by_id(transaction_id)
-        if row is None:
-            raise HTTPException(status_code=404, detail="Financial transaction not found.")
-        current_status = (row.status or "RECORDED").strip().upper()
-        status = _validate_transition(current_status, payload.status)
-        if current_status in SETTLED_STATUSES:
-            if status == current_status and payload.reason is None and payload.due_date is None:
-                return _row_dict(row)
-            raise HTTPException(
-                status_code=409,
-                detail=f"Settled transactions in {current_status} state are immutable.",
-            )
-        _require_void_reason(status, payload.reason)
-        due_date = payload.due_date if payload.due_date is not None else row.due_date
-        transaction_date = row.transaction_date.date() if row.transaction_date else None
-        _validate_dates(transaction_date, due_date)
-        if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
-            raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
-        row.status = status
-        row.due_date = due_date
-        row.settled_date = date.today() if status in SETTLED_STATUSES else None
-        if payload.reason:
-            row.notes = f"{row.notes or ''}\n[{status}] {payload.reason}".strip()
-        saved = factory.finance().add(row)
-        return _row_dict(saved)
-    finally:
-        factory.close()
+def update_finance_status(transaction_id: int, payload: FinanceStatusUpdate, container=Depends(get_container)):
+    factory = _factory(container)
+    repository = factory.finance()
+    row = repository.get_by_id(transaction_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Financial transaction not found.")
+    current_status = (row.status or "RECORDED").strip().upper()
+    status = _validate_transition(current_status, payload.status)
+    if current_status in SETTLED_STATUSES:
+        if status == current_status and payload.reason is None and payload.due_date is None:
+            return _row_dict(row)
+        raise HTTPException(status_code=409, detail=f"Settled transactions in {current_status} state are immutable.")
+    _require_void_reason(status, payload.reason)
+    due_date = payload.due_date if payload.due_date is not None else row.due_date
+    transaction_date = row.transaction_date.date() if row.transaction_date else None
+    _validate_dates(transaction_date, due_date)
+    if status in {"PAYABLE", "RECEIVABLE"} and due_date is None:
+        raise HTTPException(status_code=422, detail="due_date is required for PAYABLE or RECEIVABLE transactions.")
+    row.status = status
+    row.due_date = due_date
+    row.settled_date = date.today() if status in SETTLED_STATUSES else None
+    if payload.reason:
+        row.notes = f"{row.notes or ''}\n[{status}] {payload.reason}".strip()
+    return _row_dict(repository.add(row))
 
 
 @router.get("/taxonomy")
@@ -412,9 +372,6 @@ def finance_taxonomy():
 
 
 @router.get("/cost-of-production")
-def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366)):
-    factory = RepositoryFactory.create()
-    try:
-        return FeedOpexCostService().evaluate(factory.milk().get_all(), factory.finance().get_all(), days=days)
-    finally:
-        factory.close()
+def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366), container=Depends(get_container)):
+    factory = _factory(container)
+    return FeedOpexCostService().evaluate(factory.milk().get_all(), factory.finance().get_all(), days=days)
