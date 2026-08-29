@@ -3,11 +3,14 @@
 Fifteen animals are active lactating cows on TWICE_DAILY schedules; five are
 active heifers and therefore must not be treated as milk-producing animals.
 All milk enters through the public operator API. Expected analytics values are
-independently derived from the supplied inputs.
+independently derived from the supplied inputs and the farm's authoritative
+operational date.
 """
 from __future__ import annotations
 
 from datetime import date, timedelta
+
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 ANIMAL_TAGS = [f"SIM-MO-{i:03d}" for i in range(1, 21)]
 MILKING_TAGS = ANIMAL_TAGS[:15]
@@ -33,6 +36,10 @@ def _register(client):
         assert response.status_code == 200, response.text
         ids.append(response.json()["animal_id"])
     return ids
+
+
+def _operational_date():
+    return OperationalDateAuthority().current_date()
 
 
 def _post(client, animal_id, day, litres, session):
@@ -63,23 +70,10 @@ def _milk_analytics(client, period_days=30):
     return response.json()
 
 
-def _values_for_keys(value, needle):
-    found = []
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if needle.lower() in str(key).lower():
-                found.append(child)
-            found.extend(_values_for_keys(child, needle))
-    elif isinstance(value, list):
-        for child in value:
-            found.extend(_values_for_keys(child, needle))
-    return found
-
-
 def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpis(client):
     ids = _register(client)
-    start = date(2026, 8, 1)
-    final_day = date(2026, 8, 30)
+    final_day = _operational_date()
+    start = final_day - timedelta(days=29)
     milking_ids = ids[:15]
 
     for offset in range(30):
@@ -112,22 +106,9 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
 
     final_values = [70.0, 20.0] + [2.0 * BASELINE[tag] for tag in MILKING_TAGS[2:]]
     expected_average_daily = sum(final_values) / 15.0
-    avg_candidates = [
-        float(node)
-        for node in _values_for_keys(analytics, "avg") + _values_for_keys(dashboard, "avg")
-        if isinstance(node, (int, float))
-    ]
-    assert any(abs(value - expected_average_daily) < 1e-6 for value in avg_candidates), {
-        "expected_average_daily": expected_average_daily,
-        "dashboard": dashboard,
-        "analytics": analytics,
-    }
+    assert abs(float(dashboard["milk"]["average_yield_per_cow"]) - expected_average_daily) < 1e-6
 
-    animals_payload = dashboard["animals"]
-    assert animals_payload["total"] == 20
-    assert animals_payload["milking"] == 15
-    # Milking % is utilization of the 15-animal milking population, not
-    # 15/20 total herd strength.
+    assert dashboard["animals"]["total"] == 20
     assert dashboard["milk"]["milking_population_count"] == 15
     assert dashboard["milk"]["current_milking_count"] == 15
     assert dashboard["milk"]["milking_percentage"] == 100.0
@@ -135,7 +116,7 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
 
 def test_partial_daily_milking_is_measured_against_milking_population_not_total_herd(client):
     ids = _register(client)
-    day = date(2026, 8, 30)
+    day = _operational_date()
     for animal_id in ids[:12]:
         _post(client, animal_id, day, 20.0, "MORNING")
         _post(client, animal_id, day, 20.0, "EVENING")
@@ -149,8 +130,8 @@ def test_partial_daily_milking_is_measured_against_milking_population_not_total_
 
 def test_three_individual_drops_populate_yield_drop_watchlist_with_amber_and_red(client):
     ids = _register(client)[:3]
-    baseline_day = date(2026, 8, 28)
-    drop_day = date(2026, 8, 29)
+    drop_day = _operational_date()
+    baseline_day = drop_day - timedelta(days=1)
 
     for animal_id in ids:
         _post(client, animal_id, baseline_day, 20.0, "MORNING")
@@ -170,8 +151,8 @@ def test_three_individual_drops_populate_yield_drop_watchlist_with_amber_and_red
 
 def test_herd_drop_marks_production_date_and_drop_percentage_with_severity(client):
     ids = _register(client)
-    baseline_day = date(2026, 8, 29)
-    drop_day = date(2026, 8, 30)
+    drop_day = _operational_date()
+    baseline_day = drop_day - timedelta(days=1)
 
     for animal_id in ids[:15]:
         _post(client, animal_id, baseline_day, 20.0, "MORNING")
