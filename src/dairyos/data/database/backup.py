@@ -42,8 +42,9 @@ def _connection_args(database_url: str) -> tuple[list[str], dict[str, str]]:
         args += ["--dbname", url.database]
 
     env = os.environ.copy()
-    if url.password is not None:
-        env["PGPASSWORD"] = url.password
+    password = os.getenv("DAIRYOS_DB_PASSWORD") or url.password
+    if password is not None:
+        env["PGPASSWORD"] = password
     return args, env
 
 
