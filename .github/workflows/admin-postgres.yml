@@ -11,6 +11,7 @@ permissions:
 jobs:
   admin-postgres-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     services:
       postgres:
         image: postgres:16
@@ -31,6 +32,7 @@ jobs:
       DAIRYOS_DB_USER: postgres
       DAIRYOS_DB_PASSWORD: postgres
       DAIRYOS_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/dairyos
+      PGCONNECT_TIMEOUT: "10"
       DAIRYOS_ENV: development
       DAIRYOS_ADMIN_INTEGRATION: "1"
     steps:
@@ -53,4 +55,4 @@ jobs:
           python -c "import dairyos.app; from dairyos.data.database.session import Base, engine; Base.metadata.create_all(engine)"
 
       - name: Run real Admin Reset and restore verification
-        run: pytest -q tests/admin/test_admin_postgres_integration.py
+        run: pytest -q -s tests/admin/test_admin_postgres_integration.py
