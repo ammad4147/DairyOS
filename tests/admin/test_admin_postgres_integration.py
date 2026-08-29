@@ -134,6 +134,15 @@ def _drop_database(database_url: str, database_name: str) -> None:
     _run_database_utility(command, env)
 
 
+def _restore_connection_kwargs(database_url: str) -> dict[str, object]:
+    url = make_url(database_url)
+    return {
+        "connect_args": {
+            "password": os.getenv("DAIRYOS_DB_PASSWORD", url.password or "postgres")
+        }
+    }
+
+
 def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     database_url = _database_url()
     _stage("1/9 creating SQLAlchemy engine")
@@ -210,7 +219,7 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         restore_backup(str(restore_url), dump_path)
 
         _stage("8/9 validating restored record")
-        restored_engine = create_engine(str(restore_url))
+        restored_engine = create_engine(str(restore_url), **_restore_connection_kwargs(str(restore_url)))
         try:
             with restored_engine.connect() as connection:
                 count = connection.execute(
