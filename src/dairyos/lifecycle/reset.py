@@ -6,11 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import Session
 
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
-from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-from dairyos.data.repositories.app_setting_repository import AppSettingRepository
 from dairyos.lifecycle.manager import LifecycleError
 
 
@@ -24,6 +20,8 @@ PRESERVED_TABLES = frozenset(
     }
 )
 
+DEPLOYMENT_ACTIVE_KEY = "deployment_activated"
+
 
 @dataclass(frozen=True)
 class ResetExecution:
@@ -36,30 +34,58 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
     This is deliberately a lifecycle primitive rather than an application API.
     The caller is responsible for creating and verifying the external recovery
     snapshot before invoking this function.
+
+    The preserved ``app_settings`` table is updated directly through the same
+    SQL transaction as the operational-table truncation. This keeps the
+    destructive lifecycle boundary independent of ORM transaction semantics.
     """
     engine = create_engine(database_url)
     try:
         inspector = inspect(engine)
         tables = tuple(
-            sorted(table for table in inspector.get_table_names() if table not in PRESERVED_TABLES)
+            sorted(
+                table
+                for table in inspector.get_table_names()
+                if table not in PRESERVED_TABLES
+            )
         )
-        with Session(engine) as session:
-            with session.begin():
-                deployment = DeploymentControlService(
-                    FarmSettingsService(AppSettingRepository(session=session, commit=False))
+
+        with engine.begin() as connection:
+            connection.execute(
+                sa.text(
+                    "INSERT INTO app_settings "
+                    "(key, value, updated_at, updated_by) "
+                    "VALUES (:key, 'false', CURRENT_TIMESTAMP, :updated_by) "
+                    "ON CONFLICT (key) DO UPDATE SET "
+                    "value='false', updated_at=CURRENT_TIMESTAMP, updated_by=:updated_by"
+                ),
+                {
+                    "key": DEPLOYMENT_ACTIVE_KEY,
+                    "updated_by": updated_by,
+                },
+            )
+
+            if tables:
+                quoted = ", ".join(
+                    '"' + table.replace('"', '""') + '"'
+                    for table in tables
                 )
-                deployment.deactivate(updated_by=updated_by)
-                if tables:
-                    quoted = ", ".join('"' + table.replace('"', '""') + '"' for table in tables)
-                    session.execute(
-                        sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE")
+                connection.execute(
+                    sa.text(
+                        f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"
                     )
+                )
+
         remaining = verify_zero_state(database_url)
         if remaining:
             raise LifecycleError(
                 "Reset zero-state verification failed: "
-                + ", ".join(f"{table}={count}" for table, count in sorted(remaining.items()))
+                + ", ".join(
+                    f"{table}={count}"
+                    for table, count in sorted(remaining.items())
+                )
             )
+
         return ResetExecution(tables_cleared=tables)
     finally:
         engine.dispose()
@@ -77,7 +103,9 @@ def verify_zero_state(database_url: str) -> dict[str, int]:
                     continue
                 quoted = '"' + table.replace('"', '""') + '"'
                 count = int(
-                    connection.execute(sa.text(f"SELECT count(*) FROM {quoted}")).scalar_one()
+                    connection.execute(
+                        sa.text(f"SELECT count(*) FROM {quoted}")
+                    ).scalar_one()
                 )
                 if count:
                     remaining[table] = count
