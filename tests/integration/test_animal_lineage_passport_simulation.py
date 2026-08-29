@@ -55,7 +55,6 @@ def test_multi_generation_lineage_is_preserved_and_descendants_are_addressable(c
         dam_id=mother,
         milking_frequency="TWICE_DAILY",
     )
-
     cycle_animal = _register(client, tag="SIM-CYCLE-001", lifecycle="CALF", dam_id=mother)
     grandchild = _register(client, tag="SIM-GRANDCALF-001", lifecycle="CALF", dam_id=heifer)
 
@@ -74,10 +73,20 @@ def test_multi_generation_lineage_is_preserved_and_descendants_are_addressable(c
             "lifecycle_status": "LACTATING",
             "operator": "simulation",
             "production_group": "MILKING",
-            "milking_frequency": "TWICE_DAILY",
         },
     )
     assert heifer_to_milking.status_code == 200, heifer_to_milking.text
+
+    frequency_change = client.post(
+        f"/farm/animals/{cycle_animal}/milking-frequency",
+        json={
+            "milking_frequency": "TWICE_DAILY",
+            "changed_by": "simulation",
+            "reason": "Cycle simulation reached milking cow",
+        },
+    )
+    assert frequency_change.status_code == 200, frequency_change.text
+
     cycle_passport = _passport(client, cycle_animal)
     assert cycle_passport["animal"]["lifecycle_status"] == "LACTATING"
     assert cycle_passport["animal"]["milking_frequency"] == "TWICE_DAILY"
