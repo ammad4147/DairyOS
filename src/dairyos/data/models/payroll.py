@@ -26,6 +26,7 @@ class PayrollRecord(Base):
     deductions = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
     status = Column(String, nullable=False, default="DRAFT", index=True)
     payment_date = Column(Date, nullable=True)
+    finance_transaction_id = Column(Integer, nullable=True, unique=True, index=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow)
     updated_at = Column(DateTime, nullable=False, default=utcnow)
