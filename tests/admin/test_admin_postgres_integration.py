@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import uuid
 from pathlib import Path
@@ -80,30 +81,57 @@ def _print_target_table_locks(database_url: str) -> None:
         _stage("LOCK DIAGNOSTIC: " + " | ".join(str(value) for value in row))
 
 
-def _create_database(database_url: str, database_name: str) -> None:
-    """Create a PostgreSQL database through SQLAlchemy using the CI credentials."""
-    admin_url = make_url(database_url).set(database="postgres")
-    engine = create_engine(str(admin_url), isolation_level="AUTOCOMMIT")
+def _postgres_client_environment(database_url: str) -> tuple[make_url, dict[str, str]]:
+    url = make_url(database_url)
+    env = os.environ.copy()
+    env["PGPASSWORD"] = os.getenv("DAIRYOS_DB_PASSWORD", url.password or "postgres")
+    return url, env
+
+
+def _run_database_utility(command: list[str], env: dict[str, str]) -> None:
     try:
-        with engine.connect() as connection:
-            connection.execute(
-                text('CREATE DATABASE "' + database_name.replace('"', '""') + '"')
-            )
-    finally:
-        engine.dispose()
+        completed = subprocess.run(
+            command,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise AssertionError(f"PostgreSQL client command timed out: {' '.join(command)}") from exc
+
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "PostgreSQL client command failed"
+        raise AssertionError(f"{detail}: {' '.join(command)}")
+
+
+def _create_database(database_url: str, database_name: str) -> None:
+    """Create an isolated PostgreSQL database using the same PGPASSWORD path as CI pg_dump."""
+    url, env = _postgres_client_environment(database_url)
+    utility = shutil.which("createdb")
+    assert utility is not None, "createdb was not installed by the PostgreSQL client package"
+    command = [utility]
+    if url.host:
+        command += ["--host", url.host]
+    if url.port:
+        command += ["--port", str(url.port)]
+    command += ["--username", os.getenv("DAIRYOS_DB_USER", url.username or "postgres"), database_name]
+    _run_database_utility(command, env)
 
 
 def _drop_database(database_url: str, database_name: str) -> None:
-    """Drop the isolated PostgreSQL restore database using the CI credentials."""
-    admin_url = make_url(database_url).set(database="postgres")
-    engine = create_engine(str(admin_url), isolation_level="AUTOCOMMIT")
-    try:
-        with engine.connect() as connection:
-            connection.execute(
-                text('DROP DATABASE IF EXISTS "' + database_name.replace('"', '""') + '"')
-            )
-    finally:
-        engine.dispose()
+    """Drop the isolated PostgreSQL restore database using explicit CI credentials."""
+    url, env = _postgres_client_environment(database_url)
+    utility = shutil.which("dropdb")
+    assert utility is not None, "dropdb was not installed by the PostgreSQL client package"
+    command = [utility, "--if-exists"]
+    if url.host:
+        command += ["--host", url.host]
+    if url.port:
+        command += ["--port", str(url.port)]
+    command += ["--username", os.getenv("DAIRYOS_DB_USER", url.username or "postgres"), database_name]
+    _run_database_utility(command, env)
 
 
 def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
