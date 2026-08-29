@@ -26,6 +26,7 @@ from dairyos.farm.production.services.milk_reconciliation_service import MilkRec
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.email.scheduler import NightlyEmailScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
+from dairyos.windows.startup_integrity import record_successful_start
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -52,6 +53,9 @@ async def lifespan(_app: FastAPI):
         logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
     container.start()
     email_scheduler.start()
+    marker = record_successful_start()
+    if marker is not None:
+        logging.info("DairyOS successful packaged installation marker written: %s", marker)
     logging.info("RuntimeContainer and nightly email scheduler started - operations ready.")
     try:
         yield
