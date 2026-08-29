@@ -14,14 +14,12 @@ import AnimalPassportModal from './components/AnimalPassportModal';
 import { API_BASE_URL } from './config/api';
 import { useAlertAudit } from './context/AlertAuditContext';
 import { LayoutDashboard, Calculator, BarChart3, DollarSign, Milk, HeartPulse, Activity, Settings, Bell, Wheat, Users, Cow } from 'lucide-react';
-import { AnimalClassificationService } from './domain/animalClassification';
 import './App.css';
 
 interface HerdAnimal { id:string; breed:string; category:string; age:string; status:string; frequency:string; earTag:string; gender?:string; stage?:string }
 interface BackendAnimal { animal_id:string; animal_type?:string|null; animal_category?:string|null; ear_tag?:string|null; rfid?:string|null; breed?:string|null; sex?:string|null; date_of_birth?:string|null; lifecycle_status?:string|null; status?:string|null; milking_frequency?:string|null; active?:boolean; dam_id?:string|null; sire_id?:string|null; location?:string|null; production_group?:string|null }
-function categoryFromAnimal(animal:BackendAnimal){return AnimalClassificationService.classify(animal.lifecycle_status,animal.sex).category}
 function ageFromBirthDate(value?:string|null){if(!value)return 'Unknown';const birth=new Date(value);if(Number.isNaN(birth.getTime()))return 'Unknown';const now=new Date();let years=now.getFullYear()-birth.getFullYear();const before=now.getMonth()<birth.getMonth()||(now.getMonth()===birth.getMonth()&&now.getDate()<birth.getDate());if(before)years-=1;if(years>=1)return `${years} Years`;return `${Math.max(0,Math.floor((now.getTime()-birth.getTime())/2592000000))} Months`}
-function toUiAnimal(animal:BackendAnimal):HerdAnimal{const classification=AnimalClassificationService.classify(animal.lifecycle_status,animal.sex);return{id:animal.animal_id,breed:animal.breed||'Unknown',category:classification.category,age:ageFromBirthDate(animal.date_of_birth),status:animal.active===false?(animal.status||'Inactive'):(animal.status||animal.lifecycle_status||'Active'),frequency:animal.milking_frequency||'NONE',earTag:animal.ear_tag||animal.animal_id,gender:classification.sex==='MALE'?'Male':'Female',stage:classification.lifecycle_status}}
+function toUiAnimal(animal:BackendAnimal):HerdAnimal{return{id:animal.animal_id,breed:animal.breed||'Unknown',category:animal.animal_category||'Unclassified',age:ageFromBirthDate(animal.date_of_birth),status:animal.active===false?(animal.status||'Inactive'):(animal.status||animal.lifecycle_status||'Active'),frequency:animal.milking_frequency||'NONE',earTag:animal.ear_tag||animal.animal_id,gender:(animal.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:animal.lifecycle_status||undefined}}
 
 export default function MainAppShell(){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false);
