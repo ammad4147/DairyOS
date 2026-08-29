@@ -81,17 +81,16 @@ def test_sale_and_mortality_reduce_active_herd_but_preserve_passports(client):
     deceased_passport = client.get(f"/farm/animals/{deceased_id}/passport")
     assert sold_passport.status_code == 200, sold_passport.text
     assert deceased_passport.status_code == 200, deceased_passport.text
+    assert sold_passport.json()["animal"]["active"] is False
+    assert deceased_passport.json()["animal"]["active"] is False
     assert sold_passport.json()["animal"]["status"] == "SOLD"
     assert deceased_passport.json()["animal"]["status"] == "DECEASED"
 
     dashboard = _dashboard(client)
-    # The main Dashboard must expose an active-herd/animal strength metric
-    # consistent with the active Animal Register, not merely the historical
-    # all-animal list. At least one recognized active-herd metric must equal
-    # the authoritative active register size.
-    active_count = len(after_active)
-    candidates = list(_find_numeric_by_key(dashboard, "herd")) + list(_find_numeric_by_key(dashboard, "animal"))
-    assert active_count in candidates, dashboard
+    # Dashboard exposes its authoritative current herd strength explicitly;
+    # do not infer it from unrelated numeric fields such as milking counts.
+    assert dashboard["animals"]["total"] == len(after_active), dashboard
+    assert dashboard["dashboard"]["animals"]["total"] == len(after_active), dashboard
 
 
 def test_credit_milk_sale_appears_as_receivable_on_finance_and_main_dashboard_then_settles(client):
@@ -121,8 +120,8 @@ def test_credit_milk_sale_appears_as_receivable_on_finance_and_main_dashboard_th
     assert matching[0]["amount"] == 4500.0
 
     dashboard_before = _dashboard(client)
-    receivable_values = list(_find_numeric_by_key(dashboard_before, "receivable"))
-    assert 4500.0 in receivable_values, dashboard_before
+    assert dashboard_before["finance"]["receivables"] >= 4500.0, dashboard_before
+    assert dashboard_before["dashboard"]["finance"]["receivables"] >= 4500.0, dashboard_before
 
     received = client.post(
         f"/farm/finance-ledger/{transaction_id}/status",
@@ -143,5 +142,5 @@ def test_credit_milk_sale_appears_as_receivable_on_finance_and_main_dashboard_th
     assert settled[0]["amount"] == 4500.0
 
     dashboard_after = _dashboard(client)
-    receivable_after = list(_find_numeric_by_key(dashboard_after, "receivable"))
-    assert 4500.0 not in receivable_after, dashboard_after
+    assert dashboard_after["finance"]["receivables"] == 0.0, dashboard_after
+    assert dashboard_after["dashboard"]["finance"]["receivables"] == 0.0, dashboard_after
