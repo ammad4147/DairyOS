@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.auth import get_optional_current_user
+from dairyos.api.dependencies import get_container
 from dairyos.core.time_utils import utcnow
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 router = APIRouter(prefix="/farm/coml", tags=["COML"])
@@ -127,74 +127,61 @@ def calculate_coml(payload: COMLCalculationRequest):
         "feed_cost_per_liter": str(feed_total / liters),
         "opex_cost_per_liter": str(opex_total / liters),
         "total_coml_per_liter": str((feed_total + opex_total) / liters),
-        "feed_items": [
-            {**item.model_dump(), "total": str(item.total)} for item in payload.feed_items
-        ],
-        "operating_items": [
-            {**item.model_dump(), "total": str(item.total)} for item in payload.operating_items
-        ],
+        "feed_items": [{**item.model_dump(), "total": str(item.total)} for item in payload.feed_items],
+        "operating_items": [{**item.model_dump(), "total": str(item.total)} for item in payload.operating_items],
     }
 
 
 @router.get("")
-def get_coml(month_start: date | None = None):
+def get_coml(month_start: date | None = None, container=Depends(get_container)):
     selected = _month_start(month_start) if month_start is not None else _current_month_start()
-    rf = RepositoryFactory.create()
-    try:
-        row = rf.coml().get_by_month(selected)
-        reminder_day = int(rf.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
-        return {"data_status": "LIVE_PERSISTED_DATA", **_status_payload(selected, row, reminder_day)}
-    finally:
-        rf.close()
+    factory = container.repository_factory
+    row = factory.coml().get_by_month(selected)
+    reminder_day = int(factory.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
+    return {"data_status": "LIVE_PERSISTED_DATA", **_status_payload(selected, row, reminder_day)}
 
 
 @router.get("/current")
-def get_current_coml():
-    return get_coml(_current_month_start())
+def get_current_coml(container=Depends(get_container)):
+    return get_coml(_current_month_start(), container=container)
 
 
 @router.get("/history")
-def get_coml_history():
-    rf = RepositoryFactory.create()
-    try:
-        return {"data_status": "LIVE_PERSISTED_DATA", "records": [_serialize(row) for row in rf.coml().get_all()]}
-    finally:
-        rf.close()
+def get_coml_history(container=Depends(get_container)):
+    factory = container.repository_factory
+    return {"data_status": "LIVE_PERSISTED_DATA", "records": [_serialize(row) for row in factory.coml().get_all()]}
 
 
 @router.post("/lock")
-def lock_coml(payload: COMLLockRequest, current_user=Depends(get_optional_current_user)):
+def lock_coml(payload: COMLLockRequest, current_user=Depends(get_optional_current_user), container=Depends(get_container)):
     selected = _month_start(payload.month_start)
     feed = round(float(payload.feed_cost_per_liter), 4)
     opex = round(float(payload.opex_cost_per_liter), 4)
     if feed + opex <= 0:
         raise HTTPException(status_code=422, detail="Feed Cost/L + OPEX/L must be greater than zero.")
-    rf = RepositoryFactory.create()
-    try:
-        updated_by = str(current_user["sub"]) if current_user is not None else payload.updated_by.strip()
-        row = rf.coml().upsert(month_start=selected, feed_cost_per_liter=feed, opex_cost_per_liter=opex, notes=payload.notes, updated_by=updated_by or "UI Operator")
-        reminder_day = int(rf.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
-        return {"data_status": "LIVE_PERSISTED_DATA", **_status_payload(selected, row, reminder_day)}
-    finally:
-        rf.close()
+    factory = container.repository_factory
+    updated_by = str(current_user["sub"]) if current_user is not None else payload.updated_by.strip()
+    row = factory.coml().upsert(
+        month_start=selected,
+        feed_cost_per_liter=feed,
+        opex_cost_per_liter=opex,
+        notes=payload.notes,
+        updated_by=updated_by or "UI Operator",
+    )
+    reminder_day = int(factory.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
+    return {"data_status": "LIVE_PERSISTED_DATA", **_status_payload(selected, row, reminder_day)}
 
 
 @router.get("/settings")
-def get_coml_settings():
-    rf = RepositoryFactory.create()
-    try:
-        reminder_day = int(rf.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
-        return {"reminder_day": reminder_day, "default_reminder_day": DEFAULT_REMINDER_DAY}
-    finally:
-        rf.close()
+def get_coml_settings(container=Depends(get_container)):
+    factory = container.repository_factory
+    reminder_day = int(factory.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
+    return {"reminder_day": reminder_day, "default_reminder_day": DEFAULT_REMINDER_DAY}
 
 
 @router.put("/settings")
-def set_coml_settings(payload: COMLReminderSettings, current_user=Depends(get_optional_current_user)):
-    rf = RepositoryFactory.create()
-    try:
-        updated_by = str(current_user["sub"]) if current_user is not None else "UI Operator"
-        rf.app_settings().set(REMINDER_SETTING_KEY, str(payload.reminder_day), updated_by=updated_by)
-        return {"reminder_day": payload.reminder_day}
-    finally:
-        rf.close()
+def set_coml_settings(payload: COMLReminderSettings, current_user=Depends(get_optional_current_user), container=Depends(get_container)):
+    factory = container.repository_factory
+    updated_by = str(current_user["sub"]) if current_user is not None else "UI Operator"
+    factory.app_settings().set(REMINDER_SETTING_KEY, str(payload.reminder_day), updated_by=updated_by)
+    return {"reminder_day": payload.reminder_day}
