@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String, Text
@@ -45,4 +45,4 @@ class PayrollRecord(Base):
     def mark_paid(self, payment_date: date | None = None):
         self.status = "PAID"
         self.payment_date = payment_date or utcnow().date()
-        self.updated_at = datetime.now().astimezone().replace(tzinfo=None)
+        self.updated_at = utcnow()
