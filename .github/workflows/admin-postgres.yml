@@ -52,7 +52,7 @@ jobs:
 
       - name: Bootstrap runtime schema
         run: >-
-          python -c "import dairyos.app; from dairyos.data.database.session import Base, engine; Base.metadata.create_all(engine)"
+          python -c "from dairyos.data.database.database import initialize_database; initialize_database()"
 
       - name: PostgreSQL backup preflight
         run: >-
