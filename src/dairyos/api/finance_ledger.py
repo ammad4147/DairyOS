@@ -262,6 +262,46 @@ def create_finance_ledger_entry(entry: FinanceLedgerEntry, container=Depends(get
     return _row_dict(factory.finance().add(transaction))
 
 
+@router.get("/payables")
+def list_payables(container=Depends(get_container)):
+    factory = _factory(container)
+    rows = factory.finance().get_all()
+    return _ageing_payload([row for row in rows if row.status == "PAYABLE"])
+
+
+@router.get("/taxonomy")
+def finance_taxonomy():
+    return {
+        "master_categories": sorted(MASTER_CATEGORIES),
+        "taxonomies": GOVERNED["finance_expense_taxonomy"],
+        "items": {master: all_items(master) for master in sorted(MASTER_CATEGORIES)},
+    }
+
+
+@router.get("/cost-of-production")
+def finance_cost_of_production(days: int = Query(default=30, ge=1, le=366), container=Depends(get_container)):
+    factory = _factory(container)
+    return FeedOpexCostService().evaluate(factory.milk().get_all(), factory.finance().get_all(), days=days)
+
+
+@router.get("/ageing")
+def finance_ledger_ageing(container=Depends(get_container)):
+    factory = _factory(container)
+    rows = factory.finance().get_all()
+    return _ageing_payload(rows)
+
+
+@router.get("/profitability/feed-opex")
+def feed_opex_profitability(
+    period_start: date = Query(...),
+    period_end: date = Query(...),
+    container=Depends(get_container),
+):
+    if period_end < period_start:
+        raise HTTPException(status_code=422, detail="period_end cannot be earlier than period_start.")
+    return FeedOpexCostService(container).calculate(period_start, period_end)
+
+
 @router.patch("/{transaction_id}")
 def edit_finance_ledger_entry(transaction_id: int, payload: FinanceLedgerEdit, container=Depends(get_container)):
     factory = _factory(container)
@@ -366,21 +406,3 @@ def update_finance_ledger_status(transaction_id: int, payload: FinanceStatusUpda
         row.notes = f"{row.notes or ''}\nSTATUS_TRANSITION_AT={stamp} REASON={payload.reason.strip()}".strip()
     repository.add(row)
     return _row_dict(row)
-
-
-@router.get("/ageing")
-def finance_ledger_ageing(container=Depends(get_container)):
-    factory = _factory(container)
-    rows = factory.finance().get_all()
-    return _ageing_payload(rows)
-
-
-@router.get("/profitability/feed-opex")
-def feed_opex_profitability(
-    period_start: date = Query(...),
-    period_end: date = Query(...),
-    container=Depends(get_container),
-):
-    if period_end < period_start:
-        raise HTTPException(status_code=422, detail="period_end cannot be earlier than period_start.")
-    return FeedOpexCostService(container).calculate(period_start, period_end)
