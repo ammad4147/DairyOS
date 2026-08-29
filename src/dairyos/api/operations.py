@@ -24,11 +24,17 @@ def get_decisions(container):
 
 
 def get_finding_metrics(container):
-    repository = getattr(getattr(container, "repository_factory", None), "operational_findings", None)
-    if repository is None:
+    factory = getattr(container, "repository_factory", None)
+    accessor = getattr(factory, "operational_findings", None)
+    if not callable(accessor):
         return {"total": 0, "open": 0, "resolved": 0}
+    repository = accessor()
     findings = list(repository.get_all() or [])
-    resolved = sum(1 for finding in findings if str(getattr(finding, "status", "")).upper() == "RESOLVED")
+    resolved = sum(
+        1
+        for finding in findings
+        if str(getattr(finding, "status", "")).upper() == "RESOLVED"
+    )
     return {"total": len(findings), "open": len(findings) - resolved, "resolved": resolved}
 
 
