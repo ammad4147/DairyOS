@@ -98,6 +98,9 @@ def _reset_test_persistence() -> None:
     container.runtime._operational_state_event_subscriber.operational_state_service = (
         container.runtime._operational_state_service
     )
+    container.runtime._operational_input_projection_bridge.state_service = (
+        container.runtime._operational_state_service
+    )
 
     container.started = False
     container.operations = None
@@ -137,6 +140,9 @@ def client(tmp_path):
     container.farm_operational_state_service = container.runtime._operational_state_service
     container.operational_state_service = container.runtime._operational_state_service
     container.runtime._operational_state_event_subscriber.operational_state_service = (
+        container.runtime._operational_state_service
+    )
+    container.runtime._operational_input_projection_bridge.state_service = (
         container.runtime._operational_state_service
     )
 
