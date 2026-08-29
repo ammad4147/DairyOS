@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.farm.herd.services.animal_classification_service import (
@@ -45,12 +45,10 @@ def _runtime() -> Any:
 def _repository(runtime: Any) -> Any:
     if runtime is None:
         return None
-
     for name in ("animal_repository", "animals_repository", "animal_operational_repository"):
         repository = getattr(runtime, name, None)
         if repository is not None:
             return repository
-
     factory = getattr(runtime, "repository_factory", None)
     if factory is not None:
         for name in ("animal_repository", "animals", "animal"):
@@ -62,7 +60,6 @@ def _repository(runtime: Any) -> Any:
                         return repository
                 except Exception:
                     pass
-
     return None
 
 
@@ -94,19 +91,13 @@ def _canonicalise_payload(payload: dict[str, Any]) -> dict[str, Any]:
     result = dict(payload)
     try:
         category = result.get("animal_category") or result.get("category")
-        if category:
-            classification = AnimalClassificationService.from_category(
-                str(category),
-                current_lifecycle=result.get("lifecycle_status"),
-            )
-        else:
-            classification = AnimalClassificationService.classify(
-                result.get("lifecycle_status"),
-                result.get("sex"),
-            )
+        classification = (
+            AnimalClassificationService.from_category(str(category), current_lifecycle=result.get("lifecycle_status"))
+            if category
+            else AnimalClassificationService.classify(result.get("lifecycle_status"), result.get("sex"))
+        )
     except AnimalClassificationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
     result["sex"] = classification.sex
     result["lifecycle_status"] = classification.lifecycle_status
     result["animal_category"] = classification.category.value
@@ -119,16 +110,11 @@ def _serialize_animal(value: Any) -> dict[str, Any]:
     if not result:
         return result
     try:
-        classification = AnimalClassificationService.classify(
-            result.get("lifecycle_status"),
-            result.get("sex"),
-        )
+        classification = AnimalClassificationService.classify(result.get("lifecycle_status"), result.get("sex"))
         result["sex"] = classification.sex
         result["lifecycle_status"] = classification.lifecycle_status
         result["animal_category"] = classification.category.value
     except AnimalClassificationError:
-        # Preserve the persisted record when legacy/incomplete data cannot yet
-        # be classified. Validation occurs on create/update boundaries.
         result.setdefault("animal_category", None)
     return result
 
@@ -148,16 +134,10 @@ def _generate_animal_id(repository: Any) -> str:
 def _persist(repository: Any, payload: dict[str, Any]) -> Any:
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
-
     animal_id = payload["animal_id"]
-    existing = _repository_call(
-        repository,
-        ("get_by_animal_id", "get_by_id", "find_by_id", "find"),
-        animal_id,
-    )
+    existing = _repository_call(repository, ("get_by_animal_id", "get_by_id", "find_by_id", "find"), animal_id)
     if existing is not None:
         raise HTTPException(status_code=409, detail=f"Animal ID already exists: {animal_id}")
-
     created = _repository_call(repository, ("create", "add", "save", "insert"), payload)
     if created is None:
         raise HTTPException(status_code=500, detail="Animal could not be persisted to the authoritative repository")
@@ -173,6 +153,24 @@ def list_animals() -> list[dict[str, Any]]:
     if records is None:
         return []
     return [_serialize_animal(record) for record in records]
+
+
+@router.get("/classification")
+def classify_animal(
+    category: str | None = Query(default=None),
+    lifecycle_status: str | None = Query(default=None),
+    sex: str | None = Query(default=None),
+) -> dict[str, str]:
+    """Return the canonical animal category/lifecycle/sex contract."""
+    try:
+        result = (
+            AnimalClassificationService.from_category(category, current_lifecycle=lifecycle_status)
+            if category
+            else AnimalClassificationService.classify(lifecycle_status, sex)
+        )
+    except AnimalClassificationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"animal_category": result.category.value, "lifecycle_status": result.lifecycle_status, "sex": result.sex}
 
 
 @router.post("", status_code=201)
@@ -197,11 +195,7 @@ def get_animal(animal_id: str) -> dict[str, Any]:
     repository = _repository(_runtime())
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
-    record = _repository_call(
-        repository,
-        ("get_by_animal_id", "get_by_id", "find_by_id", "find"),
-        animal_id,
-    )
+    record = _repository_call(repository, ("get_by_animal_id", "get_by_id", "find_by_id", "find"), animal_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"Animal not found: {animal_id}")
     return _serialize_animal(record)
