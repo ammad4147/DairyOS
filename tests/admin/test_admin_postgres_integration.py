@@ -35,6 +35,13 @@ def _database_url() -> str:
     )
 
 
+def _psycopg_conninfo(database_url: str) -> str:
+    """Render a SQLAlchemy PostgreSQL URL as a libpq conninfo string."""
+    return make_url(database_url).render_as_string(hide_password=False).replace(
+        "postgresql+psycopg://", "postgresql://", 1
+    )
+
+
 def _stage(message: str) -> None:
     print(f"[ADMIN-POSTGRES] {message}", file=sys.stderr, flush=True)
 
@@ -102,7 +109,7 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         postgres_url = make_url(database_url).set(database="postgres")
         restore_name = f"dairyos_restore_{uuid.uuid4().hex[:10]}"
         restore_url = make_url(database_url).set(database=restore_name)
-        with psycopg.connect(str(postgres_url)) as admin_connection:
+        with psycopg.connect(_psycopg_conninfo(str(postgres_url)), connect_timeout=10) as admin_connection:
             admin_connection.autocommit = True
             admin_connection.execute('CREATE DATABASE "' + restore_name + '"')
 
@@ -129,12 +136,11 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         if restore_url is not None:
             postgres_url = make_url(database_url).set(database="postgres")
             try:
-                with psycopg.connect(str(postgres_url)) as admin_connection:
+                with psycopg.connect(_psycopg_conninfo(str(postgres_url)), connect_timeout=10) as admin_connection:
                     admin_connection.autocommit = True
                     admin_connection.execute('DROP DATABASE IF EXISTS "' + restore_url.database + '"')
             except Exception as exc:
                 _stage(f"restore database cleanup warning: {exc}")
-        # Best-effort cleanup of any test-side temporary external artifact.
         recovery_root = tmp_path / "recovery"
         if recovery_root.exists():
             shutil.rmtree(recovery_root, ignore_errors=True)
