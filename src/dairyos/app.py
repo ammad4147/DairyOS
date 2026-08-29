@@ -19,6 +19,7 @@ from dairyos.data.database.migrations import (
     migrate_milk_quality,
     migrate_coml,
     migrate_operational_finding_audit,
+    migrate_payroll,
 )
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
@@ -41,6 +42,7 @@ async def lifespan(_app: FastAPI):
     quality_migrated = migrate_milk_quality()
     coml_migrated = migrate_coml()
     finding_audit_migrated = migrate_operational_finding_audit()
+    payroll_migrated = migrate_payroll()
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
@@ -51,6 +53,8 @@ async def lifespan(_app: FastAPI):
         logging.info("COML migration created: %s", ", ".join(coml_migrated))
     if finding_audit_migrated:
         logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
+    if payroll_migrated:
+        logging.info("Finance payroll migration created: %s", ", ".join(payroll_migrated))
     container.start()
     email_scheduler.start()
     marker = record_successful_start()
