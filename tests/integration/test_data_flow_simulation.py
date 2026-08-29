@@ -10,6 +10,10 @@ def _bind_runtime_operational_state(container):
     container.runtime._operational_input_projection_bridge.state_service = (
         container.runtime._operational_state_service
     )
+    if getattr(container, "operational_command_center_service", None) is not None:
+        container.operational_command_center_service.operational_state_service = (
+            container.runtime._operational_state_service
+        )
 
 
 def _register_scheduled_animal(client, frequency):
@@ -36,9 +40,9 @@ def _passport_schedule(client, animal_id, as_of_date=None):
     )
     assert response.status_code == 200, response.text
     passport = response.json()
-    schedule = passport["schedule"]
-    frequency = schedule["milking_frequency"]
-    expected = schedule["expected_sessions"]
+    effective = (passport.get("schedule") or {}).get("effective") or {}
+    frequency = effective.get("milking_frequency")
+    expected = effective.get("expected_sessions")
     assert frequency in {"TWICE_DAILY", "THRICE_DAILY"}
     assert expected
     return passport, frequency, expected
@@ -116,7 +120,8 @@ def test_thrice_daily_animal_requires_all_three_passport_sessions(client):
     passport = client.get(f"/farm/animals/{animal_id}/passport")
     assert passport.status_code == 200, passport.text
     data = passport.json()
-    assert data["schedule"]["expected_sessions"] == expected
+    _, _, expected_again = _passport_schedule(client, animal_id)
+    assert data["schedule"]["effective"]["expected_sessions"] == expected_again
     rows = [
         row for row in data["history"]["milk"]
         if row["animal_id"] == animal_id
@@ -174,8 +179,11 @@ def test_twice_daily_animal_never_requires_afternoon(client):
     passport = client.get(f"/farm/animals/{animal_id}/passport")
     assert passport.status_code == 200, passport.text
     data = passport.json()
+    assert data["schedule"]["effective"]["milking_frequency"] == "TWICE_DAILY"
+    assert data["schedule"]["effective"]["expected_sessions"] == expected
     rows = [
-        row for row in data["history"]["milk"]
+        row
+        for row in data["history"]["milk"]
         if row["animal_id"] == animal_id
     ]
     assert {row["milking_session"] for row in rows} == {
@@ -190,10 +198,7 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
 
     _bind_runtime_operational_state(container)
     animal_id = _register_scheduled_animal(client, "THRICE_DAILY")
-    _, initial_frequency, initial_sessions = _passport_schedule(
-        client,
-        animal_id,
-    )
+    _, initial_frequency, initial_sessions = _passport_schedule(client, animal_id)
     assert initial_frequency == "THRICE_DAILY"
     assert initial_sessions == ["MORNING", "AFTERNOON", "EVENING"]
 
@@ -210,17 +215,13 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
     assert change.status_code == 200, change.text
 
     _, historical_frequency, historical_sessions = _passport_schedule(
-        client,
-        animal_id,
-        as_of_date="2099-01-01",
+        client, animal_id, as_of_date="2099-01-01"
     )
     assert historical_frequency == "THRICE_DAILY"
     assert historical_sessions == ["MORNING", "AFTERNOON", "EVENING"]
 
     _, future_frequency, future_sessions = _passport_schedule(
-        client,
-        animal_id,
-        as_of_date=future_date,
+        client, animal_id, as_of_date=future_date
     )
     assert future_frequency == "TWICE_DAILY"
     assert future_sessions == ["MORNING", "EVENING"]
@@ -268,8 +269,8 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
     )
     assert passport.status_code == 200, passport.text
     data = passport.json()
-    assert data["schedule"]["milking_frequency"] == "TWICE_DAILY"
-    assert data["schedule"]["expected_sessions"] == ["MORNING", "EVENING"]
+    assert data["schedule"]["effective"]["milking_frequency"] == "TWICE_DAILY"
+    assert data["schedule"]["effective"]["expected_sessions"] == ["MORNING", "EVENING"]
     future_rows = [
         row
         for row in data["history"]["milk"]
@@ -294,7 +295,6 @@ def test_milk_entry_simulation_does_not_fabricate_an_unsettled_session(
     assert frequency == "THRICE_DAILY"
     assert expected == ["MORNING", "AFTERNOON", "EVENING"]
 
-    # Attempting Afternoon before Morning has been settled must be rejected.
     blocked = client.post(
         "/farm/milk",
         json={
@@ -308,7 +308,6 @@ def test_milk_entry_simulation_does_not_fabricate_an_unsettled_session(
     assert "MORNING" in blocked.text
     assert "has not been recorded or declared" in blocked.text
 
-    # Now explicitly establish the missing fact.
     skipped = client.post(
         "/farm/milk/not-milked",
         json={
@@ -319,8 +318,6 @@ def test_milk_entry_simulation_does_not_fabricate_an_unsettled_session(
     )
     assert skipped.status_code == 200, skipped.text
 
-    # With Morning explicitly declared, Afternoon may be entered as explicit
-    # zero. No zero was invented for Morning.
     response = client.post(
         "/farm/milk",
         json={
