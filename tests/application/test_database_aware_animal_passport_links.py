@@ -6,7 +6,7 @@ from dairyos.application.database_aware_animal_passport import (
 )
 
 
-class _Repo:
+class _HistoryRepo:
     def __init__(self, records):
         self.records = records
 
@@ -24,18 +24,30 @@ class _Repo:
         return list(self.records)
 
 
+class _AnimalRepo(_HistoryRepo):
+    def get_by_animal_id(self, animal_id):
+        return next(
+            (
+                record
+                for record in self.records
+                if str(getattr(record, "animal_id", "")) == animal_id
+            ),
+            None,
+        )
+
+
 class _Factory:
     def __init__(self, animal, milk, health, cases, treatments, breeding, feed, finance, events):
         self._repos = {
-            "animal": _Repo([animal]),
-            "milk": _Repo(milk),
-            "health": _Repo(health),
-            "health_cases": _Repo(cases),
-            "treatment": _Repo(treatments),
-            "breeding": _Repo(breeding),
-            "feed": _Repo(feed),
-            "finance": _Repo(finance),
-            "operational_events": _Repo(events),
+            "animal": _AnimalRepo([animal]),
+            "milk": _HistoryRepo(milk),
+            "health": _HistoryRepo(health),
+            "health_cases": _HistoryRepo(cases),
+            "treatment": _HistoryRepo(treatments),
+            "breeding": _HistoryRepo(breeding),
+            "feed": _HistoryRepo(feed),
+            "finance": _HistoryRepo(finance),
+            "operational_events": _HistoryRepo(events),
         }
 
     def __getattr__(self, name):
@@ -45,10 +57,10 @@ class _Factory:
         return lambda: repository
 
 
-def test_passport_build_links_all_animal_scoped_sources():
-    animal = SimpleNamespace(
+def _animal(animal_id="AN-001"):
+    return SimpleNamespace(
         id=1,
-        animal_id="AN-001",
+        animal_id=animal_id,
         animal_type="CATTLE",
         ear_tag="001",
         rfid="RF-001",
@@ -70,6 +82,9 @@ def test_passport_build_links_all_animal_scoped_sources():
         updated_at=datetime(2026, 8, 29),
     )
 
+
+def test_passport_build_links_all_animal_scoped_sources():
+    animal = _animal()
     milk = [SimpleNamespace(animal_id="AN-001", production_date=date(2026, 8, 29), total_yield=24.0)]
     health = [SimpleNamespace(animal_id="AN-001", observation_date=date(2026, 8, 29), observation="Normal")]
     cases = []
@@ -96,29 +111,11 @@ def test_passport_build_links_all_animal_scoped_sources():
 
 
 def test_passport_rejects_unknown_animal_id_without_partial_projection():
-    animal = SimpleNamespace(
-        id=1,
-        animal_id="AN-001",
-        animal_type="CATTLE",
-        ear_tag="001",
-        rfid=None,
-        breed="HF",
-        sex="FEMALE",
-        date_of_birth=None,
-        dam_id=None,
-        sire_id=None,
-        lifecycle_status="LACTATING",
-        status="ACTIVE",
-        is_currently_milking=True,
-        milking_frequency="TWICE_DAILY",
-        production_group=None,
-        location=None,
-        active=True,
-        non_milking_directive="NONE",
-        non_milking_reason=None,
-        created_at=datetime(2026, 8, 29),
-        updated_at=datetime(2026, 8, 29),
-    )
-    factory = _Factory(animal, [], [], [], [], [], [], [])
+    animal = _animal()
+    animal.rfid = None
+    animal.date_of_birth = None
+    animal.production_group = None
+    animal.location = None
+    factory = _Factory(animal, [], [], [], [], [], [], [], [])
 
     assert DatabaseAwareLifetimeAnimalPassportService(factory).build("MISSING") is None
