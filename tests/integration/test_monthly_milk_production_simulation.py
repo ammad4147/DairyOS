@@ -63,6 +63,19 @@ def _milk_analytics(client, period_days=30):
     return response.json()
 
 
+def _values_for_keys(value, needle):
+    found = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if needle.lower() in str(key).lower():
+                found.append(child)
+            found.extend(_values_for_keys(child, needle))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(_values_for_keys(child, needle))
+    return found
+
+
 def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpis(client):
     ids = _register(client)
     start = date(2026, 8, 1)
@@ -83,7 +96,6 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
 
     dashboard = _dashboard(client)
     analytics = _milk_analytics(client, 30)
-    serial = str({"dashboard": dashboard, "analytics": analytics}).lower()
 
     extremes = analytics["production_extremes"]
     assert extremes["highest"]["animal_id"] == milking_ids[0]
@@ -100,10 +112,11 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
 
     final_values = [70.0, 20.0] + [2.0 * BASELINE[tag] for tag in MILKING_TAGS[2:]]
     expected_average_daily = sum(final_values) / 15.0
-    avg_candidates = []
-    for node in _values_for_keys(analytics, "avg") + _values_for_keys(dashboard, "avg"):
-        if isinstance(node, (int, float)):
-            avg_candidates.append(float(node))
+    avg_candidates = [
+        float(node)
+        for node in _values_for_keys(analytics, "avg") + _values_for_keys(dashboard, "avg")
+        if isinstance(node, (int, float))
+    ]
     assert any(abs(value - expected_average_daily) < 1e-6 for value in avg_candidates), {
         "expected_average_daily": expected_average_daily,
         "dashboard": dashboard,
@@ -113,33 +126,25 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
     animals_payload = dashboard["animals"]
     assert animals_payload["total"] == 20
     assert animals_payload["milking"] == 15
-    assert animals_payload["milking_percentage"] == 75.0
-    assert "highest" in serial and "lowest" in serial
+    # Milking % is utilization of the 15-animal milking population, not
+    # 15/20 total herd strength.
+    assert dashboard["milk"]["milking_population_count"] == 15
+    assert dashboard["milk"]["current_milking_count"] == 15
+    assert dashboard["milk"]["milking_percentage"] == 100.0
 
 
-def _contains(value, predicate):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if predicate(str(key), child):
-                return True
-            if _contains(child, predicate):
-                return True
-    elif isinstance(value, list):
-        return any(_contains(child, predicate) for child in value)
-    return False
+def test_partial_daily_milking_is_measured_against_milking_population_not_total_herd(client):
+    ids = _register(client)
+    day = date(2026, 8, 30)
+    for animal_id in ids[:12]:
+        _post(client, animal_id, day, 20.0, "MORNING")
+        _post(client, animal_id, day, 20.0, "EVENING")
 
-
-def _values_for_keys(value, needle):
-    found = []
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if needle.lower() in str(key).lower():
-                found.append(child)
-            found.extend(_values_for_keys(child, needle))
-    elif isinstance(value, list):
-        for child in value:
-            found.extend(_values_for_keys(child, needle))
-    return found
+    dashboard = _dashboard(client)
+    assert dashboard["animals"]["total"] == 20
+    assert dashboard["milk"]["milking_population_count"] == 15
+    assert dashboard["milk"]["current_milking_count"] == 12
+    assert dashboard["milk"]["milking_percentage"] == 80.0
 
 
 def test_three_individual_drops_populate_yield_drop_watchlist_with_amber_and_red(client):
@@ -180,31 +185,3 @@ def test_herd_drop_marks_production_date_and_drop_percentage_with_severity(clien
     assert "production" in serial and "drop" in serial
     assert "%" in serial
     assert "amber" in serial or "red" in serial or "high" in serial or "critical" in serial
-
-
-def test_milking_percentage_and_average_yield_use_only_entered_active_milking_animals(client):
-    ids = _register(client)
-    day = date(2026, 8, 30)
-    entered_values = []
-    for index, animal_id in enumerate(ids[:15]):
-        value = float(18 + index)
-        entered_values.append(value)
-        _post(client, animal_id, day, value, "MORNING")
-        _post(client, animal_id, day, value, "EVENING")
-
-    dashboard = _dashboard(client)
-    analytics = _milk_analytics(client)
-    expected_percentage = 75.0
-    expected_average_daily = sum(value * 2 for value in entered_values) / 15.0
-
-    percent_values = []
-    avg_values = []
-    for node in _values_for_keys(dashboard, "milking") + _values_for_keys(analytics, "milking"):
-        if isinstance(node, (int, float)):
-            percent_values.append(float(node))
-    for node in _values_for_keys(dashboard, "avg") + _values_for_keys(analytics, "avg"):
-        if isinstance(node, (int, float)):
-            avg_values.append(float(node))
-
-    assert expected_percentage in percent_values, dashboard
-    assert any(abs(value - expected_average_daily) < 1e-6 for value in avg_values), analytics
