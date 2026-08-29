@@ -95,8 +95,14 @@ class AdminService:
                 updated_by="DairyOS Admin Tool",
             )
             _admin_stage("reset: destructive SQL transaction complete")
-            if verify_zero_state(self.manager.database_url):
-                raise LifecycleError("Reset completed but zero-state verification failed.")
+            remaining = verify_zero_state(self.manager.database_url)
+            if remaining:
+                raise LifecycleError(
+                    "Reset completed but zero-state verification failed: "
+                    + ", ".join(
+                        f"{table}={count}" for table, count in sorted(remaining.items())
+                    )
+                )
             _admin_stage("reset: zero-state verification complete")
             _write_audit_event(
                 recovery_artifact,
