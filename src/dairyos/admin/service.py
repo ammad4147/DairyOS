@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,13 +72,19 @@ class AdminService:
         )
 
     def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
-        """Reset operational state through a verified external recovery point."""
+        """Reset operational state through a verified external recovery point.
+
+        The running operational backend must be stopped first. This prevents
+        background workers from writing new operational rows while the admin
+        transaction is clearing the database.
+        """
         if confirmation != RESET_CONFIRMATION:
             raise LifecycleError(
                 f"Reset requires the exact confirmation token: {RESET_CONFIRMATION!r}"
             )
         if not self.manager.database_url:
             raise LifecycleError("Reset requires DAIRYOS_DATABASE_URL to be configured.")
+        _assert_runtime_stopped()
 
         self.manager.validate(require_database=True)
         artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
@@ -135,6 +142,26 @@ class AdminService:
         mode = UninstallMode.PURGE_DATA if purge else UninstallMode.KEEP_DATA
         self.manager.uninstall(mode=mode, confirmation=confirmation)
         return AdminResult("uninstall", True, "Uninstall completed.")
+
+
+def _assert_runtime_stopped() -> None:
+    """Fail closed when the normal DairyOS backend is still listening."""
+    host = os.environ.get("DAIRYOS_HOST", "127.0.0.1")
+    try:
+        port = int(os.environ.get("DAIRYOS_PORT", "8000"))
+    except ValueError as exc:
+        raise LifecycleError("DAIRYOS_PORT must be an integer for administrative reset.") from exc
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.25)
+        try:
+            sock.connect((host, port))
+        except OSError:
+            return
+    raise LifecycleError(
+        f"DairyOS runtime is still listening on {host}:{port}. Stop the operational "
+        "application before executing Reset."
+    )
 
 
 def _record_database_checksum(backup: str | Path) -> None:
