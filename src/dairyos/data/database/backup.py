@@ -112,7 +112,6 @@ def restore_backup(database_url: str, backup: str | Path) -> None:
         "--no-owner",
         "--clean",
         "--if-exists",
-        f"--lock-wait-timeout={LOCK_WAIT_TIMEOUT}",
         "--verbose",
         *args,
         str(backup),
