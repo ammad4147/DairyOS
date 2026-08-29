@@ -18,6 +18,7 @@ class AnimalPassportGraphService:
         ("feed", "HAS_FEED_RECORD"),
         ("finance", "HAS_FINANCE_RECORD"),
         ("operational_events", "HAS_OPERATIONAL_EVENT"),
+        ("welfare", "HAS_WELFARE_OBSERVATION"),
     )
 
     def __init__(self, relationship_service: RelationshipService | None = None):
