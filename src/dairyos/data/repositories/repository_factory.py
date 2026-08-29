@@ -12,6 +12,7 @@ from dairyos.data.repositories.milking_session_record_repository import (
     MilkingSessionRecordRepository,
 )
 from dairyos.data.repositories.financial_repository import FinancialRepository
+from dairyos.data.repositories.payroll_repository import PayrollRepository
 from dairyos.data.repositories.inventory_repository import InventoryRepository
 from dairyos.data.repositories.feed_inventory_item_repository import FeedInventoryItemRepository
 from dairyos.data.repositories.user_repository import UserRepository
@@ -72,6 +73,9 @@ class RepositoryFactory:
 
     def finance(self):
         return FinancialRepository(session=self._session)
+
+    def payroll(self):
+        return PayrollRepository(session=self._session)
 
     def coml(self):
         return COMLRepository(session=self._session)

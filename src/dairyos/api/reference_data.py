@@ -10,9 +10,17 @@ router = APIRouter(prefix="/farm/reference-data", tags=["reference-data"])
 
 GOVERNED = {
     "animal_types": ["CATTLE"],
+    "animal_categories": [
+        "Milking Cows",
+        "Dry Cows",
+        "Heifers",
+        "Bulls",
+        "Female Calves",
+        "Male Calves",
+    ],
     "sexes": ["FEMALE", "MALE"],
     "lifecycle_statuses": [
-        "CALF", "HEIFER", "CLOSE_UP", "LACTATING", "DRY",
+        "CALF", "HEIFER", "CLOSE_UP", "LACTATING", "DRY", "BULL",
         "SOLD", "CULLED", "DECEASED",
     ],
     "milking_frequencies": ["TWICE_DAILY", "THRICE_DAILY"],
@@ -48,9 +56,6 @@ GOVERNED = {
     "inventory_movement_types": [
         "PURCHASE", "RECEIPT", "CONSUMPTION", "TRANSFER", "WASTAGE", "ADJUSTMENT",
     ],
-    # Access roles are presets, not a closed user taxonomy. CUSTOM is the
-    # neutral preset for users whose access is defined entirely by their
-    # saved permission profile and optional job title.
     "auth_roles": ["ADMIN", "OWNER", "MANAGER", "MILKER", "CUSTOM"],
     "health_case_statuses": ["OPEN", "RESOLVED"],
     "finding_severities": ["CRITICAL", "HIGH", "MONITORING", "INFORMATION"],
@@ -75,6 +80,7 @@ def reference_data():
                 "animal_id": a.animal_id,
                 "label": a.animal_id,
                 "breed": a.breed,
+                "sex": a.sex,
                 "lifecycle_status": a.lifecycle_status,
             }
             for a in animals

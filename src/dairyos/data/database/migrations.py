@@ -124,3 +124,36 @@ def migrate_operational_finding_audit() -> list[str]:
             if name not in existing:
                 connection.execute(text(f'ALTER TABLE operational_findings ADD COLUMN "{name}" {sql_type}')); changed.append(f"operational_findings.{name}")
     return changed
+
+
+def migrate_payroll() -> list[str]:
+    """Create the Finance-owned payroll table additively and idempotently."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "payroll_record" in inspector.get_table_names():
+            return []
+        connection.execute(text("""CREATE TABLE payroll_record (
+            id SERIAL PRIMARY KEY,
+            employee_name VARCHAR NOT NULL,
+            employee_role VARCHAR NOT NULL,
+            period_start DATE NOT NULL,
+            period_end DATE NOT NULL,
+            worked_days NUMERIC(10,2) NOT NULL DEFAULT 0,
+            base_pay NUMERIC(14,2) NOT NULL DEFAULT 0,
+            overtime_hours NUMERIC(10,2) NOT NULL DEFAULT 0,
+            overtime_rate NUMERIC(14,2) NOT NULL DEFAULT 0,
+            allowances NUMERIC(14,2) NOT NULL DEFAULT 0,
+            advances NUMERIC(14,2) NOT NULL DEFAULT 0,
+            deductions NUMERIC(14,2) NOT NULL DEFAULT 0,
+            status VARCHAR NOT NULL DEFAULT 'DRAFT',
+            payment_date DATE NULL,
+            notes TEXT NULL,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL
+        )"""))
+        connection.execute(text("CREATE INDEX ix_payroll_record_employee_name ON payroll_record (employee_name)"))
+        connection.execute(text("CREATE INDEX ix_payroll_record_employee_role ON payroll_record (employee_role)"))
+        connection.execute(text("CREATE INDEX ix_payroll_record_period_start ON payroll_record (period_start)"))
+        connection.execute(text("CREATE INDEX ix_payroll_record_period_end ON payroll_record (period_end)"))
+        connection.execute(text("CREATE INDEX ix_payroll_record_status ON payroll_record (status)"))
+    return ["payroll_record"]

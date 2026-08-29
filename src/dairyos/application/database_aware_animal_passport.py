@@ -6,86 +6,34 @@ from datetime import date
 
 from dairyos.application.animal_passport import LifetimeAnimalPassportService
 from dairyos.core.time_utils import utcnow
+from dairyos.platform.knowledge_graph.services.animal_passport_graph_service import (
+    AnimalPassportGraphService,
+)
 
 
 class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
     """Use animal-scoped repository queries for history collections."""
 
     def _health_projection(self, animal_id: str, as_of_date: date):
-        observations = self._through_date(
-            self.factory.health().get_by_animal_id(animal_id),
-            as_of_date,
-        )
-        cases = self._through_date(
-            self.factory.health_cases().get_by_animal(animal_id),
-            as_of_date,
-        )
-        treatments = self._through_date(
-            self.factory.treatment().get_by_animal(animal_id),
-            as_of_date,
-        )
-        open_cases = [
-            case for case in cases
-            if str(getattr(case, "status", "")).upper() == "OPEN"
-        ]
-
+        observations = self._through_date(self.factory.health().get_by_animal_id(animal_id), as_of_date)
+        cases = self._through_date(self.factory.health_cases().get_by_animal(animal_id), as_of_date)
+        treatments = self._through_date(self.factory.treatment().get_by_animal(animal_id), as_of_date)
+        open_cases = [case for case in cases if str(getattr(case, "status", "")).upper() == "OPEN"]
         active_withdrawals = []
         for treatment in treatments:
             withdrawal_until = getattr(treatment, "milk_withdrawal_until", None)
             withdrawal_date = withdrawal_until.date() if hasattr(withdrawal_until, "date") else withdrawal_until
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
-                active_withdrawals.append({
-                    "source": "TREATMENT",
-                    "treatment_id": getattr(treatment, "id", None),
-                    "medicine": getattr(treatment, "medicine", None),
-                    "withdrawal_until": withdrawal_date.isoformat(),
-                    "withdrawal_source": getattr(treatment, "withdrawal_source", None),
-                })
-
+                active_withdrawals.append({"source": "TREATMENT", "treatment_id": getattr(treatment, "id", None), "medicine": getattr(treatment, "medicine", None), "withdrawal_until": withdrawal_date.isoformat(), "withdrawal_source": getattr(treatment, "withdrawal_source", None)})
         for case in cases:
             withdrawal_until = getattr(case, "withdrawal_until", None)
             withdrawal_date = withdrawal_until.date() if hasattr(withdrawal_until, "date") else withdrawal_until
             if withdrawal_date is not None and withdrawal_date >= as_of_date:
-                active_withdrawals.append({
-                    "source": "HEALTH_CASE",
-                    "case_id": getattr(case, "case_id", None),
-                    "withdrawal_until": withdrawal_date.isoformat(),
-                })
-
-        latest_observation = (
-            max(observations, key=lambda item: self._record_date(item) or date.min)
-            if observations else None
-        )
+                active_withdrawals.append({"source": "HEALTH_CASE", "case_id": getattr(case, "case_id", None), "withdrawal_until": withdrawal_date.isoformat()})
+        latest_observation = max(observations, key=lambda item: self._record_date(item) or date.min) if observations else None
         return {
-            "summary": {
-                "open_case_count": len(open_cases),
-                "observation_count": len(observations),
-                "treatment_count": len(treatments),
-                "active_withdrawal": bool(active_withdrawals),
-                "latest_observation_date": (
-                    self._record_date(latest_observation).isoformat()
-                    if latest_observation and self._record_date(latest_observation)
-                    else None
-                ),
-                "latest_observation": (
-                    (getattr(latest_observation, "observation", None)
-                     or getattr(latest_observation, "symptom", None))
-                    if latest_observation else None
-                ),
-            },
-            "open_cases": [
-                {
-                    "case_id": getattr(case, "case_id", None),
-                    "severity": getattr(case, "severity", None),
-                    "diagnosis": getattr(case, "diagnosis", None),
-                    "status": getattr(case, "status", None),
-                    "opened_at": getattr(case, "opened_at", None).isoformat() if getattr(case, "opened_at", None) else None,
-                    "follow_up_due_at": getattr(case, "follow_up_due_at", None).isoformat() if getattr(case, "follow_up_due_at", None) else None,
-                    "withdrawal_until": getattr(case, "withdrawal_until", None).isoformat() if getattr(case, "withdrawal_until", None) else None,
-                    "resolution": getattr(case, "resolution", None),
-                }
-                for case in open_cases
-            ],
+            "summary": {"open_case_count": len(open_cases), "observation_count": len(observations), "treatment_count": len(treatments), "active_withdrawal": bool(active_withdrawals), "latest_observation_date": self._record_date(latest_observation).isoformat() if latest_observation and self._record_date(latest_observation) else None, "latest_observation": ((getattr(latest_observation, "observation", None) or getattr(latest_observation, "symptom", None)) if latest_observation else None)},
+            "open_cases": [{"case_id": getattr(case, "case_id", None), "severity": getattr(case, "severity", None), "diagnosis": getattr(case, "diagnosis", None), "status": getattr(case, "status", None), "opened_at": getattr(case, "opened_at", None).isoformat() if getattr(case, "opened_at", None) else None, "follow_up_due_at": getattr(case, "follow_up_due_at", None).isoformat() if getattr(case, "follow_up_due_at", None) else None, "withdrawal_until": getattr(case, "withdrawal_until", None).isoformat() if getattr(case, "withdrawal_until", None) else None, "resolution": getattr(case, "resolution", None)} for case in open_cases],
             "active_withdrawals": active_withdrawals,
         }
 
@@ -95,8 +43,6 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             return None
 
         projection_date = as_of_date or utcnow().date()
-        # Lineage projection genuinely needs the animal graph. History facts
-        # below are independently scoped to this animal in PostgreSQL.
         all_animals = self.factory.animal().get_all()
         lineage = self._lineage_projection(animal, all_animals)
 
@@ -106,10 +52,7 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
         treatments = self._through_date(self.factory.treatment().get_by_animal(animal_id), as_of_date)
         feed = self._through_date(self.factory.feed().get_by_animal_id(animal_id), as_of_date)
         finance = self._through_date(self.factory.finance().get_by_animal_id(animal_id), as_of_date)
-        events = self._through_date(
-            self.factory.operational_events().get_by_animal_id(animal_id),
-            as_of_date,
-        )
+        events = self._through_date(self.factory.operational_events().get_by_animal_id(animal_id), as_of_date)
 
         history = {
             "milk": [self._serialize(item) for item in milk],
@@ -122,15 +65,7 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             "lineage_descendants": [dict(item) for item in lineage["descendants"]],
         }
 
-        timeline = [
-            {
-                "domain": domain,
-                "timestamp": self._record_timestamp(record),
-                "record": record,
-            }
-            for domain, records in history.items()
-            for record in records
-        ]
+        timeline = [{"domain": domain, "timestamp": self._record_timestamp(record), "record": record} for domain, records in history.items() for record in records]
         timeline.sort(key=lambda item: str(item["timestamp"]))
 
         schedule = self._schedule_projection(animal, as_of_date)
@@ -147,27 +82,19 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             "open_health_cases": health_state["summary"]["open_case_count"],
             "active_milk_withdrawal": health_state["summary"]["active_withdrawal"],
         }
+        graph = AnimalPassportGraphService().build(animal_id, lineage, history)
 
         return {
             "animal": self._animal_identity(animal),
-            "date_context": {
-                "mode": "CURRENT_STATE" if as_of_date is None else "HISTORICAL_STATE",
-                "operational_date": as_of_date.isoformat() if as_of_date is not None else None,
-                "historical_state_basis": (
-                    "Persisted domain records through the selected operational date plus effective-dated milking schedule authority."
-                    if as_of_date is not None else None
-                ),
-            },
+            "date_context": {"mode": "CURRENT_STATE" if as_of_date is None else "HISTORICAL_STATE", "operational_date": as_of_date.isoformat() if as_of_date is not None else None, "historical_state_basis": "Persisted domain records through the selected operational date plus effective-dated milking schedule authority." if as_of_date is not None else None},
             "lineage": lineage,
             "production": production,
-            "reproduction": {
-                "current": reproduction["summary"],
-                "lifetime_events": reproduction["events"],
-            },
+            "reproduction": {"current": reproduction["summary"], "lifetime_events": reproduction["events"]},
             "health_state": health_state,
             "biological_summary": biological_summary,
             "schedule": schedule,
             "history": history,
             "timeline": timeline,
             "record_counts": {domain: len(records) for domain, records in history.items()},
+            "knowledge_graph": graph,
         }

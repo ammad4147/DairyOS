@@ -19,6 +19,7 @@ from dairyos.data.database.migrations import (
     migrate_milk_quality,
     migrate_coml,
     migrate_operational_finding_audit,
+    migrate_payroll,
 )
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
@@ -41,6 +42,7 @@ async def lifespan(_app: FastAPI):
     quality_migrated = migrate_milk_quality()
     coml_migrated = migrate_coml()
     finding_audit_migrated = migrate_operational_finding_audit()
+    payroll_migrated = migrate_payroll()
     if migrated:
         logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
     if inventory_migrated:
@@ -51,6 +53,8 @@ async def lifespan(_app: FastAPI):
         logging.info("COML migration created: %s", ", ".join(coml_migrated))
     if finding_audit_migrated:
         logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
+    if payroll_migrated:
+        logging.info("Finance payroll migration created: %s", ", ".join(payroll_migrated))
     container.start()
     email_scheduler.start()
     marker = record_successful_start()
@@ -150,6 +154,8 @@ from dairyos.api.milk_production_summary import router as milk_production_summar
 from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
 from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.coml import router as coml_router
+from dairyos.api.payroll import router as payroll_router
+from dairyos.api.digital_twin import router as digital_twin_router
 
 app.include_router(command_router)
 app.include_router(dashboard_router)
@@ -186,6 +192,8 @@ app.include_router(milk_production_summary_router)
 app.include_router(milk_legacy_compat_router)
 app.include_router(milk_quality_router)
 app.include_router(coml_router)
+app.include_router(payroll_router)
+app.include_router(digital_twin_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 
