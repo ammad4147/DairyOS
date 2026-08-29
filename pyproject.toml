@@ -30,6 +30,8 @@ desktop = ["pywebview>=6.2.1"]
 dairyos-server = "dairyos.server:main"
 dairyos-lifecycle = "dairyos.lifecycle.cli:main"
 dairyos-desktop = "dairyos.windows.supervisor:main"
+dairyos-admin = "dairyos.admin.app:main"
+dairyos-admin-cli = "dairyos.admin.cli:main"
 
 [tool.black]
 line-length=88
