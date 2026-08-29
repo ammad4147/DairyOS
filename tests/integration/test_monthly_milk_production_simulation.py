@@ -105,8 +105,8 @@ def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpi
         assert horizon_response["trend"]["series"]
 
     final_values = [70.0, 20.0] + [2.0 * BASELINE[tag] for tag in MILKING_TAGS[2:]]
-    expected_average_daily = sum(final_values) / 15.0
-    assert abs(float(dashboard["milk"]["average_yield_per_cow"]) - expected_average_daily) < 1e-6
+    expected_average_daily = round(sum(final_values) / 15.0, 2)
+    assert dashboard["milk"]["average_yield_per_cow"] == expected_average_daily
 
     assert dashboard["animals"]["total"] == 20
     assert dashboard["milk"]["milking_population_count"] == 15
