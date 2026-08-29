@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from calendar import month_name
 from datetime import date
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -15,6 +16,25 @@ router = APIRouter(prefix="/farm/coml", tags=["COML"])
 
 REMINDER_SETTING_KEY = "coml_reminder_day"
 DEFAULT_REMINDER_DAY = 1
+
+
+class COMLLineItem(BaseModel):
+    item: str = Field(min_length=1)
+    quantity: Decimal = Field(ge=0)
+    unit: str = Field(min_length=1)
+    unit_rate: Decimal = Field(ge=0)
+
+    @property
+    def total(self) -> Decimal:
+        return self.quantity * self.unit_rate
+
+
+class COMLCalculationRequest(BaseModel):
+    period_start: date
+    period_end: date
+    milk_produced_liters: Decimal = Field(ge=0)
+    feed_items: list[COMLLineItem] = Field(default_factory=list)
+    operating_items: list[COMLLineItem] = Field(default_factory=list)
 
 
 class COMLLockRequest(BaseModel):
@@ -74,12 +94,7 @@ def _reminder_status(month_start: date, *, has_official: bool, reminder_day: int
 
 def _status_payload(month_start: date, row, reminder_day: int):
     today = OperationalDateAuthority().current_date()
-    status = _reminder_status(
-        month_start,
-        has_official=row is not None,
-        reminder_day=reminder_day,
-        today=today,
-    )
+    status = _reminder_status(month_start, has_official=row is not None, reminder_day=reminder_day, today=today)
     return {
         "month_start": month_start.isoformat(),
         "month_label": _month_label(month_start),
@@ -89,6 +104,35 @@ def _status_payload(month_start: date, row, reminder_day: int):
         "reminder_status": status,
         "reminder_due": status in {"DUE", "OVERDUE"},
         "checked_at": utcnow().isoformat(),
+    }
+
+
+@router.post("/calculate")
+def calculate_coml(payload: COMLCalculationRequest):
+    if payload.period_end < payload.period_start:
+        raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
+    liters = Decimal(payload.milk_produced_liters)
+    if liters <= 0:
+        raise HTTPException(status_code=422, detail="milk_produced_liters must be greater than zero")
+    feed_total = sum((item.total for item in payload.feed_items), Decimal("0"))
+    opex_total = sum((item.total for item in payload.operating_items), Decimal("0"))
+    return {
+        "data_status": "CALCULATED_MANUAL_INPUT",
+        "period_start": payload.period_start.isoformat(),
+        "period_end": payload.period_end.isoformat(),
+        "period_days": (payload.period_end - payload.period_start).days + 1,
+        "milk_produced_liters": str(liters),
+        "feed_total": str(feed_total),
+        "operating_total": str(opex_total),
+        "feed_cost_per_liter": str(feed_total / liters),
+        "opex_cost_per_liter": str(opex_total / liters),
+        "total_coml_per_liter": str((feed_total + opex_total) / liters),
+        "feed_items": [
+            {**item.model_dump(), "total": str(item.total)} for item in payload.feed_items
+        ],
+        "operating_items": [
+            {**item.model_dump(), "total": str(item.total)} for item in payload.operating_items
+        ],
     }
 
 
@@ -113,10 +157,7 @@ def get_current_coml():
 def get_coml_history():
     rf = RepositoryFactory.create()
     try:
-        return {
-            "data_status": "LIVE_PERSISTED_DATA",
-            "records": [_serialize(row) for row in rf.coml().get_all()],
-        }
+        return {"data_status": "LIVE_PERSISTED_DATA", "records": [_serialize(row) for row in rf.coml().get_all()]}
     finally:
         rf.close()
 
@@ -128,17 +169,10 @@ def lock_coml(payload: COMLLockRequest, current_user=Depends(get_optional_curren
     opex = round(float(payload.opex_cost_per_liter), 4)
     if feed + opex <= 0:
         raise HTTPException(status_code=422, detail="Feed Cost/L + OPEX/L must be greater than zero.")
-
     rf = RepositoryFactory.create()
     try:
         updated_by = str(current_user["sub"]) if current_user is not None else payload.updated_by.strip()
-        row = rf.coml().upsert(
-            month_start=selected,
-            feed_cost_per_liter=feed,
-            opex_cost_per_liter=opex,
-            notes=payload.notes,
-            updated_by=updated_by or "UI Operator",
-        )
+        row = rf.coml().upsert(month_start=selected, feed_cost_per_liter=feed, opex_cost_per_liter=opex, notes=payload.notes, updated_by=updated_by or "UI Operator")
         reminder_day = int(rf.app_settings().get(REMINDER_SETTING_KEY, DEFAULT_REMINDER_DAY))
         return {"data_status": "LIVE_PERSISTED_DATA", **_status_payload(selected, row, reminder_day)}
     finally:
