@@ -46,6 +46,44 @@ def _stage(message: str) -> None:
     print(f"[ADMIN-POSTGRES] {message}", file=sys.stderr, flush=True)
 
 
+def _print_target_table_locks(database_url: str) -> None:
+    query = """
+        SELECT
+            l.pid,
+            a.application_name,
+            a.client_addr,
+            a.state,
+            a.xact_start,
+            l.mode,
+            l.granted,
+            c.relname,
+            a.query
+        FROM pg_locks AS l
+        JOIN pg_class AS c ON c.oid = l.relation
+        JOIN pg_stat_activity AS a ON a.pid = l.pid
+        WHERE a.datname = current_database()
+          AND c.relname IN (
+              'animal', 'animal_milking_schedule_history', 'breeding_records',
+              'coml_records', 'email_digest_deliveries', 'email_digest_runs',
+              'equipment', 'equipment_service_events', 'event_journal', 'farms',
+              'feed_inventory_items', 'feed_ration', 'feed_record',
+              'financial_transactions', 'health_cases', 'health_observation',
+              'inventory_transactions', 'milk_dispositions', 'milk_production',
+              'milk_quality_samples', 'milking_session_records',
+              'operational_events', 'operational_findings', 'operational_states',
+              'treatment_record'
+          )
+        ORDER BY l.granted DESC, c.relname, l.pid
+    """
+    with psycopg.connect(_psycopg_conninfo(database_url), connect_timeout=10) as connection:
+        rows = connection.execute(query).fetchall()
+    if not rows:
+        _stage("LOCK DIAGNOSTIC: no active locks found on Reset target tables")
+        return
+    for row in rows:
+        _stage("LOCK DIAGNOSTIC: " + " | ".join(str(value) for value in row))
+
+
 def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     database_url = _database_url()
     _stage("1/9 creating SQLAlchemy engine")
@@ -78,7 +116,9 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
                 )
             )
 
+        engine.dispose()
         monkeypatch.setattr("dairyos.admin.service._assert_runtime_stopped", lambda: None)
+        _print_target_table_locks(database_url)
 
         _stage("4/9 executing administrative Reset")
         result = AdminService(manager).reset(RESET_CONFIRMATION)
@@ -92,15 +132,19 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         _stage(f"4/9 Reset completed; recovery artifact={recovery}")
 
         _stage("5/9 verifying zero-state and deployment deactivation")
-        with engine.connect() as connection:
-            assert connection.execute(
-                text("SELECT count(*) FROM animal WHERE animal_id=:id"),
-                {"id": animal_id},
-            ).scalar_one() == 0
-            deployment = connection.execute(
-                text("SELECT value FROM app_settings WHERE key='deployment_activated'")
-            ).scalar_one()
-            assert deployment == "false"
+        verify_engine = create_engine(database_url)
+        try:
+            with verify_engine.connect() as connection:
+                assert connection.execute(
+                    text("SELECT count(*) FROM animal WHERE animal_id=:id"),
+                    {"id": animal_id},
+                ).scalar_one() == 0
+                deployment = connection.execute(
+                    text("SELECT value FROM app_settings WHERE key='deployment_activated'")
+                ).scalar_one()
+                assert deployment == "false"
+        finally:
+            verify_engine.dispose()
 
         manifest_text = (recovery / "backup.json").read_text(encoding="utf-8")
         assert "database_backup_sha256" in manifest_text
