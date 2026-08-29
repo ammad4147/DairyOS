@@ -9,11 +9,10 @@ from __future__ import annotations
 import argparse
 import html
 import os
-import sys
 from pathlib import Path
 
-from dairyos.admin.service import AdminService
-from dairyos.lifecycle.manager import LifecycleManager, LifecycleError
+from dairyos.admin.service import AdminService, PURGE_CONFIRMATION, RESET_CONFIRMATION
+from dairyos.lifecycle.manager import LifecycleManager
 
 
 def _manager() -> LifecycleManager:
@@ -24,23 +23,28 @@ def _manager() -> LifecycleManager:
 
 def _page(message: str = "") -> str:
     safe = html.escape(message)
+    reset_token = html.escape(RESET_CONFIRMATION)
+    purge_token = html.escape(PURGE_CONFIRMATION)
     return f"""<!doctype html><html><head><meta charset='utf-8'>
 <title>DairyOS Administration</title><style>
 body{{font-family:Segoe UI,Arial,sans-serif;background:#0f172a;color:#e2e8f0;margin:0}}
 main{{max-width:1000px;margin:40px auto;padding:24px}} h1{{margin-bottom:4px}}
-.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}}
 section{{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px}}
 button{{padding:10px 14px;margin:4px;border:0;border-radius:6px;cursor:pointer}}
+input{{padding:9px;margin:4px;width:calc(100% - 20px);background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:5px}}
 .danger{{background:#991b1b;color:white}} .normal{{background:#334155;color:white}}
 pre{{white-space:pre-wrap;background:#020617;padding:12px;border-radius:6px}}
+small{{color:#94a3b8}}
 </style></head><body><main><h1>DairyOS Administration</h1>
 <p>Standalone lifecycle and recovery administration. This is not part of the operational farm UI.</p>
 {('<pre>'+safe+'</pre>') if safe else ''}
 <div class='grid'>
 <section><h2>Health</h2><form method='post' action='/validate'><button class='normal'>Validate Installation</button></form></section>
 <section><h2>Recovery</h2><form method='post' action='/backup'><button class='normal'>Create Backup</button></form></section>
-<section><h2>Restore</h2><p>Use the CLI for an explicit backup path.</p></section>
-<section><h2>Destructive Operations</h2><form method='post' action='/reset'><button class='danger'>Reset Application Data</button></form><form method='post' action='/purge'><button class='danger'>Purge Data</button></form></section>
+<section><h2>Restore</h2><p>Use <code>dairyos-admin-cli restore</code> with an explicit verified backup path.</p></section>
+<section><h2>Reset Application</h2><small>Creates an external pre-reset recovery artifact before mutation.</small><form method='post' action='/reset'><input name='confirm' placeholder='{reset_token}' autocomplete='off' required><button class='danger'>Reset Application Data</button></form></section>
+<section><h2>Permanent Purge</h2><small>Irreversible data-root deletion. External recovery backup is created first.</small><form method='post' action='/purge'><input name='confirm' placeholder='{purge_token}' autocomplete='off' required><button class='danger'>Purge Data</button></form></section>
 <section><h2>Uninstall</h2><form method='post' action='/uninstall'><button class='normal'>Uninstall — Keep Data</button></form></section>
 </div></main></body></html>"""
 
