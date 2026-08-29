@@ -1,6 +1,11 @@
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends
 
 from dairyos.api.dependencies import get_container
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.operations.health.services.operations_health_service import (
     OperationsHealthService,
 )
@@ -14,6 +19,39 @@ router = APIRouter(
 
 def get_state(container):
     return container.farm_operational_state_service.get_state()
+
+
+def _as_date(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def get_persisted_milk_today(container):
+    """Read the authoritative persisted milk facts for the operational day.
+
+    Dashboard milk is a reporting fact and must not depend on a transient
+    projection being refreshed correctly. The MilkProduction repository is
+    the source of truth; the operational state remains a separate projection.
+    """
+    operational_date = OperationalDateAuthority().current_date()
+    repository = getattr(container, "milk_repository", None)
+    if repository is None:
+        return 0.0
+
+    total = 0.0
+    for record in list(repository.get_all() or []):
+        produced = _as_date(getattr(record, "production_date", None))
+        if produced != operational_date:
+            continue
+        value = getattr(record, "total_yield", None)
+        if value is not None:
+            total += float(value)
+    return total
 
 
 def get_decisions(container):
@@ -35,7 +73,11 @@ def get_finding_metrics(container):
         for finding in findings
         if str(getattr(finding, "status", "")).upper() == "RESOLVED"
     )
-    return {"total": len(findings), "open": len(findings) - resolved, "resolved": resolved}
+    return {
+        "total": len(findings),
+        "open": len(findings) - resolved,
+        "resolved": resolved,
+    }
 
 
 def get_health_snapshot(container):
@@ -50,8 +92,10 @@ def get_health_snapshot(container):
         decisions=decisions,
         active_decisions=len(decisions),
         pending_actions=sum(
-            1 for decision in decisions
-            if isinstance(decision, dict) and decision.get("owner_action_required", False)
+            1
+            for decision in decisions
+            if isinstance(decision, dict)
+            and decision.get("owner_action_required", False)
         ),
         tracked_outcomes=finding_metrics["resolved"],
         learning_signals=0,
@@ -68,7 +112,8 @@ def attention_count(container):
 
 def critical_attention_count(container):
     return sum(
-        1 for decision in get_decisions(container)
+        1
+        for decision in get_decisions(container)
         if isinstance(decision, dict)
         and str(decision.get("priority", "")).upper() == "CRITICAL"
     )
@@ -79,7 +124,8 @@ def command_status(container=Depends(get_container)):
     decisions = get_decisions(container)
     attention = len(decisions)
     critical = sum(
-        1 for decision in decisions
+        1
+        for decision in decisions
         if isinstance(decision, dict)
         and str(decision.get("priority", "")).upper() == "CRITICAL"
     )
@@ -99,11 +145,15 @@ def operations_dashboard(container=Depends(get_container)):
     snapshot = get_health_snapshot(container)
     finding_metrics = get_finding_metrics(container)
     total_findings = finding_metrics["total"]
-    resolution_rate = 100.0 * finding_metrics["resolved"] / total_findings if total_findings else 0.0
+    resolution_rate = (
+        100.0 * finding_metrics["resolved"] / total_findings
+        if total_findings
+        else 0.0
+    )
     return {
         "health": snapshot.health_status,
         "farm_status": state.operational_status(),
-        "milk_today": state.milk_total(),
+        "milk_today": get_persisted_milk_today(container),
         "feed_today": state.feed_total(),
         "total_events": container.event_journal.count(),
         "open_issues": len(decisions),
@@ -123,7 +173,8 @@ def executive(container=Depends(get_container)):
     finding_metrics = get_finding_metrics(container)
     attention = len(decisions)
     critical = sum(
-        1 for decision in decisions
+        1
+        for decision in decisions
         if isinstance(decision, dict)
         and str(decision.get("priority", "")).upper() == "CRITICAL"
     )
@@ -134,7 +185,11 @@ def executive(container=Depends(get_container)):
     else:
         recommended_focus = "Continue normal operations"
     total_findings = finding_metrics["total"]
-    resolution_rate = 100.0 * finding_metrics["resolved"] / total_findings if total_findings else 0.0
+    resolution_rate = (
+        100.0 * finding_metrics["resolved"] / total_findings
+        if total_findings
+        else 0.0
+    )
     return {
         "health_status": snapshot.health_status,
         "operational_status": state.operational_status(),
