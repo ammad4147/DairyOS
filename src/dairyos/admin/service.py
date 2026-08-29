@@ -2,35 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-import shutil
-
-import sqlalchemy as sa
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import Session
 
 from dairyos.data.database.backup import verify_backup_artifact
-from dairyos.data.repositories.app_setting_repository import AppSettingRepository
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
-from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
 from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
+from dairyos.lifecycle.reset import reset_operational_data, verify_zero_state
 from dairyos.lifecycle.restore import restore_snapshot
 
 RESET_CONFIRMATION = "RESET DAIRYOS DATA"
 PURGE_CONFIRMATION = "PURGE DAIRYOS DATA"
-_PRESERVED_TABLES = {
-    "alembic_version",
-    "app_settings",
-    "users",
-    "drug_withdrawal_reference",
-    "email_sender_settings",
-}
 
 
 @dataclass(frozen=True)
@@ -53,6 +41,7 @@ class AdminService:
     def backup(self, label: str = "admin") -> AdminResult:
         artifact = self.manager.backup(label=label)
         _record_database_checksum(artifact)
+        _verify_backup_directory(artifact)
         return AdminResult("backup", True, "Backup completed and verified.", str(artifact))
 
     def restore(self, backup: str | Path) -> AdminResult:
@@ -72,12 +61,7 @@ class AdminService:
         )
 
     def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
-        """Reset operational state through a verified external recovery point.
-
-        The running operational backend must be stopped first. This prevents
-        background workers from writing new operational rows while the admin
-        transaction is clearing the database.
-        """
+        """Reset operational state through a verified external recovery point."""
         if confirmation != RESET_CONFIRMATION:
             raise LifecycleError(
                 f"Reset requires the exact confirmation token: {RESET_CONFIRMATION!r}"
@@ -85,7 +69,6 @@ class AdminService:
         if not self.manager.database_url:
             raise LifecycleError("Reset requires DAIRYOS_DATABASE_URL to be configured.")
         _assert_runtime_stopped()
-
         self.manager.validate(require_database=True)
         artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
         if artifact is None:
@@ -94,20 +77,17 @@ class AdminService:
         recovery_artifact = _copy_external_recovery_artifact(artifact)
         _verify_backup_directory(recovery_artifact)
         _write_audit_event(recovery_artifact, "reset-intent", {"artifact": str(recovery_artifact)})
-
         try:
-            _deactivate_deployment(self.manager.database_url, updated_by="DairyOS Admin Tool")
-            tables = _truncate_operational_tables(self.manager.database_url)
-            remaining = _verify_zero_state(self.manager.database_url)
-            if remaining:
-                raise LifecycleError(
-                    "Reset zero-state verification failed: "
-                    + json.dumps(remaining, sort_keys=True)
-                )
+            execution = reset_operational_data(
+                self.manager.database_url,
+                updated_by="DairyOS Admin Tool",
+            )
+            if verify_zero_state(self.manager.database_url):
+                raise LifecycleError("Reset completed but zero-state verification failed.")
             _write_audit_event(
                 recovery_artifact,
                 "reset-result",
-                {"status": "success", "tables_cleared": tables},
+                {"status": "success", "tables_cleared": list(execution.tables_cleared)},
             )
             return AdminResult(
                 "reset",
@@ -151,7 +131,6 @@ def _assert_runtime_stopped() -> None:
         port = int(os.environ.get("DAIRYOS_PORT", "8000"))
     except ValueError as exc:
         raise LifecycleError("DAIRYOS_PORT must be an integer for administrative reset.") from exc
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.25)
         try:
@@ -159,8 +138,7 @@ def _assert_runtime_stopped() -> None:
         except OSError:
             return
     raise LifecycleError(
-        f"DairyOS runtime is still listening on {host}:{port}. Stop the operational "
-        "application before executing Reset."
+        f"DairyOS runtime is still listening on {host}:{port}. Stop the operational application before executing Reset."
     )
 
 
@@ -176,9 +154,7 @@ def _record_database_checksum(backup: str | Path) -> None:
     metadata = verify_backup_artifact(path / str(database_backup))
     manifest["database_backup_sha256"] = metadata["sha256"]
     manifest["database_backup_size_bytes"] = metadata["size_bytes"]
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _verify_backup_directory(backup: str | Path) -> None:
@@ -207,11 +183,7 @@ def _verify_backup_directory(backup: str | Path) -> None:
 
 def _copy_external_recovery_artifact(backup: Path) -> Path:
     configured = os.environ.get("DAIRYOS_RECOVERY_ROOT")
-    root = (
-        Path(configured).expanduser().resolve()
-        if configured
-        else backup.parents[2] / "recovery"
-    )
+    root = Path(configured).expanduser().resolve() if configured else backup.parents[2] / "recovery"
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"{backup.name}-external"
     if destination.exists():
@@ -222,69 +194,12 @@ def _copy_external_recovery_artifact(backup: Path) -> Path:
 
 def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -> None:
     path = artifact.parent / "admin-audit.jsonl"
-    record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "event": event,
-        **payload,
-    }
+    record = {"timestamp": datetime.now(timezone.utc).isoformat(), "event": event, **payload}
     with path.open("a", encoding="utf-8", newline="\n") as stream:
         stream.write(json.dumps(record, sort_keys=True) + "\n")
 
 
-def _deactivate_deployment(database_url: str, updated_by: str) -> None:
-    engine = create_engine(database_url)
-    try:
-        with Session(engine) as session:
-            service = DeploymentControlService(
-                FarmSettingsService(AppSettingRepository(session=session))
-            )
-            service.deactivate(updated_by=updated_by)
-    finally:
-        engine.dispose()
-
-
-def _truncate_operational_tables(database_url: str) -> list[str]:
-    engine = create_engine(database_url)
-    try:
-        tables = sorted(
-            table
-            for table in inspect(engine).get_table_names()
-            if table not in _PRESERVED_TABLES
-        )
-        if tables:
-            quoted = ", ".join('"' + table.replace('"', '""') + '"' for table in tables)
-            with engine.begin() as connection:
-                connection.execute(
-                    sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE")
-                )
-        return tables
-    finally:
-        engine.dispose()
-
-
-def _verify_zero_state(database_url: str) -> dict[str, int]:
-    engine = create_engine(database_url)
-    try:
-        remaining: dict[str, int] = {}
-        inspector = inspect(engine)
-        with engine.connect() as connection:
-            for table in inspector.get_table_names():
-                if table in _PRESERVED_TABLES:
-                    continue
-                quoted = '"' + table.replace('"', '""') + '"'
-                count = int(
-                    connection.execute(sa.text(f"SELECT count(*) FROM {quoted}")).scalar_one()
-                )
-                if count:
-                    remaining[table] = count
-        return remaining
-    finally:
-        engine.dispose()
-
-
 def _sha256(path: Path) -> str:
-    import hashlib
-
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
