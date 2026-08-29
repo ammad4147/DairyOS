@@ -71,7 +71,6 @@ def test_milk_entry_simulation_does_not_invent_unentered_sessions(
         "/farm/milk",
         json={
             "animal_id": registered_animal,
-            "morning_yield": 8.0,
             "afternoon_yield": 0.0,
             "milking_session": "AFTERNOON",
             "operator": "simulation",
