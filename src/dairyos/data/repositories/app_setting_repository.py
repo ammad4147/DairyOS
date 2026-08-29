@@ -4,8 +4,9 @@ from dairyos.data.models.app_setting import AppSetting
 
 
 class AppSettingRepository:
-    def __init__(self, session=None):
+    def __init__(self, session=None, *, commit: bool = True):
         self.session = session
+        self.commit = commit
         self.records = {}
 
     def get(self, key: str, default=None):
@@ -33,6 +34,11 @@ class AppSettingRepository:
         else:
             row.value = value
             row.updated_by = updated_by
-        self.session.commit()
+
+        if self.commit:
+            self.session.commit()
+        else:
+            self.session.flush()
+
         self.session.refresh(row)
         return row

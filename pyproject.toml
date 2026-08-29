@@ -18,6 +18,7 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "pydantic>=2.11",
   "python-dotenv>=1.1",
+  "python-multipart>=0.0.20",
   "uvicorn>=0.35",
   "PyYAML>=6.0",
   "cryptography>=45.0"
@@ -30,6 +31,8 @@ desktop = ["pywebview>=6.2.1"]
 dairyos-server = "dairyos.server:main"
 dairyos-lifecycle = "dairyos.lifecycle.cli:main"
 dairyos-desktop = "dairyos.windows.supervisor:main"
+dairyos-admin = "dairyos.admin.app:main"
+dairyos-admin-cli = "dairyos.admin.cli:main"
 
 [tool.black]
 line-length=88

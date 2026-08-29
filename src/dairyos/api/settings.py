@@ -2,26 +2,17 @@
 
 from __future__ import annotations
 
-import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.auth import require_permission
 from dairyos.api.dependencies import get_container
-from dairyos.data.database.session import engine
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.email.service import EmailService
 from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
-_PRESERVED_TABLES = {
-    "alembic_version",
-    "app_settings",
-    "users",
-    "drug_withdrawal_reference",
-    "email_sender_settings",
-}
 
 
 def _service() -> tuple[FarmSettingsService, RepositoryFactory]:
@@ -80,7 +71,11 @@ def get_settings():
 def update_identity(payload: UpdateIdentityRequest):
     service, rf = _service()
     try:
-        return service.update_identity(farm_name=payload.farm_name, animal_id_prefix=payload.animal_id_prefix, updated_by=payload.updated_by)
+        return service.update_identity(
+            farm_name=payload.farm_name,
+            animal_id_prefix=payload.animal_id_prefix,
+            updated_by=payload.updated_by,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
@@ -91,7 +86,11 @@ def update_identity(payload: UpdateIdentityRequest):
 def update_operational_settings(payload: UpdateOperationalSettingsRequest):
     service, rf = _service()
     try:
-        return service.update_operational_settings(timezone_name=payload.timezone, operational_date_convention=payload.operational_date_convention, updated_by=payload.updated_by)
+        return service.update_operational_settings(
+            timezone_name=payload.timezone,
+            operational_date_convention=payload.operational_date_convention,
+            updated_by=payload.updated_by,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
@@ -102,7 +101,11 @@ def update_operational_settings(payload: UpdateOperationalSettingsRequest):
 def update_dashboard_preferences(payload: UpdateDashboardPreferencesRequest):
     service, rf = _service()
     try:
-        return service.update_dashboard_preferences(default_trend_period=payload.default_trend_period, card_visibility=payload.card_visibility, updated_by=payload.updated_by)
+        return service.update_dashboard_preferences(
+            default_trend_period=payload.default_trend_period,
+            card_visibility=payload.card_visibility,
+            updated_by=payload.updated_by,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
@@ -113,7 +116,10 @@ def update_dashboard_preferences(payload: UpdateDashboardPreferencesRequest):
 def update_alert_preferences(payload: UpdateAlertPreferencesRequest):
     service, rf = _service()
     try:
-        return service.update_alert_preferences(preferences=payload.preferences, updated_by=payload.updated_by)
+        return service.update_alert_preferences(
+            preferences=payload.preferences,
+            updated_by=payload.updated_by,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
@@ -132,7 +138,10 @@ def deployment_status():
 @router.post("/deployment/activate")
 def activate_deployment(payload: DeployRequest):
     if payload.confirm != "DEPLOY":
-        raise HTTPException(status_code=422, detail='confirm must be the literal string "DEPLOY" to proceed')
+        raise HTTPException(
+            status_code=422,
+            detail='confirm must be the literal string "DEPLOY" to proceed',
+        )
 
     service, rf = _deployment_service()
     try:
@@ -142,44 +151,23 @@ def activate_deployment(payload: DeployRequest):
         rf.close()
 
 
-def _truncate_all_operational_tables() -> list[str]:
-    inspector = sa.inspect(engine)
-    tables = [table for table in inspector.get_table_names() if table not in _PRESERVED_TABLES]
-    if tables:
-        quoted = ", ".join(f'"{table}"' for table in tables)
-        with engine.begin() as conn:
-            conn.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
-    return sorted(tables)
-
-
-@router.post("/reset")
+@router.post("/reset", include_in_schema=False)
 @router.post("/reset-test-data", include_in_schema=False)
 def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_container)):
-    if payload.confirm != "RESET":
-        raise HTTPException(status_code=422, detail='confirm must be the literal string "RESET" to proceed')
+    """Reject the legacy in-application destructive reset path.
 
-    container_session = getattr(getattr(container, "repository_factory", None), "session", None)
-    if container_session is not None:
-        container_session.rollback()
-
-    tables = _truncate_all_operational_tables()
-
-    if getattr(container, "animal_operational_state_repository", None) is not None:
-        container.animal_operational_state_repository.clear()
-    if getattr(container, "operational_input_repository", None) is not None:
-        container.operational_input_repository.clear()
-
-    container.started = False
-    container.operations = None
-    container.dashboard = None
-
-    service, rf = _deployment_service()
-    try:
-        status = service.deactivate(updated_by=payload.updated_by)
-    finally:
-        rf.close()
-
-    return {"status": "reset", "tables_cleared": tables, "deployment": status}
+    Reset is an administrative lifecycle operation and must be executed by the
+    standalone DairyOS Administration Tool. Keeping this endpoint as a hard
+    rejection prevents old clients from retaining a second destructive path.
+    """
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "Application reset has moved to the standalone DairyOS "
+            "Administration Tool. The operational application cannot perform "
+            "destructive lifecycle reset operations."
+        ),
+    )
 
 
 class EmailSettingsRequest(BaseModel):
@@ -202,17 +190,30 @@ def get_email_settings(_admin=Depends(require_permission("settings.email"))):
 
 
 @router.put("/email")
-def save_email_settings(payload: EmailSettingsRequest, admin=Depends(require_permission("settings.email"))):
+def save_email_settings(
+    payload: EmailSettingsRequest,
+    admin=Depends(require_permission("settings.email")),
+):
     try:
-        return EmailService().save_config(payload.model_dump(), updated_by=str(admin.get("sub") or "ADMIN"))
+        return EmailService().save_config(
+            payload.model_dump(),
+            updated_by=str(admin.get("sub") or "ADMIN"),
+        )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/email/test")
-def send_test_email(payload: EmailTestRequest, _admin=Depends(require_permission("settings.email"))):
+def send_test_email(
+    payload: EmailTestRequest,
+    _admin=Depends(require_permission("settings.email")),
+):
     try:
-        EmailService().send(recipient=payload.recipient, subject="DairyOS SMTP Test", body="DairyOS SMTP configuration test succeeded.")
+        EmailService().send(
+            recipient=payload.recipient,
+            subject="DairyOS SMTP Test",
+            body="DairyOS SMTP configuration test succeeded.",
+        )
         return {"status": "sent", "recipient": payload.recipient}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"SMTP test failed: {exc}") from exc
