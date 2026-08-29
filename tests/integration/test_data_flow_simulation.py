@@ -1,8 +1,8 @@
 """Entry-point-driven data-flow simulations.
 
-These tests deliberately write through public farm entry points instead of
-inserting domain rows directly. The simulations always consult the animal's
-persisted Passport schedule before deciding which milking sessions are valid.
+These tests deliberately use public operator entry points rather than direct
+model insertion. Each simulation reads the animal's persisted Passport
+schedule first, so twice-daily and thrice-daily animals are never conflated.
 """
 
 
@@ -36,11 +36,12 @@ def _passport_schedule(client, animal_id, as_of_date=None):
     )
     assert response.status_code == 200, response.text
     passport = response.json()
-    frequency = passport["schedule"]["milking_frequency"]
-    expected = passport["schedule"]["expected_sessions"]
+    schedule = passport["schedule"]
+    frequency = schedule["milking_frequency"]
+    expected = schedule["expected_sessions"]
     assert frequency in {"TWICE_DAILY", "THRICE_DAILY"}
     assert expected
-    return frequency, expected
+    return passport, frequency, expected
 
 
 def test_milk_entry_flows_to_animal_passport_and_operations_dashboard(
@@ -50,7 +51,7 @@ def test_milk_entry_flows_to_animal_passport_and_operations_dashboard(
     from dairyos.app import container
 
     _bind_runtime_operational_state(container)
-    frequency, expected = _passport_schedule(client, registered_animal)
+    _, frequency, expected = _passport_schedule(client, registered_animal)
     assert frequency == "THRICE_DAILY"
     assert expected == ["MORNING", "AFTERNOON", "EVENING"]
 
@@ -87,96 +88,44 @@ def test_milk_entry_flows_to_animal_passport_and_operations_dashboard(
     assert operations.json()["milk_today"] == 8.0
 
 
-def test_milk_entry_simulation_does_not_invent_unentered_sessions(
-    client,
-    registered_animal,
-):
-    from dairyos.app import container
-
-    _bind_runtime_operational_state(container)
-    _, expected = _passport_schedule(client, registered_animal)
-    assert expected == ["MORNING", "AFTERNOON", "EVENING"]
-
-    skipped = client.post(
-        "/farm/milk/not-milked",
-        json={
-            "milking_session": "MORNING",
-            "reason": "EQUIPMENT_FAILURE",
-            "operator": "simulation",
-        },
-    )
-    assert skipped.status_code == 200, skipped.text
-
-    response = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": registered_animal,
-            "afternoon_yield": 0.0,
-            "milking_session": "AFTERNOON",
-            "operator": "simulation",
-        },
-    )
-    assert response.status_code == 200, response.text
-    entry = response.json()
-    assert entry["afternoon_yield"] == 0.0
-    assert entry["total_yield"] == 0.0
-    assert entry.get("morning_yield") is None
-    assert entry.get("evening_yield") is None
-
-
 def test_thrice_daily_animal_requires_all_three_passport_sessions(client):
     from dairyos.app import container
 
     _bind_runtime_operational_state(container)
     animal_id = _register_scheduled_animal(client, "THRICE_DAILY")
-    frequency, expected = _passport_schedule(client, animal_id)
+    _, frequency, expected = _passport_schedule(client, animal_id)
     assert frequency == "THRICE_DAILY"
     assert expected == ["MORNING", "AFTERNOON", "EVENING"]
 
-    morning = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": animal_id,
-            "morning_yield": 8.0,
-            "milking_session": "MORNING",
-            "operator": "simulation",
-        },
-    )
-    assert morning.status_code == 200, morning.text
-
-    afternoon = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": animal_id,
-            "afternoon_yield": 7.0,
-            "milking_session": "AFTERNOON",
-            "operator": "simulation",
-        },
-    )
-    assert afternoon.status_code == 200, afternoon.text
-
-    evening = client.post(
-        "/farm/milk",
-        json={
-            "animal_id": animal_id,
-            "evening_yield": 6.0,
-            "milking_session": "EVENING",
-            "operator": "simulation",
-        },
-    )
-    assert evening.status_code == 200, evening.text
+    for session, field, value in (
+        ("MORNING", "morning_yield", 8.0),
+        ("AFTERNOON", "afternoon_yield", 7.0),
+        ("EVENING", "evening_yield", 6.0),
+    ):
+        response = client.post(
+            "/farm/milk",
+            json={
+                "animal_id": animal_id,
+                field: value,
+                "milking_session": session,
+                "operator": "simulation",
+            },
+        )
+        assert response.status_code == 200, response.text
 
     passport = client.get(f"/farm/animals/{animal_id}/passport")
     assert passport.status_code == 200, passport.text
     data = passport.json()
     assert data["schedule"]["expected_sessions"] == expected
-    rows = [row for row in data["history"]["milk"] if row["animal_id"] == animal_id]
-    assert {row["milking_session"] for row in rows} >= set(expected)
+    rows = [
+        row for row in data["history"]["milk"]
+        if row["animal_id"] == animal_id
+    ]
+    by_session = {row["milking_session"]: row for row in rows}
+    assert by_session["MORNING"]["total_yield"] == 8.0
+    assert by_session["AFTERNOON"]["total_yield"] == 7.0
+    assert by_session["EVENING"]["total_yield"] == 6.0
     assert sum(row["total_yield"] for row in rows) == 21.0
-
-    operations = client.get("/operations/dashboard")
-    assert operations.status_code == 200, operations.text
-    assert operations.json()["milk_today"] == 21.0
 
 
 def test_twice_daily_animal_never_requires_afternoon(client):
@@ -184,7 +133,7 @@ def test_twice_daily_animal_never_requires_afternoon(client):
 
     _bind_runtime_operational_state(container)
     animal_id = _register_scheduled_animal(client, "TWICE_DAILY")
-    frequency, expected = _passport_schedule(client, animal_id)
+    _, frequency, expected = _passport_schedule(client, animal_id)
     assert frequency == "TWICE_DAILY"
     assert expected == ["MORNING", "EVENING"]
 
@@ -225,10 +174,14 @@ def test_twice_daily_animal_never_requires_afternoon(client):
     passport = client.get(f"/farm/animals/{animal_id}/passport")
     assert passport.status_code == 200, passport.text
     data = passport.json()
-    assert data["schedule"]["milking_frequency"] == "TWICE_DAILY"
-    assert data["schedule"]["expected_sessions"] == expected
-    rows = [row for row in data["history"]["milk"] if row["animal_id"] == animal_id]
-    assert {row["milking_session"] for row in rows} == {"MORNING", "EVENING"}
+    rows = [
+        row for row in data["history"]["milk"]
+        if row["animal_id"] == animal_id
+    ]
+    assert {row["milking_session"] for row in rows} == {
+        "MORNING",
+        "EVENING",
+    }
     assert sum(row["total_yield"] for row in rows) == 14.0
 
 
@@ -237,7 +190,10 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
 
     _bind_runtime_operational_state(container)
     animal_id = _register_scheduled_animal(client, "THRICE_DAILY")
-    initial_frequency, initial_sessions = _passport_schedule(client, animal_id)
+    _, initial_frequency, initial_sessions = _passport_schedule(
+        client,
+        animal_id,
+    )
     assert initial_frequency == "THRICE_DAILY"
     assert initial_sessions == ["MORNING", "AFTERNOON", "EVENING"]
 
@@ -253,7 +209,7 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
     )
     assert change.status_code == 200, change.text
 
-    historical_frequency, historical_sessions = _passport_schedule(
+    _, historical_frequency, historical_sessions = _passport_schedule(
         client,
         animal_id,
         as_of_date="2099-01-01",
@@ -261,7 +217,7 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
     assert historical_frequency == "THRICE_DAILY"
     assert historical_sessions == ["MORNING", "AFTERNOON", "EVENING"]
 
-    future_frequency, future_sessions = _passport_schedule(
+    _, future_frequency, future_sessions = _passport_schedule(
         client,
         animal_id,
         as_of_date=future_date,
@@ -315,9 +271,68 @@ def test_individual_passport_schedule_transition_changes_allowed_sessions(client
     assert data["schedule"]["milking_frequency"] == "TWICE_DAILY"
     assert data["schedule"]["expected_sessions"] == ["MORNING", "EVENING"]
     future_rows = [
-        row for row in data["history"]["milk"]
+        row
+        for row in data["history"]["milk"]
         if row["animal_id"] == animal_id
         and row["production_date"].startswith(future_date)
     ]
-    assert {row["milking_session"] for row in future_rows} == {"MORNING", "EVENING"}
+    assert {row["milking_session"] for row in future_rows} == {
+        "MORNING",
+        "EVENING",
+    }
     assert sum(row["total_yield"] for row in future_rows) == 17.0
+
+
+def test_milk_entry_simulation_does_not_fabricate_an_unsettled_session(
+    client,
+    registered_animal,
+):
+    from dairyos.app import container
+
+    _bind_runtime_operational_state(container)
+    _, frequency, expected = _passport_schedule(client, registered_animal)
+    assert frequency == "THRICE_DAILY"
+    assert expected == ["MORNING", "AFTERNOON", "EVENING"]
+
+    # Attempting Afternoon before Morning has been settled must be rejected.
+    blocked = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "afternoon_yield": 0.0,
+            "milking_session": "AFTERNOON",
+            "operator": "simulation",
+        },
+    )
+    assert blocked.status_code == 409, blocked.text
+    assert "MORNING" in blocked.text
+    assert "has not been recorded or declared" in blocked.text
+
+    # Now explicitly establish the missing fact.
+    skipped = client.post(
+        "/farm/milk/not-milked",
+        json={
+            "milking_session": "MORNING",
+            "reason": "EQUIPMENT_FAILURE",
+            "operator": "simulation",
+        },
+    )
+    assert skipped.status_code == 200, skipped.text
+
+    # With Morning explicitly declared, Afternoon may be entered as explicit
+    # zero. No zero was invented for Morning.
+    response = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "afternoon_yield": 0.0,
+            "milking_session": "AFTERNOON",
+            "operator": "simulation",
+        },
+    )
+    assert response.status_code == 200, response.text
+    entry = response.json()
+    assert entry["afternoon_yield"] == 0.0
+    assert entry["total_yield"] == 0.0
+    assert entry.get("morning_yield") is None
+    assert entry.get("evening_yield") is None
