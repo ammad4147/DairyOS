@@ -1,18 +1,4 @@
-"""Guards against the vocabulary-drift class of defect (Phase 1, 2026-08-14).
-
-Before this fix, three independent lists governed animal lifecycle_status
-(reference_data.py's advertised GOVERNED list, animal_registration.py's write
-validation, animal_management/router.py's write validation) and disagreed:
-SOLD/DECEASED were advertised but always rejected on write (no way to retire
-an animal), while CLOSE_UP/SICK were accepted on write but never advertised.
-milking_frequency had the same shape: ONCE_DAILY was offered in the frontend
-dropdown but not validated by any write path and not supported by the milk
-session sequencing service.
-
-These tests assert the advertised (GET /farm/reference-data) and enforced
-(both write paths) sets are identical, so this class of defect cannot
-silently reopen.
-"""
+"""Guards against vocabulary drift between advertised and enforced values."""
 from fastapi.testclient import TestClient
 import pytest
 
@@ -33,9 +19,6 @@ def reset_runtime_state():
 
     session = SessionLocal()
     try:
-        # MilkProduction now has a foreign-key dependency on Animal. Remove
-        # dependent rows before resetting the Animal register so the fixture
-        # remains valid against the canonical schema.
         session.query(MilkProduction).delete(synchronize_session=False)
         session.query(AnimalMilkingScheduleHistory).delete(synchronize_session=False)
         session.query(Animal).delete(synchronize_session=False)
@@ -62,31 +45,50 @@ def _advertised():
     return set(governed["lifecycle_statuses"]), set(governed["milking_frequencies"])
 
 
+def _sex_for_lifecycle(status: str) -> str:
+    return "MALE" if status == "BULL" else "FEMALE"
+
+
+def _create_animal(status: str):
+    response = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": status,
+            "sex": _sex_for_lifecycle(status),
+        },
+    )
+    assert response.status_code == 200, response.json()
+    return response
+
+
 def test_every_advertised_lifecycle_status_is_accepted_on_registration():
     advertised, _ = _advertised()
 
     for status in advertised:
-        response = client.post(
-            "/farm/animals",
-            json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": status},
-        )
-        assert response.status_code == 200, (
-            f"{status!r} is advertised at GET /farm/reference-data but rejected "
-            f"by POST /farm/animals: {response.json()}"
-        )
+        response = _create_animal(status)
         assert response.json()["lifecycle_status"] == status
 
 
 def test_every_advertised_lifecycle_status_is_accepted_on_lifecycle_change():
     advertised, _ = _advertised()
 
-    created = client.post(
-        "/farm/animals",
-        json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": "HEIFER"},
-    )
-    animal_id = created.json()["animal_id"]
-
+    # A single animal cannot legitimately move between BULL and female-only
+    # lifecycle states because the canonical classification contract protects
+    # sex/lifecycle integrity. Create a fresh biologically valid animal for
+    # each advertised status instead of weakening that domain rule.
     for status in advertised:
+        created = _create_animal("HEIFER")
+        animal_id = created.json()["animal_id"]
+
+        if status == "BULL":
+            sex_response = client.patch(
+                f"/farm/animals/{animal_id}",
+                json={"sex": "MALE"},
+            )
+            assert sex_response.status_code == 200, sex_response.json()
+
         response = client.patch(
             f"/farm/animals/{animal_id}/lifecycle",
             json={"lifecycle_status": status},
@@ -101,10 +103,7 @@ def test_every_advertised_lifecycle_status_is_accepted_on_lifecycle_change():
 def test_every_advertised_milking_frequency_is_accepted():
     _, advertised = _advertised()
 
-    created = client.post(
-        "/farm/animals",
-        json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": "LACTATING"},
-    )
+    created = _create_animal("LACTATING")
     animal_id = created.json()["animal_id"]
 
     for frequency in advertised:
@@ -120,19 +119,12 @@ def test_every_advertised_milking_frequency_is_accepted():
 
 
 def test_sold_and_deceased_are_now_reachable():
-    """The concrete animal-retirement-path regression this fix closes."""
     for status in ("SOLD", "DECEASED", "CULLED"):
-        response = client.post(
-            "/farm/animals",
-            json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": status},
-        )
-        assert response.status_code == 200
+        response = _create_animal(status)
         assert response.json()["lifecycle_status"] == status
 
 
 def test_sick_is_no_longer_a_lifecycle_status():
-    """Domain decision 2026-08-14: SICK is a health condition, not a life
-    stage, and is dropped from lifecycle_status pending HealthCase (G5.1)."""
     response = client.post(
         "/farm/animals",
         json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": "SICK"},
@@ -141,12 +133,7 @@ def test_sick_is_no_longer_a_lifecycle_status():
 
 
 def test_once_daily_milking_frequency_is_rejected():
-    """MilkSessionSequenceService has no branch for ONCE_DAILY; removed from
-    the advertised/enforced vocabulary rather than left silently unsupported."""
-    created = client.post(
-        "/farm/animals",
-        json={"animal_type": "COW", "breed": "Sahiwal", "lifecycle_status": "LACTATING"},
-    )
+    created = _create_animal("LACTATING")
     animal_id = created.json()["animal_id"]
 
     response = client.post(
