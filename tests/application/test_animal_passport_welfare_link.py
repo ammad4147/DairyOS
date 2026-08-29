@@ -115,3 +115,14 @@ def test_passport_links_persisted_welfare_and_honors_historical_date():
     assert linked["data_status"] == "LIVE_PERSISTED_DATA"
     assert linked["observation_count"] == 1
     assert linked["latest"]["score"] == 82
+    assert passport["history"]["welfare"][0]["score"] == 82
+    assert passport["record_counts"]["welfare"] == 1
+    assert any(
+        item["domain"] == "welfare"
+        and item["record"]["score"] == 82
+        for item in passport["timeline"]
+    )
+    graph_relations = {
+        relation["relation_type"] for relation in passport["knowledge_graph"]["relationships"]
+    }
+    assert "HAS_WELFARE_OBSERVATION" in graph_relations
