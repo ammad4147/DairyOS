@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -98,28 +98,73 @@ class ReproductiveStateService:
             raise ReproductiveStateError("Reproductive event requires event_type")
 
         raw_event_date = cls._value(event, "event_date", None)
-        if raw_event_date is None:
-            raw_event_date = cls._value(event, "timestamp", None)
-        if raw_event_date is None:
+        raw_timestamp = cls._value(event, "timestamp", None)
+
+        if raw_event_date is None and raw_timestamp is None:
             raise ReproductiveStateError(
                 "Reproductive event requires event_date or timestamp"
             )
+
+        event_date_source = (
+            raw_event_date
+            if raw_event_date is not None
+            else raw_timestamp
+        )
+
+        timestamp = None
+        if raw_timestamp is not None:
+            if isinstance(raw_timestamp, datetime):
+                timestamp = raw_timestamp
+            elif isinstance(raw_timestamp, date):
+                timestamp = datetime.combine(
+                    raw_timestamp,
+                    datetime.min.time(),
+                    tzinfo=timezone.utc,
+                )
+            elif isinstance(raw_timestamp, str):
+                try:
+                    timestamp = datetime.fromisoformat(
+                        raw_timestamp.replace("Z", "+00:00")
+                    )
+                except ValueError as exc:
+                    raise ReproductiveStateError(
+                        f"Invalid reproductive event timestamp: {raw_timestamp!r}"
+                    ) from exc
+            else:
+                raise ReproductiveStateError(
+                    f"Unsupported reproductive event timestamp: {raw_timestamp!r}"
+                )
+
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            else:
+                timestamp = timestamp.astimezone(timezone.utc)
 
         return {
             "animal_id": animal_id,
             "event_type": event_type,
             "result": cls._value(event, "result", None),
             "technician": cls._value(event, "technician", None),
-            "event_date": cls._as_date(raw_event_date),
-            "expected_calving_date": cls._value(event, "expected_calving_date", None),
+            "event_date": cls._as_date(event_date_source),
+            "timestamp": timestamp,
+            "record_id": cls._value(event, "record_id", "") or "",
+            "expected_calving_date": cls._value(
+                event,
+                "expected_calving_date",
+                None,
+            ),
             "confirmed": cls._value(event, "confirmed", None),
         }
 
     @staticmethod
     def _classifier_record(event: Mapping[str, Any]) -> SimpleNamespace:
-        timestamp = datetime.combine(
-            event["event_date"], datetime.min.time(), tzinfo=timezone.utc
-        )
+        timestamp = event.get("timestamp")
+        if timestamp is None:
+            timestamp = datetime.combine(
+                event["event_date"],
+                datetime.min.time(),
+                tzinfo=timezone.utc,
+            )
         return SimpleNamespace(
             animal_id=event["animal_id"],
             event_type=event["event_type"],
@@ -142,7 +187,14 @@ class ReproductiveStateService:
             if event["event_date"] > as_of_date:
                 continue
             normalized.append(event)
-        normalized.sort(key=lambda event: event["event_date"])
+        normalized.sort(
+            key=lambda event: (
+                event["timestamp"] is None,
+                event["timestamp"] or datetime.max.replace(tzinfo=timezone.utc),
+                event["event_date"],
+                event["record_id"],
+            )
+        )
         return normalized
 
     @staticmethod

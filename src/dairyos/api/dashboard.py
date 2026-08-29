@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 
 from fastapi import APIRouter, Depends
 
@@ -107,12 +107,34 @@ def get_dashboard(container=Depends(get_container)):
         )
 
     thirty_day_trend = trends["30d"]
-    prior_total = thirty_day_trend.get("prior_total_litres")
-    current_total = thirty_day_trend.get("daily_total")
+    thirty_day_series = list(thirty_day_trend.get("series") or [])
+
+    current_total = None
+    prior_total = None
+
+    if thirty_day_series:
+        current_point = next(
+            (
+                item
+                for item in reversed(thirty_day_series)
+                if str(item.get("date", "")) == operational_date.isoformat()
+            ),
+            None,
+        )
+
+        if current_point is None:
+            current_point = thirty_day_series[-1]
+
+        current_total = current_point.get("total_yield")
+
+        current_index = thirty_day_series.index(current_point)
+        if current_index > 0:
+            prior_total = thirty_day_series[current_index - 1].get("total_yield")
+
     variance_percentage = None
     if prior_total not in (None, 0) and current_total is not None:
         variance_percentage = round(
-            ((current_total - prior_total) / prior_total) * 100.0,
+            ((float(current_total) - float(prior_total)) / float(prior_total)) * 100.0,
             1,
         )
     severity = _drop_severity(variance_percentage)

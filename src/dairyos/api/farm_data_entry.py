@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+﻿from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -960,10 +960,78 @@ def next_milking_session(
 def list_milk_entries(
     container=Depends(get_container),
 ):
-    return _list_by_type(
+    rows = _list_by_type(
         container,
         "milk_production",
     )
+
+    factory = getattr(container, "repository_factory", None)
+    if factory is None:
+        return rows
+
+    persisted = {}
+
+    for record in factory.milk().get_all():
+        production_date = getattr(record, "production_date", None)
+
+        if hasattr(production_date, "date"):
+            production_date = production_date.date()
+
+        date_key = (
+            production_date.isoformat()
+            if production_date is not None
+            else None
+        )
+
+        key = (
+            str(getattr(record, "animal_id", "")),
+            date_key,
+            str(
+                getattr(record, "milking_session", "")
+                or ""
+            ).upper(),
+        )
+
+        persisted[key] = record
+
+    for row in rows:
+        production_date = row.get("production_date")
+
+        if production_date is None:
+            production_date = row.get("timestamp")
+
+        date_key = (
+            str(production_date)[:10]
+            if production_date is not None
+            else None
+        )
+
+        key = (
+            str(row.get("animal_id", "")),
+            date_key,
+            str(
+                row.get("milking_session", "")
+                or ""
+            ).upper(),
+        )
+
+        record = persisted.get(key)
+
+        if record is None:
+            continue
+
+        row["status"] = getattr(
+            record,
+            "status",
+            row.get("status", "RECORDED"),
+        )
+        row["total_yield"] = getattr(
+            record,
+            "total_yield",
+            row.get("total_yield"),
+        )
+
+    return rows
 
 
 @router.post("/feed")

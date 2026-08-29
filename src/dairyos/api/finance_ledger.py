@@ -1,4 +1,4 @@
-"""Persistent Finance ledger API.
+﻿"""Persistent Finance ledger API.
 
 Finance remains one unified ledger. Feed/OPEX are analytical dimensions on
 expense rows; credit-control adds due/settlement dates and ageing without
@@ -6,7 +6,7 @@ creating a second ledger.
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -402,7 +402,7 @@ def update_finance_ledger_status(transaction_id: int, payload: FinanceStatusUpda
     row.status = status
     row.settled_date = date.today() if status in SETTLED_STATUSES else None
     if payload.reason:
-        stamp = datetime.utcnow().isoformat()
+        stamp = datetime.now(UTC).isoformat()
         row.notes = f"{row.notes or ''}\nSTATUS_TRANSITION_AT={stamp} REASON={payload.reason.strip()}".strip()
     repository.add(row)
     return _row_dict(row)

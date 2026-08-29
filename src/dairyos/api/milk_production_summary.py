@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import calendar
 from collections import defaultdict
@@ -180,6 +180,9 @@ def _qualifying_rows(
 
     for record in records:
         if not bool(getattr(record, "session_ledger", False)):
+            continue
+
+        if str(getattr(record, "status", "") or "").upper() == "WITHDRAWAL":
             continue
 
         if not _has_entered_yield(record):

@@ -1,4 +1,4 @@
-"""Authoritative lifetime-biological Animal Passport read model.
+﻿"""Authoritative lifetime-biological Animal Passport read model.
 
 The Passport remains projection-only. Persisted domain records remain the
 source of truth; this service assembles a single animal-centric biological
@@ -592,7 +592,12 @@ class LifetimeAnimalPassportService:
             return "LACTATING"
         return "OPEN"
 
-    def _health_projection(self, animal_id: str, as_of_date: date) -> dict[str, Any]:
+    def _health_projection(
+        self,
+        animal_id: str,
+        as_of_date: date,
+        treatments: list[Any] | None = None,
+    ) -> dict[str, Any]:
         observations = self._for_animal(
             self._through_date(self.factory.health().get_all(), as_of_date),
             animal_id,
@@ -601,10 +606,11 @@ class LifetimeAnimalPassportService:
             self.factory.health_cases().get_by_animal(animal_id),
             as_of_date,
         )
-        treatments = self._through_date(
-            self.factory.treatment().get_by_animal(animal_id),
-            as_of_date,
-        )
+        if treatments is None:
+            treatments = self._through_date(
+                self.factory.treatment().get_by_animal(animal_id),
+                as_of_date,
+            )
         open_cases = [
             case
             for case in cases
@@ -850,6 +856,7 @@ class LifetimeAnimalPassportService:
         health_state = self._health_projection(
             animal_id,
             projection_date,
+            treatments=treatments,
         )
         biological_summary = {
             "lifetime_milk_liters": production["lifetime"]["lifetime_milk_liters"],

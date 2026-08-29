@@ -1,4 +1,4 @@
-"""Twenty-animal, thirty-day production simulation.
+﻿"""Twenty-animal, thirty-day production simulation.
 
 Fifteen animals are active lactating cows on TWICE_DAILY schedules; five are
 active heifers and therefore must not be treated as milk-producing animals.
@@ -162,7 +162,11 @@ def test_herd_drop_marks_production_date_and_drop_percentage_with_severity(clien
         _post(client, animal_id, drop_day, value, "EVENING")
 
     dashboard = _dashboard(client)
-    serial = str(dashboard).lower()
-    assert "production" in serial and "drop" in serial
-    assert "%" in serial
-    assert "amber" in serial or "red" in serial or "high" in serial or "critical" in serial
+
+    production_drop = dashboard["milk"]["production_drop"]
+
+    assert production_drop["production_date"] == drop_day.isoformat()
+    assert production_drop["drop_percentage"] > 0
+    assert production_drop["variance_percentage"] < 0
+    assert production_drop["severity"] in {"AMBER", "RED"}
+    assert production_drop["alert_color"] == production_drop["severity"]
