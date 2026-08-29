@@ -176,13 +176,13 @@ try {
     $env:DAIRYOS_DB_NAME = "dairyos_test"
     $env:DAIRYOS_DB_USER = "postgres"
     $env:DAIRYOS_DB_PASSWORD = ""
-    Remove-Item Env:DAIRYOS_DATABASE_URL -ErrorAction SilentlyContinue
+    $env:DAIRYOS_DATABASE_URL = "postgresql+psycopg://postgres@127.0.0.1:$port/dairyos_test"
 
     $args = @("-q") + $PytestArgs
 
     Write-Host ""
     Write-Host "=== TEST DATABASE ==="
-    Write-Host "postgresql+psycopg://postgres@127.0.0.1:$port/dairyos_test"
+    Write-Host $env:DAIRYOS_DATABASE_URL
 
     Write-Host ""
     Write-Host "=== PYTEST ==="
