@@ -15,8 +15,18 @@ def _effective(client, animal_id, as_of_date=None):
     return response.json()["schedule"]["effective"]
 
 
+def _operational_date():
+    from dairyos.app import container
+    from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+    return OperationalDateAuthority(repository_factory=container.repository_factory).current_date().isoformat()
+
+
 def _row(client, animal_id, day):
-    body = client.get(f"/farm/animals/{animal_id}/passport", params={"as_of_date": day}).json()
+    assert day
+    response = client.get(f"/farm/animals/{animal_id}/passport", params={"as_of_date": day})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "history" in body and "milk" in body["history"], body
     rows = [r for r in body["history"]["milk"] if r["animal_id"] == animal_id and str(r["production_date"]).startswith(day)]
     assert len(rows) == 1, rows
     return rows[0], body
@@ -27,10 +37,10 @@ def test_thrice_daily_uses_passport_schedule_and_three_sessions(client, register
     schedule = _effective(client, registered_animal)
     assert schedule["milking_frequency"] == "THRICE_DAILY"
     assert schedule["expected_sessions"] == ["MORNING", "AFTERNOON", "EVENING"]
+    day = _operational_date()
     for session, field, value in (("MORNING", "morning_yield", 8.0), ("AFTERNOON", "afternoon_yield", 7.0), ("EVENING", "evening_yield", 6.0)):
-        response = client.post("/farm/milk", json={"animal_id": registered_animal, field: value, "milking_session": session, "operator": "simulation"})
+        response = client.post("/farm/milk", json={"animal_id": registered_animal, field: value, "milking_session": session, "production_date": day, "operator": "simulation"})
         assert response.status_code == 200, response.text
-    day = schedule["operational_date"]
     row, passport = _row(client, registered_animal, day)
     assert (row["morning_yield"], row["afternoon_yield"], row["evening_yield"], row["total_yield"]) == (8.0, 7.0, 6.0, 21.0)
     assert passport["production"]["lifetime"]["lifetime_milk_liters"] == 21.0
@@ -44,9 +54,10 @@ def test_twice_daily_rejects_afternoon_and_accepts_evening(client):
     schedule = _effective(client, animal_id)
     assert schedule["milking_frequency"] == "TWICE_DAILY"
     assert schedule["expected_sessions"] == ["MORNING", "EVENING"]
-    assert client.post("/farm/milk", json={"animal_id": animal_id, "morning_yield": 9.0, "milking_session": "MORNING", "operator": "simulation"}).status_code == 200
-    blocked = client.post("/farm/milk", json={"animal_id": animal_id, "afternoon_yield": 5.0, "milking_session": "AFTERNOON", "operator": "simulation"})
+    day = _operational_date()
+    assert client.post("/farm/milk", json={"animal_id": animal_id, "morning_yield": 9.0, "milking_session": "MORNING", "production_date": day, "operator": "simulation"}).status_code == 200
+    blocked = client.post("/farm/milk", json={"animal_id": animal_id, "afternoon_yield": 5.0, "milking_session": "AFTERNOON", "production_date": day, "operator": "simulation"})
     assert blocked.status_code == 409, blocked.text
-    assert client.post("/farm/milk", json={"animal_id": animal_id, "evening_yield": 8.0, "milking_session": "EVENING", "operator": "simulation"}).status_code == 200
-    row, _ = _row(client, animal_id, schedule["operational_date"])
+    assert client.post("/farm/milk", json={"animal_id": animal_id, "evening_yield": 8.0, "milking_session": "EVENING", "production_date": day, "operator": "simulation"}).status_code == 200
+    row, _ = _row(client, animal_id, day)
     assert row["morning_yield"] == 9.0 and row["afternoon_yield"] is None and row["evening_yield"] == 8.0 and row["total_yield"] == 17.0
