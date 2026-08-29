@@ -21,6 +21,8 @@ PRESERVED_TABLES = frozenset(
 )
 
 DEPLOYMENT_ACTIVE_KEY = "deployment_activated"
+RESET_LOCK_TIMEOUT = "10s"
+RESET_STATEMENT_TIMEOUT = "60s"
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,8 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
     The preserved ``app_settings`` table is updated directly through the same
     SQL transaction as the operational-table truncation. This keeps the
     destructive lifecycle boundary independent of ORM transaction semantics.
+    PostgreSQL lock and statement timeouts are explicit so a live production
+    blocker fails closed rather than leaving an administrative Reset hanging.
     """
     engine = create_engine(database_url)
     try:
@@ -51,6 +55,9 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
         )
 
         with engine.begin() as connection:
+            connection.execute(sa.text("SET LOCAL lock_timeout = :timeout"), {"timeout": RESET_LOCK_TIMEOUT})
+            connection.execute(sa.text("SET LOCAL statement_timeout = :timeout"), {"timeout": RESET_STATEMENT_TIMEOUT})
+
             connection.execute(
                 sa.text(
                     "INSERT INTO app_settings "
