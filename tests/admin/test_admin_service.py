@@ -58,6 +58,10 @@ def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
     manager = FakeManager(tmp_path)
     manager.database_url = "postgresql+psycopg://example"
     monkeypatch.setattr(manager, "validate", lambda require_database=True: {"valid": True})
+    monkeypatch.setattr(
+        "dairyos.admin.service._record_database_checksum",
+        lambda path: (_ for _ in ()).throw(LifecycleError("PostgreSQL backup verification failed.")),
+    )
     with pytest.raises(LifecycleError, match="PostgreSQL backup"):
         AdminService(manager).reset(RESET_CONFIRMATION)
     assert manager.calls == [("backup", "pre-reset")]
