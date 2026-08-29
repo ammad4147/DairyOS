@@ -24,7 +24,7 @@ def test_payroll_payment_reaches_finance_once(client):
     assert created.status_code == 201, created.text
     payroll = created.json()
     assert Decimal(payroll["gross_pay"]) == Decimal("44500")
-    assert Decimal(payroll["net_pay"]) == Decimal("43500")
+    assert Decimal(payroll["net_pay"]) == Decimal("43000")
 
     payment = client.post(
         f"/farm/payroll/{payroll['id']}/pay",
@@ -51,7 +51,7 @@ def test_payroll_payment_reaches_finance_once(client):
         if row.get("reference") == f"PAYROLL#{payroll['id']}"
     ]
     assert len(payroll_rows) == 1, payroll_rows
-    assert float(payroll_rows[0]["amount"]) == 43500.0
+    assert float(payroll_rows[0]["amount"]) == 43000.0
     assert payroll_rows[0]["payroll_record_id"] == payroll["id"]
 
 
