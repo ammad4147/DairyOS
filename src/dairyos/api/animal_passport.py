@@ -11,7 +11,6 @@ from dairyos.api.dependencies import get_container
 from dairyos.application.database_aware_animal_passport import (
     DatabaseAwareLifetimeAnimalPassportService,
 )
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductivePolicy,
     ReproductiveStateError,
@@ -34,26 +33,14 @@ def get_lifetime_passport(
     container=Depends(get_container),
 ):
     """Return the authoritative date-aware Animal Passport read model."""
-    factory = RepositoryFactory.create()
-
-    try:
-        passport = DatabaseAwareLifetimeAnimalPassportService(
-            factory
-        ).build(
-            animal_id,
-            as_of_date=as_of_date,
-        )
-
-        if passport is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Animal not found",
-            )
-
-        return passport
-
-    finally:
-        factory.close()
+    factory = container.repository_factory
+    passport = DatabaseAwareLifetimeAnimalPassportService(factory).build(
+        animal_id,
+        as_of_date=as_of_date,
+    )
+    if passport is None:
+        raise HTTPException(status_code=404, detail="Animal not found")
+    return passport
 
 
 @router.get("/{animal_id}/reproduction")
@@ -66,7 +53,7 @@ def get_reproductive_state(
     container=Depends(get_container),
 ):
     """Return the authoritative reproductive state for one registered animal."""
-    factory = RepositoryFactory.create()
+    factory = container.repository_factory
     try:
         records = factory.breeding().get_all()
         target_events = [
@@ -80,8 +67,7 @@ def get_reproductive_state(
             gestation_days=280,
             dry_off_days_before_calving=60,
         )
-        service = ReproductiveStateService(policy)
-        resolved = service.resolve(
+        resolved = ReproductiveStateService(policy).resolve(
             animal_id,
             target_events,
             as_of_date=as_of_date or date.today(),
@@ -93,5 +79,3 @@ def get_reproductive_state(
         return payload
     except ReproductiveStateError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    finally:
-        factory.close()
