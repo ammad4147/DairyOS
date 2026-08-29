@@ -11,9 +11,10 @@ import shutil
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import Session
 
 from dairyos.data.database.backup import verify_backup_artifact
-from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.data.repositories.app_setting_repository import AppSettingRepository
 from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
@@ -88,10 +89,7 @@ class AdminService:
         _write_audit_event(recovery_artifact, "reset-intent", {"artifact": str(recovery_artifact)})
 
         try:
-            # Deactivation is deliberately performed before destructive SQL so
-            # the persisted deployment gate is closed before operational data
-            # changes begin. The application reset endpoint is never called.
-            _deactivate_deployment(updated_by="DairyOS Admin Tool")
+            _deactivate_deployment(self.manager.database_url, updated_by="DairyOS Admin Tool")
             tables = _truncate_operational_tables(self.manager.database_url)
             remaining = _verify_zero_state(self.manager.database_url)
             if remaining:
@@ -140,7 +138,6 @@ class AdminService:
 
 
 def _record_database_checksum(backup: str | Path) -> None:
-    """Record the PostgreSQL dump checksum in the backup manifest."""
     path = Path(backup).resolve()
     manifest_path = path / "backup.json"
     if not manifest_path.is_file():
@@ -149,8 +146,7 @@ def _record_database_checksum(backup: str | Path) -> None:
     database_backup = manifest.get("database_backup")
     if not database_backup:
         return
-    dump_path = path / str(database_backup)
-    metadata = verify_backup_artifact(dump_path)
+    metadata = verify_backup_artifact(path / str(database_backup))
     manifest["database_backup_sha256"] = metadata["sha256"]
     manifest["database_backup_size_bytes"] = metadata["size_bytes"]
     manifest_path.write_text(
@@ -167,8 +163,8 @@ def _verify_backup_directory(backup: str | Path) -> None:
     database_backup = manifest.get("database_backup")
     if database_backup:
         dump_path = path / str(database_backup)
-        expected = manifest.get("database_backup_sha256")
         metadata = verify_backup_artifact(dump_path)
+        expected = manifest.get("database_backup_sha256")
         if expected and str(metadata["sha256"]).lower() != str(expected).lower():
             raise LifecycleError("PostgreSQL backup SHA-256 verification failed.")
     files_root = path / "files"
@@ -184,9 +180,11 @@ def _verify_backup_directory(backup: str | Path) -> None:
 
 def _copy_external_recovery_artifact(backup: Path) -> Path:
     configured = os.environ.get("DAIRYOS_RECOVERY_ROOT")
-    # ``backup`` is normally <data_root>/backups/<snapshot>. The default is
-    # therefore a sibling of data_root, not a directory beneath it.
-    root = Path(configured).expanduser().resolve() if configured else backup.parents[2] / "recovery"
+    root = (
+        Path(configured).expanduser().resolve()
+        if configured
+        else backup.parents[2] / "recovery"
+    )
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"{backup.name}-external"
     if destination.exists():
@@ -206,14 +204,16 @@ def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -
         stream.write(json.dumps(record, sort_keys=True) + "\n")
 
 
-def _deactivate_deployment(updated_by: str) -> None:
-    factory = RepositoryFactory.create()
+def _deactivate_deployment(database_url: str, updated_by: str) -> None:
+    engine = create_engine(database_url)
     try:
-        DeploymentControlService(FarmSettingsService(factory.app_settings())).deactivate(
-            updated_by=updated_by
-        )
+        with Session(engine) as session:
+            service = DeploymentControlService(
+                FarmSettingsService(AppSettingRepository(session=session))
+            )
+            service.deactivate(updated_by=updated_by)
     finally:
-        factory.close()
+        engine.dispose()
 
 
 def _truncate_operational_tables(database_url: str) -> list[str]:
