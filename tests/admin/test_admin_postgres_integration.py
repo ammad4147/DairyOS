@@ -7,7 +7,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-import psycopg
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -32,13 +31,6 @@ def _database_url() -> str:
         f"{os.getenv('DAIRYOS_DB_HOST', 'localhost')}:"
         f"{os.getenv('DAIRYOS_DB_PORT', '5432')}/"
         f"{os.getenv('DAIRYOS_DB_NAME', 'dairyos')}"
-    )
-
-
-def _psycopg_conninfo(database_url: str) -> str:
-    """Render a SQLAlchemy PostgreSQL URL as a libpq conninfo string."""
-    return make_url(database_url).render_as_string(hide_password=False).replace(
-        "postgresql+psycopg://", "postgresql://", 1
     )
 
 
@@ -75,13 +67,43 @@ def _print_target_table_locks(database_url: str) -> None:
           )
         ORDER BY l.granted DESC, c.relname, l.pid
     """
-    with psycopg.connect(_psycopg_conninfo(database_url), connect_timeout=10) as connection:
-        rows = connection.execute(query).fetchall()
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(text(query)).fetchall()
+    finally:
+        engine.dispose()
     if not rows:
         _stage("LOCK DIAGNOSTIC: no active locks found on Reset target tables")
         return
     for row in rows:
         _stage("LOCK DIAGNOSTIC: " + " | ".join(str(value) for value in row))
+
+
+def _create_database(database_url: str, database_name: str) -> None:
+    """Create a PostgreSQL database through SQLAlchemy using the CI credentials."""
+    admin_url = make_url(database_url).set(database="postgres")
+    engine = create_engine(str(admin_url), isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as connection:
+            connection.execute(
+                text('CREATE DATABASE "' + database_name.replace('"', '""') + '"')
+            )
+    finally:
+        engine.dispose()
+
+
+def _drop_database(database_url: str, database_name: str) -> None:
+    """Drop the isolated PostgreSQL restore database using the CI credentials."""
+    admin_url = make_url(database_url).set(database="postgres")
+    engine = create_engine(str(admin_url), isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as connection:
+            connection.execute(
+                text('DROP DATABASE IF EXISTS "' + database_name.replace('"', '""') + '"')
+            )
+    finally:
+        engine.dispose()
 
 
 def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -94,7 +116,7 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
     manager.install(application_version="integration-test")
 
     animal_id = f"ADMIN-RESET-{uuid.uuid4().hex[:8].upper()}"
-    restore_url = None
+    restore_name = None
     try:
         _stage("3/9 inserting certification record")
         with engine.begin() as connection:
@@ -150,12 +172,9 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         assert "database_backup_sha256" in manifest_text
 
         _stage("6/9 creating isolated PostgreSQL restore database")
-        postgres_url = make_url(database_url).set(database="postgres")
         restore_name = f"dairyos_restore_{uuid.uuid4().hex[:10]}"
         restore_url = make_url(database_url).set(database=restore_name)
-        with psycopg.connect(_psycopg_conninfo(str(postgres_url)), connect_timeout=10) as admin_connection:
-            admin_connection.autocommit = True
-            admin_connection.execute('CREATE DATABASE "' + restore_name + '"')
+        _create_database(database_url, restore_name)
 
         _stage("7/9 restoring PostgreSQL dump")
         from dairyos.data.database.backup import restore_backup
@@ -177,12 +196,9 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         _stage("9/9 Reset + restore certification PASS")
     finally:
         engine.dispose()
-        if restore_url is not None:
-            postgres_url = make_url(database_url).set(database="postgres")
+        if restore_name is not None:
             try:
-                with psycopg.connect(_psycopg_conninfo(str(postgres_url)), connect_timeout=10) as admin_connection:
-                    admin_connection.autocommit = True
-                    admin_connection.execute('DROP DATABASE IF EXISTS "' + restore_url.database + '"')
+                _drop_database(database_url, restore_name)
             except Exception as exc:
                 _stage(f"restore database cleanup warning: {exc}")
         recovery_root = tmp_path / "recovery"
