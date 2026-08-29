@@ -98,6 +98,7 @@ class LifecycleManager:
 
     def install(self, application_version: str | None = None, source_revision: str | None = None) -> LifecycleManifest:
         self._ensure_data_layout()
+        self.installation_root.mkdir(parents=True, exist_ok=True)
         now = _utc_now()
         previous = self._read_manifest()
         manifest = LifecycleManifest(
@@ -360,8 +361,6 @@ def _check_database(database_url: str) -> None:
         database="dbname",
     )
 
-    # Preserve SQLAlchemy URL query options where they map directly to
-    # libpq/psycopg keyword arguments, such as sslmode or application_name.
     connect_args.update(parsed.query)
 
     with psycopg.connect(connect_timeout=5, **connect_args) as connection:
