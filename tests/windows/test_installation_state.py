@@ -33,6 +33,23 @@ def test_fresh_machine_is_new_installation(monkeypatch, tmp_path):
     assert facts.backup_count == 0
 
 
+def test_private_postgres_runtime_does_not_make_installation_look_existing(
+    monkeypatch,
+    tmp_path,
+):
+    _patch_data_root(monkeypatch, tmp_path)
+
+    root = paths.data_root(create=True)
+    (root / "postgres").mkdir()
+    (root / "logs").mkdir()
+    (root / "backups").mkdir()
+
+    facts = inspect_installation()
+
+    assert facts.is_new_installation is True
+    assert facts.has_existing_data is False
+
+
 def test_fresh_machine_defaults_to_new(monkeypatch, tmp_path):
     _patch_data_root(monkeypatch, tmp_path)
 
