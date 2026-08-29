@@ -40,13 +40,7 @@ class AdminResult:
 
 
 class AdminService:
-    """Administrative facade over the canonical lifecycle boundary.
-
-    This package is the privileged operator surface. It is deliberately
-    separate from the nine-tab farm application and contains no farm-domain
-    business workflow. Destructive database mutation is performed here only
-    after lifecycle backup and recovery verification.
-    """
+    """Administrative facade over the canonical lifecycle boundary."""
 
     def __init__(self, manager: LifecycleManager):
         self.manager = manager
@@ -76,14 +70,7 @@ class AdminService:
         )
 
     def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
-        """Safely reset operational state without using ``/settings/reset``.
-
-        The sequence is: exact operator confirmation, healthy database,
-        verified pre-reset backup copied outside the data root, deployment
-        deactivation, transactional truncation of every non-preserved table,
-        zero-state verification, and an external audit record. If mutation
-        fails, the lifecycle snapshot is restored before the error escapes.
-        """
+        """Reset operational state through a verified external recovery point."""
         if confirmation != RESET_CONFIRMATION:
             raise LifecycleError(
                 f"Reset requires the exact confirmation token: {RESET_CONFIRMATION!r}"
@@ -101,7 +88,10 @@ class AdminService:
         _write_audit_event(recovery_artifact, "reset-intent", {"artifact": str(recovery_artifact)})
 
         try:
-            _deactivate_deployment(self.manager, updated_by="DairyOS Admin Tool")
+            # Deactivation is deliberately performed before destructive SQL so
+            # the persisted deployment gate is closed before operational data
+            # changes begin. The application reset endpoint is never called.
+            _deactivate_deployment(updated_by="DairyOS Admin Tool")
             tables = _truncate_operational_tables(self.manager.database_url)
             remaining = _verify_zero_state(self.manager.database_url)
             if remaining:
@@ -163,7 +153,9 @@ def _record_database_checksum(backup: str | Path) -> None:
     metadata = verify_backup_artifact(dump_path)
     manifest["database_backup_sha256"] = metadata["sha256"]
     manifest["database_backup_size_bytes"] = metadata["size_bytes"]
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _verify_backup_directory(backup: str | Path) -> None:
@@ -185,15 +177,16 @@ def _verify_backup_directory(backup: str | Path) -> None:
         source = files_root / relative
         if not source.is_file():
             raise LifecycleError(f"Backup file is missing: {relative}")
-        actual = _sha256(source)
         expected = str(entry.get("sha256", ""))
-        if expected and actual != expected:
+        if expected and _sha256(source) != expected:
             raise LifecycleError(f"Backup file SHA-256 verification failed: {relative}")
 
 
 def _copy_external_recovery_artifact(backup: Path) -> Path:
     configured = os.environ.get("DAIRYOS_RECOVERY_ROOT")
-    root = Path(configured).expanduser().resolve() if configured else backup.parent.parent / "recovery"
+    # ``backup`` is normally <data_root>/backups/<snapshot>. The default is
+    # therefore a sibling of data_root, not a directory beneath it.
+    root = Path(configured).expanduser().resolve() if configured else backup.parents[2] / "recovery"
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"{backup.name}-external"
     if destination.exists():
@@ -213,7 +206,7 @@ def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -
         stream.write(json.dumps(record, sort_keys=True) + "\n")
 
 
-def _deactivate_deployment(manager: LifecycleManager, updated_by: str) -> None:
+def _deactivate_deployment(updated_by: str) -> None:
     factory = RepositoryFactory.create()
     try:
         DeploymentControlService(FarmSettingsService(factory.app_settings())).deactivate(
@@ -226,14 +219,17 @@ def _deactivate_deployment(manager: LifecycleManager, updated_by: str) -> None:
 def _truncate_operational_tables(database_url: str) -> list[str]:
     engine = create_engine(database_url)
     try:
-        inspector = inspect(engine)
         tables = sorted(
-            table for table in inspector.get_table_names() if table not in _PRESERVED_TABLES
+            table
+            for table in inspect(engine).get_table_names()
+            if table not in _PRESERVED_TABLES
         )
         if tables:
             quoted = ", ".join('"' + table.replace('"', '""') + '"' for table in tables)
             with engine.begin() as connection:
-                connection.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
+                connection.execute(
+                    sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE")
+                )
         return tables
     finally:
         engine.dispose()
@@ -242,14 +238,16 @@ def _truncate_operational_tables(database_url: str) -> list[str]:
 def _verify_zero_state(database_url: str) -> dict[str, int]:
     engine = create_engine(database_url)
     try:
-        inspector = inspect(engine)
         remaining: dict[str, int] = {}
+        inspector = inspect(engine)
         with engine.connect() as connection:
             for table in inspector.get_table_names():
                 if table in _PRESERVED_TABLES:
                     continue
                 quoted = '"' + table.replace('"', '""') + '"'
-                count = int(connection.execute(sa.text(f"SELECT count(*) FROM {quoted}")).scalar_one())
+                count = int(
+                    connection.execute(sa.text(f"SELECT count(*) FROM {quoted}")).scalar_one()
+                )
                 if count:
                     remaining[table] = count
         return remaining
