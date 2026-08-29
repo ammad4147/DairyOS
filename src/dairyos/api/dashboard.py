@@ -3,7 +3,6 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends
 
 from dairyos.api.dependencies import get_container
-from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMilkingScheduleService
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
 )
@@ -23,36 +22,6 @@ def _drop_severity(variance_percentage: float | None) -> str | None:
     if variance_percentage >= -20.0:
         return "AMBER"
     return "RED"
-
-
-def _is_milking_population_animal(animal) -> bool:
-    """Return whether an active animal belongs in the current milking denominator.
-
-    This is deliberately fact-based. Calves, heifers, bulls, dry animals, animals
-    explicitly outside the milking cycle, and animals without an effective governed
-    milking frequency are excluded. The denominator is therefore the current
-    milking population, not total herd strength.
-    """
-    if not bool(getattr(animal, "active", True)):
-        return False
-
-    sex = str(getattr(animal, "sex", "") or "").upper()
-    lifecycle = str(getattr(animal, "lifecycle_status", "") or "").upper()
-    directive = str(getattr(animal, "non_milking_directive", "NONE") or "NONE").upper()
-    frequency = str(getattr(animal, "milking_frequency", "") or "").upper()
-    currently_milking = bool(getattr(animal, "is_currently_milking", False))
-
-    if sex in {"MALE", "M", "BULL"}:
-        return False
-    if lifecycle in {"CALF", "FEMALE_CALF", "MALE_CALF", "HEIFER", "BULL", "DRY", "DRY_COW", "DRY_PERIOD", "NON_MILKING"}:
-        return False
-    if directive != "NONE":
-        return False
-    if frequency not in AnimalMilkingScheduleService.FREQUENCY_MAP:
-        return False
-    if lifecycle and lifecycle not in {"LACTATING", "MILKING", "COW", "ADULT_COW"} and not currently_milking:
-        return False
-    return True
 
 
 @router.get("/dashboard")
@@ -77,16 +46,27 @@ def get_dashboard(
     ]
     receivables = sum(float(row.amount or 0) for row in receivable_rows)
 
-    operational_date = OperationalDateAuthority().current_date()
+    operational_date = OperationalDateAuthority(
+        repository_factory=container.repository_factory,
+    ).current_date()
     milk_service = MilkProductionTrendIntelligenceService(
         repository_factory=container.repository_factory,
     )
     milk_records = milk_service.milk().get_all()
-    milk_animals = milk_service._eligible_animals(container.repository_factory)
-    milk_histories = milk_service._animal_histories(container.repository_factory, milk_animals)
+    all_milk_animals = milk_service._eligible_animals(container.repository_factory)
+    milk_histories = milk_service._animal_histories(
+        container.repository_factory,
+        all_milk_animals,
+    )
+    milking_population = milk_service._governed_milking_animals(
+        all_milk_animals,
+        milk_histories,
+        milk_service._schedule_service,
+        operational_date,
+    )
 
     daily_snapshots = []
-    for animal in milk_animals:
+    for animal in milking_population:
         snapshot = milk_service._daily_animal_snapshot(
             milk_records,
             animal,
@@ -150,30 +130,13 @@ def get_dashboard(
         "current_total_litres": current_total,
     }
 
-    # Milking % is utilization of the current milking population, not a ratio
-    # against total herd strength. The denominator excludes calves, heifers,
-    # bulls, dry/non-milking animals, and animals outside the effective cycle.
-    milking_population = [
-        animal for animal in active_animals
-        if _is_milking_population_animal(animal)
-    ]
-    milking_population_ids = {
-        str(getattr(animal, "animal_id", ""))
-        for animal in milking_population
-    }
-    completed_milking_ids = {
-        str(snapshot["animal_id"])
-        for snapshot in daily_snapshots
-        if str(snapshot["animal_id"]) in milking_population_ids
-    }
     milking_population_count = len(milking_population)
-    current_milking_count = len(completed_milking_ids)
+    current_milking_count = len(daily_snapshots)
     average_yield_per_cow = (
         round(
             sum(
                 snapshot["total_litres"]
                 for snapshot in daily_snapshots
-                if str(snapshot["animal_id"]) in milking_population_ids
             ) / current_milking_count,
             2,
         )
@@ -206,7 +169,7 @@ def get_dashboard(
         "production_extremes": {
             "highest": daily_snapshots[-1] if daily_snapshots else None,
             "lowest": daily_snapshots[0] if daily_snapshots else None,
-            "population_count": len(daily_snapshots),
+            "population_count": current_milking_count,
         },
         "yield_drop_watchlist": yield_drop_watchlist,
         "total_farm_yield_trend": trends,
