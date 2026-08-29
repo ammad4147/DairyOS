@@ -12,7 +12,6 @@ from fastapi.responses import JSONResponse
 
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.database.migrations import (
     migrate_finance_feed_opex,
     migrate_feed_inventory,
@@ -94,11 +93,8 @@ async def enforce_animal_identity(request: Request, call_next):
             payload = {}
         animal_id = payload.get("animal_id")
         if animal_id:
-            factory = RepositoryFactory.create()
-            try:
-                exists = factory.animal().exists(str(animal_id))
-            finally:
-                factory.close()
+            factory = container.repository_factory
+            exists = factory.animal().exists(str(animal_id))
             if not exists:
                 return JSONResponse(status_code=422, content={"detail": "Unknown Animal ID. Select an existing system-generated permanent Animal ID.", "animal_id": animal_id})
         async def receive():
