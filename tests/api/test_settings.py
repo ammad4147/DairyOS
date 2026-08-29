@@ -49,12 +49,13 @@ def test_animal_ids_increment_sequentially(client):
     assert second_seq == first_seq + 1
 
 
-def test_reset_requires_literal_confirmation(client):
-    response = client.post("/settings/reset", json={"confirm": "yes please"})
-    assert response.status_code == 422, response.text
+def test_legacy_reset_requires_migration_to_admin_tool(client):
+    response = client.post("/settings/reset", json={"confirm": "RESET"})
+    assert response.status_code == 410, response.text
+    assert "Administration Tool" in response.json()["detail"]
 
 
-def test_reset_wipes_operational_data_without_password(client, registered_animal):
+def test_legacy_reset_does_not_wipe_operational_data(client, registered_animal):
     milk = client.post(
         "/farm/milk",
         json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 20.0, "production_date": "2026-08-13", "operator": "Tester"},
@@ -63,26 +64,18 @@ def test_reset_wipes_operational_data_without_password(client, registered_animal
     assert len(client.get("/farm/animals").json()) >= 1
 
     response = client.post("/settings/reset", json={"confirm": "RESET"})
-    assert response.status_code == 200, response.text
-    assert "animal" in response.json()["tables_cleared"]
-    assert client.get("/farm/animals").json() == []
-    assert client.get("/farm/milk").json() == []
+    assert response.status_code == 410, response.text
+    assert len(client.get("/farm/animals").json()) >= 1
+    assert client.get("/farm/milk").json() != []
 
 
-def test_reset_preserves_settings_themselves(client):
+def test_legacy_reset_preserves_settings_and_does_not_mutate_data(client):
     client.put("/settings", json={"farm_name": "Persisted Farm", "animal_id_prefix": "PF"})
     response = client.post("/settings/reset", json={"confirm": "RESET"})
-    assert response.status_code == 200, response.text
+    assert response.status_code == 410, response.text
     settings = client.get("/settings").json()
     assert settings["farm_name"] == "Persisted Farm"
     assert settings["animal_id_prefix"] == "PF"
-
-
-def test_reset_after_wipe_new_animal_starts_at_one(client, registered_animal):
-    response = client.post("/settings/reset", json={"confirm": "RESET"})
-    assert response.status_code == 200, response.text
-    created = client.post("/farm/animals", json={"animal_type": "COW", "lifecycle_status": "HEIFER"}).json()
-    assert created["animal_id"] == "TD-001"
 
 
 def test_operational_settings_are_persisted(client):
