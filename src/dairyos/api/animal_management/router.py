@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
-
+from dairyos.farm.herd.services.animal_classification_service import (
+    AnimalClassificationError,
+    AnimalClassificationService,
+)
 
 router = APIRouter()
 
@@ -20,8 +23,7 @@ def animal_repository(container):
 def serialize_animal(animal):
     if animal is None:
         return None
-
-    return {
+    result = {
         "id": animal.id,
         "animal_id": animal.animal_id,
         "animal_type": animal.animal_type,
@@ -42,6 +44,16 @@ def serialize_animal(animal):
         "created_at": animal.created_at.isoformat() if animal.created_at else None,
         "updated_at": animal.updated_at.isoformat() if animal.updated_at else None,
     }
+    try:
+        classification = AnimalClassificationService.classify(
+            result.get("lifecycle_status"), result.get("sex")
+        )
+        result["sex"] = classification.sex
+        result["lifecycle_status"] = classification.lifecycle_status
+        result["animal_category"] = classification.category.value
+    except AnimalClassificationError:
+        result["animal_category"] = None
+    return result
 
 
 def get_animal_record(container, animal_id):
@@ -53,11 +65,7 @@ def _record_operational_event(container, input_type, payload, actor):
     if gateway is not None:
         gateway.record(
             input_type=input_type,
-            payload={
-                **payload,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "operator": actor,
-            },
+            payload={**payload, "timestamp": datetime.now(timezone.utc).isoformat(), "operator": actor},
             actor=actor,
         )
 
@@ -74,6 +82,29 @@ def _event_payloads_for_animal(container, input_type, animal_id):
     return records
 
 
+def _apply_classification_payload(animal, payload):
+    try:
+        if "animal_category" in payload or "category" in payload:
+            classification = AnimalClassificationService.from_category(
+                str(payload.get("animal_category") or payload.get("category")),
+                current_lifecycle=payload.get("lifecycle_status") or animal.lifecycle_status,
+            )
+            animal.sex = classification.sex
+            animal.lifecycle_status = classification.lifecycle_status
+            animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
+            return classification
+
+        lifecycle = payload.get("lifecycle_status", animal.lifecycle_status)
+        sex = payload.get("sex", animal.sex)
+        classification = AnimalClassificationService.classify(lifecycle, sex)
+        animal.sex = classification.sex
+        animal.lifecycle_status = classification.lifecycle_status
+        animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
+        return classification
+    except AnimalClassificationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.get("/animals")
 def list_animals(currently_milking: bool = False, active_only: bool = False, container=Depends(get_container)):
     repository = animal_repository(container)
@@ -85,9 +116,9 @@ def list_animals(currently_milking: bool = False, active_only: bool = False, con
         animals = repository.get_all()
     return [serialize_animal(animal) for animal in animals]
 
+
 @router.get("/animals/current/milking")
 def list_currently_milking_animals(container=Depends(get_container)):
-    """Compatibility endpoint for the authoritative current-milking animal register."""
     repository = animal_repository(container)
     return [serialize_animal(animal) for animal in repository.currently_milking_animals()]
 
@@ -107,12 +138,8 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
 
-    if "lifecycle_status" in payload:
-        lifecycle = str(payload["lifecycle_status"]).upper()
-        if lifecycle not in ALLOWED_LIFECYCLE_STATUSES:
-            raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(ALLOWED_LIFECYCLE_STATUSES)))
-        animal.lifecycle_status = lifecycle
-        animal.is_currently_milking = lifecycle == "LACTATING"
+    if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
+        _apply_classification_payload(animal, payload)
 
     if "milking_frequency" in payload and payload.get("milking_frequency"):
         frequency = payload["milking_frequency"]
@@ -141,6 +168,11 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
         animal.status = str(payload["status"]).upper()
         changed["status"] = animal.status
 
+    if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
+        changed["animal_category"] = serialize_animal(animal).get("animal_category")
+        changed["lifecycle_status"] = animal.lifecycle_status
+        changed["sex"] = animal.sex
+
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
     _record_operational_event(container, "animal_profile_update", {"animal_id": animal_id, "changed_fields": sorted(changed.keys())}, str(payload.get("operator") or "API"))
@@ -149,7 +181,6 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
 
 @router.patch("/animals/{animal_id}/disposition")
 def record_animal_disposition(animal_id: str, payload: dict, container=Depends(get_container)):
-    """Permanently record a sold/mortality outcome while retaining the animal record and history."""
     repository = animal_repository(container)
     animal = repository.get_by_animal_id(animal_id)
     if not animal:
@@ -219,13 +250,18 @@ def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_contai
     if lifecycle not in ALLOWED_LIFECYCLE_STATUSES:
         raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(ALLOWED_LIFECYCLE_STATUSES)))
     previous = animal.lifecycle_status
-    animal.lifecycle_status = lifecycle
-    animal.status = payload.get("status", lifecycle)
+    try:
+        classification = AnimalClassificationService.classify(lifecycle, animal.sex)
+    except AnimalClassificationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    animal.lifecycle_status = classification.lifecycle_status
+    animal.sex = classification.sex
+    animal.status = payload.get("status", classification.lifecycle_status)
     animal.production_group = payload.get("production_group", getattr(animal, "production_group", None))
-    animal.is_currently_milking = lifecycle == "LACTATING"
+    animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
-    _record_operational_event(container, "animal_lifecycle", {"animal_id": animal_id, "previous_status": previous, "lifecycle_status": lifecycle, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
+    _record_operational_event(container, "animal_lifecycle", {"animal_id": animal_id, "previous_status": previous, "lifecycle_status": classification.lifecycle_status, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
     return serialize_animal(updated)
 
 
