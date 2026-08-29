@@ -19,7 +19,6 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-
 router = APIRouter(prefix="/farm/milk", tags=["Milk Production Analytics"])
 
 
@@ -59,10 +58,7 @@ def milk_analytics(
     rf = RepositoryFactory.create()
 
     try:
-        service = MilkProductionTrendIntelligenceService(
-            repository_factory=rf,
-        )
-
+        service = MilkProductionTrendIntelligenceService(repository_factory=rf)
         if period_days == 15:
             trend = service.get_trend_analysis(
                 period="custom",
@@ -74,10 +70,7 @@ def milk_analytics(
             trend["period_days"] = 15
             trend["period"] = "15d"
         else:
-            trend = service.generate(
-                as_of_date=target_date,
-                period_days=period_days,
-            )
+            trend = service.generate(as_of_date=target_date, period_days=period_days)
 
         findings = rf.operational_findings().get_open_by_module("MILK")
         individual_declines = [
@@ -98,9 +91,6 @@ def milk_analytics(
             and finding.severity in {"HIGH", "CRITICAL"}
         ]
 
-        # Production extremes reuse the same schedule-aware daily snapshot
-        # semantics as trend intelligence. Only complete persisted animal-days
-        # participate; missing scheduled sessions are not treated as zero.
         animals = service._eligible_animals(rf)
         histories = service._animal_histories(rf, animals)
         records = rf.milk().get_all()
@@ -123,21 +113,18 @@ def milk_analytics(
             "data_status": "LIVE_PERSISTED_DATA" if snapshots else "NO_DATA",
         }
 
-        result = trend.summary()
-        result.update({
-            "period_options_days": [7, 15, 30],
-            "individual_decline_alert_count": len(individual_declines),
-            "individual_decline_alerts": individual_declines,
-            "production_extremes": extremes,
-        })
+        result = dict(trend)
+        result.update(
+            {
+                "period_options_days": [7, 15, 30],
+                "individual_decline_alert_count": len(individual_declines),
+                "individual_decline_alerts": individual_declines,
+                "production_extremes": extremes,
+            }
+        )
         return result
     finally:
         rf.close()
-
-
-# AUDIT-FIX [WIRING-ROUTER-01]: Removed duplicate GET /farm/milk/reconciliation route.
-# The authoritative endpoint is registered in milk_traceability.py with full query-param
-# support and operational date fallback, resolving FastAPI duplicate Operation ID warning.
 
 
 @router.get("/dispositions")
