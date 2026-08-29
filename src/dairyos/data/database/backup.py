@@ -9,6 +9,9 @@ from pathlib import Path
 from sqlalchemy.engine import make_url
 
 
+COMMAND_TIMEOUT_SECONDS = 120
+
+
 class PostgreSQLBackupError(RuntimeError):
     """Raised when a PostgreSQL backup or restore operation fails."""
 
@@ -51,6 +54,22 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _run_postgresql_command(command: list[str], env: dict[str, str], operation: str) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=COMMAND_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise PostgreSQLBackupError(
+            f"{operation} timed out after {COMMAND_TIMEOUT_SECONDS} seconds."
+        ) from exc
+
+
 def create_backup(database_url: str, destination: str | Path) -> Path:
     """Create a compressed, self-contained PostgreSQL custom-format backup."""
     destination = Path(destination)
@@ -64,7 +83,7 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
         "--file",
         str(destination),
     ]
-    completed = subprocess.run(command, env=env, capture_output=True, text=True)
+    completed = _run_postgresql_command(command, env, "pg_dump")
     if completed.returncode != 0:
         destination.unlink(missing_ok=True)
         raise PostgreSQLBackupError(completed.stderr.strip() or "pg_dump failed")
@@ -88,7 +107,7 @@ def restore_backup(database_url: str, backup: str | Path) -> None:
         *args,
         str(backup),
     ]
-    completed = subprocess.run(command, env=env, capture_output=True, text=True)
+    completed = _run_postgresql_command(command, env, "pg_restore")
     if completed.returncode != 0:
         raise PostgreSQLBackupError(completed.stderr.strip() or "pg_restore failed")
 
