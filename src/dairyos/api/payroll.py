@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
+from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.payroll import PayrollRecord
-
 
 router = APIRouter(prefix="/farm/payroll", tags=["Finance Payroll"])
 
@@ -51,6 +51,7 @@ def _serialize(record: PayrollRecord) -> dict:
         "net_pay": str(record.net_pay),
         "status": record.status,
         "payment_date": record.payment_date.isoformat() if record.payment_date else None,
+        "finance_transaction_id": record.finance_transaction_id,
         "notes": record.notes,
         "created_at": record.created_at.isoformat() if record.created_at else None,
         "updated_at": record.updated_at.isoformat() if record.updated_at else None,
@@ -59,8 +60,9 @@ def _serialize(record: PayrollRecord) -> dict:
 
 @router.get("")
 def list_payroll(container=Depends(get_container)):
-    records = _repo(container).get_all()
-    totals = _repo(container).totals(records)
+    repo = _repo(container)
+    records = repo.get_all()
+    totals = repo.totals(records)
     return {
         "records": [_serialize(record) for record in records],
         "totals": {key: str(value) if isinstance(value, Decimal) else value for key, value in totals.items()},
@@ -78,10 +80,54 @@ def create_payroll(request: PayrollCreateRequest, container=Depends(get_containe
 
 @router.post("/{record_id}/pay")
 def pay_payroll(record_id: int, payment_date: date | None = None, container=Depends(get_container)):
-    record = _repo(container).get_by_id(record_id)
+    repo = _repo(container)
+    record = repo.get_by_id(record_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Payroll record not found")
-    if record.status == "PAID":
+    if record.status == "PAID" and record.finance_transaction_id is not None:
         return _serialize(record)
-    record.mark_paid(payment_date)
-    return _serialize(_repo(container).save(record))
+
+    finance_repo = container.repository_factory.finance()
+    source_reference = f"PAYROLL#{record.id}"
+    existing = next(
+        (
+            row
+            for row in finance_repo.get_all()
+            if str(row.reference or "") == source_reference
+            and str(row.status or "").upper() != "VOID"
+        ),
+        None,
+    )
+    if existing is not None:
+        record.finance_transaction_id = existing.id
+        record.status = "PAID"
+        record.payment_date = payment_date or existing.settled_date or date.today()
+        repo.save(record)
+        return _serialize(record)
+
+    pay_date = payment_date or date.today()
+    transaction = FinancialTransaction(
+        transaction_type="EXPENSE",
+        category="LABOUR",
+        amount=float(record.net_pay),
+        transaction_date=datetime.combine(pay_date, time.min),
+        reference=source_reference,
+        payment_method="BANK",
+        counterparty=record.employee_name,
+        notes=f"Payroll payment for {record.employee_role}; period {record.period_start.isoformat()} to {record.period_end.isoformat()}.",
+        currency="PKR",
+        status="PAID",
+        master_category="OPEX",
+        sub_category="Labour",
+        custom_specification=record.employee_role,
+        quantity=float(record.worked_days or 0),
+        unit="day",
+        unit_rate=float(record.net_pay / record.worked_days) if record.worked_days else None,
+        settled_date=pay_date,
+        payroll_record_id=record.id,
+    )
+    saved = finance_repo.add(transaction)
+    record.mark_paid(pay_date)
+    record.finance_transaction_id = saved.id
+    repo.save(record)
+    return _serialize(record)
