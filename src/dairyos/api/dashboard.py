@@ -10,10 +10,7 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-
-router = APIRouter(
-    tags=["Dashboard"],
-)
+router = APIRouter(tags=["Dashboard"])
 
 
 def _drop_severity(variance_percentage: float | None) -> str | None:
@@ -25,12 +22,9 @@ def _drop_severity(variance_percentage: float | None) -> str | None:
 
 
 @router.get("/dashboard")
-def get_dashboard(
-    container=Depends(get_container),
-):
-    """Return the established dashboard contract from persisted runtime data."""
+def get_dashboard(container=Depends(get_container)):
+    """Return the established Dashboard contract from persisted runtime data."""
     payload = container.dashboard_projection_service.project_api_contract(container)
-
     animal_repository = container.animal_repository
     finance_repository = (
         container.finance_repository
@@ -64,6 +58,10 @@ def get_dashboard(
         milk_service._schedule_service,
         operational_date,
     )
+    milking_population_ids = {
+        str(getattr(animal, "animal_id", ""))
+        for animal in milking_population
+    }
 
     daily_snapshots = []
     for animal in milking_population:
@@ -75,7 +73,6 @@ def get_dashboard(
         )
         if snapshot and snapshot.get("complete"):
             daily_snapshots.append(snapshot)
-
     daily_snapshots.sort(key=lambda item: item["total_litres"])
 
     findings = container.repository_factory.operational_findings().get_open_by_module("MILK")
@@ -118,7 +115,6 @@ def get_dashboard(
             ((current_total - prior_total) / prior_total) * 100.0,
             1,
         )
-
     severity = _drop_severity(variance_percentage)
     production_drop = {
         "production_date": operational_date.isoformat(),
@@ -130,17 +126,27 @@ def get_dashboard(
         "current_total_litres": current_total,
     }
 
+    # The denominator is the effective, animal-specific milking population.
+    # The numerator is the subset with a complete governed day. The average
+    # is calculated from the persisted daily ledger `total_yield`, not from
+    # any frontend or period aggregate.
+    current_milking_ids = {
+        str(snapshot["animal_id"])
+        for snapshot in daily_snapshots
+        if str(snapshot["animal_id"]) in milking_population_ids
+    }
+    ledger_total_by_animal = {}
+    milk_repo = container.repository_factory.milk()
+    for animal_id in current_milking_ids:
+        row = milk_repo.ledger_row_for_animal_day(animal_id, operational_date)
+        if row is not None and row.total_yield is not None:
+            ledger_total_by_animal[animal_id] = float(row.total_yield)
+
     milking_population_count = len(milking_population)
-    current_milking_count = len(daily_snapshots)
+    current_milking_count = len(current_milking_ids)
     average_yield_per_cow = (
-        round(
-            sum(
-                snapshot["total_litres"]
-                for snapshot in daily_snapshots
-            ) / current_milking_count,
-            2,
-        )
-        if current_milking_count
+        round(sum(ledger_total_by_animal.values()) / len(ledger_total_by_animal), 2)
+        if ledger_total_by_animal
         else None
     )
     milking_percentage = (
@@ -158,7 +164,6 @@ def get_dashboard(
         **dashboard.get("animals", {}),
         "total": len(active_animals),
     }
-
     payload["animals"] = {
         **payload.get("animals", {}),
         "total": len(active_animals),
