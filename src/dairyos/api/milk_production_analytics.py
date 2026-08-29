@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -14,7 +14,9 @@ from dairyos.farm.production.services.milk_reconciliation_service import (
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
     SUPPORTED_PERIOD_DAYS,
-    resolve_period_range,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 
@@ -46,25 +48,26 @@ def milk_analytics(
     production_date: date | None = None,
     period_days: int = Query(default=30, ge=1),
 ):
-    if period_days not in {7, 15, 30} and period_days not in SUPPORTED_PERIOD_DAYS.values():
-        raise HTTPException(status_code=422, detail="Unsupported period_days. Supported production periods include 7, 15 and 30 days.")
+    supported_periods = {7, 15, 30} | set(SUPPORTED_PERIOD_DAYS.values())
+    if period_days not in supported_periods:
+        raise HTTPException(
+            status_code=422,
+            detail="Unsupported period_days. Supported production periods include 7, 15 and 30 days.",
+        )
 
-    service = MilkProductionTrendIntelligenceService()
-    target_date = production_date or service._get_factory().app_settings if False else (production_date or __import__("dairyos.farm.settings.services.operational_date_authority", fromlist=["OperationalDateAuthority"]).OperationalDateAuthority().current_date())
-
+    target_date = production_date or OperationalDateAuthority().current_date()
     rf = RepositoryFactory.create()
+
     try:
+        service = MilkProductionTrendIntelligenceService(
+            repository_factory=rf,
+        )
+
         if period_days == 15:
-            start_date, end_date = resolve_period_range(
-                period="custom",
-                start_date=target_date.replace() - __import__("datetime").timedelta(days=14),
-                end_date=target_date,
-                anchor_date=target_date,
-            )
             trend = service.get_trend_analysis(
                 period="custom",
-                start_date=start_date,
-                end_date=end_date,
+                start_date=target_date - timedelta(days=14),
+                end_date=target_date,
                 anchor_date=target_date,
                 factory=rf,
             )
@@ -72,9 +75,8 @@ def milk_analytics(
             trend["period"] = "15d"
         else:
             trend = service.generate(
-                as_of_date=production_date,
+                as_of_date=target_date,
                 period_days=period_days,
-                repository_factory=rf,
             )
 
         findings = rf.operational_findings().get_open_by_module("MILK")
@@ -96,14 +98,16 @@ def milk_analytics(
             and finding.severity in {"HIGH", "CRITICAL"}
         ]
 
-        # Production extremes are derived from complete, schedule-governed
-        # animal-day snapshots using the same trend intelligence service.
+        # Production extremes reuse the same schedule-aware daily snapshot
+        # semantics as trend intelligence. Only complete persisted animal-days
+        # participate; missing scheduled sessions are not treated as zero.
         animals = service._eligible_animals(rf)
         histories = service._animal_histories(rf, animals)
+        records = rf.milk().get_all()
         snapshots = []
         for animal in animals:
             snapshot = service._daily_animal_snapshot(
-                rf.milk().get_all(),
+                records,
                 animal,
                 histories.get(str(animal.animal_id), []),
                 target_date,
