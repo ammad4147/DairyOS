@@ -13,7 +13,7 @@ from dairyos.data.database.session import engine
 FINANCE_COLUMNS = {
     "master_category": "VARCHAR", "sub_category": "VARCHAR", "custom_specification": "VARCHAR",
     "quantity": "DOUBLE PRECISION", "unit": "VARCHAR", "unit_rate": "DOUBLE PRECISION",
-    "due_date": "DATE", "settled_date": "DATE",
+    "due_date": "DATE", "settled_date": "DATE", "payroll_record_id": "INTEGER",
 }
 MILK_PRODUCTION_COLUMNS = {"notes": "VARCHAR"}
 MILK_DISPOSITION_COLUMNS = {"status": "VARCHAR NOT NULL DEFAULT 'RECORDED'"}
@@ -127,33 +127,54 @@ def migrate_operational_finding_audit() -> list[str]:
 
 
 def migrate_payroll() -> list[str]:
-    """Create the Finance-owned payroll table additively and idempotently."""
+    """Create the Finance-owned payroll table and keep its ledger link additive."""
+    changed = []
     with engine.begin() as connection:
         inspector = inspect(connection)
-        if "payroll_record" in inspector.get_table_names():
-            return []
-        connection.execute(text("""CREATE TABLE payroll_record (
-            id SERIAL PRIMARY KEY,
-            employee_name VARCHAR NOT NULL,
-            employee_role VARCHAR NOT NULL,
-            period_start DATE NOT NULL,
-            period_end DATE NOT NULL,
-            worked_days NUMERIC(10,2) NOT NULL DEFAULT 0,
-            base_pay NUMERIC(14,2) NOT NULL DEFAULT 0,
-            overtime_hours NUMERIC(10,2) NOT NULL DEFAULT 0,
-            overtime_rate NUMERIC(14,2) NOT NULL DEFAULT 0,
-            allowances NUMERIC(14,2) NOT NULL DEFAULT 0,
-            advances NUMERIC(14,2) NOT NULL DEFAULT 0,
-            deductions NUMERIC(14,2) NOT NULL DEFAULT 0,
-            status VARCHAR NOT NULL DEFAULT 'DRAFT',
-            payment_date DATE NULL,
-            notes TEXT NULL,
-            created_at TIMESTAMP NOT NULL,
-            updated_at TIMESTAMP NOT NULL
-        )"""))
-        connection.execute(text("CREATE INDEX ix_payroll_record_employee_name ON payroll_record (employee_name)"))
-        connection.execute(text("CREATE INDEX ix_payroll_record_employee_role ON payroll_record (employee_role)"))
-        connection.execute(text("CREATE INDEX ix_payroll_record_period_start ON payroll_record (period_start)"))
-        connection.execute(text("CREATE INDEX ix_payroll_record_period_end ON payroll_record (period_end)"))
-        connection.execute(text("CREATE INDEX ix_payroll_record_status ON payroll_record (status)"))
-    return ["payroll_record"]
+        tables = set(inspector.get_table_names())
+        if "financial_transactions" in tables:
+            existing_finance = {c["name"] for c in inspector.get_columns("financial_transactions")}
+            if "payroll_record_id" not in existing_finance:
+                connection.execute(text('ALTER TABLE financial_transactions ADD COLUMN "payroll_record_id" INTEGER'))
+                changed.append("financial_transactions.payroll_record_id")
+            indexes = {i["name"] for i in inspect(connection).get_indexes("financial_transactions")}
+            if "ix_financial_transactions_payroll_record_id" not in indexes:
+                connection.execute(text("CREATE INDEX ix_financial_transactions_payroll_record_id ON financial_transactions (payroll_record_id)"))
+                changed.append("ix_financial_transactions_payroll_record_id")
+        if "payroll_record" not in tables:
+            connection.execute(text("""CREATE TABLE payroll_record (
+                id SERIAL PRIMARY KEY,
+                employee_name VARCHAR NOT NULL,
+                employee_role VARCHAR NOT NULL,
+                period_start DATE NOT NULL,
+                period_end DATE NOT NULL,
+                worked_days NUMERIC(10,2) NOT NULL DEFAULT 0,
+                base_pay NUMERIC(14,2) NOT NULL DEFAULT 0,
+                overtime_hours NUMERIC(10,2) NOT NULL DEFAULT 0,
+                overtime_rate NUMERIC(14,2) NOT NULL DEFAULT 0,
+                allowances NUMERIC(14,2) NOT NULL DEFAULT 0,
+                advances NUMERIC(14,2) NOT NULL DEFAULT 0,
+                deductions NUMERIC(14,2) NOT NULL DEFAULT 0,
+                status VARCHAR NOT NULL DEFAULT 'DRAFT',
+                payment_date DATE NULL,
+                finance_transaction_id INTEGER NULL UNIQUE,
+                notes TEXT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )"""))
+            connection.execute(text("CREATE INDEX ix_payroll_record_employee_name ON payroll_record (employee_name)"))
+            connection.execute(text("CREATE INDEX ix_payroll_record_employee_role ON payroll_record (employee_role)"))
+            connection.execute(text("CREATE INDEX ix_payroll_record_period_start ON payroll_record (period_start)"))
+            connection.execute(text("CREATE INDEX ix_payroll_record_period_end ON payroll_record (period_end)"))
+            connection.execute(text("CREATE INDEX ix_payroll_record_status ON payroll_record (status)"))
+            changed.append("payroll_record")
+        else:
+            existing_payroll = {c["name"] for c in inspector.get_columns("payroll_record")}
+            if "finance_transaction_id" not in existing_payroll:
+                connection.execute(text('ALTER TABLE payroll_record ADD COLUMN "finance_transaction_id" INTEGER'))
+                changed.append("payroll_record.finance_transaction_id")
+            indexes = {i["name"] for i in inspect(connection).get_indexes("payroll_record")}
+            if "ix_payroll_record_finance_transaction_id" not in indexes:
+                connection.execute(text("CREATE UNIQUE INDEX ix_payroll_record_finance_transaction_id ON payroll_record (finance_transaction_id) WHERE finance_transaction_id IS NOT NULL"))
+                changed.append("ix_payroll_record_finance_transaction_id")
+    return changed
