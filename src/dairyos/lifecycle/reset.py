@@ -46,7 +46,7 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
         with Session(engine) as session:
             with session.begin():
                 deployment = DeploymentControlService(
-                    FarmSettingsService(AppSettingRepository(session=session))
+                    FarmSettingsService(AppSettingRepository(session=session, commit=False))
                 )
                 deployment.deactivate(updated_by=updated_by)
                 if tables:
