@@ -1,20 +1,23 @@
 """Twenty-animal, thirty-day production simulation.
 
-All milk enters through the public operator API. The simulation deliberately
-keeps two-times-daily animals on MORNING+EVENING and never fabricates missing
-sessions. Expected analytics values are independently derived from inputs.
+Fifteen animals are active lactating cows on TWICE_DAILY schedules; five are
+active heifers and therefore must not be treated as milk-producing animals.
+All milk enters through the public operator API. Expected analytics values are
+independently derived from the supplied inputs.
 """
 from __future__ import annotations
 
 from datetime import date, timedelta
 
 ANIMAL_TAGS = [f"SIM-MO-{i:03d}" for i in range(1, 21)]
+MILKING_TAGS = ANIMAL_TAGS[:15]
 BASELINE = {tag: float(20 + ((i - 1) % 5)) for i, tag in enumerate(ANIMAL_TAGS, 1)}
 
 
 def _register(client):
     ids = []
-    for tag in ANIMAL_TAGS:
+    for index, tag in enumerate(ANIMAL_TAGS):
+        lactating = index < 15
         response = client.post(
             "/farm/animals",
             json={
@@ -22,9 +25,9 @@ def _register(client):
                 "ear_tag": tag,
                 "breed": "HF",
                 "sex": "FEMALE",
-                "lifecycle_status": "LACTATING",
-                "is_currently_milking": True,
-                "milking_frequency": "TWICE_DAILY",
+                "lifecycle_status": "LACTATING" if lactating else "HEIFER",
+                "is_currently_milking": lactating,
+                "milking_frequency": "TWICE_DAILY" if lactating else None,
             },
         )
         assert response.status_code == 200, response.text
@@ -54,10 +57,64 @@ def _dashboard(client):
     return response.json()
 
 
-def _milk_analytics(client):
-    response = client.get("/farm/milk/analytics")
+def _milk_analytics(client, period_days=30):
+    response = client.get("/farm/milk/analytics", params={"period_days": period_days})
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpis(client):
+    ids = _register(client)
+    start = date(2026, 8, 1)
+    final_day = date(2026, 8, 30)
+    milking_ids = ids[:15]
+
+    for offset in range(30):
+        day = start + timedelta(days=offset)
+        for index, animal_id in enumerate(milking_ids):
+            tag = MILKING_TAGS[index]
+            value = BASELINE[tag]
+            if day == final_day and index == 0:
+                value = 35.0
+            elif day == final_day and index == 1:
+                value = 10.0
+            _post(client, animal_id, day, value, "MORNING")
+            _post(client, animal_id, day, value, "EVENING")
+
+    dashboard = _dashboard(client)
+    analytics = _milk_analytics(client, 30)
+    serial = str({"dashboard": dashboard, "analytics": analytics}).lower()
+
+    extremes = analytics["production_extremes"]
+    assert extremes["highest"]["animal_id"] == milking_ids[0]
+    assert extremes["highest"]["total_litres"] == 70.0
+    assert extremes["lowest"]["animal_id"] == milking_ids[1]
+    assert extremes["lowest"]["total_litres"] == 20.0
+    assert extremes["population_count"] == 15
+
+    for horizon in (7, 15, 30):
+        horizon_response = _milk_analytics(client, horizon)
+        assert horizon_response["period_days"] == horizon
+        assert horizon_response["trend"]["data_status"] == "LIVE_PERSISTED_DATA"
+        assert horizon_response["trend"]["series"]
+
+    final_values = [70.0, 20.0] + [2.0 * BASELINE[tag] for tag in MILKING_TAGS[2:]]
+    expected_average_daily = sum(final_values) / 15.0
+    avg_candidates = []
+    for node in _values_for_keys(analytics, "avg") + _values_for_keys(dashboard, "avg"):
+        if isinstance(node, (int, float)):
+            avg_candidates.append(float(node))
+    assert any(abs(value - expected_average_daily) < 1e-6 for value in avg_candidates), {
+        "expected_average_daily": expected_average_daily,
+        "dashboard": dashboard,
+        "analytics": analytics,
+    }
+
+    animals_payload = dashboard["animals"]
+    assert animals_payload["total"] == 20
+    assert animals_payload["milking"] == 15
+    assert animals_payload["milking_percentage"] == 75.0
+    assert "highest" in serial and "lowest" in serial
 
 
 def _contains(value, predicate):
@@ -85,55 +142,6 @@ def _values_for_keys(value, needle):
     return found
 
 
-def test_twenty_animals_for_thirty_days_populate_extremes_trends_and_correct_kpis(client):
-    ids = _register(client)
-    start = date(2026, 8, 1)
-    final_day = date(2026, 8, 30)
-
-    for offset in range(30):
-        day = start + timedelta(days=offset)
-        for index, animal_id in enumerate(ids):
-            tag = ANIMAL_TAGS[index]
-            value = BASELINE[tag]
-            if day == final_day and index == 0:
-                value = 35.0  # deliberate highest producer input
-            elif day == final_day and index == 1:
-                value = 10.0  # deliberate lowest producer input
-            _post(client, animal_id, day, value, "MORNING")
-            _post(client, animal_id, day, value, "EVENING")
-
-    dashboard = _dashboard(client)
-    analytics = _milk_analytics(client)
-    serial = str({"dashboard": dashboard, "analytics": analytics}).lower()
-
-    # 1. Production extremes must be populated from persisted entries.
-    assert "highest" in serial and "lowest" in serial
-    assert ANIMAL_TAGS[0] in serial and ANIMAL_TAGS[1] in serial
-    assert "35" in serial and "10" in serial
-
-    # 3. Total-farm trend data must contain the requested 7/15/30-day horizons.
-    for horizon in (7, 15, 30):
-        assert _contains(
-            analytics,
-            lambda key, child, h=horizon: h == int(child)
-            if isinstance(child, int)
-            else key.endswith(str(h)),
-        ) or str(horizon) in serial
-
-    # 5. Independent final-day average across all 20 entered animals.
-    final_values = [35.0, 10.0] + [BASELINE[tag] for tag in ANIMAL_TAGS[2:]]
-    expected_average = sum(final_values) / 20.0
-    avg_values = []
-    for node in _values_for_keys(analytics, "avg") + _values_for_keys(dashboard, "avg"):
-        if isinstance(node, (int, float)):
-            avg_values.append(float(node))
-    assert any(abs(value - expected_average) < 1e-6 for value in avg_values), {
-        "expected_average": expected_average,
-        "dashboard": dashboard,
-        "analytics": analytics,
-    }
-
-
 def test_three_individual_drops_populate_yield_drop_watchlist_with_amber_and_red(client):
     ids = _register(client)[:3]
     baseline_day = date(2026, 8, 28)
@@ -143,7 +151,6 @@ def test_three_individual_drops_populate_yield_drop_watchlist_with_amber_and_red
         _post(client, animal_id, baseline_day, 20.0, "MORNING")
         _post(client, animal_id, baseline_day, 20.0, "EVENING")
 
-    # 15% decline = HIGH/amber class; >20% = CRITICAL/red class.
     for animal_id, value in ((ids[0], 17.0), (ids[1], 15.0), (ids[2], 10.0)):
         _post(client, animal_id, drop_day, value, "MORNING")
         _post(client, animal_id, drop_day, value, "EVENING")
@@ -161,7 +168,7 @@ def test_herd_drop_marks_production_date_and_drop_percentage_with_severity(clien
     baseline_day = date(2026, 8, 29)
     drop_day = date(2026, 8, 30)
 
-    for animal_id in ids:
+    for animal_id in ids[:15]:
         _post(client, animal_id, baseline_day, 20.0, "MORNING")
         _post(client, animal_id, baseline_day, 20.0, "EVENING")
         value = 17.0 if animal_id != ids[0] else 12.0
@@ -188,7 +195,7 @@ def test_milking_percentage_and_average_yield_use_only_entered_active_milking_an
     dashboard = _dashboard(client)
     analytics = _milk_analytics(client)
     expected_percentage = 75.0
-    expected_average = sum(entered_values) / len(entered_values)
+    expected_average_daily = sum(value * 2 for value in entered_values) / 15.0
 
     percent_values = []
     avg_values = []
@@ -199,5 +206,5 @@ def test_milking_percentage_and_average_yield_use_only_entered_active_milking_an
         if isinstance(node, (int, float)):
             avg_values.append(float(node))
 
-    assert any(abs(value - expected_percentage) < 1e-6 for value in percent_values), dashboard
-    assert any(abs(value - expected_average) < 1e-6 for value in avg_values), analytics
+    assert expected_percentage in percent_values, dashboard
+    assert any(abs(value - expected_average_daily) < 1e-6 for value in avg_values), analytics
