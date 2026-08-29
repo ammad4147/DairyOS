@@ -28,8 +28,12 @@ def _register_scheduled_animal(client, frequency):
     return response.json()["animal_id"]
 
 
-def _passport_schedule(client, animal_id):
-    response = client.get(f"/farm/animals/{animal_id}/passport")
+def _passport_schedule(client, animal_id, as_of_date=None):
+    params = {"as_of_date": as_of_date} if as_of_date else None
+    response = client.get(
+        f"/farm/animals/{animal_id}/passport",
+        params=params,
+    )
     assert response.status_code == 200, response.text
     passport = response.json()
     frequency = passport["schedule"]["milking_frequency"]
@@ -226,3 +230,94 @@ def test_twice_daily_animal_never_requires_afternoon(client):
     rows = [row for row in data["history"]["milk"] if row["animal_id"] == animal_id]
     assert {row["milking_session"] for row in rows} == {"MORNING", "EVENING"}
     assert sum(row["total_yield"] for row in rows) == 14.0
+
+
+def test_individual_passport_schedule_transition_changes_allowed_sessions(client):
+    from dairyos.app import container
+
+    _bind_runtime_operational_state(container)
+    animal_id = _register_scheduled_animal(client, "THRICE_DAILY")
+    initial_frequency, initial_sessions = _passport_schedule(client, animal_id)
+    assert initial_frequency == "THRICE_DAILY"
+    assert initial_sessions == ["MORNING", "AFTERNOON", "EVENING"]
+
+    future_date = "2099-01-02"
+    change = client.post(
+        f"/farm/animals/{animal_id}/milking-frequency",
+        json={
+            "milking_frequency": "TWICE_DAILY",
+            "changed_by": "simulation",
+            "reason": "Simulation schedule transition",
+            "effective_date": future_date,
+        },
+    )
+    assert change.status_code == 200, change.text
+
+    historical_frequency, historical_sessions = _passport_schedule(
+        client,
+        animal_id,
+        as_of_date="2099-01-01",
+    )
+    assert historical_frequency == "THRICE_DAILY"
+    assert historical_sessions == ["MORNING", "AFTERNOON", "EVENING"]
+
+    future_frequency, future_sessions = _passport_schedule(
+        client,
+        animal_id,
+        as_of_date=future_date,
+    )
+    assert future_frequency == "TWICE_DAILY"
+    assert future_sessions == ["MORNING", "EVENING"]
+
+    morning = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": animal_id,
+            "morning_yield": 9.0,
+            "milking_session": "MORNING",
+            "production_date": future_date,
+            "operator": "simulation",
+        },
+    )
+    assert morning.status_code == 200, morning.text
+
+    afternoon = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": animal_id,
+            "afternoon_yield": 7.0,
+            "milking_session": "AFTERNOON",
+            "production_date": future_date,
+            "operator": "simulation",
+        },
+    )
+    assert afternoon.status_code == 409, afternoon.text
+    assert "AFTERNOON" in str(afternoon.json())
+
+    evening = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": animal_id,
+            "evening_yield": 8.0,
+            "milking_session": "EVENING",
+            "production_date": future_date,
+            "operator": "simulation",
+        },
+    )
+    assert evening.status_code == 200, evening.text
+
+    passport = client.get(
+        f"/farm/animals/{animal_id}/passport",
+        params={"as_of_date": future_date},
+    )
+    assert passport.status_code == 200, passport.text
+    data = passport.json()
+    assert data["schedule"]["milking_frequency"] == "TWICE_DAILY"
+    assert data["schedule"]["expected_sessions"] == ["MORNING", "EVENING"]
+    future_rows = [
+        row for row in data["history"]["milk"]
+        if row["animal_id"] == animal_id
+        and row["production_date"].startswith(future_date)
+    ]
+    assert {row["milking_session"] for row in future_rows} == {"MORNING", "EVENING"}
+    assert sum(row["total_yield"] for row in future_rows) == 17.0
