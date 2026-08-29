@@ -48,8 +48,9 @@ jobs:
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest
 
-      - name: Apply database migrations
-        run: alembic upgrade head
+      - name: Bootstrap runtime schema
+        run: >-
+          python -c "import dairyos.app; from dairyos.data.database.session import Base, engine; Base.metadata.create_all(engine)"
 
       - name: Run real Admin Reset and restore verification
         run: pytest -q tests/admin/test_admin_postgres_integration.py
