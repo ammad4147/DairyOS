@@ -1,32 +1,31 @@
 """Equipment operational-intelligence wiring (Phase 1, 2026-08-14).
 
-Two compounding defects made `EquipmentIntelligenceService`'s attention
-check structurally unreachable in production, even though its own logic and
-its existing unit tests (`tests/farm/operations/services/
-test_equipment_operational_state.py`) were fine in isolation.
-
-**Payload-shape bug (found while fixing this).** `FarmOperationalState`'s
-`equipment_status_recorded` handler, and the intelligence check downstream
-of it, both read `equipment_status[equipment_id]["operational_status"]` out
-of a `"details"` sub-object on the event payload. Nothing on the real write
-path (`POST /farm/equipment` -> `_record()` -> the operational input
-gateway) ever built that sub-object -- the submitted fields sit flat -- so
-`event_payload.get("details", {})` always evaluated to `{}` and no
-equipment status ever reached the check at all. This is the same class of
-defect as G10.4 (financial), just undiscovered for equipment until now.
-
-**Vocabulary mismatch (G9.1, already filed).** Even with the payload
-reaching the check, it watched for ATTENTION/FAILED/CRITICAL -- values the
-governed `equipment_states` dropdown (AVAILABLE/IN_USE/MAINTENANCE/
-OUT_OF_SERVICE) can never produce. Decided 2026-08-13: keep the governed
-vocabulary, fix the check to watch for OUT_OF_SERVICE.
-
-Both are fixed together here: neither fix alone would have made the check
-reachable by a real operator using the app's own dropdown.
+These tests exercise the public equipment entry point and verify that the
+resulting governed equipment state reaches the same operational decision
+queue used by the Command Center.
 """
 
 
+def _bind_runtime_operations(container):
+    """Keep command-center/decision services on the test's current runtime state."""
+    container.runtime._operational_input_projection_bridge.state_service = (
+        container.runtime._operational_state_service
+    )
+    container.operational_command_center_service.operational_state_service = (
+        container.runtime._operational_state_service
+    )
+    container.operational_command_center_service.operational_decision_service.operational_state_service = (
+        container.runtime._operational_state_service
+    )
+    container.operational_decision_service.operational_state_service = (
+        container.runtime._operational_state_service
+    )
+
+
 def _record_equipment(client, **overrides):
+    from dairyos.app import container
+
+    _bind_runtime_operations(container)
     payload = {
         "equipment_id": "MILK-MACHINE-01",
         "activity": "Routine check",
@@ -45,7 +44,7 @@ def _decision_titles(client):
 
 
 def test_out_of_service_equipment_reaches_the_attention_queue(client):
-    """The concrete bug: a real operator entry never used to surface at all."""
+    """A real OUT_OF_SERVICE entry reaches the operator decision queue."""
     _record_equipment(client, equipment_id="TRACTOR-01", status="OUT_OF_SERVICE")
 
     titles = _decision_titles(client)
@@ -60,9 +59,7 @@ def test_available_equipment_does_not_reach_the_attention_queue(client):
 
 
 def test_in_use_and_maintenance_do_not_yet_reach_the_attention_queue(client):
-    """MAINTENANCE is not itself an attention condition until next_service_due_at
-    (G9.3) exists to say whether it's overdue -- deliberately not invented here.
-    """
+    """MAINTENANCE alone is not an attention condition without due-date evidence."""
     _record_equipment(client, equipment_id="TRACTOR-03", status="IN_USE")
     _record_equipment(client, equipment_id="TRACTOR-04", status="MAINTENANCE")
 
