@@ -13,7 +13,7 @@ def test_operator_shell_has_exactly_nine_navigation_tabs_and_one_dashboard_surfa
     nav_end = text.index(";\n const canSettings", nav_start)
     nav = text[nav_start:nav_end]
     assert len(labels) == 9
-    assert all(f'label:\'{label}\'' in nav for label in labels)
+    assert all(f"label:'{label}'" in nav for label in labels)
     assert "UnifiedDashboard" in text
     assert "MainDashboard" not in text
 
