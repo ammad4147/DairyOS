@@ -43,8 +43,17 @@ def test_reset_requires_exact_confirmation(tmp_path):
     assert manager.calls == []
 
 
-def test_reset_is_not_allowed_by_placeholder_facade(tmp_path):
+def test_reset_requires_database_before_backup_or_mutation(tmp_path):
     manager = FakeManager(tmp_path)
-    with pytest.raises(LifecycleError, match="zero-state mutation has not been enabled"):
+    with pytest.raises(LifecycleError, match="DAIRYOS_DATABASE_URL"):
+        AdminService(manager).reset(RESET_CONFIRMATION)
+    assert manager.calls == []
+
+
+def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
+    manager = FakeManager(tmp_path)
+    manager.database_url = "postgresql+psycopg://example"
+    monkeypatch.setattr(manager, "validate", lambda require_database=True: {"valid": True})
+    with pytest.raises(LifecycleError, match="Backup manifest is missing"):
         AdminService(manager).reset(RESET_CONFIRMATION)
     assert manager.calls == [("backup", "pre-reset")]
