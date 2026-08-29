@@ -32,6 +32,17 @@ def _repo(container):
     return container.repository_factory.payroll()
 
 
+def _payroll_subcategory(role: str) -> str:
+    normalized = role.strip().lower()
+    if "milker" in normalized:
+        return "Milker Wages"
+    if "feed" in normalized or "feeder" in normalized:
+        return "Feeder / Shed Worker Wages"
+    if "manager" in normalized or "supervisor" in normalized:
+        return "Supervisor / Farm Manager Salary"
+    return "Daily / Temporary Labor"
+
+
 def _serialize(record: PayrollRecord) -> dict:
     return {
         "id": record.id,
@@ -106,10 +117,12 @@ def pay_payroll(record_id: int, payment_date: date | None = None, container=Depe
         return _serialize(record)
 
     pay_date = payment_date or date.today()
+    quantity = float(record.worked_days or 0)
+    net_pay = float(record.net_pay)
     transaction = FinancialTransaction(
         transaction_type="EXPENSE",
         category="LABOUR",
-        amount=float(record.net_pay),
+        amount=net_pay,
         transaction_date=datetime.combine(pay_date, time.min),
         reference=source_reference,
         payment_method="BANK",
@@ -118,11 +131,11 @@ def pay_payroll(record_id: int, payment_date: date | None = None, container=Depe
         currency="PKR",
         status="PAID",
         master_category="OPEX",
-        sub_category="Labour",
+        sub_category=_payroll_subcategory(record.employee_role),
         custom_specification=record.employee_role,
-        quantity=float(record.worked_days or 0),
-        unit="day",
-        unit_rate=float(record.net_pay / record.worked_days) if record.worked_days else None,
+        quantity=quantity if quantity > 0 else None,
+        unit="day" if quantity > 0 else None,
+        unit_rate=net_pay / quantity if quantity > 0 else None,
         settled_date=pay_date,
         payroll_record_id=record.id,
     )
