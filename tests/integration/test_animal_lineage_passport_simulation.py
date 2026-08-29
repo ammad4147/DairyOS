@@ -55,18 +55,21 @@ def test_multi_generation_lineage_is_preserved_and_descendants_are_addressable(c
         dam_id=mother,
         milking_frequency="TWICE_DAILY",
     )
+
+    cycle_animal = _register(client, tag="SIM-CYCLE-001", lifecycle="CALF", dam_id=mother)
     grandchild = _register(client, tag="SIM-GRANDCALF-001", lifecycle="CALF", dam_id=heifer)
 
-    # Exercise: calf -> heifer -> milking cow -> calf.
+    # Exercise the requested life-cycle progression separately:
+    # calf -> heifer -> milking cow -> calf.
     calf_to_heifer = client.patch(
-        f"/farm/animals/{calf}/lifecycle",
+        f"/farm/animals/{cycle_animal}/lifecycle",
         json={"lifecycle_status": "HEIFER", "operator": "simulation"},
     )
     assert calf_to_heifer.status_code == 200, calf_to_heifer.text
-    assert _passport(client, calf)["animal"]["lifecycle_status"] == "HEIFER"
+    assert _passport(client, cycle_animal)["animal"]["lifecycle_status"] == "HEIFER"
 
     heifer_to_milking = client.patch(
-        f"/farm/animals/{calf}/lifecycle",
+        f"/farm/animals/{cycle_animal}/lifecycle",
         json={
             "lifecycle_status": "LACTATING",
             "operator": "simulation",
@@ -75,25 +78,27 @@ def test_multi_generation_lineage_is_preserved_and_descendants_are_addressable(c
         },
     )
     assert heifer_to_milking.status_code == 200, heifer_to_milking.text
-    calf_after_lactation = _passport(client, calf)
-    assert calf_after_lactation["animal"]["lifecycle_status"] == "LACTATING"
-    assert calf_after_lactation["animal"]["milking_frequency"] == "TWICE_DAILY"
+    cycle_passport = _passport(client, cycle_animal)
+    assert cycle_passport["animal"]["lifecycle_status"] == "LACTATING"
+    assert cycle_passport["animal"]["milking_frequency"] == "TWICE_DAILY"
 
-    new_child = _register(client, tag="SIM-CALF-002", lifecycle="CALF", dam_id=calf)
+    cycle_child = _register(client, tag="SIM-CYCLE-CALF-001", lifecycle="CALF", dam_id=cycle_animal)
 
     mother_passport = _passport(client, mother)
     descendants = mother_passport["lineage"]["descendants"]
     descendant_ids = {row["animal_id"] for row in descendants}
-    assert {calf, heifer, milking, grandchild, new_child}.issubset(descendant_ids)
+    assert {calf, heifer, milking, cycle_animal, grandchild, cycle_child}.issubset(descendant_ids)
 
-    direct_children = [
-        row for row in descendants
-        if row["depth"] == 1 and row["animal_id"] in {calf, heifer, milking}
-    ]
-    assert {row["animal_id"] for row in direct_children} == {calf, heifer, milking}
-    assert {row["animal_id"] for row in direct_children} == {calf, heifer, milking}
-    direct_lifecycles = {row["animal_id"]: row["lifecycle_status"] for row in direct_children}
-    assert direct_lifecycles == {calf: "LACTATING", heifer: "HEIFER", milking: "LACTATING"}
+    direct_children = {
+        row["animal_id"]: row
+        for row in descendants
+        if row["depth"] == 1
+    }
+    assert direct_children[calf]["lifecycle_status"] == "CALF"
+    assert direct_children[heifer]["lifecycle_status"] == "HEIFER"
+    assert direct_children[milking]["lifecycle_status"] == "LACTATING"
+    assert direct_children[milking]["animal_id"] == milking
+    assert direct_children[milking]["depth"] == 1
 
     heifer_passport = _passport(client, heifer)
     assert heifer_passport["animal"]["dam_id"] == mother
@@ -104,9 +109,9 @@ def test_multi_generation_lineage_is_preserved_and_descendants_are_addressable(c
     assert milking_passport["animal"]["lifecycle_status"] == "LACTATING"
     assert milking_passport["animal"]["milking_frequency"] == "TWICE_DAILY"
 
-    calf_after_lactation = _passport(client, calf)
-    assert calf_after_lactation["animal"]["dam_id"] == mother
-    assert any(row["animal_id"] == new_child for row in calf_after_lactation["lineage"]["descendants"])
+    cycle_passport = _passport(client, cycle_animal)
+    assert cycle_passport["animal"]["dam_id"] == mother
+    assert any(row["animal_id"] == cycle_child for row in cycle_passport["lineage"]["descendants"])
 
 
 def test_lineage_passport_ui_exposes_clickable_animal_id_navigation():
