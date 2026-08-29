@@ -107,17 +107,27 @@ def test_one_animal_public_entries_reconcile_into_complete_passport(
         and float(row.get("quantity_kg", 0)) == 12.5
         for row in history["feed"]
     )
-    assert passport["record_counts"]["health"] >= 1
-    assert passport["record_counts"]["treatments"] >= 1
-    assert passport["record_counts"]["breeding"] >= 1
-    assert passport["record_counts"]["feed"] >= 1
-    assert passport["health_state"]["summary"]["treatment_count"] >= 1
-    assert passport["biological_summary"]["active_milk_withdrawal"] is True
 
     welfare_rows = [
         row
         for row in history.get("welfare", [])
         if row.get("animal_id") == registered_animal
     ]
-    assert welfare_rows == []
-    assert passport["record_counts"].get("welfare", 0) == 0
+    assert len(welfare_rows) >= 1
+    assert welfare_rows[-1]["welfare_domain"] == "BODY_CONDITION"
+    assert welfare_rows[-1]["score"] == 82.0
+
+    assert passport["record_counts"]["health"] >= 1
+    assert passport["record_counts"]["treatments"] >= 1
+    assert passport["record_counts"]["breeding"] >= 1
+    assert passport["record_counts"]["feed"] >= 1
+    assert passport["record_counts"]["welfare"] >= 1
+    assert passport["health_state"]["summary"]["treatment_count"] >= 1
+    assert passport["biological_summary"]["active_milk_withdrawal"] is True
+
+    knowledge_graph = passport.get("knowledge_graph") or {}
+    relation_types = {
+        relation["relation_type"]
+        for relation in knowledge_graph.get("relationships", [])
+    }
+    assert "HAS_WELFARE_OBSERVATION" in relation_types
