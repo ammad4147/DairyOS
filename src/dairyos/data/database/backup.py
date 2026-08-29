@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -40,6 +41,14 @@ def _connection_args(database_url: str) -> tuple[list[str], dict[str, str]]:
     if url.password is not None:
         env["PGPASSWORD"] = url.password
     return args, env
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def create_backup(database_url: str, destination: str | Path) -> Path:
@@ -85,11 +94,23 @@ def restore_backup(database_url: str, backup: str | Path) -> None:
 
 
 def verify_backup_artifact(backup: str | Path) -> dict[str, int | str]:
-    """Return basic artifact metadata suitable for an auditable backup check."""
+    """Verify and return auditable PostgreSQL backup metadata."""
     path = Path(backup)
     if not path.is_file():
         raise PostgreSQLBackupError(f"Backup artifact not found: {path}")
     size = path.stat().st_size
     if size <= 0:
         raise PostgreSQLBackupError(f"Backup artifact is empty: {path}")
-    return {"path": str(path), "size_bytes": size}
+    return {"path": str(path), "size_bytes": size, "sha256": _sha256(path)}
+
+
+def verify_backup_checksum(backup: str | Path, expected_sha256: str) -> dict[str, int | str]:
+    """Verify a PostgreSQL backup against an independently recorded SHA-256."""
+    metadata = verify_backup_artifact(backup)
+    actual = str(metadata["sha256"])
+    expected = expected_sha256.strip().lower()
+    if actual != expected:
+        raise PostgreSQLBackupError(
+            f"Backup SHA-256 mismatch for {metadata['path']}: expected {expected}, got {actual}"
+        )
+    return metadata
