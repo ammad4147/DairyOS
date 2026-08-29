@@ -9,7 +9,7 @@ the canonical Passport read model.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 from dairyos.application.animal_passport import LifetimeAnimalPassportService
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
@@ -69,6 +69,17 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
         welfare = self._welfare_projection(animal_id, as_of_date)
         health_state = passport.setdefault("health_state", {})
         health_state["welfare"] = welfare
+        passport["history"]["welfare"] = [dict(item) for item in welfare["observations"]]
+        passport["record_counts"]["welfare"] = len(passport["history"]["welfare"])
+        passport["timeline"].extend(
+            {
+                "domain": "welfare",
+                "timestamp": item.get("observed_at", ""),
+                "record": dict(item),
+            }
+            for item in passport["history"]["welfare"]
+        )
+        passport["timeline"].sort(key=lambda item: str(item["timestamp"]))
         passport["knowledge_graph"] = AnimalPassportGraphService().build(
             animal_id,
             passport["lineage"],
