@@ -33,6 +33,14 @@ from dairyos.farm.operations.state.farm_operational_state_service import (
 )
 
 
+# Importing the application constructs ApplicationRuntime, whose durable
+# withdrawal hydration performs a read-only treatment query. SQLAlchemy
+# leaves that read inside a transaction until it is explicitly ended. The
+# application test harness must release that import-time transaction before
+# destructive PostgreSQL integration tests attempt TRUNCATE.
+container.repository_factory.rollback()
+
+
 def _reset_test_persistence() -> None:
     """Create a clean durable persistence boundary for every API test."""
 
