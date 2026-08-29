@@ -14,6 +14,7 @@ from .app_setting import AppSetting
 from .email_sender_setting import EmailSenderSetting
 from .email_digest_run import EmailDigestRun
 from .email_digest_delivery import EmailDigestDelivery
+from .payroll import PayrollRecord
 
 
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "EmailSenderSetting",
     "EmailDigestRun",
     "EmailDigestDelivery",
+    "PayrollRecord",
 ]
