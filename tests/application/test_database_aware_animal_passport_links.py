@@ -35,6 +35,9 @@ class _AnimalRepo(_HistoryRepo):
             None,
         )
 
+    def get_milking_frequency_history(self, animal_id):
+        return []
+
 
 class _Factory:
     def __init__(self, animal, milk, health, cases, treatments, breeding, feed, finance, events):
