@@ -82,8 +82,15 @@ def inspect_installation() -> InstallationFacts:
 
     persistent_files_exist = False
     if root.exists():
+        ignored = {
+            STATE_FILENAME,
+            "lifecycle.json",
+            "backups",
+            "logs",
+            "postgres",
+        }
         for item in root.iterdir():
-            if item.name in {STATE_FILENAME, "lifecycle.json", "backups", "logs"}:
+            if item.name in ignored:
                 continue
             persistent_files_exist = True
             break
