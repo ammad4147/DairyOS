@@ -54,5 +54,17 @@ jobs:
         run: >-
           python -c "import dairyos.app; from dairyos.data.database.session import Base, engine; Base.metadata.create_all(engine)"
 
+      - name: PostgreSQL backup preflight
+        run: >-
+          timeout 60s pg_dump --format=custom --no-owner --lock-wait-timeout=15s --verbose
+          --host localhost --port 5432 --username postgres --dbname dairyos
+          --file /tmp/dairyos-admin-preflight.dump
+        env:
+          PGPASSWORD: postgres
+
+      - name: Verify PostgreSQL backup preflight artifact
+        run: >-
+          test -s /tmp/dairyos-admin-preflight.dump && sha256sum /tmp/dairyos-admin-preflight.dump
+
       - name: Run real Admin Reset and restore verification
         run: pytest -q -s tests/admin/test_admin_postgres_integration.py
