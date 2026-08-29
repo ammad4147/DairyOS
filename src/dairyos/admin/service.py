@@ -2,14 +2,33 @@
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+import shutil
 
+import sqlalchemy as sa
+from sqlalchemy import create_engine, inspect
+
+from dairyos.data.database.backup import verify_backup_artifact
+from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
 from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
 from dairyos.lifecycle.restore import restore_snapshot
 
 RESET_CONFIRMATION = "RESET DAIRYOS DATA"
+PURGE_CONFIRMATION = "PURGE DAIRYOS DATA"
+_PRESERVED_TABLES = {
+    "alembic_version",
+    "app_settings",
+    "users",
+    "drug_withdrawal_reference",
+    "email_sender_settings",
+}
 
 
 @dataclass(frozen=True)
@@ -21,10 +40,12 @@ class AdminResult:
 
 
 class AdminService:
-    """Thin administrative facade over the canonical lifecycle boundary.
+    """Administrative facade over the canonical lifecycle boundary.
 
-    This service deliberately contains no farm-domain business logic. It is
-    the integration point used by the separate administrative application.
+    This package is the privileged operator surface. It is deliberately
+    separate from the nine-tab farm application and contains no farm-domain
+    business workflow. Destructive database mutation is performed here only
+    after lifecycle backup and recovery verification.
     """
 
     def __init__(self, manager: LifecycleManager):
@@ -35,40 +56,89 @@ class AdminService:
 
     def backup(self, label: str = "admin") -> AdminResult:
         artifact = self.manager.backup(label=label)
-        return AdminResult("backup", True, "Backup completed.", str(artifact))
+        _record_database_checksum(artifact)
+        return AdminResult("backup", True, "Backup completed and verified.", str(artifact))
 
     def restore(self, backup: str | Path) -> AdminResult:
+        _verify_backup_directory(backup)
         restore_snapshot(self.manager, backup)
         self.manager.validate(require_database=bool(self.manager.database_url))
         return AdminResult("restore", True, "Snapshot restored and validated.", str(Path(backup).resolve()))
 
     def rollback(self, backup: str | Path) -> AdminResult:
+        _verify_backup_directory(backup)
         result = self.manager.rollback(backup)
-        return AdminResult("rollback", bool(result.get("valid")), "Rollback completed and validated.", str(Path(backup).resolve()))
-
-    def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
-        """Reset operational state through an externally recoverable snapshot.
-
-        The confirmation is an operation token, not an authentication system.
-        Authorization belongs to the external administrative execution context.
-        """
-        if confirmation != RESET_CONFIRMATION:
-            raise LifecycleError(f"Reset requires the exact confirmation token: {RESET_CONFIRMATION!r}")
-
-        artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
-        # The current application reset endpoint is intentionally not called.
-        # The dedicated tool owns reset and must use the same lifecycle manager
-        # boundary. Database-specific zero-state work is supplied separately by
-        # the administrative reset implementation once its operational table
-        # inventory is finalized.
-        raise LifecycleError(
-            "Reset orchestration is reserved for the dedicated administrative "
-            "tool; database zero-state mutation has not been enabled by this facade."
+        return AdminResult(
+            "rollback",
+            bool(result.get("valid")),
+            "Rollback completed and validated.",
+            str(Path(backup).resolve()),
         )
 
+    def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
+        """Safely reset operational state without using ``/settings/reset``.
+
+        The sequence is: exact operator confirmation, healthy database,
+        verified pre-reset backup copied outside the data root, deployment
+        deactivation, transactional truncation of every non-preserved table,
+        zero-state verification, and an external audit record. If mutation
+        fails, the lifecycle snapshot is restored before the error escapes.
+        """
+        if confirmation != RESET_CONFIRMATION:
+            raise LifecycleError(
+                f"Reset requires the exact confirmation token: {RESET_CONFIRMATION!r}"
+            )
+        if not self.manager.database_url:
+            raise LifecycleError("Reset requires DAIRYOS_DATABASE_URL to be configured.")
+
+        self.manager.validate(require_database=True)
+        artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
+        if artifact is None:
+            raise LifecycleError("Reset requires a verified pre-reset backup.")
+        _record_database_checksum(artifact)
+        recovery_artifact = _copy_external_recovery_artifact(artifact)
+        _verify_backup_directory(recovery_artifact)
+        _write_audit_event(recovery_artifact, "reset-intent", {"artifact": str(recovery_artifact)})
+
+        try:
+            _deactivate_deployment(self.manager, updated_by="DairyOS Admin Tool")
+            tables = _truncate_operational_tables(self.manager.database_url)
+            remaining = _verify_zero_state(self.manager.database_url)
+            if remaining:
+                raise LifecycleError(
+                    "Reset zero-state verification failed: "
+                    + json.dumps(remaining, sort_keys=True)
+                )
+            _write_audit_event(
+                recovery_artifact,
+                "reset-result",
+                {"status": "success", "tables_cleared": tables},
+            )
+            return AdminResult(
+                "reset",
+                True,
+                "Operational data reset, deployment deactivated, and zero-state verified.",
+                str(recovery_artifact),
+            )
+        except Exception as exc:
+            _write_audit_event(
+                recovery_artifact,
+                "reset-result",
+                {"status": "failed", "error": str(exc)},
+            )
+            try:
+                self.manager.rollback(artifact)
+            except Exception as rollback_exc:
+                raise LifecycleError(
+                    f"Reset failed and automatic recovery also failed: {rollback_exc}"
+                ) from exc
+            raise LifecycleError(f"Reset failed; pre-reset state was restored: {exc}") from exc
+
     def purge(self, confirmation: str) -> AdminResult:
-        if confirmation != "PURGE DAIRYOS DATA":
-            raise LifecycleError("Permanent purge requires the exact confirmation token.")
+        if confirmation != PURGE_CONFIRMATION:
+            raise LifecycleError(
+                f"Permanent purge requires the exact confirmation token: {PURGE_CONFIRMATION!r}"
+            )
         artifact = create_external_purge_backup(self.manager)
         purge_data_after_backup(self.manager, create_backup=False)
         return AdminResult("purge", True, "Data root purged after external backup.", str(artifact))
@@ -77,3 +147,121 @@ class AdminService:
         mode = UninstallMode.PURGE_DATA if purge else UninstallMode.KEEP_DATA
         self.manager.uninstall(mode=mode, confirmation=confirmation)
         return AdminResult("uninstall", True, "Uninstall completed.")
+
+
+def _record_database_checksum(backup: str | Path) -> None:
+    """Record the PostgreSQL dump checksum in the backup manifest."""
+    path = Path(backup).resolve()
+    manifest_path = path / "backup.json"
+    if not manifest_path.is_file():
+        raise LifecycleError(f"Backup manifest is missing: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    database_backup = manifest.get("database_backup")
+    if not database_backup:
+        return
+    dump_path = path / str(database_backup)
+    metadata = verify_backup_artifact(dump_path)
+    manifest["database_backup_sha256"] = metadata["sha256"]
+    manifest["database_backup_size_bytes"] = metadata["size_bytes"]
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _verify_backup_directory(backup: str | Path) -> None:
+    path = Path(backup).resolve()
+    manifest_path = path / "backup.json"
+    if not manifest_path.is_file():
+        raise LifecycleError(f"Invalid DairyOS backup: {path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    database_backup = manifest.get("database_backup")
+    if database_backup:
+        dump_path = path / str(database_backup)
+        expected = manifest.get("database_backup_sha256")
+        metadata = verify_backup_artifact(dump_path)
+        if expected and str(metadata["sha256"]).lower() != str(expected).lower():
+            raise LifecycleError("PostgreSQL backup SHA-256 verification failed.")
+    files_root = path / "files"
+    for entry in manifest.get("files", []):
+        relative = Path(str(entry["path"]))
+        source = files_root / relative
+        if not source.is_file():
+            raise LifecycleError(f"Backup file is missing: {relative}")
+        actual = _sha256(source)
+        expected = str(entry.get("sha256", ""))
+        if expected and actual != expected:
+            raise LifecycleError(f"Backup file SHA-256 verification failed: {relative}")
+
+
+def _copy_external_recovery_artifact(backup: Path) -> Path:
+    configured = os.environ.get("DAIRYOS_RECOVERY_ROOT")
+    root = Path(configured).expanduser().resolve() if configured else backup.parent.parent / "recovery"
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / f"{backup.name}-external"
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(backup, destination)
+    return destination
+
+
+def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -> None:
+    path = artifact.parent / "admin-audit.jsonl"
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        **payload,
+    }
+    with path.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _deactivate_deployment(manager: LifecycleManager, updated_by: str) -> None:
+    factory = RepositoryFactory.create()
+    try:
+        DeploymentControlService(FarmSettingsService(factory.app_settings())).deactivate(
+            updated_by=updated_by
+        )
+    finally:
+        factory.close()
+
+
+def _truncate_operational_tables(database_url: str) -> list[str]:
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        tables = sorted(
+            table for table in inspector.get_table_names() if table not in _PRESERVED_TABLES
+        )
+        if tables:
+            quoted = ", ".join('"' + table.replace('"', '""') + '"' for table in tables)
+            with engine.begin() as connection:
+                connection.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
+        return tables
+    finally:
+        engine.dispose()
+
+
+def _verify_zero_state(database_url: str) -> dict[str, int]:
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        remaining: dict[str, int] = {}
+        with engine.connect() as connection:
+            for table in inspector.get_table_names():
+                if table in _PRESERVED_TABLES:
+                    continue
+                quoted = '"' + table.replace('"', '""') + '"'
+                count = int(connection.execute(sa.text(f"SELECT count(*) FROM {quoted}")).scalar_one())
+                if count:
+                    remaining[table] = count
+        return remaining
+    finally:
+        engine.dispose()
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
