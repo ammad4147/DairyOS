@@ -1,1 +1,0 @@
-/* Retired obsolete document surface. The searchable Documentation component is authoritative. */
