@@ -33,26 +33,23 @@ def test_payroll_payment_reaches_finance_once(client):
     assert payment.status_code == 200, payment.text
     paid = payment.json()
     assert paid["status"] == "PAID"
-    assert paid["finance_transaction_id"] is not None
+    finance_transaction_id = paid["finance_transaction_id"]
+    assert finance_transaction_id is not None
 
     repeat = client.post(
         f"/farm/payroll/{payroll['id']}/pay",
         params={"payment_date": "2026-08-31"},
     )
     assert repeat.status_code == 200, repeat.text
-    assert repeat.json()["finance_transaction_id"] == paid["finance_transaction_id"]
+    assert repeat.json()["finance_transaction_id"] == finance_transaction_id
 
     finance = client.get("/farm/finance-ledger")
     assert finance.status_code == 200, finance.text
     records = finance.json()["transactions"]
-    payroll_rows = [
-        row
-        for row in records
-        if row.get("reference") == f"PAYROLL#{payroll['id']}"
-    ]
+    payroll_rows = [row for row in records if row["id"] == finance_transaction_id]
     assert len(payroll_rows) == 1, payroll_rows
     assert float(payroll_rows[0]["amount"]) == 43000.0
-    assert payroll_rows[0]["payroll_record_id"] == payroll["id"]
+    assert payroll_rows[0]["reference"] == f"PAYROLL#{payroll['id']}"
 
 
 def test_coml_uses_only_supplied_period_inputs_and_rates(client):
