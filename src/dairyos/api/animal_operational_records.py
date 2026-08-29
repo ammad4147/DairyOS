@@ -12,54 +12,30 @@ router = APIRouter(
 
 def _require_animal(animal_id: str) -> dict:
     repository = _repository(_runtime())
-
     if repository is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Authoritative animal repository is not available",
-        )
+        raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
 
     animal = _repository_call(
         repository,
-        (
-            "get_by_animal_id",
-            "get_by_id",
-            "find_by_animal_id",
-            "find_by_id",
-            "find",
-        ),
+        ("get_by_animal_id", "get_by_id", "find_by_animal_id", "find_by_id", "find"),
         animal_id,
     )
-
     if animal is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Animal not found: {animal_id}",
-        )
-
+        raise HTTPException(status_code=404, detail=f"Animal not found: {animal_id}")
     return _as_dict(animal)
 
 
-def _record_endpoint(
-    animal_id: str,
-    repository_methods: tuple[str, ...],
-) -> dict:
-    repository = _repository(_runtime())
-
-    animal = _require_animal(animal_id)
-
-    records = _repository_call(
-        repository,
-        repository_methods,
-        animal_id,
-    )
-
+def _repository_records(factory, repository_name: str, animal_id: str, method_names: tuple[str, ...]):
+    repository = getattr(factory, repository_name)()
+    records = _repository_call(repository, method_names, animal_id)
     if records is None:
-        records = []
+        return []
+    if isinstance(records, (list, tuple)):
+        return list(records)
+    return [records]
 
-    if not isinstance(records, (list, tuple)):
-        records = [records]
 
+def _record_payload(animal_id: str, animal: dict, records: list) -> dict:
     return {
         "animal_id": animal_id,
         "animal": animal,
@@ -69,71 +45,99 @@ def _record_endpoint(
     }
 
 
+def _factory():
+    runtime = _runtime()
+    if runtime is None or getattr(runtime, "repository_factory", None) is None:
+        raise HTTPException(status_code=503, detail="Canonical repository factory is not available")
+    return runtime.repository_factory
+
+
 @router.get("/{animal_id}/milk")
 def animal_milk_records(animal_id: str) -> dict:
-    return _record_endpoint(
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "milk",
         animal_id,
-        (
-            "list_milk_for_animal",
-            "get_milk_for_animal",
-            "milk_for_animal",
-        ),
+        ("get_by_animal_id",),
     )
+    return _record_payload(animal_id, animal, records)
 
 
 @router.get("/{animal_id}/feed")
 def animal_feed_records(animal_id: str) -> dict:
-    return _record_endpoint(
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "feed",
         animal_id,
-        (
-            "list_feed_for_animal",
-            "get_feed_for_animal",
-            "feed_for_animal",
-        ),
+        ("get_by_animal_id",),
     )
+    return _record_payload(animal_id, animal, records)
 
 
 @router.get("/{animal_id}/health")
 def animal_health_records(animal_id: str) -> dict:
-    return _record_endpoint(
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "health",
         animal_id,
-        (
-            "list_health_for_animal",
-            "get_health_for_animal",
-            "health_for_animal",
-        ),
+        ("get_by_animal_id",),
     )
+    return _record_payload(animal_id, animal, records)
 
 
 @router.get("/{animal_id}/breeding")
 def animal_breeding_records(animal_id: str) -> dict:
-    return _record_endpoint(
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "breeding",
         animal_id,
-        (
-            "list_breeding_for_animal",
-            "get_breeding_for_animal",
-            "breeding_for_animal",
-        ),
+        ("get_by_animal_id",),
     )
+    return _record_payload(animal_id, animal, records)
+
+
+@router.get("/{animal_id}/treatments")
+def animal_treatment_records(animal_id: str) -> dict:
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "treatment",
+        animal_id,
+        ("get_by_animal", "get_by_animal_id"),
+    )
+    return _record_payload(animal_id, animal, records)
+
+
+@router.get("/{animal_id}/finance")
+def animal_finance_records(animal_id: str) -> dict:
+    animal = _require_animal(animal_id)
+    records = _repository_records(
+        _factory(),
+        "finance",
+        animal_id,
+        ("get_by_animal_id",),
+    )
+    return _record_payload(animal_id, animal, records)
 
 
 @router.get("/{animal_id}/operational-records")
 def animal_operational_records(animal_id: str) -> dict:
-    """
-    Single animal-centric operational record surface.
-
-    This endpoint deliberately returns only persisted records.
-    Missing operational history is represented by an empty collection,
-    never by fabricated values.
-    """
+    """Single persisted animal-centric operational record surface."""
     animal = _require_animal(animal_id)
+    factory = _factory()
 
     return {
         "animal_id": animal_id,
         "animal": animal,
-        "milk": animal_milk_records(animal_id)["records"],
-        "feed": animal_feed_records(animal_id)["records"],
-        "health": animal_health_records(animal_id)["records"],
-        "breeding": animal_breeding_records(animal_id)["records"],
+        "milk": [_as_dict(record) for record in _repository_records(factory, "milk", animal_id, ("get_by_animal_id",))],
+        "feed": [_as_dict(record) for record in _repository_records(factory, "feed", animal_id, ("get_by_animal_id",))],
+        "health": [_as_dict(record) for record in _repository_records(factory, "health", animal_id, ("get_by_animal_id",))],
+        "breeding": [_as_dict(record) for record in _repository_records(factory, "breeding", animal_id, ("get_by_animal_id",))],
+        "treatments": [_as_dict(record) for record in _repository_records(factory, "treatment", animal_id, ("get_by_animal", "get_by_animal_id"))],
+        "finance": [_as_dict(record) for record in _repository_records(factory, "finance", animal_id, ("get_by_animal_id",))],
         "source": "authoritative_persistence",
     }
