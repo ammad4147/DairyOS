@@ -490,18 +490,37 @@ class LifetimeAnimalPassportService:
             )
             if event_date is None or event_date > as_of_date or not normalized:
                 continue
+            raw_timestamp = getattr(record, "timestamp", None)
+
+            if isinstance(raw_timestamp, datetime):
+                event_timestamp = raw_timestamp.isoformat()
+            elif isinstance(raw_timestamp, date):
+                event_timestamp = datetime.combine(
+                    raw_timestamp,
+                    datetime.min.time(),
+                ).isoformat()
+            elif raw_timestamp:
+                event_timestamp = str(raw_timestamp)
+            else:
+                event_timestamp = ""
+
             events.append(
                 {
                     "animal_id": animal_id,
                     "event_type": normalized,
                     "event_date": event_date,
+                    "timestamp": event_timestamp,
                     "result": getattr(record, "result", None),
                     "technician": getattr(record, "technician", None),
                     "record_id": getattr(record, "record_id", None),
                 }
             )
         events.sort(
-            key=lambda item: (item["event_date"], item["record_id"] or "")
+            key=lambda item: (
+                item["event_date"],
+                item["timestamp"],
+                item["record_id"] or "",
+            )
         )
         resolver = ReproductiveStateService(_REPRODUCTIVE_POLICY)
         state = resolver.resolve(animal_id, events, as_of_date=as_of_date)

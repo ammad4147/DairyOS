@@ -191,7 +191,82 @@ def get_dashboard(container=Depends(get_container)):
         "total": len(active_animals),
     }
     payload["finance"] = dashboard["finance"]
+    # ------------------------------------------------------------------
+    # Authoritative current-month production.
+    #
+    # Calculated from persisted MilkProduction rows. VOID rows are
+    # excluded. Partial-day recorded litres remain visible even when
+    # the operational day is not yet complete.
+    # ------------------------------------------------------------------
+    month_start = operational_date.replace(day=1)
+    current_month_production = 0.0
+
+    for record in milk_records:
+        status = str(
+            getattr(record, "status", "RECORDED") or "RECORDED"
+        ).upper()
+
+        if status == "VOID":
+            continue
+
+        raw_record_date = getattr(
+            record,
+            "production_date",
+            None,
+        )
+
+        if raw_record_date is None:
+            raw_record_date = getattr(
+                record,
+                "recorded_at",
+                None,
+            )
+
+        if raw_record_date is None:
+            continue
+
+        if hasattr(raw_record_date, "date"):
+            record_day = raw_record_date.date()
+        else:
+            record_day = raw_record_date
+
+        if isinstance(record_day, str):
+            try:
+                record_day = datetime.fromisoformat(
+                    record_day.replace("Z", "+00:00")
+                ).date()
+            except ValueError:
+                try:
+                    record_day = date.fromisoformat(
+                        record_day[:10]
+                    )
+                except ValueError:
+                    continue
+
+        if month_start <= record_day <= operational_date:
+            total_yield = getattr(record, "total_yield", None)
+
+            if total_yield is not None:
+                current_month_production += float(
+                    total_yield
+                )
+            else:
+                current_month_production += sum(
+                    float(value or 0.0)
+                    for value in (
+                        getattr(record, "morning_yield", None),
+                        getattr(record, "afternoon_yield", None),
+                        getattr(record, "evening_yield", None),
+                    )
+                )
+
+    current_month_production = round(
+        current_month_production,
+        3,
+    )
     payload["milk"] = {
+        "total_production_liters": current_month_production,
+        "current_month_production": current_month_production,
         "data_status": "LIVE_PERSISTED_DATA",
         "production_extremes": {
             "highest": daily_snapshots[-1] if daily_snapshots else None,
@@ -207,3 +282,5 @@ def get_dashboard(container=Depends(get_container)):
         "average_yield_per_cow": average_yield_per_cow,
     }
     return payload
+
+

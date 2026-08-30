@@ -475,6 +475,7 @@ def milk_production_summary(
     container=Depends(get_container),
 ):
     operational_date = _resolve_operational_date(container)
+
     (
         start_date_value,
         end_date_exclusive,
@@ -528,69 +529,19 @@ def milk_production_summary(
             previous_start,
             previous_end,
         )
+
+        # Persisted observed production is authoritative for this summary.
+        # Completeness is a separate operational fact and must not erase
+        # observed production merely because the biological day is incomplete.
         current = _period_metrics(current_rows)
         previous = _period_metrics(previous_rows)
 
-        trend_service = MilkProductionTrendIntelligenceService(
-            repository_factory=factory
-        )
-
-        current_authoritative = trend_service.get_trend_analysis(
-            period="custom",
-            start_date=start_date_value,
-            end_date=end_date_exclusive - timedelta(days=1),
-            factory=factory,
-        )
-
-        previous_authoritative = trend_service.get_trend_analysis(
-            period="custom",
-            start_date=previous_start_date,
-            end_date=(previous_end - timedelta(days=1)).date(),
-            factory=factory,
-        )
-
-        current["total_liters"] = (
-            current_authoritative["total_litres"]
-            if current_authoritative["data_status"] != "NO_DATA"
-            else None
-        )
-        current["average_liters_per_day"] = (
-            round(
-                current["total_liters"]
-                / len(current_authoritative["series"]),
-                3,
-            )
-            if current["total_liters"] is not None
-            and current_authoritative["series"]
-            else None
-        )
-        current["trend"] = current_authoritative["series"]
-
-        previous["total_liters"] = (
-            previous_authoritative["total_litres"]
-            if previous_authoritative["data_status"] != "NO_DATA"
-            else None
-        )
-        previous["average_liters_per_day"] = (
-            round(
-                previous["total_liters"]
-                / len(previous_authoritative["series"]),
-                3,
-            )
-            if previous["total_liters"] is not None
-            and previous_authoritative["series"]
-            else None
-        )
-        previous["trend"] = previous_authoritative["series"]
-
         previous_operational_date = (
-            operational_date
-            - timedelta(days=1)
+            operational_date - timedelta(days=1)
         )
 
         next_operational_date = (
-            operational_date
-            + timedelta(days=1)
+            operational_date + timedelta(days=1)
         )
 
         today_start = datetime.combine(
@@ -643,8 +594,7 @@ def milk_production_summary(
                     row,
                     "production_date",
                     "recorded_at",
-                )
-                is not None
+                ) is not None
                 and start
                 <= _record_date(
                     row,
@@ -685,11 +635,21 @@ def milk_production_summary(
                 "days": days,
             },
             "kpis": {
-                "total_production_liters": _clean_kpi_num(current["total_liters"]),
-                "average_per_day_liters": _clean_kpi_num(current["average_liters_per_day"]),
-                "average_per_cow_liters": _clean_kpi_num(current["average_liters_per_cow"]),
-                "morning_liters": _clean_kpi_num(current["morning_liters"]),
-                "evening_liters": _clean_kpi_num(current["evening_liters"]),
+                "total_production_liters": _clean_kpi_num(
+                    current["total_liters"]
+                ),
+                "average_per_day_liters": _clean_kpi_num(
+                    current["average_liters_per_day"]
+                ),
+                "average_per_cow_liters": _clean_kpi_num(
+                    current["average_liters_per_cow"]
+                ),
+                "morning_liters": _clean_kpi_num(
+                    current["morning_liters"]
+                ),
+                "evening_liters": _clean_kpi_num(
+                    current["evening_liters"]
+                ),
                 "open_drop_findings": len(
                     open_findings
                 ),
@@ -818,4 +778,5 @@ def milk_production_summary(
 
     finally:
         factory.close()
+
 

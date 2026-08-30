@@ -94,9 +94,10 @@ class DashboardProjectionService:
         operational_decisions=None,
         decision_summary=None,
         milk_read_model=None,
+        feed_read_model=None,
         authoritative_animals=None,
     ):
-        """Build the established dashboard dictionary for existing clients."""
+        """Build the established dashboard dictionary from authoritative read models."""
 
         state = self._dashboard_state(
             farm_state,
@@ -104,6 +105,7 @@ class DashboardProjectionService:
         )
 
         milk_read_model = milk_read_model or {}
+        feed_read_model = feed_read_model or {}
 
         milk_trend = (
             milk_read_model.get(
@@ -224,9 +226,18 @@ class DashboardProjectionService:
                 ),
             },
             "feed": {
-                "today_kg": state.feed_today,
-                "events": state.feed_events,
-                "last_feed_type": state.last_feed_type,
+                "today_kg": feed_read_model.get(
+                    "today_kg",
+                    state.feed_today,
+                ),
+                "events": feed_read_model.get(
+                    "events",
+                    state.feed_events,
+                ),
+                "last_feed_type": feed_read_model.get(
+                    "last_feed_type",
+                    state.last_feed_type,
+                ),
             },
             "freshness": {
                 "last_event": state.last_event_type,
@@ -247,6 +258,132 @@ class DashboardProjectionService:
                 "total_events": event_journal.count(),
                 "latest_events": event_journal.latest(),
             },
+        }
+
+    @staticmethod
+    def _feed_read_model(container):
+        """Build today's Feed projection from persisted FeedRecord data."""
+
+        repository_factory = getattr(
+            container,
+            "repository_factory",
+            None,
+        )
+
+        if repository_factory is None:
+            return {}
+
+        feed_repository = repository_factory.feed()
+        records = feed_repository.get_all() or []
+
+        farm_state_service = getattr(
+            container,
+            "farm_operational_state_service",
+            None,
+        )
+
+        farm_state = (
+            farm_state_service.get_state()
+            if farm_state_service is not None
+            else None
+        )
+
+        operational_date = getattr(
+            farm_state,
+            "operational_date",
+            None,
+        )
+
+        if operational_date is None:
+            return {}
+
+        # Normalize the operational date and persisted DateTime values
+        # to the same YYYY-MM-DD representation. The operational-state
+        # boundary may provide a date object or a serialized ISO string.
+        target_day = str(
+            operational_date
+        )[:10]
+
+        matching = []
+
+        for record in records:
+            status = str(
+                getattr(
+                    record,
+                    "status",
+                    "RECORDED",
+                )
+                or "RECORDED"
+            ).upper()
+
+            if status == "VOID":
+                continue
+
+            feeding_date = getattr(
+                record,
+                "feeding_date",
+                None,
+            )
+
+            if feeding_date is None:
+                continue
+
+            record_day = str(
+                feeding_date.isoformat()
+                if hasattr(
+                    feeding_date,
+                    "isoformat",
+                )
+                else feeding_date
+            )[:10]
+
+            if record_day == target_day:
+                matching.append(record)
+
+        total_kg = round(
+            sum(
+                float(
+                    getattr(
+                        record,
+                        "quantity_kg",
+                        0.0,
+                    )
+                    or 0.0
+                )
+                for record in matching
+            ),
+            3,
+        )
+
+        latest = max(
+            matching,
+            key=lambda record: str(
+                getattr(
+                    record,
+                    "feeding_date",
+                    "",
+                )
+                or ""
+            ),
+            default=None,
+        )
+
+        return {
+            "today_kg": total_kg,
+            "events": len(matching),
+            "last_feed_type": (
+                str(
+                    getattr(
+                        latest,
+                        "feed_type",
+                        "",
+                    )
+                    or ""
+                )
+                if latest is not None
+                else ""
+            ),
+            "data_status": "LIVE_PERSISTED_DATA",
         }
 
     def project_compatibility_dashboard_from_container(
@@ -274,6 +411,10 @@ class DashboardProjectionService:
             container
         )
 
+        feed_read_model = self._feed_read_model(
+            container
+        )
+
         authoritative_animals = (
             container.animal_repository.get_all()
         )
@@ -285,6 +426,7 @@ class DashboardProjectionService:
             operational_decisions=operational_decisions,
             decision_summary=decision_summary,
             milk_read_model=milk_read_model,
+            feed_read_model=feed_read_model,
             authoritative_animals=authoritative_animals,
         )
 
@@ -712,3 +854,4 @@ class DashboardProjectionService:
         farm_state,
     ):
         return []
+
