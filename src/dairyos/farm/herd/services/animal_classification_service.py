@@ -1,9 +1,8 @@
 """Canonical animal classification and lifecycle translation rules.
 
-This service is the single authority for translating persisted animal
-sex/lifecycle facts into the operator-facing animal category and for
-normalising legacy combinations that previously allowed a male animal to be
-stored as ``HEIFER``.
+The persisted individual-animal category is singular. Aggregate population
+labels are a presentation concern and must be pluralised by the consuming
+herd/dashboard/report view rather than by the domain category itself.
 """
 from __future__ import annotations
 
@@ -12,13 +11,15 @@ from enum import StrEnum
 
 
 class AnimalCategory(StrEnum):
-    MILKING_COWS = "Milking Cows"
-    DRY_COWS = "Dry Cows"
-    HEIFERS = "Heifers"
-    BULLS = "Bulls"
-    FEMALE_CALVES = "Female Calves"
-    MALE_CALVES = "Male Calves"
-    EXITED = "Exited Animals"
+    """Canonical category for one individual animal."""
+
+    MILKING = "Milking"
+    DRY = "Dry"
+    HEIFER = "Heifer"
+    BULL = "Bull"
+    FEMALE_CALF = "Female Calf"
+    MALE_CALF = "Male Calf"
+    EXITED = "Exited"
 
 
 class AnimalClassificationError(ValueError):
@@ -35,7 +36,7 @@ class AnimalClassification:
 
 
 class AnimalClassificationService:
-    """Central authority for animal category/lifecycle translation."""
+    """Central authority for individual-animal category/lifecycle translation."""
 
     LIFECYCLE_STATUSES = {
         "CALF",
@@ -93,17 +94,17 @@ class AnimalClassificationService:
         if lifecycle in {"SOLD", "CULLED", "DECEASED"}:
             category = AnimalCategory.EXITED
         elif lifecycle == "BULL":
-            category = AnimalCategory.BULLS
+            category = AnimalCategory.BULL
         elif lifecycle == "LACTATING":
-            category = AnimalCategory.MILKING_COWS
+            category = AnimalCategory.MILKING
         elif lifecycle == "DRY":
-            category = AnimalCategory.DRY_COWS
+            category = AnimalCategory.DRY
         elif lifecycle in {"HEIFER", "CLOSE_UP"}:
-            category = AnimalCategory.HEIFERS
+            category = AnimalCategory.HEIFER
         elif lifecycle == "CALF" and gender == "MALE":
-            category = AnimalCategory.MALE_CALVES
+            category = AnimalCategory.MALE_CALF
         else:
-            category = AnimalCategory.FEMALE_CALVES
+            category = AnimalCategory.FEMALE_CALF
 
         return AnimalClassification(
             category=category,
@@ -118,15 +119,15 @@ class AnimalClassificationService:
         *,
         current_lifecycle: str | None = None,
     ) -> AnimalClassification:
-        """Translate an operator-facing category into canonical facts."""
+        """Translate an individual-animal category into canonical facts."""
         candidate = str(category or "").strip()
         lookup = {
-            AnimalCategory.MILKING_COWS.value: ("LACTATING", "FEMALE"),
-            AnimalCategory.DRY_COWS.value: ("DRY", "FEMALE"),
-            AnimalCategory.HEIFERS.value: ("HEIFER", "FEMALE"),
-            AnimalCategory.BULLS.value: ("BULL", "MALE"),
-            AnimalCategory.FEMALE_CALVES.value: ("CALF", "FEMALE"),
-            AnimalCategory.MALE_CALVES.value: ("CALF", "MALE"),
+            AnimalCategory.MILKING.value: ("LACTATING", "FEMALE"),
+            AnimalCategory.DRY.value: ("DRY", "FEMALE"),
+            AnimalCategory.HEIFER.value: ("HEIFER", "FEMALE"),
+            AnimalCategory.BULL.value: ("BULL", "MALE"),
+            AnimalCategory.FEMALE_CALF.value: ("CALF", "FEMALE"),
+            AnimalCategory.MALE_CALF.value: ("CALF", "MALE"),
         }
 
         if candidate == AnimalCategory.EXITED.value:
@@ -145,7 +146,7 @@ class AnimalClassificationService:
 
     @classmethod
     def serialise(cls, lifecycle_status: str | None, sex: str | None) -> dict[str, str]:
-        """Return canonical facts for JSON/API boundaries."""
+        """Return canonical individual-animal facts for JSON/API boundaries."""
         result = cls.classify(lifecycle_status, sex)
         return {
             "category": result.category.value,
