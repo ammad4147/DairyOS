@@ -2,7 +2,7 @@
 
 The operator supplies animal attributes, but never the permanent Animal ID.
 The permanent ID is generated server-side before persistence and returned to
- the UI. Historical/legacy IDs may be supplied separately for traceability.
+the UI. Historical/legacy IDs may be supplied separately for traceability.
 """
 
 import re
@@ -14,6 +14,10 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.domain.commands import Command
+from dairyos.farm.herd.services.animal_classification_service import (
+    AnimalClassificationError,
+    AnimalClassificationService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
@@ -60,9 +64,8 @@ def _normalise_date(value):
         return None
     if hasattr(value, "isoformat"):
         return value
-    text = str(value).strip()
     try:
-        return datetime.fromisoformat(text).date()
+        return datetime.fromisoformat(str(value).strip()).date()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Date values must be valid ISO dates") from exc
 
@@ -104,15 +107,24 @@ def register_animal(payload: dict, container=Depends(get_container)):
     if not animal_type:
         raise HTTPException(status_code=422, detail="animal_type required")
 
-    lifecycle_status = payload.get("lifecycle_status", "HEIFER")
-    allowed_lifecycle = set(GOVERNED["lifecycle_statuses"])
-    if lifecycle_status not in allowed_lifecycle:
-        raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(allowed_lifecycle)))
+    category = payload.get("animal_category") or payload.get("category")
+    try:
+        if category:
+            classification = AnimalClassificationService.from_category(str(category))
+            lifecycle_status = classification.lifecycle_status
+            sex = classification.sex
+        else:
+            lifecycle_status = payload.get("lifecycle_status", "HEIFER")
+            allowed_lifecycle = set(GOVERNED["lifecycle_statuses"])
+            if lifecycle_status not in allowed_lifecycle:
+                raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(allowed_lifecycle)))
+            sex = payload.get("sex")
+    except AnimalClassificationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     is_milking = lifecycle_status == "LACTATING"
     milking_frequency = payload.get("milking_frequency")
     allowed_frequency = set(GOVERNED["milking_frequencies"])
-
     if is_milking and not milking_frequency:
         milking_frequency = "TWICE_DAILY"
     if milking_frequency and not is_milking:
@@ -129,9 +141,9 @@ def register_animal(payload: dict, container=Depends(get_container)):
 
     repository = container.animal_repository
     animal_id = _new_animal_id(repository, _animal_id_prefix(container))
-
     animal_payload = {key: value for key, value in payload.items() if key in allowed_fields}
     animal_payload["animal_id"] = animal_id
+    animal_payload["sex"] = sex or animal_payload.get("sex")
     animal_payload["lifecycle_status"] = lifecycle_status
     animal_payload["is_currently_milking"] = is_milking
     animal_payload["milking_frequency"] = milking_frequency if is_milking else None
@@ -140,22 +152,15 @@ def register_animal(payload: dict, container=Depends(get_container)):
     animal_payload["active"] = True
 
     legacy_id = animal_payload.get("legacy_animal_id")
-    if legacy_id:
-        if any(getattr(item, "legacy_animal_id", None) == legacy_id for item in (repository.get_all() or [])):
-            raise HTTPException(status_code=409, detail=f"Old Animal ID already exists: {legacy_id}")
+    if legacy_id and any(getattr(item, "legacy_animal_id", None) == legacy_id for item in (repository.get_all() or [])):
+        raise HTTPException(status_code=409, detail=f"Old Animal ID already exists: {legacy_id}")
 
     animal_model = __import__("dairyos.data.models.animal", fromlist=["Animal"]).Animal
     session = container.repository_factory.session
     try:
         animal = repository.save(animal_model(**animal_payload), commit=False)
         if is_milking:
-            repository.set_milking_frequency(
-                animal_id=animal_id,
-                new_frequency=milking_frequency,
-                changed_by=None,
-                reason="initial",
-                commit=False,
-            )
+            repository.set_milking_frequency(animal_id=animal_id, new_frequency=milking_frequency, changed_by=None, reason="initial", commit=False)
         session.flush()
         session.commit()
         session.refresh(animal)
@@ -164,17 +169,7 @@ def register_animal(payload: dict, container=Depends(get_container)):
         raise
 
     try:
-        container.operations.handle_command(
-            Command(
-                name="CreateAnimal",
-                payload={
-                    **animal_payload,
-                    "active": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "system_generated_animal_id": True,
-                },
-            )
-        )
+        container.operations.handle_command(Command(name="CreateAnimal", payload={**animal_payload, "active": True, "created_at": datetime.now(timezone.utc).isoformat(), "system_generated_animal_id": True}))
     except Exception:
         pass
 
