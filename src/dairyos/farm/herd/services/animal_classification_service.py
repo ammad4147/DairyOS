@@ -26,14 +26,15 @@ class AnimalCategory(StrEnum):
     MALE_CALF = "Male Calf"
     EXITED = "Exited"
 
-    # Backward-compatible enum-member aliases. These do NOT pluralise the
-    # underlying category value.
-    MILKING_COWS = MILKING
-    DRY_COWS = DRY
-    HEIFERS = HEIFER
-    BULLS = BULL
-    FEMALE_CALVES = FEMALE_CALF
-    MALE_CALVES = MALE_CALF
+    # Backward-compatible enum-member aliases. Explicit duplicate values are
+    # used deliberately so the aliases are real Enum members on every
+    # supported Python runtime while retaining the singular canonical values.
+    MILKING_COWS = "Milking"
+    DRY_COWS = "Dry"
+    HEIFERS = "Heifer"
+    BULLS = "Bull"
+    FEMALE_CALVES = "Female Calf"
+    MALE_CALVES = "Male Calf"
 
 
 class AnimalClassificationError(ValueError):
@@ -163,9 +164,7 @@ class AnimalClassificationService:
         try:
             lifecycle, sex = lookup[candidate]
         except KeyError as exc:
-            allowed = (
-                "Milking, Dry, Heifer, Female Calf, Male Calf, Bull"
-            )
+            allowed = "Milking, Dry, Heifer, Female Calf, Male Calf, Bull"
             raise AnimalClassificationError(
                 f"Unknown animal category: {candidate}. Allowed: {allowed}."
             ) from exc
