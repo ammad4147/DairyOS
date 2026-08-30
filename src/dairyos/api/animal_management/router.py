@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -23,21 +23,24 @@ def animal_repository(container):
 def serialize_animal(animal):
     if animal is None:
         return None
+    is_milking = bool(animal.is_currently_milking)
     result = {
         "id": animal.id,
         "animal_id": animal.animal_id,
         "animal_type": animal.animal_type,
+        "legacy_animal_id": getattr(animal, "legacy_animal_id", None),
         "ear_tag": animal.ear_tag,
         "rfid": animal.rfid,
         "breed": animal.breed,
         "sex": animal.sex,
         "date_of_birth": animal.date_of_birth.isoformat() if animal.date_of_birth else None,
+        "date_of_acquisition": getattr(animal, "date_of_acquisition", None).isoformat() if getattr(animal, "date_of_acquisition", None) else None,
         "dam_id": getattr(animal, "dam_id", None),
         "sire_id": getattr(animal, "sire_id", None),
         "lifecycle_status": animal.lifecycle_status,
         "status": animal.status,
-        "is_currently_milking": animal.is_currently_milking,
-        "milking_frequency": animal.milking_frequency,
+        "is_currently_milking": is_milking,
+        "milking_frequency": animal.milking_frequency if is_milking else None,
         "production_group": animal.production_group,
         "location": animal.location,
         "active": animal.active,
@@ -92,6 +95,8 @@ def _apply_classification_payload(animal, payload):
             animal.sex = classification.sex
             animal.lifecycle_status = classification.lifecycle_status
             animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
+            if not animal.is_currently_milking:
+                animal.milking_frequency = None
             return classification
 
         lifecycle = payload.get("lifecycle_status", animal.lifecycle_status)
@@ -100,9 +105,37 @@ def _apply_classification_payload(animal, payload):
         animal.sex = classification.sex
         animal.lifecycle_status = classification.lifecycle_status
         animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
+        if not animal.is_currently_milking:
+            animal.milking_frequency = None
         return classification
     except AnimalClassificationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _parse_date(value, field_name):
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"{field_name} must be an ISO date") from exc
+
+
+def _validate_milking_frequency(animal, frequency):
+    if frequency is None:
+        return
+    if not animal.is_currently_milking:
+        raise HTTPException(
+            status_code=422,
+            detail="milking_frequency is only applicable to animals currently classified as Milking",
+        )
+    if frequency not in ALLOWED_MILKING_FREQUENCIES:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES)),
+        )
 
 
 @router.get("/animals")
@@ -141,40 +174,67 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
     if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
         _apply_classification_payload(animal, payload)
 
-    if "milking_frequency" in payload and payload.get("milking_frequency"):
-        frequency = payload["milking_frequency"]
-        if frequency not in ALLOWED_MILKING_FREQUENCIES:
-            raise HTTPException(status_code=422, detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES)))
-        try:
-            updated = repository.set_milking_frequency(
-                animal_id=animal_id,
-                new_frequency=frequency,
-                changed_by=payload.get("changed_by") or payload.get("operator") or "API",
-                reason=payload.get("milking_frequency_reason") or payload.get("reason"),
-                effective_date=payload.get("effective_date"),
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        animal = updated or animal
+    if "milking_frequency" in payload:
+        frequency = payload.get("milking_frequency")
+        _validate_milking_frequency(animal, frequency)
+        if frequency is not None:
+            try:
+                updated = repository.set_milking_frequency(
+                    animal_id=animal_id,
+                    new_frequency=frequency,
+                    changed_by=payload.get("changed_by") or payload.get("operator") or "API",
+                    reason=payload.get("milking_frequency_reason") or payload.get("reason"),
+                    effective_date=payload.get("effective_date"),
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            animal = updated or animal
+        else:
+            animal.milking_frequency = None
+    elif not animal.is_currently_milking:
+        animal.milking_frequency = None
 
-    editable_fields = {"animal_type", "ear_tag", "rfid", "breed", "sex", "date_of_birth", "dam_id", "sire_id", "production_group", "location"}
+    editable_fields = {
+        "animal_type",
+        "legacy_animal_id",
+        "ear_tag",
+        "rfid",
+        "breed",
+        "sex",
+        "date_of_birth",
+        "date_of_acquisition",
+        "dam_id",
+        "sire_id",
+        "production_group",
+        "location",
+    }
     changed = {}
     for field in editable_fields:
         if field in payload:
-            setattr(animal, field, payload[field])
-            changed[field] = payload[field]
+            value = payload[field]
+            if field in {"date_of_birth", "date_of_acquisition"}:
+                value = _parse_date(value, field)
+            if field == "legacy_animal_id" and value:
+                existing = repository.get_all() or []
+                if any(
+                    other is not animal
+                    and getattr(other, "legacy_animal_id", None) == value
+                    for other in existing
+                ):
+                    raise HTTPException(status_code=409, detail=f"Old Animal ID already exists: {value}")
+            setattr(animal, field, value)
+            changed[field] = value
 
     if "status" in payload and payload.get("status"):
         animal.status = str(payload["status"]).upper()
         changed["status"] = animal.status
 
+    animal.updated_at = datetime.now(timezone.utc)
+    updated = repository.save(animal)
     if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
         changed["animal_category"] = serialize_animal(animal).get("animal_category")
         changed["lifecycle_status"] = animal.lifecycle_status
         changed["sex"] = animal.sex
-
-    animal.updated_at = datetime.now(timezone.utc)
-    updated = repository.save(animal)
     _record_operational_event(container, "animal_profile_update", {"animal_id": animal_id, "changed_fields": sorted(changed.keys())}, str(payload.get("operator") or "API"))
     return serialize_animal(updated)
 
@@ -199,6 +259,7 @@ def record_animal_disposition(animal_id: str, payload: dict, container=Depends(g
     animal.lifecycle_status = disposition
     animal.status = disposition
     animal.is_currently_milking = False
+    animal.milking_frequency = None
     animal.active = False
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
@@ -259,6 +320,8 @@ def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_contai
     animal.status = payload.get("status", classification.lifecycle_status)
     animal.production_group = payload.get("production_group", getattr(animal, "production_group", None))
     animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
+    if not animal.is_currently_milking:
+        animal.milking_frequency = None
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
     _record_operational_event(container, "animal_lifecycle", {"animal_id": animal_id, "previous_status": previous, "lifecycle_status": classification.lifecycle_status, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
@@ -272,10 +335,17 @@ def change_milking_frequency(animal_id: str, payload: dict, container=Depends(ge
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
     frequency = payload.get("milking_frequency")
-    if frequency not in ALLOWED_MILKING_FREQUENCIES:
-        raise HTTPException(status_code=422, detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES)))
+    _validate_milking_frequency(animal, frequency)
+    if frequency is None:
+        raise HTTPException(status_code=422, detail="milking_frequency required")
     try:
-        updated = repository.set_milking_frequency(animal_id=animal_id, new_frequency=frequency, changed_by=payload.get("changed_by"), reason=payload.get("reason"), effective_date=payload.get("effective_date"))
+        updated = repository.set_milking_frequency(
+            animal_id=animal_id,
+            new_frequency=frequency,
+            changed_by=payload.get("changed_by"),
+            reason=payload.get("reason"),
+            effective_date=payload.get("effective_date"),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return serialize_animal(updated)
