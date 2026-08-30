@@ -319,12 +319,12 @@ def detect_drop(
         1,
     )
 
-    if percent > -10:
+    if percent > -15:
         severity = None
     elif percent >= -20:
-        severity = "HIGH"
+        severity = "AMBER"
     else:
-        severity = "CRITICAL"
+        severity = "RED"
 
     return {
         "severity": severity,

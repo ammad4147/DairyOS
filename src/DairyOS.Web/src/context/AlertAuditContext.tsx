@@ -60,8 +60,11 @@ function mapSource(source?: string): AuditAlertItem['source'] {
 
 function mapLevel(severity?: string): AuditAlertItem['initialLevel'] {
   switch ((severity || '').toUpperCase()) {
+    case 'RED':
     case 'CRITICAL':
     case 'HIGH': return 'RED';
+    case 'AMBER':
+    case 'MEDIUM': return 'AMBER';
     case 'INFORMATION': return 'INFO';
     default: return 'AMBER';
   }

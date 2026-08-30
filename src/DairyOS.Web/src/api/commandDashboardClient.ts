@@ -19,10 +19,10 @@ export interface CommandDashboardData {
   milkingAnimals: number;
   adultAnimals: number;
   milkingPercentage: number;
-  averageYieldPerCow: number;
+  averageYieldPerCow: number | null;
   topPerformers: PerformerItem[];
   bottomPerformers: PerformerItem[];
-  yieldTrend: Array<{ day: string; yield: number }>;
+  yieldTrend: Array<{ day: string; yield: number | null }>;
   herdComposition: HerdCategory[];
   productionExtremes: {
     highest: PerformerItem[];
@@ -123,7 +123,9 @@ const sumLedgerForDate = (
 
 const groupLedgerByDate = (
   rows: LedgerProduction[],
-): Array<{ day: string; yield: number }> => {
+  startDate: string,
+  endDate: string,
+): Array<{ day: string; yield: number | null }> => {
   const totals = new Map<string, number>();
 
   for (const row of rows) {
@@ -143,12 +145,25 @@ const groupLedgerByDate = (
     );
   }
 
-  return Array.from(totals.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, yieldValue]) => ({
+  const series: Array<{ day: string; yield: number | null }> = [];
+  const cursor = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+
+  while (cursor <= end) {
+    const day = cursor.toISOString().slice(0, 10);
+    const total = totals.get(day);
+
+    series.push({
       day,
-      yield: Number(yieldValue.toFixed(2)),
-    }));
+      yield: total === undefined
+        ? null
+        : Number(total.toFixed(2)),
+    });
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return series;
 };
 
 export async function fetchCommandDashboardData(): Promise<CommandDashboardData> {
@@ -156,24 +171,35 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     API_BASE_URL ||
     "http://127.0.0.1:8000";
 
-  const today =
-    new Date().toISOString().split("T")[0];
+  const pakistanDateFormatter = new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Karachi",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    },
+  );
+
+  const pakistanDate = (
+    value: Date,
+  ) => pakistanDateFormatter.format(value);
+
+  const today = pakistanDate(new Date());
 
   const yesterdayDate = new Date();
   yesterdayDate.setDate(
     yesterdayDate.getDate() - 1,
   );
 
-  const yesterday =
-    yesterdayDate.toISOString().split("T")[0];
+  const yesterday = pakistanDate(yesterdayDate);
 
   const trendStartDate = new Date();
   trendStartDate.setDate(
     trendStartDate.getDate() - 29,
   );
 
-  const trendStart =
-    trendStartDate.toISOString().split("T")[0];
+  const trendStart = pakistanDate(trendStartDate);
 
   const [
     dashboardResponse,
@@ -245,6 +271,8 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
   const trend =
     groupLedgerByDate(
       trendLedger.production || [],
+      trendStart,
+      today,
     );
 
   const yesterdayLiters =
@@ -294,19 +322,18 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
       ),
     );
 
-  const averageYield =
-    Number(
-      rawMilk.average_yield_per_cow ??
-      0,
-    );
+  const backendAverage =
+    rawMilk.average_yield_per_cow;
 
   const actualAverage =
-    averageYield > 0
-      ? averageYield
+    backendAverage !== null &&
+    backendAverage !== undefined
+      ? Number(backendAverage)
       : (
+          todayProduction > 0 &&
           milkingAnimals > 0
             ? todayProduction / milkingAnimals
-            : 0
+            : null
         );
 
   const productionDrop =
@@ -372,9 +399,11 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
       ),
 
     averageYieldPerCow:
-      Number(
-        actualAverage.toFixed(2),
-      ),
+      actualAverage === null
+        ? null
+        : Number(
+            actualAverage.toFixed(2),
+          ),
 
     topPerformers:
       Array.isArray(

@@ -17,16 +17,34 @@ def test_completed_dates_exclude_incomplete_days_and_use_explicit_dates():
     ) == "2026-08-10"
 
 
-def test_animal_thresholds_are_amber_and_red():
-    service = MilkAlertService(amber_threshold_percent=15, red_threshold_percent=30)
-    amber = service.compare_animal_yield("A1", 84, 100, "2026-08-12", "2026-08-10")
-    red = service.compare_animal_yield("A2", 70, 100, "2026-08-12", "2026-08-10")
-    none = service.compare_animal_yield("A3", 86, 100, "2026-08-12", "2026-08-10")
-    assert amber["severity"] == "AMBER"
-    assert amber["drop_percent"] == 16.0
-    assert red["severity"] == "RED"
-    assert red["drop_percent"] == 30.0
+def test_animal_threshold_boundaries_are_green_amber_and_red():
+    service = MilkAlertService()
+
+    none = service.compare_animal_yield(
+        "A0", 85.1, 100, "2026-08-12", "2026-08-10"
+    )
+    amber_at_15 = service.compare_animal_yield(
+        "A1", 85.0, 100, "2026-08-12", "2026-08-10"
+    )
+    amber_at_20 = service.compare_animal_yield(
+        "A2", 80.0, 100, "2026-08-12", "2026-08-10"
+    )
+    red_above_20 = service.compare_animal_yield(
+        "A3", 79.9, 100, "2026-08-12", "2026-08-10"
+    )
+    red_at_30 = service.compare_animal_yield(
+        "A4", 70.0, 100, "2026-08-12", "2026-08-10"
+    )
+
     assert none is None
+    assert amber_at_15["severity"] == "AMBER"
+    assert amber_at_15["drop_percent"] == 15.0
+    assert amber_at_20["severity"] == "AMBER"
+    assert amber_at_20["drop_percent"] == 20.0
+    assert red_above_20["severity"] == "RED"
+    assert red_above_20["drop_percent"] == 20.1
+    assert red_at_30["severity"] == "RED"
+    assert red_at_30["drop_percent"] == 30.0
 
 
 def test_zero_baseline_does_not_create_false_drop_on_increase():

@@ -38,7 +38,7 @@ class MilkHerdDailyDropMonitoringService:
             return result
 
         percentage = result["variance_percentage"]
-        if percentage is None or percentage > -10:
+        if percentage is None or percentage > -15:
             return result
 
         rf = RepositoryFactory.create()
@@ -50,7 +50,7 @@ class MilkHerdDailyDropMonitoringService:
                     "operational_date": production_date.isoformat(),
                 }
 
-            severity = "HIGH" if percentage >= -20 else "CRITICAL"
+            severity = "AMBER" if percentage >= -20 else "RED"
             MilkFindingService(rf.operational_findings()).raise_or_update(
                 severity=severity,
                 title=f"Farm milk yield declined on {production_date.isoformat()}",

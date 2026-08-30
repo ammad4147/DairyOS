@@ -138,7 +138,7 @@ def test_decline_below_ten_percent_does_not_create_finding(monkeypatch):
     assert calls == []
 
 
-def test_ten_to_twenty_percent_decline_creates_high_farm_finding(monkeypatch):
+def test_fifteen_to_twenty_percent_decline_creates_amber_farm_finding(monkeypatch):
     factory = FakeFactory()
     calls = []
 
@@ -172,7 +172,7 @@ def test_ten_to_twenty_percent_decline_creates_high_farm_finding(monkeypatch):
 
     assert result["variance_percentage"] == -20.0
     assert len(calls) == 1
-    assert calls[0]["severity"] == "HIGH"
+    assert calls[0]["severity"] == "AMBER"
     assert calls[0]["subject_type"] == "FARM"
     assert calls[0]["subject_id"] == "MILK"
     assert calls[0]["route"] == "/farm/milk"
@@ -185,7 +185,7 @@ def test_ten_to_twenty_percent_decline_creates_high_farm_finding(monkeypatch):
     assert factory.closed is True
 
 
-def test_above_twenty_percent_decline_creates_critical_farm_finding(monkeypatch):
+def test_above_twenty_percent_decline_creates_red_farm_finding(monkeypatch):
     factory = FakeFactory()
     calls = []
 
@@ -219,7 +219,7 @@ def test_above_twenty_percent_decline_creates_critical_farm_finding(monkeypatch)
 
     assert result["variance_percentage"] == -60.0
     assert len(calls) == 1
-    assert calls[0]["severity"] == "CRITICAL"
+    assert calls[0]["severity"] == "RED"
     assert calls[0]["subject_type"] == "FARM"
     assert calls[0]["subject_id"] == "MILK"
     assert calls[0]["dedupe_key"] == "MILK_HERD_DAILY_DROP"

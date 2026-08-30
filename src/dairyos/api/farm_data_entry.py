@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -302,26 +302,49 @@ def _transaction_datetime(payload: dict[str, Any]) -> datetime | None:
 def _sequence_service(container):
     """Build the milk session sequencing service.
 
-    The service remains the historical return contract used by existing API
-    callers. The authoritative animal/date schedule is supplied separately
-    by the /farm/milk write path when enforcing a specific animal's session.
+    Farm-level session sequencing remains backed by the shared
+    milking-session ledger. When an animal is supplied to the sequence
+    service, ordinary production occurrence state is derived from that
+    animal's persisted daily MilkProduction ledger.
     """
-
     factory = getattr(container, "repository_factory", None)
-    accessor = getattr(factory, "milking_session_ledger", None)
+
+    if factory is None:
+        return None
+
+    accessor = getattr(
+        factory,
+        "milking_session_ledger",
+        None,
+    )
 
     if accessor is None:
         return None
 
+    animal_repository = (
+        factory.animal()
+        if getattr(factory, "animal", None) is not None
+        else None
+    )
+
+    schedule_service = (
+        AnimalMilkingScheduleService(
+            repository=animal_repository,
+        )
+        if animal_repository is not None
+        else None
+    )
+
+    milk_repository = (
+        factory.milk()
+        if getattr(factory, "milk", None) is not None
+        else None
+    )
+
     return MilkSessionSequenceService(
         accessor(),
-        schedule_service=(
-            AnimalMilkingScheduleService(
-                repository=getattr(factory, "animal")()
-            )
-            if getattr(factory, "animal", None) is not None
-            else None
-        ),
+        schedule_service=schedule_service,
+        milk_repository=milk_repository,
     )
 
 
@@ -635,6 +658,36 @@ def _list_by_type(container, input_type: str):
     return records
 
 
+
+def _animal_daily_settled_sessions(
+    factory,
+    animal_id: str,
+    operational_date: date,
+) -> set[str]:
+    """Return ordinary milk occurrences already recorded for this animal/day.
+
+    Ordinary production settlement comes from the animal's persisted daily
+    MilkProduction row. The herd-level session ledger is consulted only for
+    an explicit whole-farm NOT_MILKED declaration.
+    """
+    milk_repository = factory.milk()
+    row = milk_repository.ledger_row_for_animal_day(
+        animal_id,
+        operational_date,
+    )
+
+    settled: set[str] = set()
+
+    if row is not None and str(getattr(row, "status", "")).upper() != "VOID":
+        if getattr(row, "morning_yield", None) is not None:
+            settled.add("MORNING")
+        if getattr(row, "afternoon_yield", None) is not None:
+            settled.add("AFTERNOON")
+        if getattr(row, "evening_yield", None) is not None:
+            settled.add("EVENING")
+
+    return settled
+
 @router.post("/milk")
 def record_milk_entry(
     entry: LegacyCompatibleMilkEntryRequest,
@@ -914,7 +967,7 @@ def next_milking_session(
                 ),
             }
 
-        settled = sequence.ledger.settled_sessions_on(target)
+        settled = set(sequence.settled_sessions_on(target, animal=animal))
 
         next_session = next(
             (

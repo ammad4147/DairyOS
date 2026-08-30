@@ -11,7 +11,7 @@ class MilkAlertService:
     def __init__(
         self,
         amber_threshold_percent: float = 15.0,
-        red_threshold_percent: float = 30.0,
+        red_threshold_percent: float = 20.0,
         zero_baseline_epsilon: float = 0.01,
     ):
         self.amber_threshold_percent = float(amber_threshold_percent)
@@ -74,7 +74,7 @@ class MilkAlertService:
         return preceding[-1] if preceding else None
 
     def _severity_for_drop(self, drop_percent: float) -> Optional[str]:
-        if drop_percent >= self.red_threshold_percent:
+        if drop_percent > self.red_threshold_percent:
             return "RED"
         if drop_percent >= self.amber_threshold_percent:
             return "AMBER"

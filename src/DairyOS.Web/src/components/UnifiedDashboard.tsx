@@ -19,7 +19,7 @@ interface Props {
   onOpenYieldModal?: () => void;
   onOpenPassport?: (id: string) => void;
   herdMasterList?: HerdAnimal[];
-  realTimeTodayYield?: number;
+  dashboardRefreshVersion?: number;
   realTimeReceivables?: number;
 }
 interface DropComparisonDetail {
@@ -42,7 +42,7 @@ function monthLabel(month: string): string {
 import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
-export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], realTimeTodayYield, realTimeReceivables = 0 }: Props) {
+export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0, realTimeReceivables = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => { void loadData(); }, [loadData, dashboardRefreshVersion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,16 +113,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         )
       : [];
 
-    if (
-      realTimeTodayYield !== undefined &&
-      Number(realTimeTodayYield) > 0
-    ) {
-      if (values.length === 0) {
-        values.push(Number(realTimeTodayYield));
-      } else {
-        values[values.length - 1] = Number(realTimeTodayYield);
-      }
-    }
+
 
     return values
       .slice(-chartDays)
@@ -130,7 +121,49 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         dayIndex: index + 1,
         yield: Math.round(Number(value)),
       }));
-  }, [data, chartDays, realTimeTodayYield]);
+  }, [data, chartDays]);
+
+  const trendPoints = (
+    Array.isArray(data?.yieldTrend)
+      ? data.yieldTrend
+          .map((item: any) => ({
+            day: String(item?.day || ''),
+            yield:
+              item?.yield === null || item?.yield === undefined
+                ? null
+                : Number(item.yield),
+          }))
+          .filter((item) => item.day)
+      : []
+  );
+
+  // The trend is date-complete and anchored to the authoritative current
+  // operational date. Therefore its rightmost point is today's dashboard date.
+  const currentTrendPoint =
+    trendPoints.length > 0
+      ? trendPoints[trendPoints.length - 1]
+      : null;
+
+  const priorTrendPoint =
+    trendPoints.length > 1
+      ? trendPoints[trendPoints.length - 2]
+      : null;
+
+  const currentDateLabel =
+    currentTrendPoint?.day ||
+    data?.todayDate ||
+    '';
+
+  const priorDateLabel =
+    priorTrendPoint?.day ||
+    data?.yesterdayDate ||
+    '';
+
+  const currentTrendYield =
+    currentTrendPoint?.yield ?? null;
+
+  const priorTrendYield =
+    priorTrendPoint?.yield ?? null;
 
   const openPassportHandler = (tag: string) => onOpenPassport ? onOpenPassport(tag) : setPassportTag(tag);
 
@@ -166,28 +199,40 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   };
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
-  const dynamicMilkingCount = herdMasterList.filter(a => a.category.includes('Milking')).length;
-  const milkingCount = dynamicMilkingCount > 0 ? dynamicMilkingCount : Number(data?.milkingAnimals || 0);
-  const todayYield = (
-    realTimeTodayYield !== undefined &&
-    Number(realTimeTodayYield) > 0
-  )
-    ? Number(realTimeTodayYield)
-    : Number(data?.todayLiters || 0);
+  const dynamicMilkingCount = herdMasterList.filter(
+    a => a.category.includes('Milking')
+  ).length;
+
+  const milkingCount =
+    dynamicMilkingCount > 0
+      ? dynamicMilkingCount
+      : Number(data?.milkingAnimals || 0);
+
+  // Today's displayed yield is the rightmost operational-date observation.
+  // null means no milk has been entered yet; it is not fabricated as zero.
+  const todayYield =
+    currentTrendYield !== null
+      ? currentTrendYield
+      : Number(data?.todayLiters || 0);
+
   const avgYieldPerAnimal = Number(
     data?.averageYieldPerCow ??
-    (
-      milkingCount > 0
-        ? todayYield / milkingCount
-        : 0
-    )
+      (
+        todayYield > 0 && milkingCount > 0
+          ? todayYield / milkingCount
+          : 0
+      )
   );
-  const todayDate = new Date();
-  const yesterdayDate = new Date(todayDate); yesterdayDate.setDate(todayDate.getDate() - 1);
-  const currentDateLabel = todayDate.toISOString().split('T')[0];
-  const priorDateLabel = yesterdayDate.toISOString().split('T')[0];
-  const yesterdayLiters = Math.round(Number(data?.yesterdayLiters) || 0);
-  const yieldDropPercent = yesterdayLiters > 0 ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100 : 0;
+
+  const yesterdayLiters =
+    priorTrendYield !== null
+      ? priorTrendYield
+      : Number(data?.yesterdayLiters || 0);
+
+  const yieldDropPercent =
+    yesterdayLiters > 0 && todayYield > 0
+      ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100
+      : 0;
   const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 10 ? '#f59e0b' : '#34d399';
 
   const countCategory = (keywords: string[]) => herdMasterList.filter(a => keywords.some(k => a.category.includes(k))).length;
@@ -227,15 +272,66 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{ flex:'1.6 1 0', display:'flex', flexDirection:'column', background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:10, minHeight:0, minWidth:0, overflow:'hidden' }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate?.('milk')} style={{ display:'flex', alignItems:'center', gap:6, color:'#38bdf8', fontWeight:'bold', fontSize:12, cursor:'pointer', marginBottom:8 }}> <Milk size={16} /> <span>Milk Production & Farm Yield</span></div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
-              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Milking %" value={milkingPercentage} color="#34d399" /><SmallStat label="Avg Yield/Cow" value={`${avgYieldPerAnimal} L`} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
+              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Milking %" value={milkingPercentage} color="#34d399" /><SmallStat
+                label="Avg Yield/Cow"
+                value={
+                  todayYield > 0 && milkingCount > 0
+                    ? `${avgYieldPerAnimal.toFixed(2)} L`
+                    : 'No milk entered'
+                }
+                color="#38bdf8"
+              /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
-            <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}><WideStat label={currentDateLabel} value={`${todayYield} L`} color={todayYieldColor}/><WideStat label={priorDateLabel} value={`${yesterdayLiters} L`} color="#cbd5e1" border="#64748b"/><WideStat label="Receivables" value={`Rs. ${realTimeReceivables.toLocaleString()}`} color="#f59e0b" border="#f59e0b" /></div>
+            <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}>
+              <WideStat
+                label={currentDateLabel}
+                value={
+                  currentTrendYield === null
+                    ? 'No milk entered'
+                    : `${Number(currentTrendYield).toFixed(1)} L`
+                }
+                color={todayYieldColor}
+              />
+              <WideStat
+                label={priorDateLabel}
+                value={
+                  priorTrendYield === null
+                    ? 'No milk entered'
+                    : `${Number(priorTrendYield).toFixed(1)} L`
+                }
+                color="#cbd5e1"
+                border="#64748b"
+              />
+              <WideStat label="Receivables" value={`Rs. ${realTimeReceivables.toLocaleString()}`} color="#f59e0b" border="#f59e0b" />
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}} labelFormatter={v=>`Day ${v}`}/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false}/></AreaChart></ResponsiveContainer></div></div>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click row</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>handleOpenDropComparison(item.animalId||'TD-004',item.title)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #f59e0b',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:'pointer',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#f59e0b',fontWeight:700}}>{(() => { const match = String(item.title || '').match(/(-?\d+(?:\.\d+)?)%/); const pct = match ? Math.abs(Number(match[1])) : null; return pct !== null ? `${Math.round(pct)}% Drop` : 'Drop'; })()}</span></div>)}</div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip
+  contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}}
+  labelFormatter={(_, payload) => {
+    const point = payload?.[0]?.payload as any;
+    return point?.date || '';
+  }}
+  formatter={(value) => [
+    value === null || value === undefined
+      ? 'No milk entered'
+      : `${Number(value).toFixed(1)} L`,
+    'Milk',
+  ]}
+/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click row</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>âœ“ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>handleOpenDropComparison(item.animalId||'TD-004',item.title)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #f59e0b',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:'pointer',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#f59e0b',fontWeight:700}}>{(() => {
+  const directPct = item.dropPercent ?? item.drop_percent;
+  const detailText = String(item.details ?? item.detail ?? '');
+  const detailMatch = detailText.match(/(-?\d+(?:\.\d+)?)%\s*decline/i);
+  const pct = directPct !== undefined && directPct !== null
+    ? Math.abs(Number(directPct))
+    : detailMatch
+      ? Math.abs(Number(detailMatch[1]))
+      : null;
+  return pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Drop';
+})()}</span></div>)}</div></div>
             </div>
           </div>
-          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div></div></div>
+          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>â‚¨</span>} color="#059669"/></div></div></div>
         </div>
         <div className="cmd-col" style={{display:'flex',flexDirection:'column',gap:10,minHeight:0,minWidth:0,overflow:'hidden'}}>
           <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6,color:'#34d399',fontWeight:800,fontSize:12}}><Sparkles size={15}/> Production Extremes</span><select value={extremesCount} onChange={e=>setExtremesCount(Number(e.target.value))} style={selectStyle}>{extremesOptions.map(n=><option key={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>

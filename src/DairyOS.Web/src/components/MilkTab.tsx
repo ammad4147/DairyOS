@@ -166,8 +166,18 @@ const smallButton: React.CSSProperties = {
   gap: 4,
 };
 
+const pakistanDateFormatter = new Intl.DateTimeFormat(
+  'en-CA',
+  {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  },
+);
+
 const today = () =>
-  new Date().toISOString().slice(0, 10);
+  pakistanDateFormatter.format(new Date());
 
 const currentMonth = () =>
   today().slice(0, 7);
@@ -239,12 +249,8 @@ const monthBounds = (
   );
 
   return {
-    start: start
-      .toISOString()
-      .slice(0, 10),
-    end: end
-      .toISOString()
-      .slice(0, 10),
+    start: pakistanDateFormatter.format(start),
+    end: pakistanDateFormatter.format(end),
     label: start.toLocaleDateString(
       'en-PK',
       {
@@ -270,7 +276,7 @@ const datesBetween = (
 
   while (cursor <= last) {
     output.push(
-      cursor.toISOString().slice(0, 10),
+      pakistanDateFormatter.format(cursor),
     );
     cursor.setDate(
       cursor.getDate() + 1,
