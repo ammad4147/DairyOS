@@ -2,10 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Activity, HeartPulse, Milk, Plus, Search, Users } from 'lucide-react';
 
 type BackendAnimal={animal_id:string;ear_tag?:string|null;rfid?:string|null;breed?:string|null;sex?:string|null;date_of_birth?:string|null;lifecycle_status?:string|null;status?:string|null;milking_frequency?:string|null;active?:boolean;dam_id?:string|null;sire_id?:string|null;location?:string|null;production_group?:string|null};
-type HerdCategory='Milking'|'Dry'|'Heifers'|'Female Calves'|'Male Calves'|'Bulls';
+type HerdCategory='Milking Cows'|'Dry Cows'|'Heifers'|'Female Calves'|'Male Calves'|'Bulls';
 type Props={animals:BackendAnimal[];onOpenPassport:(id:string)=>void;onRegister:()=>void;onRefresh?:()=>void};
-const categories:HerdCategory[]=['Milking','Dry','Heifers','Female Calves','Male Calves','Bulls'];
-function category(a:BackendAnimal):HerdCategory{const l=(a.lifecycle_status||'').toUpperCase(),s=(a.sex||'').toUpperCase();if(l==='LACTATING')return 'Milking';if(l==='DRY')return 'Dry';if(l==='HEIFER'||l==='CLOSE_UP')return 'Heifers';if(l==='CALF')return s==='MALE'?'Male Calves':'Female Calves';return s==='MALE'?'Bulls':'Heifers'}
+const categories:HerdCategory[]=['Milking Cows','Dry Cows','Heifers','Female Calves','Male Calves','Bulls'];
+function category(a:BackendAnimal):HerdCategory{const l=(a.lifecycle_status||'').toUpperCase(),s=(a.sex||'').toUpperCase();if(l==='LACTATING')return 'Milking Cows';if(l==='DRY')return 'Dry Cows';if(l==='HEIFER'||l==='CLOSE_UP')return 'Heifers';if(l==='CALF')return s==='MALE'?'Male Calves':'Female Calves';return s==='MALE'?'Bulls':'Heifers'}
 function age(v?:string|null){if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return '—';const now=new Date();let y=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))y--;return y>0?`${y} yr${y===1?'':'s'}`:`${Math.max(0,Math.floor((now.getTime()-d.getTime())/2592000000))} mo`}
 function active(a:BackendAnimal){return a.active!==false&&!['SOLD','DECEASED'].includes((a.lifecycle_status||'').toUpperCase())}
 
