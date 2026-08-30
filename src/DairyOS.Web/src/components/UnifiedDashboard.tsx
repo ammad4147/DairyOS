@@ -113,7 +113,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         )
       : [];
 
-    if (realTimeTodayYield !== undefined) {
+    if (
+      realTimeTodayYield !== undefined &&
+      Number(realTimeTodayYield) > 0
+    ) {
       if (values.length === 0) {
         values.push(Number(realTimeTodayYield));
       } else {
@@ -165,8 +168,20 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   const dynamicMilkingCount = herdMasterList.filter(a => a.category.includes('Milking')).length;
   const milkingCount = dynamicMilkingCount > 0 ? dynamicMilkingCount : Number(data?.milkingAnimals || 0);
-  const todayYield = realTimeTodayYield !== undefined ? realTimeTodayYield : Math.round(Number(data?.todayLiters) || 0);
-  const avgYieldPerAnimal = milkingCount > 0 ? Math.round(todayYield / milkingCount) : 0;
+  const todayYield = (
+    realTimeTodayYield !== undefined &&
+    Number(realTimeTodayYield) > 0
+  )
+    ? Number(realTimeTodayYield)
+    : Number(data?.todayLiters || 0);
+  const avgYieldPerAnimal = Number(
+    data?.averageYieldPerCow ??
+    (
+      milkingCount > 0
+        ? todayYield / milkingCount
+        : 0
+    )
+  );
   const todayDate = new Date();
   const yesterdayDate = new Date(todayDate); yesterdayDate.setDate(todayDate.getDate() - 1);
   const currentDateLabel = todayDate.toISOString().split('T')[0];
@@ -186,6 +201,13 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   ];
   const herdCol1 = canonicalHerd.slice(0,3), herdCol2 = canonicalHerd.slice(3,6);
   const totalHerdCount = canonicalHerd.reduce((sum,c) => sum + c.value, 0);
+  const milkingAdultCount = canonicalHerd[0].value;
+  const dryAdultCount = canonicalHerd[1].value;
+  const totalAdultCount = milkingAdultCount + dryAdultCount;
+  const milkingPercentage =
+    totalAdultCount > 0
+      ? `${Math.round((milkingAdultCount / totalAdultCount) * 100)}%`
+      : '0%';
   const extremesOptions = [1,2,3,4,5,6,7,8,9,10];
   const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
   const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
@@ -205,7 +227,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{ flex:'1.6 1 0', display:'flex', flexDirection:'column', background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:10, minHeight:0, minWidth:0, overflow:'hidden' }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate?.('milk')} style={{ display:'flex', alignItems:'center', gap:6, color:'#38bdf8', fontWeight:'bold', fontSize:12, cursor:'pointer', marginBottom:8 }}> <Milk size={16} /> <span>Milk Production & Farm Yield</span></div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
-              <SmallStat label="Milking Animals" value={milkingCount} /><SmallStat label="Total Adults" value={canonicalHerd[0].value + canonicalHerd[1].value + canonicalHerd[5].value} /><SmallStat label="Milking %" value={totalHerdCount > 0 ? `${Math.round((milkingCount / totalHerdCount) * 100)}%` : '0%'} color="#34d399" /><SmallStat label="Avg Yield/Cow" value={`${avgYieldPerAnimal} L`} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
+              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Milking %" value={milkingPercentage} color="#34d399" /><SmallStat label="Avg Yield/Cow" value={`${avgYieldPerAnimal} L`} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}><WideStat label={currentDateLabel} value={`${todayYield} L`} color={todayYieldColor}/><WideStat label={priorDateLabel} value={`${yesterdayLiters} L`} color="#cbd5e1" border="#64748b"/><WideStat label="Receivables" value={`Rs. ${realTimeReceivables.toLocaleString()}`} color="#f59e0b" border="#f59e0b" /></div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>

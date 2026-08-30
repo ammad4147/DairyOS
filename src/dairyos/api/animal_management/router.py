@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
@@ -154,6 +154,35 @@ def list_animals(currently_milking: bool = False, active_only: bool = False, con
 def list_currently_milking_animals(container=Depends(get_container)):
     repository = animal_repository(container)
     return [serialize_animal(animal) for animal in repository.currently_milking_animals()]
+
+
+@router.get("/animals/classification")
+def classify_animal(
+    category: str | None = Query(default=None),
+    lifecycle_status: str | None = Query(default=None),
+    sex: str | None = Query(default=None),
+) -> dict[str, str]:
+    """Return the canonical animal category/lifecycle/sex contract."""
+    try:
+        result = (
+            AnimalClassificationService.from_category(
+                category,
+                current_lifecycle=lifecycle_status,
+            )
+            if category
+            else AnimalClassificationService.classify(
+                lifecycle_status,
+                sex,
+            )
+        )
+    except AnimalClassificationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return {
+        "animal_category": result.category.value,
+        "lifecycle_status": result.lifecycle_status,
+        "sex": result.sex,
+    }
 
 
 @router.get("/animals/{animal_id}")

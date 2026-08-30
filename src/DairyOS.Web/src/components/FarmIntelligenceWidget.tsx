@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, Thermometer, Wind, AlertTriangle, RefreshCw } from 'lucide-react';
+import { DollarSign, Thermometer, Wind, AlertTriangle } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
@@ -44,7 +44,7 @@ export default function FarmIntelligenceWidget({ defaultDays = 30, defaultMilkPr
   return <section style={{ background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:14, color:'#fff' }}>
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:10 }}>
       <div><div style={{ fontSize:13, fontWeight:800, display:'flex', alignItems:'center', gap:6 }}><DollarSign size={14} color="#34d399"/> Farm Intelligence</div><div style={{ fontSize:9, color:'#64748b' }}>Backend-derived margin and heat-stress intelligence. Inputs are explicit assumptions; persisted farm facts remain authoritative.</div></div>
-      <div style={{ display:'flex', alignItems:'center', gap:6 }}><input type="number" min="1" max="366" value={days} onChange={e=>setDays(e.target.value)} style={smallInput} title="Calculation period in days"/><input type="number" min="0.01" step="0.01" value={milkPrice} onChange={e=>setMilkPrice(e.target.value)} style={smallInput} title="Milk price assumption PKR/L"/><button onClick={()=>void load()} style={button}><RefreshCw size={12}/> Refresh</button></div>
+      <div style={{ display:'flex', alignItems:'center', gap:6 }}><input type="number" min="1" max="366" value={days} onChange={e=>setDays(e.target.value)} style={smallInput} title="Calculation period in days"/><input type="number" min="0.01" step="0.01" value={milkPrice} onChange={e=>setMilkPrice(e.target.value)} style={smallInput} title="Milk price assumption PKR/L"/></div>
     </div>
     {error&&<div style={{ background:'#450a0a', border:'1px solid #7f1d1d', color:'#fecaca', padding:8, borderRadius:6, fontSize:10, marginBottom:9 }}>{error}</div>}
     {loading ? <div style={{ color:'#64748b', fontSize:10 }}>Loading backend intelligence…</div> : <div style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8 }}>

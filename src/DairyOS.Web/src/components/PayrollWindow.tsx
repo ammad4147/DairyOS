@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calculator, CheckCircle2, RefreshCw, X } from 'lucide-react';
+import { Calculator, CheckCircle2, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
@@ -60,7 +60,7 @@ export default function PayrollWindow() {
   return <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#f8fafc', padding: 18, boxSizing: 'border-box', fontFamily: 'sans-serif' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14 }}>
       <div><div style={{ color: '#38bdf8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Finance</div><h1 style={{ margin: 0, fontSize: 20 }}>Payroll</h1><div style={{ color: '#94a3b8', fontSize: 10 }}>Employee pay periods, overtime, allowances, advances, deductions and settlement.</div></div>
-      <div style={{ display: 'flex', gap: 6 }}><button style={{ ...button, background: '#1e293b', color: '#cbd5e1' }} onClick={() => void load()}><RefreshCw size={13}/>Refresh</button><button style={{ ...button, background: '#1e293b', color: '#cbd5e1' }} onClick={() => window.close()}><X size={13}/>Close</button></div>
+      <div style={{ display: 'flex', gap: 6 }}><button style={{ ...button, background: '#1e293b', color: '#cbd5e1' }} onClick={() => window.close()}><X size={13}/>Close</button></div>
     </div>
     {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 9, borderRadius: 6, marginBottom: 12, fontSize: 10 }}>{error}</div>}
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 12, alignItems: 'start' }}>

@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 
@@ -21,11 +21,38 @@ def _drop_severity(variance_percentage: float | None) -> str | None:
     return "RED"
 
 
+def _record_day(value) -> date | None:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    if isinstance(value, date):
+        return value
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        return datetime.fromisoformat(
+            text.replace("Z", "+00:00")
+        ).date()
+    except ValueError:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return None
+
+
 @router.get("/dashboard")
 def get_dashboard(container=Depends(get_container)):
     """Return the established Dashboard contract from persisted runtime data."""
     payload = container.dashboard_projection_service.project_api_contract(container)
+
     animal_repository = container.animal_repository
+
     finance_repository = (
         container.finance_repository
         if hasattr(container, "finance_repository")
@@ -34,48 +61,115 @@ def get_dashboard(container=Depends(get_container)):
 
     active_animals = animal_repository.active_animals()
     finance_rows = finance_repository.get_all()
+
     receivable_rows = [
-        row for row in finance_rows
+        row
+        for row in finance_rows
         if str(row.status or "").upper() == "RECEIVABLE"
     ]
-    receivables = sum(float(row.amount or 0) for row in receivable_rows)
+
+    receivables = sum(
+        float(row.amount or 0)
+        for row in receivable_rows
+    )
 
     operational_date = OperationalDateAuthority(
         repository_factory=container.repository_factory,
     ).current_date()
+
     milk_service = MilkProductionTrendIntelligenceService(
         repository_factory=container.repository_factory,
     )
+
     milk_records = milk_service.milk().get_all()
-    all_milk_animals = milk_service._eligible_animals(container.repository_factory)
+
+    all_milk_animals = milk_service._eligible_animals(
+        container.repository_factory
+    )
+
     milk_histories = milk_service._animal_histories(
         container.repository_factory,
         all_milk_animals,
     )
+
     milking_population = milk_service._governed_milking_animals(
         all_milk_animals,
         milk_histories,
         milk_service._schedule_service,
         operational_date,
     )
+
     milking_population_ids = {
         str(getattr(animal, "animal_id", ""))
         for animal in milking_population
     }
 
-    daily_snapshots = []
-    for animal in milking_population:
-        snapshot = milk_service._daily_animal_snapshot(
-            milk_records,
-            animal,
-            milk_histories.get(str(animal.animal_id), []),
+    milk_repo = container.repository_factory.milk()
+
+    # ---------------------------------------------------------------
+    # Today's actual recorded milk by current milking animal.
+    #
+    # This deliberately does NOT require the animal's milking day
+    # to be complete. A currently milking cow remains in the current
+    # milking population even when only some sessions have been
+    # recorded so far.
+    # ---------------------------------------------------------------
+    ledger_total_by_animal: dict[str, float] = {}
+
+    for animal_id in milking_population_ids:
+        row = milk_repo.ledger_row_for_animal_day(
+            animal_id,
             operational_date,
         )
-        if snapshot and snapshot.get("complete"):
-            daily_snapshots.append(snapshot)
-    daily_snapshots.sort(key=lambda item: item["total_litres"])
 
-    findings = container.repository_factory.operational_findings().get_open_by_module("MILK")
+        if row is None:
+            continue
+
+        status = str(
+            getattr(row, "status", "RECORDED") or "RECORDED"
+        ).upper()
+
+        if status == "VOID":
+            continue
+
+        if row.total_yield is not None:
+            ledger_total_by_animal[animal_id] = float(
+                row.total_yield
+            )
+
+    current_milking_ids = set(ledger_total_by_animal)
+
+    average_yield_per_cow = (
+        round(
+            sum(ledger_total_by_animal.values())
+            / len(ledger_total_by_animal),
+            2,
+        )
+        if ledger_total_by_animal
+        else None
+    )
+
+    milking_population_count = len(milking_population)
+    current_milking_count = len(current_milking_ids)
+
+    milking_percentage = (
+        round(
+            (current_milking_count / milking_population_count) * 100.0,
+            2,
+        )
+        if milking_population_count
+        else None
+    )
+
+    # ---------------------------------------------------------------
+    # Milk-drop findings remain authoritative from persisted findings.
+    # ---------------------------------------------------------------
+    findings = (
+        container.repository_factory
+        .operational_findings()
+        .get_open_by_module("MILK")
+    )
+
     yield_drop_watchlist = [
         {
             "finding_id": finding.finding_id,
@@ -86,7 +180,11 @@ def get_dashboard(container=Depends(get_container)):
             "status": finding.status,
             "route": finding.route,
             "observation_count": finding.observation_count,
-            "alert_color": "RED" if finding.severity == "CRITICAL" else "AMBER",
+            "alert_color": (
+                "RED"
+                if finding.severity == "CRITICAL"
+                else "AMBER"
+            ),
         }
         for finding in findings
         if finding.subject_type == "ANIMAL"
@@ -95,9 +193,18 @@ def get_dashboard(container=Depends(get_container)):
         and finding.severity in {"HIGH", "CRITICAL"}
     ]
 
+    # ---------------------------------------------------------------
+    # Live farm trends.
+    #
+    # get_trend_analysis() now returns actual persisted observations,
+    # including a partial current day. Comparison logic remains
+    # completion-aware inside the trend service.
+    # ---------------------------------------------------------------
     trends = {}
+
     for days in (7, 15, 30):
         start_date = operational_date - timedelta(days=days - 1)
+
         trends[f"{days}d"] = milk_service.get_trend_analysis(
             period=f"{days}d",
             start_date=start_date,
@@ -107,7 +214,9 @@ def get_dashboard(container=Depends(get_container)):
         )
 
     thirty_day_trend = trends["30d"]
-    thirty_day_series = list(thirty_day_trend.get("series") or [])
+    thirty_day_series = list(
+        thirty_day_trend.get("series") or []
+    )
 
     current_total = None
     prior_total = None
@@ -117,30 +226,54 @@ def get_dashboard(container=Depends(get_container)):
             (
                 item
                 for item in reversed(thirty_day_series)
-                if str(item.get("date", "")) == operational_date.isoformat()
+                if str(item.get("date", ""))
+                == operational_date.isoformat()
             ),
             None,
         )
 
-        if current_point is None:
-            current_point = thirty_day_series[-1]
+        if current_point is not None:
+            current_total = current_point.get("total_yield")
 
-        current_total = current_point.get("total_yield")
+        # Current-day trend may be partial. Only use the
+        # previous actual observation for display, while the
+        # trend service separately determines whether a valid
+        # comparison is permissible.
+        prior_points = [
+            item
+            for item in thirty_day_series
+            if str(item.get("date", "")) < operational_date.isoformat()
+        ]
 
-        current_index = thirty_day_series.index(current_point)
-        if current_index > 0:
-            prior_total = thirty_day_series[current_index - 1].get("total_yield")
+        if prior_points:
+            prior_total = prior_points[-1].get("total_yield")
 
     variance_percentage = None
-    if prior_total not in (None, 0) and current_total is not None:
+
+    if (
+        prior_total not in (None, 0)
+        and current_total is not None
+    ):
         variance_percentage = round(
-            ((float(current_total) - float(prior_total)) / float(prior_total)) * 100.0,
+            (
+                (float(current_total) - float(prior_total))
+                / float(prior_total)
+            ) * 100.0,
             1,
         )
+
     severity = _drop_severity(variance_percentage)
+
     production_drop = {
         "production_date": operational_date.isoformat(),
-        "drop_percentage": abs(variance_percentage) if variance_percentage is not None and variance_percentage < 0 else 0.0,
+        "drop_percentage": (
+            abs(variance_percentage)
+            if (
+                variance_percentage is not None
+                and variance_percentage < 0
+            )
+            else 0.0
+        ),
         "variance_percentage": variance_percentage,
         "severity": severity,
         "alert_color": severity,
@@ -148,56 +281,11 @@ def get_dashboard(container=Depends(get_container)):
         "current_total_litres": current_total,
     }
 
-    # The denominator is the effective, animal-specific milking population.
-    # The numerator is the subset with a complete governed day. The average
-    # is calculated from the persisted daily ledger `total_yield`, not from
-    # any frontend or period aggregate.
-    current_milking_ids = {
-        str(snapshot["animal_id"])
-        for snapshot in daily_snapshots
-        if str(snapshot["animal_id"]) in milking_population_ids
-    }
-    ledger_total_by_animal = {}
-    milk_repo = container.repository_factory.milk()
-    for animal_id in current_milking_ids:
-        row = milk_repo.ledger_row_for_animal_day(animal_id, operational_date)
-        if row is not None and row.total_yield is not None:
-            ledger_total_by_animal[animal_id] = float(row.total_yield)
-
-    milking_population_count = len(milking_population)
-    current_milking_count = len(current_milking_ids)
-    average_yield_per_cow = (
-        round(sum(ledger_total_by_animal.values()) / len(ledger_total_by_animal), 2)
-        if ledger_total_by_animal
-        else None
-    )
-    milking_percentage = (
-        round((current_milking_count / milking_population_count) * 100.0, 2)
-        if milking_population_count
-        else None
-    )
-
-    dashboard = payload.setdefault("dashboard", {})
-    dashboard["finance"] = {
-        "receivables": receivables,
-        "receivable_count": len(receivable_rows),
-    }
-    dashboard["animals"] = {
-        **dashboard.get("animals", {}),
-        "total": len(active_animals),
-    }
-    payload["animals"] = {
-        **payload.get("animals", {}),
-        "total": len(active_animals),
-    }
-    payload["finance"] = dashboard["finance"]
-    # ------------------------------------------------------------------
-    # Authoritative current-month production.
-    #
-    # Calculated from persisted MilkProduction rows. VOID rows are
-    # excluded. Partial-day recorded litres remain visible even when
-    # the operational day is not yet complete.
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------
+    # Current-month production from persisted MilkProduction rows.
+    # VOID rows excluded.
+    # Partial-day production remains visible.
+    # ---------------------------------------------------------------
     month_start = operational_date.replace(day=1)
     current_month_production = 0.0
 
@@ -209,47 +297,27 @@ def get_dashboard(container=Depends(get_container)):
         if status == "VOID":
             continue
 
-        raw_record_date = getattr(
-            record,
-            "production_date",
-            None,
+        record_day = _record_day(
+            getattr(record, "production_date", None)
         )
 
-        if raw_record_date is None:
-            raw_record_date = getattr(
+        if record_day is None:
+            record_day = _record_day(
+                getattr(record, "recorded_at", None)
+            )
+
+        if record_day is None:
+            continue
+
+        if month_start <= record_day <= operational_date:
+            total_yield = getattr(
                 record,
-                "recorded_at",
+                "total_yield",
                 None,
             )
 
-        if raw_record_date is None:
-            continue
-
-        if hasattr(raw_record_date, "date"):
-            record_day = raw_record_date.date()
-        else:
-            record_day = raw_record_date
-
-        if isinstance(record_day, str):
-            try:
-                record_day = datetime.fromisoformat(
-                    record_day.replace("Z", "+00:00")
-                ).date()
-            except ValueError:
-                try:
-                    record_day = date.fromisoformat(
-                        record_day[:10]
-                    )
-                except ValueError:
-                    continue
-
-        if month_start <= record_day <= operational_date:
-            total_yield = getattr(record, "total_yield", None)
-
             if total_yield is not None:
-                current_month_production += float(
-                    total_yield
-                )
+                current_month_production += float(total_yield)
             else:
                 current_month_production += sum(
                     float(value or 0.0)
@@ -264,13 +332,66 @@ def get_dashboard(container=Depends(get_container)):
         current_month_production,
         3,
     )
+
+    # ---------------------------------------------------------------
+    # Production extremes for today's actually recorded current
+    # milking animals.
+    # ---------------------------------------------------------------
+    production_points = [
+        {
+            "date": operational_date.isoformat(),
+            "animal_id": animal_id,
+            "total_litres": round(value, 2),
+            "complete": False,
+        }
+        for animal_id, value
+        in sorted(ledger_total_by_animal.items())
+    ]
+
+    highest = (
+        max(
+            production_points,
+            key=lambda item: item["total_litres"],
+        )
+        if production_points
+        else None
+    )
+
+    lowest = (
+        min(
+            production_points,
+            key=lambda item: item["total_litres"],
+        )
+        if production_points
+        else None
+    )
+
+    dashboard = payload.setdefault("dashboard", {})
+
+    dashboard["finance"] = {
+        "receivables": receivables,
+        "receivable_count": len(receivable_rows),
+    }
+
+    dashboard["animals"] = {
+        **dashboard.get("animals", {}),
+        "total": len(active_animals),
+    }
+
+    payload["animals"] = {
+        **payload.get("animals", {}),
+        "total": len(active_animals),
+    }
+
+    payload["finance"] = dashboard["finance"]
+
     payload["milk"] = {
         "total_production_liters": current_month_production,
         "current_month_production": current_month_production,
         "data_status": "LIVE_PERSISTED_DATA",
         "production_extremes": {
-            "highest": daily_snapshots[-1] if daily_snapshots else None,
-            "lowest": daily_snapshots[0] if daily_snapshots else None,
+            "highest": highest,
+            "lowest": lowest,
             "population_count": current_milking_count,
         },
         "yield_drop_watchlist": yield_drop_watchlist,
@@ -281,6 +402,5 @@ def get_dashboard(container=Depends(get_container)):
         "milking_percentage": milking_percentage,
         "average_yield_per_cow": average_yield_per_cow,
     }
+
     return payload
-
-

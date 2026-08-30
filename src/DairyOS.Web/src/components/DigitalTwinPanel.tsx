@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Play, RefreshCw } from 'lucide-react';
+import { BrainCircuit, Play } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
@@ -16,7 +16,7 @@ export default function DigitalTwinPanel(){
  const forecast=twin?.forecast_summary?.metric;
  const simulation=twin?.simulation_summary?.risk;
  return <section style={panel}>
-  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:9}}><div><div style={{fontSize:13,fontWeight:800,display:'flex',alignItems:'center',gap:6}}><BrainCircuit size={14} color="#a78bfa"/> Digital Twin — Scenario Lab</div><div style={{fontSize:9,color:'#64748b'}}>Forecasts and what-if scenarios over persisted farm baselines. Assumptions are explicit; forecasts never become farm facts.</div></div><button onClick={()=>void loadBaseline()} style={button}><RefreshCw size={12}/> Refresh Baseline</button></div>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:9}}><div><div style={{fontSize:13,fontWeight:800,display:'flex',alignItems:'center',gap:6}}><BrainCircuit size={14} color="#a78bfa"/> Digital Twin — Scenario Lab</div><div style={{fontSize:9,color:'#64748b'}}>Forecasts and what-if scenarios over persisted farm baselines. Assumptions are explicit; forecasts never become farm facts.</div></div></div>
   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',gap:6}}><label style={label}>Metric<select value={metric} onChange={e=>setMetric(e.target.value)} style={field}><option value="MILK_LITERS">Milk litres</option><option value="HERD_SIZE">Active herd size</option><option value="FEED_KG">Feed kg</option></select></label><label style={label}>Baseline Days<input type="number" min="1" max="3650" value={periodDays} onChange={e=>setPeriodDays(e.target.value)} style={field}/></label><label style={label}>Growth %<input type="number" step="0.1" value={growth} onChange={e=>setGrowth(e.target.value)} style={field}/></label><label style={label}>Scenario %<input type="number" step="0.1" value={change} onChange={e=>setChange(e.target.value)} style={field}/></label><label style={label}>Horizon Days<input type="number" min="1" max="3650" value={horizonDays} onChange={e=>setHorizonDays(e.target.value)} style={field}/></label></div>
   <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginTop:7}}><label style={label}>Scenario Name<input value={scenarioName} onChange={e=>setScenarioName(e.target.value)} style={field}/></label><button disabled={loading} onClick={()=>void runScenario()} style={{...button,background:'#7c3aed',alignSelf:'end'}}><Play size={12}/>{loading?'Running…':'Run Scenario'}</button></div>
   {error&&<div style={{marginTop:8,color:'#fecaca',background:'#450a0a',border:'1px solid #7f1d1d',padding:8,borderRadius:6,fontSize:10}}>{error}</div>}

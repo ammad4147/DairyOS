@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, Utensils, Wheat, Wrench } from 'lucide-react';
+import { AlertTriangle, Utensils, Wheat, Wrench } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import TMRPreparationTool from './TMRPreparationTool';
 
@@ -19,7 +19,7 @@ export default function FeedTab(){
  const totalPurchased=feedItems.reduce((sum,item)=>sum+item.purchased,0),totalBalance=feedItems.reduce((sum,item)=>sum+item.balance,0),lowBalance=feedItems.filter(item=>item.purchased>0&&item.balance<=0);
  const overdueEquipment=equipment.filter(item=>item.active&&item.next_service_due_at&&new Date(item.next_service_due_at).getTime()<Date.now());
  return <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',boxSizing:'border-box',padding:14,color:'#fff',minWidth:0}}>
-  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12,flexWrap:'wrap'}}><div><div style={{fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:7}}><Wheat size={18} color="#38bdf8"/> Feed & Nutrition</div><div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Purchases come only from Finance Feed expenses. Usage is tracked here; balance = authoritative operational stock projection.</div></div><button onClick={()=>void load()} style={button('#1e293b')}><RefreshCw size={12}/> Refresh</button></div>
+  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12,flexWrap:'wrap'}}><div><div style={{fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:7}}><Wheat size={18} color="#38bdf8"/> Feed & Nutrition</div><div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Purchases come only from Finance Feed expenses. Usage is tracked here; balance = authoritative operational stock projection.</div></div></div>
   {error&&<div style={{...panel,color:'#fecaca',borderColor:'#ef4444',marginBottom:10,fontSize:10}}>{error}</div>}{message&&<div style={{...panel,color:'#bbf7d0',borderColor:'#34d399',marginBottom:10,fontSize:10}}>{message}</div>}
   <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8,marginBottom:10}}><Metric label="Purchased in Finance" value={`${totalPurchased.toLocaleString()} kg/unit`} accent="#38bdf8"/><Metric label="Current Feed Balance" value={`${totalBalance.toLocaleString()} kg/unit`} accent="#34d399"/><Metric label="Items Purchased" value={String(feedItems.length)} accent="#f59e0b"/></div>
   <div style={{display:'grid',gridTemplateColumns:'minmax(0,1.4fr) minmax(280px,.6fr)',gap:10,alignItems:'start',minWidth:0}}>
