@@ -1,8 +1,8 @@
 """Canonical animal classification and lifecycle translation rules.
 
 The persisted individual-animal category is singular. Aggregate population
-labels are a presentation concern and must be pluralised by the consuming
-herd/dashboard/report view rather than by the domain category itself.
+labels are presentation concerns and are translated at herd/dashboard/report
+boundaries rather than becoming persisted individual categories.
 """
 from __future__ import annotations
 
@@ -11,7 +11,12 @@ from enum import StrEnum
 
 
 class AnimalCategory(StrEnum):
-    """Canonical category for one individual animal."""
+    """Canonical category for one individual animal.
+
+    The singular members are canonical. The plural member names are retained
+    as compatibility aliases because existing tests and application adapters
+    historically referenced them, but their values remain singular.
+    """
 
     MILKING = "Milking"
     DRY = "Dry"
@@ -20,6 +25,15 @@ class AnimalCategory(StrEnum):
     FEMALE_CALF = "Female Calf"
     MALE_CALF = "Male Calf"
     EXITED = "Exited"
+
+    # Backward-compatible enum-member aliases. These do NOT pluralise the
+    # underlying category value.
+    MILKING_COWS = MILKING
+    DRY_COWS = DRY
+    HEIFERS = HEIFER
+    BULLS = BULL
+    FEMALE_CALVES = FEMALE_CALF
+    MALE_CALVES = MALE_CALF
 
 
 class AnimalClassificationError(ValueError):
@@ -119,7 +133,12 @@ class AnimalClassificationService:
         *,
         current_lifecycle: str | None = None,
     ) -> AnimalClassification:
-        """Translate an individual-animal category into canonical facts."""
+        """Translate a category label into canonical individual-animal facts.
+
+        Singular labels are canonical. Plural herd labels are accepted only as
+        compatibility input and immediately translate to the same singular
+        canonical category; they are never persisted as the individual value.
+        """
         candidate = str(category or "").strip()
         lookup = {
             AnimalCategory.MILKING.value: ("LACTATING", "FEMALE"),
@@ -128,6 +147,13 @@ class AnimalClassificationService:
             AnimalCategory.BULL.value: ("BULL", "MALE"),
             AnimalCategory.FEMALE_CALF.value: ("CALF", "FEMALE"),
             AnimalCategory.MALE_CALF.value: ("CALF", "MALE"),
+            # Aggregate labels are compatibility inputs only.
+            "Milking Cows": ("LACTATING", "FEMALE"),
+            "Dry Cows": ("DRY", "FEMALE"),
+            "Heifers": ("HEIFER", "FEMALE"),
+            "Bulls": ("BULL", "MALE"),
+            "Female Calves": ("CALF", "FEMALE"),
+            "Male Calves": ("CALF", "MALE"),
         }
 
         if candidate == AnimalCategory.EXITED.value:
@@ -137,9 +163,11 @@ class AnimalClassificationService:
         try:
             lifecycle, sex = lookup[candidate]
         except KeyError as exc:
+            allowed = (
+                "Milking, Dry, Heifer, Female Calf, Male Calf, Bull"
+            )
             raise AnimalClassificationError(
-                f"Unknown animal category: {candidate}. "
-                f"Allowed: {', '.join(sorted(item.value for item in AnimalCategory if item is not AnimalCategory.EXITED))}."
+                f"Unknown animal category: {candidate}. Allowed: {allowed}."
             ) from exc
 
         return cls.classify(lifecycle, sex)
