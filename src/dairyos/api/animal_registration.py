@@ -107,58 +107,30 @@ def register_animal(payload: dict, container=Depends(get_container)):
     lifecycle_status = payload.get("lifecycle_status", "HEIFER")
     allowed_lifecycle = set(GOVERNED["lifecycle_statuses"])
     if lifecycle_status not in allowed_lifecycle:
-        raise HTTPException(
-            status_code=422,
-            detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(allowed_lifecycle)),
-        )
+        raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(allowed_lifecycle)))
 
     is_milking = lifecycle_status == "LACTATING"
     milking_frequency = payload.get("milking_frequency")
     allowed_frequency = set(GOVERNED["milking_frequencies"])
-    if milking_frequency and not is_milking:
-        raise HTTPException(
-            status_code=422,
-            detail="milking_frequency is only applicable to animals currently classified as Milking",
-        )
+
     if is_milking and not milking_frequency:
-        raise HTTPException(
-            status_code=422,
-            detail="milking_frequency is required for animals currently classified as Milking",
-        )
+        milking_frequency = "TWICE_DAILY"
+    if milking_frequency and not is_milking:
+        raise HTTPException(status_code=422, detail="milking_frequency is only applicable to animals currently classified as Milking")
     if milking_frequency and milking_frequency not in allowed_frequency:
-        raise HTTPException(
-            status_code=422,
-            detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(allowed_frequency)),
-        )
+        raise HTTPException(status_code=422, detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(allowed_frequency)))
 
     allowed_fields = {
-        "animal_type",
-        "legacy_animal_id",
-        "ear_tag",
-        "rfid",
-        "breed",
-        "sex",
-        "date_of_birth",
-        "date_of_acquisition",
-        "dam_id",
-        "sire_id",
-        "lifecycle_status",
-        "status",
-        "is_currently_milking",
-        "milking_frequency",
-        "production_group",
-        "location",
-        "active",
+        "animal_type", "legacy_animal_id", "ear_tag", "rfid", "breed", "sex",
+        "date_of_birth", "date_of_acquisition", "dam_id", "sire_id",
+        "lifecycle_status", "status", "is_currently_milking", "milking_frequency",
+        "production_group", "location", "active",
     }
 
     repository = container.animal_repository
     animal_id = _new_animal_id(repository, _animal_id_prefix(container))
 
-    animal_payload = {
-        key: value
-        for key, value in payload.items()
-        if key in allowed_fields
-    }
+    animal_payload = {key: value for key, value in payload.items() if key in allowed_fields}
     animal_payload["animal_id"] = animal_id
     animal_payload["lifecycle_status"] = lifecycle_status
     animal_payload["is_currently_milking"] = is_milking
@@ -169,18 +141,13 @@ def register_animal(payload: dict, container=Depends(get_container)):
 
     legacy_id = animal_payload.get("legacy_animal_id")
     if legacy_id:
-        existing_legacy = [
-            item for item in (repository.get_all() or [])
-            if getattr(item, "legacy_animal_id", None) == legacy_id
-        ]
-        if existing_legacy:
+        if any(getattr(item, "legacy_animal_id", None) == legacy_id for item in (repository.get_all() or [])):
             raise HTTPException(status_code=409, detail=f"Old Animal ID already exists: {legacy_id}")
 
     animal_model = __import__("dairyos.data.models.animal", fromlist=["Animal"]).Animal
     session = container.repository_factory.session
     try:
         animal = repository.save(animal_model(**animal_payload), commit=False)
-
         if is_milking:
             repository.set_milking_frequency(
                 animal_id=animal_id,
@@ -189,7 +156,6 @@ def register_animal(payload: dict, container=Depends(get_container)):
                 reason="initial",
                 commit=False,
             )
-
         session.flush()
         session.commit()
         session.refresh(animal)
@@ -210,7 +176,6 @@ def register_animal(payload: dict, container=Depends(get_container)):
             )
         )
     except Exception:
-        # Database persistence is authoritative; command projection is ancillary.
         pass
 
     return _serialize(animal)
