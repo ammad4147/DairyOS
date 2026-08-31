@@ -25,7 +25,7 @@ class StubMilkRepository:
                 total_yield=120.0,
             ),
             SimpleNamespace(
-                production_date=datetime.now(timezone.utc),
+                production_date=date.today(),
                 total_yield=80.0,
             ),
             SimpleNamespace(
