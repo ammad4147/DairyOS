@@ -1,8 +1,6 @@
 from pathlib import Path
-
 import json
 import pytest
-
 from dairyos.admin.service import AdminService, RESET_CONFIRMATION
 from dairyos.lifecycle.manager import LifecycleError
 
@@ -58,6 +56,7 @@ def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
     manager = FakeManager(tmp_path)
     manager.database_url = "postgresql+psycopg://example"
     monkeypatch.setattr(manager, "validate", lambda require_database=True: {"valid": True})
+    monkeypatch.setattr("dairyos.admin.service._assert_runtime_stopped", lambda: None)
     monkeypatch.setattr(
         "dairyos.admin.service._record_database_checksum",
         lambda path: (_ for _ in ()).throw(LifecycleError("PostgreSQL backup verification failed.")),
@@ -85,9 +84,7 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
         lambda url, updated_by: (called.append((url, updated_by)) or Execution()),
     )
     monkeypatch.setattr("dairyos.admin.service.verify_zero_state", lambda url: {})
-
     result = AdminService(manager).reset(RESET_CONFIRMATION)
-
     assert result.success is True
     assert called == [("postgresql+psycopg://example", "DairyOS Admin Tool")]
     assert manager.calls == [("validate", True), ("backup", "pre-reset")]

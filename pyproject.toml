@@ -41,4 +41,5 @@ line-length=88
 line-length=88
 
 [tool.pytest.ini_options]
+addopts="--basetemp=.pytest_tmp -p no:cacheprovider"
 testpaths=["tests"]

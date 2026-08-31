@@ -151,11 +151,12 @@ class MilkSessionSequenceService:
         operational_date,
         animal=None,
     ) -> set[str]:
-        """Return occurrences settled for one animal/day.
+        """Return every settled occurrence for one animal/day.
 
-        Ordinary production settlement is derived from that animal's
-        persisted MilkProduction daily ledger. The farm-level session ledger
-        remains separate and is used only when no animal is supplied.
+        Animal MilkProduction is authoritative for recorded production.
+        A farm-level session settlement is also authoritative because a
+        whole-farm NOT_MILKED declaration settles that occurrence for every
+        animal.
         """
         if animal is None or self.milk_repository is None:
             return self.ledger.settled_sessions_on(
@@ -170,22 +171,29 @@ class MilkSessionSequenceService:
 
         settled: set[str] = set()
 
-        if row is None:
-            return settled
+        if (
+            row is not None
+            and str(
+                getattr(row, "status", "") or ""
+            ).upper() != "VOID"
+        ):
+            if getattr(row, "morning_yield", None) is not None:
+                settled.add(MilkingSession.MORNING.value)
 
-        if str(
-            getattr(row, "status", "") or ""
-        ).upper() == "VOID":
-            return settled
+            if getattr(row, "afternoon_yield", None) is not None:
+                settled.add(MilkingSession.AFTERNOON.value)
 
-        if getattr(row, "morning_yield", None) is not None:
-            settled.add(MilkingSession.MORNING.value)
+            if getattr(row, "evening_yield", None) is not None:
+                settled.add(MilkingSession.EVENING.value)
 
-        if getattr(row, "afternoon_yield", None) is not None:
-            settled.add(MilkingSession.AFTERNOON.value)
-
-        if getattr(row, "evening_yield", None) is not None:
-            settled.add(MilkingSession.EVENING.value)
+        # A whole-farm session declaration settles the same occurrence
+        # for every animal. This is essential for both shared MORNING
+        # settlement and NOT_MILKED unblocking.
+        settled.update(
+            self.ledger.settled_sessions_on(
+                operational_date
+            )
+        )
 
         return settled
 

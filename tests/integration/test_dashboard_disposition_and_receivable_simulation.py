@@ -99,6 +99,7 @@ def test_credit_milk_sale_appears_as_receivable_on_finance_and_main_dashboard_th
         json={
             "transaction_type": "INCOME",
             "category": "MILK_SALES",
+            "quantity": 20,
             "amount": 4500,
             "transaction_date": "2026-08-30",
             "payment_method": "CREDIT",

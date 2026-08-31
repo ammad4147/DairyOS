@@ -107,6 +107,7 @@ def test_credit_milk_sale_becomes_receivable_then_is_received_in_same_ledger_and
         json={
             "transaction_type": "INCOME",
             "category": "MILK_SALES",
+            "quantity": 10,
             "amount": 2250,
             "transaction_date": "2026-08-30",
             "payment_method": "CREDIT",

@@ -70,17 +70,20 @@ class AdminService:
         if not self.manager.database_url:
             raise LifecycleError("Reset requires DAIRYOS_DATABASE_URL to be configured.")
 
-        _admin_stage("reset: runtime stopped check")
-        _assert_runtime_stopped()
         _admin_stage("reset: lifecycle validation")
         self.manager.validate(require_database=True)
+
         _admin_stage("reset: pre-reset backup")
         artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
         if artifact is None:
             raise LifecycleError("Reset requires a verified pre-reset backup.")
+
         _admin_stage(f"reset: backup complete: {artifact}")
         _admin_stage("reset: recording database checksum")
         _record_database_checksum(artifact)
+
+        _admin_stage("reset: runtime stopped check")
+        _assert_runtime_stopped()
         _admin_stage("reset: copying external recovery artifact")
         recovery_artifact = _copy_external_recovery_artifact(artifact)
         _admin_stage(f"reset: external recovery copy complete: {recovery_artifact}")

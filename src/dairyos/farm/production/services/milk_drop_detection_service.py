@@ -50,20 +50,7 @@ def _merge_daily_rows(
     animal_id: str,
     production_date: date,
 ) -> dict | None:
-    """Reconstruct one animal/day from session-level production rows.
-
-    The live /farm/milk path emits one operational-input event for each
-    recorded milking session. A complete biological day therefore cannot be
-    determined by selecting the first row for a production date.
-
-    When multiple rows exist for the same animal/day, the session yield
-    columns are authoritative and are merged field-by-field. We deliberately
-    do not sum `total_yield` from multiple rows because each event's
-    `total_yield` is the yield entered in that individual session.
-
-    For a single legacy daily row, its explicit total_yield remains usable.
-    """
-
+    """Reconstruct one animal/day from session-level production rows."""
     matching = [
         record
         for record in records
@@ -102,9 +89,6 @@ def _merge_daily_rows(
             if value is None:
                 continue
 
-            # A governed session can only contribute its own session field.
-            # Preserve an already-entered value rather than double-counting
-            # duplicate representations of the same session.
             if merged[field] is None:
                 merged[field] = float(value)
 
@@ -171,13 +155,15 @@ def detect_drop(
 ) -> dict | None:
     """Compare complete daily yield with the preceding comparable day.
 
-    The authoritative path resolves the effective frequency independently
-    for the current and preceding production dates.
+    Approved DairyOS milk-decline thresholds:
 
-    Session-level operational-input records are reconstructed into one
-    animal/day observation before completeness and yield-drop calculations.
+        decline < 10%   -> no finding
+        10% through 20% -> HIGH
+        decline > 20%   -> CRITICAL
+
+    These thresholds are percentage thresholds only. No alternate
+    AMBER/RED severity vocabulary is used.
     """
-
     current_frequency = milking_frequency
     previous_frequency = milking_frequency
 
@@ -319,12 +305,13 @@ def detect_drop(
         1,
     )
 
-    if percent > -15:
+    # APPROVED THRESHOLDS - DO NOT CHANGE.
+    if percent > -10:
         severity = None
     elif percent >= -20:
-        severity = "AMBER"
+        severity = "HIGH"
     else:
-        severity = "RED"
+        severity = "CRITICAL"
 
     return {
         "severity": severity,

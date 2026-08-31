@@ -733,7 +733,7 @@ class MilkProductionTrendIntelligenceService:
                 )
             )
 
-            current_total = recorded_daily_totals.get(
+            current_total = complete_daily_totals.get(
                 target_date
             )
 

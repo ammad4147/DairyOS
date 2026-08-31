@@ -1,7 +1,6 @@
 """Date-based individual milk-yield decline detection."""
 
 from datetime import date
-import pytest
 
 
 def _row(
@@ -39,15 +38,31 @@ def _detect(records, as_of_date=date(2026, 8, 17)):
 
 
 def test_no_prior_date_means_nothing_to_compare():
-    records = [_row(production_date="2026-08-17", total_yield=10.0, evening_yield=0.0)]
+    records = [
+        _row(
+            production_date="2026-08-17",
+            total_yield=10.0,
+            evening_yield=0.0,
+        )
+    ]
     result = _detect(records)
     assert result["status"] == "NO_COMPARABLE_PRIOR_DATE"
 
 
 def test_complete_daily_total_is_compared_not_same_session():
     records = [
-        _row(production_date="2026-08-16", morning_yield=12.0, evening_yield=8.0, total_yield=20.0),
-        _row(production_date="2026-08-17", morning_yield=7.0, evening_yield=8.0, total_yield=15.0),
+        _row(
+            production_date="2026-08-16",
+            morning_yield=12.0,
+            evening_yield=8.0,
+            total_yield=20.0,
+        ),
+        _row(
+            production_date="2026-08-17",
+            morning_yield=7.0,
+            evening_yield=8.0,
+            total_yield=15.0,
+        ),
     ]
     result = _detect(records)
     assert result["status"] == "COMPLETE"
@@ -62,6 +77,24 @@ def test_below_ten_percent_is_not_a_finding():
     ]
     result = _detect(records)
     assert result["severity"] is None
+
+
+def test_exactly_nine_percent_decline_is_not_a_finding():
+    records = [
+        _row(production_date="2026-08-16", total_yield=10.0),
+        _row(production_date="2026-08-17", total_yield=9.1),
+    ]
+    result = _detect(records)
+    assert result["severity"] is None
+
+
+def test_exactly_ten_percent_decline_is_high():
+    records = [
+        _row(production_date="2026-08-16", total_yield=10.0),
+        _row(production_date="2026-08-17", total_yield=9.0),
+    ]
+    result = _detect(records)
+    assert result["severity"] == "HIGH"
 
 
 def test_ten_to_twenty_percent_is_high_amber():
@@ -102,7 +135,13 @@ def test_an_increase_is_never_a_finding():
 
 def test_not_milked_prior_date_is_not_a_comparable_date():
     records = [
-        _row(production_date="2026-08-16", total_yield=0.0, status="NOT_MILKED", morning_yield=None, evening_yield=None),
+        _row(
+            production_date="2026-08-16",
+            total_yield=0.0,
+            status="NOT_MILKED",
+            morning_yield=None,
+            evening_yield=None,
+        ),
         _row(production_date="2026-08-17", total_yield=10.0),
     ]
     result = _detect(records)
@@ -112,7 +151,12 @@ def test_not_milked_prior_date_is_not_a_comparable_date():
 def test_null_yield_row_makes_the_date_incomplete():
     records = [
         _row(production_date="2026-08-16", total_yield=20.0),
-        _row(production_date="2026-08-17", total_yield=None, morning_yield=10.0, evening_yield=None),
+        _row(
+            production_date="2026-08-17",
+            total_yield=None,
+            morning_yield=10.0,
+            evening_yield=None,
+        ),
     ]
     result = _detect(records)
     assert result["status"] == "INCOMPLETE"
@@ -120,7 +164,11 @@ def test_null_yield_row_makes_the_date_incomplete():
 
 def test_pre_ledger_rows_are_excluded():
     records = [
-        _row(production_date="2026-08-16", total_yield=99.0, session_ledger=False),
+        _row(
+            production_date="2026-08-16",
+            total_yield=99.0,
+            session_ledger=False,
+        ),
         _row(production_date="2026-08-17", total_yield=10.0),
     ]
     result = _detect(records)
@@ -129,7 +177,11 @@ def test_pre_ledger_rows_are_excluded():
 
 def test_other_animals_are_never_compared():
     records = [
-        _row(animal_id="AN-OTHER", production_date="2026-08-16", total_yield=999.0),
+        _row(
+            animal_id="AN-OTHER",
+            production_date="2026-08-16",
+            total_yield=999.0,
+        ),
         _row(production_date="2026-08-17", total_yield=10.0),
     ]
     result = _detect(records)
@@ -140,7 +192,10 @@ def test_recording_complete_twice_daily_milk_raises_a_real_drop_finding(
     client,
     registered_animal,
 ):
-    client.post("/settings/deployment/activate", json={"confirm": "DEPLOY", "password": "deploySecret"})
+    client.post(
+        "/settings/deployment/activate",
+        json={"confirm": "DEPLOY", "password": "deploySecret"},
+    )
 
     frequency_response = client.post(
         f"/farm/animals/{registered_animal}/milking-frequency",
@@ -148,23 +203,72 @@ def test_recording_complete_twice_daily_milk_raises_a_real_drop_finding(
             "milking_frequency": "TWICE_DAILY",
             "changed_by": "test",
             "reason": "Configure twice-daily drop test",
-            "effective_date": "2026-08-16T00:00:00Z"
+            "effective_date": "2026-08-16T00:00:00Z",
         },
     )
     assert frequency_response.status_code == 200
 
-    # Day 1: Normal yield split across morning and evening sessions (Total: 10.0)
-    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 5.0, "production_date": "2026-08-17", "operator": "Tester"})
-    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "EVENING", "evening_yield": 5.0, "production_date": "2026-08-17", "operator": "Tester"})
+    # Day 1: Normal yield split across morning and evening sessions.
+    # Total: 10.0 L.
+    client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "milking_session": "MORNING",
+            "morning_yield": 5.0,
+            "production_date": "2026-08-17",
+            "operator": "Tester",
+        },
+    )
+    client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "milking_session": "EVENING",
+            "evening_yield": 5.0,
+            "production_date": "2026-08-17",
+            "operator": "Tester",
+        },
+    )
 
-    # Day 2: Severe drop split across morning and evening sessions (Total: 4.0 -> 60% drop)
-    client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "MORNING", "morning_yield": 2.0, "production_date": "2026-08-18", "operator": "Tester"})
-    res = client.post("/farm/milk", json={"animal_id": registered_animal, "milking_session": "EVENING", "evening_yield": 2.0, "production_date": "2026-08-18", "operator": "Tester"})
+    # Day 2: Severe drop split across morning and evening sessions.
+    # Total: 4.0 L -> 60% drop.
+    client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "milking_session": "MORNING",
+            "morning_yield": 2.0,
+            "production_date": "2026-08-18",
+            "operator": "Tester",
+        },
+    )
+    res = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "milking_session": "EVENING",
+            "evening_yield": 2.0,
+            "production_date": "2026-08-18",
+            "operator": "Tester",
+        },
+    )
     assert res.status_code == 200, res.text
 
-    findings = client.get("/farm/findings", params={"module": "MILK"}).json()["findings"]
-    matching = [f for f in findings if f["subject_id"] == registered_animal and f["severity"] == "CRITICAL"]
-    assert matching, "expected a MILK finding after a complete TWICE_DAILY 60% drop"
+    findings = client.get(
+        "/farm/findings",
+        params={"module": "MILK"},
+    ).json()["findings"]
+    matching = [
+        finding
+        for finding in findings
+        if finding["subject_id"] == registered_animal
+        and finding["severity"] == "CRITICAL"
+    ]
+    assert matching, (
+        "expected a MILK finding after a complete "
+        "TWICE_DAILY 60% drop"
+    )
 
 
 def test_recording_complete_thrice_daily_milk_raises_a_real_drop_finding(
@@ -190,7 +294,8 @@ def test_recording_complete_thrice_daily_milk_raises_a_real_drop_finding(
     )
     assert frequency_response.status_code == 200
 
-    # Day 1: Normal yield across three sessions (Total: 12.0)
+    # Day 1: Normal yield across three sessions.
+    # Total: 12.0 L.
     for session, yield_val in [
         ("MORNING", 4.0),
         ("AFTERNOON", 4.0),
