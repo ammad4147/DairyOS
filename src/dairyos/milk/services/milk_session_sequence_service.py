@@ -169,22 +169,14 @@ class MilkSessionSequenceService:
             )
         ]
 
-    def _animal_settled_sessions(
+    def _animal_recorded_sessions(
         self,
         operational_date,
         animal=None,
     ) -> set[str]:
-        """Return every settled occurrence for one animal/day.
-
-        Animal MilkProduction is authoritative for recorded production.
-        A farm-level session settlement is also authoritative because a
-        whole-farm NOT_MILKED declaration settles that occurrence for every
-        animal.
-        """
+        """Return sessions actually recorded for this animal/day."""
         if animal is None or self.milk_repository is None:
-            return self.ledger.settled_sessions_on(
-                operational_date
-            )
+            return set()
 
         animal_id = str(getattr(animal, "animal_id", ""))
         row = self.milk_repository.ledger_row_for_animal_day(
@@ -192,31 +184,47 @@ class MilkSessionSequenceService:
             operational_date,
         )
 
-        settled: set[str] = set()
+        recorded: set[str] = set()
 
         if (
             row is not None
-            and str(
-                getattr(row, "status", "") or ""
-            ).upper() != "VOID"
+            and str(getattr(row, "status", "") or "").upper() != "VOID"
         ):
             if getattr(row, "morning_yield", None) is not None:
-                settled.add(MilkingSession.MORNING.value)
-
+                recorded.add(MilkingSession.MORNING.value)
             if getattr(row, "afternoon_yield", None) is not None:
-                settled.add(MilkingSession.AFTERNOON.value)
-
+                recorded.add(MilkingSession.AFTERNOON.value)
             if getattr(row, "evening_yield", None) is not None:
-                settled.add(MilkingSession.EVENING.value)
+                recorded.add(MilkingSession.EVENING.value)
 
-        # Ordinary production belongs to the individual animal. The
-        # herd-level ledger is only authoritative when the farm explicitly
-        # declared that the whole session was NOT_MILKED. A normal production
-        # settlement for animal A must never make that session appear settled
-        # for animal B.
-        for record in self.ledger.get_by_date(operational_date):
-            if str(getattr(record, "status", "") or "").upper() == "NOT_MILKED":
-                settled.add(str(record.milking_session))
+        return recorded
+
+    def _animal_settled_sessions(
+        self,
+        operational_date,
+        animal=None,
+    ) -> set[str]:
+        """Return settled farm sessions plus the animal's persisted production.
+
+        The farm session ledger settles a real milking occurrence once it has
+        been recorded or explicitly declared NOT_MILKED. That occurrence is
+        shared across the herd, while duplicate-entry protection remains
+        animal-specific through ``_animal_recorded_sessions``.
+        """
+        operational_date = _as_date(operational_date)
+
+        settled = set(
+            self.ledger.settled_sessions_on(
+                operational_date
+            )
+        )
+
+        settled.update(
+            self._animal_recorded_sessions(
+                operational_date,
+                animal,
+            )
+        )
 
         return settled
 
@@ -227,15 +235,10 @@ class MilkSessionSequenceService:
         animal=None,
     ) -> list[str]:
         """Return settled occurrences in the relevant authority."""
-        if animal is None:
-            settled = self.ledger.settled_sessions_on(
-                operational_date
-            )
-        else:
-            settled = self._animal_settled_sessions(
-                operational_date,
-                animal,
-            )
+        settled = self._animal_settled_sessions(
+            operational_date,
+            animal,
+        )
 
         return [
             session
@@ -380,12 +383,15 @@ class MilkSessionSequenceService:
                     reason="UNSCHEDULED_SESSION",
                 )
 
-        settled = self._animal_settled_sessions(
+        # Duplicate protection is animal-specific. A farm-level session
+        # settlement merely means the occurrence itself has happened; it must
+        # not stop another animal from contributing to that same occurrence.
+        animal_recorded = self._animal_recorded_sessions(
             operational_date,
             animal,
         )
 
-        if milking_session in settled:
+        if milking_session in animal_recorded:
             raise SequenceViolation(
                 operational_date=operational_date,
                 attempted_session=milking_session,
