@@ -98,6 +98,7 @@ class RuntimeContainer:
 
         self.animal_intelligence_service = runtime.animal_intelligence_service
         self.milk_production_intelligence_service = runtime.milk_production_intelligence_service
+        self.milk_production_intelligence_service.milk_repository = self.milk_repository
         self.milk_production_trend_intelligence_service = runtime.milk_production_trend_intelligence_service
         self.daily_milk_production_command_view_service = runtime.daily_milk_production_command_view_service
         self.intelligence_runtime_service = runtime.intelligence_runtime_service
