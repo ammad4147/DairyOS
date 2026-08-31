@@ -186,6 +186,9 @@ class MilkProductionRepository:
             production.calculate_total()
             return self.add(production)
 
+        if str(getattr(existing, "status", "") or "").upper() == "VOID":
+            existing.status = "RECORDED"
+
         for field in (
             "morning_yield",
             "afternoon_yield",

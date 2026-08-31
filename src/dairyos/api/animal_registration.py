@@ -252,6 +252,32 @@ def register_animal(payload: dict, container=Depends(get_container)):
 
     repository = container.animal_repository
 
+    selected_category = str(
+        payload.get("animal_category") or payload.get("category") or ""
+    ).strip().lower()
+    is_calf = selected_category in {"female calf", "male calf"}
+
+    if is_calf:
+        dam_id = str(payload.get("dam_id") or "").strip()
+        if not dam_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Mother / Dam ID is required when registering a calf.",
+            )
+
+        dam = repository.get_by_animal_id(dam_id)
+        if dam is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Mother / Dam ID '{dam_id}' does not exist in the Animal Register.",
+            )
+
+        if str(getattr(dam, "sex", "") or "").upper() != "FEMALE":
+            raise HTTPException(
+                status_code=422,
+                detail=f"Mother / Dam ID '{dam_id}' is not a female animal.",
+            )
+
     animal_id = _new_animal_id(
         repository,
         _animal_id_prefix(container),

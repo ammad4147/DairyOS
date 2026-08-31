@@ -1963,7 +1963,7 @@ export default function MilkTab({
                     <tr>
                       <th>Date</th>
                       <th>
-                        Type / Animal
+                        Animal / Type
                       </th>
                       <th>
                         Litres
@@ -1986,7 +1986,13 @@ export default function MilkTab({
                               10,
                             ),
                           label:
-                            `${row.animal_id} · ${row.milking_session || 'SYSTEM'}`,
+                            `${row.animal_id} · ${herdMasterList.find((animal) => animal.id === row.animal_id)?.category || 'Milking Cow'}`,
+                          detail:
+                            [
+                              row.morning_yield != null ? `Morning ${litre(row.morning_yield)}` : null,
+                              row.afternoon_yield != null ? `Afternoon ${litre(row.afternoon_yield)}` : null,
+                              row.evening_yield != null ? `Evening ${litre(row.evening_yield)}` : null,
+                            ].filter(Boolean).join(' + '),
                           qty:
                             row.total_yield,
                           row,
@@ -2004,6 +2010,8 @@ export default function MilkTab({
                             ),
                           label:
                             row.disposition_type,
+                          detail:
+                            '',
                           qty:
                             row.quantity_litres,
                           row,
@@ -2048,8 +2056,13 @@ export default function MilkTab({
                             </td>
 
                             <td>
-                              {litre(
-                                entry.qty,
+                              {entry.kind === 'PRODUCTION' ? (
+                                <div style={{display:'grid',gap:2}}>
+                                  <div style={{fontSize:9,color:'#cbd5e1'}}>{entry.detail || 'No individual session figures'}</div>
+                                  <strong style={{color:'#38bdf8'}}>{`Total ${litre(entry.qty)}`}</strong>
+                                </div>
+                              ) : (
+                                litre(entry.qty)
                               )}
                             </td>
 

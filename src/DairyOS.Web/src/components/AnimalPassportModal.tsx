@@ -58,7 +58,7 @@ function ProfileForm({form,setForm,isNew=false,generatedId}:{form:any;setForm:(v
  <Field label="Date of Birth"><input type="date" value={form.birthDate} onChange={e=>setForm({...form,birthDate:e.target.value})} style={input}/></Field>
  <Field label="Date of Acquisition"><input type="date" value={form.acquisitionDate} onChange={e=>setForm({...form,acquisitionDate:e.target.value})} style={input}/></Field>
  <Field label="Sire ID"><input value={form.sire} onChange={e=>setForm({...form,sire:e.target.value})} style={input}/></Field>
- <Field label="Dam ID"><input value={form.dam} onChange={e=>setForm({...form,dam:e.target.value})} style={input}/></Field>
+ <Field label={form.category==='Female Calf'||form.category==='Male Calf'?'Mother / Dam ID':'Dam ID'}><input value={form.dam} required={form.category==='Female Calf'||form.category==='Male Calf'} placeholder={form.category==='Female Calf'||form.category==='Male Calf'?'Required: Mother animal ID':undefined} onChange={e=>setForm({...form,dam:e.target.value})} style={input}/></Field>
  {milking&&<Field label="Milking Frequency"><select value={form.frequency||'TWICE_DAILY'} onChange={e=>setForm({...form,frequency:e.target.value})} style={input}><option value="TWICE_DAILY">TWICE DAILY</option><option value="THRICE_DAILY">THRICE DAILY</option></select></Field>}
  <Field label="Location"><input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} style={input}/></Field>
  <Field label="Production Group"><input value={form.productionGroup} onChange={e=>setForm({...form,productionGroup:e.target.value})} style={input}/></Field>

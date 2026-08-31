@@ -45,6 +45,29 @@ class SequenceViolation(Exception):
         return self.outstanding[0] if self.outstanding else None
 
     def as_operator_guidance(self) -> dict:
+        if self.reason == "SESSION_ALREADY_SETTLED":
+            return {
+                "error": "MILKING_SESSION_ALREADY_RECORDED",
+                "message": (
+                    f"{self.attempted_session} has already been recorded for "
+                    f"{_isoformat(self.operational_date)} for this animal."
+                ),
+                "operational_date": _isoformat(self.operational_date),
+                "attempted_session": self.attempted_session,
+                "outstanding_sessions": [],
+                "next_session": None,
+                "resolutions": [
+                    {
+                        "action": "VOID_EXISTING_ENTRY",
+                        "description": (
+                            "Void the incorrect production entry before "
+                            "recording a replacement."
+                        ),
+                        "endpoint": "POST /farm/milk/production/{id}/void",
+                    }
+                ],
+            }
+
         if self.reason == "UNSCHEDULED_SESSION":
             return {
                 "error": "MILKING_SESSION_NOT_IN_ANIMAL_SCHEDULE",
@@ -186,14 +209,14 @@ class MilkSessionSequenceService:
             if getattr(row, "evening_yield", None) is not None:
                 settled.add(MilkingSession.EVENING.value)
 
-        # A whole-farm session declaration settles the same occurrence
-        # for every animal. This is essential for both shared MORNING
-        # settlement and NOT_MILKED unblocking.
-        settled.update(
-            self.ledger.settled_sessions_on(
-                operational_date
-            )
-        )
+        # Ordinary production belongs to the individual animal. The
+        # herd-level ledger is only authoritative when the farm explicitly
+        # declared that the whole session was NOT_MILKED. A normal production
+        # settlement for animal A must never make that session appear settled
+        # for animal B.
+        for record in self.ledger.get_by_date(operational_date):
+            if str(getattr(record, "status", "") or "").upper() == "NOT_MILKED":
+                settled.add(str(record.milking_session))
 
         return settled
 
@@ -356,6 +379,19 @@ class MilkSessionSequenceService:
                     outstanding=[],
                     reason="UNSCHEDULED_SESSION",
                 )
+
+        settled = self._animal_settled_sessions(
+            operational_date,
+            animal,
+        )
+
+        if milking_session in settled:
+            raise SequenceViolation(
+                operational_date=operational_date,
+                attempted_session=milking_session,
+                outstanding=[],
+                reason="SESSION_ALREADY_SETTLED",
+            )
 
         outstanding = self.outstanding_before(
             operational_date,
