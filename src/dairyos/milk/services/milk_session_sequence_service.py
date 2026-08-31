@@ -204,20 +204,33 @@ class MilkSessionSequenceService:
         operational_date,
         animal=None,
     ) -> set[str]:
-        """Return settled farm sessions plus the animal's persisted production.
+        """Return sessions settled for this animal on the operational date.
 
-        The farm session ledger settles a real milking occurrence once it has
-        been recorded or explicitly declared NOT_MILKED. That occurrence is
-        shared across the herd, while duplicate-entry protection remains
-        animal-specific through ``_animal_recorded_sessions``.
+        A herd-level ``RECORDED`` row proves that the parlour session happened;
+        it does *not* prove that this particular animal contributed milk. Only
+        the animal's persisted production row can make that statement.
+
+        ``NOT_MILKED`` is different: it declares that the whole farm session
+        did not happen and therefore settles that occurrence for every animal.
         """
         operational_date = _as_date(operational_date)
 
-        settled = set(
-            self.ledger.settled_sessions_on(
-                operational_date
+        if animal is None:
+            settled = set(
+                self.ledger.settled_sessions_on(
+                    operational_date
+                )
             )
-        )
+        else:
+            settled = {
+                str(record.milking_session)
+                for record in self.ledger.get_by_date(
+                    operational_date
+                )
+                if str(
+                    getattr(record, "status", "") or ""
+                ).upper() == "NOT_MILKED"
+            }
 
         settled.update(
             self._animal_recorded_sessions(

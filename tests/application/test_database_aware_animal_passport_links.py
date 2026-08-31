@@ -122,3 +122,44 @@ def test_passport_rejects_unknown_animal_id_without_partial_projection():
     factory = _Factory(animal, [], [], [], [], [], [], [], [])
 
     assert DatabaseAwareLifetimeAnimalPassportService(factory).build("MISSING") is None
+
+
+def test_health_observation_is_logged_without_becoming_a_withdrawal():
+    animal = _animal()
+    health = [
+        SimpleNamespace(
+            id=11,
+            animal_id="AN-001",
+            observed_at=datetime(2026, 8, 29, 9, 30),
+            observation="Routine clinical examination",
+            symptom=None,
+            severity="NORMAL",
+            status="OPEN",
+        )
+    ]
+    cases = [
+        SimpleNamespace(
+            id=21,
+            case_id="HC-001",
+            animal_id="AN-001",
+            opened_at=datetime(2026, 8, 29, 9, 30),
+            status="OPEN",
+            diagnosis="Routine examination",
+            notes=None,
+            severity="NORMAL",
+            follow_up_due_at=None,
+            withdrawal_until=None,
+            resolution=None,
+        )
+    ]
+    factory = _Factory(animal, [], health, cases, [], [], [], [], [])
+
+    passport = DatabaseAwareLifetimeAnimalPassportService(factory).build("AN-001")
+    health_state = passport["health_state"]
+
+    assert health_state["clinical_log"]
+    assert {
+        item["event_type"] for item in health_state["clinical_log"]
+    } == {"CLINICAL_OBSERVATION", "HEALTH_CASE"}
+    assert health_state["active_withdrawals"] == []
+    assert health_state["summary"]["active_withdrawal"] is False

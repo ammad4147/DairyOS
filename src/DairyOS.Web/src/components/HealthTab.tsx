@@ -19,7 +19,7 @@ interface HealthRecord {
   medication: string;
   veterinarian: string;
   withdrawalDays: number;
-  status: 'Active' | 'Resolved' | 'Preventative';
+  status: 'Active' | 'Logged' | 'Resolved' | 'Preventative';
   cost: number;
 }
 
@@ -76,6 +76,12 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
   const [formVet, setFormVet] = useState('Dr. Tariq Mahmood');
   const [formWithdrawal, setFormWithdrawal] = useState('0');
   const [formCost, setFormCost] = useState('0');
+  const [formDose, setFormDose] = useState('');
+  const [formRoute, setFormRoute] = useState('');
+  const [formBatch, setFormBatch] = useState('');
+  const [formNextDue, setFormNextDue] = useState('');
+  const [formSeverity, setFormSeverity] = useState('NORMAL');
+  const [formFollowUp, setFormFollowUp] = useState('');
 
   useEffect(() => {
     if (herdMasterList.length > 0 && !herdMasterList.some(animal => animal.id === formTag)) {
@@ -87,11 +93,12 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
     setLoading(true);
     setError(null);
     try {
-      const [observations, treatments, activeWithdrawals, financeLedger] = await Promise.all([
+      const [observations, treatments, activeWithdrawals, financeLedger, healthCases] = await Promise.all([
         getJson<any[]>('/farm/health-observations'),
         getJson<any[]>('/farm/treatments'),
         getJson<any[]>('/farm/withdrawals/active'),
         getJson<{ transactions?: any[] }>('/farm/finance-ledger'),
+        getJson<{ cases?: any[] }>('/farm/health-cases'),
       ]);
 
       const vaccinationLists = await Promise.all(
@@ -105,6 +112,10 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
       );
 
       const withdrawalIds = new Set(activeWithdrawals.map(item => String(item.treatment_id)));
+      const openCases = (healthCases.cases || []).filter(
+        item => String(item.status || '').toUpperCase() !== 'RESOLVED',
+      );
+      const openCaseAnimals = new Set(openCases.map(item => String(item.animal_id || '')));
       const transactions = Array.isArray(financeLedger?.transactions) ? financeLedger.transactions : [];
       const veterinarySubCategories = [
         'Routine Vet Fees / Consultation',
@@ -146,7 +157,7 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
         medication: '—',
         veterinarian: String(item.reported_by || item.operator || 'API'),
         withdrawalDays: 0,
-        status: 'Resolved',
+        status: openCaseAnimals.has(String(item.animal_id || '')) ? 'Active' : 'Logged',
         cost: 0,
       }));
 
@@ -159,7 +170,10 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
         medication: String(item.medicine || '—'),
         veterinarian: String(item.treated_by || item.operator || 'API'),
         withdrawalDays: Number(item.milk_withdrawal_days || 0),
-        status: withdrawalIds.has(String(item.treatment_id ?? item.id)) ? 'Active' : 'Resolved',
+        status: (
+          withdrawalIds.has(String(item.treatment_id ?? item.id))
+          || openCaseAnimals.has(String(item.animal_id || ''))
+        ) ? 'Active' : 'Resolved',
         cost: 0,
       }));
 
@@ -208,6 +222,14 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
       const today = new Date().toISOString().split('T')[0];
 
       if (formType === 'Treatment') {
+        const healthCase = await postJson<any>('/farm/health-cases', {
+          animal_id: formTag,
+          severity: formSeverity,
+          diagnosis: formCondition,
+          notes: formCondition,
+          follow_up_due_at: formFollowUp || null,
+          operator: formVet,
+        });
         const saved = await postJson<any>('/farm/treatments', {
           animal_id: formTag,
           medicine: formMedication,
@@ -216,6 +238,8 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
           milk_withdrawal_days: parseFloat(formWithdrawal) || 0,
           notes: formCondition,
           operator: formVet,
+          dose: [formDose, formRoute].filter(Boolean).join(' / ') || null,
+          health_case_id: healthCase.id,
         });
         if (cost > 0) {
           await postJson('/farm/finance-ledger', {
@@ -238,6 +262,8 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
           veterinarian: formVet,
           notes: formCondition,
           operator: formVet,
+          batch_number: formBatch || null,
+          next_due_date: formNextDue || null,
         });
         if (cost > 0) {
           await postJson('/farm/finance-ledger', {
@@ -253,11 +279,20 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
           });
         }
       } else {
+        const healthCase = await postJson<any>('/farm/health-cases', {
+          animal_id: formTag,
+          severity: formSeverity,
+          diagnosis: formCondition,
+          notes: formCondition,
+          follow_up_due_at: formFollowUp || null,
+          operator: formVet,
+        });
         await postJson('/farm/health-observations', {
           animal_id: formTag,
           observation: formCondition,
           symptom: formCondition,
-          severity: 'NORMAL',
+          severity: formSeverity,
+          health_case_id: healthCase.id,
           operator: formVet,
         });
         if (cost > 0) {
@@ -280,6 +315,12 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
       setFormMedication('');
       setFormWithdrawal('0');
       setFormCost('0');
+      setFormDose('');
+      setFormRoute('');
+      setFormBatch('');
+      setFormNextDue('');
+      setFormSeverity('NORMAL');
+      setFormFollowUp('');
       await loadRecords();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save the health event.');
@@ -318,9 +359,12 @@ export default function HealthTab({ onOpenPassport, herdMasterList = [] }: Healt
       {showEventModal && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}><div style={{ background: '#111827', border: '1px solid #ef4444', borderRadius: '10px', width: '500px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h3 style={{ margin: 0, color: '#ef4444', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Syringe size={18} /> Record Clinical Event</h3><button onClick={() => setShowEventModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={18}/></button></div>
         <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>{['Treatment', 'Vaccination', 'Checkup'].map(type => <button key={type} type="button" onClick={() => setFormType(type as 'Treatment' | 'Vaccination' | 'Checkup')} style={{ background: formType === type ? '#ef4444' : '#1e293b', color: formType === type ? '#fff' : '#cbd5e1', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>{type}</button>)}</div>
           <div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Patient / Animal ID</label><select value={formTag} onChange={e => setFormTag(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px' }}>{herdMasterList.length > 0 ? herdMasterList.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed} - {a.status})</option>) : <option value="" disabled>No registered animals available</option>}</select></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Diagnosis / Condition</label><input type="text" required placeholder="e.g., Mastitis, FMD Booster" value={formCondition} onChange={e => setFormCondition(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Veterinarian</label><input type="text" required value={formVet} onChange={e => setFormVet(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div></div>
-          <div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Medication Administered</label><input type="text" required placeholder="e.g., Ceftiofur 50mg" value={formMedication} onChange={e => setFormMedication(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Milk/Meat Withdrawal (Days)</label><input type="number" min="0" required value={formWithdrawal} onChange={e => setFormWithdrawal(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#f59e0b', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Cost of Treatment (Rs)</label><input type="number" min="0" required value={formCost} onChange={e => setFormCost(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#34d399', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', boxSizing: 'border-box' }} /></div></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>{formType === 'Vaccination' ? 'Disease / Vaccine Purpose' : formType === 'Checkup' ? 'Reason / Clinical Finding' : 'Diagnosis / Condition'}</label><input type="text" required value={formCondition} onChange={e => setFormCondition(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>{formType === 'Vaccination' ? 'Administrator / Veterinarian' : 'Veterinarian / Examiner'}</label><input type="text" required value={formVet} onChange={e => setFormVet(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div></div>
+          {formType !== 'Checkup' && <div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>{formType === 'Vaccination' ? 'Vaccine' : 'Medication Administered'}</label><input type="text" required value={formMedication} onChange={e => setFormMedication(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} /></div>}
+          {formType === 'Treatment' && <><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Dose / Frequency</label><input value={formDose} onChange={e => setFormDose(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Route</label><input value={formRoute} onChange={e => setFormRoute(e.target.value)} placeholder="IM, IV, oral, intramammary" style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Milk Withdrawal (Days — use 0 only when none applies)</label><input type="number" min="0" required value={formWithdrawal} onChange={e => setFormWithdrawal(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#f59e0b', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div></>}
+          {formType === 'Vaccination' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Batch / Lot</label><input value={formBatch} onChange={e => setFormBatch(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Next Due Date</label><input type="date" value={formNextDue} onChange={e => setFormNextDue(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div></div>}
+          {formType !== 'Vaccination' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Severity</label><select value={formSeverity} onChange={e => setFormSeverity(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px' }}><option value="NORMAL">Normal</option><option value="LOW">Low</option><option value="MODERATE">Moderate</option><option value="SEVERE">Severe</option><option value="CRITICAL">Critical</option></select></div><div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Follow-up Due</label><input type="datetime-local" value={formFollowUp} onChange={e => setFormFollowUp(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div></div>}
+          <div><label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>{formType === 'Vaccination' ? 'Vaccination Cost (Rs)' : formType === 'Checkup' ? 'Consultation Cost (Rs)' : 'Treatment Cost (Rs)'}</label><input type="number" min="0" required value={formCost} onChange={e => setFormCost(e.target.value)} style={{ width: '100%', background: '#0f172a', color: '#34d399', border: '1px solid #334155', padding: '10px', borderRadius: '6px', boxSizing: 'border-box' }} /></div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}><button type="button" onClick={() => setShowEventModal(false)} style={{ background: '#334155', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Cancel</button><button type="submit" disabled={loading || !formTag} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Save Record</button></div>
         </form></div></div>}
 

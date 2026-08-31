@@ -1,8 +1,60 @@
+"""Shared API fixtures with a fail-closed disposable-database gate."""
+
+import os
 import re
+import sys
+from urllib.parse import unquote, urlsplit
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+def _configured_database_url() -> str:
+    explicit = os.getenv("DAIRYOS_DATABASE_URL")
+    if explicit:
+        return explicit
+    host = os.getenv("DAIRYOS_DB_HOST", "localhost")
+    port = os.getenv("DAIRYOS_DB_PORT", "5432")
+    name = os.getenv("DAIRYOS_DB_NAME", "dairyos")
+    user = os.getenv("DAIRYOS_DB_USER", "dairyos")
+    password = os.getenv("DAIRYOS_DB_PASSWORD", "")
+    return f"postgresql://{user}:{password}@{host}:{port}/{name}"
+
+
+def _database_name(database_url: str) -> str:
+    parsed = urlsplit(database_url)
+    return unquote(parsed.path.rstrip("/").rsplit("/", 1)[-1]).lower()
+
+
+def _assert_disposable_test_database(database_url: str, source: str) -> None:
+    database_name = _database_name(database_url)
+    parsed = urlsplit(database_url)
+    github_ephemeral_database = (
+        os.getenv("CI", "").lower() == "true"
+        and os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+        and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    )
+    if github_ephemeral_database:
+        return
+    if "test" in database_name and database_name not in {
+        "dairyos",
+        "dairyos_prod",
+        "dairyos_production",
+        "dairyos_staging",
+    }:
+        return
+    sys.stderr.write(
+        "\nREFUSING TO RUN DESTRUCTIVE TEST FIXTURES.\n"
+        f"The {source} database name is '{database_name or '<missing>'}', not an "
+        "unambiguous disposable test database. Set DAIRYOS_DATABASE_URL or "
+        "DAIRYOS_DB_NAME to a dedicated database whose database name contains "
+        "'test'. Credentials have intentionally not been displayed.\n\n"
+    )
+    raise SystemExit(1)
+
+
+_assert_disposable_test_database(_configured_database_url(), "configured")
 
 from dairyos.app import app, container
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
@@ -31,6 +83,10 @@ from dairyos.farm.herd.services.animal_event_projection import AnimalEventProjec
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
+from dairyos.data.database import session as _db_session
+
+
+_assert_disposable_test_database(str(_db_session.engine.url), "resolved engine")
 
 
 # Importing the application constructs ApplicationRuntime, whose durable

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, time
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -11,6 +11,9 @@ from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.core.time_utils import utcnow
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(prefix="/farm/feed", tags=["feed-nutrition"])
 
@@ -121,8 +124,13 @@ def _existing_feed_consumption(factory, feed_record_id: int):
     return None
 
 
-def _feeding_day(value: datetime | None) -> datetime:
-    return value or utcnow()
+def _feeding_day(value: datetime | None, factory) -> datetime:
+    if value is not None:
+        return value
+    operational_date = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_date()
+    return datetime.combine(operational_date, time.min)
 
 
 def _historical_feed_cost(factory, feed_type: str, feeding_date: datetime):
@@ -175,7 +183,7 @@ def record_feed(payload: FeedEntry):
     try:
         if payload.animal_id and not factory.animal().exists(payload.animal_id):
             raise HTTPException(status_code=422, detail="Unknown Animal ID")
-        feeding_date = _feeding_day(payload.feeding_date)
+        feeding_date = _feeding_day(payload.feeding_date, factory)
         cost = _historical_feed_cost(factory, payload.feed_type.strip(), feeding_date)
         quantity = float(payload.quantity_kg)
         unit_cost = cost["unit_cost_per_kg"] if cost else None

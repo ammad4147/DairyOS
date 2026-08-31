@@ -4,6 +4,7 @@
 from tests.lifecycle.test_milk_operational_lifecycle import (
     _ledger,
     _milk,
+    _operational_date,
     _production_summary,
     _reconciliation,
     _register,
@@ -50,7 +51,7 @@ def test_complete_milk_surface_certification(client):
     animal_b = _register(client, "MILK-SURFACE-B")
 
     animal_a = day
-    operational_date = __import__("datetime").date.today()
+    operational_date = _operational_date()
 
     # ==============================================================
     # AUTHORITATIVE PRODUCTION INPUT

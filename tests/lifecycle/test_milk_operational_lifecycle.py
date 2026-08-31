@@ -174,12 +174,12 @@ def test_complete_milk_lifecycle_reconciles_every_surface(client):
     # Stage 1: production
     #
     # A / MORNING = 30 L
-    # B / EVENING = 45 L
+    # B / MORNING = 45 L
     #
     # Expected production = 75 L
     # --------------------------------------------------------------
     _milk(client, animal_a, day, "MORNING", 30.0)
-    _milk(client, animal_b, day, "EVENING", 45.0)
+    _milk(client, animal_b, day, "MORNING", 45.0)
 
     # --------------------------------------------------------------
     # Stage 2: non-sale dispositions

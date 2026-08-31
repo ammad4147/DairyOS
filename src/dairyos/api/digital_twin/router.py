@@ -4,6 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.platform.digital_twin.services.digital_twin_service import DigitalTwinService
 
 router = APIRouter(prefix="/farm/digital-twin", tags=["Digital Twin"])
@@ -31,8 +34,13 @@ def _date_value(record, *names):
 
 def _baseline(factory, metric: str, days: int):
     metric = metric.upper()
-    end = datetime.now(timezone.utc)
-    start = end - timedelta(days=days)
+    settings_repository = getattr(factory, "app_settings", None)
+    end = (
+        OperationalDateAuthority(repository_factory=factory).current_date()
+        if callable(settings_repository)
+        else date.today()
+    )
+    start = end - timedelta(days=days - 1)
     if metric == "HERD_SIZE":
         animals = factory.animal().get_all()
         active_count = sum(1 for animal in animals if getattr(animal, "active", True))
@@ -43,20 +51,20 @@ def _baseline(factory, metric: str, days: int):
         period_records = 0
         for record in records:
             stamp = _date_value(record, "production_date", "created_at")
-            if stamp and start <= stamp < end:
+            if stamp and start <= stamp.date() <= end:
                 total += float(getattr(record, "total_yield", 0.0) or 0.0)
                 period_records += 1
-        return total, {"period_start": start.date().isoformat(), "period_end": end.date().isoformat(), "milk_records": period_records}
+        return total, {"period_start": start.isoformat(), "period_end": end.isoformat(), "milk_records": period_records}
     if metric == "FEED_KG":
         records = factory.feed().get_all()
         total = 0.0
         period_records = 0
         for record in records:
             stamp = _date_value(record, "feeding_date", "created_at")
-            if stamp and start <= stamp < end:
+            if stamp and start <= stamp.date() <= end:
                 total += float(getattr(record, "quantity_kg", 0.0) or 0.0)
                 period_records += 1
-        return total, {"period_start": start.date().isoformat(), "period_end": end.date().isoformat(), "feed_records": period_records}
+        return total, {"period_start": start.isoformat(), "period_end": end.isoformat(), "feed_records": period_records}
     raise ValueError("Unsupported Digital Twin metric. Use MILK_LITERS, HERD_SIZE, or FEED_KG.")
 
 

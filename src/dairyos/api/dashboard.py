@@ -9,6 +9,10 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.api.farm_planning import (
+    _current_state_api_value,
+    _resolve_current_reproductive_state,
+)
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -76,6 +80,63 @@ def get_dashboard(container=Depends(get_container)):
     operational_date = OperationalDateAuthority(
         repository_factory=container.repository_factory,
     ).current_date()
+
+    # Health and reproduction cards are live projections from the same
+    # persisted ledgers used by their operational tabs. Event creation must be
+    # visible on the Dashboard without relying on stale in-memory state.
+    health_cases = container.repository_factory.health_cases().get_all()
+    open_health_cases = [
+        case
+        for case in health_cases
+        if str(getattr(case, "status", "") or "").upper() != "RESOLVED"
+    ]
+    health_observations = container.repository_factory.health().get_all()
+
+    open_health_animals = {
+        str(getattr(case, "animal_id", ""))
+        for case in open_health_cases
+        if getattr(case, "animal_id", None)
+    }
+    mastitis_animals = {
+        str(getattr(case, "animal_id", ""))
+        for case in open_health_cases
+        if "MASTITIS" in str(
+            getattr(case, "diagnosis", "") or ""
+        ).upper()
+    }
+    high_temperature_animals = {
+        str(getattr(observation, "animal_id", ""))
+        for observation in health_observations
+        if float(
+            getattr(observation, "temperature_c", None)
+            or getattr(observation, "temperature", None)
+            or 0.0
+        ) >= 39.5
+    }
+
+    breeding_records = container.repository_factory.breeding().get_all()
+    records_by_animal = {}
+    for record in breeding_records:
+        records_by_animal.setdefault(str(record.animal_id), []).append(record)
+
+    reproduction_counts = {
+        "onHeat": 0,
+        "inseminated": 0,
+        "pregnant": 0,
+    }
+    for animal_id, records in records_by_animal.items():
+        try:
+            state = _current_state_api_value(
+                _resolve_current_reproductive_state(animal_id, records)
+            )
+        except (TypeError, ValueError):
+            continue
+        if state == "HEAT_OBSERVED":
+            reproduction_counts["onHeat"] += 1
+        elif state == "INSEMINATED":
+            reproduction_counts["inseminated"] += 1
+        elif state == "PREGNANT":
+            reproduction_counts["pregnant"] += 1
 
     milk_service = MilkProductionTrendIntelligenceService(
         repository_factory=container.repository_factory,
@@ -384,6 +445,20 @@ def get_dashboard(container=Depends(get_container)):
     }
 
     payload["finance"] = dashboard["finance"]
+
+    payload["health"] = {
+        "sick": len(open_health_animals),
+        "mastitis": len(mastitis_animals),
+        "highTemp": len(high_temperature_animals),
+        "completedVax": 0,
+        "dueVax": 0,
+        "openCases": len(open_health_cases),
+        "data_status": "LIVE_PERSISTED_DATA",
+    }
+    payload["reproduction"] = {
+        **reproduction_counts,
+        "data_status": "LIVE_PERSISTED_DATA",
+    }
 
     payload["milk"] = {
         "total_production_liters": current_month_production,

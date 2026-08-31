@@ -94,7 +94,8 @@ def test_next_session_uses_effective_frequency_for_specific_animal(
     assert twice_initial["next_session"] == "MORNING"
     assert thrice_initial["next_session"] == "MORNING"
 
-    # Settle the shared MORNING session.
+    # Recording MORNING for one animal must not fabricate MORNING production
+    # for another animal.
     _record_morning(client, twice_daily)
 
     # The next session must now be derived from each animal's own schedule:
@@ -103,6 +104,10 @@ def test_next_session_uses_effective_frequency_for_specific_animal(
     thrice_after_morning = _next_session(client, thrice_daily)
 
     assert twice_after_morning["next_session"] == "EVENING"
+    assert thrice_after_morning["next_session"] == "MORNING"
+
+    _record_morning(client, thrice_daily)
+    thrice_after_morning = _next_session(client, thrice_daily)
     assert thrice_after_morning["next_session"] == "AFTERNOON"
 
 

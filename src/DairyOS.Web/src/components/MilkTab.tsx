@@ -1412,6 +1412,9 @@ export default function MilkTab({
               setSelectedMonth(
                 value,
               );
+              setSelectedPanel(
+                'monthProduced',
+              );
 
               /*
                * The current month is the

@@ -21,6 +21,9 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductivePolicy,
     ReproductiveStateService,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 
 _REPRODUCTIVE_POLICY = ReproductivePolicy(
@@ -657,22 +660,6 @@ class LifetimeAnimalPassportService:
                     }
                 )
 
-        for case in cases:
-            withdrawal_until = getattr(case, "withdrawal_until", None)
-            withdrawal_date = (
-                withdrawal_until.date()
-                if isinstance(withdrawal_until, datetime)
-                else withdrawal_until
-            )
-            if withdrawal_date is not None and withdrawal_date >= as_of_date:
-                active_withdrawals.append(
-                    {
-                        "source": "HEALTH_CASE",
-                        "case_id": getattr(case, "case_id", None),
-                        "withdrawal_until": withdrawal_date.isoformat(),
-                    }
-                )
-
         latest_observation = (
             max(
                 observations,
@@ -680,6 +667,62 @@ class LifetimeAnimalPassportService:
             )
             if observations
             else None
+        )
+        clinical_log: list[dict[str, Any]] = []
+        for observation in observations:
+            clinical_log.append(
+                {
+                    "event_type": "CLINICAL_OBSERVATION",
+                    "event_date": (
+                        self._record_date(observation).isoformat()
+                        if self._record_date(observation)
+                        else None
+                    ),
+                    "status": getattr(observation, "status", None) or "LOGGED",
+                    "detail": (
+                        getattr(observation, "observation", None)
+                        or getattr(observation, "symptom", None)
+                    ),
+                    "severity": getattr(observation, "severity", None),
+                    "record_id": getattr(observation, "id", None),
+                }
+            )
+        for case in cases:
+            clinical_log.append(
+                {
+                    "event_type": "HEALTH_CASE",
+                    "event_date": (
+                        self._record_date(case).isoformat()
+                        if self._record_date(case)
+                        else None
+                    ),
+                    "status": getattr(case, "status", None),
+                    "detail": (
+                        getattr(case, "diagnosis", None)
+                        or getattr(case, "notes", None)
+                    ),
+                    "severity": getattr(case, "severity", None),
+                    "record_id": getattr(case, "case_id", None),
+                }
+            )
+        for treatment in treatments:
+            clinical_log.append(
+                {
+                    "event_type": "TREATMENT",
+                    "event_date": (
+                        self._record_date(treatment).isoformat()
+                        if self._record_date(treatment)
+                        else None
+                    ),
+                    "status": "RECORDED",
+                    "detail": getattr(treatment, "diagnosis", None),
+                    "medicine": getattr(treatment, "medicine", None),
+                    "record_id": getattr(treatment, "id", None),
+                }
+            )
+        clinical_log.sort(
+            key=lambda item: str(item.get("event_date") or ""),
+            reverse=True,
         )
         return {
             "summary": {
@@ -726,6 +769,7 @@ class LifetimeAnimalPassportService:
                 }
                 for case in open_cases
             ],
+            "clinical_log": clinical_log,
             "active_withdrawals": active_withdrawals,
         }
 
@@ -801,7 +845,12 @@ class LifetimeAnimalPassportService:
         if animal is None:
             return None
 
-        projection_date = as_of_date or utcnow().date()
+        settings_repository = getattr(self.factory, "app_settings", None)
+        projection_date = as_of_date or (
+            OperationalDateAuthority(repository_factory=self.factory).current_date()
+            if callable(settings_repository)
+            else utcnow().date()
+        )
         all_animals = self.factory.animal().get_all()
         lineage = self._lineage_projection(animal, all_animals)
 

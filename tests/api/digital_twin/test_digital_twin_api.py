@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.digital_twin.router import router
@@ -84,6 +85,13 @@ app.dependency_overrides[get_container] = lambda: StubContainer()
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _reset_container_override():
+    app.dependency_overrides[get_container] = lambda: StubContainer()
+    yield
+    app.dependency_overrides[get_container] = lambda: StubContainer()
+
+
 def test_baseline_endpoint():
     response = client.get(
         "/farm/digital-twin/baseline",
@@ -135,5 +143,3 @@ def test_negative_scenario_on_zero_baseline_is_rejected():
     )
 
     assert response.status_code == 422
-
-    app.dependency_overrides[get_container] = lambda: StubContainer()
