@@ -1,6 +1,8 @@
-from dataclasses import asdict
+﻿from dataclasses import asdict
 
-from dairyos.platform.digital_twin.services.digital_twin_service import DigitalTwinService
+from dairyos.platform.digital_twin.services.digital_twin_service import (
+    DigitalTwinService,
+)
 
 
 class StubSync:
@@ -14,7 +16,12 @@ class StubRepository:
 
 
 def test_digital_twin_uses_explicit_forecast_and_scenario_inputs():
-    service = DigitalTwinService(sync=StubSync(), repository=StubRepository())
+
+    service = DigitalTwinService(
+        sync=StubSync(),
+        repository=StubRepository(),
+    )
+
     result = service.scenario(
         farm_id="farm",
         metric="MILK_LITERS",
@@ -28,14 +35,21 @@ def test_digital_twin_uses_explicit_forecast_and_scenario_inputs():
     )
 
     payload = asdict(result)
+
     assert payload["current_state"] == {"source": "persisted"}
     assert payload["forecast_summary"]
-    assert payload["simulation_summary"]
+    assert payload["scenario_summary"]
+    assert payload["scenario_summary"]["change_percent"] == 12.0
     assert payload["decision_signals"]
 
 
 def test_digital_twin_does_not_inject_fixed_five_percent_signal():
-    service = DigitalTwinService(sync=StubSync(), repository=StubRepository())
+
+    service = DigitalTwinService(
+        sync=StubSync(),
+        repository=StubRepository(),
+    )
+
     result = service.scenario(
         farm_id="farm",
         metric="MILK_LITERS",
@@ -49,4 +63,5 @@ def test_digital_twin_does_not_inject_fixed_five_percent_signal():
     )
 
     signal = result.decision_signals[0]
+
     assert "0.0%" in signal.message

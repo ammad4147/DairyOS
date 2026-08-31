@@ -3,43 +3,24 @@
 )
 
 
-
 class DashboardAdapter:
     """
-    Converts digital twin intelligence
-    into Command Center format.
+    Converts Digital Twin forecasts and explicit what-if projections
+    into the existing presentation model.
     """
 
-
-
     def build(
-
         self,
-
         farm_id,
-
         current_state,
-
         forecasts,
-
-        simulations,
-
+        scenarios,
         signals,
-
     ):
-
-
         return DigitalTwinDashboard(
-
             farm_id=farm_id,
-
             current_state=current_state,
-
             forecast_summary=forecasts,
-
-            simulation_summary=simulations,
-
+            scenario_summary=scenarios,
             decision_signals=signals,
-
         )
-

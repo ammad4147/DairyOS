@@ -3,58 +3,25 @@
 )
 
 
-from dairyos.platform.digital_twin.simulation.models.scenario import (
-    Scenario,
-)
-
-
-
 def test_complete_digital_twin_flow():
-
 
     service = DigitalTwinService()
 
-
-
-    scenario = Scenario(
-
-        name="milk price reduction",
-
-        parameter="milk_price",
-
-        change_percent=-10,
-
-    )
-
-
-
     dashboard = service.process(
-
         farm_id="trident",
-
         state={
-
-            "milking_cows":25,
-
-            "milk_daily":625
-
+            "milking_cows": 25,
+            "milk_daily": 625,
         },
-
         metric="milk",
-
         current_value=625,
-
-        scenario=scenario,
-
+        scenario_name="milk price reduction",
+        parameter="milk_price",
+        change_percent=-10,
     )
-
-
 
     assert dashboard.farm_id == "trident"
-
-
     assert dashboard.current_state["milk_daily"] == 625
-
-
+    assert dashboard.scenario_summary["projected_value"] == 562.5
+    assert dashboard.scenario_summary["risk_level"] == "low"
     assert len(dashboard.decision_signals) == 1
-

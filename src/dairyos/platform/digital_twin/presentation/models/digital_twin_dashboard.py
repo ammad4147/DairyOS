@@ -1,7 +1,6 @@
 ﻿from dataclasses import dataclass
 
 
-
 @dataclass
 class DigitalTwinDashboard:
 
@@ -11,7 +10,6 @@ class DigitalTwinDashboard:
 
     forecast_summary: dict
 
-    simulation_summary: dict
+    scenario_summary: dict
 
     decision_signals: list
-
