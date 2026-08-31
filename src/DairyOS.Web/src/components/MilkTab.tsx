@@ -1375,6 +1375,25 @@ export default function MilkTab({
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={() => {
+            setError('');
+            setMessage('');
+            setProductionPickerOpen(true);
+          }}
+          style={{
+            ...buttonStyle('#0284c7'),
+            flex: '0 0 auto',
+            minHeight: 31,
+            whiteSpace: 'nowrap',
+            border: '1px solid #38bdf8',
+          }}
+        >
+          <Milk size={12} />
+          Enter Milk Production
+        </button>
+
         <label
           style={{
             fontSize: 9,
