@@ -1,5 +1,0 @@
-=== SUMMARY ===
-Local branches: 5
-Remote branches: 13
-Tags:            22
-Stashes:         5

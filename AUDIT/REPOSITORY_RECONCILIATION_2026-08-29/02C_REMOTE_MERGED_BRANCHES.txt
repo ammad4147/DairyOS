@@ -1,7 +1,0 @@
-﻿  origin/HEAD -> origin/main
-  origin/auth-free-dashboard-2026-08-27
-  origin/main
-  origin/operational-integrity-remediation-2026-08-28
-  origin/windows-desktop-build-2026-08-27
-  origin/windows-installer-2026-08-28
-  origin/windows-installer-inno7-compat-2026-08-28

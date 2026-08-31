@@ -1,5 +1,0 @@
-﻿stash@{2026-08-25 01:44:11 +0500}: On windows-installer-certification-2026-08-23: DairyOS local installer work before remote reconciliation 2026-08-24
-stash@{2026-08-24 15:46:06 +0500}: WIP on fix-milk-finance-reconciliation-2026-08-24: 94ae47f1b Harden Milk finance reconciliation and workflow simulations
-stash@{2026-08-24 00:20:34 +0500}: On main: Local work before DairyOS main reconciliation 2026-08-24
-stash@{2026-08-23 21:57:09 +0500}: On main: pre-scientific-remediation-local-20260823-215709
-stash@{2026-08-23 15:50:30 +0500}: On main: preserve-local-health-breeding-login-alert-work

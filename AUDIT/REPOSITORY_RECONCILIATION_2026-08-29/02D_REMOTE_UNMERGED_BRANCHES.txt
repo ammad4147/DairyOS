@@ -1,5 +1,0 @@
-﻿  origin/audit/windows-rc-build-2026-08-28
-  origin/backend-desktop-stability-2026-08-27
-  origin/pre-release-hardening-2026-08-28
-  origin/rc-build-exit-status-2026-08-28
-  origin/release-candidate/2026-08-28
