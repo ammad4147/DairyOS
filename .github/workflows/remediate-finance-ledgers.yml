@@ -1,0 +1,265 @@
+name: Remediate Finance Ledgers
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/remediate-finance-ledgers.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dairyos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dairyos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAIRYOS_DB_HOST: localhost
+      DAIRYOS_DB_PORT: "5432"
+      DAIRYOS_DB_NAME: dairyos_test
+      DAIRYOS_DB_USER: postgres
+      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_ENV: development
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Apply Finance remediation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path('.')
+
+          def read(path):
+              return path.read_text(encoding='utf-8-sig')
+
+          def write(path, text):
+              path.write_text(text, encoding='utf-8')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old, new, 1)
+
+          # Backend: every economically settled Finance row remains voidable.
+          api = root / 'src/dairyos/api/finance_ledger.py'
+          text = read(api)
+          text = replace_once(
+              text,
+              '    "RECEIVED": frozenset({"RECEIVED"}),\n',
+              '    "RECEIVED": frozenset({"RECEIVED", "VOID"}),\n',
+              'RECEIVED -> VOID transition',
+          )
+
+          # Preserve the original linked Milk sale facts. VOID status is the
+          # exclusion authority; historical litres and monetary values must not
+          # be overwritten with zero.
+          text = replace_once(
+              text,
+              '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.quantity_litres = 0.0\n        disposition.amount_due = 0.0\n        disposition.amount_received = 0.0\n''',
+              '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.notes = transaction.notes\n''',
+              'linked Milk sale VOID preservation',
+          )
+
+          # Retire the duplicate Payables endpoint. The unified ledger remains
+          # authoritative and /ageing remains available for credit-control logic.
+          payables_block = '''\n\n@router.get("/payables")\ndef list_payables(\n    container=Depends(get_container),\n):\n    factory = _factory(container)\n    rows = factory.finance().get_all()\n\n    return _ageing_payload(\n        [\n            row\n            for row in rows\n            if row.status == "PAYABLE"\n        ]\n    )\n'''
+          text = replace_once(text, payables_block, '', 'duplicate Payables endpoint')
+          write(api, text)
+
+          # API regression contracts use the general ageing endpoint.
+          edit_tests = root / 'tests/api/test_finance_edit_payables.py'
+          text = read(edit_tests)
+          text = text.replace(
+              'client.get("/farm/finance-ledger/payables")',
+              'client.get("/farm/finance-ledger/ageing")',
+          )
+          if '/farm/finance-ledger/payables' in text:
+              raise SystemExit('payables endpoint reference remains in API test')
+          write(edit_tests, text)
+
+          transition_tests = root / 'tests/api/test_finance_state_transitions.py'
+          text = read(transition_tests)
+          text = replace_once(
+              text,
+              '        ("PAID", "VOID"),\n',
+              '        ("PAID", "VOID"),\n        ("RECEIVED", "VOID"),\n',
+              'RECEIVED VOID regression case',
+          )
+          write(transition_tests, text)
+
+          # Finance operator surface: consistent one-line accounting columns,
+          # explicit customer/buyer field, and a Void action for revenue too.
+          finance = root / 'src/DairyOS.Web/src/components/FinanceTab.tsx'
+          text = read(finance)
+
+          text = replace_once(
+              text,
+              ",[revRef,setRevRef]=useState(''),[revNotes,setRevNotes]=useState(''),",
+              ",[revRef,setRevRef]=useState(''),[revCounterparty,setRevCounterparty]=useState(''),[revNotes,setRevNotes]=useState(''),",
+              'revenue counterparty state',
+          )
+          text = replace_once(
+              text,
+              "payment_method:revStatus==='RECEIVABLE'?'CREDIT':'CASH',status:revStatus,",
+              "payment_method:revStatus==='RECEIVABLE'?'CREDIT':'CASH',counterparty:revCounterparty||null,status:revStatus,",
+              'revenue counterparty payload',
+          )
+          text = replace_once(
+              text,
+              "setRevAmount('');setRevQty('');setRevRef('');setRevNotes('');",
+              "setRevAmount('');setRevQty('');setRevRef('');setRevCounterparty('');setRevNotes('');",
+              'revenue counterparty reset',
+          )
+          text = replace_once(
+              text,
+              "{revStatus==='RECEIVABLE'&&<input value={revRef} onChange={e=>setRevRef(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder=\"Reference\"/>}<input value={revNotes}",
+              "{revStatus==='RECEIVABLE'&&<input value={revRef} onChange={e=>setRevRef(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder=\"Reference\"/>}<input value={revCounterparty} onChange={e=>setRevCounterparty(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder=\"Customer / Buyer\"/><input value={revNotes}",
+              'revenue counterparty input',
+          )
+
+          ledger_header = "<div style={{...ledgerLine,color:'#64748b',fontSize:8,fontWeight:800,textTransform:'uppercase',borderBottom:'1px solid #1f2937',padding:'0 8px 5px'}}><span style={{width:76,flex:'0 0 76px'}}>Date</span><span style={ledgerEllipsis}>Particulars</span><span style={{...ledgerEllipsis,flexBasis:100}}>Counterparty</span><span style={{...ledgerEllipsis,flexBasis:100}}>Reference</span><span style={{width:76,flex:'0 0 76px'}}>Status</span><span style={{width:118,flex:'0 0 118px',textAlign:'right'}}>Amount</span></div>"
+          text = replace_once(
+              text,
+              '<section style={card}><div style={sectionTitle}>Revenue Ledger</div>{revenueRows.slice(0,50)',
+              '<section style={card}><div style={sectionTitle}>Revenue Ledger</div>'+ledger_header+'{revenueRows.slice(0,50)',
+              'Revenue ledger header',
+          )
+          text = replace_once(
+              text,
+              '<section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:',
+              '<section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:',
+              'Expense section anchor guard',
+          )
+          # Insert the expense header after the filter/search toolbar, immediately
+          # before the loading/rows expression.
+          toolbar_end = "<button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>{loading?"
+          text = replace_once(
+              text,
+              toolbar_end,
+              "<button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>"+ledger_header+"{loading?",
+              'Expense ledger header',
+          )
+
+          text = replace_once(
+              text,
+              "<span title={r.notes||r.category} style={ledgerEllipsis}>{r.notes||r.category}</span><span title={r.reference||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.reference||'—'}</span>",
+              "<span title={r.notes||r.category} style={ledgerEllipsis}>{r.category||'OTHER_REVENUE'}</span><span title={r.counterparty||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.counterparty||'—'}</span><span title={r.reference||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.reference||'—'}</span>",
+              'Revenue ledger standard columns',
+          )
+          text = replace_once(
+              text,
+              "<span title={`${r.vendor_name||'No vendor'} · ${r.reference||'No reference'}`} style={{...ledgerEllipsis,flexBasis:120}}>{r.vendor_name||'No vendor'} · {r.reference||'—'}</span>",
+              "<span title={r.vendor_name||r.counterparty||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.vendor_name||r.counterparty||'—'}</span><span title={r.reference||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.reference||'—'}</span>",
+              'Expense ledger standard columns',
+          )
+          text = replace_once(
+              text,
+              "{isVoid?<span title={reason||'Reason recorded in audit trail'} style={{...voidReasonStyle,maxWidth:190}}>VOID: {reason||'See audit trail'}</span>:r.status==='RECEIVABLE'?<button onClick={()=>void updateStatus(r,'RECEIVED')} style={smallButton}>Paid</button>:null}",
+              "{isVoid?<span title={reason||'Reason recorded in audit trail'} style={{...voidReasonStyle,maxWidth:190}}>VOID: {reason||'See audit trail'}</span>:<><>{r.status==='RECEIVABLE'&&<button onClick={()=>void updateStatus(r,'RECEIVED')} style={smallButton}>Received</button>}</><button onClick={()=>setVoidTarget(r)} style={{...smallButton,color:'#f87171'}}><Ban size={10}/>Void</button></>}",
+              'Revenue ledger void action',
+          )
+          write(finance, text)
+
+          # Architecture contracts: one Payables summary only, no duplicate API,
+          # consistent ledger columns, and historical Milk values preserved.
+          contract = root / 'tests/architecture/test_finance_surface_contract.py'
+          text = read(contract)
+          text = replace_once(
+              text,
+              'FINANCE_TAB = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "FinanceTab.tsx"\n',
+              'FINANCE_TAB = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "FinanceTab.tsx"\nFINANCE_API = ROOT / "src" / "dairyos" / "api" / "finance_ledger.py"\n',
+              'Finance API contract path',
+          )
+          text = replace_once(
+              text,
+              'def test_finance_surface_keeps_one_payables_summary_without_duplicate_panel():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n\n    assert "[\'Payables\',payableTotal" in text\n    assert "/farm/finance-ledger/payables" not in text\n    assert "type Payables=" not in text\n    assert ">Payables</div>" not in text\n',
+              'def test_finance_surface_keeps_one_payables_summary_without_duplicate_table_or_endpoint():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n    api = FINANCE_API.read_text(encoding="utf-8-sig")\n\n    assert "[\'Payables\',payableTotal" in text\n    assert "/farm/finance-ledger/payables" not in text\n    assert "@router.get(\"/payables\")" not in api\n    assert "type Payables=" not in text\n    assert ">Payables</div>" not in text\n',
+              'Payables architecture contract',
+          )
+          text += '''\n\ndef test_finance_ledgers_use_consistent_accounting_columns_and_revenue_can_void():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n    for label in ("Date", "Particulars", "Counterparty", "Reference", "Status", "Amount"):\n        assert label in text\n    assert "Customer / Buyer" in text\n    assert ">Received</button>" in text\n    assert "setVoidTarget(r)" in text\n\n\ndef test_voided_linked_milk_sale_preserves_historical_values():\n    api = FINANCE_API.read_text(encoding="utf-8-sig")\n    assert '"RECEIVED": frozenset({"RECEIVED", "VOID"})' in api\n    assert 'disposition.status = "VOID"' in api\n    assert 'disposition.notes = transaction.notes' in api\n    assert 'disposition.quantity_litres = 0.0' not in api\n    assert 'disposition.amount_due = 0.0' not in api\n    assert 'disposition.amount_received = 0.0' not in api\n'''
+          write(contract, text)
+
+      - name: Enforce Finance remediation contract
+        shell: python
+        run: |
+          from pathlib import Path
+          api = Path('src/dairyos/api/finance_ledger.py').read_text(encoding='utf-8-sig')
+          ui = Path('src/DairyOS.Web/src/components/FinanceTab.tsx').read_text(encoding='utf-8-sig')
+          assert '"RECEIVED": frozenset({"RECEIVED", "VOID"})' in api
+          assert '@router.get("/payables")' not in api
+          assert 'disposition.quantity_litres = 0.0' not in api
+          assert 'disposition.amount_due = 0.0' not in api
+          assert 'disposition.amount_received = 0.0' not in api
+          assert "['Payables',payableTotal" in ui
+          assert 'Customer / Buyer' in ui
+          assert 'Particulars' in ui and 'Counterparty' in ui
+          assert '>Received</button>' in ui
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install backend and tests
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+
+      - name: Run Finance focused regression
+        run: >-
+          pytest -q
+          tests/api/test_finance_state_transitions.py
+          tests/api/test_finance_edit_payables.py
+          tests/architecture/test_finance_surface_contract.py
+          tests/api/test_finance_transaction_integrity.py
+          tests/data/test_financial_repository_deletion_guard.py
+
+      - name: Run full backend regression
+        run: pytest -q tests
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/DairyOS.Web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/DairyOS.Web
+        run: npm ci
+
+      - name: Typecheck frontend
+        working-directory: src/DairyOS.Web
+        run: npm run typecheck
+
+      - name: Build frontend
+        working-directory: src/DairyOS.Web
+        run: npm run build
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit remediation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/remediate-finance-ledgers.yml
+          git add -A
+          git commit -m "fix(finance): normalize ledgers and preserve void audit facts"
+          git push origin HEAD:main
