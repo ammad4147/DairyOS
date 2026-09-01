@@ -66,9 +66,7 @@ def _movement_row(row: InventoryTransaction) -> dict:
         "recorded_at": row.recorded_at.isoformat() if row.recorded_at else None,
         "source_type": getattr(row, "source_type", None),
         "source_id": getattr(row, "source_id", None),
-        "source_financial_transaction_id": getattr(
-            row, "source_financial_transaction_id", None
-        ),
+        "source_financial_transaction_id": getattr(row, "source_financial_transaction_id", None),
     }
 
 
@@ -96,7 +94,6 @@ def _finance_purchased_quantity(factory, item: str, unit: str | None = None) -> 
 
 
 def _operational_balance(factory, item: str) -> float:
-    """Return the operational inventory contribution."""
     rows = factory.inventory().get_all()
     balance = 0.0
     for row in rows:
@@ -189,10 +186,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
     movement_type = payload.movement_type.strip().upper()
     allowed = set(GOVERNED["inventory_movement_types"])
     if movement_type not in allowed:
-        raise HTTPException(
-            status_code=422,
-            detail="movement_type must be one of: " + ", ".join(sorted(allowed)),
-        )
+        raise HTTPException(status_code=422, detail="movement_type must be one of: " + ", ".join(sorted(allowed)))
 
     factory = _factory(container)
     catalog = factory.feed_inventory_items().get_by_item(payload.item.strip())
@@ -219,13 +213,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
     if signed < 0 and available + signed < 0:
         raise HTTPException(
             status_code=409,
-            detail={
-                "error": "INSUFFICIENT_STOCK",
-                "item": catalog.item,
-                "available": available,
-                "requested": display_quantity,
-                "unit": catalog.unit,
-            },
+            detail={"error": "INSUFFICIENT_STOCK", "item": catalog.item, "available": available, "requested": display_quantity, "unit": catalog.unit},
         )
 
     if payload.source_financial_transaction_id is not None:
@@ -247,14 +235,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         unit=unit,
         location=payload.location or catalog.location,
         supplier=payload.supplier,
-        notes=(
-            (
-                f"Finance transaction #{payload.source_financial_transaction_id}. "
-                f"{payload.notes or ''}"
-            ).strip()
-            if payload.source_financial_transaction_id is not None
-            else payload.notes
-        ),
+        notes=((f"Finance transaction #{payload.source_financial_transaction_id}. {payload.notes or ''}").strip() if payload.source_financial_transaction_id is not None else payload.notes),
         recorded_by=payload.recorded_by or "WEB",
     )
     return _movement_row(factory.inventory().add(transaction))
@@ -277,10 +258,7 @@ def feed_inventory_dashboard(container=Depends(get_container)):
             "purchased_from_finance": _finance_purchased_quantity(factory, row.item, row.unit),
             "status": status,
             "transaction_count": len(movement_rows),
-            "last_movement_at": max(
-                (movement.recorded_at for movement in movement_rows if movement.recorded_at),
-                default=None,
-            ),
+            "last_movement_at": max((movement.recorded_at for movement in movement_rows if movement.recorded_at), default=None),
         }
         items.append(record)
         if status == "LOW":
@@ -291,4 +269,9 @@ def feed_inventory_dashboard(container=Depends(get_container)):
         "low_stock": low_stock,
         "item_count": len(items),
         "low_stock_count": len(low_stock),
+        "summary": {
+            "active_items": len(items),
+            "low_stock_items": len(low_stock),
+            "tracked_without_threshold": sum(1 for row in items if row["status"] == "NO_THRESHOLD"),
+        },
     }
