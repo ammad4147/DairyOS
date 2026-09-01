@@ -50,10 +50,8 @@ export default function MainAppShell(){
  const AppContent = () => {
    const { setSelectedAnimalId } = useAnimalContext();
 
-   // When a tab calls onNavigate, also clear the animal context if switching away
    const handleNavigate = (view: string) => {
      setCurrentView(view);
-     // Optional: keep animal selected if navigating to another animal-aware tab
      const animalAwareTabs = ['health', 'breeding', 'animals', 'milk'];
      if (!animalAwareTabs.includes(view)) {
        setSelectedAnimalId(null);
@@ -78,8 +76,8 @@ export default function MainAppShell(){
        {currentView==='audit'&&<AuditTab/>}
        {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>}
        {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}
-       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>}
-       {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>}
+       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
+       {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
       </main>
 
       {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
@@ -90,9 +88,8 @@ export default function MainAppShell(){
 
  if(new URLSearchParams(window.location.search).get('window')==='payroll')return <PayrollWindow/>;
 
- // WRAP everything in AnimalContextProvider
  return (
-   <AnimalContextProvider herdMasterList={herdMasterList}>
+   <AnimalContextProvider>
      <AppContent />
    </AnimalContextProvider>
  );
