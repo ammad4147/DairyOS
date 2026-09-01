@@ -58,7 +58,6 @@ jobs:
                   raise SystemExit(f'{label}: expected exactly one match, found {count}')
               return text.replace(old, new, 1)
 
-          # Backend: every economically settled Finance row remains voidable.
           api = root / 'src/dairyos/api/finance_ledger.py'
           text = read(api)
           text = replace_once(
@@ -67,32 +66,20 @@ jobs:
               '    "RECEIVED": frozenset({"RECEIVED", "VOID"}),\n',
               'RECEIVED -> VOID transition',
           )
-
-          # Preserve the original linked Milk sale facts. VOID status is the
-          # exclusion authority; historical litres and monetary values must not
-          # be overwritten with zero.
-          text = replace_once(
-              text,
-              '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.quantity_litres = 0.0\n        disposition.amount_due = 0.0\n        disposition.amount_received = 0.0\n''',
-              '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.notes = transaction.notes\n''',
-              'linked Milk sale VOID preservation',
-          )
-
-          # Retire the duplicate Payables endpoint. The unified ledger remains
-          # authoritative and /ageing remains available for credit-control logic.
+          old_void = '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.quantity_litres = 0.0\n        disposition.amount_due = 0.0\n        disposition.amount_received = 0.0\n'''
+          new_void = '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.notes = transaction.notes\n'''
+          text = replace_once(text, old_void, new_void, 'linked Milk sale VOID preservation')
           payables_block = '''\n\n@router.get("/payables")\ndef list_payables(\n    container=Depends(get_container),\n):\n    factory = _factory(container)\n    rows = factory.finance().get_all()\n\n    return _ageing_payload(\n        [\n            row\n            for row in rows\n            if row.status == "PAYABLE"\n        ]\n    )\n'''
           text = replace_once(text, payables_block, '', 'duplicate Payables endpoint')
           write(api, text)
 
-          # API regression contracts use the general ageing endpoint.
           edit_tests = root / 'tests/api/test_finance_edit_payables.py'
-          text = read(edit_tests)
-          text = text.replace(
+          text = read(edit_tests).replace(
               'client.get("/farm/finance-ledger/payables")',
               'client.get("/farm/finance-ledger/ageing")',
           )
           if '/farm/finance-ledger/payables' in text:
-              raise SystemExit('payables endpoint reference remains in API test')
+              raise SystemExit('Payables endpoint reference remains in API test')
           write(edit_tests, text)
 
           transition_tests = root / 'tests/api/test_finance_state_transitions.py'
@@ -105,11 +92,8 @@ jobs:
           )
           write(transition_tests, text)
 
-          # Finance operator surface: consistent one-line accounting columns,
-          # explicit customer/buyer field, and a Void action for revenue too.
           finance = root / 'src/DairyOS.Web/src/components/FinanceTab.tsx'
           text = read(finance)
-
           text = replace_once(
               text,
               ",[revRef,setRevRef]=useState(''),[revNotes,setRevNotes]=useState(''),",
@@ -121,6 +105,12 @@ jobs:
               "payment_method:revStatus==='RECEIVABLE'?'CREDIT':'CASH',status:revStatus,",
               "payment_method:revStatus==='RECEIVABLE'?'CREDIT':'CASH',counterparty:revCounterparty||null,status:revStatus,",
               'revenue counterparty payload',
+          )
+          text = replace_once(
+              text,
+              'buyer_or_counterparty:null,amount,',
+              'buyer_or_counterparty:revCounterparty||null,amount,',
+              'animal sale buyer linkage',
           )
           text = replace_once(
               text,
@@ -142,14 +132,6 @@ jobs:
               '<section style={card}><div style={sectionTitle}>Revenue Ledger</div>'+ledger_header+'{revenueRows.slice(0,50)',
               'Revenue ledger header',
           )
-          text = replace_once(
-              text,
-              '<section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:',
-              '<section style={card}><div style={sectionTitle}>Accounting Expense Ledger</div><div style={{display:',
-              'Expense section anchor guard',
-          )
-          # Insert the expense header after the filter/search toolbar, immediately
-          # before the loading/rows expression.
           toolbar_end = "<button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>{loading?"
           text = replace_once(
               text,
@@ -157,7 +139,6 @@ jobs:
               "<button onClick={()=>window.print()} style={smallButton}><Printer size={11}/></button></div>"+ledger_header+"{loading?",
               'Expense ledger header',
           )
-
           text = replace_once(
               text,
               "<span title={r.notes||r.category} style={ledgerEllipsis}>{r.notes||r.category}</span><span title={r.reference||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.reference||'—'}</span>",
@@ -178,8 +159,6 @@ jobs:
           )
           write(finance, text)
 
-          # Architecture contracts: one Payables summary only, no duplicate API,
-          # consistent ledger columns, and historical Milk values preserved.
           contract = root / 'tests/architecture/test_finance_surface_contract.py'
           text = read(contract)
           text = replace_once(
@@ -194,7 +173,7 @@ jobs:
               'def test_finance_surface_keeps_one_payables_summary_without_duplicate_table_or_endpoint():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n    api = FINANCE_API.read_text(encoding="utf-8-sig")\n\n    assert "[\'Payables\',payableTotal" in text\n    assert "/farm/finance-ledger/payables" not in text\n    assert "@router.get(\"/payables\")" not in api\n    assert "type Payables=" not in text\n    assert ">Payables</div>" not in text\n',
               'Payables architecture contract',
           )
-          text += '''\n\ndef test_finance_ledgers_use_consistent_accounting_columns_and_revenue_can_void():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n    for label in ("Date", "Particulars", "Counterparty", "Reference", "Status", "Amount"):\n        assert label in text\n    assert "Customer / Buyer" in text\n    assert ">Received</button>" in text\n    assert "setVoidTarget(r)" in text\n\n\ndef test_voided_linked_milk_sale_preserves_historical_values():\n    api = FINANCE_API.read_text(encoding="utf-8-sig")\n    assert '"RECEIVED": frozenset({"RECEIVED", "VOID"})' in api\n    assert 'disposition.status = "VOID"' in api\n    assert 'disposition.notes = transaction.notes' in api\n    assert 'disposition.quantity_litres = 0.0' not in api\n    assert 'disposition.amount_due = 0.0' not in api\n    assert 'disposition.amount_received = 0.0' not in api\n'''
+          text += '''\n\ndef test_finance_ledgers_use_consistent_accounting_columns_and_revenue_can_void():\n    text = FINANCE_TAB.read_text(encoding="utf-8-sig")\n    for label in ("Date", "Particulars", "Counterparty", "Reference", "Status", "Amount"):\n        assert label in text\n    assert "Customer / Buyer" in text\n    assert ">Received</button>" in text\n    assert "setVoidTarget(r)" in text\n\n\ndef test_voided_linked_milk_sale_preserves_historical_values():\n    api = FINANCE_API.read_text(encoding="utf-8-sig")\n    old_void = ''' + repr(old_void) + '''\n    assert '"RECEIVED": frozenset({"RECEIVED", "VOID"})' in api\n    assert 'elif status == "VOID":\\n        disposition.status = "VOID"\\n        disposition.notes = transaction.notes' in api\n    assert old_void not in api\n'''
           write(contract, text)
 
       - name: Enforce Finance remediation contract
@@ -203,14 +182,15 @@ jobs:
           from pathlib import Path
           api = Path('src/dairyos/api/finance_ledger.py').read_text(encoding='utf-8-sig')
           ui = Path('src/DairyOS.Web/src/components/FinanceTab.tsx').read_text(encoding='utf-8-sig')
+          old_void = '''    elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.quantity_litres = 0.0\n        disposition.amount_due = 0.0\n        disposition.amount_received = 0.0\n'''
           assert '"RECEIVED": frozenset({"RECEIVED", "VOID"})' in api
           assert '@router.get("/payables")' not in api
-          assert 'disposition.quantity_litres = 0.0' not in api
-          assert 'disposition.amount_due = 0.0' not in api
-          assert 'disposition.amount_received = 0.0' not in api
+          assert old_void not in api
+          assert 'elif status == "VOID":\n        disposition.status = "VOID"\n        disposition.notes = transaction.notes' in api
           assert "['Payables',payableTotal" in ui
           assert 'Customer / Buyer' in ui
-          assert 'Particulars' in ui and 'Counterparty' in ui
+          assert 'buyer_or_counterparty:revCounterparty||null' in ui
+          assert 'Particulars' in ui and 'Counterparty' in ui and 'Reference' in ui
           assert '>Received</button>' in ui
 
       - name: Set up Python
@@ -228,7 +208,6 @@ jobs:
           tests/api/test_finance_edit_payables.py
           tests/architecture/test_finance_surface_contract.py
           tests/api/test_finance_transaction_integrity.py
-          tests/data/test_financial_repository_deletion_guard.py
 
       - name: Run full backend regression
         run: pytest -q tests
