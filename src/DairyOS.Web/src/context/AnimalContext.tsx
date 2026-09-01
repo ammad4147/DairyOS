@@ -1,4 +1,5 @@
-﻿import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { apiUrl } from '../config/api';
 
 interface TimelineEvent {
@@ -58,7 +59,6 @@ export function AnimalProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Alias so both names work (App.tsx may import either)
 export const AnimalContextProvider = AnimalProvider;
 
 export function useAnimalContext(): AnimalContextValue {
