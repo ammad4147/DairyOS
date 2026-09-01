@@ -180,6 +180,17 @@ export default function COML({ onOutputChange }: COMLProps) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Unable to lock COML record.');
       setOfficial(data);
+      // Reflect locked official values in Auto KPI cards immediately
+      const rec = data?.record || data;
+      if (rec) {
+        setMetrics((prev: any) => ({
+          ...(prev || {}),
+          feed_cost_per_liter: Number(rec.feed_cost_per_liter ?? prev?.feed_cost_per_liter ?? 0),
+          opex_cost_per_liter: Number(rec.opex_cost_per_liter ?? prev?.opex_cost_per_liter ?? 0),
+          total_coml_per_liter: Number(rec.total_coml_per_liter ?? prev?.total_coml_per_liter ?? 0),
+          source: 'official_lock',
+        }));
+      }
       setMessage('COML result persisted and locked as the official monthly record.');
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : 'Unable to lock COML record.');
@@ -244,11 +255,12 @@ export default function COML({ onOutputChange }: COMLProps) {
             <div style={{ color: '#64748b', fontSize: 12 }}>Loading integrated COML data...</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+              
+              {/** Prefer official locked COML when integrated endpoint returns zeros */}<div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                 <MetricCard title="Total Production" value={`${production?.totalLiters?.toLocaleString() || 0} L`} subtitle="Auto from Milk Tab" color="#38bdf8" icon={<Milk size={16} />} />
-                <MetricCard title="Feed Cost / L" value={`PKR ${Number(metrics?.feed_cost_per_liter || 0).toFixed(2)}`} subtitle="Auto from Feed Tab" color="#34d399" icon={<Wheat size={16} />} />
-                <MetricCard title="OPEX / L" value={`PKR ${Number(metrics?.opex_cost_per_liter || 0).toFixed(2)}`} subtitle="Auto from Finance Tab" color="#f59e0b" icon={<DollarSign size={16} />} />
-                <MetricCard title="Total COML / L" value={`PKR ${Number(metrics?.total_coml_per_liter || 0).toFixed(2)}`} subtitle="Fully loaded cost" color="#a78bfa" icon={<Calculator size={16} />} />
+                <MetricCard title="Feed Cost / L" value={`PKR ${Number(metrics?.feed_cost_per_liter || official?.record?.feed_cost_per_liter || official?.feed_cost_per_liter || 0).toFixed(2)}`} subtitle={Number(metrics?.feed_cost_per_liter) ? "Auto from Feed Tab" : "Official locked record"} color="#34d399" icon={<Wheat size={16} />} />
+                <MetricCard title="OPEX / L" value={`PKR ${Number(metrics?.opex_cost_per_liter || official?.record?.opex_cost_per_liter || official?.opex_cost_per_liter || 0).toFixed(2)}`} subtitle={Number(metrics?.opex_cost_per_liter) ? "Auto from Finance Tab" : "Official locked record"} color="#f59e0b" icon={<DollarSign size={16} />} />
+                <MetricCard title="Total COML / L" value={`PKR ${Number(metrics?.total_coml_per_liter || official?.record?.total_coml_per_liter || official?.total_coml_per_liter || 0).toFixed(2)}`} subtitle={Number(metrics?.total_coml_per_liter) ? "Fully loaded cost" : "Official locked record"} color="#a78bfa" icon={<Calculator size={16} />} />
               </div>
 
               <div style={{ ...panel, marginBottom: 12, borderColor: '#334155' }}>
@@ -348,3 +360,4 @@ export default function COML({ onOutputChange }: COMLProps) {
     </div>
   );
 }
+
