@@ -5,6 +5,9 @@ ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "src" / "DairyOS.Web" / "src" / "App.tsx"
 SETTINGS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "SettingsTab.tsx"
 ANALYTICS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "Analytics.tsx"
+DIGITAL_TWIN_PANEL = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "DigitalTwinPanel.tsx"
+DIGITAL_TWIN_API = ROOT / "src" / "dairyos" / "api" / "digital_twin"
+DIGITAL_TWIN_PLATFORM = ROOT / "src" / "dairyos" / "platform" / "digital_twin"
 
 
 def test_operator_shell_has_exactly_nine_navigation_tabs_and_one_dashboard_surface():
@@ -27,10 +30,13 @@ def test_analytics_surface_is_retired_from_operator_shell():
     assert "./components/Analytics" not in text
     assert "currentView==='analytics'" not in text
     assert not ANALYTICS.exists()
+    assert not DIGITAL_TWIN_PANEL.exists()
+    assert not DIGITAL_TWIN_API.exists()
+    assert not DIGITAL_TWIN_PLATFORM.exists()
     assert "currentView==='cop'" in text
     assert "<COML/>" in text
     assert "<FarmIntelligenceWidget/>" in text
-    assert "<DigitalTwinPanel/>" in text
+    assert "DigitalTwinPanel" not in text
 
 
 def test_settings_has_no_operator_facing_deployment_surface():

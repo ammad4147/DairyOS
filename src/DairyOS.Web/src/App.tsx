@@ -4,7 +4,6 @@ import FinanceTab from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
 import COML from './components/COML';
 import FarmIntelligenceWidget from './components/FarmIntelligenceWidget';
-import DigitalTwinPanel from './components/DigitalTwinPanel';
 import SettingsTab from './components/SettingsTab';
 import AuditTab from './components/AuditTab';
 import MilkTab from './components/MilkTab';
@@ -60,7 +59,7 @@ export default function MainAppShell(){
        {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>}
        {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onSaveSale={liters=>setTodayMilkSoldLiters(prev=>prev+liters)} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}}/>}
        {currentView==='feed'&&<FeedTab/>}
-       {currentView==='cop'&&<><COML/><div style={{display:'grid',gap:12,padding:'0 14px 14px'}}><FarmIntelligenceWidget/><DigitalTwinPanel/></div></>}
+       {currentView==='cop'&&<><COML/><div style={{display:'grid',gap:12,padding:'0 14px 14px'}}><FarmIntelligenceWidget/></div></>}
        {currentView==='audit'&&<AuditTab/>}
        {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>}
        {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}

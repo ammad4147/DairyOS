@@ -151,7 +151,6 @@ from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
 from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.coml import router as coml_router
 from dairyos.api.payroll import router as payroll_router
-from dairyos.api.digital_twin import router as digital_twin_router
 
 app.include_router(command_router)
 app.include_router(dashboard_router)
@@ -189,7 +188,6 @@ app.include_router(milk_legacy_compat_router)
 app.include_router(milk_quality_router)
 app.include_router(coml_router)
 app.include_router(payroll_router)
-app.include_router(digital_twin_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 

@@ -81,10 +81,23 @@ def test_active_shell_routes_to_current_operational_components():
         "VaccinationTab",
         "COML",
         "FarmIntelligenceWidget",
-        "DigitalTwinPanel",
     ):
         assert component in source
+    assert "DigitalTwinPanel" not in source
     assert "currentView==='cop'" in source
+
+
+def test_digital_twin_scenario_lab_is_completely_retired(client: TestClient):
+    component = WEB_ROOT / "components" / "DigitalTwinPanel.tsx"
+    api_package = REPO_ROOT / "src" / "dairyos" / "api" / "digital_twin"
+    platform_package = REPO_ROOT / "src" / "dairyos" / "platform" / "digital_twin"
+    assert not component.exists()
+    assert not api_package.exists()
+    assert not platform_package.exists()
+    backend_source = FASTAPI_APP.read_text(encoding="utf-8-sig")
+    assert "digital_twin" not in backend_source
+    assert client.get("/farm/digital-twin/baseline").status_code == 404
+    assert client.post("/farm/digital-twin/scenario", json={}).status_code == 404
 
 
 def test_main_bootstrap_mounts_app_not_duplicate_shell():
