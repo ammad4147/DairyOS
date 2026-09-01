@@ -31,22 +31,22 @@ export default function MainAppShell(){
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
  const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0),[todayMilkSoldLiters,setTodayMilkSoldLiters]=useState(0),[accountsReceivable,setAccountsReceivable]=useState(0);
- 
+
  const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();const records = Array.isArray(payload) ? payload : Array.isArray(payload?.value) ? payload.value : [];setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
  const refreshReceivables=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/finance-ledger`);if(!response.ok)throw new Error(`Unable to load Finance ledger (${response.status})`);const payload=await response.json();const records=Array.isArray(payload?.transactions)?payload.transactions:[];const total=records.filter((row:any)=>String(row?.status||'').toUpperCase()==='RECEIVABLE').reduce((sum:number,row:any)=>sum+Number(row?.amount||0),0);setAccountsReceivable(total);}catch(error){console.error('DairyOS receivables load failed:',error)}},[]);
- 
+
  useEffect(()=>{const storedName=localStorage.getItem('dairyos_farm_name');const storedLocation=localStorage.getItem('dairyos_farm_loc');if(storedName)setFarmName(storedName);if(storedLocation)setFarmLocation(storedLocation);void refreshAnimals();void refreshReceivables()},[refreshAnimals,refreshReceivables]);
- 
+
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
  const handleRegisterAnimal=()=>{void refreshAnimals();void refreshReceivables()};
  const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location);localStorage.setItem('dairyos_farm_name',p.farmName);localStorage.setItem('dairyos_farm_loc',p.location)};
  const openPayroll=()=>window.open(`${window.location.origin}${window.location.pathname}?window=payroll`,'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
- 
+
  const herdMasterList=animals.filter(animal=>animal.active!==false).map(toUiAnimal);
  const navItems=[{id:'dashboard',label:'Dashboard',icon:<LayoutDashboard size={14}/>},{id:'animals',label:'Animals',icon:<Users size={14}/>},{id:'milk',label:'Milk',icon:<Milk size={14}/>},{id:'feed',label:'Feed',icon:<Wheat size={14}/>},{id:'finance',label:'Finance',icon:<DollarSign size={14}/>},{id:'breeding',label:'Breeding',icon:<Activity size={14}/>},{id:'health',label:'Health',icon:<HeartPulse size={14}/>},{id:'coml',label:'COML',icon:<Calculator size={14}/>},{id:'analytics',label:'Analytics',icon:<BarChart3 size={14}/>}];
  const canSettings=true;const canAudit=true;
- 
+
  const AppContent = () => {
    const { setSelectedAnimalId } = useAnimalContext();
 
@@ -67,29 +67,29 @@ export default function MainAppShell(){
        <nav style={{display:'flex',gap:6,justifyContent:'center',flex:1,minWidth:0,margin:'0 12px',overflowX:'auto',overflowY:'hidden',scrollbarWidth:'thin'}}>{navItems.map(tab=>{const isActive=currentView===tab.id;const colorMap:Record<string,string>={dashboard:'#2563eb',animals:'#d97706',milk:'#0284c7',feed:'#059669',finance:'#15803d',breeding:'#ea580c',health:'#dc2626',coml:'#7e22ce',analytics:'#4338ca'};const themeColor=colorMap[tab.id]||'#475569';return <button key={tab.id} onClick={()=>setCurrentView(tab.id)} style={{display:'flex',alignItems:'center',gap:4,flex:'0 0 auto',background:isActive?themeColor:'#1e293b',color:'#f8fafc',border:isActive?`1px solid ${themeColor}`:'1px solid #475569',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:11,fontWeight:isActive?'800':'700',whiteSpace:'nowrap',transition:'all 0.2s',boxShadow:isActive?'0 0 0 1px rgba(255,255,255,.12) inset':'none'}}><span style={{color:isActive?'#fff':'#e2e8f0',display:'flex',alignItems:'center'}}>{tab.icon}</span>{tab.label}</button>})}</nav>
        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div style={{position:'relative'}}><button onClick={()=>setShowNotifications(!showNotifications)} style={{position:'relative',background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#f59e0b',cursor:'pointer',display:'flex'}}><Bell size={14}/>{activeCount>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,background:'#ef4444',border:'2px solid #0f172a',borderRadius:'50%',color:'#fff',fontSize:9,fontWeight:'bold',display:'flex',alignItems:'center',justifyContent:'center'}}>{activeCount}</span>}</button>{showNotifications&&<div style={{position:'absolute',right:0,top:40,width:380,maxWidth:'min(380px,calc(100vw - 20px))',background:'#111827',border:'1px solid #1f2937',borderRadius:8,boxShadow:'0 20px 25px -5px rgba(0,0,0,.75)',padding:12,zIndex:100}}><div style={{fontSize:12,fontWeight:'bold',borderBottom:'1px solid #1f2937',paddingBottom:8,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}><span>Active Warnings ({activeCount})</span>{canAudit&&<button onClick={()=>{setCurrentView('audit');setShowNotifications(false)}} style={{background:'none',border:'none',color:'#38bdf8',fontSize:11,cursor:'pointer',textDecoration:'underline'}}>Open Full Audit Register</button>}</div><div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>{alerts.filter(a=>a.status!=='RESOLVED').map(n=><div key={n.id} onClick={()=>canAudit&&setCurrentView('audit')} style={{fontSize:11,background:'#161f30',padding:9,borderRadius:6,cursor:canAudit?'pointer':'default'}}><div style={{color:'#e2e8f0',fontWeight:'bold'}}>{n.title}</div><div style={{fontSize:10,color:'#94a3b8',marginTop:4}}>{n.details}</div></div>)}</div></div>}</div>{currentView==='finance'&&<button onClick={openPayroll} title="Open Finance Payroll" style={{background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#cbd5e1',cursor:'pointer',display:'flex'}}><WalletCards size={14}/></button>}{canSettings&&<button onClick={()=>setCurrentView('settings')} style={{background:currentView==='settings'?'#0ea5e9':'#1e293b',border:currentView==='settings'?'1px solid #7dd3fc':'1px solid #334155',padding:6,borderRadius:'50%',color:'#e2e8f0',cursor:'pointer',display:'flex'}}><Settings size={14}/></button>}</div>
       </header>
-      
+
       <main style={{flex:1,minHeight:0,minWidth:0,overflowY:'auto',overflowX:'hidden',background:'#0b0f19',position:'relative'}}>
-       {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion} realTimeReceivables={accountsReceivable}/>} 
-       {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>} 
-       {currentView==='finance'&&<FinanceTab onSaveSale={liters=>setTodayMilkSoldLiters(prev=>prev+liters)} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}}/>} 
-       {currentView==='feed'&&<FeedTab/>} 
-       {currentView==='coml'&&<COML/>} 
-       {currentView==='analytics'&&<><Analytics onNavigate={handleNavigate}/><div style={{display:'grid',gap:12,padding:'0 14px 14px'}}><FarmIntelligenceWidget/><DigitalTwinPanel/></div></>} 
-       {currentView==='audit'&&<AuditTab/>} 
-       {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>} 
-       {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>} 
-       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>} 
-       {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>} 
+       {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion} realTimeReceivables={accountsReceivable}/>}
+       {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>}
+       {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onSaveSale={liters=>setTodayMilkSoldLiters(prev=>prev+liters)} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}}/>}
+       {currentView==='feed'&&<FeedTab/>}
+       {currentView==='coml'&&<COML/>}
+       {currentView==='analytics'&&<><Analytics onNavigate={handleNavigate}/><div style={{display:'grid',gap:12,padding:'0 14px 14px'}}><FarmIntelligenceWidget/><DigitalTwinPanel/></div></>}
+       {currentView==='audit'&&<AuditTab/>}
+       {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>}
+       {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}
+       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>}
+       {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} onNavigate={handleNavigate} herdMasterList={herdMasterList}/>}
       </main>
-      
-      {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>} 
-      {showAnimalModal&&<AnimalPassportModal animalId="NEW-ANIMAL" onClose={()=>setShowAnimalModal(false)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>} 
+
+      {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
+      {showAnimalModal&&<AnimalPassportModal animalId="NEW-ANIMAL" onClose={()=>setShowAnimalModal(false)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
      </div>
    );
  };
 
  if(new URLSearchParams(window.location.search).get('window')==='payroll')return <PayrollWindow/>;
- 
+
  // WRAP everything in AnimalContextProvider
  return (
    <AnimalContextProvider herdMasterList={herdMasterList}>

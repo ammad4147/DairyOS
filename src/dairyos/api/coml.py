@@ -187,15 +187,173 @@ def set_coml_settings(payload: COMLReminderSettings, current_user=Depends(get_op
     return {"reminder_day": payload.reminder_day}
 
 @router.get("/integrated")
-def get_integrated_coml():
+def get_integrated_coml(
+    period_start: date | None = None,
+    period_end: date | None = None,
+    container=Depends(get_container),
+):
     """
-    Auto-computes from feed records, finance ledger, and milk production.
-    Returns: metrics, production batches, contract status.
+    Auto COML for a selected period.
+    - Milk liters: best-effort from milk session/yield logs in range
+    - Feed + OPEX: best-effort from finance ledger in range
+    - Official monthly lock still available via /current
     """
-    # TODO: Implement integrated COML calculation
+    factory = container.repository_factory
+    today = OperationalDateAuthority().current_date()
+    start = period_start or _current_month_start()
+    end = period_end or today
+    if end < start:
+        raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
+
+    # Official month record (for reference / priority display when period is that month)
+    month_row = factory.coml().get_by_month(start.replace(day=1))
+
+    total_liters = 0.0
+    feed_total = 0.0
+    opex_total = 0.0
+    milk_source = "none"
+    ledger_source = "none"
+
+    def _as_date(value):
+        if value is None:
+            return None
+        if hasattr(value, "date") and callable(value.date):
+            try:
+                return value.date()
+            except Exception:
+                pass
+        if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day"):
+            return value
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+        except Exception:
+            return None
+
+    def _in_range(value) -> bool:
+        d = _as_date(value)
+        if d is None:
+            return False
+        return start <= d <= end
+
+    # --- Milk logs ---
+    try:
+        milk_repo = None
+        for name in ("milk_sessions", "milking_sessions", "milk_yields", "milk"):
+            getter = getattr(factory, name, None)
+            if callable(getter):
+                milk_repo = getter()
+                break
+        records = []
+        if milk_repo is not None:
+            for method_name in ("list_for_range", "list_between", "get_all", "list", "list_sessions"):
+                method = getattr(milk_repo, method_name, None)
+                if not callable(method):
+                    continue
+                try:
+                    records = method(start, end) if method_name in {"list_for_range", "list_between"} else method()
+                    break
+                except TypeError:
+                    try:
+                        records = method()
+                        break
+                    except Exception:
+                        continue
+                except Exception:
+                    continue
+        for item in records or []:
+            get = (lambda k, default=None: item.get(k, default)) if isinstance(item, dict) else (lambda k, default=None: getattr(item, k, default))
+            raw_date = get("session_date") or get("date") or get("milking_date") or get("produced_at") or get("timestamp")
+            if not _in_range(raw_date):
+                continue
+            liters = get("total_liters") or get("liters") or get("volume_liters") or get("yield_liters") or get("quantity") or 0
+            try:
+                total_liters += float(liters or 0)
+            except (TypeError, ValueError):
+                pass
+        milk_source = "milk_logs" if total_liters > 0 else "milk_logs_empty"
+    except Exception:
+        milk_source = "milk_lookup_failed"
+
+    # --- Finance ledger (feed + opex) ---
+    FEED_HINTS = ("feed", "fodder", "silage", "ration", "concentrate", "vanda", "forage")
+    OPEX_HINTS = ("opex", "vet", "wage", "salary", "electric", "fuel", "maintenance", "hygiene", "transport", "rent", "banking")
+    try:
+        fin_repo = None
+        for name in ("finance_ledger", "finance", "ledger", "financial_transactions"):
+            getter = getattr(factory, name, None)
+            if callable(getter):
+                fin_repo = getter()
+                break
+        txns = []
+        if fin_repo is not None:
+            for method_name in ("list_transactions", "get_all", "list"):
+                method = getattr(fin_repo, method_name, None)
+                if not callable(method):
+                    continue
+                try:
+                    txns = method()
+                    break
+                except Exception:
+                    continue
+        for item in txns or []:
+            get = (lambda k, default=None: item.get(k, default)) if isinstance(item, dict) else (lambda k, default=None: getattr(item, k, default))
+            raw_date = get("transaction_date") or get("date") or get("posted_at") or get("created_at")
+            if not _in_range(raw_date):
+                continue
+            status = str(get("status") or "").upper()
+            if status == "VOID":
+                continue
+            master = str(get("master_category") or get("category") or "").upper()
+            sub = str(get("sub_category") or get("subcategory") or get("description") or "").lower()
+            try:
+                amount = float(get("amount") or 0)
+            except (TypeError, ValueError):
+                amount = 0.0
+            if amount <= 0:
+                continue
+            if master == "OPEX" or any(h in sub for h in OPEX_HINTS):
+                # classify feed-like opex under feed when obvious
+                if any(h in sub for h in FEED_HINTS):
+                    feed_total += amount
+                else:
+                    opex_total += amount
+            elif master in {"FEED", "COGS"} or any(h in sub for h in FEED_HINTS):
+                feed_total += amount
+        ledger_source = "finance_ledger" if (feed_total + opex_total) > 0 else "finance_ledger_empty"
+    except Exception:
+        ledger_source = "ledger_lookup_failed"
+
+    liters = total_liters if total_liters > 0 else 0.0
+    feed_per_l = (feed_total / liters) if liters > 0 else 0.0
+    opex_per_l = (opex_total / liters) if liters > 0 else 0.0
+    total_per_l = feed_per_l + opex_per_l
+
+    # If period is current month and official exists, expose it (UI may prefer official)
+    official = _serialize(month_row) if month_row is not None else None
+
     return {
-        "metrics": {},
-        "production_batches": [],
-        "contract_status": "unknown",
-        "message": "Integrated COML - placeholder"
+        "data_status": "AUTO_AGGREGATED",
+        "period": {"start": start.isoformat(), "end": end.isoformat()},
+        "period_label": f"{start.isoformat()} → {end.isoformat()}",
+        "production": {
+            "totalLiters": round(liters, 2),
+            "unit": "liters",
+            "basis": "selected_period",
+            "source": milk_source,
+        },
+        "costs": {
+            "feed_total": round(feed_total, 2),
+            "opex_total": round(opex_total, 2),
+            "feed_cost_per_liter": round(feed_per_l, 4),
+            "opex_cost_per_liter": round(opex_per_l, 4),
+            "total_coml_per_liter": round(total_per_l, 4),
+            "source": ledger_source,
+        },
+        # flat fields for existing UI
+        "feed_cost_per_liter": round(feed_per_l, 4),
+        "opex_cost_per_liter": round(opex_per_l, 4),
+        "total_coml_per_liter": round(total_per_l, 4),
+        "official": official,
+        "message": "Auto COML for selected period (milk logs + finance ledger).",
     }
