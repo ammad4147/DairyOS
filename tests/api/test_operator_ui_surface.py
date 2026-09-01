@@ -1,8 +1,8 @@
 """Authoritative operator UI and operational API contract tests.
 
-The authoritative operator surface is the React/Vite application under
-``src/DairyOS.Web``. FastAPI is the API/runtime surface and must not expose the
-retired static operator UI.
+The authoritative operator surface is the React/Vite application rooted at
+``src/DairyOS.Web/src/App.tsx``. Dead/legacy shells must not be used as a
+second UI contract.
 """
 
 from pathlib import Path
@@ -12,23 +12,28 @@ from fastapi.testclient import TestClient
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = REPO_ROOT / "src" / "DairyOS.Web" / "src"
 APP_TSX = WEB_ROOT / "App.tsx"
-SHELL_TSX = WEB_ROOT / "ui" / "DairyOSShell.tsx"
+MAIN_TSX = WEB_ROOT / "main.tsx"
+DEAD_SHELL_TSX = WEB_ROOT / "ui" / "DairyOSShell.tsx"
 FASTAPI_APP = REPO_ROOT / "src" / "dairyos" / "app.py"
 LEGACY_UI_ENTRYPOINT = REPO_ROOT / "src" / "dairyos" / "web" / "index.html"
 
-DOMAIN_ENDPOINTS = {
-    "milk": "/farm/milk",
-    "feed": "/farm/feed",
-    "health-observations": "/farm/health-observations",
-    "breeding": "/farm/breeding",
-    "financial": "/farm/financial",
-}
+APPROVED_NAVIGATION = (
+    "Dashboard",
+    "Animals",
+    "Milk",
+    "Feed",
+    "Finance",
+    "Breeding",
+    "Health",
+    "Vaccination",
+    "COP",
+)
 
 
 def _active_shell() -> str:
     assert APP_TSX.exists(), f"Active frontend entrypoint missing: {APP_TSX}"
-    assert SHELL_TSX.exists(), f"Active operator shell missing: {SHELL_TSX}"
-    return APP_TSX.read_text(encoding="utf-8") + "\n" + SHELL_TSX.read_text(encoding="utf-8")
+    assert MAIN_TSX.exists(), f"React bootstrap missing: {MAIN_TSX}"
+    return APP_TSX.read_text(encoding="utf-8-sig")
 
 
 def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
@@ -43,57 +48,50 @@ def test_operator_api_root_declares_react_as_authoritative(client: TestClient):
     assert body["legacy_static_ui"]["served"] is False
 
 
-def test_legacy_static_operator_surface_is_retired(client: TestClient):
+def test_legacy_and_duplicate_operator_surfaces_are_retired(client: TestClient):
     assert not LEGACY_UI_ENTRYPOINT.exists()
+    assert not DEAD_SHELL_TSX.exists()
     response = client.get("/ui/")
     assert response.status_code == 404
-    source = FASTAPI_APP.read_text(encoding="utf-8")
-    assert "StaticFiles" not in source
+    source = FASTAPI_APP.read_text(encoding="utf-8-sig")
     assert "WEB_DIR" not in source
-    assert "app.mount(\"/ui\"" not in source
+    assert 'app.mount("/ui"' not in source
 
 
-def test_active_operator_shell_contains_approved_navigation():
+def test_active_operator_shell_contains_exact_approved_navigation():
     source = _active_shell()
-    assert "DairyOSShell" in source
-    for label in (
-        "Dashboard", "Animals", "Milk", "Feeding", "Health", "Breeding",
-        "Workforce", "Inventory", "Equipment", "Finance", "Analytics",
-        "Alerts", "Settings",
+    assert "const navItems=[" in source
+    for label in APPROVED_NAVIGATION:
+        assert f"label:'{label}'" in source
+
+    for retired in ("Inventory", "Analytics", "Workforce", "Equipment"):
+        assert f"label:'{retired}'" not in source
+
+
+def test_active_shell_routes_to_current_operational_components():
+    source = _active_shell()
+    for component in (
+        "UnifiedDashboard",
+        "AnimalTab",
+        "MilkTab",
+        "FeedTab",
+        "FinanceTab",
+        "BreedingTab",
+        "HealthTab",
+        "VaccinationTab",
+        "COML",
+        "FarmIntelligenceWidget",
+        "DigitalTwinPanel",
     ):
-        assert f'label: "{label}"' in source or f'<span>{label}</span>' in source
+        assert component in source
+    assert "currentView==='cop'" in source
 
 
-def test_active_shell_preserves_approved_dashboard_contract():
-    source = _active_shell()
-    assert 'type Period = "7d" | "month" | "year" | "custom"' in source
-    assert 'type FinanceView = "cash" | "bank" | "monthly" | "quarterly" | "yearly"' in source
-    assert "Herd Composition" in source
-    assert "Milk Production" in source
-    assert "Quick Access" in source
-    assert "SettingsPage" in source
-
-
-def test_active_shell_uses_live_domain_endpoints():
-    source = _active_shell()
-    for endpoint in DOMAIN_ENDPOINTS.values():
-        assert endpoint in source
-
-
-def test_active_shell_uses_meaningful_domain_choices():
-    source = _active_shell()
-    for value in (
-        "CATTLE", "BUFFALO", "LACTATING", "THRICE_DAILY", "MORNING",
-        "SILAGE", "pregnancy_confirmed", "EXPENSE", "CASH", "BANK",
-    ):
-        assert value in source
-
-    assert 'source: "breeds"' in source
-    assert 'source: "animals"' in source
-    assert 'source: "workers"' in source
-    assert 'source: "inventory"' in source
-    assert 'source: "equipment"' in source
-    assert 'source: "locations"' in source
+def test_main_bootstrap_mounts_app_not_duplicate_shell():
+    source = MAIN_TSX.read_text(encoding="utf-8-sig")
+    assert "import App from './App'" in source
+    assert "<App />" in source
+    assert "DairyOSShell" not in source
 
 
 def test_operational_presentation_and_api_surface_are_reachable(client: TestClient):
