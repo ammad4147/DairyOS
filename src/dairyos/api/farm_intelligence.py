@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.core.time_utils import utcnow
+from dairyos.finance.classification.transaction_classifier import is_expense, is_income
 
 router = APIRouter(prefix="/farm", tags=["farm-intelligence"])
 
@@ -134,8 +135,8 @@ def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
         health = [x for x in factory.health().get_all() if x.observed_at >= cutoff]
         treatments = [x for x in factory.treatment().get_all() if x.treated_at >= cutoff]
         litres = sum(float(x.total_yield or 0) for x in milk)
-        expenses = sum(float(x.amount or 0) for x in finance if x.transaction_type == "EXPENSE")
-        income = sum(float(x.amount or 0) for x in finance if x.transaction_type == "INCOME")
+        expenses = sum(float(x.amount or 0) for x in finance if is_expense(x))
+        income = sum(float(x.amount or 0) for x in finance if is_income(x))
         inseminations = [x for x in breeding if str(x.event_type).upper() in {"AI", "INSEMINATION", "ARTIFICIAL_INSEMINATION"}]
         pregnancies = [x for x in breeding if str(x.event_type).upper() in {"PREGNANCY_CONFIRMED", "PREGNANCY"} and str(x.result or "").upper() not in {"NEGATIVE", "NO"}]
         return {
