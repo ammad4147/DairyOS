@@ -339,7 +339,7 @@ class FarmOperationalState:
                 "operator": event_operator,
                 "timestamp": event_timestamp,
             })
-        elif event_type in {"heat_detected", "insemination_recorded", "pregnancy_confirmed"}:
+        elif event_type in {"insemination_recorded", "pregnancy_confirmed"}:
             self.record_reproductive_event(animal_id, {
                 **event_payload,
                 "event_type": event_type,

@@ -40,7 +40,6 @@ def test_reproduction_overview_reads_persisted_breeding_records(client, register
 
 def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, registered_animal):
     for event_type, result in (
-        ("heat_detected", "detected"),
         ("insemination", "completed"),
         ("pregnancy_diagnosis", "pregnant"),
         ("pregnancy_confirmed", "confirmed"),
@@ -59,7 +58,6 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
         assert response.status_code == 200, response.text
 
     body = client.get("/farm/reproduction/overview").json()
-    assert body["heat_detections"] == 1
     assert body["inseminations"] == 1
     assert body["pregnancy_checks"] == 1
     assert body["confirmed_pregnancies"] == 1
@@ -72,9 +70,9 @@ def test_animal_reproduction_history_uses_permanent_animal_id(client, registered
         "/farm/breeding",
         json={
             "animal_id": registered_animal,
-            "event_type": "heat_detection",
+            "event_type": "insemination",
             "technician": "Dr Vet",
-            "result": "detected",
+            "result": "completed",
             "operator": "Dr Vet",
         },
     )
@@ -86,7 +84,7 @@ def test_animal_reproduction_history_uses_permanent_animal_id(client, registered
     assert body["animal_id"] == registered_animal
     assert body["record_count"] >= 1
     assert body["data_status"] == "LIVE_PERSISTED_DATA"
-    assert body["latest_event"]["event_type"] == "heat_detection"
+    assert body["latest_event"]["event_type"] == "insemination"
 
 
 def test_animal_reproduction_history_rejects_unknown_animal(client):

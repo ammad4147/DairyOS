@@ -13,7 +13,6 @@ def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(clie
     and the animal is no longer pregnant.
     """
     for event_type, result in (
-        ("heat_detected", "detected"),
         ("insemination", "completed"),
         ("pregnancy_diagnosis", "pregnant"),
         ("pregnancy_confirmed", "confirmed"),

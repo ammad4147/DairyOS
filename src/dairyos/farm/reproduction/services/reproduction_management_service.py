@@ -9,7 +9,6 @@ class ReproductionManagementService:
 
     Responsibilities:
 
-    - record heat detection
     - record insemination
     - record pregnancy confirmation
     - optionally publish operational events
@@ -64,44 +63,6 @@ class ReproductionManagementService:
             )
 
         )
-
-
-
-    def record_heat(
-        self,
-        event,
-    ):
-
-        saved = self.repository.save_heat(
-            event
-        )
-
-
-        self._publish_event(
-
-            event_type="heat_detected",
-
-            animal_id=event.animal_id,
-
-            payload={
-
-                "event_id":
-                    event.event_id,
-
-                "heat_detected":
-                    event.heat_detected,
-
-                "detected_by":
-                    event.detected_by,
-
-            },
-
-            operator=event.detected_by,
-
-        )
-
-
-        return saved
 
 
 

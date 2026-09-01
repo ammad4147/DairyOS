@@ -9,7 +9,6 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving,
     is_confirmed_pregnancy,
     is_dry_off,
-    is_heat_detection,
     is_insemination,
     is_negative_pregnancy_check,
     normalize_event_type,
@@ -43,7 +42,6 @@ class ReproductiveState:
     days_in_milk: int | None
     voluntary_waiting_period_end: date | None
     eligible_to_breed: bool
-    last_heat_date: date | None
     last_insemination_date: date | None
     pregnancy_status: str
     pregnancy_confirmed_date: date | None
@@ -274,12 +272,6 @@ class ReproductiveStateService:
                 pregnant = False
                 continue
 
-            if is_heat_detection(classifier_record):
-                if pregnant:
-                    raise ReproductiveStateError(
-                        "HEAT_DETECTED cannot occur while pregnancy is operationally active"
-                    )
-                continue
 
             if is_dry_off(classifier_record):
                 if not any(
@@ -340,8 +332,6 @@ class ReproductiveStateService:
             else None
         )
 
-        last_heat = self._latest(current_events, is_heat_detection)
-        last_heat_date = last_heat["event_date"] if last_heat else None
 
         inseminations = [
             event
@@ -360,9 +350,7 @@ class ReproductiveStateService:
         for event in current_events:
             classifier_record = self._classifier_record(event)
             event_type = normalize_event_type(event["event_type"])
-            if is_heat_detection(classifier_record):
-                latest_state_event = event
-            elif is_insemination(classifier_record):
+            if is_insemination(classifier_record):
                 latest_state_event = event
             elif self._is_positive_pregnancy_event(event):
                 pregnancy_status = "PREGNANT"
@@ -422,8 +410,6 @@ class ReproductiveStateService:
                 reproductive_status = "BRED" if last_insemination_date is not None else "OPEN"
             elif is_insemination(self._classifier_record(latest_state_event)):
                 reproductive_status = "BRED"
-            elif is_heat_detection(self._classifier_record(latest_state_event)):
-                reproductive_status = "HEAT_DETECTED"
             elif is_dry_off(self._classifier_record(latest_state_event)):
                 reproductive_status = "DRY_OFF"
             elif is_calving(self._classifier_record(latest_state_event)):
@@ -449,7 +435,6 @@ class ReproductiveStateService:
             days_in_milk=days_in_milk,
             voluntary_waiting_period_end=vwp_end,
             eligible_to_breed=eligible_to_breed,
-            last_heat_date=last_heat_date,
             last_insemination_date=last_insemination_date,
             pregnancy_status=pregnancy_status,
             pregnancy_confirmed_date=pregnancy_confirmed_date,

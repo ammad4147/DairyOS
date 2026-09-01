@@ -471,8 +471,6 @@ class LifetimeAnimalPassportService:
             return "PREGNANCY_CONFIRMED"
         if raw == "pregnancy_confirmed":
             return "PREGNANCY_CONFIRMED"
-        if raw in {"heat_detected", "heat_detection", "heat", "oestrus", "estrus"}:
-            return "HEAT_DETECTED"
         if raw in {"calving", "calved", "parturition"}:
             return "CALVING"
         if raw == "dry_off":
@@ -538,11 +536,6 @@ class LifetimeAnimalPassportService:
                 if state.last_calving_date
                 else None
             ),
-            "last_heat_date": (
-                state.last_heat_date.isoformat()
-                if state.last_heat_date
-                else None
-            ),
             "last_insemination_date": (
                 state.last_insemination_date.isoformat()
                 if state.last_insemination_date
@@ -568,9 +561,6 @@ class LifetimeAnimalPassportService:
             "dry_period_status": state.dry_period_status,
             "lifetime_calvings": sum(
                 event["event_type"] == "CALVING" for event in events
-            ),
-            "lifetime_heat_events": sum(
-                event["event_type"] == "HEAT_DETECTED" for event in events
             ),
             "lifetime_inseminations": sum(
                 event["event_type"] == "INSEMINATION" for event in events
@@ -606,8 +596,6 @@ class LifetimeAnimalPassportService:
             return "CALVED"
         if getattr(state, "pregnancy_status", None) == "PREGNANT":
             return "PREGNANT"
-        if getattr(state, "reproductive_status", None) == "HEAT_DETECTED":
-            return "HEAT_OBSERVED"
         if getattr(state, "reproductive_status", None) == "BRED":
             return "INSEMINATED"
         if getattr(state, "reproductive_status", None) == "LACTATING":

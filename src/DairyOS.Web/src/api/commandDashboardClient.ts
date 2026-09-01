@@ -46,9 +46,9 @@ export interface CommandDashboardData {
     dueVax: number;
   };
   reproduction: {
-    onHeat: number;
     inseminated: number;
     pregnant: number;
+    pregnancyRatio: number;
   };
 }
 
@@ -92,9 +92,9 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
     dueVax: 0,
   },
   reproduction: {
-    onHeat: 0,
     inseminated: 0,
     pregnant: 0,
+    pregnancyRatio: 0,
   },
 });
 
@@ -524,13 +524,6 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     },
 
     reproduction: {
-      onHeat:
-        Number(
-          rawReproduction.on_heat ??
-          rawReproduction.onHeat ??
-          0,
-        ),
-
       inseminated:
         Number(
           rawReproduction.inseminated ??
@@ -540,6 +533,13 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
       pregnant:
         Number(
           rawReproduction.pregnant ??
+          0,
+        ),
+
+      pregnancyRatio:
+        Number(
+          rawReproduction.pregnancy_ratio_percent ??
+          rawReproduction.pregnancyRatio ??
           0,
         ),
     },

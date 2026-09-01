@@ -86,11 +86,6 @@ def animal_reproduction_status(
                 else None
             ),
             "eligible_to_breed": state.eligible_to_breed,
-            "last_heat": (
-                state.last_heat_date.isoformat()
-                if state.last_heat_date
-                else None
-            ),
             "last_insemination": (
                 state.last_insemination_date.isoformat()
                 if state.last_insemination_date

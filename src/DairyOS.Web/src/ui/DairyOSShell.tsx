@@ -33,8 +33,8 @@ const modules: Record<Exclude<ViewId, "dashboard" | "analytics" | "alerts" | "se
     { name: "animal_id", label: "Animal", required: true, source: "animals" }, { name: "observation", label: "Observation", required: true }, { name: "symptom", label: "Symptom" },
     { name: "temperature_c", label: "Temperature (°C)", type: "number" }, { name: "severity", label: "Severity", options: ["NORMAL", "ELEVATED", "HIGH", "CRITICAL"] }, { name: "operator", label: "Operator", source: "workers" },
   ]},
-  breeding: { endpoint: "/farm/breeding", title: "Breeding", description: "Heat, insemination, pregnancy and calving events.", fields: [
-    { name: "animal_id", label: "Animal", required: true, source: "animals" }, { name: "event_type", label: "Event", required: true, options: ["heat_detected", "insemination", "pregnancy_diagnosis", "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving"] },
+  breeding: { endpoint: "/farm/breeding", title: "Breeding", description: "Insemination, pregnancy diagnosis and calving events.", fields: [
+    { name: "animal_id", label: "Animal", required: true, source: "animals" }, { name: "event_type", label: "Event", required: true, options: ["insemination", "pregnancy_diagnosis", "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving"] },
     { name: "technician", label: "Technician", source: "workers" }, { name: "result", label: "Result" }, { name: "notes", label: "Notes" }, { name: "operator", label: "Operator", source: "workers" },
   ]},
   workforce: { endpoint: "/farm/workforce", title: "Workforce", description: "People, assignments and completed work.", fields: [

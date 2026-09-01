@@ -2,7 +2,17 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 def text(path):return (ROOT/path).read_text(encoding="utf-8")
 def test_health_contract():
- v=text("src/DairyOS.Web/src/components/HealthTab.tsx");assert "/farm/finance-ledger" not in v;assert "Vet Expenses" not in v;assert "Declare Healthy" in v;assert "Treatment Record â€” Reactive" in v;assert "Vaccination Record â€” Preventive" in v;assert "/resolve" in v
+ v=text("src/DairyOS.Web/src/components/HealthTab.tsx")
+ assert "/farm/finance-ledger" not in v
+ assert "Vet Expenses" not in v
+ assert "Clinical Health" in v
+ assert "Complete Clinical Log" in v
+ assert "Declare Healthy" in v
+ assert "Action Queue - Active Clinical Cases" in v
+ assert "/farm/treatments" in v
+ assert "/vaccinations" not in v
+ assert "/resolve" in v
+
 def test_settings_contract():
  v=text("src/DairyOS.Web/src/components/SettingsTab.tsx");assert "STANDARDS" not in v;assert "smtp.gmail.com" in v;assert "smtp-mail.outlook.com" in v;assert "smtp.mail.yahoo.com" in v;assert "Notification Recipients" in v;assert "System Date & Time" in v
 def test_passport_final_disposal():

@@ -155,7 +155,6 @@
     return {
       total: state.breeding.length,
       animals: activeAnimals.size,
-      heat: num(counts.HEAT_OBSERVED) + num(counts.HEAT_DETECTED),
       inseminations: num(counts.INSEMINATION) + num(counts.INSEMINATED) + num(counts.AI),
       pregnancies: num(counts.PREGNANCY_CONFIRMED) + num(counts.PREGNANT),
     };
@@ -282,7 +281,7 @@
         ${domainCard("finance", "Financials", currency(finance.net), `${currency(finance.income)} income · ${currency(finance.expense)} expense`, financeStatus, `Recorded transactions: ${fmt(state.financial.length)}`, "finance")}
       </div>
       <div class="live-detail">
-        <div class="live-detail-card"><div class="live-detail-label">Breeding activity</div><div class="live-detail-value">${fmt(breeding.total)} records · ${fmt(breeding.heat)} heat · ${fmt(breeding.inseminations)} inseminations</div><button class="live-drill" type="button" data-live-target="breeding">Open breeding →</button></div>
+        <div class="live-detail-card"><div class="live-detail-label">Breeding activity</div><div class="live-detail-value">${fmt(breeding.total)} records · ${fmt(breeding.inseminations)} inseminations · ${fmt(breeding.pregnancies)} pregnancies</div><button class="live-drill" type="button" data-live-target="breeding">Open breeding →</button></div>
         <div class="live-detail-card"><div class="live-detail-label">Milk data coverage</div><div class="live-detail-value">${fmt(milk.animals)} animals represented today</div><button class="live-drill" type="button" data-live-target="milk">Review milk records →</button></div>
         <div class="live-detail-card"><div class="live-detail-label">Evidence boundary</div><div class="live-detail-value">Forecasts are withheld where required source data is absent.</div></div>
       </div>`;
@@ -302,7 +301,7 @@
       ["health", "Health & Vaccination", "Open observations and severity signals from recorded health events."],
       ["feed", "Feed Management", "Today's recorded feed quantities and feed-event coverage."],
       ["finance", "Financials", "Recorded income, expense and net cash movement — not forecasts."],
-      ["breeding", "Breeding & Reproduction", "Recorded heat, insemination and pregnancy events."],
+      ["breeding", "Breeding & Reproduction", "Recorded insemination, pregnancy diagnosis and calving events."],
     ];
     definitions.forEach(([id, title, subtitle]) => {
       const page = document.getElementById(`page-${id}`);
