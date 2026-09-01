@@ -185,3 +185,17 @@ def set_coml_settings(payload: COMLReminderSettings, current_user=Depends(get_op
     updated_by = str(current_user["sub"]) if current_user is not None else "UI Operator"
     factory.app_settings().set(REMINDER_SETTING_KEY, str(payload.reminder_day), updated_by=updated_by)
     return {"reminder_day": payload.reminder_day}
+
+@router.get("/integrated")
+def get_integrated_coml():
+    """
+    Auto-computes from feed records, finance ledger, and milk production.
+    Returns: metrics, production batches, contract status.
+    """
+    # TODO: Implement integrated COML calculation
+    return {
+        "metrics": {},
+        "production_batches": [],
+        "contract_status": "unknown",
+        "message": "Integrated COML - placeholder"
+    }

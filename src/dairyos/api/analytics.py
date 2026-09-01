@@ -54,3 +54,15 @@ def analytics_contract(analysis: str):
             status_code=404,
             detail=f"Unknown analytics analysis: {analysis}",
         ) from exc
+
+@router.get("/integrated")
+def get_integrated_analytics():
+    """
+    Returns: kpis with severity + actionTab, and chart-ready data arrays.
+    """
+    # TODO: Implement integrated analytics aggregation
+    return {
+        "kpis": [],
+        "charts": {},
+        "message": "Integrated Analytics - placeholder"
+    }

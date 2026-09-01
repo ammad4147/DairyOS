@@ -199,3 +199,16 @@ def get_animal(animal_id: str) -> dict[str, Any]:
     if record is None:
         raise HTTPException(status_code=404, detail=f"Animal not found: {animal_id}")
     return _serialize_animal(record)
+
+@router.get("/api/v2/animals/{animal_id}/timeline")
+def get_animal_timeline(animal_id: str):
+    """
+    Returns merged, chronological events from health, breeding,
+    production, and welfare for a single animal.
+    """
+    # TODO: Implement unified timeline aggregation
+    return {
+        "animal_id": animal_id,
+        "events": [],
+        "message": "Unified Animal Timeline - placeholder"
+    }
