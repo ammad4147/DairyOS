@@ -15,6 +15,7 @@ from dairyos.api.finance_ledger import _validate_transition
         ("RECORDED", "VOID"),
         ("PAYABLE", "VOID"),
         ("RECEIVABLE", "VOID"),
+        ("PAID", "VOID"),
     ],
 )
 def test_allowed_finance_transitions(current, requested):
