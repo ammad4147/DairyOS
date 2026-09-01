@@ -9,6 +9,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.inventory_transaction import InventoryTransaction
+from dairyos.finance.classification.transaction_classifier import is_active
 
 router = APIRouter(prefix="/farm/feed-inventory", tags=["feed-inventory"])
 
@@ -76,9 +77,9 @@ def _finance_purchase_rows(factory, item: str):
     return [
         row
         for row in rows
-        if str(row.transaction_type or "").upper() in {"EXPENSE", "PURCHASE"}
+        if is_active(row)
+        and str(row.transaction_type or "").upper() in {"EXPENSE", "PAYMENT", "PURCHASE"}
         and str(row.master_category or "").upper() == "FEED"
-        and str(row.status or "").upper() != "VOID"
         and str(row.sub_category or "").strip() == item
         and float(row.quantity or 0) > 0
     ]
@@ -232,10 +233,11 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         if finance_row is None:
             raise HTTPException(status_code=422, detail="source_financial_transaction_id not found.")
         if (
-            str(finance_row.transaction_type or "").upper() not in {"EXPENSE", "PURCHASE"}
+            not is_active(finance_row)
+            or str(finance_row.transaction_type or "").upper() not in {"EXPENSE", "PAYMENT", "PURCHASE"}
             or str(finance_row.master_category or "").upper() != "FEED"
         ):
-            raise HTTPException(status_code=422, detail="source_financial_transaction_id must reference a Finance Feed expense.")
+            raise HTTPException(status_code=422, detail="source_financial_transaction_id must reference an active Finance Feed expense.")
 
     transaction = InventoryTransaction(
         item=catalog.item,
@@ -287,9 +289,6 @@ def feed_inventory_dashboard(container=Depends(get_container)):
         "data_status": "LIVE_PERSISTED_DATA",
         "items": items,
         "low_stock": low_stock,
-        "summary": {
-            "active_items": len(items),
-            "low_stock_items": len(low_stock),
-            "tracked_without_threshold": sum(1 for row in items if row["status"] == "NO_THRESHOLD"),
-        },
+        "item_count": len(items),
+        "low_stock_count": len(low_stock),
     }
