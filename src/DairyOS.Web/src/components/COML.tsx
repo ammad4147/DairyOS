@@ -35,6 +35,7 @@ const daysAgo = (n: number) => {
 };
 const newLine = (item = ''): Line => ({ id: `${Date.now()}-${Math.random()}`, item, quantity: '', unit: 'kg', unitRate: '' });
 const money = (v: number | null | undefined) => {
+  if (v == null) return 'N/A';
   const n = Number(v);
   return Number.isFinite(n) ? `PKR ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A';
 };
