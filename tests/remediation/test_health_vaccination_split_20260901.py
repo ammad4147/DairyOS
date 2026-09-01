@@ -21,10 +21,11 @@ def test_top_level_navigation_and_routes_are_split():
 def test_health_is_clinical_only():
     s = text("src/DairyOS.Web/src/components/HealthTab.tsx")
     assert "Clinical Health" in s
-    assert "Action Queue - Active Clinical Cases" in s
     assert "Complete Clinical Log" in s
     assert "Record Treatment" in s
-    assert "Declare Healthy" in s
+    assert "Mark Healthy" in s
+    assert "Symptoms & Details" in s
+    assert "Next Check-up" in s
     assert "/farm/treatments" in s
     assert "/farm/health-cases" in s
     assert "/vaccinations" not in s

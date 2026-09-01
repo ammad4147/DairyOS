@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
@@ -11,11 +11,14 @@ INACTIVE_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
 def _as_date(value) -> date | None:
     if value is None:
         return None
+    if isinstance(value, datetime):
+        return value.date()
     if isinstance(value, date):
         return value
     if hasattr(value, "date"):
         try:
-            return value.date()
+            converted = value.date()
+            return converted if isinstance(converted, date) else None
         except Exception:
             pass
     try:

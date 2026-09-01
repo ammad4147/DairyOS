@@ -5,9 +5,10 @@ def test_health_ui_contract():
     s=text("src/DairyOS.Web/src/components/HealthTab.tsx")
     assert "Dr. Tariq Mahmood" not in s
     assert "Most Recorded Illnesses / Diagnoses" in s
-    assert "Search animal, illness, medicine, vet" in s
+    assert "Search animal, diagnosis, symptoms, treatment" in s
     assert "resolve(c)" in s
-    assert "Declare Healthy" in s
+    assert "Mark Healthy" in s
+    assert "Declare Healthy" not in s
     assert "/vaccinations" not in s
 
 def test_health_dashboard_refresh():

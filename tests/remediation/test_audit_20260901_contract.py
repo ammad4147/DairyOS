@@ -7,8 +7,10 @@ def test_health_contract():
  assert "Vet Expenses" not in v
  assert "Clinical Health" in v
  assert "Complete Clinical Log" in v
- assert "Declare Healthy" in v
- assert "Action Queue - Active Clinical Cases" in v
+ assert "Mark Healthy" in v
+ assert "Declare Healthy" not in v
+ assert "Symptoms & Details" in v
+ assert "Next Check-up" in v
  assert "/farm/treatments" in v
  assert "/vaccinations" not in v
  assert "/resolve" in v
