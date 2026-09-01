@@ -39,7 +39,7 @@ GOVERNED = {
     ],
     "health_severities": ["NORMAL", "LOW", "MODERATE", "SEVERE", "CRITICAL"],
     "breeding_event_types": [
-        "heat_detected", "insemination", "pregnancy_diagnosis",
+        "insemination", "pregnancy_diagnosis",
         "pregnancy_confirmed", "pregnancy_negative", "dry_off", "calving",
         "abortion", "stillbirth", "postpartum_observation",
     ],

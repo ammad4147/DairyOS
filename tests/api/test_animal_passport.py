@@ -179,12 +179,6 @@ def test_lifetime_animal_passport_exposes_reproductive_lifecycle_state(
     today = date.today()
     _add_breeding_event(
         registered_animal,
-        "heat_detected",
-        today - timedelta(days=30),
-        "observed",
-    )
-    _add_breeding_event(
-        registered_animal,
         "insemination",
         today - timedelta(days=25),
         "bred",
@@ -205,7 +199,7 @@ def test_lifetime_animal_passport_exposes_reproductive_lifecycle_state(
 
     assert current["current_api_status"] == "PREGNANT"
     assert current["pregnancy_status"] == "PREGNANT"
-    assert current["lifetime_heat_events"] == 1
+    assert "lifetime_heat_events" not in current
     assert current["lifetime_inseminations"] == 1
     assert current["pregnancy_confirmations"] == 1
 
@@ -213,7 +207,6 @@ def test_lifetime_animal_passport_exposes_reproductive_lifecycle_state(
     assert [event["event_type"] for event in events] == [
         "PREGNANCY_CONFIRMED",
         "INSEMINATION",
-        "HEAT_DETECTED",
     ]
 
 

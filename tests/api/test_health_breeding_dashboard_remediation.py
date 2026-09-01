@@ -69,7 +69,11 @@ def test_insemination_is_live_on_dashboard(client):
     assert dashboard.status_code == 200, dashboard.text
     reproduction = dashboard.json()["reproduction"]
     assert reproduction["inseminated"] >= 1
-    assert reproduction["on_heat"] == reproduction["onHeat"]
+    assert reproduction["pregnancyRatio"] == 0.0
+    assert (
+        reproduction["pregnancy_ratio_percent"]
+        == reproduction["pregnancyRatio"]
+    )
     assert reproduction["data_status"] == "LIVE_PERSISTED_DATA"
 
 

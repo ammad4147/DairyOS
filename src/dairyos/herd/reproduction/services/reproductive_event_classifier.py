@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 CONFIRMED_RESULTS = {"pregnant", "confirmed", "positive", "yes"}
 NEGATIVE_RESULTS = {"negative", "no"}
 
-HEAT_DETECTION_EVENTS = {"heat_detection", "heat_detected", "heat", "oestrus", "estrus"}
 INSEMINATION_EVENTS = {"insemination", "service", "ai", "artificial_insemination"}
 
 # A pregnancy_confirmed event is pregnancy-outcome evidence, not a separate
@@ -40,10 +39,6 @@ def _event_type(record) -> str:
 
 def _result(record) -> str:
     return normalize_result(getattr(record, "result", None))
-
-
-def is_heat_detection(record) -> bool:
-    return _event_type(record) in HEAT_DETECTION_EVENTS
 
 
 def is_insemination(record) -> bool:
@@ -81,16 +76,12 @@ def classify_animal_state(events) -> dict:
     ordered = sorted(events, key=lambda event: event.timestamp or _EPOCH_MIN)
 
     state = "UNKNOWN"
-    last_heat = None
     last_ai = None
     pregnancy_result = None
     calving = None
 
     for event in ordered:
-        if is_heat_detection(event):
-            state = "HEAT_OBSERVED"
-            last_heat = event.timestamp
-        elif is_insemination(event):
+        if is_insemination(event):
             state = "INSEMINATED"
             last_ai = event.timestamp
         elif is_confirmed_pregnancy(event):
@@ -111,7 +102,6 @@ def classify_animal_state(events) -> dict:
 
     return {
         "state": state,
-        "last_heat": last_heat,
         "last_insemination": last_ai,
         "pregnancy_result": pregnancy_result,
         "expected_calving": expected_calving,

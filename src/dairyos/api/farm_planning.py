@@ -65,8 +65,6 @@ def _breeding_record_to_resolver_event(record):
             return None
     elif raw_type == "pregnancy_confirmed":
         event_type = "PREGNANCY_CONFIRMED"
-    elif raw_type in {"heat_detected", "heat_detection", "heat", "oestrus", "estrus"}:
-        event_type = "HEAT_DETECTED"
     elif raw_type in {"calving", "calved", "parturition"}:
         event_type = "CALVING"
     elif raw_type == "dry_off":
@@ -123,8 +121,6 @@ def _current_state_api_value(state):
         return "CALVED"
     if state.pregnancy_status == "PREGNANT":
         return "PREGNANT"
-    if state.reproductive_status == "HEAT_DETECTED":
-        return "HEAT_OBSERVED"
     if state.reproductive_status == "BRED":
         return "INSEMINATED"
     if state.reproductive_status == "DRY_OFF":
@@ -168,7 +164,6 @@ def reproductive_status(animal_id: str):
             "state": _current_state_api_value(state),
             "reproductive_status": state.reproductive_status,
             "pregnancy_status": state.pregnancy_status,
-            "last_heat": state.last_heat_date.isoformat() if state.last_heat_date else None,
             "last_insemination": state.last_insemination_date.isoformat() if state.last_insemination_date else None,
             "pregnancy_confirmed_date": state.pregnancy_confirmed_date.isoformat() if state.pregnancy_confirmed_date else None,
             "pregnancy_result": "pregnant" if state.pregnancy_status == "PREGNANT" else None,

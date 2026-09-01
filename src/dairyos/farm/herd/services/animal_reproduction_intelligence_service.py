@@ -24,10 +24,6 @@ class AnimalReproductionIntelligenceService:
         Evaluate reproductive condition.
         """
 
-        self._check_heat(
-            state
-        )
-
         self._check_pregnancy_confirmation(
             state
         )
@@ -37,26 +33,6 @@ class AnimalReproductionIntelligenceService:
         )
 
         return state
-
-
-
-    def _check_heat(
-        self,
-        state,
-    ):
-        """
-        Detect heat requiring action.
-        """
-
-        if (
-            state.reproduction_status
-            ==
-            "HEAT_DETECTED"
-        ):
-
-            state.add_attention(
-                "Heat detected - breeding action required"
-            )
 
 
 

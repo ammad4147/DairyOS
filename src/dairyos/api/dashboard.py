@@ -149,7 +149,6 @@ def get_dashboard(container=Depends(get_container)):
         records_by_animal.setdefault(str(record.animal_id), []).append(record)
 
     reproduction_counts = {
-        "onHeat": 0,
         "inseminated": 0,
         "pregnant": 0,
     }
@@ -160,11 +159,9 @@ def get_dashboard(container=Depends(get_container)):
             )
         except (TypeError, ValueError):
             continue
-        if state == "HEAT_OBSERVED":
-            reproduction_counts["onHeat"] += 1
-        elif state == "INSEMINATED":
+        if state in {"INSEMINATED", "PREGNANT"}:
             reproduction_counts["inseminated"] += 1
-        elif state == "PREGNANT":
+        if state == "PREGNANT":
             reproduction_counts["pregnant"] += 1
 
     milk_service = MilkProductionTrendIntelligenceService(
@@ -496,9 +493,14 @@ def get_dashboard(container=Depends(get_container)):
         "due_vaccinations": due_vaccinations,
         "data_status": "LIVE_PERSISTED_DATA",
     }
+    pregnancy_ratio = (
+        round((reproduction_counts["pregnant"] / reproduction_counts["inseminated"]) * 100.0, 2)
+        if reproduction_counts["inseminated"] else 0.0
+    )
     payload["reproduction"] = {
         **reproduction_counts,
-        "on_heat": reproduction_counts["onHeat"],
+        "pregnancyRatio": pregnancy_ratio,
+        "pregnancy_ratio_percent": pregnancy_ratio,
         "data_status": "LIVE_PERSISTED_DATA",
     }
 

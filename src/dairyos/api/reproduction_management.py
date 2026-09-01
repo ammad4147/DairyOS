@@ -10,7 +10,6 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving as _is_calving,
     is_confirmed_pregnancy as _is_confirmed_pregnancy,
-    is_heat_detection as _is_heat_detection,
     is_insemination as _is_insemination,
     is_pregnancy_check as _is_pregnancy_check,
     normalize_event_type,
@@ -78,6 +77,59 @@ def _confirmed_pregnancy_count(recent, inseminations):
     )
 
 
+
+def _insemination_attempt_success(records):
+    # Observed success by service number within each post-calving cycle.
+    by_animal = {}
+    for record in records:
+        by_animal.setdefault(str(getattr(record, "animal_id", "")), []).append(record)
+
+    observed = {}
+    for animal_records in by_animal.values():
+        ordered = sorted(animal_records, key=lambda r: _as_utc(getattr(r, "timestamp", None)))
+        attempt = 0
+        current_service = None
+        for record in ordered:
+            if _is_calving(record):
+                attempt = 0
+                current_service = None
+                continue
+            if _is_insemination(record):
+                attempt += 1
+                current_service = (str(getattr(record, "record_id", id(record))), attempt)
+                continue
+            if current_service is None:
+                continue
+            if _is_pregnancy_check(record) or _is_confirmed_pregnancy(record):
+                service_id, service_attempt = current_service
+                observed[service_id] = (service_attempt, bool(_is_confirmed_pregnancy(record)))
+
+    def bucket(number):
+        outcomes = [outcome for attempt_number, outcome in observed.values() if attempt_number == number]
+        return {
+            "services_with_documented_outcome": len(outcomes),
+            "confirmed_pregnancies": sum(1 for outcome in outcomes if outcome),
+            "success_ratio_percent": (
+                round((sum(1 for outcome in outcomes if outcome) / len(outcomes)) * 100, 2)
+                if outcomes else None
+            ),
+        }
+
+    all_outcomes = [outcome for _, outcome in observed.values()]
+    return {
+        "1": bucket(1),
+        "2": bucket(2),
+        "3": bucket(3),
+        "overall": {
+            "services_with_documented_outcome": len(all_outcomes),
+            "confirmed_pregnancies": sum(1 for outcome in all_outcomes if outcome),
+            "success_ratio_percent": (
+                round((sum(1 for outcome in all_outcomes if outcome) / len(all_outcomes)) * 100, 2)
+                if all_outcomes else None
+            ),
+        },
+    }
+
 def _management(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=365)
@@ -92,10 +144,10 @@ def _management(records):
     inseminations = [r for r in recent if _is_insemination(r)]
     pregnancy_checks = [r for r in recent if _is_pregnancy_check(r)]
     calvings = [r for r in recent if _is_calving(r)]
-    heat_events = [r for r in recent if _is_heat_detection(r)]
 
     outcomes = _conception_outcomes(inseminations, pregnancy_checks)
     confirmed = _confirmed_pregnancy_count(recent, inseminations)
+    attempt_success = _insemination_attempt_success(recent)
 
     return {
         "period": {
@@ -111,8 +163,15 @@ def _management(records):
         "services_with_documented_outcome": len(outcomes),
         "confirmed_pregnancies": confirmed,
         "calvings": len(calvings),
-        "heat_detections": len(heat_events),
-        "conception_rate_percent": _conception_rate(inseminations, pregnancy_checks),
+        "conception_rate_percent": attempt_success["overall"]["success_ratio_percent"],
+        "insemination_success_by_attempt": {
+            "first_attempt": attempt_success["1"],
+            "second_attempt": attempt_success["2"],
+            "third_attempt": attempt_success["3"],
+        },
+        "first_attempt_success_ratio_percent": attempt_success["1"]["success_ratio_percent"],
+        "second_attempt_success_ratio_percent": attempt_success["2"]["success_ratio_percent"],
+        "third_attempt_success_ratio_percent": attempt_success["3"]["success_ratio_percent"],
         "data_status": "NO_DATA" if not recent else "LIVE_PERSISTED_DATA",
         "records": [_serialize(r) for r in recent],
     }

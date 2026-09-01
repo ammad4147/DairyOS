@@ -75,14 +75,12 @@ def test_pregnancy_negative_is_a_check_but_not_confirmed(client, registered_anim
 
 
 def test_full_event_sequence_agrees_across_all_three_endpoints(client, registered_animal):
-    _record_breeding(client, registered_animal, "heat_detected", "detected")
     _record_breeding(client, registered_animal, "insemination", "completed")
     _record_breeding(client, registered_animal, "pregnancy_diagnosis", "pregnant")
     _record_breeding(client, registered_animal, "pregnancy_confirmed", "confirmed")
     _record_breeding(client, registered_animal, "calving", "completed")
 
     reproduction = client.get("/farm/reproduction/overview").json()
-    assert reproduction["heat_detections"] == 1
     assert reproduction["inseminations"] == 1
     assert reproduction["pregnancy_checks"] == 1
     assert reproduction["confirmed_pregnancies"] == 1

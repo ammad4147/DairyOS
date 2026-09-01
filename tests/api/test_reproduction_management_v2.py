@@ -35,9 +35,9 @@ def test_reproduction_overview_excludes_records_without_timestamp_from_current_w
         "/farm/breeding",
         json={
             "animal_id": registered_animal,
-            "event_type": "heat_detection",
+            "event_type": "insemination",
             "technician": "Dr Vet",
-            "result": "detected",
+            "result": "completed",
             "operator": "Dr Vet",
         },
     )
@@ -52,8 +52,8 @@ def test_reproduction_overview_excludes_records_without_timestamp_from_current_w
             factory.session.query(BreedingRecordModel)
             .filter(
                 BreedingRecordModel.animal_id == registered_animal,
-                BreedingRecordModel.event_type == "heat_detection",
-                BreedingRecordModel.result == "detected",
+                BreedingRecordModel.event_type == "insemination",
+                BreedingRecordModel.result == "completed",
             )
             .order_by(BreedingRecordModel.record_id.desc())
             .first()

@@ -9,24 +9,10 @@
         self,
     ):
 
-        self.heats = []
 
         self.inseminations = []
 
         self.pregnancies = []
-
-
-
-    def save_heat(
-        self,
-        event,
-    ):
-
-        self.heats.append(
-            event
-        )
-
-        return event
 
 
 

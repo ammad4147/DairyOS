@@ -149,12 +149,12 @@ def test_pregnancy_confirmation_without_insemination_is_rejected():
         )
 
 
-def test_heat_while_pregnant_is_rejected_as_conflicting_operational_state():
+def test_insemination_while_pregnant_is_rejected_as_conflicting_operational_state():
     service = ReproductiveStateService(POLICY)
 
     with pytest.raises(
         ReproductiveStateError,
-        match="HEAT_DETECTED",
+        match="INSEMINATION",
     ):
         service.resolve(
             "A1",
@@ -176,7 +176,7 @@ def test_heat_while_pregnant_is_rejected_as_conflicting_operational_state():
                 },
                 {
                     "animal_id": "A1",
-                    "event_type": "HEAT_DETECTED",
+                    "event_type": "INSEMINATION",
                     "event_date": "2026-04-10",
                 },
             ],

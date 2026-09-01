@@ -1549,6 +1549,17 @@ def record_breeding_entry(
         get_optional_current_user
     ),
 ):
+    event_type = str(entry.event_type or "").strip().lower().replace("-", "_")
+    retired_heat_events = {"heat", "heat_detected", "heat_detection", "oestrus", "estrus"}
+    if event_type in retired_heat_events:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Heat/estrus breeding events have been retired from DairyOS. "
+                "Record insemination directly when the animal is selected for breeding."
+            ),
+        )
+
     return _record(
         container,
         "breeding",
