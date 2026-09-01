@@ -76,7 +76,7 @@ export default function MainAppShell(){
        {currentView==='audit'&&<AuditTab/>}
        {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>}
        {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}
-       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
+       {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
        {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
       </main>
 
