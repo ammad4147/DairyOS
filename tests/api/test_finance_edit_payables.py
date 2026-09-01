@@ -96,7 +96,7 @@ def test_payable_requires_due_date_and_reports_ageing(finance_test_ids):
     )
     assert created.status_code == 200, created.text
 
-    payables = client.get("/farm/finance-ledger/payables")
+    payables = client.get("/farm/finance-ledger/ageing")
     assert payables.status_code == 200, payables.text
     body = payables.json()
     assert body["outstanding_total"] == 1000
@@ -125,7 +125,7 @@ def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date
     assert paid_body["status"] == "PAID"
     assert paid_body["settled_date"] == date.today().isoformat()
 
-    payables = client.get("/farm/finance-ledger/payables")
+    payables = client.get("/farm/finance-ledger/ageing")
     assert payables.status_code == 200, payables.text
     assert payables.json()["outstanding_total"] == 0
     assert payables.json()["count"] == 0

@@ -48,7 +48,7 @@ ALLOWED_STATUS_TRANSITIONS = {
     "PAYABLE": frozenset({"PAYABLE", "PAID", "VOID"}),
     "RECEIVABLE": frozenset({"RECEIVABLE", "RECEIVED", "VOID"}),
     "PAID": frozenset({"PAID", "VOID"}),
-    "RECEIVED": frozenset({"RECEIVED"}),
+    "RECEIVED": frozenset({"RECEIVED", "VOID"}),
     "VOID": frozenset({"VOID"}),
 }
 
@@ -529,9 +529,7 @@ def _sync_existing_milk_sale_status(
 
     elif status == "VOID":
         disposition.status = "VOID"
-        disposition.quantity_litres = 0.0
-        disposition.amount_due = 0.0
-        disposition.amount_received = 0.0
+        disposition.notes = transaction.notes
 
     disposition.updated_at = datetime.now(UTC)
     factory.session.add(disposition)
@@ -740,22 +738,6 @@ def create_finance_ledger_entry(
     session.refresh(transaction)
 
     return _row_dict(transaction)
-
-
-@router.get("/payables")
-def list_payables(
-    container=Depends(get_container),
-):
-    factory = _factory(container)
-    rows = factory.finance().get_all()
-
-    return _ageing_payload(
-        [
-            row
-            for row in rows
-            if row.status == "PAYABLE"
-        ]
-    )
 
 
 @router.get("/taxonomy")
