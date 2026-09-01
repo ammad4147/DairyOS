@@ -1,0 +1,219 @@
+name: Remove Digital Twin Scenario Lab
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/remove-digital-twin-scenario-lab.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Remove Digital Twin surface and contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil
+
+          root = Path('.')
+
+          def read(path):
+              return path.read_text(encoding='utf-8-sig')
+
+          def write(path, text):
+              path.write_text(text, encoding='utf-8')
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Expected source fragment not found: {label}')
+              return text.replace(old, new, 1)
+
+          app = root / 'src/DairyOS.Web/src/App.tsx'
+          text = read(app)
+          text = replace_once(
+              text,
+              "import DigitalTwinPanel from './components/DigitalTwinPanel';\n",
+              '',
+              'DigitalTwinPanel import',
+          )
+          text = replace_once(
+              text,
+              '<FarmIntelligenceWidget/><DigitalTwinPanel/>',
+              '<FarmIntelligenceWidget/>',
+              'COP DigitalTwinPanel render',
+          )
+          write(app, text)
+
+          backend = root / 'src/dairyos/app.py'
+          text = read(backend)
+          text = replace_once(
+              text,
+              'from dairyos.api.digital_twin import router as digital_twin_router\n',
+              '',
+              'digital twin router import',
+          )
+          text = replace_once(
+              text,
+              'app.include_router(digital_twin_router)\n',
+              '',
+              'digital twin router registration',
+          )
+          write(backend, text)
+
+          streamlining = root / 'tests/architecture/test_streamlining_contract.py'
+          text = read(streamlining)
+          text = replace_once(
+              text,
+              'ANALYTICS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "Analytics.tsx"\n',
+              'ANALYTICS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "Analytics.tsx"\n'
+              'DIGITAL_TWIN_PANEL = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "DigitalTwinPanel.tsx"\n'
+              'DIGITAL_TWIN_API = ROOT / "src" / "dairyos" / "api" / "digital_twin"\n'
+              'DIGITAL_TWIN_PLATFORM = ROOT / "src" / "dairyos" / "platform" / "digital_twin"\n',
+              'digital twin retirement paths',
+          )
+          text = replace_once(
+              text,
+              '    assert not ANALYTICS.exists()\n    assert "currentView===\'cop\'" in text\n',
+              '    assert not ANALYTICS.exists()\n'
+              '    assert not DIGITAL_TWIN_PANEL.exists()\n'
+              '    assert not DIGITAL_TWIN_API.exists()\n'
+              '    assert not DIGITAL_TWIN_PLATFORM.exists()\n'
+              '    assert "currentView===\'cop\'" in text\n',
+              'retired surface existence assertions',
+          )
+          text = replace_once(
+              text,
+              '    assert "<DigitalTwinPanel/>" in text\n',
+              '    assert "DigitalTwinPanel" not in text\n',
+              'DigitalTwinPanel operator contract',
+          )
+          write(streamlining, text)
+
+          operator_test = root / 'tests/api/test_operator_ui_surface.py'
+          text = read(operator_test)
+          text = replace_once(
+              text,
+              '        "FarmIntelligenceWidget",\n        "DigitalTwinPanel",\n',
+              '        "FarmIntelligenceWidget",\n',
+              'active component tuple',
+          )
+          text = replace_once(
+              text,
+              '    ):\n        assert component in source\n    assert "currentView===\'cop\'" in source\n',
+              '    ):\n'
+              '        assert component in source\n'
+              '    assert "DigitalTwinPanel" not in source\n'
+              '    assert "currentView===\'cop\'" in source\n',
+              'operator shell Digital Twin absence',
+          )
+          anchor = '\n\ndef test_main_bootstrap_mounts_app_not_duplicate_shell():\n'
+          retirement_test = '''\n\ndef test_digital_twin_scenario_lab_is_completely_retired(client: TestClient):\n    component = WEB_ROOT / "components" / "DigitalTwinPanel.tsx"\n    api_package = REPO_ROOT / "src" / "dairyos" / "api" / "digital_twin"\n    platform_package = REPO_ROOT / "src" / "dairyos" / "platform" / "digital_twin"\n    assert not component.exists()\n    assert not api_package.exists()\n    assert not platform_package.exists()\n    backend_source = FASTAPI_APP.read_text(encoding="utf-8-sig")\n    assert "digital_twin" not in backend_source\n    assert client.get("/farm/digital-twin/baseline").status_code == 404\n    assert client.post("/farm/digital-twin/scenario", json={}).status_code == 404\n'''
+          text = replace_once(
+              text,
+              anchor,
+              retirement_test + anchor,
+              'Digital Twin retirement API contract insertion',
+          )
+          write(operator_test, text)
+
+          targets = [
+              root / 'src/DairyOS.Web/src/components/DigitalTwinPanel.tsx',
+              root / 'src/dairyos/api/digital_twin',
+              root / 'src/dairyos/platform/digital_twin',
+              root / 'tests/api/digital_twin',
+              root / 'tests/platform/digital_twin',
+          ]
+          for target in targets:
+              if target.is_dir():
+                  shutil.rmtree(target)
+              elif target.exists():
+                  target.unlink()
+
+      - name: Enforce complete Digital Twin retirement
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path('.')
+          forbidden_paths = [
+              root / 'src/DairyOS.Web/src/components/DigitalTwinPanel.tsx',
+              root / 'src/dairyos/api/digital_twin',
+              root / 'src/dairyos/platform/digital_twin',
+              root / 'tests/api/digital_twin',
+              root / 'tests/platform/digital_twin',
+          ]
+          for path in forbidden_paths:
+              assert not path.exists(), path
+
+          forbidden_tokens = (
+              'DigitalTwinPanel',
+              'dairyos.api.digital_twin',
+              'dairyos.platform.digital_twin',
+              '/farm/digital-twin',
+          )
+          for path in (root / 'src').rglob('*'):
+              if not path.is_file() or path.suffix.lower() not in {'.py', '.ts', '.tsx', '.js', '.jsx'}:
+                  continue
+              text = path.read_text(encoding='utf-8-sig', errors='ignore')
+              for token in forbidden_tokens:
+                  assert token not in text, f'{token!r} remains in {path}'
+
+          app = (root / 'src/DairyOS.Web/src/App.tsx').read_text(encoding='utf-8-sig')
+          assert "currentView==='cop'" in app
+          assert '<COML/>' in app
+          assert '<FarmIntelligenceWidget/>' in app
+          assert 'DigitalTwinPanel' not in app
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Compile backend
+        run: python -m compileall -q src/dairyos
+
+      - name: Install architecture test runner
+        run: python -m pip install pytest
+
+      - name: Run architecture contract
+        run: python -m pytest -q tests/architecture/test_streamlining_contract.py
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/DairyOS.Web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/DairyOS.Web
+        run: npm ci
+
+      - name: Typecheck frontend
+        working-directory: src/DairyOS.Web
+        run: npm run typecheck
+
+      - name: Build frontend
+        working-directory: src/DairyOS.Web
+        run: npm run build
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit complete retirement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/remove-digital-twin-scenario-lab.yml
+          git add -A
+          git commit -m "refactor(cop): remove Digital Twin Scenario Lab"
+          git push origin HEAD:main
