@@ -208,7 +208,14 @@ jobs:
           ''').lstrip()
           write("tests/architecture/test_finance_void_and_ledger_contract.py", contract)
 
-      - name: Enforce remediation contract
+      - name: Remove retired Digital Twin artifacts
+        run: |
+          git rm tests/architecture/test_digital_twin_architecture.py
+          git rm tests/architecture/test_digital_twin_operational_contract.py
+          git rm tests/platform/integration/test_twin_knowledge_integration.py
+          git rm src/dairyos/platform/knowledge_graph/integration/twin_adapter.py
+
+      - name: Enforce remediation and artifact contract
         shell: python
         run: |
           from pathlib import Path
@@ -223,6 +230,19 @@ jobs:
           assert "buyer_or_counterparty:revCounterparty||null" in ui
           assert all(label in ui for label in ("Particulars", "Counterparty", "Reference"))
           assert ">Received</button>" in ui
+          retired = [
+              "tests/architecture/test_digital_twin_architecture.py",
+              "tests/architecture/test_digital_twin_operational_contract.py",
+              "tests/platform/integration/test_twin_knowledge_integration.py",
+              "src/dairyos/platform/knowledge_graph/integration/twin_adapter.py",
+          ]
+          assert all(not Path(path).exists() for path in retired)
+          forbidden = ("dairyos.platform.digital_twin", "TwinKnowledgeAdapter")
+          for base in (Path("src"), Path("tests")):
+              for path in base.rglob("*.py"):
+                  text = path.read_text(encoding="utf-8-sig", errors="ignore")
+                  for token in forbidden:
+                      assert token not in text, f"{token} remains in {path}"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -268,5 +288,5 @@ jobs:
           git rm .github/workflows/remediate-finance-ledgers-v2.yml
           git rm .github/workflows/remediate-finance-ledgers-v3.yml
           git add -A
-          git commit -m "fix(finance): normalize ledgers and preserve void audit facts"
+          git commit -m "fix(finance): normalize ledgers and remove retired twin artifacts"
           git push origin HEAD:main
