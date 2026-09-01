@@ -8,6 +8,8 @@ interface BreedingRecord {
   tag: string;
   status: 'Standing Heat' | 'Inseminated (Pending PD)' | 'Confirmed Pregnant' | 'Dry' | 'Open / Ready';
   aiDate: string;
+  heatDate: string;
+  pregnancyDate: string;
   sireCode: string;
   semenType: 'Sexed Semen (90% Female)' | 'Conventional' | 'Not recorded';
   inseminator: string;
@@ -251,6 +253,14 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
 
       const mapped = Array.from(latestByAnimal.entries())
         .map(([animalId, item], index): BreedingRecord => {
+          const animalEvents = breeding
+            .filter(record => String(record.animal_id || '') === animalId)
+            .sort((a, b) => new Date(String(a.timestamp || a.date || '')).getTime() - new Date(String(b.timestamp || b.date || '')).getTime());
+          const lastMatching = (predicate: (eventName: string, result: string) => boolean) =>
+            [...animalEvents].reverse().find(record => predicate(normaliseEvent(record.event_type), String(record.result || '').toUpperCase()));
+          const heatRecord = lastMatching(eventName => eventName.includes('heat'));
+          const aiRecord = lastMatching(eventName => eventName.includes('insemin') || eventName === 'ai');
+          const pregnancyRecord = lastMatching((eventName, eventResult) => eventName.includes('pregnancy') && (eventName.includes('confirmed') || eventResult.includes('POSITIVE') || eventName.includes('negative') || eventResult.includes('NEGATIVE')));
           const animalState = liveStates.find(
             state => state.animal_id === animalId,
           );
@@ -286,12 +296,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
 
           const aiDate = animalState?.last_insemination
             ? dateOnly(animalState.last_insemination)
-            : (
-                event.includes('insemin')
-                || event === 'ai'
-              )
-                ? eventDate
-                : '-';
+            : aiRecord ? dateOnly(aiRecord.timestamp || aiRecord.date) : '-';
 
           const confirmedAt = (
             status === 'Confirmed Pregnant'
@@ -320,8 +325,8 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
               );
 
           const semen = String(
-            item.semen_or_bull
-            || item.sire_code
+            aiRecord?.semen_or_bull
+            || aiRecord?.sire_code
             || '',
           );
 
@@ -342,11 +347,13 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
             tag: animalId,
             status,
             aiDate,
+            heatDate: heatRecord ? dateOnly(heatRecord.timestamp || heatRecord.date) : '-',
+            pregnancyDate: pregnancyRecord ? dateOnly(pregnancyRecord.timestamp || pregnancyRecord.date) : '-',
             sireCode: semen || '-',
             semenType,
             inseminator: String(
-              item.technician
-              || item.inseminator
+              aiRecord?.technician
+              || aiRecord?.inseminator
               || '-',
             ),
             daysPregnant: pregnantDays,
@@ -359,7 +366,9 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
                 ? '-'
                 : addDays(aiDate, 35),
             notes: String(
-              item.notes
+              pregnancyRecord?.notes
+              || pregnancyRecord?.result
+              || item.notes
               || item.result
               || 'Reproductive event recorded.',
             ),
@@ -503,7 +512,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
         event_type,
         technician: formInseminator.trim() || null,
         result,
-        semen_or_bull: eventType === 'AI' ? `${formSemenType} ΓÇö ${formSire.trim()}` : formSire.trim() || null,
+        semen_or_bull: eventType === 'AI' ? `${formSemenType} — ${formSire.trim()}` : formSire.trim() || null,
         notes: formNotes || undefined,
         operator: formInseminator.trim() || 'WEB',
         timestamp: formDate,
@@ -536,9 +545,9 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}><div><h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} /> Breeding, Artificial Insemination (AI) & Gestation Ledger</h2><p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Track estrus detection, genetic sire lineage, sexed semen straws, and 283-day gestation schedules.</p></div><button onClick={() => setShowEventModal(true)} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}><Plus size={15} /> + Record Breeding / AI Event</button></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Active Heat Standing</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{activeHeat} Animals</div><div style={{ fontSize: '10px', color: '#fb923c' }}>AI Window: Next 12 Hours</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #60a5fa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Inseminated (Pending PD)</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{pendingPd} Animals</div><div style={{ fontSize: '10px', color: '#64748b' }}>PD Check Due Day 35</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Confirmed Pregnant</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' }}>{confirmedPregnant} Animals</div><div style={{ fontSize: '10px', color: '#a78bfa' }}>{averageGestation === null ? 'No confirmed pregnancy data' : `Average ${averageGestation}d Gestation`}</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Conception Rate</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>{conceptionRate === null ? 'ΓÇö' : `${conceptionRate.toFixed(1)}%`}</div><div style={{ fontSize: '10px', color: '#34d399' }}>Calculated from persisted reproductive outcomes</div></div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #fb923c' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Active Heat Standing</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{activeHeat} Animals</div><div style={{ fontSize: '10px', color: '#fb923c' }}>AI Window: Next 12 Hours</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #60a5fa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Inseminated (Pending PD)</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{pendingPd} Animals</div><div style={{ fontSize: '10px', color: '#64748b' }}>PD Check Due Day 35</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #a78bfa' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Confirmed Pregnant</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' }}>{confirmedPregnant} Animals</div><div style={{ fontSize: '10px', color: '#a78bfa' }}>{averageGestation === null ? 'No confirmed pregnancy data' : `Average ${averageGestation}d Gestation`}</div></div><div style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #34d399' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>Conception Rate</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>{conceptionRate === null ? '—' : `${conceptionRate.toFixed(1)}%`}</div><div style={{ fontSize: '10px', color: '#34d399' }}>Calculated from persisted reproductive outcomes</div></div></div>
       {error && <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(251,146,60,0.12)', border: '1px solid #7c2d12', color: '#fdba74', fontSize: '12px' }}>{error}</div>}
-      <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden' }}><table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}><thead><tr style={{ color: '#94a3b8', borderBottom: '1px solid #1f2937', textAlign: 'left', background: '#161f30' }}><th style={{ padding: '10px 12px' }}>Animal Tag</th><th style={{ padding: '10px 12px' }}>Reproductive Status</th><th style={{ padding: '10px 12px' }}>AI Date & Sire Lineage</th><th style={{ padding: '10px 12px' }}>Semen Type</th><th style={{ padding: '10px 12px' }}>Gestation / Calving Timeline</th><th style={{ padding: '10px 12px' }}>Veterinary Clinical Notes</th></tr></thead><tbody>{loading ? null : records.map(r => <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ padding: '10px 12px' }}><button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }} title="Open Biological Passport">#{r.tag}</button><div style={{ fontSize: '10px', color: '#64748b' }}>{r.id}</div></td><td style={{ padding: '10px 12px' }}>
+      <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 980, fontSize: '12px', borderCollapse: 'collapse' }}><thead><tr style={{ color: '#cbd5e1', borderBottom: '1px solid #334155', textAlign: 'left', background: '#161f30' }}><th style={{ padding: '10px 12px' }}>Animal &amp; Heat Date</th><th style={{ padding: '10px 12px' }}>Current Stage</th><th style={{ padding: '10px 12px' }}>Insemination Date &amp; Sire</th><th style={{ padding: '10px 12px' }}>Semen Type</th><th style={{ padding: '10px 12px' }}>Pregnancy &amp; Calving Timeline</th><th style={{ padding: '10px 12px' }}>Clinical Notes</th></tr></thead><tbody>{loading ? null : records.map(r => <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ padding: '10px 12px' }}><button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }} title="Open Biological Passport">#{r.tag}</button><div style={{ fontSize: '10px', color: r.heatDate==='-'?'#64748b':'#fb923c', marginTop:3 }}>Heat: {r.heatDate}</div></td><td style={{ padding: '10px 12px' }}>
   {(() => {
     const state = currentStates.find(
       value => value.animal_id === r.tag,
@@ -615,7 +624,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
       </select>
     );
   })()}
-</td><td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold', color: '#fff' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>Date: {r.aiDate} ΓÇó {r.inseminator}</div></td><td style={{ padding: '10px 12px', color: '#cbd5e1' }}><span style={{ color: r.semenType.includes('Sexed') ? '#ec4899' : '#94a3b8', fontWeight: 'bold', fontSize: '11px' }}>{r.semenType}</span></td><td style={{ padding: '10px 12px' }}><div style={{ color: '#fff' }}><strong>PD:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399' }}>Calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td><td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: '11px' }}>{r.notes}</td></tr>)}</tbody></table></div>
+</td><td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold', color: '#fff' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>AI: {r.aiDate} • {r.inseminator}</div></td><td style={{ padding: '10px 12px', color: '#cbd5e1' }}><span style={{ color: r.semenType.includes('Sexed') ? '#f472b6' : '#cbd5e1', fontWeight: 'bold', fontSize: '11px' }}>{r.semenType}</span></td><td style={{ padding: '10px 12px' }}><div style={{ color: r.pregnancyDate==='-'?'#94a3b8':'#a78bfa' }}><strong>Pregnancy check:</strong> {r.pregnancyDate}</div><div style={{ color: '#cbd5e1', fontSize: '10px', marginTop:3 }}><strong>PD due:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399', marginTop:3 }}>Expected calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td><td style={{ padding: '10px 12px', color: '#cbd5e1', fontSize: '11px' }}>{r.notes}</td></tr>)}</tbody></table></div>
       {showEventModal && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}><div style={{ background: '#111827', border: '1px solid #fb923c', borderRadius: '10px', width: '480px', padding: '22px' }}><h3 style={{ margin: '0 0 14px 0', color: '#fb923c', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={18} /> Record Reproduction & Gestation Event</h3><div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}><button type="button" onClick={() => setEventType('AI')} style={{ background: eventType === 'AI' ? '#fb923c' : '#1e293b', color: eventType === 'AI' ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Insemination (AI)</button><button type="button" onClick={() => setEventType('HEAT')} style={{ background: eventType === 'HEAT' ? '#fb923c' : '#1e293b', color: eventType === 'HEAT' ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Heat Observation</button><button type="button" onClick={() => setEventType('PD')} style={{ background: eventType === 'PD' ? '#fb923c' : '#1e293b', color: eventType === 'PD' ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>Pregnancy Check (PD)</button></div><form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Select Animal ID</label><select value={formTag} onChange={e => setFormTag(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>{eligibleFemales.length > 0 ? eligibleFemales.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>) : <option value="" disabled>No eligible female animals available</option>}</select></div>{eventType === 'AI' && <><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Sire Code / Bull</label><input type="text" required value={formSire} onChange={e => setFormSire(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Semen Type</label><select required value={formSemenType} onChange={e => setFormSemenType(e.target.value as 'Sexed Semen (90% Female)' | 'Conventional' | '')} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}><option value="">Select actual semen type</option><option value="Sexed Semen (90% Female)">Sexed Semen (90% Female)</option><option value="Conventional">Conventional Semen</option></select></div></div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>AI Date</label><input type="date" required value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Inseminator / Vet</label><input type="text" value={formInseminator} onChange={e => setFormInseminator(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div></div></>}{eventType === 'PD' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>PD Check Result</label><select required value={formPdResult} onChange={e => setFormPdResult(e.target.value as 'POSITIVE' | 'NEGATIVE' | '')} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }}><option value="">Select actual result</option><option value="POSITIVE">Positive (Confirmed Pregnant)</option><option value="NEGATIVE">Negative (Open - Re-breed)</option></select></div><div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Check Date</label><input type="date" required value={formDate} onChange={e => setFormDate(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px', boxSizing: 'border-box' }} /></div></div>}<div><label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>Clinical / Behavioral Notes</label><input type="text" placeholder="e.g., Mucus quality, straw lot number, ultrasound finding" value={formNotes} onChange={e => setFormNotes(e.target.value)} style={{ width: '100%', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '12px' }} /></div><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}><button type="button" onClick={() => setShowEventModal(false)} style={{ background: '#334155', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancel</button><button type="submit" disabled={loading || !formTag} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 14px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Save Breeding Entry</button></div></form></div></div>}
       {activeModalPassport && <AnimalPassportModal animalId={activeModalPassport} onClose={() => setActiveModalPassport(null)} />}
     </div>

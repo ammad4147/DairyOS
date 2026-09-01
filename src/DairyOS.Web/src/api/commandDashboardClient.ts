@@ -262,6 +262,12 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
   const rawAnimals =
     raw?.animals || {};
 
+  const rawHealth =
+    raw?.health || dashboard.health || {};
+
+  const rawReproduction =
+    raw?.reproduction || dashboard.reproduction || {};
+
   const todayProduction =
     sumLedgerForDate(
       todayLedger.production || [],
@@ -483,31 +489,36 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     health: {
       sick:
         Number(
-          dashboard.health?.active_exceptions ??
+          rawHealth.active_exceptions ??
+          rawHealth.sick ??
           0,
         ),
 
       mastitis:
         Number(
-          dashboard.health?.critical_cases ??
+          rawHealth.critical_cases ??
+          rawHealth.mastitis ??
           0,
         ),
 
       highTemp:
         Number(
-          dashboard.health?.high_temperature ??
+          rawHealth.high_temperature ??
+          rawHealth.highTemp ??
           0,
         ),
 
       completedVax:
         Number(
-          dashboard.health?.completed_vaccinations ??
+          rawHealth.completed_vaccinations ??
+          rawHealth.completedVax ??
           0,
         ),
 
       dueVax:
         Number(
-          dashboard.health?.due_vaccinations ??
+          rawHealth.due_vaccinations ??
+          rawHealth.dueVax ??
           0,
         ),
     },
@@ -515,19 +526,20 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     reproduction: {
       onHeat:
         Number(
-          dashboard.reproduction?.on_heat ??
+          rawReproduction.on_heat ??
+          rawReproduction.onHeat ??
           0,
         ),
 
       inseminated:
         Number(
-          dashboard.reproduction?.inseminated ??
+          rawReproduction.inseminated ??
           0,
         ),
 
       pregnant:
         Number(
-          dashboard.reproduction?.pregnant ??
+          rawReproduction.pregnant ??
           0,
         ),
     },

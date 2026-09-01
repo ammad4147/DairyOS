@@ -69,4 +69,31 @@ def test_insemination_is_live_on_dashboard(client):
     assert dashboard.status_code == 200, dashboard.text
     reproduction = dashboard.json()["reproduction"]
     assert reproduction["inseminated"] >= 1
+    assert reproduction["on_heat"] == reproduction["onHeat"]
     assert reproduction["data_status"] == "LIVE_PERSISTED_DATA"
+
+
+def test_vaccination_is_live_on_dashboard(client):
+    animal_id = _animal(client, "DASH-HEALTH-VAX-001")
+    response = client.post(
+        f"/farm/animals/{animal_id}/vaccinations",
+        json={
+            "vaccine": "FMD",
+            "dose": "2 ml",
+            "administered_date": date.today().isoformat(),
+            "next_due_date": date.today().isoformat(),
+            "batch_number": "FMD-AUDIT-001",
+            "veterinarian": "AUDIT-VET",
+            "operator": "AUDIT-VET",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200, dashboard.text
+    health = dashboard.json()["health"]
+    assert health["completedVax"] >= 1
+    assert health["completed_vaccinations"] == health["completedVax"]
+    assert health["dueVax"] >= 1
+    assert health["due_vaccinations"] == health["dueVax"]
+    assert health["data_status"] == "LIVE_PERSISTED_DATA"

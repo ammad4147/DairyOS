@@ -37,3 +37,5 @@ class OperationalInputType(str, Enum):
     EQUIPMENT = "equipment"
 
     TREATMENT = "treatment"
+
+    VACCINATION = "vaccination"

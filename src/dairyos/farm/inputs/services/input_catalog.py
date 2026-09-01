@@ -140,4 +140,18 @@ class InputCatalog:
                 required_fields=["animal_id", "medicine"],
                 analytics_enabled=True, notification_enabled=True, governance_required=True,
             ),
+            OperationalInputDefinition(
+                input_type=OperationalInputType.VACCINATION.value,
+                name="Vaccination Entry",
+                description="Animal vaccination records supporting preventive-health history and due-date monitoring.",
+                required_fields=["animal_id", "vaccine"],
+                optional_fields=[
+                    "dose", "administered_date", "next_due_date", "batch_number",
+                    "veterinarian", "notes", "status", "operator",
+                ],
+                analytics_enabled=True,
+                notification_enabled=True,
+                governance_required=True,
+                normalization_enabled=True,
+            ),
         ]

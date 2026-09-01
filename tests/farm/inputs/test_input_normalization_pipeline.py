@@ -42,3 +42,24 @@ def test_feed_alias_normalization_pipeline():
     assert event.payload["feed_type"] == "TMR"
 
     assert event.payload["quantity_kg"] == 40.0
+
+
+def test_vaccination_input_is_registered_and_persistable():
+
+    container = RuntimeContainer()
+
+    event = container.input_gateway.record(
+        input_type="vaccination",
+        payload={
+            "animal_id": "TEST-COW-100",
+            "vaccine": "FMD",
+            "administered_date": "2026-09-01",
+            "next_due_date": "2026-09-01",
+            "status": "COMPLETED",
+        },
+        actor="TEST-VET",
+    )
+
+    assert event.input_type == "vaccination"
+    assert event.payload["animal_id"] == "TEST-COW-100"
+    assert event.payload["vaccine"] == "FMD"

@@ -461,6 +461,9 @@ export default function MilkTab({
   const [error, setError] =
     useState('');
 
+  const [productionAlert, setProductionAlert] =
+    useState('');
+
   const [message, setMessage] =
     useState('');
 
@@ -991,11 +994,16 @@ export default function MilkTab({
 
         await load();
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Milk production save failed.',
-        );
+        const detail = err instanceof Error ? err.message : '';
+        if (
+          detail.includes('MILKING_SESSION_ALREADY_RECORDED') ||
+          detail.toLowerCase().includes('already been recorded') ||
+          detail.toLowerCase().includes('next session must be available')
+        ) {
+          setProductionAlert("TODAY'S MILKING SESSIONS ALREADY RECORDED");
+        } else {
+          setError(detail || 'Milk production save failed.');
+        }
       } finally {
         setSaving(false);
       }
@@ -1959,18 +1967,15 @@ export default function MilkTab({
                 <table
                   style={{
                     ...tableStyle,
-                    minWidth: 560,
+                    minWidth: 760,
                   }}
                 >
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>
-                        Animal / Type
-                      </th>
-                      <th>
-                        Litres
-                      </th>
+                      <th>ID &amp; Type</th>
+                      <th>Sessions Production</th>
+                      <th>Total Production</th>
                       <th>
                         Actions
                       </th>
@@ -1990,12 +1995,7 @@ export default function MilkTab({
                             ),
                           label:
                             `${row.animal_id} · ${herdMasterList.find((animal) => animal.id === row.animal_id)?.category || 'Milking Cow'}`,
-                          detail:
-                            [
-                              row.morning_yield != null ? `Morning ${litre(row.morning_yield)}` : null,
-                              row.afternoon_yield != null ? `Afternoon ${litre(row.afternoon_yield)}` : null,
-                              row.evening_yield != null ? `Evening ${litre(row.evening_yield)}` : null,
-                            ].filter(Boolean).join(' + '),
+                          detail: [row.morning_yield,row.afternoon_yield,row.evening_yield].filter(value=>value!=null).map(value=>litre(value)).join(' + '),
                           qty:
                             row.total_yield,
                           row,
@@ -2059,14 +2059,11 @@ export default function MilkTab({
                             </td>
 
                             <td>
-                              {entry.kind === 'PRODUCTION' ? (
-                                <div style={{display:'grid',gap:2}}>
-                                  <div style={{fontSize:9,color:'#cbd5e1'}}>{entry.detail || 'No individual session figures'}</div>
-                                  <strong style={{color:'#38bdf8'}}>{`Total ${litre(entry.qty)}`}</strong>
-                                </div>
-                              ) : (
-                                litre(entry.qty)
-                              )}
+                              {entry.kind === 'PRODUCTION' ? (entry.detail || 'No individual session figures') : `${entry.label} ${litre(entry.qty)}`}
+                            </td>
+
+                            <td>
+                              <strong style={{color:entry.kind==='PRODUCTION'?'#38bdf8':'#cbd5e1'}}>{litre(entry.qty)}</strong>
                             </td>
 
                             <td>
@@ -2112,7 +2109,7 @@ export default function MilkTab({
                       <tr>
                         <td
                           colSpan={
-                            4
+                            5
                           }
                           style={{
                             padding:
@@ -2397,6 +2394,14 @@ export default function MilkTab({
             zIndex: 200,
           }}
         >
+          {productionAlert && (
+            <div role="alertdialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:220,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(2,6,23,.78)',padding:18}}>
+              <div style={{width:'min(430px,100%)',background:'#111827',border:'1px solid #f59e0b',borderRadius:10,padding:20,textAlign:'center',boxShadow:'0 25px 50px -12px rgba(0,0,0,.8)'}}>
+                <div style={{fontSize:14,fontWeight:900,color:'#f8fafc'}}>{productionAlert}</div>
+                <button type="button" autoFocus onClick={()=>setProductionAlert('')} style={{...buttonStyle('#0284c7'),marginTop:16,minWidth:90}}>OK</button>
+              </div>
+            </div>
+          )}
           <div
             style={{
               width:
@@ -2954,22 +2959,19 @@ function DailyProductionDetail({
         )
         .reduce(
           (map, row) => {
-            map.set(
-              row.animal_id,
-              (map.get(
-                row.animal_id,
-              ) || 0) +
-                Number(
-                  row.total_yield ||
-                    0,
-                ),
-            );
+            const current = map.get(row.animal_id) || {morning:0,afternoon:0,evening:0,total:0};
+            map.set(row.animal_id, {
+              morning: current.morning + Number(row.morning_yield || 0),
+              afternoon: current.afternoon + Number(row.afternoon_yield || 0),
+              evening: current.evening + Number(row.evening_yield || 0),
+              total: current.total + Number(row.total_yield || 0),
+            });
 
             return map;
           },
           new Map<
             string,
-            number
+            {morning:number;afternoon:number;evening:number;total:number}
           >(),
         ),
     ).sort(
@@ -3078,7 +3080,7 @@ function DailyProductionDetail({
             marginBottom: 6,
           }}
         >
-          Animal Milk Production —{' '}
+          Daily Milk Register —{' '}
           {date}
         </div>
 
@@ -3093,12 +3095,9 @@ function DailyProductionDetail({
           >
             <thead>
               <tr>
-                <th>
-                  Animal ID
-                </th>
-                <th>
-                  Milk Produced
-                </th>
+                <th>Animal ID</th>
+                <th>Sessions Production</th>
+                <th>Total Production</th>
               </tr>
             </thead>
 
@@ -3106,7 +3105,7 @@ function DailyProductionDetail({
               {animalTotals.map(
                 ([
                   animalId,
-                  total,
+                  totals,
                 ]) => (
                   <tr
                     key={
@@ -3159,11 +3158,8 @@ function DailyProductionDetail({
                       )}
                     </td>
 
-                    <td>
-                      {litre(
-                        total,
-                      )}
-                    </td>
+                    <td>{[totals.morning,totals.afternoon,totals.evening].filter(value=>value>0).map(value=>litre(value)).join(' + ') || 'No individual session figures'}</td>
+                    <td><strong style={{color:'#38bdf8'}}>{litre(totals.total)}</strong></td>
                   </tr>
                 ),
               )}
@@ -3173,7 +3169,7 @@ function DailyProductionDetail({
                 <tr>
                   <td
                     colSpan={
-                      2
+                      3
                     }
                     style={{
                       padding:

@@ -50,6 +50,30 @@ def _record_day(value) -> date | None:
             return None
 
 
+def _vaccination_dashboard_counts(container, operational_date: date) -> tuple[int, int]:
+    """Project completed and currently-due vaccination records from the journal."""
+    completed = 0
+    due = 0
+
+    for event in container.event_journal.all_events():
+        if event.name != "OperationalInputReceived":
+            continue
+
+        event_payload = dict(event.payload or {})
+        if str(event_payload.get("input_type") or "").lower() != "vaccination":
+            continue
+
+        if str(event_payload.get("status") or "COMPLETED").upper() == "VOID":
+            continue
+
+        completed += 1
+        next_due_date = _record_day(event_payload.get("next_due_date"))
+        if next_due_date is not None and next_due_date <= operational_date:
+            due += 1
+
+    return completed, due
+
+
 @router.get("/dashboard")
 def get_dashboard(container=Depends(get_container)):
     """Return the established Dashboard contract from persisted runtime data."""
@@ -80,6 +104,11 @@ def get_dashboard(container=Depends(get_container)):
     operational_date = OperationalDateAuthority(
         repository_factory=container.repository_factory,
     ).current_date()
+
+    completed_vaccinations, due_vaccinations = _vaccination_dashboard_counts(
+        container,
+        operational_date,
+    )
 
     # Health and reproduction cards are live projections from the same
     # persisted ledgers used by their operational tabs. Event creation must be
@@ -450,13 +479,19 @@ def get_dashboard(container=Depends(get_container)):
         "sick": len(open_health_animals),
         "mastitis": len(mastitis_animals),
         "highTemp": len(high_temperature_animals),
-        "completedVax": 0,
-        "dueVax": 0,
+        "completedVax": completed_vaccinations,
+        "dueVax": due_vaccinations,
+        "active_exceptions": len(open_health_animals),
+        "critical_cases": len(mastitis_animals),
+        "high_temperature": len(high_temperature_animals),
+        "completed_vaccinations": completed_vaccinations,
+        "due_vaccinations": due_vaccinations,
         "openCases": len(open_health_cases),
         "data_status": "LIVE_PERSISTED_DATA",
     }
     payload["reproduction"] = {
         **reproduction_counts,
+        "on_heat": reproduction_counts["onHeat"],
         "data_status": "LIVE_PERSISTED_DATA",
     }
 
