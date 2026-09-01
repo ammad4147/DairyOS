@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from ..models.financial_transaction import FinancialTransaction
+from ...finance.classification.transaction_classifier import is_expense, is_income
 
 
 class FinancialRepository:
@@ -105,7 +106,7 @@ class FinancialRepository:
 
 
     def void(self, record_id, reason=""):
-        """Soft-void an unsettled financial transaction with an audit note."""
+        """Soft-void a financial transaction while preserving its audit history."""
         entity = self.get_by_id(record_id)
         if entity is None:
             return False
@@ -113,12 +114,6 @@ class FinancialRepository:
         status = str(getattr(entity, "status", "RECORDED") or "RECORDED").upper()
         if status == "VOID":
             return entity
-        if status in {"PAID", "RECEIVED"}:
-            raise RuntimeError(
-                f"Settled financial transactions in {status} state are immutable; "
-                "use a governed correction entry instead."
-            )
-
         cleaned_reason = (reason or "").strip()
         if not cleaned_reason:
             raise ValueError("A reason is required to void a financial transaction.")
@@ -153,8 +148,7 @@ class FinancialRepository:
         return sum(
             item.amount
             for item in self.get_all()
-            if hasattr(item, "is_income") and item.is_income()
-            or (not hasattr(item, "is_income") and getattr(item, "transaction_type", None) in ("INCOME", "RECEIPT"))
+            if is_income(item)
         )
 
 
@@ -163,8 +157,7 @@ class FinancialRepository:
         return sum(
             item.amount
             for item in self.get_all()
-            if hasattr(item, "is_expense") and item.is_expense()
-            or (not hasattr(item, "is_expense") and getattr(item, "transaction_type", None) in ("EXPENSE", "PAYMENT"))
+            if is_expense(item)
         )
 
 
@@ -183,14 +176,12 @@ class FinancialRepository:
 
         income = sum(
             item.amount for item in records
-            if hasattr(item, "is_income") and item.is_income()
-            or getattr(item, "transaction_type", None) in ("INCOME", "RECEIPT")
+            if is_income(item)
         )
 
         expenses = sum(
             item.amount for item in records
-            if hasattr(item, "is_expense") and item.is_expense()
-            or getattr(item, "transaction_type", None) in ("EXPENSE", "PAYMENT")
+            if is_expense(item)
         )
 
         return {
