@@ -14,8 +14,11 @@ from dairyos.core.time_utils import utcnow
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.finance.classification.transaction_classifier import is_active
 
 router = APIRouter(prefix="/farm/feed", tags=["feed-nutrition"])
+
+INACTIVE_OPERATIONAL_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
 
 
 class RationIngredient(BaseModel):
@@ -138,7 +141,7 @@ def _historical_feed_cost(factory, feed_type: str, feeding_date: datetime):
     target = feeding_date.replace(tzinfo=None) if feeding_date.tzinfo else feeding_date
     candidates = []
     for row in factory.finance().get_all():
-        if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+        if not is_active(row):
             continue
         if str(getattr(row, "transaction_type", "") or "").upper() not in {"EXPENSE", "PAYMENT", "PURCHASE"}:
             continue
@@ -233,8 +236,30 @@ def feed_overview():
     factory = RepositoryFactory.create()
     try:
         records = factory.feed().get_all()
+        active_records = [
+            r
+            for r in records
+            if str(getattr(r, "status", "RECORDED") or "RECORDED").upper()
+            not in INACTIVE_OPERATIONAL_STATUSES
+        ]
         rations = factory.feed_rations().get_all()
-        priced = [r for r in records if getattr(r, "total_feed_cost", None) is not None]
-        return {"data_status": "LIVE_PERSISTED_DATA", "feeding_records": len(records), "ration_count": len(rations), "total_recorded_feed_kg": sum(float(r.quantity_kg or 0) for r in records), "priced_feed_kg": sum(float(r.quantity_kg or 0) for r in priced), "priced_feed_cost": round(sum(float(r.total_feed_cost or 0) for r in priced), 2), "unpriced_feed_records": len(records) - len(priced), "nutrition_metrics": {"dry_matter_intake_kg": None, "crude_protein_pct": None, "ndf_pct": None, "energy_mcal_kg": None}, "interpretation": "Nutrition metrics are reported only when supported by persisted ration/measurement data; feed economics use historical persisted purchase prices when available and never invent missing costs."}
+        priced = [r for r in active_records if getattr(r, "total_feed_cost", None) is not None]
+        return {
+            "data_status": "LIVE_PERSISTED_DATA",
+            "feeding_records": len(active_records),
+            "historical_inactive_records": len(records) - len(active_records),
+            "ration_count": len(rations),
+            "total_recorded_feed_kg": sum(float(r.quantity_kg or 0) for r in active_records),
+            "priced_feed_kg": sum(float(r.quantity_kg or 0) for r in priced),
+            "priced_feed_cost": round(sum(float(r.total_feed_cost or 0) for r in priced), 2),
+            "unpriced_feed_records": len(active_records) - len(priced),
+            "nutrition_metrics": {
+                "dry_matter_intake_kg": None,
+                "crude_protein_pct": None,
+                "ndf_pct": None,
+                "energy_mcal_kg": None,
+            },
+            "interpretation": "Nutrition metrics are reported only when supported by persisted ration/measurement data; feed economics use historical persisted purchase prices when available and never invent missing costs. VOID/CANCELLED/DELETED records remain in history but are excluded from active totals.",
+        }
     finally:
         factory.close()
