@@ -4,18 +4,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "src" / "DairyOS.Web" / "src" / "App.tsx"
 SETTINGS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "SettingsTab.tsx"
+ANALYTICS = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "Analytics.tsx"
 
 
 def test_operator_shell_has_exactly_nine_navigation_tabs_and_one_dashboard_surface():
     text = APP.read_text(encoding="utf-8-sig")
-    labels = ["Dashboard", "Animals", "Milk", "Feed", "Finance", "Breeding", "Health", "COML", "Analytics"]
+    labels = ["Dashboard", "Animals", "Milk", "Feed", "Finance", "Breeding", "Health", "Vaccination", "COP"]
     nav_start = text.index("const navItems=")
     nav_end = text.index(";\n const canSettings", nav_start)
     nav = text[nav_start:nav_end]
     assert len(labels) == 9
+    assert nav.count("label:'") == 9
     assert all(f"label:'{label}'" in nav for label in labels)
+    assert "label:'COML'" not in nav
+    assert "label:'Analytics'" not in nav
     assert "UnifiedDashboard" in text
     assert "MainDashboard" not in text
+
+
+def test_analytics_surface_is_retired_from_operator_shell():
+    text = APP.read_text(encoding="utf-8-sig")
+    assert "./components/Analytics" not in text
+    assert "currentView==='analytics'" not in text
+    assert not ANALYTICS.exists()
+    assert "currentView==='cop'" in text
+    assert "<COML/>" in text
+    assert "<FarmIntelligenceWidget/>" in text
+    assert "<DigitalTwinPanel/>" in text
 
 
 def test_settings_has_no_operator_facing_deployment_surface():
