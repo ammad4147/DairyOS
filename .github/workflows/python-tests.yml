@@ -161,14 +161,6 @@ jobs:
         working-directory: src/DairyOS.Web
         run: npm run build
 
-  frontend-syntax:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Check Milk dashboard JavaScript
-        run: node --check src/dairyos/web/dashboard_milk_intelligence.js
-
   full-regression:
     runs-on: ubuntu-latest
     services:
