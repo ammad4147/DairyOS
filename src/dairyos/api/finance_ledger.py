@@ -47,7 +47,7 @@ ALLOWED_STATUS_TRANSITIONS = {
     "RECORDED": frozenset({"RECORDED", "PAYABLE", "RECEIVABLE", "VOID"}),
     "PAYABLE": frozenset({"PAYABLE", "PAID", "VOID"}),
     "RECEIVABLE": frozenset({"RECEIVABLE", "RECEIVED", "VOID"}),
-    "PAID": frozenset({"PAID"}),
+    "PAID": frozenset({"PAID", "VOID"}),
     "RECEIVED": frozenset({"RECEIVED"}),
     "VOID": frozenset({"VOID"}),
 }
@@ -1084,8 +1084,9 @@ def update_finance_ledger_status(
             detail="Financial transaction not found.",
         )
 
+    current_status = (row.status or "RECORDED").strip().upper()
     status = _validate_transition(
-        row.status,
+        current_status,
         payload.status,
     )
 
@@ -1121,11 +1122,13 @@ def update_finance_ledger_status(
         )
 
     row.status = status
-    row.settled_date = (
-        date.today()
-        if status in SETTLED_STATUSES
-        else None
-    )
+    if status in SETTLED_STATUSES:
+        row.settled_date = row.settled_date or date.today()
+    elif not (
+        status == "VOID"
+        and current_status in SETTLED_STATUSES
+    ):
+        row.settled_date = None
 
     if payload.reason:
         stamp = datetime.now(UTC).isoformat()
