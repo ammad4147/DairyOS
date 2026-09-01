@@ -56,8 +56,29 @@ def test_milk_analytics_are_derived_from_persisted_production():
     assert "get_open_by_module(\"MILK\")" not in source
 
 
+def test_dashboard_uses_same_authoritative_milk_analytics():
+    source = text("src/dairyos/api/dashboard.py")
+    assert "_yield_drop_watchlist(" in source
+    assert "_production_extremes(" in source
+    assert 'get_open_by_module("MILK")' not in source
+    assert "MILK_DAILY_DROP:" not in source
+    assert '"production_extremes": production_extremes' in source
+
+
 def test_milk_disposition_capacity_has_overall_inventory_fallback():
     service = text("src/dairyos/farm/production/services/milk_reconciliation_service.py")
+    edit_api = text("src/dairyos/api/milk_traceability.py")
     assert "overall_saleable_capacity" in service
     assert "available_saleable_litres" in service
     assert "overall saleable production" in service
+    assert "MilkReconciliationService.validate_disposition_quantity(" in edit_api
+    assert "exclude_id=item.id" in edit_api
+
+
+def test_monthly_milk_sold_reads_authoritative_sold_dispositions():
+    frontend = text("src/DairyOS.Web/src/components/MilkTab.tsx")
+    assert "const monthSold" in frontend
+    assert "monthDispositionRows" in frontend
+    assert "row.disposition_type ===" in frontend
+    assert "'SOLD'" in frontend
+    assert "row.status !== 'VOID'" in frontend
