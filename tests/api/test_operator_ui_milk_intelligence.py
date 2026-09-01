@@ -2,11 +2,11 @@ from fastapi.testclient import TestClient
 
 from pathlib import Path
 
-from dairyos.app import app
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SHELL = REPO_ROOT / "src" / "DairyOS.Web" / "src" / "ui" / "DairyOSShell.tsx"
+WEB_SRC = REPO_ROOT / "src" / "DairyOS.Web" / "src"
+DASHBOARD = WEB_SRC / "components" / "UnifiedDashboard.tsx"
+DASHBOARD_CLIENT = WEB_SRC / "api" / "commandDashboardClient.ts"
 
 
 def test_milk_intelligence_endpoint_is_reachable(client: TestClient):
@@ -27,14 +27,17 @@ def test_milk_intelligence_endpoint_is_reachable(client: TestClient):
         assert key in payload
 
 
-def test_milk_intelligence_is_represented_by_active_operator_shell(client: TestClient):
+def test_current_dashboard_represents_persisted_milk_intelligence(client: TestClient):
     root = client.get("/")
     assert root.status_code == 200
     body = root.json()
     assert body["operator_ui"]["authoritative"] is True
     assert body["legacy_static_ui"]["served"] is False
 
-    source = SHELL.read_text(encoding="utf-8")
-    assert "animal yield alerts above 20% drop" in source
-    assert "Open alerts" in source
-    assert "/farm/milk/intelligence" in source or "/farm/milk" in source
+    dashboard = DASHBOARD.read_text(encoding="utf-8-sig")
+    dashboard_client = DASHBOARD_CLIENT.read_text(encoding="utf-8-sig")
+
+    assert "Yield Drop Watchlist" in dashboard
+    assert "Production Extremes" in dashboard
+    assert "yield_drop_watchlist" in dashboard_client
+    assert "production_extremes" in dashboard_client
