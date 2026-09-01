@@ -10,6 +10,7 @@ import SettingsTab from './components/SettingsTab';
 import AuditTab from './components/AuditTab';
 import MilkTab from './components/MilkTab';
 import HealthTab from './components/HealthTab';
+import VaccinationTab from './components/VaccinationTab';
 import BreedingTab from './components/BreedingTab';
 import AnimalTab from './components/AnimalTab';
 import AnimalPassportModal from './components/AnimalPassportModal';
@@ -18,7 +19,7 @@ import { API_BASE_URL } from './config/api';
 import { useAlertAudit } from './context/AlertAuditContext';
 import { AnimalContextProvider } from './context/AnimalContext';
 import { useAnimalContext } from './context/AnimalContext';
-import { LayoutDashboard, Calculator, BarChart3, DollarSign, Milk, HeartPulse, Activity, Settings, Bell, Wheat, Users, WalletCards } from 'lucide-react';
+import { LayoutDashboard, Calculator, BarChart3, DollarSign, Milk, HeartPulse, ShieldCheck, Activity, Settings, Bell, Wheat, Users, WalletCards } from 'lucide-react';
 import './App.css';
 
 interface HerdAnimal { id:string; breed:string; category:string; age:string; status:string; frequency:string; earTag:string; gender?:string; stage?:string }
@@ -44,7 +45,7 @@ export default function MainAppShell(){
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
 
  const herdMasterList=animals.filter(animal=>animal.active!==false).map(toUiAnimal);
- const navItems=[{id:'dashboard',label:'Dashboard',icon:<LayoutDashboard size={14}/>},{id:'animals',label:'Animals',icon:<Users size={14}/>},{id:'milk',label:'Milk',icon:<Milk size={14}/>},{id:'feed',label:'Feed',icon:<Wheat size={14}/>},{id:'finance',label:'Finance',icon:<DollarSign size={14}/>},{id:'breeding',label:'Breeding',icon:<Activity size={14}/>},{id:'health',label:'Health',icon:<HeartPulse size={14}/>},{id:'coml',label:'COML',icon:<Calculator size={14}/>},{id:'analytics',label:'Analytics',icon:<BarChart3 size={14}/>}];
+ const navItems=[{id:'dashboard',label:'Dashboard',icon:<LayoutDashboard size={14}/>},{id:'animals',label:'Animals',icon:<Users size={14}/>},{id:'milk',label:'Milk',icon:<Milk size={14}/>},{id:'feed',label:'Feed',icon:<Wheat size={14}/>},{id:'finance',label:'Finance',icon:<DollarSign size={14}/>},{id:'breeding',label:'Breeding',icon:<Activity size={14}/>},{id:'health',label:'Health',icon:<HeartPulse size={14}/>},{id:'vaccination',label:'Vaccination',icon:<ShieldCheck size={14}/>},{id:'coml',label:'COML',icon:<Calculator size={14}/>},{id:'analytics',label:'Analytics',icon:<BarChart3 size={14}/>}];
  const canSettings=true;const canAudit=true;
 
  const AppContent = () => {
@@ -52,7 +53,7 @@ export default function MainAppShell(){
 
    const handleNavigate = (view: string) => {
      setCurrentView(view);
-     const animalAwareTabs = ['health', 'breeding', 'animals', 'milk'];
+     const animalAwareTabs = ['health', 'vaccination', 'breeding', 'animals', 'milk'];
      if (!animalAwareTabs.includes(view)) {
        setSelectedAnimalId(null);
      }
@@ -62,7 +63,7 @@ export default function MainAppShell(){
      <div className="app-shell" style={{display:'flex',flexDirection:'column',height:'100vh',minWidth:0,background:'#0b0f19',color:'#f8fafc',overflow:'hidden',fontFamily:'sans-serif'}}>
       <header style={{height:60,background:'#0f172a',borderBottom:'1px solid #1e293b',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 12px',zIndex:50,flexShrink:0,boxShadow:'0 4px 6px -1px rgba(0,0,0,.3)',minWidth:0}}>
        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div aria-label="DairyOS cow" title="DairyOS" style={{width:32,height:32,borderRadius:6,background:'#0284c7',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:19,lineHeight:1}} aria-hidden="true">🐄</div><div style={{display:'flex',flexDirection:'column'}}><h1 style={{margin:0,fontSize:13,fontWeight:'bold',whiteSpace:'nowrap'}}>{farmName}</h1><span style={{fontSize:10,color:'#94a3b8',whiteSpace:'nowrap'}}>{farmLocation}</span></div></div>
-       <nav style={{display:'flex',gap:6,justifyContent:'center',flex:1,minWidth:0,margin:'0 12px',overflowX:'auto',overflowY:'hidden',scrollbarWidth:'thin'}}>{navItems.map(tab=>{const isActive=currentView===tab.id;const colorMap:Record<string,string>={dashboard:'#2563eb',animals:'#d97706',milk:'#0284c7',feed:'#059669',finance:'#15803d',breeding:'#ea580c',health:'#dc2626',coml:'#7e22ce',analytics:'#4338ca'};const themeColor=colorMap[tab.id]||'#475569';return <button key={tab.id} onClick={()=>setCurrentView(tab.id)} style={{display:'flex',alignItems:'center',gap:4,flex:'0 0 auto',background:isActive?themeColor:'#1e293b',color:'#f8fafc',border:isActive?`1px solid ${themeColor}`:'1px solid #475569',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:11,fontWeight:isActive?'800':'700',whiteSpace:'nowrap',transition:'all 0.2s',boxShadow:isActive?'0 0 0 1px rgba(255,255,255,.12) inset':'none'}}><span style={{color:isActive?'#fff':'#e2e8f0',display:'flex',alignItems:'center'}}>{tab.icon}</span>{tab.label}</button>})}</nav>
+       <nav style={{display:'flex',gap:6,justifyContent:'center',flex:1,minWidth:0,margin:'0 12px',overflowX:'auto',overflowY:'hidden',scrollbarWidth:'thin'}}>{navItems.map(tab=>{const isActive=currentView===tab.id;const colorMap:Record<string,string>={dashboard:'#2563eb',animals:'#d97706',milk:'#0284c7',feed:'#059669',finance:'#15803d',breeding:'#ea580c',health:'#dc2626',vaccination:'#15803d',coml:'#7e22ce',analytics:'#4338ca'};const themeColor=colorMap[tab.id]||'#475569';return <button key={tab.id} onClick={()=>setCurrentView(tab.id)} style={{display:'flex',alignItems:'center',gap:4,flex:'0 0 auto',background:isActive?themeColor:'#1e293b',color:'#f8fafc',border:isActive?`1px solid ${themeColor}`:'1px solid #475569',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:11,fontWeight:isActive?'800':'700',whiteSpace:'nowrap',transition:'all 0.2s',boxShadow:isActive?'0 0 0 1px rgba(255,255,255,.12) inset':'none'}}><span style={{color:isActive?'#fff':'#e2e8f0',display:'flex',alignItems:'center'}}>{tab.icon}</span>{tab.label}</button>})}</nav>
        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}><div style={{position:'relative'}}><button onClick={()=>setShowNotifications(!showNotifications)} style={{position:'relative',background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#f59e0b',cursor:'pointer',display:'flex'}}><Bell size={14}/>{activeCount>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,background:'#ef4444',border:'2px solid #0f172a',borderRadius:'50%',color:'#fff',fontSize:9,fontWeight:'bold',display:'flex',alignItems:'center',justifyContent:'center'}}>{activeCount}</span>}</button>{showNotifications&&<div style={{position:'absolute',right:0,top:40,width:380,maxWidth:'min(380px,calc(100vw - 20px))',background:'#111827',border:'1px solid #1f2937',borderRadius:8,boxShadow:'0 20px 25px -5px rgba(0,0,0,.75)',padding:12,zIndex:100}}><div style={{fontSize:12,fontWeight:'bold',borderBottom:'1px solid #1f2937',paddingBottom:8,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}><span>Active Warnings ({activeCount})</span>{canAudit&&<button onClick={()=>{setCurrentView('audit');setShowNotifications(false)}} style={{background:'none',border:'none',color:'#38bdf8',fontSize:11,cursor:'pointer',textDecoration:'underline'}}>Open Full Audit Register</button>}</div><div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>{alerts.filter(a=>a.status!=='RESOLVED').map(n=><div key={n.id} onClick={()=>canAudit&&setCurrentView('audit')} style={{fontSize:11,background:'#161f30',padding:9,borderRadius:6,cursor:canAudit?'pointer':'default'}}><div style={{color:'#e2e8f0',fontWeight:'bold'}}>{n.title}</div><div style={{fontSize:10,color:'#94a3b8',marginTop:4}}>{n.details}</div></div>)}</div></div>}</div>{currentView==='finance'&&<button onClick={openPayroll} title="Open Finance Payroll" style={{background:'#1e293b',border:'1px solid #334155',padding:6,borderRadius:'50%',color:'#cbd5e1',cursor:'pointer',display:'flex'}}><WalletCards size={14}/></button>}{canSettings&&<button onClick={()=>setCurrentView('settings')} style={{background:currentView==='settings'?'#0ea5e9':'#1e293b',border:currentView==='settings'?'1px solid #7dd3fc':'1px solid #334155',padding:6,borderRadius:'50%',color:'#e2e8f0',cursor:'pointer',display:'flex'}}><Settings size={14}/></button>}</div>
       </header>
 
@@ -77,6 +78,7 @@ export default function MainAppShell(){
        {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate}/>}
        {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}
        {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
+       {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
        {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
       </main>
 

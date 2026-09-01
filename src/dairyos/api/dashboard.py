@@ -489,6 +489,13 @@ def get_dashboard(container=Depends(get_container)):
         "openCases": len(open_health_cases),
         "data_status": "LIVE_PERSISTED_DATA",
     }
+    payload["vaccination"] = {
+        "completed": completed_vaccinations,
+        "due": due_vaccinations,
+        "completed_vaccinations": completed_vaccinations,
+        "due_vaccinations": due_vaccinations,
+        "data_status": "LIVE_PERSISTED_DATA",
+    }
     payload["reproduction"] = {
         **reproduction_counts,
         "on_heat": reproduction_counts["onHeat"],

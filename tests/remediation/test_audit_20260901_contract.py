@@ -5,12 +5,12 @@ def test_health_contract():
  v=text("src/DairyOS.Web/src/components/HealthTab.tsx")
  assert "/farm/finance-ledger" not in v
  assert "Vet Expenses" not in v
+ assert "Clinical Health" in v
+ assert "Complete Clinical Log" in v
  assert "Declare Healthy" in v
- assert "Treatment / Clinical Log" in v
- assert "Vaccination Log" in v
- assert "Record Vaccination Given" in v
- assert "Mark Vaccination Given" in v
- assert "Vaccinations Due / Overdue" in v
+ assert "Action Queue - Active Clinical Cases" in v
+ assert "/farm/treatments" in v
+ assert "/vaccinations" not in v
  assert "/resolve" in v
 
 def test_settings_contract():
