@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date
@@ -217,17 +217,12 @@ class MilkReconciliationService:
         if snapshot_daily_total is None:
             snapshot_daily_total = snapshot.get("total_yield")
 
-        # No persisted rows plus no snapshot total means production is
-        # genuinely unknown. Preserve None rather than converting unknown
-        # production into zero.
         snapshot_total = (
             float(snapshot_daily_total)
             if snapshot_daily_total is not None
             else None
         )
 
-        # Persisted ledger rows are authoritative whenever present.
-        # Snapshot values are only a fallback when no persisted rows exist.
         total = (
             persisted_total
             if has_rows
@@ -312,9 +307,6 @@ class MilkReconciliationService:
                 "Milk disposition quantity must be greater than zero."
             )
 
-        # There is no available production to validate against only when
-        # production is genuinely absent. An operationally incomplete day
-        # can still contain valid known production and must remain usable.
         saleable_raw = production_basis.get("saleable_litres")
 
         if saleable_raw is None:
@@ -372,15 +364,51 @@ class MilkReconciliationService:
             0.0,
         )
 
-        if float(quantity_litres) > available + 0.01:
-            raise ValueError(
-                "Milk disposition quantity exceeds available "
-                "saleable production: "
-                f"already accounted {ordinary_active:.3f} L, "
-                f"requested {float(quantity_litres):.3f} L, "
-                f"saleable production "
-                f"{float(saleable_raw):.3f} L."
+        if float(quantity_litres) <= available + 0.01:
+            return
+
+        # Milk is carried physical inventory. If the selected day alone does
+        # not contain enough milk, validate against the governed cumulative
+        # balance through that date before rejecting the disposition.
+        overall = None
+        basis_date = cls._as_production_date(production_basis.get("date"))
+        if basis_date is not None:
+            try:
+                from dairyos.farm.production.services.milk_inventory_capacity_service import (
+                    overall_saleable_capacity,
+                )
+
+                overall = overall_saleable_capacity(
+                    basis_date,
+                    exclude_disposition_id=exclude_id,
+                )
+            except Exception:
+                overall = None
+
+        if overall is not None:
+            overall_available = float(
+                overall.get("available_saleable_litres", 0.0)
+                or 0.0
             )
+            if float(quantity_litres) <= overall_available + 0.01:
+                return
+            raise ValueError(
+                "Milk disposition quantity exceeds available overall "
+                "saleable production: "
+                f"already accounted {float(overall.get('ordinary_accounted_litres', 0.0) or 0.0):.3f} L, "
+                f"requested {float(quantity_litres):.3f} L, "
+                f"overall saleable production {float(overall.get('saleable_production_litres', 0.0) or 0.0):.3f} L, "
+                f"available balance {overall_available:.3f} L."
+            )
+
+        raise ValueError(
+            "Milk disposition quantity exceeds available "
+            "saleable production: "
+            f"already accounted {ordinary_active:.3f} L, "
+            f"requested {float(quantity_litres):.3f} L, "
+            f"saleable production "
+            f"{float(saleable_raw):.3f} L."
+        )
 
     def _is_deployed_for_findings(self) -> bool:
         if self.deployment_checker is not None:
@@ -544,7 +572,6 @@ class MilkReconciliationService:
                 0.0,
             )
 
-            # Without known production there is nothing to reconcile.
             if produced is None:
                 return {
                     "production_date":
@@ -818,7 +845,6 @@ class MilkReconciliationService:
                     "selling price per litre."
                 )
         else:
-            # Sale metadata belongs exclusively to SOLD milk.
             sale_id = None
             counterparty = None
             selling_price_per_litre = None
@@ -831,22 +857,19 @@ class MilkReconciliationService:
                     f"Milk sale_id {sale_id} is already recorded."
                 )
 
+            production_repository = self.production_repository
+            if production_repository is None and owned_factory is not None:
+                production_repository = owned_factory.milk()
+
             production_basis = self._production_total(
                 production_date,
-                production_repository=self.production_repository,
+                production_repository=production_repository,
             )
 
             existing = repo.get_by_date(
                 production_date
             )
 
-            # Validate every disposition against the authoritative production
-            # basis. When an explicit production repository is injected, the
-            # persisted production rows are used. Otherwise the trend service
-            # supplies the production basis through its normal data boundary.
-            #
-            # A genuinely unknown/incomplete production basis carries
-            # saleable_litres=None and is deliberately not treated as zero.
             self.validate_disposition_quantity(
                 production_basis=production_basis,
                 dispositions=existing,
