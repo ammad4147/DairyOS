@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from pathlib import Path
 
+from dairyos.windows import private_postgres
+from dairyos.windows.private_database_security import (
+    application_password,
+    admin_database_url,
+    backup_database_url,
+    ensure_private_database_security,
+    install_steady_state_hba_before_start_if_available,
+)
 from dairyos.windows.private_postgres import (
     PrivatePostgreSQLConfig,
     PrivatePostgreSQLError,
-    start as start_private_postgres,
 )
 from dairyos.windows.postgres_service import (
     PostgreSQLServiceError,
@@ -30,12 +36,14 @@ class ApplianceDatabase:
     port: int
     database: str
     user: str
+    password_value: str = ""
+    migration_database_url: str | None = None
+    backup_database_url: str | None = None
     private_postgres: PrivatePostgreSQLConfig | None = None
 
     @property
     def password(self) -> str:
-        """Local appliance database uses passwordless loopback authentication."""
-        return ""
+        return self.password_value
 
 
 def _is_frozen() -> bool:
@@ -57,6 +65,7 @@ def prepare_database(*, postgres_timeout: float = 30.0) -> ApplianceDatabase:
         port = int(os.environ.get("DAIRYOS_DB_PORT", "5432"))
         database = os.environ.get("DAIRYOS_DB_NAME", "dairyos")
         user = os.environ.get("DAIRYOS_DB_USER", "dairyos")
+        password = os.environ.get("DAIRYOS_DB_PASSWORD", "")
 
         return ApplianceDatabase(
             mode="system",
@@ -64,13 +73,24 @@ def prepare_database(*, postgres_timeout: float = 30.0) -> ApplianceDatabase:
             port=port,
             database=database,
             user=user,
+            password_value=password,
         )
 
     try:
-        private = start_private_postgres(timeout=postgres_timeout)
-    except (PrivatePostgreSQLError, ValueError) as exc:
+        # Once a private cluster has been hardened, prevent the legacy startup
+        # helper from temporarily writing loopback trust rules back into
+        # pg_hba.conf on subsequent launches.
+        install_steady_state_hba_before_start_if_available()
+        private = private_postgres.start(timeout=postgres_timeout)
+        ensure_private_database_security(private)
+    except (PrivatePostgreSQLError, ValueError, Exception) as exc:
+        # Keep one outward-facing appliance error type. The broad catch is
+        # intentional here because a partial role/security provision must
+        # block startup rather than fall through to an unprotected database.
+        if isinstance(exc, ApplianceDatabaseError):
+            raise
         raise ApplianceDatabaseError(
-            f"Private DairyOS PostgreSQL could not be prepared: {exc}"
+            f"Private DairyOS PostgreSQL could not be securely prepared: {exc}"
         ) from exc
 
     return ApplianceDatabase(
@@ -79,16 +99,29 @@ def prepare_database(*, postgres_timeout: float = 30.0) -> ApplianceDatabase:
         port=private.port,
         database=private.database,
         user=private.user,
+        password_value=application_password(private),
+        migration_database_url=admin_database_url(private),
+        backup_database_url=backup_database_url(private),
         private_postgres=private,
     )
 
 
 def apply_database_environment(database: ApplianceDatabase) -> None:
-    """Make the resolved database authoritative for downstream DairyOS code."""
+    """Make the restricted application database identity authoritative.
+
+    A packaged private cluster also supplies a one-use migration URL for the
+    startup migration gate.  ``migrate_if_needed`` consumes and removes that
+    environment variable before the normal backend child is launched.
+    """
     os.environ["DAIRYOS_DB_HOST"] = database.host
     os.environ["DAIRYOS_DB_PORT"] = str(database.port)
     os.environ["DAIRYOS_DB_NAME"] = database.database
     os.environ["DAIRYOS_DB_USER"] = database.user
-    os.environ["DAIRYOS_DB_PASSWORD"] = ""
+    os.environ["DAIRYOS_DB_PASSWORD"] = database.password
 
     os.environ.pop("DAIRYOS_DATABASE_URL", None)
+
+    if database.migration_database_url:
+        os.environ["DAIRYOS_MIGRATION_DATABASE_URL"] = database.migration_database_url
+    else:
+        os.environ.pop("DAIRYOS_MIGRATION_DATABASE_URL", None)
