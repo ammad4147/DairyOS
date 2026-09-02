@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
 from dairyos.api.dependencies import get_container
+from dairyos.data.database.automatic_backups import read_backup_health
 from dairyos.data.database.session import engine
 
 
@@ -50,6 +51,23 @@ def readiness(
         "database": "READY",
         "runtime": "ACTIVE",
         "events": container.event_journal.count(),
+    }
+
+
+@router.get("/backup-health")
+def backup_health():
+    """Expose the latest automatic-backup protection state to the operator UI.
+
+    The response is deliberately read-only and contains no credentials.  It is
+    backed by the durable backup-health record written by the autonomous backup
+    worker, so a broken scheduler or failed backup remains visible even after an
+    application restart.
+    """
+
+    health = dict(read_backup_health())
+    return {
+        "system": "DairyOS",
+        "protection": health,
     }
 
 
