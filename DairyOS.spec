@@ -59,10 +59,52 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+
+# Automatic backups run outside the normal application process.  Shipping a
+# dedicated worker keeps the Task Scheduler entry simple and prevents the farm
+# owner from needing Python, a repository checkout, or developer tooling.
+backup_a = Analysis(
+    [str(ROOT / "src" / "dairyos" / "windows" / "backup_task.py")],
+    pathex=[str(ROOT / "src")],
+    binaries=binaries,
+    datas=[
+        (str(ROOT / "alembic.ini"), "."),
+        (str(ROOT / "db_migrations"), "db_migrations"),
+    ],
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+backup_pyz = PYZ(backup_a.pure)
+backup_exe = EXE(
+    backup_pyz,
+    backup_a.scripts,
+    [],
+    exclude_binaries=True,
+    name="DairyOSBackup",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
 coll = COLLECT(
     exe,
+    backup_exe,
     a.binaries,
     a.datas,
+    backup_a.binaries,
+    backup_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
