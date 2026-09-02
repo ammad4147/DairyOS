@@ -1,0 +1,92 @@
+name: One-shot M-01 M-13 remediation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/remediate-m01-m13-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply exact remediations
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def replace_exact(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8-sig")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, found {count}")
+              p.write_text(text.replace(old, new), encoding="utf-8")
+
+          passport = Path("src/dairyos/application/animal_passport.py")
+          text = passport.read_text(encoding="utf-8-sig")
+          old = "state = resolver.resolve(animal_id, events, as_of_date=as_of_date)"
+          new = """state = resolver.resolve(\n            animal_id,\n            events,\n            as_of_date=as_of_date,\n            allow_unlinked_confirmation=True,\n        )"""
+          if text.count(old) != 1:
+              raise SystemExit(f"animal_passport.py: expected one strict resolver call, found {text.count(old)}")
+          passport.write_text(text.replace(old, new), encoding="utf-8")
+
+          app = Path("src/DairyOS.Web/src/App.tsx")
+          text = app.read_text(encoding="utf-8")
+          old = "{currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters}/>}"
+          new = "{currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters} onOpenAnimalPassport={openLinkedPassport}/>}"
+          if text.count(old) != 1:
+              raise SystemExit(f"App.tsx: expected one MilkTab mount, found {text.count(old)}")
+          app.write_text(text.replace(old, new), encoding="utf-8")
+
+          milk = Path("src/DairyOS.Web/src/components/MilkTab.tsx")
+          text = milk.read_text(encoding="utf-8")
+          if text.count("<th>ID &amp; Type</th>") != 1:
+              raise SystemExit("MilkTab.tsx: ID & Type header match was not unique")
+          text = text.replace("<th>ID &amp; Type</th>", "<th>Animal ID</th>")
+
+          pattern = re.compile(
+              r"label:\s*\n\s*`\$\{row\.animal_id\} · \$\{herdMasterList\.find\(\(animal\) => animal\.id === row\.animal_id\)\?\.category \|\| 'Milking Cow'\}`,”
+          )
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f"MilkTab.tsx: expected one ID/type label expression, found {len(matches)}")
+          text = pattern.sub("label:\n                            row.animal_id,", text)
+          milk.write_text(text, encoding="utf-8")
+
+          print("M-01: Passport projection now tolerates historical pregnancy confirmation without fabricated insemination.")
+          print("M-13: Milk register is ID-only and receives the Passport navigation callback.")
+
+      - name: Source assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -n "allow_unlinked_confirmation=True" src/dairyos/application/animal_passport.py
+          grep -n "onOpenAnimalPassport={openLinkedPassport}" src/DairyOS.Web/src/App.tsx
+          grep -n "<th>Animal ID</th>" src/DairyOS.Web/src/components/MilkTab.tsx
+          ! grep -q "<th>ID &amp; Type</th>" src/DairyOS.Web/src/components/MilkTab.tsx
+          ! grep -q "Milking Cow'}`" src/DairyOS.Web/src/components/MilkTab.tsx
+
+      - name: Commit remediation and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/remediate-m01-m13-once.yml
+          git add src/dairyos/application/animal_passport.py src/DairyOS.Web/src/App.tsx src/DairyOS.Web/src/components/MilkTab.tsx
+          git diff --check
+          git diff --cached --check
+          git commit -m "fix: remediate M-01 passport and M-13 milk register"
+          git push origin HEAD:main
