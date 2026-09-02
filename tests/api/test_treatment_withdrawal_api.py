@@ -56,8 +56,7 @@ def test_treatment_does_not_change_milk_status(
     treatment = treatment_response.json()
     assert treatment["treatment_id"]
 
-    # Treatment-side withdrawal information may still exist as veterinary
-    # trace/reference data, but it is no longer a milk-domain state.
+    # Withdrawal remains a veterinary state and must inform milk accounting.
     active = client.get("/farm/withdrawals/active")
     assert active.status_code == 200
 
@@ -77,9 +76,11 @@ def test_treatment_does_not_change_milk_status(
 
     milk_body = milk_response.json()
 
-    # WITHHELD has been retired from the milk domain.
+    # Withdrawal milk is still real production. It stays RECORDED for the
+    # animal history, while the response warns the operator and the same
+    # quantity is automatically accounted as non-saleable wastage.
     assert milk_body["status"] == "RECORDED"
-    assert milk_body.get("withdrawal_warning") in {False, None}
+    assert milk_body.get("withdrawal_warning") is True
     assert "WITHHELD" not in str(milk_body).upper()
 
 
@@ -156,7 +157,6 @@ def test_drug_reference_upsert_and_list(client):
     assert created["verified"] is True
 
     list_response = client.get("/farm/drug-reference")
-
     assert list_response.status_code == 200
 
     names = [row["medicine"] for row in list_response.json()]
@@ -200,6 +200,7 @@ def test_treatment_override_only_extends_reference_period(
     client.post(
         "/farm/drug-reference",
         json={
+            "animal_id": registered_animal,
             "medicine": "Extend-Test-Drug",
             "milk_withdrawal_days": 3,
             "operator": "Farm Manager",
