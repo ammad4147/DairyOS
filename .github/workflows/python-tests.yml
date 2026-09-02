@@ -16,20 +16,20 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dairyos
+          POSTGRES_DB: dairyos_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-cmd "pg_isready -U postgres -d dairyos_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
       DAIRYOS_DB_HOST: localhost
       DAIRYOS_DB_PORT: "5432"
-      DAIRYOS_DB_NAME: dairyos
-      DAIRYOS_DB_USER: postgres
-      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_DB_NAME: dairyos_test
+      DAIRYOS_DB_USER: dairyos_test_runner
+      DAIRYOS_DB_PASSWORD: dairyos-test-password
       DAIRYOS_ENV: development
     steps:
       - name: Checkout
@@ -40,6 +40,16 @@ jobs:
           python-version: "3.12"
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+      - name: Provision disposable test database role
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect(host="localhost", port=5432, dbname="postgres", user="postgres", password="postgres", autocommit=True) as c:
+              c.execute("CREATE ROLE dairyos_test_runner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'dairyos-test-password'")
+              c.execute("ALTER DATABASE dairyos_test OWNER TO dairyos_test_runner")
+              c.execute("REVOKE CONNECT ON DATABASE dairyos_test FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos_test TO dairyos_test_runner")
+          PY
       - name: Run Milk Cycle and intelligence tests
         run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
 
@@ -50,24 +60,24 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dairyos
+          POSTGRES_DB: dairyos_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-cmd "pg_isready -U postgres -d dairyos_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
       DAIRYOS_DB_HOST: localhost
       DAIRYOS_DB_PORT: "5432"
-      DAIRYOS_DB_NAME: dairyos
-      DAIRYOS_DB_USER: postgres
-      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_DB_NAME: dairyos_test
+      DAIRYOS_DB_USER: dairyos_test_runner
+      DAIRYOS_DB_PASSWORD: dairyos-test-password
       DAIRYOS_ENV: development
-      POSTGRES_DB: dairyos
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dairyos_test
+      POSTGRES_USER: dairyos_test_runner
+      POSTGRES_PASSWORD: dairyos-test-password
       DAIRYOS_AUTH_SECRET: ci-compose-auth-secret
     steps:
       - name: Checkout
@@ -78,6 +88,16 @@ jobs:
           python-version: "3.12"
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx
+      - name: Provision disposable test database role
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect(host="localhost", port=5432, dbname="postgres", user="postgres", password="postgres", autocommit=True) as c:
+              c.execute("CREATE ROLE dairyos_test_runner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'dairyos-test-password'")
+              c.execute("ALTER DATABASE dairyos_test OWNER TO dairyos_test_runner")
+              c.execute("REVOKE CONNECT ON DATABASE dairyos_test FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos_test TO dairyos_test_runner")
+          PY
       - name: Run installation lifecycle tests
         run: pytest -q tests/platform/test_lifecycle_manager.py
       - name: Check Docker Compose configuration
@@ -140,6 +160,100 @@ jobs:
               raise SystemExit("authorization unexpectedly allowed an unauthenticated production request")
           PY
 
+  data-protection-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dairyos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAIRYOS_DB_HOST: localhost
+      DAIRYOS_DB_PORT: "5432"
+      DAIRYOS_DB_NAME: dairyos
+      DAIRYOS_DB_USER: postgres
+      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: python -m pip install --upgrade pip && pip install -e . pytest
+      - name: Install schema and destructive-operation guards
+        run: python -c "from dairyos.windows.migrations import migrate_if_needed; print(migrate_if_needed())"
+      - name: Prove database-enforced data protection
+        run: |
+          python - <<'PY'
+          import psycopg
+
+          admin = dict(host="localhost", port=5432, dbname="dairyos", user="postgres", password="postgres")
+          with psycopg.connect(**admin, autocommit=True) as c:
+              c.execute("REVOKE CONNECT ON DATABASE dairyos FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos TO postgres")
+              c.execute("GRANT dairyos_destructive_admin TO postgres")
+              c.execute("DROP TABLE IF EXISTS protection_probe")
+              c.execute("CREATE TABLE protection_probe (id integer PRIMARY KEY, value text)")
+              c.execute("INSERT INTO protection_probe VALUES (1, 'a'), (2, 'b')")
+              c.execute("SELECT public.dairyos_install_table_guards()")
+              c.execute("CREATE ROLE dairyos_runtime_probe LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'runtime-probe-password'")
+              c.execute("CREATE ROLE dairyos_test_probe LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'test-probe-password'")
+              c.execute("GRANT CONNECT ON DATABASE dairyos TO dairyos_runtime_probe")
+              c.execute("GRANT USAGE ON SCHEMA public TO dairyos_runtime_probe")
+              c.execute("GRANT SELECT, INSERT, UPDATE ON protection_probe TO dairyos_runtime_probe")
+              c.execute("REVOKE DELETE, TRUNCATE ON protection_probe FROM dairyos_runtime_probe")
+
+          # Normal app-style role cannot truncate even with valid production credentials.
+          with psycopg.connect(host="localhost", port=5432, dbname="dairyos", user="dairyos_runtime_probe", password="runtime-probe-password", autocommit=True) as c:
+              try:
+                  c.execute("TRUNCATE protection_probe")
+              except psycopg.Error:
+                  pass
+              else:
+                  raise SystemExit("restricted runtime role unexpectedly truncated production data")
+
+          # Even an administrator is blocked by the trigger without explicit opt-in.
+          with psycopg.connect(**admin, autocommit=True) as c:
+              try:
+                  c.execute("TRUNCATE protection_probe")
+              except psycopg.Error as exc:
+                  assert "DairyOS blocked TRUNCATE" in str(exc), exc
+              else:
+                  raise SystemExit("destructive trigger unexpectedly allowed TRUNCATE without opt-in")
+
+              try:
+                  c.execute("DELETE FROM protection_probe")
+              except psycopg.Error as exc:
+                  assert "DairyOS blocked bulk DELETE" in str(exc), exc
+              else:
+                  raise SystemExit("destructive trigger unexpectedly allowed bulk DELETE without opt-in")
+
+              with c.transaction():
+                  c.execute("SET LOCAL dairyos.allow_destructive_op = 'true'")
+                  c.execute("TRUNCATE protection_probe")
+
+          # A test role has no CONNECT grant on the production-shaped database.
+          try:
+              psycopg.connect(host="localhost", port=5432, dbname="dairyos", user="dairyos_test_probe", password="test-probe-password", connect_timeout=5)
+          except psycopg.Error:
+              pass
+          else:
+              raise SystemExit("test role unexpectedly connected to production-shaped database")
+
+          print("DairyOS data-protection database gate passed")
+          PY
+
   frontend-build:
     runs-on: ubuntu-latest
     steps:
@@ -168,20 +282,20 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dairyos
+          POSTGRES_DB: dairyos_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-cmd "pg_isready -U postgres -d dairyos_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
       DAIRYOS_DB_HOST: localhost
       DAIRYOS_DB_PORT: "5432"
-      DAIRYOS_DB_NAME: dairyos
-      DAIRYOS_DB_USER: postgres
-      DAIRYOS_DB_PASSWORD: postgres
+      DAIRYOS_DB_NAME: dairyos_test
+      DAIRYOS_DB_USER: dairyos_test_runner
+      DAIRYOS_DB_PASSWORD: dairyos-test-password
       DAIRYOS_ENV: development
     steps:
       - name: Checkout
@@ -192,5 +306,15 @@ jobs:
           python-version: "3.12"
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+      - name: Provision disposable test database role
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect(host="localhost", port=5432, dbname="postgres", user="postgres", password="postgres", autocommit=True) as c:
+              c.execute("CREATE ROLE dairyos_test_runner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'dairyos-test-password'")
+              c.execute("ALTER DATABASE dairyos_test OWNER TO dairyos_test_runner")
+              c.execute("REVOKE CONNECT ON DATABASE dairyos_test FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos_test TO dairyos_test_runner")
+          PY
       - name: Run full regression
         run: pytest -q
