@@ -23,6 +23,11 @@ from dairyos.windows.postgres_service import (
 )
 
 
+# Preserve the established injection seam used by Windows runtime tests while
+# allowing the private_postgres module's HBA writer to be hardened in place.
+start_private_postgres = private_postgres.start
+
+
 class ApplianceDatabaseError(RuntimeError):
     """Raised when DairyOS cannot prepare its database runtime."""
 
@@ -81,14 +86,11 @@ def prepare_database(*, postgres_timeout: float = 30.0) -> ApplianceDatabase:
         # helper from temporarily writing loopback trust rules back into
         # pg_hba.conf on subsequent launches.
         install_steady_state_hba_before_start_if_available()
-        private = private_postgres.start(timeout=postgres_timeout)
+        private = start_private_postgres(timeout=postgres_timeout)
         ensure_private_database_security(private)
-    except (PrivatePostgreSQLError, ValueError, Exception) as exc:
-        # Keep one outward-facing appliance error type. The broad catch is
-        # intentional here because a partial role/security provision must
-        # block startup rather than fall through to an unprotected database.
-        if isinstance(exc, ApplianceDatabaseError):
-            raise
+    except Exception as exc:
+        # A partial role/security provision must block startup rather than fall
+        # through to an unprotected database.
         raise ApplianceDatabaseError(
             f"Private DairyOS PostgreSQL could not be securely prepared: {exc}"
         ) from exc
@@ -110,7 +112,7 @@ def apply_database_environment(database: ApplianceDatabase) -> None:
     """Make the restricted application database identity authoritative.
 
     A packaged private cluster also supplies a one-use migration URL for the
-    startup migration gate.  ``migrate_if_needed`` consumes and removes that
+    startup migration gate. ``migrate_if_needed`` consumes and removes that
     environment variable before the normal backend child is launched.
     """
     os.environ["DAIRYOS_DB_HOST"] = database.host
