@@ -52,7 +52,7 @@ function LineTable({ title, rows, setRows, options, accent }: { title: string; r
       ) : rows.map(row => (
         <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr .8fr 34px', gap: 6, alignItems: 'center', marginBottom: 6 }}>
           <select value={row.item} onChange={e => setRows(x => x.map(r => r.id === row.id ? { ...r, item: e.target.value } : r))} style={inputStyle}>
-            <option value="">Select item…</option>
+            <option value="">Select itemâ€¦</option>
             {options.map(item => <option key={item} value={item}>{item}</option>)}
           </select>
           <input type="number" min="0" step="0.001" placeholder="Quantity" value={row.quantity} onChange={e => setRows(x => x.map(r => r.id === row.id ? { ...r, quantity: e.target.value } : r))} style={inputStyle} />
@@ -120,7 +120,7 @@ export default function COML({ onOutputChange }: COMLProps) {
       if (Array.isArray(d.feedRows)) setFeedRows(d.feedRows);
       if (Array.isArray(d.opexRows)) setOpexRows(d.opexRows);
       setDraftRestored(true);
-      setMessage('Restored unsaved manual COML draft.');
+      setMessage('Restored unsaved manual COP draft.');
     } catch {
       // ignore corrupt draft
     }
@@ -177,7 +177,7 @@ export default function COML({ onOutputChange }: COMLProps) {
         body: JSON.stringify({ period_start: periodStart, period_end: periodEnd, milk_produced_liters: Number(milkProduced), feed_items: clean(feedRows), operating_items: clean(opexRows) }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'COML calculation failed.');
+      if (!response.ok) throw new Error(data.detail || 'COP calculation failed.');
       setResult(data);
       onOutputChange?.({
         milkProduced: Number(data.milk_produced_liters),
@@ -189,7 +189,7 @@ export default function COML({ onOutputChange }: COMLProps) {
       });
       setMessage('Manual calculation ready. These values take priority over Auto until you clear or lock.');
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : 'COML calculation failed.');
+      setError(exc instanceof Error ? exc.message : 'COP calculation failed.');
     } finally { setLoading(false); }
   };
 
@@ -202,9 +202,9 @@ export default function COML({ onOutputChange }: COMLProps) {
         body: JSON.stringify({ month_start: periodStart.slice(0, 8) + '01', feed_cost_per_liter: Number(result.feed_cost_per_liter), opex_cost_per_liter: Number(result.opex_cost_per_liter), notes: `Manual calculation ${result.period_start} to ${result.period_end}; milk ${result.milk_produced_liters} L; ${result.period_days} days.`, updated_by: 'UI Operator' }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Unable to lock COML record.');
-      setOfficial(data); localStorage.removeItem(DRAFT_KEY); setMessage('Official monthly COML locked. Manual draft cleared.'); void loadAuto();
-    } catch (exc) { setError(exc instanceof Error ? exc.message : 'Unable to lock COML record.'); }
+      if (!response.ok) throw new Error(data.detail || 'Unable to lock COP record.');
+      setOfficial(data); localStorage.removeItem(DRAFT_KEY); setMessage('Official monthly COP locked. Manual draft cleared.'); void loadAuto();
+    } catch (exc) { setError(exc instanceof Error ? exc.message : 'Unable to lock COP record.'); }
     finally { setSaving(false); }
   };
 
@@ -238,15 +238,15 @@ export default function COML({ onOutputChange }: COMLProps) {
     return value == null ? null : Number(value);
   }, [manualActive, result, autoData]);
 
-  const milkSubtitle = manualActive ? 'Manual override (priority)' : `Selected period ${periodStart} → ${periodEnd}`;
-  const costSubtitle = manualActive ? 'Manual override (priority)' : `Auto ledger cost for ${periodStart} → ${periodEnd}`;
+  const milkSubtitle = manualActive ? 'Manual override (priority)' : `Selected period ${periodStart} â†’ ${periodEnd}`;
+  const costSubtitle = manualActive ? 'Manual override (priority)' : `Auto ledger cost for ${periodStart} â†’ ${periodEnd}`;
   const days = result?.period_days || 0;
 
   return (
     <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px 0', fontSize: 18, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 8 }}><Calculator size={20} /> Cost of Milk Production (COML)</h2>
+          <h2 style={{ margin: '0 0 4px 0', fontSize: 18, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 8 }}><Calculator size={20} /> Cost of Production (COP)</h2>
           <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>Choose a period for Auto (milk logs + ledger). Manual override is saved while you work and takes priority when calculated.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -266,29 +266,29 @@ export default function COML({ onOutputChange }: COMLProps) {
           <label style={label}>From<input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} style={inputStyle} /></label>
           <label style={label}>To<input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} style={inputStyle} /></label>
         </div>
-        <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Production and costs below are for this range only.{draftRestored ? ' · Manual draft was restored from your last session.' : ''}</div>
+        <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Production and costs below are for this range only.{draftRestored ? ' Â· Manual draft was restored from your last session.' : ''}</div>
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
         <MetricCard title="Milk in period (L)" value={`${Number(displayMilk || 0).toLocaleString()} L`} subtitle={milkSubtitle} color="#38bdf8" icon={<Milk size={16} />} />
         <MetricCard title="Feed Cost / L" value={money(displayFeedPerL)} subtitle={costSubtitle} color="#34d399" icon={<Wheat size={16} />} />
         <MetricCard title="OPEX / L" value={money(displayOpexPerL)} subtitle={costSubtitle} color="#f59e0b" icon={<DollarSign size={16} />} />
-        <MetricCard title="COML / L" value={money(displayTotalPerL)} subtitle={costSubtitle} color="#a78bfa" icon={<Calculator size={16} />} />
+        <MetricCard title="COP / L" value={money(displayTotalPerL)} subtitle={costSubtitle} color="#a78bfa" icon={<Calculator size={16} />} />
       </div>
 
       {mode === 'auto' && (
         <>
-          {autoLoading ? <div style={{ color: '#64748b', fontSize: 12 }}>Loading auto COML for selected period…</div> : (
+          {autoLoading ? <div style={{ color: '#64748b', fontSize: 12 }}>Loading auto COP for selected periodâ€¦</div> : (
             <>
               <div style={{ ...panel, marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> Auto sources</div>
-                <div style={{ fontSize: 12, color: '#cbd5e1' }}>Milk source: <strong>{autoData?.production?.source || 'n/a'}</strong>{' · '}Cost source: <strong>{autoData?.costs?.source || autoData?.message || 'n/a'}</strong>{' · '}If logs/ledger are incomplete, use Manual Override.</div>
+                <div style={{ fontSize: 12, color: '#cbd5e1' }}>Milk source: <strong>{autoData?.production?.source || 'n/a'}</strong>{' Â· '}Cost source: <strong>{autoData?.costs?.source || autoData?.message || 'n/a'}</strong>{' Â· '}If logs/ledger are incomplete, use Manual Override.</div>
               </div>
               {officialRec && (
                 <section style={{ ...panel, borderColor: '#22c55e', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: '#86efac' }}>Official Backend COML (monthly lock — reference only)</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: '#86efac' }}>Official Backend COP (monthly lock â€” reference only)</div>
                   <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>{official?.month_label || officialRec.month_label || 'Current month'} | Status: {officialRec.status || official?.status || 'UNKNOWN'}</div>
-                  <div style={{ marginTop: 7, fontSize: 11 }}>Feed/L: <strong>{money(Number(officialRec.feed_cost_per_liter))}</strong>{' | '}OPEX/L: <strong>{money(Number(officialRec.opex_cost_per_liter))}</strong>{' | '}COML/L: <strong>{money(Number(officialRec.total_coml_per_liter))}</strong></div>
+                  <div style={{ marginTop: 7, fontSize: 11 }}>Feed/L: <strong>{money(Number(officialRec.feed_cost_per_liter))}</strong>{' | '}OPEX/L: <strong>{money(Number(officialRec.opex_cost_per_liter))}</strong>{' | '}COP/L: <strong>{money(Number(officialRec.total_coml_per_liter))}</strong></div>
                 </section>
               )}
             </>
@@ -310,18 +310,18 @@ export default function COML({ onOutputChange }: COMLProps) {
               <LineTable title="Feed Cost Inputs" rows={feedRows} setRows={setFeedRows} options={FEED} accent="#34d399" />
               <LineTable title="Operating Cost Inputs" rows={opexRows} setRows={setOpexRows} options={OPEX} accent="#f59e0b" />
             </div>
-            <button disabled={loading} type="submit" style={{ ...button('#7c3aed'), width: '100%', justifyContent: 'center', marginTop: 9 }}>{loading ? 'Calculating…' : 'Calculate COML from Manual Inputs'}</button>
+            <button disabled={loading} type="submit" style={{ ...button('#7c3aed'), width: '100%', justifyContent: 'center', marginTop: 9 }}>{loading ? 'Calculatingâ€¦' : 'Calculate COP from Manual Inputs'}</button>
           </form>
           {result && (
             <section style={{ ...panel, marginTop: 9 }}>
-              <div style={{ fontSize: 11, fontWeight: 900, marginBottom: 8 }}>Manual result — {result.period_start} to {result.period_end} ({days} days) · {Number(result.milk_produced_liters).toLocaleString()} L</div>
+              <div style={{ fontSize: 11, fontWeight: 900, marginBottom: 8 }}>Manual result â€” {result.period_start} to {result.period_end} ({days} days) Â· {Number(result.milk_produced_liters).toLocaleString()} L</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
                 <Metric title="Feed Cost" value={money(Number(result.feed_total))} />
                 <Metric title="OPEX" value={money(Number(result.operating_total))} />
                 <Metric title="Feed Cost / L" value={money(Number(result.feed_cost_per_liter))} />
-                <Metric title="COML / L" value={money(Number(result.total_coml_per_liter))} />
+                <Metric title="COP / L" value={money(Number(result.total_coml_per_liter))} />
               </div>
-              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}><button disabled={saving} onClick={() => void lock()} style={button('#059669')}><Lock size={12} />{saving ? 'Locking…' : 'Lock Official Monthly COML'}</button></div>
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}><button disabled={saving} onClick={() => void lock()} style={button('#059669')}><Lock size={12} />{saving ? 'Lockingâ€¦' : 'Lock Official Monthly COP'}</button></div>
             </section>
           )}
         </>
