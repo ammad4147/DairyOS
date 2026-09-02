@@ -1,4 +1,4 @@
-﻿"""Authoritative lifetime-biological Animal Passport read model.
+"""Authoritative lifetime-biological Animal Passport read model.
 
 The Passport remains projection-only. Persisted domain records remain the
 source of truth; this service assembles a single animal-centric biological
@@ -524,7 +524,12 @@ class LifetimeAnimalPassportService:
             )
         )
         resolver = ReproductiveStateService(_REPRODUCTIVE_POLICY)
-        state = resolver.resolve(animal_id, events, as_of_date=as_of_date)
+        state = resolver.resolve(
+            animal_id,
+            events,
+            as_of_date=as_of_date,
+            allow_unlinked_confirmation=True,
+        )
         summary = {
             "current_status": state.reproductive_status,
             "current_api_status": self._current_reproductive_api_value(state),

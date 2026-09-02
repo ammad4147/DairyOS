@@ -1968,7 +1968,7 @@ export default function MilkTab({
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>ID &amp; Type</th>
+                      <th>Animal ID</th>
                       <th>Sessions Production</th>
                       <th>Total Production</th>
                       <th>
@@ -1989,7 +1989,7 @@ export default function MilkTab({
                               10,
                             ),
                           label:
-                            `${row.animal_id} · ${herdMasterList.find((animal) => animal.id === row.animal_id)?.category || 'Milking Cow'}`,
+                            row.animal_id,
                           detail: [row.morning_yield,row.afternoon_yield,row.evening_yield].filter(value=>value!=null).map(value=>litre(value)).join(' + '),
                           qty:
                             row.total_yield,
