@@ -51,15 +51,10 @@ def overall_saleable_capacity(
 ) -> dict[str, float]:
     """Return the governed carried milk balance through ``through_date``.
 
-    All physically produced milk enters recorded production. Milk produced
-    during a treatment-withdrawal period is removed from the saleable balance
-    by an automatic WASTAGE disposition at entry time. Historical rows that
-    were stored with status WITHDRAWAL before that rule existed are treated as
-    implicit wastage for compatibility, without deleting or rewriting them.
-
-    Dispositions are applied chronologically and can consume only milk that
-    physically exists by their date. An orphan historical disposition cannot
-    create negative inventory debt against future production.
+    New withdrawal milk remains RECORDED biological production and is removed
+    from the saleable pool by its automatic WASTAGE disposition. Historical
+    production rows already marked WITHDRAWAL remain biological production but
+    are excluded from saleable production for backward compatibility.
     """
 
     working_factory = factory or RepositoryFactory.create()
@@ -69,8 +64,7 @@ def overall_saleable_capacity(
         production_rows = working_factory.milk().get_all() or []
         disposition_rows = working_factory.milk_dispositions().get_all() or []
 
-        production_by_date: dict[date, float] = defaultdict(float)
-        legacy_withdrawal_by_date: dict[date, float] = defaultdict(float)
+        saleable_by_date: dict[date, float] = defaultdict(float)
         biological = 0.0
         withdrawal = 0.0
 
@@ -87,14 +81,13 @@ def overall_saleable_capacity(
 
             litres = max(_production_litres(row), 0.0)
             biological += litres
-            production_by_date[row_date] += litres
-
             if status == "WITHDRAWAL":
                 withdrawal += litres
-                legacy_withdrawal_by_date[row_date] += litres
+            else:
+                saleable_by_date[row_date] += litres
 
-        disposition_by_date: dict[date, float] = defaultdict(float)
-        explicit_withdrawal_by_date: dict[date, float] = defaultdict(float)
+        ordinary_disposition_by_date: dict[date, float] = defaultdict(float)
+        withdrawal_accounted = 0.0
 
         for row in disposition_rows:
             row_date = _as_date(getattr(row, "production_date", None))
@@ -116,59 +109,41 @@ def overall_saleable_capacity(
                 float(getattr(row, "quantity_litres", 0.0) or 0.0),
                 0.0,
             )
-            disposition_by_date[row_date] += litres
-
-            if str(
+            kind = str(
                 getattr(row, "disposition_type", "") or ""
-            ).upper() == "WITHDRAWAL":
-                explicit_withdrawal_by_date[row_date] += litres
-
-        # Compatibility for historical data created before withdrawal milk
-        # was automatically posted to WASTAGE. Do not double-count an old
-        # explicit WITHDRAWAL disposition if one already represents it.
-        legacy_implicit_wastage_by_date: dict[date, float] = defaultdict(float)
-        for operational_date, litres in legacy_withdrawal_by_date.items():
-            legacy_implicit_wastage_by_date[operational_date] = max(
-                litres - explicit_withdrawal_by_date.get(operational_date, 0.0),
-                0.0,
-            )
+            ).upper()
+            if kind == "WITHDRAWAL":
+                withdrawal_accounted += litres
+            else:
+                ordinary_disposition_by_date[row_date] += litres
 
         available = 0.0
-        accounted = 0.0
+        ordinary_accounted = 0.0
         unbacked_dispositions = 0.0
-        legacy_implicit_wastage = 0.0
 
-        dates = sorted(
-            set(production_by_date)
-            | set(disposition_by_date)
-            | set(legacy_implicit_wastage_by_date)
-        )
-
+        dates = sorted(set(saleable_by_date) | set(ordinary_disposition_by_date))
         for operational_date in dates:
-            available += production_by_date.get(operational_date, 0.0)
-
-            requested = (
-                disposition_by_date.get(operational_date, 0.0)
-                + legacy_implicit_wastage_by_date.get(operational_date, 0.0)
-            )
-            legacy_implicit_wastage += legacy_implicit_wastage_by_date.get(
-                operational_date, 0.0
-            )
-
+            available += saleable_by_date.get(operational_date, 0.0)
+            requested = ordinary_disposition_by_date.get(operational_date, 0.0)
             applied = min(requested, available)
-            accounted += applied
+            ordinary_accounted += applied
             unbacked_dispositions += max(requested - applied, 0.0)
             available -= applied
+
+        saleable_production = max(biological - withdrawal, 0.0)
+        legacy_implicit_wastage = max(
+            withdrawal - withdrawal_accounted,
+            0.0,
+        )
 
         return {
             "biological_production_litres": round(biological, 3),
             "recorded_production_litres": round(biological, 3),
             "withdrawal_litres": round(withdrawal, 3),
-            "saleable_production_litres": round(biological, 3),
-            "ordinary_accounted_litres": round(accounted, 3),
-            "legacy_implicit_wastage_litres": round(
-                legacy_implicit_wastage, 3
-            ),
+            "saleable_production_litres": round(saleable_production, 3),
+            "ordinary_accounted_litres": round(ordinary_accounted, 3),
+            "withdrawal_accounted_litres": round(withdrawal_accounted, 3),
+            "legacy_implicit_wastage_litres": round(legacy_implicit_wastage, 3),
             "unbacked_disposition_litres": round(unbacked_dispositions, 3),
             "available_saleable_litres": round(max(available, 0.0), 3),
         }

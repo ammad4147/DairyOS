@@ -2111,7 +2111,7 @@ export default function MilkTab({
                                           entry.row as ProductionRow,
                                         )
                                       : voidDisposition(
-                                          entry.row as DispositionRow,
+                                          entry.row as unknown as DispositionRow,
                                         )
                                   }
                                 >
