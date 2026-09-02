@@ -13,6 +13,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
+from dairyos.data.database.destructive_guards import install_destructive_guards
 from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.platform import paths
 from dairyos.windows.startup_integrity import (
@@ -22,6 +23,7 @@ from dairyos.windows.startup_integrity import (
 
 
 MIGRATION_LOCK_KEY = 746182934517
+MIGRATION_DATABASE_URL_ENV = "DAIRYOS_MIGRATION_DATABASE_URL"
 
 
 class MigrationGateError(RuntimeError):
@@ -69,7 +71,11 @@ def _build_config() -> tuple[Config, ScriptDirectory]:
 
 
 def _database_url() -> str:
-    """Resolve the database URL from the current environment on every call."""
+    """Resolve the privileged migration URL when the packaged supervisor supplied one."""
+    privileged = os.environ.get(MIGRATION_DATABASE_URL_ENV, "").strip()
+    if privileged:
+        return privileged
+
     try:
         from dairyos.data.database.session import _build_database_url
     except Exception as exc:
@@ -100,18 +106,18 @@ def _public_application_table_count(connection) -> int:
 
 
 def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...]) -> None:
-    """Create the current ORM schema once for a genuinely empty database.
+    """Create and protect the current ORM schema for a genuinely empty database.
 
-    Production remains migration-owned: the normal application initializer
-    still refuses to call ``create_all()`` in production. This explicit empty-
-    database bootstrap belongs to the migration gate and is immediately
-    recorded at the current Alembic head. Non-empty databases without history
-    are still rejected rather than guessed at.
+    The fresh-install path intentionally uses the current canonical ORM schema
+    rather than replaying years of historical migrations.  Because it stamps
+    directly at Alembic heads, database security primitives that would normally
+    arrive through migrations must be installed explicitly before the stamp.
     """
     from dairyos.data.database.base import Base
     import dairyos.data.database.database  # noqa: F401  # registers all ORM models
 
     Base.metadata.create_all(bind=connection)
+    install_destructive_guards(connection)
     config.attributes["connection"] = connection
     command.stamp(config, "heads")
 
@@ -127,19 +133,11 @@ def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...
 def migrate_if_needed() -> MigrationResult:
     """Safely prepare a DairyOS database for production startup.
 
-    A PostgreSQL transaction-level advisory lock serializes migration checks
-    across processes. The same SQLAlchemy connection is handed to Alembic so
-    the lock remains active for the actual migration transaction.
-
-    A genuinely empty database is initialized once from the current canonical
-    ORM schema and immediately stamped at the packaged Alembic head. This is
-    deliberately restricted to databases with no application tables.
-
-    A non-empty database without Alembic history is still refused: DairyOS will
-    never guess whether an unknown schema is complete enough to upgrade safely.
-    Existing databases that already have migration history continue through the
-    normal Alembic migration chain, with a verified pre-migration backup.
+    A packaged private installation supplies a separate administrator URL only
+    for this gate.  The URL is consumed here and removed from the environment in
+    ``finally`` before the normal backend child is started.
     """
+    transient_admin_url = bool(os.environ.get(MIGRATION_DATABASE_URL_ENV, "").strip())
     database_url = _database_url()
     config, script = _build_config()
     engine = create_engine(database_url, pool_pre_ping=True)
@@ -174,6 +172,9 @@ def migrate_if_needed() -> MigrationResult:
                     return MigrationResult(True, current, target, None)
 
             if current == target:
+                # Idempotently reassert guards so a table added by a future
+                # migration cannot remain unprotected after startup.
+                install_destructive_guards(connection)
                 return MigrationResult(False, current, target)
 
             if not current:
@@ -197,6 +198,7 @@ def migrate_if_needed() -> MigrationResult:
             config.attributes["connection"] = connection
             try:
                 command.upgrade(config, "heads")
+                install_destructive_guards(connection)
             except Exception as exc:
                 raise MigrationGateError(
                     "DairyOS database migration failed. Startup is blocked. "
@@ -220,3 +222,5 @@ def migrate_if_needed() -> MigrationResult:
         ) from exc
     finally:
         engine.dispose()
+        if transient_admin_url:
+            os.environ.pop(MIGRATION_DATABASE_URL_ENV, None)
