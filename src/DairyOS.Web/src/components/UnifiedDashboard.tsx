@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Milk, Sparkles, AlertTriangle, X, TrendingDown, HeartPulse, ShieldCheck, Activity, Plus } from 'lucide-react';
+import { Milk, Sparkles, AlertTriangle, HeartPulse, ShieldCheck, Activity, Plus } from 'lucide-react';
 import { fetchCommandDashboardData, type CommandDashboardData } from '../api/commandDashboardClient';
 import { useAlertAudit } from '../context/AlertAuditContext';
 import AnimalPassportModal from './AnimalPassportModal';
+import YieldDropAlertModal from './YieldDropAlertModal';
 import './UnifiedDashboard.css';
 
 const CowIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
@@ -21,10 +22,6 @@ interface Props {
   herdMasterList?: HerdAnimal[];
   dashboardRefreshVersion?: number;
   realTimeReceivables?: number;
-}
-interface DropComparisonDetail {
-  animalId: string; breed: string; alertTitle: string; prior3DayAvg: number; currentYield: number;
-  dropLiters: number; dropPercent: number; flagDate: string; possibleCauses: string[]; recommendedAction: string;
 }
 
 type MonthlyComlOutput = {
@@ -49,9 +46,9 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [chartDays, setChartDays] = useState(7);
   const [extremesCount, setExtremesCount] = useState(3);
   const [passportTag, setPassportTag] = useState<string | null>(null);
-  const [selectedDropDetail, setSelectedDropDetail] = useState<DropComparisonDetail | null>(null);
+  const [selectedDropAlertId, setSelectedDropAlertId] = useState<string | null>(null);
   const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
-  const { alerts } = useAlertAudit();
+  const { alerts, refresh: refreshAlerts } = useAlertAudit();
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -63,6 +60,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData, dashboardRefreshVersion]);
+
+  useEffect(() => {
+    if (dashboardRefreshVersion > 0) void refreshAlerts();
+  }, [dashboardRefreshVersion, refreshAlerts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,8 +114,6 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         )
       : [];
 
-
-
     return values
       .slice(-chartDays)
       .map((value, index) => ({
@@ -137,8 +136,6 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       : []
   );
 
-  // The trend is date-complete and anchored to the authoritative current
-  // operational date. Therefore its rightmost point is today's dashboard date.
   const currentTrendPoint =
     trendPoints.length > 0
       ? trendPoints[trendPoints.length - 1]
@@ -167,36 +164,17 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   const openPassportHandler = (tag: string) => onOpenPassport ? onOpenPassport(tag) : setPassportTag(tag);
 
-  const handleOpenDropComparison = (animalId: string, alertTitle: string) => {
+  const handleOpenDropComparison = (animalId: string) => {
     const alert = alerts.find(
-      (item:any) =>
+      item =>
         item.source === 'MILK_DROP' &&
-        (item.animalId || item.animal_id) === animalId &&
+        item.animalId === animalId &&
         item.status !== 'RESOLVED'
-    ) as any;
+    );
 
-    if (!alert) return;
-
-    setSelectedDropDetail({
-      animalId,
-      breed: alert.breed || 'Unavailable',
-      alertTitle,
-      prior3DayAvg: Number(alert.prior3DayAvg ?? alert.prior_3_day_avg ?? 0),
-      currentYield: Number(alert.currentYield ?? alert.current_yield ?? 0),
-      dropLiters: Number(alert.dropLiters ?? alert.drop_liters ?? 0),
-      dropPercent: Number(alert.dropPercent ?? alert.drop_percent ?? 0),
-      flagDate: alert.flagDate || alert.flag_date || alert.date || '',
-      possibleCauses: Array.isArray(alert.possibleCauses)
-        ? alert.possibleCauses
-        : Array.isArray(alert.possible_causes)
-          ? alert.possible_causes
-          : [],
-      recommendedAction:
-        alert.recommendedAction ||
-        alert.recommended_action ||
-        'Review the linked milk-production and animal records.',
-    });
+    if (alert) setSelectedDropAlertId(alert.id);
   };
+
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
   const dynamicMilkingCount = herdMasterList.filter(
@@ -208,8 +186,6 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       ? dynamicMilkingCount
       : Number(data?.milkingAnimals || 0);
 
-  // Today's displayed yield is the rightmost operational-date observation.
-  // null means no milk has been entered yet; it is not fabricated as zero.
   const todayYield =
     currentTrendYield !== null
       ? currentTrendYield
@@ -233,7 +209,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     yesterdayLiters > 0 && todayYield > 0
       ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100
       : 0;
-  const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 10 ? '#f59e0b' : '#34d399';
+  const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 15 ? '#facc15' : '#34d399';
 
   const countCategory = (keywords: string[]) => herdMasterList.filter(a => keywords.some(k => a.category.includes(k))).length;
   const canonicalHerd = [
@@ -258,6 +234,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
   const displayedTop = allTopPerformers.slice(0,extremesCount), displayedBottom = allBottomPerformers.slice(0,extremesCount);
   const activeDropAlerts = alerts.filter(a => a.source === 'MILK_DROP' && a.status !== 'RESOLVED');
+  const selectedDropAlert = selectedDropAlertId ? alerts.find(a => a.id === selectedDropAlertId) || null : null;
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; } | undefined;
   const reproData = {
@@ -322,20 +299,20 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     'Milk',
   ]}
 /><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click row</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>âœ“ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>handleOpenDropComparison(item.animalId||'TD-004',item.title)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #f59e0b',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:'pointer',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#f59e0b',fontWeight:700}}>{(() => {
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click row</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>item.animalId&&handleOpenDropComparison(item.animalId)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:item.animalId?'pointer':'default',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal ID unavailable'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700}}>{(() => {
   const directPct = item.dropPercent ?? item.drop_percent;
   const detailText = String(item.details ?? item.detail ?? '');
-  const detailMatch = detailText.match(/(-?\d+(?:\.\d+)?)%\s*decline/i);
+  const detailMatch = detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);
   const pct = directPct !== undefined && directPct !== null
     ? Math.abs(Number(directPct))
     : detailMatch
       ? Math.abs(Number(detailMatch[1]))
       : null;
-  return pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Drop';
+  return pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Yield Drop';
 })()}</span></div>)}</div></div>
             </div>
           </div>
-          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>â‚¨</span>} color="#059669"/></div></div></div>
+          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div></div></div>
         </div>
         <div className="cmd-col" style={{display:'flex',flexDirection:'column',gap:10,minHeight:0,minWidth:0,overflow:'hidden'}}>
           <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6,color:'#34d399',fontWeight:800,fontSize:12}}><Sparkles size={15}/> Production Extremes</span><select value={extremesCount} onChange={e=>setExtremesCount(Number(e.target.value))} style={selectStyle}>{extremesOptions.map(n=><option key={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
@@ -343,7 +320,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{flex:'0.85 1 0',...cardBase}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div></div>
         </div>
       </div>
-      {selectedDropDetail && <div style={modalOverlay}><div style={modalCard}><div style={modalHeader}><div style={{display:'flex',alignItems:'center',gap:8}}><TrendingDown size={18} color="#ef4444"/><h3 style={{margin:0,fontSize:14}}>Yield Drop Diagnostic: #{selectedDropDetail.animalId}</h3></div><button onClick={()=>setSelectedDropDetail(null)} style={iconButton}><X size={18}/></button></div><div style={{padding:18,display:'flex',flexDirection:'column',gap:14}}><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10}}><KpiMini label="Prior 3-Day Avg" value={`${Math.round(selectedDropDetail.prior3DayAvg)} L`}/><KpiMini label="Current Yield" value={`${Math.round(selectedDropDetail.currentYield)} L`}/><KpiMini label="Drop Variance" value={`-${Math.round(selectedDropDetail.dropLiters)} L (${Math.round(selectedDropDetail.dropPercent)}%)`} danger/></div><div style={{background:'#161f30',padding:12,borderRadius:6,fontSize:11,color:'#cbd5e1'}}><div><b>Breed:</b> {selectedDropDetail.breed}</div><div style={{marginTop:5}}><b>Triggered Alert:</b> {selectedDropDetail.alertTitle}</div><div style={{marginTop:5}}><b>Flagged Date:</b> {selectedDropDetail.flagDate}</div></div><div><div style={{fontSize:11,fontWeight:800,color:'#fbbf24',marginBottom:6}}>Probable Causes</div><ul style={{margin:0,paddingLeft:18,fontSize:11,color:'#cbd5e1'}}>{selectedDropDetail.possibleCauses.map(c=><li key={c}>{c}</li>)}</ul></div><div style={{background:'rgba(56,189,248,.10)',borderLeft:'3px solid #38bdf8',padding:10,borderRadius:4,fontSize:11}}><b style={{color:'#38bdf8'}}>Recommended Action:</b> <span style={{color:'#e2e8f0'}}>{selectedDropDetail.recommendedAction}</span></div><div style={{display:'flex',justifyContent:'flex-end',gap:8}}><button onClick={()=>{const tag=selectedDropDetail.animalId;setSelectedDropDetail(null);openPassportHandler(tag);}} style={button('#0284c7')}>Open Passport #{selectedDropDetail.animalId}</button><button onClick={()=>setSelectedDropDetail(null)} style={button('#334155')}>Close</button></div></div></div></div>}
+      {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
       {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>}
     </div>
   );
@@ -354,14 +331,8 @@ function WideStat({label,value,color,border='#38bdf8'}:{label:string,value:strin
 function HerdTable({rows}:{rows:{name:string;value:number;color:string}[]}){return <div style={{minHeight:0,overflow:'auto'}}><table style={{width:'100%',fontSize:10,borderCollapse:'collapse'}}><thead><tr style={{color:'#94a3b8',borderBottom:'1px solid #1f2937'}}><th style={{textAlign:'left',padding:3}}>Category</th><th style={{textAlign:'right',padding:3}}>Count</th></tr></thead><tbody>{rows.map(c=><tr key={c.name} style={{borderBottom:'1px solid #1a2234'}}><td style={{display:'flex',alignItems:'center',gap:4,padding:4,color:'#e2e8f0'}}><div style={{width:6,height:6,backgroundColor:c.color,borderRadius:2}}/>{c.name}</td><td style={{fontWeight:800,textAlign:'right',padding:4}}>{c.value}</td></tr>)}</tbody></table></div>}
 function ExtremeList({title,rows,color,onOpen}:{title:string,rows:{id:string;yield:number}[],color:string,onOpen:(id:string)=>void}){return <div style={{background:'#0b1120',border:'1px solid #1e293b',borderRadius:6,padding:'6px 8px',minWidth:0}}><div style={{fontSize:10,fontWeight:800,color,marginBottom:4,display:'flex',justifyContent:'space-between'}}><span>{title}</span><span>Liters</span></div>{rows.map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',fontSize:10,padding:'2px 4px',background:'#161f30',borderRadius:3,marginBottom:3}}><span onClick={()=>onOpen(p.id)} style={{color:'#38bdf8',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>{i+1}. #{p.id}</span><span style={{color,fontWeight:700}}>{Math.round(p.yield)} L</span></div>)}</div>}
 function ActionButton({onClick,text,icon,color}:{onClick:()=>void;text:string;icon:React.ReactNode;color:string}){return <button onClick={onClick} style={{width:'100%',background:color,border:'1px solid rgba(255,255,255,.22)',borderRadius:6,padding:10,color:'#fff',fontSize:10,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{icon}{text}</button>}
-function KpiMini({label,value,danger=false}:{label:string;value:string;danger?:boolean}){return <div style={{background:danger?'rgba(239,68,68,.15)':'#0f172a',border:`1px solid ${danger?'#ef4444':'#1e293b'}`,padding:10,borderRadius:6}}><div style={{fontSize:10,color:'#94a3b8'}}>{label}</div><div style={{fontSize:16,fontWeight:900,color:danger?'#ef4444':'#38bdf8'}}>{value}</div></div>}
 const panel:React.CSSProperties={background:'#0b1120',border:'1px solid #1e293b',borderRadius:6,padding:'6px 8px',display:'flex',flexDirection:'column',minHeight:0,minWidth:0,overflow:'hidden'};
 const graphTitle:React.CSSProperties={fontSize:10,color:'#94a3b8',fontWeight:800,display:'flex',alignItems:'center',gap:4};
 const selectStyle:React.CSSProperties={background:'#161f30',color:'#cbd5e1',border:'1px solid #374151',borderRadius:4,fontSize:9,padding:'1px 4px'};
 const cardBase:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:10,minHeight:0,minWidth:0,overflow:'hidden'};
 const healthBox:React.CSSProperties={display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,background:'rgba(239,68,68,.10)',border:'1px solid rgba(239,68,68,.3)',padding:'6px 8px',borderRadius:6};
-const modalOverlay:React.CSSProperties={position:'fixed',inset:0,background:'rgba(0,0,0,.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20};
-const modalCard:React.CSSProperties={background:'#111827',border:'1px solid #ef4444',borderRadius:10,width:520,maxWidth:'100%',overflow:'hidden'};
-const modalHeader:React.CSSProperties={background:'#1e293b',padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #334155'};
-const iconButton:React.CSSProperties={background:'none',border:'none',color:'#94a3b8',cursor:'pointer'};
-const button=(background:string):React.CSSProperties=>({background,color:'#fff',border:'none',padding:'8px 14px',borderRadius:6,fontSize:11,fontWeight:800,cursor:'pointer'});
