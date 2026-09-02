@@ -24,15 +24,6 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import re
-
-          def replace_exact(path: str, old: str, new: str) -> None:
-              p = Path(path)
-              text = p.read_text(encoding="utf-8-sig")
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{path}: expected exactly one match, found {count}")
-              p.write_text(text.replace(old, new), encoding="utf-8")
 
           passport = Path("src/dairyos/application/animal_passport.py")
           text = passport.read_text(encoding="utf-8-sig")
@@ -56,14 +47,11 @@ jobs:
               raise SystemExit("MilkTab.tsx: ID & Type header match was not unique")
           text = text.replace("<th>ID &amp; Type</th>", "<th>Animal ID</th>")
 
-          pattern = re.compile(
-              r"label:\s*\n\s*`\$\{row\.animal_id\} · \$\{herdMasterList\.find\(\(animal\) => animal\.id === row\.animal_id\)\?\.category \|\| 'Milking Cow'\}`,”
-          )
-          matches = list(pattern.finditer(text))
-          if len(matches) != 1:
-              raise SystemExit(f"MilkTab.tsx: expected one ID/type label expression, found {len(matches)}")
-          text = pattern.sub("label:\n                            row.animal_id,", text)
-          milk.write_text(text, encoding="utf-8")
+          old = """label:\n                            `${row.animal_id} · ${herdMasterList.find((animal) => animal.id === row.animal_id)?.category || 'Milking Cow'}`,"""
+          new = """label:\n                            row.animal_id,"""
+          if text.count(old) != 1:
+              raise SystemExit(f"MilkTab.tsx: expected one ID/type label expression, found {text.count(old)}")
+          milk.write_text(text.replace(old, new), encoding="utf-8")
 
           print("M-01: Passport projection now tolerates historical pregnancy confirmation without fabricated insemination.")
           print("M-13: Milk register is ID-only and receives the Passport navigation callback.")
@@ -76,7 +64,7 @@ jobs:
           grep -n "onOpenAnimalPassport={openLinkedPassport}" src/DairyOS.Web/src/App.tsx
           grep -n "<th>Animal ID</th>" src/DairyOS.Web/src/components/MilkTab.tsx
           ! grep -q "<th>ID &amp; Type</th>" src/DairyOS.Web/src/components/MilkTab.tsx
-          ! grep -q "Milking Cow'}`" src/DairyOS.Web/src/components/MilkTab.tsx
+          ! grep -q "Milking Cow" src/DairyOS.Web/src/components/MilkTab.tsx
 
       - name: Commit remediation and remove one-shot workflow
         shell: bash
