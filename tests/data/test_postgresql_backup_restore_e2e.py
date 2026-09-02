@@ -77,9 +77,21 @@ def test_postgresql_backup_restore_preserves_operational_record(tmp_path: Path):
             with source_engine.begin() as connection:
                 connection.execute(
                     text(
+                        "INSERT INTO animal "
+                        "(animal_id, animal_type, status, active, is_currently_milking, "
+                        "non_milking_directive, non_milking_restore_to_milking, created_at, updated_at) "
+                        "VALUES (:animal_id, 'COW', 'ACTIVE', true, true, 'NONE', false, "
+                        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    ),
+                    {"animal_id": sentinel},
+                )
+                connection.execute(
+                    text(
                         "INSERT INTO milk_production "
-                        "(animal_id, production_date, morning_yield, afternoon_yield, evening_yield, total_yield, status) "
-                        "VALUES (:animal_id, CURRENT_TIMESTAMP, 10, 5, 5, 20, 'RECORDED')"
+                        "(animal_id, production_date, recorded_at, morning_yield, afternoon_yield, "
+                        "evening_yield, total_yield, status) "
+                        "VALUES (:animal_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
+                        "10, 5, 5, 20, 'RECORDED')"
                     ),
                     {"animal_id": sentinel},
                 )
