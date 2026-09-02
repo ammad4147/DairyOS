@@ -4,6 +4,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
@@ -18,12 +19,37 @@ class PostgreSQLBackupError(RuntimeError):
 
 
 def _tool(name: str) -> str:
+    """Resolve PostgreSQL client tooling from PATH or DairyOS' bundled runtime."""
+
     path = shutil.which(name)
-    if path is None:
-        raise PostgreSQLBackupError(
-            f"Required PostgreSQL utility {name!r} was not found on PATH."
-        )
-    return path
+    if path is not None:
+        return path
+
+    executable_name = name if name.lower().endswith(".exe") else f"{name}.exe"
+    candidates: list[Path] = []
+
+    runtime_override = os.environ.get("DAIRYOS_PRIVATE_POSTGRES_RUNTIME", "").strip()
+    if runtime_override:
+        runtime = Path(runtime_override).expanduser()
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    install_root = os.environ.get("DAIRYOS_INSTALL_ROOT", "").strip()
+    if install_root:
+        runtime = Path(install_root).expanduser() / "runtime" / "PostgreSQL"
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    if getattr(sys, "frozen", False):
+        runtime = Path(sys.executable).resolve().parent / "runtime" / "PostgreSQL"
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate.resolve())
+
+    searched = ", ".join(str(item) for item in candidates) or "no bundled-runtime candidate"
+    raise PostgreSQLBackupError(
+        f"Required PostgreSQL utility {name!r} was not found on PATH or in the DairyOS bundled runtime ({searched})."
+    )
 
 
 def _connection_args(database_url: str) -> tuple[list[str], dict[str, str]]:
