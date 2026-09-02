@@ -1904,12 +1904,7 @@ export default function MilkTab({
         <>
           <section
             style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'minmax(0,1fr) minmax(260px,.5fr)',
-              gap: 10,
-              alignItems:
-                'start',
+              display: 'block',
             }}
           >
             <div
@@ -1954,7 +1949,7 @@ export default function MilkTab({
                 >
                   {loading
                     ? 'Loading...'
-                    : `${productions.length + dispositions.length} records`}
+                    : `${productions.length} production records`}
                 </span>
               </div>
 
@@ -1967,7 +1962,7 @@ export default function MilkTab({
                 <table
                   style={{
                     ...tableStyle,
-                    minWidth: 760,
+                    minWidth: 0,
                   }}
                 >
                   <thead>
@@ -2020,7 +2015,9 @@ export default function MilkTab({
                           row,
                         }),
                       ),
-                    ].map(
+                    ]
+                      .filter((entry) => entry.kind === 'PRODUCTION')
+                      .map(
                       (entry) => {
                         const status =
                           entry.row
@@ -2053,9 +2050,11 @@ export default function MilkTab({
                             </td>
 
                             <td>
-                              {
-                                entry.label
-                              }
+                              {entry.kind === 'PRODUCTION' && onOpenAnimalPassport ? (
+                                <button type="button" onClick={() => onOpenAnimalPassport((entry.row as ProductionRow).animal_id)} style={{background:'none',border:0,padding:0,color:'#38bdf8',cursor:'pointer',textDecoration:'underline',fontSize:10,fontWeight:800}}>
+                                  {entry.label}
+                                </button>
+                              ) : (entry.label)}
                             </td>
 
                             <td>
@@ -2103,8 +2102,7 @@ export default function MilkTab({
                       },
                     )}
 
-                    {productions.length +
-                      dispositions.length ===
+                    {productions.length ===
                       0 && (
                       <tr>
                         <td
@@ -2131,7 +2129,6 @@ export default function MilkTab({
               </div>
             </div>
 
-            <div />
           </section>
 
           <section
