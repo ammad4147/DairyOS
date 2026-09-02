@@ -182,9 +182,6 @@ def _qualifying_rows(
         if not bool(getattr(record, "session_ledger", False)):
             continue
 
-        if str(getattr(record, "status", "") or "").upper() == "WITHDRAWAL":
-            continue
-
         if not _has_entered_yield(record):
             continue
 

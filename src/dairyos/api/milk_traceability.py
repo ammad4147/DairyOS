@@ -20,6 +20,9 @@ from dairyos.farm.herd.services.animal_milking_schedule_service import (
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
 )
+from dairyos.farm.production.services.milk_inventory_capacity_service import (
+    overall_saleable_capacity,
+)
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
@@ -230,6 +233,18 @@ def milk_reconciliation(
 ):
     target = _production_date(production_date)
     return MilkReconciliationService().reconcile(target, raise_finding=False)
+
+
+@router.get("/capacity")
+def milk_capacity(
+    through_date: date | None = Query(default=None),
+    container=Depends(get_container),
+):
+    target = _production_date(through_date)
+    return overall_saleable_capacity(
+        target,
+        factory=container.repository_factory,
+    )
 
 
 @router.patch("/production/{record_id}")

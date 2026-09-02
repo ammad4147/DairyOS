@@ -67,6 +67,12 @@ type Reconciliation = {
   status: string;
 };
 
+type MilkCapacity = {
+  recorded_production_litres: number;
+  ordinary_accounted_litres: number;
+  available_saleable_litres: number;
+};
+
 type NextSession = {
   animal_id: string;
   milking_frequency?: string;
@@ -382,6 +388,9 @@ export default function MilkTab({
     [],
   );
 
+  const [capacity, setCapacity] =
+    useState<MilkCapacity | null>(null);
+
   const [finance, setFinance] =
     useState<FinanceRow[]>([]);
 
@@ -560,6 +569,7 @@ export default function MilkTab({
         rec,
         quality,
         financeLedger,
+        carriedCapacity,
       ] = await Promise.all([
         request<{
           production: ProductionRow[];
@@ -590,6 +600,10 @@ export default function MilkTab({
         }>(
           '/farm/finance-ledger',
         ),
+
+        request<MilkCapacity>(
+          `/farm/milk/capacity?through_date=${bounds.end}`,
+        ),
       ]);
 
       setProductions(
@@ -608,6 +622,7 @@ export default function MilkTab({
       });
 
       setReconciliation(rec);
+      setCapacity(carriedCapacity);
       setFinance(
         financeLedger.transactions ||
           [],
@@ -845,11 +860,14 @@ export default function MilkTab({
       );
 
   const monthRecon =
-    monthProduced -
-    monthSold -
-    monthDomestic -
-    monthCalves -
-    monthWastage;
+    capacity?.available_saleable_litres ??
+    (
+      monthProduced -
+      monthSold -
+      monthDomestic -
+      monthCalves -
+      monthWastage
+    );
 
   const click = (
     panel: Exclude<
@@ -951,7 +969,11 @@ export default function MilkTab({
           );
         }
 
-        await request('/farm/milk', {
+        const saved = await request<{
+          withdrawal_warning?: boolean;
+          withdrawal_wastage_litres?: number;
+          safety_message?: string;
+        }>('/farm/milk', {
           method: 'POST',
           body: JSON.stringify({
             animal_id:
@@ -983,7 +1005,12 @@ export default function MilkTab({
         onSaveYield?.(litres);
 
         setMessage(
-          `Milk production recorded for ${productionAnimal}.`,
+          saved.withdrawal_warning
+            ? (
+                saved.safety_message ||
+                `Withdrawal active — milk recorded in production and automatically posted to WASTAGE; it is not available for sale.`
+              )
+            : `Milk production recorded for ${productionAnimal}.`,
         );
 
         setProductionAnimal('');

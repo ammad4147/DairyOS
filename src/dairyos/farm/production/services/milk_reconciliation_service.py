@@ -237,10 +237,10 @@ class MilkReconciliationService:
                 persisted_withdrawal,
                 max(total, 0.0),
             )
-            saleable = max(
-                total - withdrawal,
-                0.0,
-            )
+            # All physically produced milk remains production. Treatment
+            # withdrawal is reconciled as WASTAGE rather than removed from
+            # the production side of the ledger.
+            saleable = max(total, 0.0)
 
         return {
             "date": production_date.isoformat(),
@@ -354,8 +354,6 @@ class MilkReconciliationService:
         ordinary_active = sum(
             float(item.quantity_litres or 0.0)
             for item in active
-            if str(item.disposition_type).upper()
-            != "WITHDRAWAL"
         )
 
         available = max(
@@ -544,10 +542,20 @@ class MilkReconciliationService:
 
             ordinary_accounted = sold + non_sale
 
-            accounted = (
-                ordinary_accounted
-                + withdrawal_accounted
+            # Historical compatibility only: older rows stored withdrawal
+            # milk as production status WITHDRAWAL instead of creating the
+            # automatic WASTAGE disposition used for new entries. Preserve
+            # those rows and treat the unmatched quantity as implicit waste.
+            legacy_implicit_wastage = max(
+                withdrawal_litres - withdrawal_accounted,
+                0.0,
             )
+            non_sale_effective = (
+                non_sale
+                + withdrawal_accounted
+                + legacy_implicit_wastage
+            )
+            accounted = sold + non_sale_effective
 
             sale_value = sum(
                 float(item.amount_due or 0.0)
@@ -593,7 +601,7 @@ class MilkReconciliationService:
                     "sold_litres":
                         round(sold, 3),
                     "non_sale_accounted_litres":
-                        round(non_sale, 3),
+                        round(non_sale_effective, 3),
                     "unaccounted_litres":
                         None,
                     "over_accounted_litres":
@@ -618,18 +626,13 @@ class MilkReconciliationService:
 
             saleable_delta = (
                 float(produced)
-                - ordinary_accounted
+                - accounted
             )
 
-            withdrawal_delta = (
-                withdrawal_litres
-                - withdrawal_accounted
-            )
-
-            delta = (
-                saleable_delta
-                + withdrawal_delta
-            )
+            # There is one physical milk pool. Withdrawal milk is production
+            # that is disposed to WASTAGE, not a second reconciliation pool.
+            withdrawal_delta = 0.0
+            delta = saleable_delta
 
             if (
                 not current["complete"]

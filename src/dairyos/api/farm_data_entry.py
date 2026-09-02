@@ -39,6 +39,10 @@ from dairyos.farm.findings.services.operational_finding_service import (
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
 )
+from dairyos.farm.production.services.withdrawal_milk_wastage_service import (
+    animal_withdrawn_on_date,
+    ensure_withdrawal_wastage,
+)
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
@@ -741,19 +745,23 @@ def record_milk_entry(
     ]
     total = sum(entered) if entered else None
 
-    # Milk production state is governed independently from veterinary treatment state.
-    #
-    # Veterinary treatment remains a health-domain fact. Whether an animal
-    # belongs to the active milk population is governed by the veterinary
-    # NonMilkingDirective, not by treatment withdrawal periods.
-    #
-    # Therefore a valid milk entry is always RECORDED here. Non-milking
-    # directives remove zero-expected animals from the governed population;
-    # MILK_SEPARATELY remains a veterinary/operational instruction for milk
-    # handling outside the normal sale-milk herd.
+    # Treatment withdrawal does not erase biological production. The milk
+    # entry remains RECORDED for the animal's production history, while the
+    # same session quantity is automatically posted to WASTAGE below.
+    withdrawal_svc = getattr(container, "withdrawal_service", None)
+    withdrawal_warning = animal_withdrawn_on_date(
+        withdrawal_svc,
+        str(governed_entry.animal_id),
+        operational_date,
+    )
     status = "RECORDED"
-    withdrawal_warning = False
-    safety_message = None
+    safety_message = (
+        "Withdrawal active — milk is recorded in total production and the "
+        "animal record, and is automatically posted to WASTAGE. It is not "
+        "available for sale."
+        if withdrawal_warning
+        else None
+    )
 
     payload = {
         **governed_entry.model_dump(),
@@ -775,6 +783,22 @@ def record_milk_entry(
         payload,
         current_user,
     )
+
+    if withdrawal_warning and total is not None and float(total) > 0:
+        wastage = ensure_withdrawal_wastage(
+            repository_factory=container.repository_factory,
+            withdrawal_service=withdrawal_svc,
+            animal_id=str(governed_entry.animal_id),
+            production_date=operational_date,
+            milking_session=governed_entry.milking_session.value,
+            quantity_litres=float(total),
+            recorded_by=_operator(payload, current_user),
+        )
+        result["withdrawal_warning"] = True
+        result["withdrawal_wastage_litres"] = float(total)
+        result["safety_message"] = safety_message
+        if wastage is not None:
+            result["withdrawal_wastage_id"] = getattr(wastage, "id", None)
 
     if sequenced:
         settled = _settle_session(
