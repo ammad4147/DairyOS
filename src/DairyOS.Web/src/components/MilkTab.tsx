@@ -438,6 +438,11 @@ export default function MilkTab({
     );
 
   const [
+    todayProductions,
+    setTodayProductions,
+  ] = useState<ProductionRow[]>([]);
+
+  const [
     productionPickerOpen,
     setProductionPickerOpen,
   ] =
@@ -712,6 +717,38 @@ export default function MilkTab({
     qualityDate,
   ]);
 
+  const loadTodayProduction =
+    async () => {
+      try {
+        const operationalDate =
+          today();
+
+        const live =
+          await request<{
+            production: ProductionRow[];
+            dispositions: DispositionRow[];
+          }>(
+            `/farm/milk/ledger?start_date=${operationalDate}&end_date=${operationalDate}`,
+          );
+
+        setTodayProductions(
+          live.production || [],
+        );
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to load today\'s milk-session progress.',
+        );
+      }
+    };
+
+  useEffect(() => {
+    if (productionPickerOpen) {
+      void loadTodayProduction();
+    }
+  }, [productionPickerOpen]);
+
   useEffect(() => {
     if (initialOpenModal) {
       setProductionPickerOpen(
@@ -882,6 +919,101 @@ export default function MilkTab({
     );
   };
 
+  const sessionProgressFor = (
+    animal: HerdAnimal,
+  ) => {
+    const row = todayProductions
+      .filter(
+        (item) =>
+          item.animal_id ===
+            animal.id &&
+          item.status !== 'VOID',
+      )
+      .sort(
+        (left, right) =>
+          right.id - left.id,
+      )[0];
+
+    const governedExpected =
+      productionAnimal ===
+        animal.id &&
+      productionNextSession
+        ?.expected_sessions
+        ?.length
+        ? productionNextSession
+            .expected_sessions
+        : null;
+
+    const frequency =
+      String(
+        animal.frequency || '',
+      ).toUpperCase();
+
+    const expected =
+      governedExpected ||
+      (
+        frequency.includes(
+          'TWICE',
+        )
+          ? [
+              'MORNING',
+              'EVENING',
+            ]
+          : [
+              'MORNING',
+              'AFTERNOON',
+              'EVENING',
+            ]
+      );
+
+    const sessionValue = (
+      session: string,
+    ): number | null => {
+      if (!row) {
+        return null;
+      }
+
+      if (session === 'MORNING') {
+        return row.morning_yield ?? null;
+      }
+
+      if (session === 'AFTERNOON') {
+        return row.afternoon_yield ?? null;
+      }
+
+      if (session === 'EVENING') {
+        return row.evening_yield ?? null;
+      }
+
+      return null;
+    };
+
+    const values =
+      expected.map(sessionValue);
+
+    const remaining =
+      values.filter(
+        (value) => value == null,
+      ).length;
+
+    const total =
+      values.reduce<number>(
+        (sum, value) =>
+          sum + Number(value || 0),
+        0,
+      );
+
+    return {
+      expected,
+      values,
+      total,
+      remaining,
+      complete:
+        expected.length > 0 &&
+        remaining === 0,
+    };
+  };
+
   const selectProductionAnimal =
     async (
       animalId: string,
@@ -1020,6 +1152,7 @@ export default function MilkTab({
         );
 
         await load();
+        await loadTodayProduction();
       } catch (err) {
         const detail = err instanceof Error ? err.message : '';
         if (
@@ -2525,11 +2658,26 @@ export default function MilkTab({
                   available.
                 </div>
               ) : (
-                milkingAnimals.map(
+                [...milkingAnimals]
+                  .sort((left, right) => {
+                    const leftComplete =
+                      sessionProgressFor(left).complete;
+                    const rightComplete =
+                      sessionProgressFor(right).complete;
+
+                    return Number(leftComplete) -
+                      Number(rightComplete);
+                  })
+                  .map(
                   (animal) => {
                     const selected =
                       productionAnimal ===
                       animal.id;
+
+                    const progress =
+                      sessionProgressFor(
+                        animal,
+                      );
 
                     return (
                       <div
@@ -2538,14 +2686,18 @@ export default function MilkTab({
                         }
                         style={{
                           background:
-                            selected
-                              ? '#16253a'
-                              : '#111827',
+                            progress.complete
+                              ? 'rgba(22,101,52,.30)'
+                              : selected
+                                ? 'rgba(146,64,14,.24)'
+                                : 'rgba(146,64,14,.12)',
                           border:
                             `1px solid ${
-                              selected
-                                ? '#38bdf8'
-                                : '#1f2937'
+                              progress.complete
+                                ? '#22c55e'
+                                : selected
+                                  ? '#f59e0b'
+                                  : '#92400e'
                             }`,
                           borderRadius:
                             7,
@@ -2553,11 +2705,20 @@ export default function MilkTab({
                       >
                         <button
                           type="button"
-                          onClick={() =>
+                          disabled={
+                            progress.complete
+                          }
+                          onClick={() => {
+                            if (
+                              progress.complete
+                            ) {
+                              return;
+                            }
+
                             void selectProductionAnimal(
                               animal.id,
-                            )
-                          }
+                            );
+                          }}
                           style={{
                             width:
                               '100%',
@@ -2571,14 +2732,20 @@ export default function MilkTab({
                             display:
                               'grid',
                             gridTemplateColumns:
-                              '1fr 1.5fr .8fr auto',
+                              '1fr 1.35fr .7fr 2.2fr auto',
                             gap: 8,
                             alignItems:
                               'center',
                             textAlign:
                               'left',
                             cursor:
-                              'pointer',
+                              progress.complete
+                                ? 'not-allowed'
+                                : 'pointer',
+                            opacity:
+                              progress.complete
+                                ? 0.92
+                                : 1,
                             fontFamily:
                               'inherit',
                           }}
@@ -2625,22 +2792,83 @@ export default function MilkTab({
                           </span>
 
                           <span
+                            title={
+                              progress.expected
+                                .map(
+                                  (
+                                    session,
+                                    index,
+                                  ) =>
+                                    `${session}: ${
+                                      progress.values[index] == null
+                                        ? 'not recorded'
+                                        : litre(progress.values[index])
+                                    }`,
+                                )
+                                .join(' | ')
+                            }
                             style={{
                               color:
-                                selected
-                                  ? '#38bdf8'
-                                  : '#64748b',
-                              fontSize:
-                                9,
+                                progress.complete
+                                  ? '#bbf7d0'
+                                  : '#fde68a',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              minWidth: 0,
                             }}
                           >
-                            {selected
-                              ? 'Selected'
-                              : 'Enter'}
+                            <span
+                              style={{
+                                display: 'block',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {progress.values
+                                .map(
+                                  (value) =>
+                                    value == null
+                                      ? '□'
+                                      : litre(value),
+                                )
+                                .join(' + ')}
+                            </span>
+                            <span
+                              style={{
+                                display: 'block',
+                                marginTop: 1,
+                                fontSize: 8,
+                              }}
+                            >
+                              {progress.complete
+                                ? `✓ Complete   Total: ${litre(progress.total)}`
+                                : `● ${progress.remaining} session${
+                                    progress.remaining === 1 ? '' : 's'
+                                  } remaining   Total: ${litre(progress.total)}`}
+                            </span>
+                          </span>
+
+                          <span
+                            style={{
+                              color:
+                                progress.complete
+                                  ? '#86efac'
+                                  : selected
+                                    ? '#fbbf24'
+                                    : '#fde68a',
+                              fontSize: 9,
+                              fontWeight: 800,
+                            }}
+                          >
+                            {progress.complete
+                              ? 'Locked'
+                              : selected
+                                ? 'Selected'
+                                : 'Enter'}
                           </span>
                         </button>
 
-                        {selected && (
+                        {selected &&
+                          !progress.complete && (
                           <form
                             onSubmit={
                               saveProduction
@@ -2655,8 +2883,44 @@ export default function MilkTab({
                               alignItems:
                                 'center',
                               gap: 6,
+                              flexWrap:
+                                'wrap',
                             }}
                           >
+                            <div
+                              style={{
+                                flex: '1 0 100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                                background: 'rgba(245,158,11,.10)',
+                                border: '1px solid #92400e',
+                                borderRadius: 5,
+                                padding: '5px 7px',
+                                color: '#fde68a',
+                                fontSize: 9,
+                              }}
+                            >
+                              <span>
+                                {progress.expected
+                                  .map(
+                                    (session, index) =>
+                                      `${session} ${
+                                        progress.values[index] == null
+                                          ? '□'
+                                          : `✓ ${litre(progress.values[index])}`
+                                      }`,
+                                  )
+                                  .join('  •  ')}
+                              </span>
+                              <strong>
+                                {`● ${progress.remaining} session${
+                                  progress.remaining === 1 ? '' : 's'
+                                } remaining   Total: ${litre(progress.total)}`}
+                              </strong>
+                            </div>
+
                             <input
                               autoFocus
                               type="number"
