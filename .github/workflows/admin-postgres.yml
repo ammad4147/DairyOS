@@ -17,21 +17,21 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dairyos
+          POSTGRES_DB: dairyos_admin_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d dairyos"
+          --health-cmd "pg_isready -U postgres -d dairyos_admin_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
       DAIRYOS_DB_HOST: localhost
       DAIRYOS_DB_PORT: "5432"
-      DAIRYOS_DB_NAME: dairyos
-      DAIRYOS_DB_USER: postgres
-      DAIRYOS_DB_PASSWORD: postgres
-      DAIRYOS_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/dairyos
+      DAIRYOS_DB_NAME: dairyos_admin_test
+      DAIRYOS_DB_USER: dairyos_admin_test_runner
+      DAIRYOS_DB_PASSWORD: dairyos-admin-test-password
+      DAIRYOS_DATABASE_URL: postgresql+psycopg://dairyos_admin_test_runner:dairyos-admin-test-password@localhost:5432/dairyos_admin_test
       PGCONNECT_TIMEOUT: "10"
       DAIRYOS_ENV: development
       DAIRYOS_ADMIN_INTEGRATION: "1"
@@ -50,6 +50,26 @@ jobs:
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx2
 
+      - name: Provision isolated destructive-test role and deny it production access
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect(host="localhost", port=5432, dbname="postgres", user="postgres", password="postgres", autocommit=True) as c:
+              c.execute("CREATE ROLE dairyos_admin_test_runner LOGIN NOSUPERUSER CREATEDB NOCREATEROLE PASSWORD 'dairyos-admin-test-password'")
+              c.execute("ALTER DATABASE dairyos_admin_test OWNER TO dairyos_admin_test_runner")
+              c.execute("REVOKE CONNECT ON DATABASE dairyos_admin_test FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos_admin_test TO dairyos_admin_test_runner")
+              c.execute("CREATE DATABASE dairyos OWNER postgres")
+              c.execute("REVOKE CONNECT ON DATABASE dairyos FROM PUBLIC")
+              c.execute("GRANT CONNECT ON DATABASE dairyos TO postgres")
+          try:
+              psycopg.connect(host="localhost", port=5432, dbname="dairyos", user="dairyos_admin_test_runner", password="dairyos-admin-test-password", connect_timeout=5)
+          except psycopg.Error:
+              print("destructive test role correctly denied production-shaped database")
+          else:
+              raise SystemExit("destructive test role unexpectedly connected to production-shaped database")
+          PY
+
       - name: Bootstrap runtime schema
         run: >-
           python -c "from dairyos.data.database.database import initialize_database; initialize_database()"
@@ -57,10 +77,10 @@ jobs:
       - name: PostgreSQL backup preflight
         run: >-
           timeout 60s pg_dump --format=custom --no-owner --lock-wait-timeout=15s --verbose
-          --host localhost --port 5432 --username postgres --dbname dairyos
+          --host localhost --port 5432 --username dairyos_admin_test_runner --dbname dairyos_admin_test
           --file /tmp/dairyos-admin-preflight.dump
         env:
-          PGPASSWORD: postgres
+          PGPASSWORD: dairyos-admin-test-password
 
       - name: Verify PostgreSQL backup preflight artifact
         run: >-
