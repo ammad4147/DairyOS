@@ -23,51 +23,25 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-
           p = Path('src/DairyOS.Web/src/components/MilkTab.tsx')
           s = p.read_text(encoding='utf-8')
           original = s
-
           replacements = [
-              (
-                  """                  {loading\n                    ? 'Loading...'\n                    : `${productions.length + dispositions.length} records`}""",
-                  """                  {loading\n                    ? 'Loading...'\n                    : `${productions.length} production records`}""",
-              ),
-              (
-                  """              display: 'grid',\n              gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)',\n              gap: 10,\n              alignItems:\n                'start',""",
-                  """              display: 'block',""",
-              ),
-              (
-                  """                    ...tableStyle,\n                    minWidth: 760,""",
-                  """                    ...tableStyle,\n                    minWidth: 0,""",
-              ),
-              (
-                  """                    ].map(\n                      (entry) => {""",
-                  """                    ]\n                      .filter((entry) => entry.kind === 'PRODUCTION')\n                      .map(\n                      (entry) => {""",
-              ),
-              (
-                  """                            <td>\n                              {\n                                entry.label\n                              }\n                            </td>""",
-                  """                            <td>\n                              {entry.kind === 'PRODUCTION' && onOpenAnimalPassport ? (\n                                <button\n                                  type=\"button\"\n                                  onClick={() => onOpenAnimalPassport((entry.row as ProductionRow).animal_id)}\n                                  style={{\n                                    background: 'none',\n                                    border: 0,\n                                    padding: 0,\n                                    color: '#38bdf8',\n                                    cursor: 'pointer',\n                                    textDecoration: 'underline',\n                                    fontSize: 10,\n                                    fontWeight: 800,\n                                  }}\n                                >\n                                  {entry.label}\n                                </button>\n                              ) : (\n                                entry.label\n                              )}\n                            </td>""",
-              ),
-              (
-                  """                    {productions.length +\n                      dispositions.length ===\n                      0 && (""",
-                  """                    {productions.length ===\n                      0 && (""",
-              ),
-              (
-                  """\n            <div />\n          </section>""",
-                  """\n          </section>""",
-              ),
+              ("""                  {loading\n                    ? 'Loading...'\n                    : `${productions.length + dispositions.length} records`}""", """                  {loading\n                    ? 'Loading...'\n                    : `${productions.length} production records`}"""),
+              ("""              display: 'grid',\n              gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)',\n              gap: 10,\n              alignItems:\n                'start',""", """              display: 'block',"""),
+              ("""                    ...tableStyle,\n                    minWidth: 760,""", """                    ...tableStyle,\n                    minWidth: 0,"""),
+              ("""                    ].map(\n                      (entry) => {""", """                    ]\n                      .filter((entry) => entry.kind === 'PRODUCTION')\n                      .map(\n                      (entry) => {"""),
+              ("""                            <td>\n                              {\n                                entry.label\n                              }\n                            </td>""", """                            <td>\n                              {entry.kind === 'PRODUCTION' && onOpenAnimalPassport ? (\n                                <button\n                                  type=\"button\"\n                                  onClick={() => onOpenAnimalPassport((entry.row as ProductionRow).animal_id)}\n                                  style={{background:'none',border:0,padding:0,color:'#38bdf8',cursor:'pointer',textDecoration:'underline',fontSize:10,fontWeight:800}}\n                                >\n                                  {entry.label}\n                                </button>\n                              ) : (entry.label)}\n                            </td>"""),
+              ("""                    {productions.length +\n                      dispositions.length ===\n                      0 && (""", """                    {productions.length ===\n                      0 && ("""),
+              ("""\n            <div />\n          </section>""", """\n          </section>"""),
           ]
-
           for old, new in replacements:
               count = s.count(old)
               if count != 1:
                   raise SystemExit(f'Expected exactly one MilkTab match, found {count}: {old[:80]!r}')
               s = s.replace(old, new, 1)
-
           if s == original:
               raise SystemExit('MilkTab was not changed')
-
           p.write_text(s, encoding='utf-8')
 
       - name: Add Milk core closure contract
@@ -75,53 +49,27 @@ jobs:
         run: |
           cat > tests/remediation/test_milk_core_closure_contract.py <<'PY'
           from pathlib import Path
-
           ROOT = Path(__file__).resolve().parents[2]
           MILK = ROOT / 'src' / 'DairyOS.Web' / 'src' / 'components' / 'MilkTab.tsx'
           PASSPORT_TEST = ROOT / 'tests' / 'api' / 'test_animal_passport.py'
           SESSION_TEST = ROOT / 'tests' / 'milk' / 'test_animal_session_authority_remediation.py'
-
-          def text(path: Path) -> str:
-              return path.read_text(encoding='utf-8-sig')
-
+          def text(path: Path) -> str: return path.read_text(encoding='utf-8-sig')
           def test_daily_register_is_production_only_and_operator_facing():
-              s = text(MILK)
-              assert 'Daily Milk Register' in s
-              assert 'ID &amp; Type' in s
-              assert 'Sessions Production' in s
-              assert 'Total Production' in s
-              assert ".filter((entry) => entry.kind === 'PRODUCTION')" in s
-              assert "`${productions.length} production records`" in s
-              assert "TODAY'S MILKING SESSIONS ALREADY RECORDED" in s
-
+              s=text(MILK); assert 'Daily Milk Register' in s; assert 'ID &amp; Type' in s; assert 'Sessions Production' in s; assert 'Total Production' in s; assert ".filter((entry) => entry.kind === 'PRODUCTION')" in s; assert "`${productions.length} production records`" in s; assert "TODAY'S MILKING SESSIONS ALREADY RECORDED" in s
           def test_daily_register_animal_identity_opens_passport():
-              s = text(MILK)
-              assert "onOpenAnimalPassport((entry.row as ProductionRow).animal_id)" in s
-              assert "onOpenAnimalPassport(\n                              animalId" in s
-
+              s=text(MILK); assert "onOpenAnimalPassport((entry.row as ProductionRow).animal_id)" in s; assert "onOpenAnimalPassport(\n                              animalId" in s
           def test_daily_register_uses_available_width_without_forced_760px_table():
-              s = text(MILK)
-              assert 'minWidth: 760' not in s
-              assert "gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)'" not in s
-
+              s=text(MILK); assert 'minWidth: 760' not in s; assert "gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)'" not in s
           def test_calf_lineage_is_bidirectional_in_passport_contract():
-              s = text(PASSPORT_TEST)
-              assert 'dam_id=dam' in s
-              assert 'data["lineage"]["descendants"]' in s
-              assert 'data["history"]["lineage_descendants"]' in s
-
+              s=text(PASSPORT_TEST); assert 'dam_id=dam' in s; assert 'data["lineage"]["descendants"]' in s; assert 'data["history"]["lineage_descendants"]' in s
           def test_twice_thrice_and_void_session_authority_are_locked():
-              s = text(SESSION_TEST)
-              assert 'test_other_animals_do_not_advance_td002_session' in s
-              assert 'test_twice_daily_rejects_afternoon_and_duplicate' in s
-              assert 'test_thrice_daily_accepts_exactly_three_sessions' in s
-              assert 'test_voided_day_reopens_authorized_sessions' in s
+              s=text(SESSION_TEST); assert 'test_other_animals_do_not_advance_td002_session' in s; assert 'test_twice_daily_rejects_afternoon_and_duplicate' in s; assert 'test_thrice_daily_accepts_exactly_three_sessions' in s; assert 'test_voided_day_reopens_authorized_sessions' in s
           PY
 
       - name: Run Milk core focused regression
         run: |
           python -m pip install --upgrade pip
-          pip install -e '.[dev]'
+          pip install -e . pytest httpx
           python -m pytest -q \
             tests/remediation/test_milk_core_closure_contract.py \
             tests/milk/test_animal_session_authority_remediation.py \
