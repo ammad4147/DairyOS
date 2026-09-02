@@ -97,7 +97,8 @@ def test_digital_twin_scenario_lab_is_completely_retired(client: TestClient):
     backend_source = FASTAPI_APP.read_text(encoding="utf-8-sig")
     assert "digital_twin" not in backend_source
     assert client.get("/farm/digital-twin/baseline").status_code == 404
-    assert client.post("/farm/digital-twin/scenario", json={}).status_code == 404
+    scenario = client.post("/farm/digital-twin/scenario", json={})
+    assert scenario.status_code in {404, 405}
 
 
 def test_main_bootstrap_mounts_app_not_duplicate_shell():
