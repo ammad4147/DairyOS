@@ -71,7 +71,10 @@ def test_historical_orphan_sale_does_not_consume_future_milk():
     assert result["recorded_production_litres"] == 368.0
     assert result["withdrawal_litres"] == 30.0
     assert result["legacy_implicit_wastage_litres"] == 30.0
-    assert result["ordinary_accounted_litres"] == 245.0
+    # Ordinary accounted milk is only the explicit sale/domestic/calf/wastage
+    # dispositions. Legacy withdrawal is reported separately above and must
+    # not be double-counted into ordinary accounted litres.
+    assert result["ordinary_accounted_litres"] == 215.0
     assert result["unbacked_disposition_litres"] == 60.0
     assert result["available_saleable_litres"] == 123.0
 
