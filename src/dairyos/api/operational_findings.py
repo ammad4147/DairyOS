@@ -31,7 +31,21 @@ class ReinstateFindingRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
-def _finding_dict(finding) -> dict[str, Any]:
+def _event_dict(event) -> dict[str, Any]:
+    return {
+        "event_id": event.id,
+        "event_type": event.event_type,
+        "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None,
+        "operator": event.operator,
+        "note": event.note,
+        "linked_event_id": event.linked_event_id,
+    }
+
+
+def _finding_dict(
+    finding,
+    service: OperationalFindingService | None = None,
+) -> dict[str, Any]:
     return {
         "finding_id": finding.finding_id,
         "source_module": finding.source_module,
@@ -53,6 +67,14 @@ def _finding_dict(finding) -> dict[str, Any]:
         "reinstated_at": finding.reinstated_at.isoformat() if finding.reinstated_at else None,
         "reinstated_by": finding.reinstated_by,
         "reinstate_reason": finding.reinstate_reason,
+        "lifecycle_events": [
+            _event_dict(event)
+            for event in (
+                service.history(finding.finding_id)
+                if service is not None
+                else []
+            )
+        ],
     }
 
 
@@ -66,7 +88,7 @@ def list_findings(module: str | None = None, status: str | None = None, severity
     service, rf = _service()
     try:
         findings = service.list(module=module, status=status, severity=severity)
-        return {"findings": [_finding_dict(f) for f in findings]}
+        return {"findings": [_finding_dict(f, service) for f in findings]}
     finally:
         rf.close()
 
@@ -84,7 +106,7 @@ def finding_counts():
 def acknowledge_finding(finding_id: str, payload: AcknowledgeFindingRequest):
     service, rf = _service()
     try:
-        return _finding_dict(service.acknowledge(finding_id, operator=payload.operator))
+        return _finding_dict(service.acknowledge(finding_id, operator=payload.operator), service)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
@@ -100,7 +122,8 @@ def resolve_finding(finding_id: str, payload: ResolveFindingRequest):
                 finding_id,
                 operator=payload.operator,
                 resolution_note=payload.resolution_note,
-            )
+            ),
+            service,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -119,7 +142,8 @@ def reinstate_finding(finding_id: str, payload: ReinstateFindingRequest):
                 finding_id,
                 operator=payload.operator,
                 reason=payload.reason,
-            )
+            ),
+            service,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

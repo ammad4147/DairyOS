@@ -2,6 +2,15 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getStoredUser } from '../auth';
 import { apiUrl } from '../config/api';
 
+export interface FindingLifecycleEvent {
+  eventId: number;
+  eventType: 'RAISED' | 'ACKNOWLEDGED' | 'RESOLVED' | 'REINSTATED';
+  occurredAt: string;
+  operator?: string;
+  note?: string;
+  linkedEventId?: number;
+}
+
 export interface AuditAlertItem {
   id: string;
   source: 'MILK_DROP' | 'HEALTH_WITHDRAWAL' | 'BREEDING_HEAT' | 'RECONCILIATION' | 'SYSTEM';
@@ -18,6 +27,7 @@ export interface AuditAlertItem {
   reinstatedAt?: string;
   reinstatedBy?: string;
   reinstateReason?: string;
+  lifecycleEvents: FindingLifecycleEvent[];
 }
 
 interface AlertAuditContextType {
@@ -44,6 +54,14 @@ interface FindingPayload {
   reinstated_at?: string | null;
   reinstated_by?: string | null;
   reinstate_reason?: string | null;
+  lifecycle_events?: Array<{
+    event_id: number;
+    event_type: 'RAISED' | 'ACKNOWLEDGED' | 'RESOLVED' | 'REINSTATED';
+    occurred_at?: string | null;
+    operator?: string | null;
+    note?: string | null;
+    linked_event_id?: number | null;
+  }>;
 }
 
 const AlertAuditContext = createContext<AlertAuditContextType | undefined>(undefined);
@@ -96,6 +114,14 @@ function toAlert(finding: FindingPayload): AuditAlertItem {
     reinstatedAt: finding.reinstated_at || undefined,
     reinstatedBy: finding.reinstated_by || undefined,
     reinstateReason: finding.reinstate_reason || undefined,
+    lifecycleEvents: (finding.lifecycle_events || []).map(event => ({
+      eventId: event.event_id,
+      eventType: event.event_type,
+      occurredAt: event.occurred_at || '',
+      operator: event.operator || undefined,
+      note: event.note || undefined,
+      linkedEventId: event.linked_event_id || undefined,
+    })),
   };
 }
 

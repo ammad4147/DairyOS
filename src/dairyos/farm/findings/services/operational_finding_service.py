@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.operational_finding import OperationalFinding
+from dairyos.data.models.operational_finding_lifecycle_event import (
+    OperationalFindingLifecycleEvent,
+)
 
 FINDING_PREFIXES = {
     "MILK": "AL",
@@ -22,6 +25,29 @@ class OperationalFindingService:
 
     def __init__(self, repository):
         self.repository = repository
+
+    def _append_event(
+        self,
+        finding_id: str,
+        event_type: str,
+        *,
+        operator: str | None = None,
+        note: str | None = None,
+        linked_event_id: int | None = None,
+        occurred_at=None,
+    ) -> OperationalFindingLifecycleEvent:
+        event = OperationalFindingLifecycleEvent(
+            finding_id=finding_id,
+            event_type=event_type,
+            occurred_at=occurred_at or utcnow(),
+            operator=operator,
+            note=(note.strip() if isinstance(note, str) else note),
+            linked_event_id=linked_event_id,
+        )
+        return self.repository.add_lifecycle_event(event)
+
+    def history(self, finding_id: str):
+        return self.repository.get_lifecycle_events(finding_id)
 
     def _allocate_finding_id(self, module: str) -> str:
         prefix = FINDING_PREFIXES[module]
@@ -75,7 +101,14 @@ class OperationalFindingService:
             dedupe_key=dedupe_key,
             observation_count=1,
         )
-        return self.repository.add(finding)
+        finding = self.repository.add(finding)
+        self._append_event(
+            finding.finding_id,
+            "RAISED",
+            note=detail,
+            occurred_at=finding.raised_at,
+        )
+        return finding
 
     def acknowledge(self, finding_id: str, *, operator: str) -> OperationalFinding:
         finding = self.repository.get_by_finding_id(finding_id)
@@ -87,14 +120,42 @@ class OperationalFindingService:
         if self.repository.session:
             self.repository.session.commit()
             self.repository.session.refresh(finding)
+        self._append_event(
+            finding_id,
+            "ACKNOWLEDGED",
+            operator=operator,
+            occurred_at=finding.acknowledged_at,
+        )
         return finding
 
-    def resolve(self, finding_id: str, *, operator: str, resolution_note: str | None = None) -> OperationalFinding:
+    def resolve(
+        self,
+        finding_id: str,
+        *,
+        operator: str,
+        resolution_note: str | None = None,
+    ) -> OperationalFinding:
         finding = self.repository.get_by_finding_id(finding_id)
         if finding is None:
             raise KeyError(f"No finding with id {finding_id}")
-        if finding.severity == "CRITICAL" and not (resolution_note or "").strip():
-            raise ValueError("A resolution note is required to resolve a CRITICAL finding.")
+
+        note = (resolution_note or "").strip()
+        if finding.severity == "CRITICAL" and not note:
+            raise ValueError(
+                "A resolution note is required to resolve a CRITICAL finding."
+            )
+
+        linked_reinstatement = None
+        if finding.status == "REINSTATED":
+            if not note:
+                raise ValueError(
+                    "A resolution note is required to resolve a reinstated finding."
+                )
+            linked_reinstatement = self.repository.latest_lifecycle_event(
+                finding_id,
+                "REINSTATED",
+            )
+
         finding.status = "RESOLVED"
         finding.resolved_at = utcnow()
         finding.resolved_by = operator
@@ -102,23 +163,63 @@ class OperationalFindingService:
         if self.repository.session:
             self.repository.session.commit()
             self.repository.session.refresh(finding)
+
+        self._append_event(
+            finding_id,
+            "RESOLVED",
+            operator=operator,
+            note=resolution_note,
+            linked_event_id=(
+                linked_reinstatement.id
+                if linked_reinstatement is not None
+                else None
+            ),
+            occurred_at=finding.resolved_at,
+        )
         return finding
 
-    def reinstate(self, finding_id: str, *, operator: str, reason: str) -> OperationalFinding:
+    def reinstate(
+        self,
+        finding_id: str,
+        *,
+        operator: str,
+        reason: str,
+    ) -> OperationalFinding:
         finding = self.repository.get_by_finding_id(finding_id)
         if finding is None:
             raise KeyError(f"No finding with id {finding_id}")
         if finding.status != "RESOLVED":
             raise ValueError("Only a RESOLVED finding can be reinstated.")
-        if not (reason or "").strip():
+
+        reason = (reason or "").strip()
+        if not reason:
             raise ValueError("A reinstatement reason is required.")
+
+        prior_resolution = self.repository.latest_lifecycle_event(
+            finding_id,
+            "RESOLVED",
+        )
+
         finding.status = "REINSTATED"
         finding.reinstated_at = utcnow()
         finding.reinstated_by = operator
-        finding.reinstate_reason = reason.strip()
+        finding.reinstate_reason = reason
         if self.repository.session:
             self.repository.session.commit()
             self.repository.session.refresh(finding)
+
+        self._append_event(
+            finding_id,
+            "REINSTATED",
+            operator=operator,
+            note=reason,
+            linked_event_id=(
+                prior_resolution.id
+                if prior_resolution is not None
+                else None
+            ),
+            occurred_at=finding.reinstated_at,
+        )
         return finding
 
     def list(self, *, module: str | None = None, status: str | None = None, severity: str | None = None):

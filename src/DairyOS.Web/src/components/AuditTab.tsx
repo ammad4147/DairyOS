@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAlertAudit } from '../context/AlertAuditContext';
 import { ShieldAlert, Search, Filter, RotateCcw, CheckCircle2 } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
@@ -129,20 +129,52 @@ export default function AuditTab() {
                   </td>
                   <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>{a.createdAt}</td>
                   <td style={{ padding: '10px 12px' }}>
-                    {isResolved && (
-                      <div style={{ fontSize: '11px', color: '#34d399' }}>
-                        <div><strong>Resolved by:</strong> {a.resolvedBy}</div>
-                        <div style={{ color: '#94a3b8' }}>{a.resolvedAt} • {a.resolutionNotes}</div>
+                    {a.lifecycleEvents.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        {a.lifecycleEvents.map((event, index) => {
+                          const eventColor =
+                            event.eventType === 'REINSTATED'
+                              ? '#f87171'
+                              : event.eventType === 'RESOLVED'
+                                ? '#34d399'
+                                : event.eventType === 'ACKNOWLEDGED'
+                                  ? '#38bdf8'
+                                  : '#fbbf24';
+                          return (
+                            <div
+                              key={event.eventId}
+                              style={{
+                                borderLeft: `2px solid ${eventColor}`,
+                                paddingLeft: '7px',
+                                fontSize: '10px',
+                              }}
+                            >
+                              <div style={{ color: eventColor, fontWeight: 700 }}>
+                                {String(index + 1).padStart(2, '0')} · {event.eventType}
+                                {event.linkedEventId
+                                  ? ` · linked to event #${event.linkedEventId}`
+                                  : ''}
+                              </div>
+                              <div style={{ color: '#94a3b8' }}>
+                                {event.occurredAt}
+                                {event.operator ? ` · ${event.operator}` : ''}
+                              </div>
+                              {event.note && (
+                                <div style={{ color: '#cbd5e1' }}>{event.note}</div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                    {isReinstated && (
-                      <div style={{ fontSize: '11px', color: '#f87171' }}>
-                        <div><strong>Admin Reinstated by:</strong> {a.reinstatedBy}</div>
-                        <div style={{ color: '#fca5a5' }}>{a.reinstatedAt} • {a.reinstateReason}</div>
-                      </div>
+                    ) : (
+                      <span style={{ color: '#64748b', fontSize: '11px' }}>
+                        Legacy finding — lifecycle history pending migration.
+                      </span>
                     )}
                     {a.status === 'ACTIVE' && (
-                      <span style={{ color: '#fbbf24', fontSize: '11px' }}>Pending Operator Resolution</span>
+                      <div style={{ color: '#fbbf24', fontSize: '11px', marginTop: 5 }}>
+                        Pending Operator Resolution
+                      </div>
                     )}
                   </td>
                   <td style={{ padding: '10px 12px', textAlign: 'right' }}>
@@ -154,12 +186,27 @@ export default function AuditTab() {
                         <RotateCcw size={12} /> Admin Reinstate
                       </button>
                     )}
-                    {a.status === 'ACTIVE' && (
+                    {(a.status === 'ACTIVE' || isReinstated) && (
                       <button
-                        onClick={() => markResolved(a.id, 'Ammad Hassan (Admin)', 'Manual Resolution via Audit Tab')}
+                        onClick={() => {
+                          const note = isReinstated
+                            ? window.prompt(
+                                `Resolution note for reinstated warning #${a.id}:`,
+                                '',
+                              )
+                            : 'Manual Resolution via Audit Tab';
+                          if (isReinstated && !note?.trim()) {
+                            return;
+                          }
+                          void markResolved(
+                            a.id,
+                            'Ammad Hassan (Admin)',
+                            note || 'Manual Resolution via Audit Tab',
+                          );
+                        }}
                         style={{ background: '#059669', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
-                        <CheckCircle2 size={12} /> Resolve
+                        <CheckCircle2 size={12} /> {isReinstated ? 'Resolve Reinstatement' : 'Resolve'}
                       </button>
                     )}
                   </td>

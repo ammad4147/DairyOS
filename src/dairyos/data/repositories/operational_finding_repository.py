@@ -1,4 +1,7 @@
 from ..models.operational_finding import OperationalFinding
+from ..models.operational_finding_lifecycle_event import (
+    OperationalFindingLifecycleEvent,
+)
 
 
 class OperationalFindingRepository:
@@ -7,6 +10,7 @@ class OperationalFindingRepository:
     def __init__(self, session=None):
         self.session = session
         self.records = []
+        self.lifecycle_events = []
 
     def add(self, finding):
         if self.session:
@@ -17,6 +21,59 @@ class OperationalFindingRepository:
 
         self.records.append(finding)
         return finding
+
+    def add_lifecycle_event(self, event):
+        if self.session:
+            self.session.add(event)
+            self.session.commit()
+            self.session.refresh(event)
+            return event
+
+        if getattr(event, "id", None) is None:
+            event.id = len(self.lifecycle_events) + 1
+        self.lifecycle_events.append(event)
+        return event
+
+    def get_lifecycle_events(self, finding_id):
+        if self.session:
+            return (
+                self.session.query(OperationalFindingLifecycleEvent)
+                .filter(
+                    OperationalFindingLifecycleEvent.finding_id
+                    == finding_id
+                )
+                .order_by(
+                    OperationalFindingLifecycleEvent.occurred_at.asc(),
+                    OperationalFindingLifecycleEvent.id.asc(),
+                )
+                .all()
+            )
+
+        return sorted(
+            [
+                event
+                for event in self.lifecycle_events
+                if event.finding_id == finding_id
+            ],
+            key=lambda event: (
+                event.occurred_at,
+                event.id or 0,
+            ),
+        )
+
+    def latest_lifecycle_event(
+        self,
+        finding_id,
+        event_type=None,
+    ):
+        events = self.get_lifecycle_events(finding_id)
+        if event_type is not None:
+            events = [
+                event
+                for event in events
+                if event.event_type == event_type
+            ]
+        return events[-1] if events else None
 
     def get_all(self):
         if self.session:
