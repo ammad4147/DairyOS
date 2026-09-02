@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import os
 from pathlib import Path
 import sys
@@ -14,6 +15,10 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
 from dairyos.data.database.destructive_guards import install_destructive_guards
+from dairyos.data.database.restore_verification import (
+    restore_verification_due,
+    verify_latest_backup_restore,
+)
 from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.platform import paths
 from dairyos.windows.startup_integrity import (
@@ -24,6 +29,7 @@ from dairyos.windows.startup_integrity import (
 
 MIGRATION_LOCK_KEY = 746182934517
 MIGRATION_DATABASE_URL_ENV = "DAIRYOS_MIGRATION_DATABASE_URL"
+LOG = logging.getLogger(__name__)
 
 
 class MigrationGateError(RuntimeError):
@@ -136,8 +142,14 @@ def migrate_if_needed() -> MigrationResult:
     A packaged private installation supplies a separate administrator URL only
     for this gate.  The URL is consumed here and removed from the environment in
     ``finally`` before the normal backend child is started.
+
+    When a verified scheduled backup exists, this same short-lived privileged
+    boundary also performs the weekly scratch-restore proof.  A failed recovery
+    proof is persisted into backup health and logged prominently, while normal
+    farm startup remains available so a backup subsystem fault does not itself
+    stop farm operations.
     """
-    transient_admin_url = bool(os.environ.get(MIGRATION_DATABASE_URL_ENV, "").strip())
+    transient_admin_url = os.environ.get(MIGRATION_DATABASE_URL_ENV, "").strip()
     database_url = _database_url()
     config, script = _build_config()
     engine = create_engine(database_url, pool_pre_ping=True)
@@ -172,8 +184,6 @@ def migrate_if_needed() -> MigrationResult:
                     return MigrationResult(True, current, target, None)
 
             if current == target:
-                # Idempotently reassert guards so a table added by a future
-                # migration cannot remain unprotected after startup.
                 install_destructive_guards(connection)
                 return MigrationResult(False, current, target)
 
@@ -223,4 +233,15 @@ def migrate_if_needed() -> MigrationResult:
     finally:
         engine.dispose()
         if transient_admin_url:
-            os.environ.pop(MIGRATION_DATABASE_URL_ENV, None)
+            try:
+                if restore_verification_due():
+                    result = verify_latest_backup_restore(transient_admin_url)
+                    if result is not None:
+                        LOG.info("DairyOS weekly backup restore verification passed: %s", result)
+            except Exception:
+                LOG.exception(
+                    "DairyOS weekly backup restore verification FAILED. "
+                    "Farm startup will continue, but Data Protection is degraded until recovery verification succeeds."
+                )
+            finally:
+                os.environ.pop(MIGRATION_DATABASE_URL_ENV, None)
