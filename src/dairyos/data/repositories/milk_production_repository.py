@@ -187,7 +187,13 @@ class MilkProductionRepository:
             return self.add(production)
 
         if str(getattr(existing, "status", "") or "").upper() == "VOID":
-            existing.status = "RECORDED"
+            # A voided ledger row is immutable audit history. Release its
+            # governed-day slot and persist the replacement as a new row.
+            existing.session_ledger = False
+            if self.session:
+                self.session.commit()
+            production.calculate_total()
+            return self.add(production)
 
         for field in (
             "morning_yield",

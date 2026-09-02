@@ -306,6 +306,9 @@ def void_milk_production(
 
     snapshot = _production_payload(record)
     record.notes = _append_void_note(record.notes, request.reason, snapshot)
+    # Keep the VOID row permanently visible as audit history while releasing
+    # the unique governed-day slot for a future replacement row.
+    record.session_ledger = False
     record.morning_yield = None
     record.afternoon_yield = None
     record.evening_yield = None
