@@ -46,6 +46,12 @@ def _is_packaged_windows() -> bool:
     return os.name == "nt" and bool(getattr(sys, "frozen", False))
 
 
+def _ensure_automatic_backups(*, run_immediately: bool) -> None:
+    from dairyos.windows.backup_task import ensure_scheduled_backup_task
+
+    ensure_scheduled_backup_task(run_immediately=run_immediately)
+
+
 def marker_path() -> Path:
     """Return the durable installation marker path outside farm data."""
     override = os.environ.get(MARKER_ENV_VAR)
@@ -64,17 +70,30 @@ def prior_installation_exists() -> bool:
 
 
 def record_successful_start(*, data_root: Path | None = None) -> Path | None:
-    """Record that the packaged appliance reached a healthy application start."""
+    """Record a healthy packaged start and enforce automatic backup provisioning.
+
+    The scheduled task is deliberately not optional.  On the first successful
+    packaged start DairyOS both creates the recurring six-hour task and starts
+    the first backup immediately.  Subsequent starts refresh the task definition
+    so upgrades cannot silently lose the protection schedule.
+    """
     if not _is_packaged_windows():
         return None
 
     target = marker_path()
+    first_successful_start = not target.is_file()
+
+    # Provision before persisting the success marker. If the backup schedule
+    # cannot be installed, the packaged startup is not considered complete.
+    _ensure_automatic_backups(run_immediately=first_successful_start)
+
     target.parent.mkdir(parents=True, exist_ok=True)
     root = data_root or paths.data_root(create=False)
     payload = {
         "version": MARKER_VERSION,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "data_root": str(root),
+        "automatic_backups": True,
     }
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.write_text(
