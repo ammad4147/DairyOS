@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getStoredUser } from '../auth';
 import { apiUrl } from '../config/api';
 
@@ -32,6 +32,7 @@ export interface AuditAlertItem {
 
 interface AlertAuditContextType {
   alerts: AuditAlertItem[];
+  refresh: () => Promise<void>;
   markResolved: (id: string, operator?: string, notes?: string) => Promise<void>;
   adminReinstate: (id: string, adminName?: string, reason?: string) => Promise<void>;
   reinstateAlert: (id: string, adminName?: string, reason?: string) => Promise<void>;
@@ -81,8 +82,10 @@ function mapLevel(severity?: string): AuditAlertItem['initialLevel'] {
     case 'RED':
     case 'CRITICAL':
     case 'HIGH': return 'RED';
+    case 'YELLOW':
     case 'AMBER':
-    case 'MEDIUM': return 'AMBER';
+    case 'MEDIUM':
+    case 'MONITORING': return 'AMBER';
     case 'INFORMATION': return 'INFO';
     default: return 'AMBER';
   }
@@ -135,18 +138,18 @@ async function loadFindings(): Promise<AuditAlertItem[]> {
 export const AlertAuditProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [alerts, setAlerts] = useState<AuditAlertItem[]>([]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       setAlerts(await loadFindings());
     } catch (error) {
       console.error('DairyOS operational findings load failed:', error);
       setAlerts([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   const markResolved = async (
     id: string,
@@ -190,6 +193,7 @@ export const AlertAuditProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <AlertAuditContext.Provider
       value={{
         alerts,
+        refresh,
         markResolved,
         adminReinstate,
         reinstateAlert: adminReinstate,
