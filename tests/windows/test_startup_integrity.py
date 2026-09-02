@@ -87,9 +87,15 @@ def test_non_empty_database_is_not_blocked_by_empty_database_gate(monkeypatch, t
     assert facts.recovery_required is False
 
 
-def test_record_successful_start_persists_marker(monkeypatch, tmp_path):
+def test_record_successful_start_persists_marker_and_provisions_backup(monkeypatch, tmp_path):
     root = _set_data_root(monkeypatch, tmp_path)
     monkeypatch.setattr(startup_integrity, "_is_packaged_windows", lambda: True)
+    calls = []
+    monkeypatch.setattr(
+        startup_integrity,
+        "_ensure_automatic_backups",
+        lambda *, run_immediately: calls.append(run_immediately),
+    )
 
     marker = startup_integrity.record_successful_start(data_root=root)
 
@@ -98,3 +104,8 @@ def test_record_successful_start_persists_marker(monkeypatch, tmp_path):
     payload = json.loads(marker.read_text(encoding="utf-8"))
     assert payload["version"] == 1
     assert payload["data_root"] == str(root)
+    assert payload["automatic_backups"] is True
+    assert calls == [True]
+
+    startup_integrity.record_successful_start(data_root=root)
+    assert calls == [True, False]
