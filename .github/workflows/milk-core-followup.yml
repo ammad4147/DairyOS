@@ -49,46 +49,69 @@ jobs:
 
           repo = Path("src/dairyos/data/repositories/milk_production_repository.py")
           text = repo.read_text(encoding="utf-8")
-          old = '''        if str(getattr(existing, "status", "") or "").upper() == "VOID":
-              existing.status = "RECORDED"
-          '''
-          new = '''        if str(getattr(existing, "status", "") or "").upper() == "VOID":
-              # A voided ledger row is immutable audit history. Release its
-              # governed-day slot and persist the replacement as a new row.
-              existing.session_ledger = False
-              if self.session:
-                  self.session.commit()
-              production.calculate_total()
-              return self.add(production)
-          '''
-          if old not in text:
-              raise SystemExit("Expected MilkProductionRepository VOID reactivation block not found")
-          repo.write_text(text.replace(old, new, 1), encoding="utf-8")
+          pattern = re.compile(
+              r'(?m)^(?P<i>\s*)if str\(getattr\(existing, "status", ""\) or ""\)\.upper\(\) == "VOID":\n'
+              r'(?P=i)    existing\.status = "RECORDED"\n'
+          )
+          def replace_void_reactivation(match):
+              indent = match.group("i")
+              return (
+                  f'{indent}if str(getattr(existing, "status", "") or "").upper() == "VOID":\n'
+                  f'{indent}    # A voided ledger row is immutable audit history. Release its\n'
+                  f'{indent}    # governed-day slot and persist the replacement as a new row.\n'
+                  f'{indent}    existing.session_ledger = False\n'
+                  f'{indent}    if self.session:\n'
+                  f'{indent}        self.session.commit()\n'
+                  f'{indent}    production.calculate_total()\n'
+                  f'{indent}    return self.add(production)\n'
+              )
+          text2, count = pattern.subn(replace_void_reactivation, text, count=1)
+          if count != 1:
+              raise SystemExit(f"Expected one MilkProductionRepository VOID reactivation block, found {count}")
+          repo.write_text(text2, encoding="utf-8")
 
           api = Path("src/dairyos/api/milk_traceability.py")
           text = api.read_text(encoding="utf-8")
-          old = '''    record.notes = _append_void_note(record.notes, request.reason, snapshot)
-              record.morning_yield = None
-          '''
-          new = '''    record.notes = _append_void_note(record.notes, request.reason, snapshot)
-              # Keep the VOID row permanently visible as audit history while releasing
-              # the unique governed-day slot for a future replacement row.
-              record.session_ledger = False
-              record.morning_yield = None
-          '''
-          if old not in text:
-              raise SystemExit("Expected milk VOID mutation block not found")
+          old = (
+              '    record.notes = _append_void_note(record.notes, request.reason, snapshot)\n'
+              '    record.morning_yield = None\n'
+          )
+          new = (
+              '    record.notes = _append_void_note(record.notes, request.reason, snapshot)\n'
+              '    # Keep the VOID row permanently visible as audit history while releasing\n'
+              '    # the unique governed-day slot for a future replacement row.\n'
+              '    record.session_ledger = False\n'
+              '    record.morning_yield = None\n'
+          )
+          if text.count(old) != 1:
+              raise SystemExit(f"Expected one milk VOID mutation block, found {text.count(old)}")
           api.write_text(text.replace(old, new, 1), encoding="utf-8")
 
           modal = Path("src/DairyOS.Web/src/components/AnimalPassportModal.tsx")
           text = modal.read_text(encoding="utf-8")
-          pattern = re.compile(r" const load=async\(\)=>\{.*?\};\n useEffect\(\(\)=>\{void load\(\)\},\[animalId\]\);", re.S)
-          replacement = ''' const load=async()=>{if(isNew)return;setLoading(true);setError('');try{const [a,p]=await Promise.all([fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`),fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/passport`)]);if(!a.ok)throw new Error(`Unable to load animal (${a.status})`);if(!p.ok)throw new Error(`Unable to load lifetime passport (${p.status})`);const animalData=await a.json() as BackendAnimal;setAnimal(animalData);setPassport(await p.json());const safeFetch=async(url:string)=>{try{return await fetch(url)}catch{return null}};const [d,h,t,v]=await Promise.all([safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/disposition-history`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/health`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/treatments`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/vaccinations`)]);setExits(d?.ok?await d.json():[]);setPassportHealth({observations:h?.ok?await h.json():null,treatments:t?.ok?await t.json():null,vaccinations:v?.ok?await v.json():[]});setForm({category:animalData.animal_category||'Unclassified',breed:animalData.breed||'',birthDate:animalData.date_of_birth||'',acquisitionDate:animalData.date_of_acquisition||'',sire:animalData.sire_id||'',dam:animalData.dam_id||'',rfid:animalData.rfid||'',frequency:animalData.milking_frequency||'TWICE_DAILY',legacyId:animalData.legacy_animal_id||'',earTag:animalData.ear_tag||'',location:animalData.location||'',productionGroup:animalData.production_group||''})}catch(e){setError(e instanceof Error?e.message:'Unable to load passport')}finally{setLoading(false)}};
-          useEffect(()=>{void load()},[animalId]);'''
-          text2, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f"Expected one AnimalPassportModal load function, found {count}")
-          modal.write_text(text2, encoding="utf-8")
+          old_start = " const load=async()=>{if(isNew)return;setLoading(true);setError('');try{const [a,p,d,h,t,v]=await Promise.all(["
+          if text.count(old_start) != 1:
+              raise SystemExit(f"Expected one AnimalPassportModal aggregate load function, found {text.count(old_start)}")
+          pattern = re.compile(
+              r" const load=async\(\)=>\{if\(isNew\)return;setLoading\(true\);setError\(''\);try\{const \[a,p,d,h,t,v\]=await Promise\.all\(\[.*?\]\);if\(!a\.ok\)throw new Error\(`Unable to load animal \(\$\{a\.status\}\)`\);if\(!p\.ok\)throw new Error\(`Unable to load lifetime passport \(\$\{p\.status\}\)`\);const animalData=await a\.json\(\) as BackendAnimal;setAnimal\(animalData\);setPassport\(await p\.json\(\)\);setExits\(d\.ok\?await d\.json\(\):\[\]\);setPassportHealth\(\{observations:h\.ok\?await h\.json\(\):null,treatments:t\.ok\?await t\.json\(\):null,vaccinations:v\.ok\?await v\.json\(\):\[\]\}\);setForm\((?P<form>\{.*?\})\)\}catch\(e\)\{setError\(e instanceof Error\?e\.message:'Unable to load passport'\)\}finally\{setLoading\(false\)\}\};",
+              re.S,
+          )
+          match = pattern.search(text)
+          if not match:
+              raise SystemExit("AnimalPassportModal load function shape did not match expected source")
+          form = match.group("form")
+          replacement = (
+              " const load=async()=>{if(isNew)return;setLoading(true);setError('');try{"
+              "const [a,p]=await Promise.all([fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`),fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/passport`)]);"
+              "if(!a.ok)throw new Error(`Unable to load animal (${a.status})`);if(!p.ok)throw new Error(`Unable to load lifetime passport (${p.status})`);"
+              "const animalData=await a.json() as BackendAnimal;setAnimal(animalData);setPassport(await p.json());"
+              "const safeFetch=async(url:string)=>{try{return await fetch(url)}catch{return null}};"
+              "const [d,h,t,v]=await Promise.all([safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/disposition-history`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/health`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/treatments`),safeFetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/vaccinations`)]);"
+              "setExits(d?.ok?await d.json():[]);setPassportHealth({observations:h?.ok?await h.json():null,treatments:t?.ok?await t.json():null,vaccinations:v?.ok?await v.json():[]});"
+              f"setForm({form})"
+              "}catch(e){setError(e instanceof Error?e.message:'Unable to load passport')}finally{setLoading(false)}};"
+          )
+          modal.write_text(text[:match.start()] + replacement + text[match.end():], encoding="utf-8")
           PY
 
       - name: Add focused regression contracts
@@ -119,6 +142,7 @@ jobs:
               assert "const [a,p]=await Promise.all" in source
               assert "const safeFetch=async(url:string)" in source
               assert "setPassport(await p.json())" in source
+              assert "const [a,p,d,h,t,v]=await Promise.all" not in source
           PY
 
       - name: Install backend test dependencies
