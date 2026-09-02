@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, HeartPulse, TrendingDown, X } from 'lucide-react';
+import { HeartPulse, TrendingDown, X } from 'lucide-react';
 import { apiUrl } from '../config/api';
 import { useAlertAudit, type AuditAlertItem } from '../context/AlertAuditContext';
 
