@@ -44,7 +44,7 @@ def _disposition(day, litres, kind="SOLD", row_id=None, status="RECORDED"):
     )
 
 
-def test_historical_orphan_sale_does_not_consume_future_saleable_milk():
+def test_historical_orphan_sale_does_not_consume_future_milk():
     factory = _Factory(
         production=[
             _production(date(2026, 9, 1), 50.0),
@@ -65,9 +65,37 @@ def test_historical_orphan_sale_does_not_consume_future_saleable_milk():
         factory=factory,
     )
 
+    # All milk produced remains in biological/recorded production. The old
+    # WITHDRAWAL-status row is compatibility-accounted as implicit wastage.
     assert result["biological_production_litres"] == 368.0
+    assert result["recorded_production_litres"] == 368.0
     assert result["withdrawal_litres"] == 30.0
-    assert result["saleable_production_litres"] == 338.0
-    assert result["ordinary_accounted_litres"] == 215.0
+    assert result["legacy_implicit_wastage_litres"] == 30.0
+    assert result["ordinary_accounted_litres"] == 245.0
     assert result["unbacked_disposition_litres"] == 60.0
+    assert result["available_saleable_litres"] == 123.0
+
+
+def test_automatic_withdrawal_wastage_is_a_normal_disposition():
+    factory = _Factory(
+        production=[
+            _production(date(2026, 9, 1), 50.0),
+            _production(date(2026, 9, 2), 318.0),
+        ],
+        dispositions=[
+            _disposition(date(2026, 9, 2), 35.0, "WASTAGE", 1),
+            _disposition(date(2026, 9, 2), 5.0, "DOMESTIC_USE", 2),
+            _disposition(date(2026, 9, 2), 5.0, "CALF_FEED", 3),
+            _disposition(date(2026, 9, 2), 200.0, "SOLD", 4),
+        ],
+    )
+
+    result = overall_saleable_capacity(
+        date(2026, 9, 2),
+        factory=factory,
+    )
+
+    assert result["recorded_production_litres"] == 368.0
+    assert result["withdrawal_litres"] == 0.0
+    assert result["ordinary_accounted_litres"] == 245.0
     assert result["available_saleable_litres"] == 123.0
