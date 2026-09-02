@@ -1132,7 +1132,7 @@ def record_feed_entry(
 
 @router.get("/milk/intelligence")
 def milk_recording_intelligence(
-    threshold_percent: float = 20.0,
+    threshold_percent: float = 15.0,
     container=Depends(get_container),
 ):
     rf = getattr(
@@ -1153,7 +1153,7 @@ def milk_recording_intelligence(
         )
         return service.dashboard(
             threshold_percent=max(
-                1.0,
+                15.0,
                 min(100.0, threshold_percent),
             )
         )

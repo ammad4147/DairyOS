@@ -11,6 +11,11 @@ from dairyos.farm.settings.services.operational_date_authority import (
 )
 
 
+M19_WARNING_THRESHOLD_PERCENT = 15.0
+M19_CRITICAL_THRESHOLD_PERCENT = 20.0
+M19_BASELINE_COMPLETE_DAYS = 3
+
+
 class MilkRecordingIntelligenceService:
     """
     Compatibility facade for the historical /farm/milk/intelligence contract.
@@ -58,6 +63,28 @@ class MilkRecordingIntelligenceService:
             + float(getattr(record, "afternoon_yield", 0.0) or 0.0)
             + float(getattr(record, "evening_yield", 0.0) or 0.0)
         )
+
+    @staticmethod
+    def _effective_warning_threshold(
+        threshold_percent: float,
+    ) -> float:
+        return max(
+            M19_WARNING_THRESHOLD_PERCENT,
+            min(100.0, float(threshold_percent)),
+        )
+
+    @staticmethod
+    def _drop_severity(
+        reduction: float,
+        warning_threshold: float,
+    ) -> str | None:
+        if reduction >= M19_CRITICAL_THRESHOLD_PERCENT:
+            return "CRITICAL"
+
+        if reduction >= warning_threshold:
+            return "WARNING"
+
+        return None
 
     def records(self):
         return list(self.repository.get_all())
@@ -228,17 +255,26 @@ class MilkRecordingIntelligenceService:
 
     def yield_drop_alerts(
         self,
-        threshold_percent: float = 20.0,
+        threshold_percent: float = M19_WARNING_THRESHOLD_PERCENT,
     ):
         """
-        Compatibility yield-drop presentation.
+        Compatibility yield-drop presentation governed by M-19.
 
-        When the live RepositoryFactory is available, daily animal values are
-        reconstructed through the authoritative schedule-aware trend service.
-        Incomplete animal-days are excluded from comparisons.
+        The live RepositoryFactory path compares the latest COMPLETE animal
+        production day with the mean of the previous three COMPLETE animal
+        production days. Incomplete days never enter the baseline. A drop of
+        15% to under 20% is WARNING; 20% or more is CRITICAL. Callers may
+        raise the warning filter but cannot lower it below 15%, and the fixed
+        20% critical boundary is never suppressed by a raised warning filter.
 
-        The historical repository-only path remains available for compatibility.
+        The repository-only fallback has no schedule authority, so its dated
+        daily totals remain compatibility proxies for complete days. It uses
+        the same three-day mean and M-19 severity bands.
         """
+
+        warning_threshold = self._effective_warning_threshold(
+            threshold_percent
+        )
 
         if self.repository_factory is not None:
             trend_service = MilkProductionTrendIntelligenceService(
@@ -246,8 +282,6 @@ class MilkRecordingIntelligenceService:
             )
 
             end_date = self._operational_today()
-            start_date = end_date - timedelta(days=6)
-
             factory = trend_service._get_factory()
 
             try:
@@ -258,7 +292,7 @@ class MilkRecordingIntelligenceService:
                     animals,
                 )
 
-                by_animal = {}
+                alerts = []
 
                 for animal in animals:
                     animal_id = str(
@@ -268,20 +302,58 @@ class MilkRecordingIntelligenceService:
                             "",
                         )
                     )
+                    animal_history = histories.get(
+                        animal_id,
+                        [],
+                    )
 
-                    daily = {}
+                    candidate_dates = set()
 
-                    for day_offset in range(7):
-                        target = (
-                            start_date
-                            + timedelta(days=day_offset)
+                    for record in records:
+                        if (
+                            str(
+                                getattr(
+                                    record,
+                                    "animal_id",
+                                    "",
+                                )
+                            )
+                            != animal_id
+                        ):
+                            continue
+
+                        recorded_on = getattr(
+                            record,
+                            "production_date",
+                            None,
                         )
 
+                        if recorded_on is None:
+                            recorded_on = getattr(
+                                record,
+                                "recorded_at",
+                                None,
+                            )
+
+                        if recorded_on is None:
+                            continue
+
+                        target = self._date(recorded_on)
+
+                        if target <= end_date:
+                            candidate_dates.add(target)
+
+                    complete_snapshots = []
+
+                    for target in sorted(
+                        candidate_dates,
+                        reverse=True,
+                    ):
                         snapshot = (
                             trend_service._daily_animal_snapshot(
                                 records,
                                 animal,
-                                histories,
+                                animal_history,
                                 target,
                             )
                         )
@@ -292,69 +364,79 @@ class MilkRecordingIntelligenceService:
                         if not snapshot.get("complete"):
                             continue
 
-                        total = snapshot.get(
-                            "total_yield"
+                        total = snapshot.get("total_litres")
+
+                        if total is None:
+                            continue
+
+                        complete_snapshots.append(
+                            (target, float(total))
                         )
 
-                        if total is not None:
-                            daily[target] = float(total)
+                        if len(complete_snapshots) == (
+                            M19_BASELINE_COMPLETE_DAYS + 1
+                        ):
+                            break
 
-                    by_animal[animal_id] = daily
-
-                alerts = []
-
-                for animal_id, daily in by_animal.items():
-                    ordered = sorted(
-                        daily.items(),
-                        key=lambda item: item[0],
-                    )
-
-                    if len(ordered) < 2:
+                    if len(complete_snapshots) < (
+                        M19_BASELINE_COMPLETE_DAYS + 1
+                    ):
                         continue
 
-                    previous_date, previous_yield = ordered[-2]
-                    latest_date, latest_yield = ordered[-1]
+                    latest_date, latest_yield = complete_snapshots[0]
+                    baseline_rows = complete_snapshots[
+                        1 : M19_BASELINE_COMPLETE_DAYS + 1
+                    ]
+                    baseline_yield = sum(
+                        value
+                        for _, value in baseline_rows
+                    ) / M19_BASELINE_COMPLETE_DAYS
 
-                    if previous_yield <= 0:
+                    if baseline_yield <= 0:
                         continue
 
                     reduction = (
-                        (previous_yield - latest_yield)
-                        / previous_yield
+                        (baseline_yield - latest_yield)
+                        / baseline_yield
                         * 100
                     )
+                    severity = self._drop_severity(
+                        reduction,
+                        warning_threshold,
+                    )
 
-                    if reduction >= threshold_percent:
-                        alerts.append(
-                            {
-                                "animal_id": animal_id,
-                                "previous_date": previous_date.isoformat(),
-                                "previous_litres": round(
-                                    previous_yield,
-                                    2,
-                                ),
-                                "latest_date": latest_date.isoformat(),
-                                "latest_litres": round(
-                                    latest_yield,
-                                    2,
-                                ),
-                                "drop_percent": round(
-                                    reduction,
-                                    1,
-                                ),
-                                "severity": (
-                                    "HIGH"
-                                    if reduction >= 30
-                                    else "MEDIUM"
-                                ),
-                                "message": (
-                                    f"{animal_id} milk yield dropped "
-                                    f"{reduction:.1f}% "
-                                    f"({previous_yield:.1f}L → "
-                                    f"{latest_yield:.1f}L)."
-                                ),
-                            }
-                        )
+                    if severity is None:
+                        continue
+
+                    previous_date = baseline_rows[0][0]
+
+                    alerts.append(
+                        {
+                            "animal_id": animal_id,
+                            "previous_date": previous_date.isoformat(),
+                            "previous_litres": round(
+                                baseline_yield,
+                                2,
+                            ),
+                            "latest_date": latest_date.isoformat(),
+                            "latest_litres": round(
+                                latest_yield,
+                                2,
+                            ),
+                            "drop_percent": round(
+                                reduction,
+                                1,
+                            ),
+                            "severity": severity,
+                            "message": (
+                                f"{animal_id} milk yield dropped "
+                                f"{reduction:.1f}% against its "
+                                f"previous 3-complete-day mean "
+                                f"({baseline_yield:.1f}L → "
+                                f"{latest_yield:.1f}L)."
+                            ),
+                        }
+                    )
 
                 return sorted(
                     alerts,
@@ -398,52 +480,65 @@ class MilkRecordingIntelligenceService:
                 key=lambda item: item[0],
             )
 
-            if len(ordered) < 2:
+            if len(ordered) < (
+                M19_BASELINE_COMPLETE_DAYS + 1
+            ):
                 continue
 
-            previous_date, previous_yield = ordered[-2]
+            baseline_rows = ordered[
+                -(M19_BASELINE_COMPLETE_DAYS + 1) : -1
+            ]
             latest_date, latest_yield = ordered[-1]
+            baseline_yield = sum(
+                value
+                for _, value in baseline_rows
+            ) / M19_BASELINE_COMPLETE_DAYS
 
-            if previous_yield <= 0:
+            if baseline_yield <= 0:
                 continue
 
             reduction = (
-                (previous_yield - latest_yield)
-                / previous_yield
+                (baseline_yield - latest_yield)
+                / baseline_yield
                 * 100
             )
+            severity = self._drop_severity(
+                reduction,
+                warning_threshold,
+            )
 
-            if reduction >= threshold_percent:
-                alerts.append(
-                    {
-                        "animal_id": animal_id,
-                        "previous_date": previous_date.isoformat(),
-                        "previous_litres": round(
-                            previous_yield,
-                            2,
-                        ),
-                        "latest_date": latest_date.isoformat(),
-                        "latest_litres": round(
-                            latest_yield,
-                            2,
-                        ),
-                        "drop_percent": round(
-                            reduction,
-                            1,
-                        ),
-                        "severity": (
-                            "HIGH"
-                            if reduction >= 30
-                            else "MEDIUM"
-                        ),
-                        "message": (
-                            f"{animal_id} milk yield dropped "
-                            f"{reduction:.1f}% "
-                            f"({previous_yield:.1f}L → "
-                            f"{latest_yield:.1f}L)."
-                        ),
-                    }
-                )
+            if severity is None:
+                continue
+
+            previous_date = baseline_rows[-1][0]
+
+            alerts.append(
+                {
+                    "animal_id": animal_id,
+                    "previous_date": previous_date.isoformat(),
+                    "previous_litres": round(
+                        baseline_yield,
+                        2,
+                    ),
+                    "latest_date": latest_date.isoformat(),
+                    "latest_litres": round(
+                        latest_yield,
+                        2,
+                    ),
+                    "drop_percent": round(
+                        reduction,
+                        1,
+                    ),
+                    "severity": severity,
+                    "message": (
+                        f"{animal_id} milk yield dropped "
+                        f"{reduction:.1f}% against its "
+                        f"previous 3-day mean "
+                        f"({baseline_yield:.1f}L → "
+                        f"{latest_yield:.1f}L)."
+                    ),
+                }
+            )
 
         return sorted(
             alerts,
@@ -453,17 +548,20 @@ class MilkRecordingIntelligenceService:
 
     def dashboard(
         self,
-        threshold_percent: float = 20.0,
+        threshold_percent: float = M19_WARNING_THRESHOLD_PERCENT,
     ):
+        effective_threshold = self._effective_warning_threshold(
+            threshold_percent
+        )
         result = self.summary()
 
         result["yield_drop_threshold_percent"] = (
-            threshold_percent
+            effective_threshold
         )
 
         result["yield_drop_alerts"] = (
             self.yield_drop_alerts(
-                threshold_percent
+                effective_threshold
             )
         )
 
