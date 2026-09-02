@@ -8,8 +8,10 @@ from pathlib import Path
 import subprocess
 import sys
 
+from sqlalchemy.engine import URL
+
 from dairyos.data.database.automatic_backups import run_automatic_backup
-from dairyos.windows.appliance_database import apply_database_environment, prepare_database
+from dairyos.windows.appliance_database import prepare_database
 from dairyos.windows.private_postgres import stop as stop_private_postgres
 
 
@@ -93,19 +95,26 @@ def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
             raise BackupTaskError(f"Could not start the first DairyOS backup: {detail}")
 
 
-def run_backup_once() -> int:
-    """Start the managed database if needed, create a backup, then stop it."""
+def _ordinary_database_url(database) -> str:
+    return URL.create(
+        "postgresql+psycopg",
+        username=database.user,
+        password=database.password or None,
+        host=database.host,
+        port=database.port,
+        database=database.database,
+    ).render_as_string(hide_password=False)
 
-    database = None
+
+def run_backup_once() -> int:
+    """Create one backup using only the read-only backup database identity."""
+
     private = None
     try:
         database = prepare_database(postgres_timeout=60.0)
         private = database.private_postgres
-        apply_database_environment(database)
+        database_url = database.backup_database_url or _ordinary_database_url(database)
 
-        from dairyos.data.database.session import _build_database_url
-
-        database_url = _build_database_url()
         result = run_automatic_backup(database_url)
         LOG.info(
             "DairyOS automatic backup completed: primary=%s mirror=%s monthly=%s redundant=%s",
