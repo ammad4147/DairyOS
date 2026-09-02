@@ -157,6 +157,7 @@ def test_drug_reference_upsert_and_list(client):
     assert created["verified"] is True
 
     list_response = client.get("/farm/drug-reference")
+
     assert list_response.status_code == 200
 
     names = [row["medicine"] for row in list_response.json()]
@@ -200,7 +201,6 @@ def test_treatment_override_only_extends_reference_period(
     client.post(
         "/farm/drug-reference",
         json={
-            "animal_id": registered_animal,
             "medicine": "Extend-Test-Drug",
             "milk_withdrawal_days": 3,
             "operator": "Farm Manager",
