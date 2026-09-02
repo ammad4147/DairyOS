@@ -134,6 +134,35 @@ def verify_backup_artifact(backup: str | Path) -> dict[str, int | str]:
     return {"path": str(path), "size_bytes": size, "sha256": _sha256(path)}
 
 
+def verify_backup_archive(backup: str | Path) -> dict[str, int | str]:
+    """Verify a custom-format dump can be parsed by PostgreSQL tooling.
+
+    A checksum proves that a file did not change after it was created.  This
+    additional check asks ``pg_restore`` to read the archive catalog, catching
+    empty, truncated, or structurally invalid dump files before DairyOS marks a
+    scheduled backup as healthy.
+    """
+
+    metadata = verify_backup_artifact(backup)
+    path = Path(backup)
+    completed = _run_postgresql_command(
+        [_tool("pg_restore"), "--list", str(path)],
+        os.environ.copy(),
+        "pg_restore archive verification",
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "pg_restore --list failed"
+        raise PostgreSQLBackupError(
+            f"PostgreSQL backup archive verification failed for {path}: {detail}"
+        )
+    if not completed.stdout.strip():
+        raise PostgreSQLBackupError(
+            f"PostgreSQL backup archive catalog is unexpectedly empty: {path}"
+        )
+    metadata["archive_verified"] = "true"
+    return metadata
+
+
 def verify_backup_checksum(backup: str | Path, expected_sha256: str) -> dict[str, int | str]:
     """Verify a PostgreSQL backup against an independently recorded SHA-256."""
     metadata = verify_backup_artifact(backup)
