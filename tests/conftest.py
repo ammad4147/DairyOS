@@ -66,6 +66,7 @@ from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.operational_finding import OperationalFinding
+from dairyos.data.models.operational_finding_lifecycle_event import OperationalFindingLifecycleEvent
 from dairyos.data.models.app_setting import AppSetting
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
@@ -114,6 +115,7 @@ def _reset_test_persistence() -> None:
             FeedRecord,
             HealthObservation,
             HealthCase,
+            OperationalFindingLifecycleEvent,
             OperationalFinding,
             InventoryTransaction,
             User,

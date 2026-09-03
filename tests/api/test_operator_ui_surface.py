@@ -80,7 +80,7 @@ def test_active_shell_routes_to_current_operational_components():
         "HealthTab",
         "VaccinationTab",
         "COML",
-        "FarmIntelligenceWidget",
+        "COPOfficializationPanel",
     ):
         assert component in source
     assert "DigitalTwinPanel" not in source

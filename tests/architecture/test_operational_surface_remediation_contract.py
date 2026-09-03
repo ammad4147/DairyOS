@@ -39,7 +39,8 @@ def test_sender_settings_use_authenticated_backend_contract():
 def test_coml_selected_period_does_not_borrow_official_monthly_costs():
     frontend = text("src/DairyOS.Web/src/components/COML.tsx")
     backend = text("src/dairyos/api/coml.py")
-    assert "Official Backend COML (monthly lock — reference only)" in frontend
+    assert "Official Backend COP" in frontend
+    assert "reference only" in frontend
     assert "if (officialRec) return" not in frontend
     assert "production_date" in backend
     assert "total_yield" in backend
