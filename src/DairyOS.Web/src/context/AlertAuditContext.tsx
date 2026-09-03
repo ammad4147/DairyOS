@@ -171,15 +171,6 @@ function toAlert(finding: FindingPayload): AuditAlertItem {
 }
 
 async function loadFindings(): Promise<AuditAlertItem[]> {
-  try {
-    await fetch(
-      apiUrl('/farm/milk/missed-sessions/reconcile?lookback_days=31'),
-      { method: 'POST' },
-    );
-  } catch (error) {
-    console.error('DairyOS missed-milking reconciliation failed:', error);
-  }
-
   const response = await fetch(apiUrl('/farm/findings'));
   if (!response.ok) throw new Error(`Unable to load operational findings (${response.status})`);
   const payload = await response.json() as { findings?: FindingPayload[] };

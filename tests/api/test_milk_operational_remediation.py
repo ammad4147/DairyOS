@@ -167,12 +167,26 @@ def test_ui_and_api_contracts_are_present():
         / "context"
         / "AlertAuditContext.tsx"
     ).read_text(encoding="utf-8")
+    scheduler = (
+        root
+        / "src"
+        / "dairyos"
+        / "missed_milking_scheduler.py"
+    ).read_text(encoding="utf-8")
     api = (
         root
         / "src"
         / "dairyos"
         / "api"
         / "milk_traceability.py"
+    ).read_text(encoding="utf-8")
+    milk_ui = (
+        root
+        / "src"
+        / "DairyOS.Web"
+        / "src"
+        / "components"
+        / "MilkTab.tsx"
     ).read_text(encoding="utf-8")
 
     assert "Milk Quality Log" in milk
@@ -187,6 +201,12 @@ def test_ui_and_api_contracts_are_present():
     assert "onAnimalChanged" in finance
     assert "60 * 1000" in alerts
     assert "/missed-sessions/reconcile" in api
+    assert "/missed-sessions/reconcile" not in alerts
+    assert "@router.get(\"/missed-sessions\")" in api
+    assert "/missed-sessions?lookback_days=31" in milk_ui
+    assert "/missed-sessions/reconcile" not in milk_ui
+    assert "LAST_RECONCILED_DATE_KEY" in scheduler
+    assert "RUN_AFTER_LOCAL_TIME = time(0, 5)" in scheduler
 
     # M-19: only genuine individual-animal daily yield declines may enter
     # the Dashboard Yield Drop Watchlist. Farm-level MILK reconciliation

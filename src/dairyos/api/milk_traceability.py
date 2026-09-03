@@ -151,6 +151,17 @@ def reconcile_missed_milking_sessions(
     ).reconcile(lookback_days=lookback_days)
 
 
+@router.get("/missed-sessions")
+def inspect_missed_milking_sessions(
+    lookback_days: int = Query(default=31, ge=1, le=90),
+    container=Depends(get_container),
+):
+    """Return the current missed-milking control without persisting changes."""
+    return MissedMilkingControlService(
+        container.repository_factory
+    ).inspect(lookback_days=lookback_days)
+
+
 @router.get("/{animal_id}/traceability")
 def animal_milk_traceability(animal_id: str, container=Depends(get_container)):
     animal = container.animal_repository.get_by_animal_id(animal_id)

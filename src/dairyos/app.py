@@ -26,6 +26,7 @@ from dairyos.farm.production.services.milk_reconciliation_service import MilkRec
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.email.scheduler import NightlyEmailScheduler
 from dairyos.feed_storage_scheduler import FeedStorageScheduler
+from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
 from dairyos.windows.startup_integrity import record_successful_start
 
@@ -34,6 +35,7 @@ application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
 email_scheduler = NightlyEmailScheduler(container=container)
 feed_storage_scheduler = FeedStorageScheduler(interval_seconds=60)
+missed_milking_scheduler = DailyMissedMilkingScheduler(interval_seconds=30)
 
 
 @asynccontextmanager
@@ -58,15 +60,17 @@ async def lifespan(_app: FastAPI):
         logging.info("Finance payroll migration created: %s", ", ".join(payroll_migrated))
     container.start()
     feed_storage_scheduler.start()
+    missed_milking_scheduler.start()
     email_scheduler.start()
     marker = record_successful_start()
     if marker is not None:
         logging.info("DairyOS successful packaged installation marker written: %s", marker)
-    logging.info("RuntimeContainer, Feed Storage scheduler and nightly email scheduler started - operations ready.")
+    logging.info("RuntimeContainer and operational schedulers started - operations ready.")
     try:
         yield
     finally:
         feed_storage_scheduler.stop()
+        missed_milking_scheduler.stop()
         email_scheduler.stop()
         container.shutdown()
 

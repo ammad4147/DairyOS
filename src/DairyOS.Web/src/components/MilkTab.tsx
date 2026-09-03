@@ -518,7 +518,7 @@ export default function MilkTab({
     [],
   );
 
-  const missedReconcileStartedRef =
+  const missedInspectionStartedRef =
     useRef(false);
 
   const [
@@ -852,10 +852,7 @@ export default function MilkTab({
           await request<{
             active: MissedMilkingItem[];
           }>(
-            '/farm/milk/missed-sessions/reconcile?lookback_days=31',
-            {
-              method: 'POST',
-            },
+            '/farm/milk/missed-sessions?lookback_days=31',
           );
 
         setMissedSessions(
@@ -886,11 +883,11 @@ export default function MilkTab({
 
 
   useEffect(() => {
-    if (missedReconcileStartedRef.current) {
+    if (missedInspectionStartedRef.current) {
       return;
     }
 
-    missedReconcileStartedRef.current = true;
+    missedInspectionStartedRef.current = true;
     void refreshMissedSessions();
   }, []);
 
