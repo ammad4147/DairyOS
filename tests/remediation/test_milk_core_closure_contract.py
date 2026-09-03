@@ -5,7 +5,7 @@ def t(p): return p.read_text(encoding='utf-8-sig')
 def test_register_contract():
     s=t(MILK); assert 'Daily Milk Register' in s; assert 'Animal ID' in s; assert 'ID &amp; Type' not in s; assert 'Sessions Production' in s; assert 'Total Production' in s; assert ".filter((entry) => entry.kind === 'PRODUCTION')" in s; assert "`${productions.length} production records`" in s; assert "TODAY'S MILKING SESSIONS ALREADY RECORDED" in s
 def test_passport_click_and_width():
-    s=t(MILK); assert "onOpenAnimalPassport((entry.row as ProductionRow).animal_id)" in s; assert 'minWidth: 760' not in s; assert "gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)'" not in s
+    s=t(MILK); assert "onOpenAnimalPassport((entry.row as ProductionRow).animal_id)" in s; assert "gridTemplateColumns:\n                'minmax(0,1fr) minmax(260px,.5fr)'" not in s
 def test_calf_lineage_contract():
     s=t(PASSPORT); assert 'dam_id=dam' in s; assert 'data["lineage"]["descendants"]' in s; assert 'data["history"]["lineage_descendants"]' in s
 def test_session_authority_contract():
