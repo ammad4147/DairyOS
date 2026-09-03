@@ -11,9 +11,12 @@ function active(a:BackendAnimal){return a.active!==false&&!['SOLD','DECEASED'].i
 
 export default function AnimalTab({animals,onOpenPassport,onRegister}:Props){
  const [filter,setFilter]=useState<'ALL'|HerdCategory>('ALL'),[search,setSearch]=useState(''),[showExited,setShowExited]=useState(true);
+
  const activeAnimals=useMemo(()=>animals.filter(active),[animals]);
  const counts=useMemo(()=>({Total:activeAnimals.length,...Object.fromEntries(categories.map(c=>[c,activeAnimals.filter(a=>category(a)===c).length])) as Record<HerdCategory,number>}),[activeAnimals]);
- const rows=useMemo(()=>animals.filter(a=>{const q=search.trim().toLowerCase();const hay=[a.animal_id,a.ear_tag,a.rfid,a.breed,a.lifecycle_status,a.status,a.sex].map(v=>String(v??'').toLowerCase()).join(' ');const cat=category(a);const inFilter=filter==='ALL'||cat===filter;const exited=!active(a);return inFilter&&(!q||hay.includes(q))&&(showExited||!exited)}),[animals,filter,search,showExited]);
+ const rows=useMemo(()=>animals
+  .filter(a=>{const q=search.trim().toLowerCase();const hay=[a.animal_id,a.ear_tag,a.rfid,a.breed,a.lifecycle_status,a.status,a.sex].map(v=>String(v??'').toLowerCase()).join(' ');const cat=category(a);const inFilter=filter==='ALL'||cat===filter;const exited=!active(a);return inFilter&&(!q||hay.includes(q))&&(showExited||!exited)})
+  .sort((a,b)=>String(a.animal_id||'').localeCompare(String(b.animal_id||''),undefined,{numeric:true,sensitivity:'base'})),[animals,filter,search,showExited]);
  return <div style={{padding:14,color:'#fff',height:'100%',boxSizing:'border-box',overflowY:'auto',overflowX:'hidden',minWidth:0}}>
   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:10}}><div><div style={{fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:7}}><Users size={18} color="#38bdf8"/> Animals</div><div style={{fontSize:10,color:'#94a3b8'}}>Complete herd register. Animal records remain visible after sale or mortality.</div></div><div style={{display:'flex',gap:6}}><button onClick={onRegister} style={{...btn,background:'#0284c7',color:'#fff',borderColor:'#0284c7'}}><Plus size={12}/> Register Animal</button></div></div>
   <div style={{display:'grid',gridTemplateColumns:'repeat(7,minmax(0,1fr))',gap:7,marginBottom:10}}><Stat label="Total Herd" value={counts.Total} active={filter==='ALL'} onClick={()=>setFilter('ALL')}/>{categories.map(c=><Stat key={c} label={c} value={counts[c]||0} active={filter===c} onClick={()=>setFilter(c)}/>)}</div>

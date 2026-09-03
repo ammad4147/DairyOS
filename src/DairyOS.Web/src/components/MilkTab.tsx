@@ -95,6 +95,20 @@ type QualitySample = {
   updated_at: string;
 };
 
+type MissedMilkingItem = {
+  finding_id: string | null;
+  production_date: string;
+  animal_id: string;
+  milking_frequency?: string | null;
+  expected_sessions: string[];
+  recorded_sessions: string[];
+  farm_not_milked_sessions: string[];
+  missing_sessions: string[];
+  schedule_source?: string | null;
+  severity: string;
+  status: string;
+};
+
 type FinanceRow = {
   transaction_type: string;
   category?: string;
@@ -129,6 +143,8 @@ type Props = {
   onOpenAnimalPassport?: (
     animalId: string,
   ) => void;
+  onOperationalChanged?: () =>
+    void | Promise<void>;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -292,6 +308,20 @@ const datesBetween = (
   return output;
 };
 
+const previousDate = (
+  value: string,
+) => {
+  const day = new Date(
+    `${value}T12:00:00Z`,
+  );
+  day.setUTCDate(
+    day.getUTCDate() - 1,
+  );
+  return day
+    .toISOString()
+    .slice(0, 10);
+};
+
 const monthOptions = () => {
   const current = new Date(
     `${today()}T12:00:00`,
@@ -331,6 +361,7 @@ export default function MilkTab({
   herdMasterList = [],
   onSaveYield,
   onOpenAnimalPassport,
+  onOperationalChanged,
 }: Props) {
   const [date, setDate] =
     useState(today());
@@ -391,6 +422,20 @@ export default function MilkTab({
   const [capacity, setCapacity] =
     useState<MilkCapacity | null>(null);
 
+  const [
+    openingCapacity,
+    setOpeningCapacity,
+  ] = useState<MilkCapacity | null>(
+    null,
+  );
+
+  const [
+    dailyCapacity,
+    setDailyCapacity,
+  ] = useState<MilkCapacity | null>(
+    null,
+  );
+
   const [finance, setFinance] =
     useState<FinanceRow[]>([]);
 
@@ -401,6 +446,11 @@ export default function MilkTab({
     useState<QualitySample | null>(
       null,
     );
+
+  const [
+    qualitySamples,
+    setQualitySamples,
+  ] = useState<QualitySample[]>([]);
 
   const [qualityFat, setQualityFat] =
     useState('');
@@ -460,6 +510,35 @@ export default function MilkTab({
     dispositionLitres,
     setDispositionLitres,
   ] = useState('');
+
+  const [
+    missedSessions,
+    setMissedSessions,
+  ] = useState<MissedMilkingItem[]>(
+    [],
+  );
+
+  const missedReconcileStartedRef =
+    useRef(false);
+
+  const [
+    lateEntryTarget,
+    setLateEntryTarget,
+  ] = useState<MissedMilkingItem | null>(
+    null,
+  );
+
+  const [
+    lateEntryLitres,
+    setLateEntryLitres,
+  ] = useState('');
+
+  const [
+    lateEntryNext,
+    setLateEntryNext,
+  ] = useState<NextSession | null>(
+    null,
+  );
 
   const [loading, setLoading] =
     useState(true);
@@ -607,7 +686,7 @@ export default function MilkTab({
         ),
 
         request<MilkCapacity>(
-          `/farm/milk/capacity?through_date=${bounds.end}`,
+          `/farm/milk/capacity?through_date=${bounds.end > today() ? today() : bounds.end}`,
         ),
       ]);
 
@@ -709,13 +788,111 @@ export default function MilkTab({
     }
   };
 
+
+  const loadOperationalSupplemental =
+    async () => {
+      try {
+        const openingThrough =
+          previousDate(
+            bounds.start,
+          );
+
+        const [
+          qualityHistory,
+          openingCarry,
+          dailyCarry,
+        ] = await Promise.all([
+          request<{
+            samples: QualitySample[];
+          }>(
+            '/farm/milk/quality',
+          ),
+          request<MilkCapacity>(
+            `/farm/milk/capacity?through_date=${openingThrough}`,
+          ),
+          request<MilkCapacity>(
+            `/farm/milk/capacity?through_date=${date}`,
+          ),
+        ]);
+
+        setQualitySamples(
+          [
+            ...(
+              qualityHistory.samples ||
+              []
+            ),
+          ].sort(
+            (left, right) =>
+              right.quality_date.localeCompare(
+                left.quality_date,
+              ) ||
+              right.id - left.id,
+          ),
+        );
+        setOpeningCapacity(
+          openingCarry,
+        );
+        setDailyCapacity(
+          dailyCarry,
+        );
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to refresh Milk operational controls.',
+        );
+      }
+    };
+
+
+  const refreshMissedSessions =
+    async () => {
+      try {
+        const missedControl =
+          await request<{
+            active: MissedMilkingItem[];
+          }>(
+            '/farm/milk/missed-sessions/reconcile?lookback_days=31',
+            {
+              method: 'POST',
+            },
+          );
+
+        setMissedSessions(
+          missedControl.active || [],
+        );
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to refresh missed-milking controls.',
+        );
+      }
+    };
+
+  const refreshAll =
+    async () => {
+      await load();
+      await loadOperationalSupplemental();
+    };
+
   useEffect(() => {
-    void load();
+    void refreshAll();
   }, [
     date,
     selectedMonth,
     qualityDate,
   ]);
+
+
+  useEffect(() => {
+    if (missedReconcileStartedRef.current) {
+      return;
+    }
+
+    missedReconcileStartedRef.current = true;
+    void refreshMissedSessions();
+  }, []);
 
   const loadTodayProduction =
     async () => {
@@ -835,15 +1012,12 @@ export default function MilkTab({
       'WASTAGE',
     );
 
-  const dailyDifference =
+  const dailyClosingBalance =
     Number(
-      reconciliation?.produced_litres ||
+      dailyCapacity
+        ?.available_saleable_litres ||
         0,
-    ) -
-    soldToday -
-    domestic -
-    calves -
-    wastage;
+    );
 
   const monthDomestic =
     monthDispositionRows
@@ -1151,7 +1325,7 @@ export default function MilkTab({
           null,
         );
 
-        await load();
+        await refreshAll();
         await loadTodayProduction();
       } catch (err) {
         const detail = err instanceof Error ? err.message : '';
@@ -1244,7 +1418,7 @@ export default function MilkTab({
         );
 
         closeInlineDisposition();
-        await load();
+        await refreshAll();
       } catch (err) {
         setError(
           err instanceof Error
@@ -1253,6 +1427,328 @@ export default function MilkTab({
         );
       } finally {
         setSaving(false);
+      }
+    };
+
+
+  const saveQualityLog = () => {
+    const header = [
+      'Date',
+      'Fat %',
+      'SNF %',
+      'Sample Type',
+      'Notes',
+      'Recorded By',
+      'Status',
+      'Recorded At',
+    ];
+
+    const rows = qualitySamples.map(
+      (sample) => [
+        sample.quality_date,
+        sample.fat_pct,
+        sample.snf_pct,
+        sample.sample_type,
+        sample.notes || '',
+        sample.recorded_by,
+        sample.status,
+        sample.recorded_at,
+      ],
+    );
+
+    const csv = [header, ...rows]
+      .map((row) =>
+        row
+          .map(
+            (value) =>
+              `"${String(value ?? '').replace(/"/g, '""')}"`,
+          )
+          .join(','),
+      )
+      .join('\r\n');
+
+    const blob = new Blob(
+      [csv],
+      {
+        type: 'text/csv;charset=utf-8;',
+      },
+    );
+    const url =
+      URL.createObjectURL(blob);
+    const anchor =
+      document.createElement('a');
+    anchor.href = url;
+    anchor.download =
+      'DairyOS-Milk-Quality-Log.csv';
+    document.body.appendChild(
+      anchor,
+    );
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const printQualityLog = () => {
+    const popup = window.open(
+      '',
+      '_blank',
+      'width=1000,height=760',
+    );
+
+    if (!popup) {
+      setError(
+        'The Milk Quality print window was blocked. Allow pop-ups for DairyOS and try again.',
+      );
+      return;
+    }
+
+    const esc = (
+      value: unknown,
+    ) =>
+      String(value ?? '').replace(
+        /[&<>"']/g,
+        (character) =>
+          (
+            {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;',
+            } as Record<
+              string,
+              string
+            >
+          )[character] ||
+          character,
+      );
+
+    const rows = qualitySamples
+      .map(
+        (sample) => `
+          <tr>
+            <td>${esc(sample.quality_date)}</td>
+            <td>${esc(sample.fat_pct)}</td>
+            <td>${esc(sample.snf_pct)}</td>
+            <td>${esc(sample.sample_type)}</td>
+            <td>${esc(sample.notes || '')}</td>
+            <td>${esc(sample.recorded_by)}</td>
+            <td>${esc(sample.status)}</td>
+          </tr>
+        `,
+      )
+      .join('');
+
+    popup.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>DairyOS Milk Quality Log</title>
+          <style>
+            body{font-family:Arial,sans-serif;color:#111827;padding:24px}
+            h1{font-size:18px;margin:0 0 12px}
+            table{width:100%;border-collapse:collapse;font-size:11px}
+            th,td{border-bottom:1px solid #cbd5e1;padding:7px;text-align:left}
+            th{background:#f1f5f9;text-transform:uppercase;font-size:9px}
+          </style>
+        </head>
+        <body>
+          <h1>DairyOS — Milk Quality Log</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Fat %</th>
+                <th>SNF %</th>
+                <th>Sample</th>
+                <th>Notes</th>
+                <th>Recorded By</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="7">No milk-quality samples recorded.</td></tr>'}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+    popup.focus();
+    window.setTimeout(
+      () => popup.print(),
+      200,
+    );
+  };
+
+  const startLateEntry =
+    async (
+      item: MissedMilkingItem,
+    ) => {
+      setLateEntryTarget(item);
+      setLateEntryLitres('');
+      setLateEntryNext(null);
+      setError('');
+
+      try {
+        const next =
+          await request<NextSession>(
+            `/farm/milk/next-session?animal_id=${encodeURIComponent(
+              item.animal_id,
+            )}&operational_date=${item.production_date}`,
+          );
+
+        if (!next.next_session) {
+          throw new Error(
+            'This historical animal-day no longer has an outstanding governed milking session.',
+          );
+        }
+
+        setLateEntryNext(next);
+      } catch (err) {
+        setLateEntryTarget(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to resolve the historical missed session.',
+        );
+      }
+    };
+
+  const saveLateEntry =
+    async (
+      event: React.FormEvent,
+    ) => {
+      event.preventDefault();
+
+      if (
+        !lateEntryTarget ||
+        !lateEntryNext?.next_session
+      ) {
+        return;
+      }
+
+      const litres =
+        Number(lateEntryLitres);
+
+      if (!(litres > 0)) {
+        setError(
+          'Historical milk litres must be greater than zero.',
+        );
+        return;
+      }
+
+      setSaving(true);
+      setError('');
+
+      try {
+        const session =
+          lateEntryNext.next_session;
+
+        await request(
+          '/farm/milk',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              animal_id:
+                lateEntryTarget.animal_id,
+              milking_session:
+                session,
+              morning_yield:
+                session ===
+                'MORNING'
+                  ? litres
+                  : null,
+              afternoon_yield:
+                session ===
+                'AFTERNOON'
+                  ? litres
+                  : null,
+              evening_yield:
+                session ===
+                'EVENING'
+                  ? litres
+                  : null,
+              production_date:
+                lateEntryTarget.production_date,
+              notes:
+                `Late correction for ${lateEntryTarget.finding_id || 'missed milking control'}`,
+              operator:
+                'WEB_LATE_ENTRY',
+            }),
+          },
+        );
+
+        setMessage(
+          `Historical ${session} milk recorded for ${lateEntryTarget.animal_id} on ${lateEntryTarget.production_date}.`,
+        );
+        setLateEntryTarget(null);
+        setLateEntryLitres('');
+        setLateEntryNext(null);
+        await refreshAll();
+        await onOperationalChanged?.();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Historical milk entry failed.',
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  const rejectMissedEntry =
+    async (
+      item: MissedMilkingItem,
+    ) => {
+      if (!item.finding_id) {
+        setError(
+          'The missed-session finding has not yet been persisted.',
+        );
+        return;
+      }
+
+      const reason = window.prompt(
+        'Reason for closing without a milk quantity. Examples: ANIMAL_NOT_MILKED, MEASUREMENT_UNAVAILABLE, OPERATOR_OVERSIGHT_NO_RECOVERY, HEALTH_REASON, OTHER.',
+        '',
+      );
+
+      if (
+        !reason ||
+        !reason.trim()
+      ) {
+        return;
+      }
+
+      try {
+        await request(
+          `/farm/findings/${encodeURIComponent(
+            item.finding_id,
+          )}/resolve`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              operator:
+                'UI Operator',
+              resolution_note:
+                `MISSED_MILK_REJECTED: ${reason.trim()}`,
+            }),
+          },
+        );
+
+        setMessage(
+          `Missed milk entry ${item.finding_id} closed with an audited reason. No zero-yield production row was created.`,
+        );
+        await refreshAll();
+        await onOperationalChanged?.();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to close the missed milk entry.',
+        );
       }
     };
 
@@ -1304,7 +1800,7 @@ export default function MilkTab({
           `Milk quality sample saved for ${qualityDate}.`,
         );
 
-        await load();
+        await refreshAll();
       } catch (err) {
         setError(
           err instanceof Error
@@ -1340,7 +1836,7 @@ export default function MilkTab({
           },
         );
 
-        await load();
+        await refreshAll();
       } catch (err) {
         setError(
           err instanceof Error
@@ -1374,7 +1870,7 @@ export default function MilkTab({
           },
         );
 
-        await load();
+        await refreshAll();
       } catch (err) {
         setError(
           err instanceof Error
@@ -1698,17 +2194,11 @@ export default function MilkTab({
         />
 
         <MetricButton
-          label="Overall Reconciliation"
+          label="Overall Reconciliation / Closing Balance"
           value={litre(
             monthRecon,
           )}
-          color={
-            Math.abs(
-              monthRecon,
-            ) < 0.05
-              ? '#34d399'
-              : '#f59e0b'
-          }
+          color="#38bdf8"
           active={
             selectedPanel ===
             'monthRecon'
@@ -1948,17 +2438,11 @@ export default function MilkTab({
         />
 
         <MetricButton
-          label="Reconciliation"
+          label="Closing Milk Balance"
           value={litre(
-            dailyDifference,
+            dailyClosingBalance,
           )}
-          color={
-            Math.abs(
-              dailyDifference,
-            ) < 0.05
-              ? '#34d399'
-              : '#f59e0b'
-          }
+          color="#38bdf8"
           active={false}
         />
       </div>
@@ -2043,6 +2527,20 @@ export default function MilkTab({
               monthData={monthData}
               dailyRecon={
                 dailyRecon
+              }
+              openingBalance={
+                Number(
+                  openingCapacity
+                    ?.available_saleable_litres ||
+                    0,
+                )
+              }
+              closingBalance={
+                Number(
+                  capacity
+                    ?.available_saleable_litres ||
+                    0,
+                )
               }
             />
           )}
@@ -2296,6 +2794,329 @@ export default function MilkTab({
               background:
                 '#111827',
               border:
+                `1px solid ${
+                  missedSessions.length
+                    ? '#f59e0b'
+                    : '#1f2937'
+                }`,
+              borderRadius: 8,
+              padding: 10,
+              marginTop: 10,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'center',
+                gap: 8,
+                flexWrap:
+                  'wrap',
+                marginBottom:
+                  missedSessions.length
+                    ? 8
+                    : 0,
+              }}
+            >
+              <div>
+                <strong
+                  style={{
+                    fontSize: 11,
+                    color:
+                      missedSessions.length
+                        ? '#fbbf24'
+                        : '#86efac',
+                  }}
+                >
+                  Missed Milking — Action Required
+                </strong>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color:
+                      '#64748b',
+                    marginTop: 2,
+                  }}
+                >
+                  Completed dates only.
+                  Enter recovered milk
+                  against the original
+                  production date, or
+                  close the omission with
+                  an audited reason.
+                </div>
+              </div>
+
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  color:
+                    missedSessions.length
+                      ? '#fbbf24'
+                      : '#86efac',
+                }}
+              >
+                {missedSessions.length
+                  ? `${missedSessions.length} ACTIVE`
+                  : 'NO UNRESOLVED MISSED SESSIONS'}
+              </span>
+            </div>
+
+            {missedSessions.length >
+              0 && (
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 6,
+                }}
+              >
+                {missedSessions.map(
+                  (item) => {
+                    const editing =
+                      lateEntryTarget
+                        ?.finding_id ===
+                        item.finding_id &&
+                      lateEntryTarget
+                        ?.production_date ===
+                        item.production_date &&
+                      lateEntryTarget
+                        ?.animal_id ===
+                        item.animal_id;
+
+                    return (
+                      <div
+                        key={
+                          item.finding_id ||
+                          `${item.production_date}-${item.animal_id}`
+                        }
+                        style={{
+                          border:
+                            '1px solid #92400e',
+                          borderRadius: 6,
+                          padding: 8,
+                          background:
+                            'rgba(146,64,14,.10)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              'grid',
+                            gridTemplateColumns:
+                              '110px 110px 1fr auto',
+                            gap: 8,
+                            alignItems:
+                              'center',
+                          }}
+                        >
+                          <span
+                            style={{
+                              color:
+                                '#cbd5e1',
+                              fontSize:
+                                10,
+                            }}
+                          >
+                            {
+                              item.production_date
+                            }
+                          </span>
+                          <strong
+                            style={{
+                              color:
+                                '#38bdf8',
+                              fontSize:
+                                10,
+                            }}
+                          >
+                            {
+                              item.animal_id
+                            }
+                          </strong>
+                          <span
+                            style={{
+                              color:
+                                '#fde68a',
+                              fontSize:
+                                9,
+                            }}
+                          >
+                            Recorded:{' '}
+                            {item.recorded_sessions.join(
+                              ', ',
+                            ) ||
+                              'none'}
+                            {'  •  '}
+                            Missing:{' '}
+                            <strong>
+                              {item.missing_sessions.join(
+                                ', ',
+                              )}
+                            </strong>
+                          </span>
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              gap: 5,
+                              flexWrap:
+                                'wrap',
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void startLateEntry(
+                                  item,
+                                )
+                              }
+                              style={{
+                                ...smallButton,
+                                borderColor:
+                                  '#0284c7',
+                                color:
+                                  '#bae6fd',
+                              }}
+                            >
+                              Enter Missing Milk
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void rejectMissedEntry(
+                                  item,
+                                )
+                              }
+                              style={{
+                                ...smallButton,
+                                borderColor:
+                                  '#7f1d1d',
+                                color:
+                                  '#fecaca',
+                              }}
+                            >
+                              Reject / Close with Reason
+                            </button>
+                          </div>
+                        </div>
+
+                        {editing && (
+                          <form
+                            onSubmit={
+                              saveLateEntry
+                            }
+                            style={{
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              gap: 6,
+                              flexWrap:
+                                'wrap',
+                              borderTop:
+                                '1px solid #78350f',
+                              marginTop:
+                                7,
+                              paddingTop:
+                                7,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize:
+                                  9,
+                                color:
+                                  '#fde68a',
+                              }}
+                            >
+                              Historical entry:{' '}
+                              {
+                                item.production_date
+                              }
+                              {'  •  '}
+                              {
+                                lateEntryNext?.next_session ||
+                                item.missing_sessions[0]
+                              }
+                            </span>
+                            <input
+                              autoFocus
+                              type="number"
+                              min="0.001"
+                              step="0.001"
+                              value={
+                                lateEntryLitres
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                setLateEntryLitres(
+                                  event
+                                    .target
+                                    .value,
+                                )
+                              }
+                              style={{
+                                ...inputStyle,
+                                width:
+                                  150,
+                              }}
+                              placeholder="Quantity (L)"
+                              required
+                            />
+                            <button
+                              type="submit"
+                              disabled={
+                                saving ||
+                                !lateEntryNext?.next_session
+                              }
+                              style={{
+                                ...buttonStyle(
+                                  '#0284c7',
+                                ),
+                              }}
+                            >
+                              {saving
+                                ? 'Saving...'
+                                : 'Save Historical Entry'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLateEntryTarget(
+                                  null,
+                                );
+                                setLateEntryLitres(
+                                  '',
+                                );
+                                setLateEntryNext(
+                                  null,
+                                );
+                              }}
+                              style={
+                                smallButton
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
+          </section>
+
+          <section
+            style={{
+              background:
+                '#111827',
+              border:
                 '1px solid #1f2937',
               borderRadius: 8,
               padding: 10,
@@ -2529,6 +3350,176 @@ export default function MilkTab({
                     : 'Save Quality Sample'}
               </button>
             </form>
+
+
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop:
+                  '1px solid #1f2937',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'space-between',
+                  alignItems:
+                    'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  marginBottom: 7,
+                }}
+              >
+                <div>
+                  <strong
+                    style={{
+                      fontSize: 11,
+                      color: '#c4b5fd',
+                    }}
+                  >
+                    Milk Quality Log
+                  </strong>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      color: '#64748b',
+                      marginTop: 2,
+                    }}
+                  >
+                    Persisted quality
+                    history. Newest
+                    sample first.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 6,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={
+                      saveQualityLog
+                    }
+                    style={
+                      smallButton
+                    }
+                  >
+                    Save CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={
+                      printQualityLog
+                    }
+                    style={
+                      smallButton
+                    }
+                  >
+                    Print
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  overflowX: 'auto',
+                }}
+              >
+                <table
+                  style={{
+                    ...tableStyle,
+                    minWidth: 760,
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Fat %</th>
+                      <th>SNF %</th>
+                      <th>Sample</th>
+                      <th>Notes</th>
+                      <th>
+                        Recorded By
+                      </th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {qualitySamples.map(
+                      (sample) => (
+                        <tr
+                          key={
+                            sample.id
+                          }
+                        >
+                          <td>
+                            {
+                              sample.quality_date
+                            }
+                          </td>
+                          <td>
+                            {
+                              sample.fat_pct
+                            }
+                          </td>
+                          <td>
+                            {
+                              sample.snf_pct
+                            }
+                          </td>
+                          <td>
+                            {
+                              sample.sample_type
+                            }
+                          </td>
+                          <td>
+                            {sample.notes ||
+                              '—'}
+                          </td>
+                          <td>
+                            {
+                              sample.recorded_by
+                            }
+                          </td>
+                          <td>
+                            {
+                              sample.status
+                            }
+                          </td>
+                        </tr>
+                      ),
+                    )}
+
+                    {qualitySamples.length ===
+                      0 && (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          style={{
+                            padding:
+                              14,
+                            textAlign:
+                              'center',
+                            color:
+                              '#64748b',
+                          }}
+                        >
+                          No milk
+                          quality
+                          samples
+                          recorded.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </section>
         </>
       )}
@@ -3482,20 +4473,17 @@ function DailyProductionDetail({
 function MonthlyOverallReconciliation({
   monthData,
   dailyRecon,
+  openingBalance,
+  closingBalance,
 }: {
   monthData: {
     production: ProductionRow[];
     dispositions: DispositionRow[];
   };
   dailyRecon: Reconciliation[];
+  openingBalance: number;
+  closingBalance: number;
 }) {
-  /*
-   * CRITICAL:
-   * Actual production/disposition dates are
-   * the only source of monthly rows.
-   *
-   * dailyRecon is lookup/support data only.
-   */
   const dates = Array.from(
     new Set([
       ...monthData.production
@@ -3535,11 +4523,14 @@ function MonthlyOverallReconciliation({
       ),
     );
 
+  let runningBalance =
+    Number(openingBalance || 0);
   let totalProduced = 0;
   let totalSold = 0;
   let totalDomestic = 0;
   let totalCalves = 0;
   let totalWastage = 0;
+  let totalOther = 0;
 
   const rows = dates.map(
     (day) => {
@@ -3592,64 +4583,90 @@ function MonthlyOverallReconciliation({
 
       const sold =
         amount('SOLD');
-
       const domestic =
-        amount(
-          'DOMESTIC_USE',
-        );
-
+        amount('DOMESTIC_USE');
       const calves =
-        amount(
-          'CALF_FEED',
-        );
-
+        amount('CALF_FEED');
       const wastage =
-        amount(
-          'WASTAGE',
-        );
+        amount('WASTAGE');
 
-      const calculatedRecon =
+      const other =
+        monthData.dispositions
+          .filter(
+            (row) =>
+              row.status !==
+                'VOID' &&
+              row.production_date.slice(
+                0,
+                10,
+              ) === day &&
+              ![
+                'SOLD',
+                'DOMESTIC_USE',
+                'CALF_FEED',
+                'WASTAGE',
+              ].includes(
+                row.disposition_type,
+              ),
+          )
+          .reduce(
+            (sum, row) =>
+              sum +
+              Number(
+                row.quantity_litres ||
+                  0,
+              ),
+            0,
+          );
+
+      const dayOpening =
+        runningBalance;
+      const rawClosing =
+        dayOpening +
         produced -
         sold -
         domestic -
         calves -
-        wastage;
+        wastage -
+        other;
 
-      totalProduced +=
-        produced;
+      runningBalance =
+        Math.max(
+          rawClosing,
+          0,
+        );
+
+      totalProduced += produced;
       totalSold += sold;
-      totalDomestic +=
-        domestic;
-      totalCalves +=
-        calves;
-      totalWastage +=
-        wastage;
+      totalDomestic += domestic;
+      totalCalves += calves;
+      totalWastage += wastage;
+      totalOther += other;
 
       const persisted =
-        reconByDate.get(
-          day,
-        );
+        reconByDate.get(day);
 
       return {
         day,
+        opening: dayOpening,
         produced,
         sold,
         domestic,
         calves,
         wastage,
-        reconciliation:
-          persisted?.unaccounted_litres ??
-          calculatedRecon,
+        other,
+        closing: runningBalance,
+        inventoryStatus:
+          rawClosing < -0.01
+            ? 'UNBACKED DISPOSITION'
+            : 'BALANCED',
+        productionStatus:
+          persisted?.production_complete
+            ? 'COMPLETE'
+            : 'INCOMPLETE',
       };
     },
   );
-
-  const overall =
-    totalProduced -
-    totalSold -
-    totalDomestic -
-    totalCalves -
-    totalWastage;
 
   return (
     <div
@@ -3664,13 +4681,13 @@ function MonthlyOverallReconciliation({
           color: '#64748b',
         }}
       >
-        Complete reconciliation
-        for the selected
-        production month. Only
-        dates with actual milk
-        production or
-        disposition entries are
-        listed.
+        Physical milk inventory authority:
+        opening balance + production −
+        all governed dispositions =
+        closing balance. Production
+        completeness is shown separately
+        and is not treated as milk
+        inventory.
       </div>
 
       <div
@@ -3685,6 +4702,9 @@ function MonthlyOverallReconciliation({
           <thead>
             <tr>
               <th>Date</th>
+              <th>
+                Opening Milk Balance
+              </th>
               <th>
                 Milk Produced
               </th>
@@ -3701,7 +4721,13 @@ function MonthlyOverallReconciliation({
                 Wastage/Unusable
               </th>
               <th>
-                Daily Reconciliation
+                Other
+              </th>
+              <th>
+                Closing Milk Balance
+              </th>
+              <th>
+                Production Control
               </th>
             </tr>
           </thead>
@@ -3713,6 +4739,11 @@ function MonthlyOverallReconciliation({
                   key={row.day}
                 >
                   <td>{row.day}</td>
+                  <td>
+                    {litre(
+                      row.opening,
+                    )}
+                  </td>
                   <td>
                     {litre(
                       row.produced,
@@ -3740,8 +4771,39 @@ function MonthlyOverallReconciliation({
                   </td>
                   <td>
                     {litre(
-                      row.reconciliation,
+                      row.other,
                     )}
+                  </td>
+                  <td>
+                    <strong
+                      style={{
+                        color:
+                          row.inventoryStatus ===
+                          'BALANCED'
+                            ? '#34d399'
+                            : '#f87171',
+                      }}
+                    >
+                      {litre(
+                        row.closing,
+                      )}
+                    </strong>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        color:
+                          row.productionStatus ===
+                          'COMPLETE'
+                            ? '#34d399'
+                            : '#f59e0b',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {
+                        row.productionStatus
+                      }
+                    </span>
                   </td>
                 </tr>
               ),
@@ -3752,7 +4814,7 @@ function MonthlyOverallReconciliation({
               <tr>
                 <td
                   colSpan={
-                    7
+                    10
                   }
                   style={{
                     padding:
@@ -3788,6 +4850,9 @@ function MonthlyOverallReconciliation({
                 Totals
               </th>
               <th>
+                Opening Milk Balance
+              </th>
+              <th>
                 Milk Produced
               </th>
               <th>
@@ -3803,8 +4868,10 @@ function MonthlyOverallReconciliation({
                 Wastage/Unusable
               </th>
               <th>
-                Overall
-                Reconciliation
+                Other
+              </th>
+              <th>
+                Closing Milk Balance
               </th>
             </tr>
           </thead>
@@ -3813,6 +4880,11 @@ function MonthlyOverallReconciliation({
             <tr>
               <td>
                 Selected Month
+              </td>
+              <td>
+                {litre(
+                  openingBalance,
+                )}
               </td>
               <td>
                 {litre(
@@ -3841,8 +4913,20 @@ function MonthlyOverallReconciliation({
               </td>
               <td>
                 {litre(
-                  overall,
+                  totalOther,
                 )}
+              </td>
+              <td>
+                <strong
+                  style={{
+                    color:
+                      '#38bdf8',
+                  }}
+                >
+                  {litre(
+                    closingBalance,
+                  )}
+                </strong>
               </td>
             </tr>
           </tbody>

@@ -23,6 +23,9 @@ from dairyos.farm.production.services.milk_reconciliation_service import (
 from dairyos.farm.production.services.milk_inventory_capacity_service import (
     overall_saleable_capacity,
 )
+from dairyos.farm.production.services.missed_milking_control_service import (
+    MissedMilkingControlService,
+)
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
@@ -135,6 +138,17 @@ def _active_disposition_sum(session, production_date: date, exclude_id: int | No
     if exclude_id is not None:
         query = query.filter(MilkDisposition.id != exclude_id)
     return sum(float(row.quantity_litres or 0.0) for row in query.all())
+
+
+@router.post("/missed-sessions/reconcile")
+def reconcile_missed_milking_sessions(
+    lookback_days: int = Query(default=31, ge=1, le=90),
+    container=Depends(get_container),
+):
+    """Persist missed per-animal milking controls for completed dates only."""
+    return MissedMilkingControlService(
+        container.repository_factory
+    ).reconcile(lookback_days=lookback_days)
 
 
 @router.get("/{animal_id}/traceability")
