@@ -31,3 +31,9 @@ def test_animal_identity_labels_preserve_permanent_and_legacy_distinction():
  assert "Permanent DairyOS Animal ID" in v
  assert "Legacy ID (optional)" in v
  assert "does not replace the permanent DairyOS ID" in v
+
+def test_global_navigation_fits_without_horizontal_scrolling():
+ v=text("src/DairyOS.Web/src/App.tsx")
+ assert "margin:'0 4px',overflowX:'hidden',overflowY:'hidden'" in v
+ assert "gap:3,flex:'0 0 auto'" in v
+ assert "padding:'5px',borderRadius:6,cursor:'pointer',fontSize:9" in v
