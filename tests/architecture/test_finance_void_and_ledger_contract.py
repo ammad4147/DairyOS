@@ -26,11 +26,27 @@ def test_linked_milk_sale_void_preserves_original_business_facts():
 
 def test_finance_ledgers_share_clean_accounting_columns_and_revenue_void_action():
     ui = UI.read_text(encoding="utf-8-sig")
-    for label in ("Date", "Particulars", "Counterparty", "Reference", "Status", "Amount"):
+    compact = "".join(ui.split())
+
+    for label in (
+        "Date",
+        "Particulars",
+        "Counterparty",
+        "Reference",
+        "Status",
+        "Amount",
+    ):
         assert label in ui
+
     assert "Customer / Buyer" in ui
-    assert "buyer_or_counterparty:revCounterparty||null" in ui
-    assert ">Received</button>" in ui
+    assert (
+        "buyer_or_counterparty:revCounterparty||null"
+        in ui
+    )
+
+    # Formatting-independent JSX contract.
+    assert ">Received</button>" in compact
     assert "setVoidTarget(r)" in ui
+
     assert "['Payables',payableTotal" in ui
     assert "/farm/finance-ledger/payables" not in ui

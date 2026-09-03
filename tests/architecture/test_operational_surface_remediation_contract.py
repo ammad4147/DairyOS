@@ -37,15 +37,29 @@ def test_sender_settings_use_authenticated_backend_contract():
 
 
 def test_coml_selected_period_does_not_borrow_official_monthly_costs():
-    frontend = text("src/DairyOS.Web/src/components/COML.tsx")
-    backend = text("src/dairyos/api/coml.py")
+    frontend = text(
+        "src/DairyOS.Web/src/components/COML.tsx"
+    )
+    backend = text(
+        "src/dairyos/api/coml.py"
+    )
+    milk_authority = text(
+        "src/dairyos/api/tmr.py"
+    )
+
     assert "Official Backend COP" in frontend
     assert "reference only" in frontend
     assert "if (officialRec) return" not in frontend
-    assert "production_date" in backend
-    assert "total_yield" in backend
+
+    # Milk-period authority is shared through
+    # milk_litres_for_period().
+    assert "milk_litres_for_period(" in backend
+    assert "production_date" in milk_authority
+    assert "total_yield" in milk_authority
+
     assert "is_expense(item)" in backend
-    assert "feed_per_l = (feed_total / liters) if liters > 0 else None" in backend
+    assert "feed_total / liters" in backend
+    assert "if liters > 0" in backend
 
 
 def test_milk_analytics_are_derived_from_persisted_production():

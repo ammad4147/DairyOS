@@ -82,31 +82,73 @@ def test_unit_mismatch_is_rejected():
     assert "Unit mismatch" in response.json()["detail"]
 
 
-def test_consumption_cannot_drive_stock_negative():
+def test_direct_consumption_is_retired_without_changing_stock():
     assert create_item().status_code == 200
     assert move().status_code == 200
 
-    response = move(movement_type="CONSUMPTION", quantity=2501)
-    assert response.status_code == 409
-    assert response.json()["detail"]["error"] == "INSUFFICIENT_STOCK"
+    response = move(
+        movement_type="CONSUMPTION",
+        quantity=2501,
+    )
 
-    dashboard = client.get("/farm/feed-inventory/dashboard")
+    assert response.status_code == 410
+    assert (
+        "Direct Record Feed Usage is retired"
+        in response.json()["detail"]
+    )
+
+    dashboard = client.get(
+        "/farm/feed-inventory/dashboard"
+    )
+
     assert dashboard.status_code == 200
-    assert dashboard.json()["items"][0]["balance"] == 2500
+    assert (
+        dashboard.json()["items"][0]["balance"]
+        == 2500
+    )
 
 
-def test_consumption_updates_balance_and_low_stock_status():
-    assert create_item(reorder_level=1000).status_code == 200
+def test_manual_override_updates_balance_and_low_stock_status():
+    assert create_item(
+        reorder_level=1000
+    ).status_code == 200
+
     assert move().status_code == 200
 
-    response = move(movement_type="CONSUMPTION", quantity=1700)
+    response = client.post(
+        "/farm/feed-inventory/manual-override",
+        json={
+            "item": "Corn / Maize Silage",
+            "quantity_delta": -1700,
+            "notes": "Physical stock correction",
+            "recorded_by": "TEST",
+        },
+    )
+
     assert response.status_code == 200, response.text
 
-    dashboard = client.get("/farm/feed-inventory/dashboard")
+    body = response.json()
+
+    assert (
+        body["source"]
+        == "MANUAL_PHYSICAL_STOCK_OVERRIDE"
+    )
+    assert body["projected_balance"] == 800
+
+    dashboard = client.get(
+        "/farm/feed-inventory/dashboard"
+    )
+
     row = dashboard.json()["items"][0]
+
     assert row["balance"] == 800
     assert row["status"] == "LOW"
-    assert dashboard.json()["summary"]["low_stock_items"] == 1
+    assert (
+        dashboard.json()["summary"][
+            "low_stock_items"
+        ]
+        == 1
+    )
 
 
 def test_adjustment_requires_nonzero_signed_quantity():

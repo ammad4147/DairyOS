@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 
 
 def _assert_ok(response, method: str, path: str):
@@ -102,33 +102,35 @@ def test_complete_feed_surface_certification(
     assert purchase_payload["movement_type"] == "PURCHASE"
 
     # ==============================================================
-    # SURFACE 3 — INVENTORY CONSUMPTION
+    # SURFACE 3 — MANUAL PHYSICAL STOCK OVERRIDE
     # ==============================================================
 
-    consumption = client.post(
-        "/farm/feed-inventory/movements",
+    override = client.post(
+        "/farm/feed-inventory/manual-override",
         json={
             "item": feed_item,
-            "quantity": 250.0,
-            "movement_type": "CONSUMPTION",
-            "unit": "kg",
-            "location": "Bunker 1",
-            "notes": "Operational consumption",
+            "quantity_delta": -250.0,
+            "notes": "Physical stock correction",
             "recorded_by": "Feed Surface Certification",
         },
     )
 
     _assert_ok(
-        consumption,
+        override,
         "POST",
-        "/farm/feed-inventory/movements",
+        "/farm/feed-inventory/manual-override",
     )
 
-    consumption_payload = consumption.json()
+    override_payload = override.json()
 
-    assert consumption_payload["item"] == feed_item
-    assert float(consumption_payload["quantity"]) == 250.0
-    assert consumption_payload["movement_type"] == "CONSUMPTION"
+    assert (
+        override_payload["source"]
+        == "MANUAL_PHYSICAL_STOCK_OVERRIDE"
+    )
+
+    assert float(
+        override_payload["movement"]["signed_quantity"]
+    ) == -250.0
 
     expected_balance = 750.0
 
@@ -210,8 +212,12 @@ def test_complete_feed_surface_certification(
     )
 
     assert any(
-        row.get("movement_type") == "CONSUMPTION"
-        and float(row.get("quantity") or 0.0) == 250.0
+        row.get("movement_type") == "ADJUSTMENT"
+        and float(
+            row.get("signed_quantity") or 0.0
+        ) == -250.0
+        and "FEED_STORAGE_MANUAL_OVERRIDE"
+        in str(row.get("notes") or "")
         for row in matching_movements
     )
 
@@ -541,7 +547,7 @@ def test_complete_feed_surface_certification(
         "kg",
     )
     print(
-        "Inventory consumption:",
+        "Inventory manual stock override:",
         250.0,
         "kg",
     )
