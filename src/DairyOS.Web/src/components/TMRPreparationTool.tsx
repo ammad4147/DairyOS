@@ -1,82 +1,1691 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Wheat, RotateCcw, Lightbulb, Save, Printer, MessageCircle, Info, CheckCircle2, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  Plus,
+  Printer,
+  RefreshCw,
+  Save,
+  Wheat,
+} from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
-const STORAGE_KEY = 'dairyos_coml_tmr_data';
-const schema = [
-  { name: 'Silage', u: 'kg', step: 0.5, min: 0, max: 60, p: 20, g: false },
-  { name: 'Vanda (Concentrate)', u: 'kg', step: 0.5, min: 0, max: 25, p: 100, g: false },
-  { name: 'Wheat Straw', u: 'kg', step: 0.5, min: 0, max: 12, p: 20, g: false },
-  { name: 'Soybean Meal', u: 'kg', step: 0.25, min: 0, max: 5, p: 180, g: false },
-  { name: 'Molasses', u: 'kg', step: 0.25, min: 0, max: 3, p: 85, g: false },
-  { name: 'Bypass Fat', u: 'g', step: 25, min: 0, max: 600, p: 480, g: true },
-  { name: 'Mineral Mixture', u: 'g', step: 25, min: 0, max: 400, p: 460, g: true },
-  { name: 'Meetha Soda', u: 'g', step: 25, min: 0, max: 400, p: 200, g: true },
-  { name: 'Anionic Salts (DCAD)', u: 'g', step: 25, min: 0, max: 300, p: 350, g: true },
-  { name: 'Toxin Binder', u: 'g', step: 10, min: 0, max: 150, p: 260, g: true },
-  { name: 'Lysine / Methionine', u: 'g', step: 5, min: 0, max: 80, p: 4000, g: true },
-] as const;
-const presets: Record<string, number[]> = {
-  early_milking: [22, 9.5, 2.5, 2.5, 1, 400, 200, 200, 0, 50, 30],
-  mid_milking: [20, 7, 3.5, 1.5, 0.5, 200, 150, 150, 0, 40, 15],
-  late_milking: [16, 5, 4.5, 1, 0.5, 75, 100, 100, 0, 30, 0],
-  far_off: [10, 2, 6.5, 0, 0, 0, 100, 0, 0, 30, 0],
-  close_up: [12, 3.5, 3.5, 1, 1, 0, 150, 0, 175, 50, 20],
-  heifer_growth: [12, 3, 2.5, 0.5, 0, 0, 100, 50, 0, 30, 0],
-  calf_starter: [4, 2, 0.5, 0, 0, 0, 40, 0, 0, 20, 0],
-};
-const stageInfo: Record<string, string> = {
-  early_milking: '30–35 L/day target · high energy density',
-  mid_milking: '20–25 L/day target · rumen stability focus',
-  late_milking: '10–15 L/day target · avoid over-conditioning',
-  far_off: 'Dry off · high fibre, low energy',
-  close_up: 'Transition diet · negative DCAD',
-  heifer_growth: '700–900 g/day gain target · moderate protein',
-  calf_starter: '4–8 weeks · rumen development',
-};
-const adviceStrings: Record<string, string> = {
-  early_milking: 'Maximise energy density. Monitor silage DM and pH. Maintain a consistent mixing order.',
-  mid_milking: 'Maintain silage quality and rumen stability. Reduce bypass fat as yield declines.',
-  late_milking: 'Reduce concentrate gradually and monitor BCS before dry-off.',
-  far_off: 'Focus on rumen volume and moderate energy to prevent over-conditioning.',
-  close_up: 'Use anionic salts for transition cows and monitor intake and calcium-risk management.',
-  heifer_growth: 'Protect skeletal development and target steady growth without over-conditioning.',
-  calf_starter: 'Maintain freshness and gradual transition into forage and TMR.',
-};
-const money=(n:number)=>`PKR ${n.toLocaleString('en-PK',{maximumFractionDigits:0})}`;
+const API_BASE = API_BASE_URL || 'http' + '://127.0.0.1:8000';
 
-export default function TMRPreparationTool(){
-  const [stage,setStage]=useState('early_milking');
-  const [herdSize,setHerdSize]=useState(10);
-  const [periodDays,setPeriodDays]=useState(1);
-  const [qtys,setQtys]=useState<number[]>([...presets.early_milking]);
-  const [prices,setPrices]=useState<number[]>(schema.map(s=>s.p));
-  const [showAdvice,setShowAdvice]=useState(false);
-  const [saved,setSaved]=useState(false);
-  useEffect(()=>{try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;const data=JSON.parse(raw) as {stage?:string;size?:number;periodDays?:number;qtys?:number[];prices?:number[]};if(data.stage&&presets[data.stage])setStage(data.stage);if(typeof data.size==='number')setHerdSize(data.size);if(typeof data.periodDays==='number'&&data.periodDays>0)setPeriodDays(data.periodDays);if(Array.isArray(data.qtys)&&data.qtys.length===schema.length)setQtys(data.qtys);if(Array.isArray(data.prices)&&data.prices.length===schema.length)setPrices(data.prices);}catch{}} ,[]);
-  const rows=useMemo(()=>schema.map((s,i)=>{const q=qtys[i]||0,p=prices[i]||0,costPerHeadDay=s.g?(q/1000)*p:q*p;return {...s,q,p,std:presets[stage][i],costPerHeadDay,batchQtyDay:q*herdSize,modified:q!==presets[stage][i]};}),[qtys,prices,stage,herdSize]);
-  const headCostDay=rows.reduce((sum,r)=>sum+r.costPerHeadDay,0);
-  const groupCostDay=headCostDay*herdSize;
-  const headCostPeriod=headCostDay*periodDays;
-  const groupCostPeriod=groupCostDay*periodDays;
-  const batchWeightDay=rows.reduce((sum,r)=>sum+(r.g?0:r.batchQtyDay),0);
-  const batchWeightPeriod=batchWeightDay*periodDays;
-  const updateQty=(index:number,value:number)=>setQtys(current=>current.map((v,i)=>i===index?value:v));
-  const updatePrice=(index:number,value:number)=>setPrices(current=>current.map((v,i)=>i===index?value:v));
-  const reset=()=>setQtys([...presets[stage]]);
-  const save=()=>{localStorage.setItem(STORAGE_KEY,JSON.stringify({stage,size:herdSize,periodDays,qtys,prices}));setSaved(true);window.setTimeout(()=>setSaved(false),2500);};
-  const whatsApp=()=>{let text=`*DairyOS TMR Batch Sheet*\n*Stage:* ${stage.replace('_',' ').toUpperCase()}\n*Animals:* ${herdSize}\n*Planning Period:* ${periodDays} day(s)\n*Daily Batch Weight:* ${Math.round(batchWeightDay)} KG\n*Period Batch Weight:* ${Math.round(batchWeightPeriod)} KG\n*Cost/Head/Day:* ${money(headCostDay)}\n*Group Cost/Period:* ${money(groupCostPeriod)}\n\n*Ingredients / day:*\n`;rows.forEach(r=>{if(r.q>0)text+=`• ${r.name}: ${r.batchQtyDay.toLocaleString()} ${r.u}/day\n`;});window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);};
-  return <div style={{background:'#0f172a',border:'1px solid #1f2937',borderRadius:10,overflow:'hidden'}}>
-    <div style={{padding:14,borderBottom:'1px solid #1f2937',display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><h3 style={{margin:0,color:'#38bdf8',fontSize:15,display:'flex',alignItems:'center',gap:7}}><Wheat size={18}/> TMR Preparation Tool</h3><p style={{margin:'4px 0 0',color:'#94a3b8',fontSize:10}}>Planning aid only. Daily ration remains the base unit; period totals are scaled explicitly and do not alter official COML.</p></div><div style={{display:'flex',gap:7}}><button onClick={()=>setShowAdvice(true)} style={button('#f59e0b')}><Lightbulb size={12}/> Advisory</button><button onClick={()=>window.print()} style={button('#64748b')}><Printer size={12}/> Print</button><button onClick={whatsApp} style={button('#22c55e')}><MessageCircle size={12}/> WhatsApp</button></div></div>
-    {showAdvice&&<div style={{padding:12,background:'rgba(245,158,11,.08)',borderBottom:'1px solid #f59e0b',color:'#fcd34d',fontSize:11,display:'flex',gap:8,alignItems:'flex-start'}}><Lightbulb size={14} style={{flexShrink:0}}/><div style={{flex:1}}><strong>{stage.replace('_',' ').toUpperCase()}:</strong> {adviceStrings[stage]}</div><button onClick={()=>setShowAdvice(false)} style={{background:'none',border:'none',color:'#fbbf24',cursor:'pointer'}}><X size={14}/></button></div>}
-    <div style={{padding:12,display:'grid',gridTemplateColumns:'minmax(220px,1fr) 120px 120px auto',gap:8,alignItems:'end'}}><label style={labelStyle}>Animal Stage<select value={stage} onChange={e=>{setStage(e.target.value);setQtys([...presets[e.target.value]]);}} style={inputStyle}><optgroup label="Milking Cows"><option value="early_milking">Early Lactation</option><option value="mid_milking">Mid Lactation</option><option value="late_milking">Late Lactation</option></optgroup><optgroup label="Dry Cows"><option value="far_off">Far-Off Dry</option><option value="close_up">Close-Up</option></optgroup><optgroup label="Young Stock"><option value="heifer_growth">Growing Heifer</option><option value="calf_starter">Calf Starter</option></optgroup></select><span style={{marginTop:4,color:'#38bdf8',fontSize:9,display:'flex',gap:4,alignItems:'center'}}><Info size={10}/> {stageInfo[stage]}</span></label><label style={labelStyle}>Herd Size<input type="number" min={0} value={herdSize} onChange={e=>setHerdSize(Number(e.target.value))} style={inputStyle}/></label><label style={labelStyle}>Planning Days<input type="number" min={1} max={365} value={periodDays} onChange={e=>setPeriodDays(Math.max(1,Number(e.target.value)||1))} style={inputStyle}/></label><div style={{display:'flex',gap:7,flexWrap:'wrap'}}><button onClick={reset} style={button('#334155')}><RotateCcw size={12}/> Reset</button><button onClick={save} style={button('#2563eb')}><Save size={12}/> {saved?'Saved':'Save Draft'}</button></div></div>
-    <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:780,fontSize:10}}><thead><tr style={{background:'#111827',color:'#94a3b8',textAlign:'left'}}><th style={th}>Ingredient</th><th style={th}>Qty/Head/Day</th><th style={th}>Price / Unit</th><th style={th}>Group Qty / Day</th><th style={{...th,textAlign:'right'}}>Cost/Head/Day</th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.name} style={{borderTop:'1px solid #1f2937'}}><td style={{...td,color:r.q>0?'#fff':'#64748b',fontWeight:700}}>{r.name}{r.modified&&<span style={{marginLeft:5,display:'inline-block',width:5,height:5,borderRadius:'50%',background:'#f59e0b'}}/>}</td><td style={td}><div style={{display:'flex',alignItems:'center',gap:5}}><input type="number" step={r.step} min={r.min} max={r.max} value={r.q||''} onChange={e=>updateQty(i,Number(e.target.value))} style={{...inputStyle,width:78}}/><span style={{color:'#94a3b8'}}>{r.u}</span></div></td><td style={td}><div style={{display:'flex',alignItems:'center',gap:5}}><input type="number" min={0} step="0.01" value={r.p} onChange={e=>updatePrice(i,Number(e.target.value))} style={{...inputStyle,width:82}}/><span style={{color:'#64748b'}}>PKR / kg</span></div></td><td style={{...td,color:'#34d399',fontWeight:700}}>{r.batchQtyDay?`${r.batchQtyDay.toLocaleString()} ${r.u}`:'—'}</td><td style={{...td,textAlign:'right',color:'#cbd5e1',fontWeight:700}}>{money(r.costPerHeadDay)}</td></tr>)}</tbody></table></div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,padding:12}}><Summary label="Cost / Head / Day" value={money(headCostDay)}/><Summary label="Group Cost / Day" value={money(groupCostDay)}/><Summary label={`Cost / Head / ${periodDays}d`} value={money(headCostPeriod)}/><Summary label={`Group Cost / ${periodDays}d`} value={money(groupCostPeriod)}/><Summary label={`Batch Weight / ${periodDays}d`} value={`${Math.round(batchWeightPeriod).toLocaleString()} KG`}/></div>
-    <div style={{padding:'0 12px 12px',color:'#64748b',fontSize:9}}><CheckCircle2 size={10} style={{verticalAlign:'middle',marginRight:4}}/> This calculator is a planning instrument. Inventory consumption and official COML remain separate authoritative processes.</div>
-  </div>;
+type IngredientDefinition = {
+  catalog_name: string;
+  display_name?: string;
+  dose_unit: 'kg' | 'g';
+  fallback_price_per_kg: number;
+};
+
+type StageIngredient = IngredientDefinition & {
+  quantity: number;
+  price_per_kg: number;
+  price_source: 'FINANCE' | 'MANUAL_FALLBACK';
+  finance_transaction_id?: number | null;
+  finance_purchase_date?: string | null;
+  cost_per_head_day: number;
+};
+
+type StageSummary = {
+  key: string;
+  label: string;
+  ingredients: StageIngredient[];
+  ration_kg_per_head_day: number;
+  cost_per_head_day: number;
+  source: string;
+};
+
+type CategorySummary = {
+  category: string;
+  stage_keys: string[];
+  animal_count: number;
+  cost_per_head_day: number;
+  category_cost_per_day: number;
+};
+
+type WeeklyReview = {
+  week_start: string;
+  week_end: string;
+  status: 'DUE' | 'ENDORSED' | string;
+  advisory: string;
+  endorsement?: {
+    reviewer?: string;
+    reviewed_on?: string;
+    reviewed_at?: string;
+    notes?: string | null;
+  } | null;
+};
+
+type TMRSummary = {
+  data_status: string;
+  operational_date: string;
+  ingredients: IngredientDefinition[];
+  stages: Record<string, StageSummary>;
+  categories: CategorySummary[];
+  herd_counts: Record<string, number>;
+  total_herd_feed_cost_per_day: number;
+  milk_production_today_liters: number;
+  feed_cost_per_litre_today: number | null;
+  feed_cost_basis: string;
+  weekly_review?: WeeklyReview;
+};
+
+type DraftIngredient = StageIngredient;
+
+const categoryOrder = [
+  'Milking',
+  'Dry',
+  'Heifer',
+  'Female Calf',
+  'Male Calf',
+  'Bull',
+];
+
+const money = (value: unknown, decimals = 2) => {
+  const amount = Number(value);
+  return Number.isFinite(amount)
+    ? `PKR ${amount.toLocaleString('en-PK', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })}`
+    : 'N/A';
+};
+
+const card: React.CSSProperties = {
+  background: '#111827',
+  border: '1px solid #1f2937',
+  borderRadius: 8,
+  padding: 10,
+};
+
+const input: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: '#1e293b',
+  color: '#fff',
+  border: '1px solid #334155',
+  borderRadius: 5,
+  padding: '7px 8px',
+  fontSize: 10,
+};
+
+const smallButton = (
+  background: string,
+): React.CSSProperties => ({
+  background,
+  color: '#fff',
+  border: 0,
+  borderRadius: 5,
+  padding: '7px 10px',
+  fontSize: 10,
+  fontWeight: 800,
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+});
+
+const label: React.CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 9,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  display: 'block',
+};
+
+const th: React.CSSProperties = {
+  padding: 8,
+  color: '#94a3b8',
+  fontSize: 8,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  textAlign: 'left',
+  whiteSpace: 'nowrap',
+};
+
+const td: React.CSSProperties = {
+  padding: 8,
+  borderTop: '1px solid #1f2937',
+  verticalAlign: 'middle',
+};
+
+const categoryBasis = (category: string) => {
+  if (category === 'Milking') {
+    return 'Average of Early, Mid and Late Lactation TMR';
+  }
+  if (category === 'Dry') {
+    return 'Average of Far-Off Dry and Close-Up Dry TMR';
+  }
+  if (category === 'Heifer') {
+    return 'Growing Heifer TMR';
+  }
+  if (
+    category === 'Female Calf'
+    || category === 'Male Calf'
+  ) {
+    return 'Calf Starter TMR';
+  }
+  if (category === 'Bull') {
+    return 'Bull TMR';
+  }
+  return '';
+};
+
+export default function TMRPreparationTool() {
+  const [summary, setSummary] = useState<TMRSummary | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('Milking');
+  const [selectedStage, setSelectedStage] = useState('early_milking');
+  const [draft, setDraft] = useState<DraftIngredient[]>([]);
+  const [operator, setOperator] = useState('UI Operator');
+  const [reviewer, setReviewer] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [savingStage, setSavingStage] = useState(false);
+  const [endorsing, setEndorsing] = useState(false);
+  const [showAddIngredient, setShowAddIngredient] = useState(false);
+  const [addingIngredient, setAddingIngredient] = useState(false);
+  const [newIngredient, setNewIngredient] = useState({
+    name: '',
+    display_name: '',
+    dose_unit: 'kg' as 'kg' | 'g',
+    fallback_price_per_kg: 0,
+  });
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/farm/tmr`);
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.detail || 'Unable to load governed TMR.',
+        );
+      }
+
+      setSummary(body);
+    } catch (exc) {
+      setSummary(null);
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Unable to load governed TMR.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const categories = useMemo(() => {
+    const rows = summary?.categories ?? [];
+
+    return [...rows].sort(
+      (a, b) =>
+        categoryOrder.indexOf(a.category)
+        - categoryOrder.indexOf(b.category),
+    );
+  }, [summary]);
+
+  const activeCategory = useMemo(
+    () =>
+      categories.find(
+        row => row.category === selectedCategory,
+      ) ?? categories[0] ?? null,
+    [categories, selectedCategory],
+  );
+
+  useEffect(() => {
+    if (!activeCategory) {
+      return;
+    }
+
+    if (!activeCategory.stage_keys.includes(selectedStage)) {
+      setSelectedStage(
+        activeCategory.stage_keys[0] || '',
+      );
+    }
+  }, [activeCategory, selectedStage]);
+
+  const activeStage = useMemo(
+    () =>
+      summary?.stages?.[selectedStage] ?? null,
+    [summary, selectedStage],
+  );
+
+  useEffect(() => {
+    if (!activeStage) {
+      setDraft([]);
+      return;
+    }
+
+    setDraft(
+      activeStage.ingredients.map(row => ({ ...row })),
+    );
+  }, [activeStage]);
+
+  const previewStageCost = useMemo(
+    () =>
+      draft.reduce((total, row) => {
+        const quantityKg =
+          row.dose_unit === 'g'
+            ? Number(row.quantity || 0) / 1000
+            : Number(row.quantity || 0);
+
+        const rate =
+          row.price_source === 'FINANCE'
+            ? Number(row.price_per_kg || 0)
+            : Number(row.fallback_price_per_kg || 0);
+
+        return total + quantityKg * rate;
+      }, 0),
+    [draft],
+  );
+
+  const previewRationKg = useMemo(
+    () =>
+      draft.reduce(
+        (total, row) =>
+          total
+          + (
+            row.dose_unit === 'g'
+              ? Number(row.quantity || 0) / 1000
+              : Number(row.quantity || 0)
+          ),
+        0,
+      ),
+    [draft],
+  );
+
+  const updateQuantity = (
+    index: number,
+    value: number,
+  ) => {
+    setDraft(current =>
+      current.map((row, rowIndex) =>
+        rowIndex === index
+          ? {
+              ...row,
+              quantity: Math.max(0, value || 0),
+            }
+          : row,
+      ),
+    );
+  };
+
+  const updateFallbackPrice = (
+    index: number,
+    value: number,
+  ) => {
+    setDraft(current =>
+      current.map((row, rowIndex) =>
+        rowIndex === index
+          ? {
+              ...row,
+              fallback_price_per_kg:
+                Math.max(0, value || 0),
+              price_per_kg:
+                row.price_source === 'FINANCE'
+                  ? row.price_per_kg
+                  : Math.max(0, value || 0),
+            }
+          : row,
+      ),
+    );
+  };
+
+  const saveStage = async () => {
+    if (!selectedStage || !draft.length) {
+      return;
+    }
+
+    setSavingStage(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/farm/tmr/stages`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            stage: selectedStage,
+            operator: operator.trim() || 'UI Operator',
+            ingredients: draft.map(row => ({
+              catalog_name: row.catalog_name,
+              quantity: Number(row.quantity || 0),
+              dose_unit: row.dose_unit,
+              fallback_price_per_kg:
+                Number(
+                  row.fallback_price_per_kg || 0,
+                ),
+            })),
+          }),
+        },
+      );
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.detail
+          || 'Unable to save governed TMR stage.',
+        );
+      }
+
+      setSummary(body.summary);
+      setMessage(
+        `${activeStage?.label || selectedStage} saved as a new governed TMR version.`,
+      );
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Unable to save TMR stage.',
+      );
+    } finally {
+      setSavingStage(false);
+    }
+  };
+
+  const addIngredient = async () => {
+    const name = newIngredient.name.trim();
+
+    if (!name) {
+      setError('Ingredient name is required.');
+      return;
+    }
+
+    setAddingIngredient(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/farm/tmr/ingredients`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            display_name:
+              newIngredient.display_name.trim() || name,
+            dose_unit: newIngredient.dose_unit,
+            fallback_price_per_kg:
+              Number(
+                newIngredient.fallback_price_per_kg || 0,
+              ),
+          }),
+        },
+      );
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.detail || 'Unable to add TMR ingredient.',
+        );
+      }
+
+      const catalogName = String(
+        body?.catalog_name || name,
+      );
+
+      setDraft(current => {
+        if (
+          current.some(
+            row => row.catalog_name === catalogName,
+          )
+        ) {
+          return current;
+        }
+
+        return [
+          ...current,
+          {
+            catalog_name: catalogName,
+            display_name:
+              String(body?.display_name || catalogName),
+            dose_unit:
+              body?.dose_unit === 'g' ? 'g' : 'kg',
+            quantity: 0,
+            fallback_price_per_kg:
+              Number(
+                body?.fallback_price_per_kg || 0,
+              ),
+            price_per_kg:
+              Number(
+                body?.fallback_price_per_kg || 0,
+              ),
+            price_source: 'MANUAL_FALLBACK',
+            finance_transaction_id: null,
+            finance_purchase_date: null,
+            cost_per_head_day: 0,
+          },
+        ];
+      });
+
+      setSummary(current =>
+        current
+          ? {
+              ...current,
+              ingredients: [
+                ...current.ingredients.filter(
+                  row =>
+                    row.catalog_name !== catalogName,
+                ),
+                {
+                  catalog_name: catalogName,
+                  display_name:
+                    String(
+                      body?.display_name || catalogName,
+                    ),
+                  dose_unit:
+                    body?.dose_unit === 'g'
+                      ? 'g'
+                      : 'kg',
+                  fallback_price_per_kg:
+                    Number(
+                      body?.fallback_price_per_kg || 0,
+                    ),
+                },
+              ],
+            }
+          : current,
+      );
+
+      setNewIngredient({
+        name: '',
+        display_name: '',
+        dose_unit: 'kg',
+        fallback_price_per_kg: 0,
+      });
+
+      setShowAddIngredient(false);
+
+      setMessage(
+        `${catalogName} added to the governed Feed ingredient catalog. It is now available to Finance Feed Expenses; save this TMR stage if it should be part of the ration.`,
+      );
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Unable to add TMR ingredient.',
+      );
+    } finally {
+      setAddingIngredient(false);
+    }
+  };
+
+  const endorse = async () => {
+    if (!reviewer.trim()) {
+      setError('Vet reviewer name / ID is required.');
+      return;
+    }
+
+    setEndorsing(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/farm/tmr/endorse`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reviewer: reviewer.trim(),
+            notes: reviewNotes.trim() || null,
+          }),
+        },
+      );
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.detail
+          || 'Unable to endorse weekly TMR review.',
+        );
+      }
+
+      setSummary(body.summary);
+      setReviewNotes('');
+      setMessage(
+        'Weekly whole-herd TMR review endorsed and retained in audit history.',
+      );
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Unable to endorse TMR review.',
+      );
+    } finally {
+      setEndorsing(false);
+    }
+  };
+
+  const selectCategory = (
+    category: CategorySummary,
+  ) => {
+    setSelectedCategory(category.category);
+    setSelectedStage(
+      category.stage_keys[0] || '',
+    );
+    setMessage('');
+    setError('');
+  };
+
+  const weekly = summary?.weekly_review;
+  const alreadyEndorsed =
+    weekly?.status === 'ENDORSED';
+
+  return (
+    <div
+      style={{
+        background: '#0f172a',
+        border: '1px solid #1f2937',
+        borderRadius: 10,
+        overflow: 'hidden',
+        color: '#fff',
+      }}
+    >
+      <div
+        style={{
+          padding: 14,
+          borderBottom: '1px solid #1f2937',
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <h3
+            style={{
+              margin: 0,
+              color: '#38bdf8',
+              fontSize: 15,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+            }}
+          >
+            <Wheat size={18} />
+            TMR Preparation Tool
+          </h3>
+
+          <div
+            style={{
+              marginTop: 4,
+              color: '#94a3b8',
+              fontSize: 10,
+            }}
+          >
+            Governed whole-herd ration authority.
+            Finance supplies ingredient purchase prices;
+            TMR supplies consumed feed cost for COP.
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 7,
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => void load()}
+            style={smallButton('#334155')}
+          >
+            <RefreshCw size={12} />
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={smallButton('#475569')}
+          >
+            <Printer size={12} />
+            Print
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setShowAddIngredient(value => !value)
+            }
+            style={smallButton('#2563eb')}
+          >
+            <Plus size={12} />
+            Add Ingredient
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            margin: 12,
+            padding: 9,
+            borderRadius: 6,
+            border: '1px solid #7f1d1d',
+            background: 'rgba(127,29,29,.18)',
+            color: '#fecaca',
+            fontSize: 10,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {message && (
+        <div
+          style={{
+            margin: 12,
+            padding: 9,
+            borderRadius: 6,
+            border: '1px solid #166534',
+            background: 'rgba(22,101,52,.16)',
+            color: '#bbf7d0',
+            fontSize: 10,
+          }}
+        >
+          {message}
+        </div>
+      )}
+
+      {loading || !summary ? (
+        <div
+          style={{
+            padding: 20,
+            color: '#94a3b8',
+            fontSize: 10,
+          }}
+        >
+          {loading
+            ? 'Loading governed TMR…'
+            : 'TMR data unavailable.'}
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              padding: 12,
+              display: 'grid',
+              gridTemplateColumns:
+                'repeat(3,minmax(0,1fr))',
+              gap: 8,
+              borderBottom: '1px solid #1f2937',
+            }}
+          >
+            <Metric
+              label="Whole Herd Feed Cost / Day"
+              value={money(
+                summary.total_herd_feed_cost_per_day,
+              )}
+            />
+
+            <Metric
+              label="Milk Production Today"
+              value={`${Number(
+                summary.milk_production_today_liters || 0,
+              ).toLocaleString('en-PK', {
+                maximumFractionDigits: 2,
+              })} L`}
+            />
+
+            <Metric
+              label="Live Feed Cost / L"
+              value={
+                summary.feed_cost_per_litre_today == null
+                  ? 'N/A'
+                  : money(
+                      summary.feed_cost_per_litre_today,
+                    )
+              }
+            />
+          </div>
+
+          <div
+            style={{
+              padding: '12px 12px 4px',
+              color: '#94a3b8',
+              fontSize: 9,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+            }}
+          >
+            DairyOS Herd Categories — Cost / Head / Day
+          </div>
+
+          <div
+            style={{
+              padding: '4px 12px 12px',
+              display: 'grid',
+              gridTemplateColumns:
+                'repeat(6,minmax(120px,1fr))',
+              gap: 7,
+              overflowX: 'auto',
+            }}
+          >
+            {categories.map(category => {
+              const active =
+                category.category ===
+                activeCategory?.category;
+
+              return (
+                <button
+                  key={category.category}
+                  type="button"
+                  onClick={() =>
+                    selectCategory(category)
+                  }
+                  style={{
+                    ...card,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    outline: active
+                      ? '1px solid #38bdf8'
+                      : 'none',
+                    background: active
+                      ? 'rgba(14,165,233,.09)'
+                      : '#111827',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 900,
+                      color: active
+                        ? '#38bdf8'
+                        : '#e2e8f0',
+                    }}
+                  >
+                    {category.category}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 15,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {money(
+                      category.cost_per_head_day,
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 3,
+                      color: '#64748b',
+                      fontSize: 8,
+                    }}
+                  >
+                    / head / day
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 7,
+                      color: '#94a3b8',
+                      fontSize: 8,
+                    }}
+                  >
+                    {category.animal_count} animal(s)
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 2,
+                      color: '#34d399',
+                      fontSize: 9,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {money(
+                      category.category_cost_per_day,
+                    )}{' '}
+                    / day
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeCategory && (
+            <div
+              style={{
+                margin: '0 12px 12px',
+                padding: 10,
+                borderRadius: 7,
+                background: '#111827',
+                border: '1px solid #1f2937',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {activeCategory.category}
+                  </div>
+
+                  <div
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: 9,
+                      marginTop: 3,
+                    }}
+                  >
+                    {categoryBasis(
+                      activeCategory.category,
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    textAlign: 'right',
+                  }}
+                >
+                  <div
+                    style={{
+                      color: '#64748b',
+                      fontSize: 8,
+                      textTransform: 'uppercase',
+                      fontWeight: 800,
+                    }}
+                  >
+                    Governed category cost
+                  </div>
+
+                  <div
+                    style={{
+                      color: '#38bdf8',
+                      fontSize: 16,
+                      fontWeight: 900,
+                      marginTop: 2,
+                    }}
+                  >
+                    {money(
+                      activeCategory.cost_per_head_day,
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  flexWrap: 'wrap',
+                  marginTop: 10,
+                }}
+              >
+                {activeCategory.stage_keys.map(key => {
+                  const stage = summary.stages[key];
+                  if (!stage) {
+                    return null;
+                  }
+
+                  const active = key === selectedStage;
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setSelectedStage(key)
+                      }
+                      style={{
+                        ...smallButton(
+                          active
+                            ? '#0369a1'
+                            : '#1e293b',
+                        ),
+                        border: '1px solid #334155',
+                      }}
+                    >
+                      {stage.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {showAddIngredient && (
+            <div
+              style={{
+                margin: '0 12px 12px',
+                ...card,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  marginBottom: 8,
+                }}
+              >
+                Add Governed Feed Ingredient
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1.2fr 1.2fr 100px 140px auto',
+                  gap: 7,
+                  alignItems: 'end',
+                }}
+              >
+                <label style={label}>
+                  Catalog / Finance Name
+                  <input
+                    value={newIngredient.name}
+                    onChange={event =>
+                      setNewIngredient(current => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    style={input}
+                  />
+                </label>
+
+                <label style={label}>
+                  Display Name
+                  <input
+                    value={
+                      newIngredient.display_name
+                    }
+                    onChange={event =>
+                      setNewIngredient(current => ({
+                        ...current,
+                        display_name:
+                          event.target.value,
+                      }))
+                    }
+                    style={input}
+                  />
+                </label>
+
+                <label style={label}>
+                  Dose Unit
+                  <select
+                    value={newIngredient.dose_unit}
+                    onChange={event =>
+                      setNewIngredient(current => ({
+                        ...current,
+                        dose_unit:
+                          event.target.value === 'g'
+                            ? 'g'
+                            : 'kg',
+                      }))
+                    }
+                    style={input}
+                  >
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                  </select>
+                </label>
+
+                <label style={label}>
+                  Fallback PKR / kg
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={
+                      newIngredient
+                        .fallback_price_per_kg
+                    }
+                    onChange={event =>
+                      setNewIngredient(current => ({
+                        ...current,
+                        fallback_price_per_kg:
+                          Math.max(
+                            0,
+                            Number(
+                              event.target.value,
+                            ) || 0,
+                          ),
+                      }))
+                    }
+                    style={input}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  disabled={addingIngredient}
+                  onClick={() =>
+                    void addIngredient()
+                  }
+                  style={{
+                    ...smallButton('#2563eb'),
+                    opacity:
+                      addingIngredient ? 0.5 : 1,
+                  }}
+                >
+                  <Plus size={12} />
+                  {addingIngredient
+                    ? 'Adding…'
+                    : 'Add'}
+                </button>
+              </div>
+
+              <div
+                style={{
+                  color: '#64748b',
+                  fontSize: 9,
+                  marginTop: 7,
+                }}
+              >
+                The ingredient is registered in the
+                shared Feed catalog and becomes
+                available in Finance → Feed Expenses.
+                Save the selected TMR stage after
+                assigning its ration quantity.
+              </div>
+            </div>
+          )}
+
+          {activeStage && (
+            <>
+              <div
+                style={{
+                  padding: '0 12px 8px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  alignItems: 'end',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 900,
+                      color: '#e2e8f0',
+                    }}
+                  >
+                    {activeStage.label}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 3,
+                      color: '#64748b',
+                      fontSize: 9,
+                    }}
+                  >
+                    Governed version currently:
+                    {' '}
+                    {money(
+                      activeStage.cost_per_head_day,
+                    )}
+                    {' / head / day'}
+                  </div>
+                </div>
+
+                <label
+                  style={{
+                    ...label,
+                    width: 180,
+                  }}
+                >
+                  Updated By
+                  <input
+                    value={operator}
+                    onChange={event =>
+                      setOperator(
+                        event.target.value,
+                      )
+                    }
+                    style={input}
+                  />
+                </label>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table
+                  style={{
+                    width: '100%',
+                    minWidth: 900,
+                    borderCollapse: 'collapse',
+                    fontSize: 10,
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        background: '#111827',
+                      }}
+                    >
+                      <th style={th}>Ingredient</th>
+                      <th style={th}>
+                        Qty / Head / Day
+                      </th>
+                      <th style={th}>
+                        Price / kg
+                      </th>
+                      <th style={th}>
+                        Price Authority
+                      </th>
+                      <th
+                        style={{
+                          ...th,
+                          textAlign: 'right',
+                        }}
+                      >
+                        Cost / Head / Day
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {draft.map((row, index) => {
+                      const quantityKg =
+                        row.dose_unit === 'g'
+                          ? Number(
+                              row.quantity || 0,
+                            ) / 1000
+                          : Number(
+                              row.quantity || 0,
+                            );
+
+                      const rate =
+                        row.price_source
+                          === 'FINANCE'
+                          ? Number(
+                              row.price_per_kg || 0,
+                            )
+                          : Number(
+                              row
+                                .fallback_price_per_kg
+                              || 0,
+                            );
+
+                      const cost =
+                        quantityKg * rate;
+
+                      return (
+                        <tr
+                          key={row.catalog_name}
+                        >
+                          <td
+                            style={{
+                              ...td,
+                              fontWeight: 800,
+                            }}
+                          >
+                            {row.display_name
+                              || row.catalog_name}
+
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: 8,
+                                marginTop: 2,
+                              }}
+                            >
+                              {row.catalog_name}
+                            </div>
+                          </td>
+
+                          <td style={td}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 5,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <input
+                                type="number"
+                                min={0}
+                                step={
+                                  row.dose_unit === 'g'
+                                    ? 5
+                                    : 0.25
+                                }
+                                value={
+                                  row.quantity || ''
+                                }
+                                onChange={event =>
+                                  updateQuantity(
+                                    index,
+                                    Number(
+                                      event
+                                        .target
+                                        .value,
+                                    ),
+                                  )
+                                }
+                                style={{
+                                  ...input,
+                                  width: 88,
+                                }}
+                              />
+
+                              <span
+                                style={{
+                                  color: '#94a3b8',
+                                }}
+                              >
+                                {row.dose_unit}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td style={td}>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={rate}
+                              disabled={
+                                row.price_source
+                                === 'FINANCE'
+                              }
+                              onChange={event =>
+                                updateFallbackPrice(
+                                  index,
+                                  Number(
+                                    event
+                                      .target
+                                      .value,
+                                  ),
+                                )
+                              }
+                              style={{
+                                ...input,
+                                width: 100,
+                                opacity:
+                                  row.price_source
+                                  === 'FINANCE'
+                                    ? 0.65
+                                    : 1,
+                              }}
+                            />
+                          </td>
+
+                          <td style={td}>
+                            {row.price_source
+                            === 'FINANCE' ? (
+                              <div>
+                                <span
+                                  style={{
+                                    color: '#34d399',
+                                    fontWeight: 900,
+                                  }}
+                                >
+                                  Finance
+                                </span>
+
+                                <div
+                                  style={{
+                                    color: '#64748b',
+                                    fontSize: 8,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  Tx #
+                                  {row.finance_transaction_id
+                                    ?? '—'}
+                                  {row.finance_purchase_date
+                                    ? ` · ${row.finance_purchase_date}`
+                                    : ''}
+                                </div>
+                              </div>
+                            ) : (
+                              <span
+                                style={{
+                                  color: '#fbbf24',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                Manual fallback
+                              </span>
+                            )}
+                          </td>
+
+                          <td
+                            style={{
+                              ...td,
+                              textAlign: 'right',
+                              fontWeight: 900,
+                              color: '#cbd5e1',
+                            }}
+                          >
+                            {money(cost)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    'repeat(3,minmax(0,1fr))',
+                  gap: 8,
+                  padding: 12,
+                  borderTop:
+                    '1px solid #1f2937',
+                }}
+              >
+                <Metric
+                  label="Draft Ration / Head / Day"
+                  value={`${previewRationKg.toLocaleString(
+                    'en-PK',
+                    {
+                      maximumFractionDigits: 3,
+                    },
+                  )} kg`}
+                />
+
+                <Metric
+                  label="Draft Cost / Head / Day"
+                  value={money(previewStageCost)}
+                />
+
+                <div
+                  style={{
+                    ...card,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent:
+                      'space-between',
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: '#64748b',
+                        fontSize: 8,
+                        textTransform:
+                          'uppercase',
+                        fontWeight: 900,
+                      }}
+                    >
+                      Version Control
+                    </div>
+
+                    <div
+                      style={{
+                        color: '#94a3b8',
+                        fontSize: 9,
+                        marginTop: 3,
+                      }}
+                    >
+                      Saving creates a new
+                      governed TMR version.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={savingStage}
+                    onClick={() =>
+                      void saveStage()
+                    }
+                    style={{
+                      ...smallButton('#059669'),
+                      opacity:
+                        savingStage ? 0.5 : 1,
+                    }}
+                  >
+                    <Save size={12} />
+                    {savingStage
+                      ? 'Saving…'
+                      : 'Save TMR'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div
+            style={{
+              margin: '0 12px 12px',
+              ...card,
+              border:
+                alreadyEndorsed
+                  ? '1px solid #166534'
+                  : '1px solid #92400e',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 10,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontWeight: 900,
+                    fontSize: 11,
+                    color:
+                      alreadyEndorsed
+                        ? '#86efac'
+                        : '#fbbf24',
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  Weekly Vet TMR Review
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: '#cbd5e1',
+                    fontSize: 10,
+                  }}
+                >
+                  {weekly?.advisory
+                    || 'Weekly TMR review status unavailable.'}
+                </div>
+
+                {weekly && (
+                  <div
+                    style={{
+                      marginTop: 3,
+                      color: '#64748b',
+                      fontSize: 9,
+                    }}
+                  >
+                    Week {weekly.week_start}
+                    {' → '}
+                    {weekly.week_end}
+                  </div>
+                )}
+
+                {alreadyEndorsed
+                  && weekly?.endorsement && (
+                    <div
+                      style={{
+                        marginTop: 5,
+                        color: '#86efac',
+                        fontSize: 9,
+                      }}
+                    >
+                      Endorsed by
+                      {' '}
+                      {weekly.endorsement.reviewer
+                        || 'Vet'}
+                      {weekly.endorsement.reviewed_on
+                        ? ` on ${weekly.endorsement.reviewed_on}`
+                        : ''}
+                    </div>
+                  )}
+              </div>
+
+              <div
+                style={{
+                  minWidth: 300,
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1.4fr auto',
+                  gap: 7,
+                  alignItems: 'end',
+                }}
+              >
+                <label style={label}>
+                  Vet Name / ID
+                  <input
+                    value={reviewer}
+                    disabled={alreadyEndorsed}
+                    onChange={event =>
+                      setReviewer(
+                        event.target.value,
+                      )
+                    }
+                    style={input}
+                  />
+                </label>
+
+                <label style={label}>
+                  Review Notes
+                  <input
+                    value={reviewNotes}
+                    disabled={alreadyEndorsed}
+                    onChange={event =>
+                      setReviewNotes(
+                        event.target.value,
+                      )
+                    }
+                    style={input}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  disabled={
+                    alreadyEndorsed
+                    || endorsing
+                    || !reviewer.trim()
+                  }
+                  onClick={() => void endorse()}
+                  style={{
+                    ...smallButton('#059669'),
+                    opacity:
+                      alreadyEndorsed
+                      || endorsing
+                      || !reviewer.trim()
+                        ? 0.5
+                        : 1,
+                  }}
+                >
+                  <CheckCircle2 size={12} />
+                  {alreadyEndorsed
+                    ? 'Endorsed'
+                    : endorsing
+                      ? 'Endorsing…'
+                      : 'Vet Endorse TMR Review'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '0 12px 12px',
+              color: '#64748b',
+              fontSize: 9,
+            }}
+          >
+            {summary.feed_cost_basis}
+            {' · '}
+            Operational date:
+            {' '}
+            {summary.operational_date}
+            {' · '}
+            TMR whole-herd feed cost is the governed
+            Feed Cost / L input to Auto COP.
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
-function button(background:string):React.CSSProperties{return{background,color:'#fff',border:'none',borderRadius:5,padding:'7px 10px',fontSize:10,fontWeight:800,cursor:'pointer',display:'inline-flex',gap:5,alignItems:'center'}};
-const inputStyle:React.CSSProperties={background:'#1e293b',color:'#fff',border:'1px solid #334155',padding:'7px 8px',borderRadius:5,fontSize:10,boxSizing:'border-box',width:'100%'};
-const labelStyle:React.CSSProperties={fontSize:9,color:'#94a3b8',textTransform:'uppercase',fontWeight:800,display:'block'};
-const th:React.CSSProperties={padding:8,fontWeight:800};
-const td:React.CSSProperties={padding:8};
-function Summary({label,value}:{label:string;value:string}){return <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:7,padding:10}}><div style={{color:'#94a3b8',fontSize:9,textTransform:'uppercase',fontWeight:800}}>{label}</div><div style={{color:'#38bdf8',fontSize:16,fontWeight:900,marginTop:4}}>{value}</div></div>}
+
+function Metric({
+  label: metricLabel,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div style={card}>
+      <div
+        style={{
+          color: '#64748b',
+          fontSize: 8,
+          textTransform: 'uppercase',
+          fontWeight: 900,
+        }}
+      >
+        {metricLabel}
+      </div>
+
+      <div
+        style={{
+          color: '#38bdf8',
+          fontSize: 16,
+          fontWeight: 900,
+          marginTop: 4,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}

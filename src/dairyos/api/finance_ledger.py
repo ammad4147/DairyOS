@@ -16,8 +16,14 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.reference_data import GOVERNED
+from dairyos.api.tmr import (
+    is_tmr_catalog_row,
+    tmr_default_catalog_names,
+)
+from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import (
     MASTER_CATEGORIES,
@@ -132,6 +138,28 @@ def _row_dict(row: FinancialTransaction) -> dict:
     }
 
 
+
+def _is_governed_tmr_feed_item(item_name: str | None) -> bool:
+    name = str(item_name or "").strip()
+    if not name:
+        return False
+    if name in tmr_default_catalog_names():
+        return True
+
+    probe = RepositoryFactory.create()
+    try:
+        row = probe.feed_inventory_items().get_by_item(name)
+        return bool(
+            row is not None
+            and bool(getattr(row, "active", True))
+            and is_tmr_catalog_row(row)
+        )
+    finally:
+        probe.close()
+
+EQUIPMENT_PURCHASE_ITEM = "Equipment Purchase"
+
+
 def _validate_expense_payload(
     entry: FinanceLedgerEntry | FinanceLedgerEdit,
     transaction_type: str,
@@ -150,27 +178,65 @@ def _validate_expense_payload(
             detail="master_category must be FEED or OPEX.",
         )
 
-    if not entry.sub_category or not valid_item(
-        entry.master_category,
-        entry.sub_category,
-    ):
+    if not entry.sub_category:
         raise HTTPException(
             status_code=422,
-            detail="sub_category is not valid for the selected master_category.",
+            detail=(
+                "sub_category is not valid for "
+                "the selected master_category."
+            ),
+        )
+
+    if entry.master_category == "FEED":
+        valid_sub_category = (
+            entry.sub_category == "Other"
+            or _is_governed_tmr_feed_item(entry.sub_category)
+        )
+    else:
+        valid_sub_category = (
+            valid_item(
+                entry.master_category,
+                entry.sub_category,
+            )
+            or (
+                entry.master_category == "OPEX"
+                and entry.sub_category
+                == EQUIPMENT_PURCHASE_ITEM
+            )
+        )
+
+    if not valid_sub_category:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "sub_category is not valid for "
+                "the selected master_category."
+            ),
         )
 
     custom = (entry.custom_specification or "").strip()
 
-    if entry.sub_category == "Other" and not custom:
+    custom_name_required = entry.sub_category in {
+        "Other",
+        EQUIPMENT_PURCHASE_ITEM,
+    }
+
+    if custom_name_required and not custom:
         raise HTTPException(
             status_code=422,
-            detail="custom_specification is required when Item is Other.",
+            detail=(
+                "custom_specification is required for "
+                "Other and Equipment Purchase."
+            ),
         )
 
-    if entry.sub_category != "Other" and custom:
+    if not custom_name_required and custom:
         raise HTTPException(
             status_code=422,
-            detail="custom_specification is only allowed for Other.",
+            detail=(
+                "custom_specification is only allowed for "
+                "Other or Equipment Purchase."
+            ),
         )
 
     if entry.quantity is not None and not entry.unit:
@@ -200,6 +266,12 @@ def _validate_expense_payload(
             status_code=422,
             detail="Expense amount must be greater than zero.",
         )
+
+    if (
+        entry.master_category == "OPEX"
+        and entry.sub_category == EQUIPMENT_PURCHASE_ITEM
+    ):
+        return amount, "EQUIPMENT"
 
     return amount, legacy_category(
         entry.master_category,
@@ -379,6 +451,117 @@ def _factory(container):
 
     return factory
 
+
+
+def _finance_feed_item_name(
+    master_category: str | None,
+    sub_category: str | None,
+    custom_specification: str | None,
+) -> str | None:
+    if str(master_category or "").strip().upper() != "FEED":
+        return None
+
+    sub = str(sub_category or "").strip()
+
+    if not sub:
+        return None
+
+    if sub == "Other":
+        custom = str(custom_specification or "").strip()
+        return custom or None
+
+    return sub
+
+
+def _ensure_feed_catalog_authority(
+    *,
+    factory,
+    transaction: FinancialTransaction,
+) -> FeedInventoryItem | None:
+    """
+    Ensure a Finance FEED expense has a matching Feed catalog authority.
+
+    Finance remains the sole purchase-quantity authority. This function
+    creates/reactivates only the catalog identity; it deliberately does
+    not create an InventoryTransaction PURCHASE/RECEIPT movement.
+    """
+
+    transaction_type = classifier.normalize_transaction_type(
+        transaction.transaction_type
+    )
+
+    if transaction_type not in classifier.EXPENSE_TYPES:
+        return None
+
+    item_name = _finance_feed_item_name(
+        transaction.master_category,
+        transaction.sub_category,
+        transaction.custom_specification,
+    )
+
+    if not item_name:
+        return None
+
+    quantity = float(transaction.quantity or 0)
+
+    if quantity <= 0:
+        return None
+
+    unit = str(transaction.unit or "").strip()
+
+    if not unit:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Finance Feed purchases require a unit before "
+                "Feed catalog synchronization."
+            ),
+        )
+
+    repository = factory.feed_inventory_items()
+    existing = repository.get_by_item(item_name)
+
+    if existing is not None:
+        existing_unit = str(existing.unit or "").strip()
+
+        if existing_unit and existing_unit != unit:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Feed catalog unit mismatch for '{item_name}': "
+                    f"catalog uses {existing_unit}, Finance uses {unit}."
+                ),
+            )
+
+        changed = False
+
+        if not existing_unit:
+            existing.unit = unit
+            changed = True
+
+        if not existing.active:
+            existing.active = True
+            changed = True
+
+        if changed:
+            factory.session.add(existing)
+            factory.session.flush()
+
+        return existing
+
+    row = FeedInventoryItem(
+        item=item_name,
+        category="FEED",
+        unit=unit,
+        reorder_level=0,
+        active=True,
+        notes="Established automatically from Finance Feed authority.",
+    )
+
+    factory.session.add(row)
+    factory.session.flush()
+
+    return row
 
 def _linked_milk_sale(
     factory,
@@ -723,6 +906,11 @@ def create_finance_ledger_entry(
     session.flush()
 
     try:
+        _ensure_feed_catalog_authority(
+            factory=factory,
+            transaction=transaction,
+        )
+
         _sync_milk_sale(
             factory=factory,
             transaction=transaction,
@@ -742,12 +930,72 @@ def create_finance_ledger_entry(
 
 @router.get("/taxonomy")
 def finance_taxonomy():
+    # TMR is the master ingredient-name authority.
+    # Lazy import avoids the Finance/TMR bootstrap cycle.
+    from dairyos.api.tmr import (
+        governed_tmr_catalog_names,
+    )
+
+    probe = RepositoryFactory.create()
+
+    try:
+        feed_items = governed_tmr_catalog_names(
+            probe
+        )
+    finally:
+        probe.close()
+
+    # Other is an explicit transaction mechanism, not a second
+    # named feed catalog. All named FEED options come from TMR.
+    if "Other" in feed_items:
+        feed_items = [
+            item
+            for item in feed_items
+            if item != "Other"
+        ]
+
+    feed_items.append("Other")
+
+    taxonomies = dict(
+        GOVERNED["finance_expense_taxonomy"]
+    )
+
+    # Preserve the grouped taxonomy response contract consumed
+    # by FinanceTab. TMR remains the content authority.
+    taxonomies["FEED"] = {
+        "TMR_INGREDIENTS": list(feed_items),
+    }
+
+    # Preserve existing grouped OPEX taxonomy without mutating
+    # the governed reference-data object.
+    opex_groups = dict(
+        taxonomies.get("OPEX") or {}
+    )
+
+    # Equipment Purchase remains an explicit Finance OPEX action.
+    opex_groups["EQUIPMENT"] = [
+        EQUIPMENT_PURCHASE_ITEM
+    ]
+
+    taxonomies["OPEX"] = opex_groups
+
+    opex_items = [
+        *all_items("OPEX")
+    ]
+
+    if EQUIPMENT_PURCHASE_ITEM not in opex_items:
+        opex_items.append(
+            EQUIPMENT_PURCHASE_ITEM
+        )
+
     return {
-        "master_categories": sorted(MASTER_CATEGORIES),
-        "taxonomies": GOVERNED["finance_expense_taxonomy"],
+        "master_categories": sorted(
+            MASTER_CATEGORIES
+        ),
+        "taxonomies": taxonomies,
         "items": {
-            master: all_items(master)
-            for master in sorted(MASTER_CATEGORIES)
+            "FEED": feed_items,
+            "OPEX": opex_items,
         },
     }
 
@@ -1026,6 +1274,15 @@ def edit_finance_ledger_entry(
         factory=factory,
         transaction=row,
     )
+
+    try:
+        _ensure_feed_catalog_authority(
+            factory=factory,
+            transaction=row,
+        )
+    except Exception:
+        factory.session.rollback()
+        raise
 
     factory.session.commit()
 

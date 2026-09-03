@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.tmr import (
+    milk_litres_for_period,
+    tmr_feed_cost_for_period,
+)
 from dairyos.core.time_utils import utcnow
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.finance.classification.transaction_classifier import is_expense
@@ -194,127 +198,409 @@ def get_integrated_coml(
     period_end: date | None = None,
     container=Depends(get_container),
 ):
-    """Auto COML for one selected period using persisted milk and finance data."""
+    """
+    Auto COP from governed operational actuals.
 
+    TMR is Feed cost authority.
+    Finance is OPEX authority.
+    Milk Production is denominator authority.
+
+    Future dates are never populated from today's live TMR or from
+    future-dated Finance/Milk records. OperationalDateAuthority defines
+    the final date that can contribute to Auto COP.
+    """
     factory = container.repository_factory
-    today = OperationalDateAuthority().current_date()
-    start = period_start or _current_month_start()
-    end = period_end or today
-    if end < start:
-        raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
 
-    month_row = factory.coml().get_by_month(start.replace(day=1))
+    today = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_date()
 
-    total_liters = 0.0
-    feed_total = 0.0
+    start = (
+        period_start
+        or today.replace(day=1)
+    )
+
+    requested_end = (
+        period_end
+        or today
+    )
+
+    if requested_end < start:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "period_end must be on or after "
+                "period_start"
+            ),
+        )
+
+    # Requested period remains visible to the caller, but operational
+    # actuals cannot extend beyond the governed operational date.
+    effective_end = (
+        min(
+            requested_end,
+            today,
+        )
+        if start <= today
+        else None
+    )
+
+    month_row = factory.coml().get_by_month(
+        start.replace(day=1)
+    )
+
+    # --------------------------------------------------------
+    # Milk denominator
+    # --------------------------------------------------------
+
+    liters = (
+        milk_litres_for_period(
+            factory,
+            start,
+            effective_end,
+        )
+        if effective_end is not None
+        else 0.0
+    )
+
+    # --------------------------------------------------------
+    # Feed cost
+    #
+    # tmr_feed_cost_for_period independently enforces the same
+    # operational-date boundary and returns zero for future-only
+    # periods.
+    # --------------------------------------------------------
+
+    feed_basis = tmr_feed_cost_for_period(
+        factory,
+        start,
+        requested_end,
+    )
+
+    feed_total = float(
+        feed_basis["total_feed_cost"]
+    )
+
+    # --------------------------------------------------------
+    # Finance operating OPEX
+    # --------------------------------------------------------
+
     opex_total = 0.0
-    milk_source = "none"
-    ledger_source = "none"
+    opex_source = "finance_opex_ledger_empty"
 
     def _as_date(value):
         if value is None:
             return None
-        if hasattr(value, "date") and callable(value.date):
+
+        if (
+            hasattr(value, "date")
+            and callable(value.date)
+        ):
             try:
                 return value.date()
             except Exception:
                 pass
-        if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day"):
+
+        if (
+            hasattr(value, "year")
+            and hasattr(value, "month")
+            and hasattr(value, "day")
+        ):
             return value
+
         try:
             from datetime import datetime
-            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+
+            return datetime.fromisoformat(
+                str(value).replace(
+                    "Z",
+                    "+00:00",
+                )
+            ).date()
         except Exception:
             return None
 
-    def _in_range(value) -> bool:
-        d = _as_date(value)
-        return d is not None and start <= d <= end
+    OPEX_HINTS = (
+        "opex",
+        "vet",
+        "wage",
+        "salary",
+        "electric",
+        "fuel",
+        "maintenance",
+        "hygiene",
+        "transport",
+        "rent",
+        "banking",
+    )
 
-    # Milk ledger: DairyOS authoritative fields are production_date and
-    # total_yield (or the three session yield columns). The former code read
-    # generic field names only, which made real DairyOS production appear as 0.
     try:
-        records = factory.milk().get_all() or []
-        for item in records:
-            status = str(getattr(item, "status", "RECORDED") or "RECORDED").upper()
-            if status in {"VOID", "NOT_MILKED"}:
-                continue
-            raw_date = getattr(item, "production_date", None) or getattr(item, "recorded_at", None)
-            if not _in_range(raw_date):
-                continue
-            total_yield = getattr(item, "total_yield", None)
-            if total_yield is None:
-                total_yield = sum(
-                    float(value)
-                    for value in (
-                        getattr(item, "morning_yield", None),
-                        getattr(item, "afternoon_yield", None),
-                        getattr(item, "evening_yield", None),
-                    )
-                    if value is not None
+        for item in factory.finance().get_all() or []:
+            raw_date = (
+                getattr(
+                    item,
+                    "transaction_date",
+                    None,
                 )
-            total_liters += float(total_yield or 0.0)
-        milk_source = "milk_production_ledger" if total_liters > 0 else "milk_production_ledger_empty"
-    except Exception:
-        milk_source = "milk_lookup_failed"
+                or getattr(
+                    item,
+                    "created_at",
+                    None,
+                )
+            )
 
-    FEED_HINTS = ("feed", "fodder", "silage", "ration", "concentrate", "vanda", "forage")
-    OPEX_HINTS = ("opex", "vet", "wage", "salary", "electric", "fuel", "maintenance", "hygiene", "transport", "rent", "banking")
+            transaction_date = _as_date(
+                raw_date
+            )
 
-    try:
-        txns = factory.finance().get_all() or []
-        for item in txns:
-            raw_date = getattr(item, "transaction_date", None) or getattr(item, "created_at", None)
-            if not _in_range(raw_date) or not is_expense(item):
+            status = str(
+                getattr(
+                    item,
+                    "status",
+                    "RECORDED",
+                )
+                or "RECORDED"
+            ).strip().upper()
+
+            if (
+                transaction_date is None
+                or effective_end is None
+                or not (
+                    start
+                    <= transaction_date
+                    <= effective_end
+                )
+                or not is_expense(item)
+                or status == "VOID"
+            ):
                 continue
-            master = str(getattr(item, "master_category", None) or getattr(item, "category", None) or "").upper()
+
+            master = str(
+                getattr(
+                    item,
+                    "master_category",
+                    None,
+                )
+                or getattr(
+                    item,
+                    "category",
+                    None,
+                )
+                or ""
+            ).upper()
+
             sub = str(
-                getattr(item, "sub_category", None)
-                or getattr(item, "subcategory", None)
-                or getattr(item, "category", None)
-                or getattr(item, "notes", None)
+                getattr(
+                    item,
+                    "sub_category",
+                    None,
+                )
+                or getattr(
+                    item,
+                    "subcategory",
+                    None,
+                )
+                or getattr(
+                    item,
+                    "category",
+                    None,
+                )
+                or getattr(
+                    item,
+                    "notes",
+                    None,
+                )
                 or ""
             ).lower()
-            amount = float(getattr(item, "amount", 0.0) or 0.0)
+
+            amount = float(
+                getattr(
+                    item,
+                    "amount",
+                    0.0,
+                )
+                or 0.0
+            )
+
             if amount <= 0:
                 continue
-            if master == "FEED" or any(h in sub for h in FEED_HINTS):
-                feed_total += amount
-            elif master == "OPEX" or any(h in sub for h in OPEX_HINTS):
-                opex_total += amount
-        ledger_source = "finance_ledger" if (feed_total + opex_total) > 0 else "finance_ledger_empty"
+
+            # Finance Feed purchases establish quantity and rate.
+            # They are not consumed-feed COP expense.
+            if not (
+                master == "OPEX"
+                or any(
+                    hint in sub
+                    for hint in OPEX_HINTS
+                )
+            ):
+                continue
+
+            # Feed-related capital/equipment purchases are visible in
+            # Finance and Feed Equipment but are not operating COP.
+            if (
+                str(
+                    getattr(
+                        item,
+                        "sub_category",
+                        "",
+                    )
+                    or ""
+                ).strip()
+                == "Equipment Purchase"
+            ):
+                continue
+
+            opex_total += amount
+
+        if opex_total > 0:
+            opex_source = (
+                "finance_opex_ledger"
+            )
+
     except Exception:
-        ledger_source = "ledger_lookup_failed"
+        # Preserve endpoint availability but make an authority failure
+        # explicit in provenance rather than mislabelling it as data.
+        opex_total = 0.0
+        opex_source = (
+            "finance_opex_lookup_failed"
+        )
 
-    liters = total_liters if total_liters > 0 else 0.0
-    feed_per_l = (feed_total / liters) if liters > 0 else None
-    opex_per_l = (opex_total / liters) if liters > 0 else None
-    total_per_l = ((feed_total + opex_total) / liters) if liters > 0 else None
+    # --------------------------------------------------------
+    # Auto COP
+    # --------------------------------------------------------
 
-    official = _serialize(month_row) if month_row is not None else None
+    feed_per_l = (
+        feed_total / liters
+        if liters > 0
+        else None
+    )
+
+    opex_per_l = (
+        opex_total / liters
+        if liters > 0
+        else None
+    )
+
+    total_per_l = (
+        (feed_total + opex_total)
+        / liters
+        if liters > 0
+        else None
+    )
+
+    official = (
+        _serialize(month_row)
+        if month_row is not None
+        else None
+    )
 
     return {
         "data_status": "AUTO_AGGREGATED",
-        "period": {"start": start.isoformat(), "end": end.isoformat()},
-        "period_label": f"{start.isoformat()} → {end.isoformat()}",
+        "period": {
+            "start": start.isoformat(),
+            "end": requested_end.isoformat(),
+        },
+        "effective_period": (
+            {
+                "start": start.isoformat(),
+                "end": effective_end.isoformat(),
+            }
+            if effective_end is not None
+            else None
+        ),
+        "operational_date": (
+            today.isoformat()
+        ),
+        "clamped_to_operational_date": (
+            requested_end > today
+        ),
+        "period_label": (
+            f"{start.isoformat()} "
+            f"→ {requested_end.isoformat()}"
+        ),
         "production": {
-            "totalLiters": round(liters, 2),
+            "totalLiters": round(
+                liters,
+                2,
+            ),
             "unit": "liters",
-            "basis": "selected_period",
-            "source": milk_source,
+            "basis": "effective_operational_period",
+            "source": (
+                "milk_production_ledger"
+                if liters > 0
+                else "milk_production_ledger_empty"
+            ),
         },
         "costs": {
-            "feed_total": round(feed_total, 2),
-            "opex_total": round(opex_total, 2),
-            "feed_cost_per_liter": round(feed_per_l, 4) if feed_per_l is not None else None,
-            "opex_cost_per_liter": round(opex_per_l, 4) if opex_per_l is not None else None,
-            "total_coml_per_liter": round(total_per_l, 4) if total_per_l is not None else None,
-            "source": ledger_source,
+            "feed_total": round(
+                feed_total,
+                2,
+            ),
+            "opex_total": round(
+                opex_total,
+                2,
+            ),
+            "feed_cost_per_liter": (
+                round(
+                    feed_per_l,
+                    4,
+                )
+                if feed_per_l is not None
+                else None
+            ),
+            "opex_cost_per_liter": (
+                round(
+                    opex_per_l,
+                    4,
+                )
+                if opex_per_l is not None
+                else None
+            ),
+            "total_coml_per_liter": (
+                round(
+                    total_per_l,
+                    4,
+                )
+                if total_per_l is not None
+                else None
+            ),
+            "source": (
+                "TMR_HERD_COST+FINANCE_OPEX"
+            ),
+            "feed_source": feed_basis,
+            "opex_source": opex_source,
         },
-        "feed_cost_per_liter": round(feed_per_l, 4) if feed_per_l is not None else None,
-        "opex_cost_per_liter": round(opex_per_l, 4) if opex_per_l is not None else None,
-        "total_coml_per_liter": round(total_per_l, 4) if total_per_l is not None else None,
+        "feed_cost_per_liter": (
+            round(
+                feed_per_l,
+                4,
+            )
+            if feed_per_l is not None
+            else None
+        ),
+        "opex_cost_per_liter": (
+            round(
+                opex_per_l,
+                4,
+            )
+            if opex_per_l is not None
+            else None
+        ),
+        "total_coml_per_liter": (
+            round(
+                total_per_l,
+                4,
+            )
+            if total_per_l is not None
+            else None
+        ),
         "official": official,
-        "message": "Auto COML for selected period from persisted milk production and active expense ledger rows.",
+        "message": (
+            "Auto COP uses governed TMR whole-herd feed cost, "
+            "authoritative milk production and active Finance OPEX "
+            "through the governed operational date. Bulk Feed "
+            "purchase spend and Equipment Purchase are not treated "
+            "as operating consumption."
+        ),
     }

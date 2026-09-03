@@ -1,34 +1,1244 @@
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Utensils, Wheat, Wrench } from 'lucide-react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  RefreshCw,
+  SlidersHorizontal,
+  Warehouse,
+  Wheat,
+  Wrench,
+} from 'lucide-react';
+
 import { API_BASE_URL } from '../config/api';
 import TMRPreparationTool from './TMRPreparationTool';
 
-const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
-type FeedItem = { id:number; item:string; unit:string; purchased:number; used:number; balance:number; status?:string };
-type Equipment = { id:number; equipment_id:string; name?:string|null; category?:string|null; location?:string|null; status:string; condition:string; running_hours?:number|null; next_service_due_at?:string|null; active:boolean };
-const panel:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:12,minWidth:0};
-const input:React.CSSProperties={width:'100%',boxSizing:'border-box',background:'#1e293b',color:'#fff',border:'1px solid #334155',borderRadius:5,padding:'7px 8px',fontSize:11};
-const button=(background:string):React.CSSProperties=>({background,color:'#fff',border:0,borderRadius:5,padding:'8px 10px',fontSize:10,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5});
 
-export default function FeedTab(){
- const [feedItems,setFeedItems]=useState<FeedItem[]>([]),[equipment,setEquipment]=useState<Equipment[]>([]),[selectedItem,setSelectedItem]=useState(''),[usageType,setUsageType]=useState<'CONSUMPTION'|'WASTAGE'>('CONSUMPTION'),[usageQty,setUsageQty]=useState(''),[notes,setNotes]=useState(''),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
- const load=async()=>{setLoading(true);setError('');try{const [feedResponse,equipmentResponse]=await Promise.all([fetch(`${API_BASE}/farm/feed-inventory/authoritative`),fetch(`${API_BASE}/farm/equipment`)]);if(!feedResponse.ok)throw new Error('Authoritative feed inventory unavailable.');const body=await feedResponse.json();setFeedItems((body.items??[]).map((row:any)=>({id:Number(row.id),item:String(row.item),unit:String(row.unit||'unit'),purchased:Number(row.purchased_from_finance||0),used:Number(row.used_from_operations||0),balance:Number(row.balance||0),status:row.status})));if(equipmentResponse.ok){const payload=await equipmentResponse.json();setEquipment(Array.isArray(payload)?payload:Array.isArray(payload?.equipment)?payload.equipment:[])} }catch(e){setError(e instanceof Error?e.message:'Unable to load Feed data.')}finally{setLoading(false)}};
- useEffect(()=>{void load()},[]);
- const current=feedItems.find(item=>String(item.id)===selectedItem);
- const recordUsage=async(event:React.FormEvent)=>{event.preventDefault();setSaving(true);setError('');setMessage('');try{if(!current)throw new Error('Select a purchased feed item.');const quantity=Number(usageQty);if(!(quantity>0))throw new Error('Usage quantity must be greater than zero.');const catalog=await fetch(`${API_BASE}/farm/feed-inventory/dashboard`);if(catalog.ok){const dashboard=await catalog.json();const exists=(dashboard.items||[]).some((row:any)=>row.item===current.item);if(!exists){const create=await fetch(`${API_BASE}/farm/feed-inventory/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item:current.item,category:'FEED',unit:current.unit,reorder_level:0,active:true})});if(!create.ok)throw new Error('Could not initialize the purchased feed item for usage tracking.')}}const response=await fetch(`${API_BASE}/farm/feed-inventory/movements`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item:current.item,quantity,movement_type:usageType,unit:current.unit,notes:notes||null,recorded_by:'WEB'})});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:data.detail?.message||'Usage could not be recorded.');setMessage(`${usageType==='CONSUMPTION'?'Consumption':'Wastage'} recorded for ${current.item}.`);setUsageQty('');setNotes('');await load()}catch(e){setError(e instanceof Error?e.message:'Unable to record feed usage.')}finally{setSaving(false)}};
- const totalPurchased=feedItems.reduce((sum,item)=>sum+item.purchased,0),totalBalance=feedItems.reduce((sum,item)=>sum+item.balance,0),lowBalance=feedItems.filter(item=>item.purchased>0&&item.balance<=0);
- const overdueEquipment=equipment.filter(item=>item.active&&item.next_service_due_at&&new Date(item.next_service_due_at).getTime()<Date.now());
- return <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',boxSizing:'border-box',padding:14,color:'#fff',minWidth:0}}>
-  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12,flexWrap:'wrap'}}><div><div style={{fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:7}}><Wheat size={18} color="#38bdf8"/> Feed & Nutrition</div><div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Purchases come only from Finance Feed expenses. Usage is tracked here; balance = authoritative operational stock projection.</div></div></div>
-  {error&&<div style={{...panel,color:'#fecaca',borderColor:'#ef4444',marginBottom:10,fontSize:10}}>{error}</div>}{message&&<div style={{...panel,color:'#bbf7d0',borderColor:'#34d399',marginBottom:10,fontSize:10}}>{message}</div>}
-  <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8,marginBottom:10}}><Metric label="Purchased in Finance" value={`${totalPurchased.toLocaleString()} kg/unit`} accent="#38bdf8"/><Metric label="Current Feed Balance" value={`${totalBalance.toLocaleString()} kg/unit`} accent="#34d399"/><Metric label="Items Purchased" value={String(feedItems.length)} accent="#f59e0b"/></div>
-  <div style={{display:'grid',gridTemplateColumns:'minmax(0,1.4fr) minmax(280px,.6fr)',gap:10,alignItems:'start',minWidth:0}}>
-   <section style={panel}><div style={{fontSize:12,fontWeight:800,marginBottom:8}}>Feed Purchased in Finance</div>{loading?<div style={{fontSize:10,color:'#64748b'}}>Loading authoritative feed inventory…</div>:feedItems.length===0?<div style={{padding:20,textAlign:'center',color:'#64748b',fontSize:10}}>No Feed expenses have been entered in Finance yet.</div>:<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:10,minWidth:520}}><thead><tr style={{color:'#94a3b8',textAlign:'left',borderBottom:'1px solid #1f2937'}}><th style={{padding:7}}>Feed item</th><th style={{padding:7,textAlign:'right'}}>Purchased</th><th style={{padding:7,textAlign:'right'}}>Used</th><th style={{padding:7,textAlign:'right'}}>Balance</th><th style={{padding:7}}>Unit</th></tr></thead><tbody>{feedItems.map(item=><tr key={item.id} style={{borderBottom:'1px solid #1a2234'}}><td style={{padding:7,fontWeight:700}}>{item.item}</td><td style={{padding:7,textAlign:'right',color:'#38bdf8'}}>{item.purchased.toLocaleString()}</td><td style={{padding:7,textAlign:'right',color:'#f59e0b'}}>{item.used.toLocaleString()}</td><td style={{padding:7,textAlign:'right',color:item.balance<=0?'#f87171':'#34d399',fontWeight:800}}>{item.balance.toLocaleString()}</td><td style={{padding:7,color:'#94a3b8'}}>{item.unit}</td></tr>)}</tbody></table></div>}</section>
-   <section style={panel}><div style={{fontSize:12,fontWeight:800,marginBottom:8,display:'flex',alignItems:'center',gap:6}}><Utensils size={14} color="#34d399"/> Record Feed Usage</div><form onSubmit={recordUsage} style={{display:'grid',gap:7}}><select required value={selectedItem} onChange={e=>setSelectedItem(e.target.value)} style={input}><option value="">Select purchased item…</option>{feedItems.map(item=><option key={item.id} value={String(item.id)}>{item.item}</option>)}</select><select value={usageType} onChange={e=>setUsageType(e.target.value as 'CONSUMPTION'|'WASTAGE')} style={input}><option value="CONSUMPTION">Consumption</option><option value="WASTAGE">Wastage</option></select><input required type="number" min="0.001" step="0.001" placeholder={current?`Quantity (${current.unit})`:'Quantity'} value={usageQty} onChange={e=>setUsageQty(e.target.value)} style={input}/><input placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)} style={input}/><button disabled={saving||!current} type="submit" style={button('#059669')}>{saving?'Saving…':'Record Usage'}</button></form></section>
-  </div>
-  <section style={{...panel,marginTop:10}}><div style={{fontSize:12,fontWeight:800,marginBottom:8,display:'flex',alignItems:'center',gap:6}}><Wheat size={14} color="#a78bfa"/> Total Mixed Ration Preparation</div><div style={{fontSize:9,color:'#64748b',marginBottom:10}}>Operational TMR planning is now inside Feed. The calculator carries stage, herd size, ingredient quantities, units, unit prices, batch quantity and batch cost.</div><TMRPreparationTool/></section>
-  <section style={{...panel,marginTop:10}}><div style={{fontSize:12,fontWeight:800,marginBottom:8,display:'flex',alignItems:'center',gap:6}}><Wrench size={14} color="#f59e0b"/> Feed-Related Equipment</div>{equipment.length===0?<div style={{fontSize:10,color:'#64748b'}}>No equipment records are currently registered.</div>:<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:10}}><thead><tr style={{color:'#94a3b8',textAlign:'left',borderBottom:'1px solid #1f2937'}}><th style={{padding:7}}>Equipment</th><th style={{padding:7}}>Category</th><th style={{padding:7}}>Location</th><th style={{padding:7}}>Status</th><th style={{padding:7}}>Condition</th><th style={{padding:7,textAlign:'right'}}>Hours</th><th style={{padding:7}}>Next Service</th></tr></thead><tbody>{equipment.map(item=><tr key={item.id} style={{borderBottom:'1px solid #1a2234'}}><td style={{padding:7,fontWeight:700}}>{item.name||item.equipment_id}</td><td style={{padding:7}}>{item.category||'—'}</td><td style={{padding:7}}>{item.location||'—'}</td><td style={{padding:7,color:item.status==='OUT_OF_SERVICE'?'#f87171':item.status==='MAINTENANCE'?'#fbbf24':'#86efac',fontWeight:800}}>{item.status}</td><td style={{padding:7}}>{item.condition}</td><td style={{padding:7,textAlign:'right'}}>{Number(item.running_hours||0).toLocaleString()}</td><td style={{padding:7,color:item.next_service_due_at&&new Date(item.next_service_due_at).getTime()<Date.now()?'#f87171':'#cbd5e1'}}>{item.next_service_due_at?item.next_service_due_at.slice(0,10):'—'}</td></tr>)}</tbody></table></div>}{overdueEquipment.length>0&&<div style={{marginTop:8,color:'#fbbf24',fontSize:10}}>{overdueEquipment.length} active equipment service item(s) are overdue and remain governed by the Equipment API/findings path.</div>}</section>
-  {lowBalance.length>0&&<div style={{...panel,marginTop:10,borderColor:'#f59e0b'}}><div style={{color:'#f59e0b',fontWeight:800,fontSize:11,display:'flex',alignItems:'center',gap:5}}><AlertTriangle size={12}/> Feed balance needs attention</div><div style={{color:'#94a3b8',fontSize:10,marginTop:4}}>{lowBalance.map(item=>item.item).join(', ')} has no remaining balance from recorded purchases.</div></div>}
- </div>;
+const API_BASE =
+  API_BASE_URL || 'http' + '://127.0.0.1:8000';
+
+
+type FeedStorageItem = {
+  id: number;
+  item: string;
+  unit: string;
+  purchased_from_finance: number;
+  auto_consumed_from_tmr: number;
+  manual_override_net: number;
+  legacy_manual_usage: number;
+  projected_balance: number;
+  balance: number;
+  shortage: number;
+  latest_finance_unit_rate?: number | null;
+  latest_finance_transaction_id?: number | null;
+  latest_finance_purchase_date?: string | null;
+  status: string;
+};
+
+
+type FeedEquipment = {
+  finance_transaction_id: number;
+  equipment_name: string;
+  purchase_date?: string | null;
+  supplier?: string | null;
+  finance_reference?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unit_rate?: number | null;
+  amount: number;
+  finance_status?: string | null;
+  status: 'OPERATIONAL' | 'NON_OPERATIONAL' | 'NOT_SET';
+  status_source: 'MANUAL' | 'UNSET';
+  status_operator?: string | null;
+  status_recorded_at?: string | null;
+};
+
+
+const panel: React.CSSProperties = {
+  background: '#0f172a',
+  border: '1px solid #1f2937',
+  borderRadius: 9,
+  padding: 12,
+};
+
+
+const input: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: '#1e293b',
+  color: '#fff',
+  border: '1px solid #334155',
+  borderRadius: 5,
+  padding: '7px 8px',
+  fontSize: 10,
+};
+
+
+const button = (
+  background: string,
+): React.CSSProperties => ({
+  background,
+  color: '#fff',
+  border: 0,
+  borderRadius: 5,
+  padding: '7px 10px',
+  fontSize: 10,
+  fontWeight: 800,
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 5,
+});
+
+
+const label: React.CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 8,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  display: 'block',
+};
+
+
+const money = (value: unknown) => {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return '—';
+  }
+
+  return `PKR ${amount.toLocaleString('en-PK', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+
+const quantity = (
+  value: unknown,
+  unit = 'kg',
+) => {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return `0 ${unit}`;
+  }
+
+  return `${amount.toLocaleString('en-PK', {
+    maximumFractionDigits: 3,
+  })} ${unit}`;
+};
+
+
+export default function FeedTab() {
+  const [feedItems, setFeedItems] =
+    useState<FeedStorageItem[]>([]);
+
+  const [equipment, setEquipment] =
+    useState<FeedEquipment[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState('');
+
+  const [message, setMessage] =
+    useState('');
+
+  const [overrideItem, setOverrideItem] =
+    useState('');
+
+  const [overrideQuantity, setOverrideQuantity] =
+    useState('');
+
+  const [overrideNotes, setOverrideNotes] =
+    useState('');
+
+  const [overrideSaving, setOverrideSaving] =
+    useState(false);
+
+  const [
+    equipmentStatusSaving,
+    setEquipmentStatusSaving,
+  ] = useState<number | null>(null);
+
+
+  const visibleFeedItems = useMemo(
+    () =>
+      feedItems.filter(
+        item =>
+          !item.item.startsWith(
+            'FEED-SURFACE-',
+          ),
+      ),
+    [feedItems],
+  );
+
+
+  const selectedOverrideItem = useMemo(
+    () =>
+      visibleFeedItems.find(
+        item => String(item.id) === overrideItem,
+      ) ?? null,
+    [visibleFeedItems, overrideItem],
+  );
+
+
+  const load = async (
+    quiet = false,
+  ) => {
+    if (!quiet) {
+      setLoading(true);
+    }
+
+    setError('');
+
+    try {
+      const [
+        storageResponse,
+        equipmentResponse,
+      ] = await Promise.all([
+        fetch(
+          `${API_BASE}/farm/feed-inventory/authoritative`,
+        ),
+        fetch(
+          `${API_BASE}/farm/feed-equipment`,
+        ),
+      ]);
+
+      const storageBody =
+        await storageResponse
+          .json()
+          .catch(() => null);
+
+      const equipmentBody =
+        await equipmentResponse
+          .json()
+          .catch(() => null);
+
+      if (!storageResponse.ok) {
+        throw new Error(
+          storageBody?.detail
+          || 'Feed Storage Status is unavailable.',
+        );
+      }
+
+      setFeedItems(
+        (storageBody?.items ?? []).map(
+          (row: any) => ({
+            id: Number(row.id),
+            item: String(row.item),
+            unit: String(row.unit || 'kg'),
+            purchased_from_finance:
+              Number(
+                row.purchased_from_finance || 0,
+              ),
+            auto_consumed_from_tmr:
+              Number(
+                row.auto_consumed_from_tmr || 0,
+              ),
+            manual_override_net:
+              Number(
+                row.manual_override_net || 0,
+              ),
+            legacy_manual_usage:
+              Number(
+                row.legacy_manual_usage || 0,
+              ),
+            projected_balance:
+              Number(
+                row.projected_balance || 0,
+              ),
+            balance:
+              Number(row.balance || 0),
+            shortage:
+              Number(row.shortage || 0),
+            latest_finance_unit_rate:
+              row.latest_finance_unit_rate == null
+                ? null
+                : Number(
+                    row.latest_finance_unit_rate,
+                  ),
+            latest_finance_transaction_id:
+              row.latest_finance_transaction_id == null
+                ? null
+                : Number(
+                    row.latest_finance_transaction_id,
+                  ),
+            latest_finance_purchase_date:
+              row.latest_finance_purchase_date
+              ?? null,
+            status:
+              String(
+                row.status
+                || 'NO_THRESHOLD',
+              ),
+          }),
+        ),
+      );
+
+      if (!equipmentResponse.ok) {
+        throw new Error(
+          equipmentBody?.detail
+          || 'Feed equipment list is unavailable.',
+        );
+      }
+
+      setEquipment(
+        Array.isArray(
+          equipmentBody?.equipment,
+        )
+          ? equipmentBody.equipment
+          : [],
+      );
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Unable to load Feed data.',
+      );
+    } finally {
+      if (!quiet) {
+        setLoading(false);
+      }
+    }
+  };
+
+
+  useEffect(() => {
+    void load();
+
+    const timer = window.setInterval(
+      () => {
+        void load(true);
+      },
+      60_000,
+    );
+
+    return () =>
+      window.clearInterval(timer);
+  }, []);
+
+
+  const saveOverride = async (
+    event: React.FormEvent,
+  ) => {
+    event.preventDefault();
+
+    if (!selectedOverrideItem) {
+      setError(
+        'Select a Feed Storage item.',
+      );
+      return;
+    }
+
+    const delta =
+      Number(overrideQuantity);
+
+    if (
+      !Number.isFinite(delta)
+      || delta === 0
+    ) {
+      setError(
+        'Manual override must be a non-zero signed quantity.',
+      );
+      return;
+    }
+
+    setOverrideSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/farm/feed-inventory/manual-override`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            item:
+              selectedOverrideItem.item,
+            quantity_delta: delta,
+            notes:
+              overrideNotes.trim()
+              || null,
+            recorded_by:
+              'UI Operator',
+          }),
+        },
+      );
+
+      const body =
+        await response
+          .json()
+          .catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          typeof body?.detail === 'string'
+            ? body.detail
+            : body?.detail?.error
+              || 'Manual stock override failed.',
+        );
+      }
+
+      setOverrideQuantity('');
+      setOverrideNotes('');
+
+      setMessage(
+        `Manual physical-stock override recorded for ${selectedOverrideItem.item}.`,
+      );
+
+      await load(true);
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Manual stock override failed.',
+      );
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+
+  const setEquipmentStatus = async (
+    item: FeedEquipment,
+    status: string,
+  ) => {
+    if (
+      status !== 'OPERATIONAL'
+      && status !== 'NON_OPERATIONAL'
+    ) {
+      return;
+    }
+
+    setEquipmentStatusSaving(
+      item.finance_transaction_id,
+    );
+
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/farm/feed-equipment/${item.finance_transaction_id}/status`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            status,
+            operator: 'UI Operator',
+          }),
+        },
+      );
+
+      const body =
+        await response
+          .json()
+          .catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.detail
+          || 'Equipment status could not be saved.',
+        );
+      }
+
+      setMessage(
+        `${item.equipment_name} status set to ${status === 'OPERATIONAL' ? 'Operational' : 'Non-Operational'}.`,
+      );
+
+      await load(true);
+    } catch (exc) {
+      setError(
+        exc instanceof Error
+          ? exc.message
+          : 'Equipment status could not be saved.',
+      );
+    } finally {
+      setEquipmentStatusSaving(
+        null,
+      );
+    }
+  };
+
+
+  return (
+    <div
+      style={{
+        padding: 12,
+        color: '#fff',
+      }}
+    >
+      {/* ------------------------------------------------------------- */}
+      {/* 1. TMR IS THE PRIMARY FEED OPERATION                           */}
+      {/* ------------------------------------------------------------- */}
+
+      <section style={panel}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 9,
+          }}
+        >
+          <Wheat
+            size={15}
+            color="#38bdf8"
+          />
+
+          <strong
+            style={{
+              fontSize: 13,
+            }}
+          >
+            Total Mixed Ration Preparation
+          </strong>
+        </div>
+
+        <TMRPreparationTool />
+      </section>
+
+
+      {/* ------------------------------------------------------------- */}
+      {/* 2. FEED STORAGE STATUS                                        */}
+      {/* ------------------------------------------------------------- */}
+
+      <section
+        style={{
+          ...panel,
+          marginTop: 10,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent:
+              'space-between',
+            gap: 10,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Warehouse
+                size={15}
+                color="#34d399"
+              />
+
+              Feed Storage Status
+            </div>
+
+            <div
+              style={{
+                marginTop: 3,
+                color: '#94a3b8',
+                fontSize: 9,
+              }}
+            >
+              Finance purchases establish stock.
+              Governed TMR automatically consumes
+              storage according to the active herd.
+              Manual override is reserved for
+              physical stock corrections.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              void load()
+            }
+            style={button('#334155')}
+          >
+            <RefreshCw size={12} />
+            Refresh
+          </button>
+        </div>
+
+
+        {error && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: 7,
+              borderRadius: 5,
+              background:
+                'rgba(127,29,29,.18)',
+              border:
+                '1px solid #7f1d1d',
+              color: '#fecaca',
+              fontSize: 9,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+
+        {message && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: 7,
+              borderRadius: 5,
+              background:
+                'rgba(22,101,52,.16)',
+              border:
+                '1px solid #166534',
+              color: '#bbf7d0',
+              fontSize: 9,
+            }}
+          >
+            {message}
+          </div>
+        )}
+
+
+        <div
+          style={{
+            marginTop: 8,
+            color: '#64748b',
+            fontSize: 8,
+          }}
+        >
+          Automatic TMR consumption is reconciled
+          by the DairyOS runtime independently of
+          this page. Feed Storage refresh is
+          read-only. Closed historical consumption
+          days remain locked.
+        </div>
+
+
+        <div
+          style={{
+            overflowX: 'auto',
+            marginTop: 9,
+          }}
+        >
+          <table
+            style={{
+              width: '100%',
+              minWidth: 850,
+              borderCollapse:
+                'collapse',
+              fontSize: 9,
+            }}
+          >
+            <thead>
+              <tr
+                style={{
+                  color: '#94a3b8',
+                  textAlign: 'left',
+                  borderBottom:
+                    '1px solid #1f2937',
+                }}
+              >
+                <th style={{ padding: 7 }}>
+                  Ingredient
+                </th>
+
+                <th
+                  style={{
+                    padding: 7,
+                    textAlign: 'right',
+                  }}
+                >
+                  Finance Purchased
+                </th>
+
+                <th
+                  style={{
+                    padding: 7,
+                    textAlign: 'right',
+                  }}
+                >
+                  TMR Consumed
+                </th>
+
+                <th
+                  style={{
+                    padding: 7,
+                    textAlign: 'right',
+                  }}
+                >
+                  Manual Override
+                </th>
+
+                <th
+                  style={{
+                    padding: 7,
+                    textAlign: 'right',
+                  }}
+                >
+                  Storage Balance
+                </th>
+
+                <th
+                  style={{
+                    padding: 7,
+                    textAlign: 'right',
+                  }}
+                >
+                  Finance Rate
+                </th>
+
+                <th style={{ padding: 7 }}>
+                  Status
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {visibleFeedItems.map(
+                item => (
+                  <tr
+                    key={item.id}
+                    style={{
+                      borderBottom:
+                        '1px solid #1a2234',
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: 7,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {item.item}
+
+                      {item.latest_finance_transaction_id != null && (
+                        <div
+                          style={{
+                            color: '#64748b',
+                            fontSize: 7,
+                            marginTop: 2,
+                          }}
+                        >
+                          Finance Tx #
+                          {
+                            item.latest_finance_transaction_id
+                          }
+                          {
+                            item.latest_finance_purchase_date
+                              ? ` · ${item.latest_finance_purchase_date}`
+                              : ''
+                          }
+                        </div>
+                      )}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {quantity(
+                        item.purchased_from_finance,
+                        item.unit,
+                      )}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        textAlign: 'right',
+                        color: '#38bdf8',
+                      }}
+                    >
+                      {quantity(
+                        item.auto_consumed_from_tmr,
+                        item.unit,
+                      )}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        textAlign: 'right',
+                        color:
+                          item.manual_override_net === 0
+                            ? '#64748b'
+                            : '#fbbf24',
+                      }}
+                    >
+                      {item.manual_override_net > 0
+                        ? '+'
+                        : ''}
+                      {quantity(
+                        item.manual_override_net,
+                        item.unit,
+                      )}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        textAlign: 'right',
+                        fontWeight: 900,
+                        color:
+                          item.shortage > 0
+                            ? '#f87171'
+                            : '#86efac',
+                      }}
+                    >
+                      {item.shortage > 0
+                        ? `SHORT ${quantity(
+                            item.shortage,
+                            item.unit,
+                          )}`
+                        : quantity(
+                            item.balance,
+                            item.unit,
+                          )}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {item.latest_finance_unit_rate == null
+                        ? '—'
+                        : `${money(
+                            item.latest_finance_unit_rate,
+                          )} / ${item.unit}`}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 7,
+                        fontWeight: 800,
+                        color:
+                          item.status === 'SHORTAGE'
+                            ? '#f87171'
+                            : item.status === 'LOW'
+                              ? '#fbbf24'
+                              : '#cbd5e1',
+                      }}
+                    >
+                      {item.status.replace(
+                        /_/g,
+                        ' ',
+                      )}
+                    </td>
+                  </tr>
+                ),
+              )}
+
+              {!loading
+                && visibleFeedItems.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: 12,
+                        color: '#64748b',
+                        textAlign: 'center',
+                      }}
+                    >
+                      No governed Feed Storage
+                      items are currently available.
+                    </td>
+                  </tr>
+                )}
+            </tbody>
+          </table>
+        </div>
+
+
+        <form
+          onSubmit={saveOverride}
+          style={{
+            marginTop: 10,
+            borderTop:
+              '1px solid #1f2937',
+            paddingTop: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 900,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <SlidersHorizontal
+              size={13}
+              color="#fbbf24"
+            />
+
+            Manual Storage Override
+          </div>
+
+          <div
+            style={{
+              color: '#64748b',
+              fontSize: 8,
+              marginTop: 3,
+            }}
+          >
+            Use only when the physical stock count
+            differs from DairyOS. Positive quantity
+            adds stock; negative quantity removes
+            stock. This does not record feeding.
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                '1.4fr .8fr 1.6fr auto',
+              gap: 7,
+              alignItems: 'end',
+              marginTop: 8,
+            }}
+          >
+            <label style={label}>
+              Feed Item
+
+              <select
+                required
+                value={overrideItem}
+                onChange={event =>
+                  setOverrideItem(
+                    event.target.value,
+                  )
+                }
+                style={input}
+              >
+                <option value="">
+                  Select item…
+                </option>
+
+                {visibleFeedItems.map(
+                  item => (
+                    <option
+                      key={item.id}
+                      value={String(
+                        item.id,
+                      )}
+                    >
+                      {item.item}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+
+            <label style={label}>
+              Signed Quantity
+
+              <input
+                required
+                type="number"
+                step="0.001"
+                value={
+                  overrideQuantity
+                }
+                onChange={event =>
+                  setOverrideQuantity(
+                    event.target.value,
+                  )
+                }
+                placeholder={
+                  selectedOverrideItem
+                    ? `± ${selectedOverrideItem.unit}`
+                    : '+ / -'
+                }
+                style={input}
+              />
+            </label>
+
+            <label style={label}>
+              Reason / Notes
+
+              <input
+                required
+                value={overrideNotes}
+                onChange={event =>
+                  setOverrideNotes(
+                    event.target.value,
+                  )
+                }
+                placeholder="Physical stock correction reason"
+                style={input}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={
+                overrideSaving
+                || !selectedOverrideItem
+              }
+              style={{
+                ...button('#d97706'),
+                opacity:
+                  overrideSaving
+                  || !selectedOverrideItem
+                    ? 0.5
+                    : 1,
+              }}
+            >
+              {overrideSaving
+                ? 'Saving…'
+                : 'Apply Override'}
+            </button>
+          </div>
+        </form>
+      </section>
+
+
+      {/* ------------------------------------------------------------- */}
+      {/* 3. SIMPLE FINANCE-LINKED EQUIPMENT LIST                        */}
+      {/* ------------------------------------------------------------- */}
+
+      <section
+        style={{
+          ...panel,
+          marginTop: 10,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 900,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Wrench
+            size={15}
+            color="#f59e0b"
+          />
+
+          Feed-Related Equipment
+        </div>
+
+        <div
+          style={{
+            marginTop: 3,
+            color: '#94a3b8',
+            fontSize: 9,
+          }}
+        >
+          Equipment purchased in Finance appears
+          here automatically. Operational status
+          is selected manually only; DairyOS does
+          not infer equipment status.
+        </div>
+
+
+        {equipment.length === 0 ? (
+          <div
+            style={{
+              marginTop: 10,
+              color: '#64748b',
+              fontSize: 10,
+            }}
+          >
+            No Finance Equipment Purchase records
+            currently exist.
+          </div>
+        ) : (
+          <div
+            style={{
+              overflowX: 'auto',
+              marginTop: 9,
+            }}
+          >
+            <table
+              style={{
+                width: '100%',
+                minWidth: 720,
+                borderCollapse:
+                  'collapse',
+                fontSize: 9,
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    color: '#94a3b8',
+                    textAlign: 'left',
+                    borderBottom:
+                      '1px solid #1f2937',
+                  }}
+                >
+                  <th style={{ padding: 7 }}>
+                    Equipment
+                  </th>
+
+                  <th style={{ padding: 7 }}>
+                    Purchase Date
+                  </th>
+
+                  <th style={{ padding: 7 }}>
+                    Supplier
+                  </th>
+
+                  <th style={{ padding: 7 }}>
+                    Finance Ref
+                  </th>
+
+                  <th
+                    style={{
+                      padding: 7,
+                      textAlign: 'right',
+                    }}
+                  >
+                    Amount
+                  </th>
+
+                  <th style={{ padding: 7 }}>
+                    Manual Status
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {equipment.map(
+                  item => (
+                    <tr
+                      key={
+                        item.finance_transaction_id
+                      }
+                      style={{
+                        borderBottom:
+                          '1px solid #1a2234',
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: 7,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {item.equipment_name}
+
+                        <div
+                          style={{
+                            color: '#64748b',
+                            fontSize: 7,
+                            marginTop: 2,
+                          }}
+                        >
+                          Finance Tx #
+                          {
+                            item.finance_transaction_id
+                          }
+                        </div>
+                      </td>
+
+                      <td style={{ padding: 7 }}>
+                        {item.purchase_date
+                          || '—'}
+                      </td>
+
+                      <td style={{ padding: 7 }}>
+                        {item.supplier || '—'}
+                      </td>
+
+                      <td style={{ padding: 7 }}>
+                        {item.finance_reference
+                          || '—'}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 7,
+                          textAlign: 'right',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {money(
+                          item.amount,
+                        )}
+                      </td>
+
+                      <td style={{ padding: 7 }}>
+                        <select
+                          value={item.status}
+                          disabled={
+                            equipmentStatusSaving
+                            === item.finance_transaction_id
+                          }
+                          onChange={event =>
+                            void setEquipmentStatus(
+                              item,
+                              event.target.value,
+                            )
+                          }
+                          style={{
+                            ...input,
+                            minWidth: 155,
+                          }}
+                        >
+                          <option value="NOT_SET">
+                            Select status…
+                          </option>
+
+                          <option value="OPERATIONAL">
+                            Operational
+                          </option>
+
+                          <option value="NON_OPERATIONAL">
+                            Non-Operational
+                          </option>
+                        </select>
+
+                        {item.status_source === 'MANUAL'
+                          && (
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: 7,
+                                marginTop: 2,
+                              }}
+                            >
+                              Manual
+                              {
+                                item.status_operator
+                                  ? ` · ${item.status_operator}`
+                                  : ''
+                              }
+                            </div>
+                          )}
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
-function Metric({label,value,accent}:{label:string;value:string;accent:string}){return <div style={{...panel,borderLeft:`4px solid ${accent}`}}><div style={{fontSize:8,color:'#94a3b8',textTransform:'uppercase',fontWeight:800}}>{label}</div><div style={{marginTop:4,fontSize:16,fontWeight:800,color:accent}}>{value}</div></div>}

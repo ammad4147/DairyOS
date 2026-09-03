@@ -25,6 +25,7 @@ from dairyos.farm.production.services.milk_herd_drop_monitoring_service import M
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.email.scheduler import NightlyEmailScheduler
+from dairyos.feed_storage_scheduler import FeedStorageScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
 from dairyos.windows.startup_integrity import record_successful_start
 
@@ -32,6 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 application_runtime = ApplicationRuntime()
 container = RuntimeContainer(application_runtime=application_runtime)
 email_scheduler = NightlyEmailScheduler(container=container)
+feed_storage_scheduler = FeedStorageScheduler(interval_seconds=60)
 
 
 @asynccontextmanager
@@ -55,14 +57,16 @@ async def lifespan(_app: FastAPI):
     if payroll_migrated:
         logging.info("Finance payroll migration created: %s", ", ".join(payroll_migrated))
     container.start()
+    feed_storage_scheduler.start()
     email_scheduler.start()
     marker = record_successful_start()
     if marker is not None:
         logging.info("DairyOS successful packaged installation marker written: %s", marker)
-    logging.info("RuntimeContainer and nightly email scheduler started - operations ready.")
+    logging.info("RuntimeContainer, Feed Storage scheduler and nightly email scheduler started - operations ready.")
     try:
         yield
     finally:
+        feed_storage_scheduler.stop()
         email_scheduler.stop()
         container.shutdown()
 
@@ -142,6 +146,7 @@ from dairyos.api.youngstock_management import router as youngstock_management_ro
 from dairyos.api.feed_management import router as feed_management_router
 from dairyos.api.feed_inventory import router as feed_inventory_router
 from dairyos.api.feed_inventory_projection import router as feed_inventory_projection_router
+from dairyos.api.feed_equipment import router as feed_equipment_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.system import router as system_router
 from dairyos.api.operational_findings import router as operational_findings_router
@@ -149,6 +154,7 @@ from dairyos.api.settings import router as settings_router
 from dairyos.api.milk_production_summary import router as milk_production_summary_router
 from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
 from dairyos.api.milk_quality import router as milk_quality_router
+from dairyos.api.tmr import router as tmr_router
 from dairyos.api.coml import router as coml_router
 from dairyos.api.payroll import router as payroll_router
 
@@ -179,6 +185,7 @@ app.include_router(youngstock_management_router)
 app.include_router(feed_management_router)
 app.include_router(feed_inventory_router)
 app.include_router(feed_inventory_projection_router)
+app.include_router(feed_equipment_router)
 app.include_router(dairy_kpi_router)
 app.include_router(system_router)
 app.include_router(operational_findings_router)
@@ -186,6 +193,7 @@ app.include_router(settings_router)
 app.include_router(milk_production_summary_router)
 app.include_router(milk_legacy_compat_router)
 app.include_router(milk_quality_router)
+app.include_router(tmr_router)
 app.include_router(coml_router)
 app.include_router(payroll_router)
 
