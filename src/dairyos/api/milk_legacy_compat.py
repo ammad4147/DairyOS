@@ -34,7 +34,10 @@ def legacy_milk_production_summary(
     )
 
 
-@router.get("/capacity")
+@router.get(
+    "/capacity",
+    operation_id="legacy_milk_capacity_farm_milk_capacity_get",
+)
 def milk_capacity(
     through_date: date = Query(...),
     container=Depends(get_container),

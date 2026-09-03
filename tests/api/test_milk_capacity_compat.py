@@ -12,6 +12,16 @@ def test_capacity_route_is_registered():
     )
 
 
+def test_capacity_compatibility_route_has_a_distinct_openapi_identity():
+    route = next(
+        route
+        for route in milk_legacy_compat.router.routes
+        if getattr(route, "path", None) == "/farm/milk/capacity"
+    )
+
+    assert route.operation_id == "legacy_milk_capacity_farm_milk_capacity_get"
+
+
 def test_capacity_route_uses_authoritative_capacity_service(monkeypatch):
     factory = object()
     container = SimpleNamespace(repository_factory=factory)
