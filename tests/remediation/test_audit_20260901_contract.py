@@ -25,3 +25,9 @@ def test_finance_animal_sale_linkage():
  assert "Select Animal ID being sold" in v and "/disposition" in v and "status:'VOID'" in v
 def test_milk_operator_alert_preserved():
  v=text("src/DairyOS.Web/src/components/MilkTab.tsx");assert "TODAY'S MILKING SESSIONS ALREADY RECORDED" in v;assert "MILKING_SESSION_ALREADY_RECORDED" in v
+
+def test_animal_identity_labels_preserve_permanent_and_legacy_distinction():
+ v=text("src/DairyOS.Web/src/components/AnimalPassportModal.tsx")
+ assert "Permanent DairyOS Animal ID" in v
+ assert "Legacy ID (optional)" in v
+ assert "does not replace the permanent DairyOS ID" in v

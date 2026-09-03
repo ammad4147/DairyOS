@@ -52,8 +52,8 @@ export default function AnimalPassportModal({animalId,onClose,onSave,onOpenPassp
 }
 
 function ProfileForm({form,setForm,isNew=false,generatedId,availableDams=[]}:{form:any;setForm:(v:any)=>void;isNew?:boolean;generatedId?:string;availableDams?:BackendAnimal[]}){const milking=form.category==='Milking';const calf=form.category==='Female Calf'||form.category==='Male Calf';const setCategory=(category:string)=>setForm({...form,category,frequency:category==='Milking'?(form.frequency||'TWICE_DAILY'):'',dam:(category==='Female Calf'||category==='Male Calf')?form.dam:''});return <div style={grid2}>
- <Field label="Animal ID / Tag"><input value={generatedId||'Will be generated automatically by DairyOS'} readOnly disabled style={{...input,color:generatedId?'#6ee7b7':'#94a3b8',fontWeight:800}}/></Field>
- <Field label="Old Animal ID"><input value={form.legacyId} placeholder="Optional historical / previous ID" onChange={e=>setForm({...form,legacyId:e.target.value})} style={input}/></Field>
+ <Field label="Permanent DairyOS Animal ID"><input value={generatedId||'Will be generated automatically by DairyOS'} readOnly disabled style={{...input,color:generatedId?'#6ee7b7':'#94a3b8',fontWeight:800}}/></Field>
+ <Field label="Legacy ID (optional)"><input value={form.legacyId} placeholder="Prior or external identifier; does not replace the permanent DairyOS ID" onChange={e=>setForm({...form,legacyId:e.target.value})} style={input}/></Field>
  <Field label="Ear Tag"><input value={form.earTag} placeholder="Physical ear tag, if different" onChange={e=>setForm({...form,earTag:e.target.value})} style={input}/></Field>
  <Field label="Category"><select value={form.category} onChange={e=>setCategory(e.target.value)} style={input}><option>Milking</option><option>Dry</option><option>Heifer</option><option>Female Calf</option><option>Male Calf</option><option>Bull</option></select></Field>
  <Field label="Breed"><input value={form.breed} onChange={e=>setForm({...form,breed:e.target.value})} style={input}/></Field>
