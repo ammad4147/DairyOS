@@ -47,6 +47,7 @@ interface FindingPayload {
   severity?: string;
   title?: string;
   detail?: string | null;
+  dedupe_key?: string | null;
   status?: string;
   raised_at?: string | null;
   resolved_at?: string | null;
@@ -67,9 +68,50 @@ interface FindingPayload {
 
 const AlertAuditContext = createContext<AlertAuditContextType | undefined>(undefined);
 
-function mapSource(source?: string): AuditAlertItem['source'] {
-  switch ((source || '').toUpperCase()) {
-    case 'MILK': return 'MILK_DROP';
+function mapSource(finding: FindingPayload): AuditAlertItem['source'] {
+  const source = String(
+    finding.source_module || '',
+  ).trim().toUpperCase();
+
+  const subjectType = String(
+    finding.subject_type || '',
+  ).trim().toUpperCase();
+
+  const title = String(
+    finding.title || '',
+  ).trim().toLowerCase();
+
+  const dedupeKey = String(
+    finding.dedupe_key || '',
+  ).trim().toUpperCase();
+
+  if (source === 'MILK') {
+    const isYieldDrop =
+      subjectType === 'ANIMAL' &&
+      (
+        dedupeKey.startsWith('MILK_DAILY_DROP:') ||
+        title.includes('milk yield declined')
+      );
+
+    if (isYieldDrop) {
+      return 'MILK_DROP';
+    }
+
+    const isReconciliation =
+      subjectType === 'FARM' &&
+      (
+        title.includes('reconciliation') ||
+        dedupeKey.startsWith('MILK_RECONCILIATION')
+      );
+
+    if (isReconciliation) {
+      return 'RECONCILIATION';
+    }
+
+    return 'SYSTEM';
+  }
+
+  switch (source) {
     case 'HEALTH': return 'HEALTH_WITHDRAWAL';
     case 'BREEDING': return 'BREEDING_HEAT';
     case 'RECONCILIATION': return 'RECONCILIATION';
@@ -103,7 +145,7 @@ function toAlert(finding: FindingPayload): AuditAlertItem {
   const level = mapLevel(finding.severity);
   return {
     id: finding.finding_id,
-    source: mapSource(finding.source_module),
+    source: mapSource(finding),
     animalId: finding.subject_id || undefined,
     title: finding.title || 'Operational Finding',
     details: finding.detail || 'Persisted operational finding.',

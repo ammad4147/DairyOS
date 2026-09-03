@@ -187,3 +187,15 @@ def test_ui_and_api_contracts_are_present():
     assert "onAnimalChanged" in finance
     assert "60 * 1000" in alerts
     assert "/missed-sessions/reconcile" in api
+
+    # M-19: only genuine individual-animal daily yield declines may enter
+    # the Dashboard Yield Drop Watchlist. Farm-level MILK reconciliation
+    # findings and other MILK operational controls must not be classified
+    # as MILK_DROP merely because their source_module is MILK.
+    assert "function mapSource(finding: FindingPayload)" in alerts
+    assert "MILK_DAILY_DROP:" in alerts
+    assert "title.includes('milk yield declined')" in alerts
+    assert "subjectType === 'FARM'" in alerts
+    assert "return 'RECONCILIATION';" in alerts
+    assert "source: mapSource(finding)" in alerts
+    assert "case 'MILK': return 'MILK_DROP';" not in alerts
