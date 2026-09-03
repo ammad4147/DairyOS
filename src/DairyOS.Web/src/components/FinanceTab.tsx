@@ -94,6 +94,135 @@ export default function FinanceTab({onSaveSale,onUpdateReceivables,herdMasterLis
      : formatted;
  };
 
+ const revenueCategoryLabels:Record<string,string>={
+   MILK_SALES:'Milk Sales',
+   MANURE_SALES:'Organic Manure / Dung',
+   MILKING_ANIMAL_SALE:'Milking Animal Sale',
+   DRY_ANIMAL_SALE:'Dry Animal Sale',
+   HEIFER_SALE:'Heifer Sale',
+   FEMALE_CALF_SALE:'Female Calf Sale',
+   MALE_CALF_SALE:'Male Calf Sale',
+   BULL_SALE:'Bull Sale',
+   OTHER_REVENUE:'Other Revenue',
+ };
+
+ const revenueParticulars=(t:Transaction)=>{
+   const category=String(
+     t.category||'OTHER_REVENUE'
+   ).toUpperCase();
+
+   return (
+     revenueCategoryLabels[category]
+     || ledgerParticulars(t)
+   );
+ };
+
+ const revenueAnimalId=(t:Transaction)=>{
+   const match=String(t.notes||'').match(
+     /\bAnimal\s+([A-Za-z0-9_-]+)/i
+   );
+
+   return match?.[1]||'';
+ };
+
+ const revenueHeaderCell:React.CSSProperties={
+   padding:'6px 8px',
+   color:'#94a3b8',
+   fontSize:8,
+   fontWeight:800,
+   textTransform:'uppercase',
+   textAlign:'left',
+   borderBottom:'1px solid #334155',
+   whiteSpace:'nowrap',
+ };
+
+ const revenueCell:React.CSSProperties={
+   padding:'7px 8px',
+   borderBottom:'1px solid #1a2234',
+   verticalAlign:'middle',
+   overflow:'hidden',
+   textOverflow:'ellipsis',
+   whiteSpace:'nowrap',
+ };
+
+ const saveRevenueLedgerCsv=(
+   rows:Transaction[],
+   start:string,
+   end:string,
+   summary:Record<string,number>={},
+ )=>{
+   const header=[
+     'Date',
+     'Particulars',
+     'Quantity',
+     'Buyer / Customer',
+     'Reference',
+     'Status',
+     'Amount',
+   ];
+
+   const detailRows=rows.map(t=>{
+     const animalId=revenueAnimalId(t);
+
+     const particulars=animalId
+       ? `${revenueParticulars(t)} — Animal ${animalId}`
+       : revenueParticulars(t);
+
+     return [
+       String(t.date||'').slice(0,10),
+       particulars,
+       ledgerQuantity(t),
+       ledgerCounterparty(t),
+       ledgerReference(t),
+       ledgerStatus(t),
+       Number(t.amount||0).toFixed(2),
+     ];
+   });
+
+   const summaryRows=[
+     [],
+     ...Object.entries(summary).map(
+       ([label,value])=>[
+         label,
+         '',
+         '',
+         '',
+         '',
+         '',
+         Number(value||0).toFixed(2),
+       ],
+     ),
+   ];
+
+   const csv=[
+     ['DairyOS — Revenue Ledger'],
+     ['Reporting Period',`${start} to ${end}`],
+     [],
+     header,
+     ...detailRows,
+     ...summaryRows,
+   ]
+     .map(line=>line.map(csvCell).join(','))
+     .join('\r\n');
+
+   const blob=new Blob(
+     [csv],
+     {type:'text/csv;charset=utf-8;'},
+   );
+
+   const url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+
+   link.href=url;
+   link.download=
+     `DairyOS-Revenue-Ledger-${start}-to-${end}.csv`;
+
+   document.body.appendChild(link);
+   link.click();
+   link.remove();
+   URL.revokeObjectURL(url);
+ };
+
  const saveLedgerCsv=(
    title:string,
    rows:Transaction[],
@@ -152,6 +281,266 @@ export default function FinanceTab({onSaveSale,onUpdateReceivables,herdMasterLis
    link.click();
    link.remove();
    URL.revokeObjectURL(url);
+ };
+
+ const printRevenueLedger=(
+   rows:Transaction[],
+   start:string,
+   end:string,
+   summary:Record<string,number>={},
+ )=>{
+   const popup=window.open(
+     '',
+     '_blank',
+     'width=1100,height=800',
+   );
+
+   if(!popup){
+     setError(
+       'The Revenue Ledger print window was blocked. '
+       +'Allow pop-ups for DairyOS and try again.'
+     );
+     return;
+   }
+
+   const esc=(value:unknown)=>String(value??'').replace(
+     /[&<>"']/g,
+     ch=>({
+       '&':'&amp;',
+       '<':'&lt;',
+       '>':'&gt;',
+       '"':'&quot;',
+       "'":'&#39;',
+     } as Record<string,string>)[ch]||ch,
+   );
+
+   const tableRows=rows.map(t=>{
+     const isVoid=
+       String(t.status||'').toUpperCase()==='VOID';
+
+     const reason=
+       isVoid
+         ? voidReasonFromNotes(t.notes)
+         : '';
+
+     const animalId=revenueAnimalId(t);
+
+     const particulars=animalId
+       ? `${revenueParticulars(t)} — Animal ${animalId}`
+       : revenueParticulars(t);
+
+     return `
+       <tr class="${isVoid?'void':''}">
+         <td>
+           ${esc(String(t.date||'').slice(0,10)||'—')}
+         </td>
+
+         <td>
+           ${esc(particulars)}
+
+           ${reason
+             ? `<div class="void-reason">
+                  VOID: ${esc(reason)}
+                </div>`
+             : ''}
+         </td>
+
+         <td class="quantity">
+           ${esc(ledgerQuantity(t))}
+         </td>
+
+         <td>
+           ${esc(ledgerCounterparty(t))}
+         </td>
+
+         <td>
+           ${esc(ledgerReference(t))}
+         </td>
+
+         <td>
+           ${esc(ledgerStatus(t))}
+         </td>
+
+         <td class="amount">
+           ${esc(money(Number(t.amount||0)))}
+         </td>
+       </tr>
+     `;
+   }).join('');
+
+   const summaryHtml=Object.keys(summary).length
+     ? `
+       <div class="summary">
+         ${Object.entries(summary).map(
+           ([label,value])=>`
+             <div class="summary-row">
+               <span>${esc(label)}</span>
+               <strong>
+                 ${esc(money(Number(value||0)))}
+               </strong>
+             </div>
+           `
+         ).join('')}
+       </div>
+     `
+     : '';
+
+   popup.document.write(`
+     <!doctype html>
+     <html>
+       <head>
+         <meta charset="utf-8">
+
+         <title>DairyOS — Revenue Ledger</title>
+
+         <style>
+           @page {
+             size: A4 landscape;
+             margin: 12mm;
+           }
+
+           * {
+             box-sizing: border-box;
+           }
+
+           body {
+             margin: 0;
+             color: #111827;
+             font-family:
+               Arial,
+               Helvetica,
+               sans-serif;
+             font-size: 11px;
+           }
+
+           h1 {
+             margin: 0 0 4px;
+             font-size: 18px;
+           }
+
+           .period {
+             margin-bottom: 14px;
+             color: #475569;
+           }
+
+           table {
+             width: 100%;
+             border-collapse: collapse;
+           }
+
+           th,
+           td {
+             padding: 7px 8px;
+             border-bottom: 1px solid #cbd5e1;
+             text-align: left;
+             vertical-align: top;
+           }
+
+           th {
+             background: #f1f5f9;
+             font-size: 9px;
+             text-transform: uppercase;
+           }
+
+           .quantity,
+           .amount {
+             text-align: right;
+             white-space: nowrap;
+           }
+
+           tr.void td {
+             color: #b91c1c;
+             background: #fef2f2;
+             text-decoration: line-through;
+           }
+
+           tr.void .void-reason {
+             text-decoration: none;
+           }
+
+           .void-reason {
+             margin-top: 3px;
+             color: #b91c1c;
+             font-size: 9px;
+             font-weight: bold;
+           }
+
+           .summary {
+             width: 380px;
+             margin-top: 16px;
+             margin-left: auto;
+             border-top: 2px solid #334155;
+           }
+
+           .summary-row {
+             display: flex;
+             justify-content: space-between;
+             gap: 20px;
+             padding: 5px 2px;
+             border-bottom: 1px solid #e2e8f0;
+           }
+
+           .footer {
+             margin-top: 14px;
+             color: #64748b;
+             font-size: 9px;
+           }
+         </style>
+       </head>
+
+       <body>
+         <h1>DairyOS — Revenue Ledger</h1>
+
+         <div class="period">
+           Reporting period:
+           ${esc(start)} to ${esc(end)}
+         </div>
+
+         <table>
+           <thead>
+             <tr>
+               <th>Date</th>
+               <th>Particulars</th>
+               <th style="text-align:right">
+                 Quantity
+               </th>
+               <th>Buyer / Customer</th>
+               <th>Reference</th>
+               <th>Status</th>
+               <th style="text-align:right">
+                 Amount
+               </th>
+             </tr>
+           </thead>
+
+           <tbody>
+             ${tableRows || `
+               <tr>
+                 <td colspan="7">
+                   No revenue entries in this period.
+                 </td>
+               </tr>
+             `}
+           </tbody>
+         </table>
+
+         ${summaryHtml}
+
+         <div class="footer">
+           Generated from the DairyOS Revenue Ledger.
+           VOID transactions remain visible for audit history
+           and are excluded from active totals.
+         </div>
+       </body>
+     </html>
+   `);
+
+   popup.document.close();
+   popup.focus();
+
+   window.setTimeout(()=>{
+     popup.print();
+   },250);
  };
 
  const printLedger=(
@@ -406,7 +795,364 @@ export default function FinanceTab({onSaveSale,onUpdateReceivables,herdMasterLis
   <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)',gap:10,alignItems:'start'}}>
    <div style={{display:'grid',gap:10}}>
     <form onSubmit={saveRevenue} style={card}><div style={sectionTitle}>Record Revenue</div><div style={{display:'grid',gridTemplateColumns:'1.2fr 1fr 1fr',gap:6}}><select value={revCategory} onChange={e=>setRevCategory(e.target.value)} style={inputStyle}><option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option></select><input required type="number" min="0" step="0.01" value={revAmount} onChange={e=>setRevAmount(e.target.value)} style={inputStyle} placeholder="Amount"/><input type="number" min="0" step="0.01" value={revQty} onChange={e=>setRevQty(e.target.value)} style={inputStyle} placeholder="Quantity"/></div>{isAnimalSale&&<div style={{marginTop:6}}><select required value={revAnimalId} onChange={e=>setRevAnimalId(e.target.value)} style={inputStyle}><option value="">Select Animal ID being sold</option>{saleEligibleAnimals.map(a=><option key={a.id} value={a.id}>{a.id} · {a.category} · {a.breed}</option>)}</select><div style={{fontSize:9,color:'#fbbf24',marginTop:3}}>Saving this revenue permanently marks the selected animal SOLD, removes it from active herd strength, and retains its Passport / Final Disposal history.</div></div>}<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:6}}><input type="date" value={revDate} onChange={e=>setRevDate(e.target.value)} style={inputStyle}/><select value={revStatus} onChange={e=>setRevStatus(e.target.value as 'RECEIVED'|'RECEIVABLE')} style={inputStyle}><option value="RECEIVABLE">Credit / Receivable</option><option value="RECEIVED">Cash Received</option></select>{revStatus==='RECEIVABLE'?<input required type="date" value={revDueDate} onChange={e=>setRevDueDate(e.target.value)} style={inputStyle}/>:<input value={revRef} onChange={e=>setRevRef(e.target.value)} style={inputStyle} placeholder="Reference"/>}</div>{revStatus==='RECEIVABLE'&&<input value={revRef} onChange={e=>setRevRef(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Reference"/>}<input value={revCounterparty} onChange={e=>setRevCounterparty(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Customer / Buyer"/><input value={revNotes} onChange={e=>setRevNotes(e.target.value)} style={{...inputStyle,marginTop:6}} placeholder="Notes"/><button disabled={saving} type="submit" style={{...button('#059669'),width:'100%',marginTop:6}}>{saving?'Saving…':'Save Revenue'}</button></form>
-    <section style={card}><div style={{...sectionTitle,display:'flex',justifyContent:'space-between',gap:6}}><span>Revenue Ledger</span><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}><span style={{fontSize:8,color:'#64748b'}}>Current month ? {currentMonthStart} → {currentMonthEnd}</span><button type="button" onClick={()=>saveLedgerCsv('Revenue Ledger',currentMonthRevenueRows,currentMonthStart,currentMonthEnd,{'Active Revenue Total':currentMonthRevenueRows.reduce((s,t)=>s+activeAmount(t),0)})} style={smallButton}>Save CSV</button><button type="button" onClick={()=>printLedger('Revenue Ledger',currentMonthRevenueRows,currentMonthStart,currentMonthEnd,{'Active Revenue Total':currentMonthRevenueRows.reduce((s,t)=>s+activeAmount(t),0)})} style={smallButton}><Printer size={11}/> Print</button></div></div><div style={{...ledgerLine,color:'#64748b',fontSize:8,fontWeight:800,textTransform:'uppercase',borderBottom:'1px solid #1f2937',padding:'0 8px 5px'}}><span style={{width:76,flex:'0 0 76px'}}>Date</span><span style={ledgerEllipsis}>Particulars</span><span style={{width:76,flex:'0 0 76px',textAlign:'right'}}>Quantity</span><span style={{...ledgerEllipsis,flexBasis:100}}>Counterparty</span><span style={{...ledgerEllipsis,flexBasis:100}}>Reference</span><span style={{width:76,flex:'0 0 76px'}}>Status</span><span style={{width:118,flex:'0 0 118px',textAlign:'right'}}>Amount</span></div>{currentMonthRevenueRows.slice(0,50).map(r=>{const isVoid=r.status==='VOID',reason=isVoid?voidReasonFromNotes(r.notes):'';return <div key={r.id} style={{...row,color:isVoid?'#f87171':'#fff',background:isVoid?'rgba(239,68,68,.06)':'transparent',borderLeft:isVoid?'2px solid #ef4444':undefined}}><div style={{...ledgerLine,textDecoration:isVoid?'line-through':'none'}}><span style={{width:76,flex:'0 0 76px'}}>{r.date?.slice(0,10)||'—'}</span><span title={r.notes||r.category} style={ledgerEllipsis}>{r.category||'OTHER_REVENUE'}</span><span style={{width:76,flex:'0 0 76px',textAlign:'right',fontWeight:800,color:String(r.category||'').toUpperCase()==='MILK_SALES'?'#38bdf8':'#cbd5e1'}}>{ledgerQuantity(r)}</span><span title={r.counterparty||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.counterparty||'—'}</span><span title={r.reference||''} style={{...ledgerEllipsis,flexBasis:100}}>{r.reference||'—'}</span><span style={{width:76,flex:'0 0 76px',fontWeight:800,color:isVoid?'#f87171':r.status==='RECEIVABLE'?'#f59e0b':'#34d399'}}>{r.status||'RECORDED'}</span><strong style={{width:118,flex:'0 0 118px',textAlign:'right'}}>{money(r.amount)}</strong></div>{isVoid?<span title={reason||'Reason recorded in audit trail'} style={{...voidReasonStyle,maxWidth:190}}>VOID: {reason||'See audit trail'}</span>:<><>{r.status==='RECEIVABLE'&&<button onClick={()=>void updateStatus(r,'RECEIVED')} style={smallButton}>Received</button>}</><button onClick={()=>setVoidTarget(r)} style={{...smallButton,color:'#f87171'}}><Ban size={10}/>Void</button></>}</div>})}{!loading&&currentMonthRevenueRows.length===0&&<div style={empty}>No revenue entries in the current calendar month.</div>}</section>
+    <section style={card}>
+     <div
+       style={{
+         ...sectionTitle,
+         display:'flex',
+         justifyContent:'space-between',
+         alignItems:'center',
+         gap:8,
+         flexWrap:'wrap',
+       }}
+     >
+       <span>Revenue Ledger</span>
+
+       <div
+         style={{
+           display:'flex',
+           alignItems:'center',
+           gap:5,
+           flexWrap:'wrap',
+         }}
+       >
+         <span
+           style={{
+             fontSize:8,
+             color:'#64748b',
+           }}
+         >
+           Current month: {currentMonthStart} → {currentMonthEnd}
+         </span>
+
+         <button
+           type="button"
+           onClick={()=>
+             saveRevenueLedgerCsv(
+               currentMonthRevenueRows,
+               currentMonthStart,
+               currentMonthEnd,
+               {
+                 'Active Revenue Total':
+                   currentMonthRevenueRows.reduce(
+                     (s,t)=>s+activeAmount(t),
+                     0,
+                   ),
+               },
+             )
+           }
+           style={smallButton}
+         >
+           Save CSV
+         </button>
+
+         <button
+           type="button"
+           onClick={()=>
+             printRevenueLedger(
+               currentMonthRevenueRows,
+               currentMonthStart,
+               currentMonthEnd,
+               {
+                 'Active Revenue Total':
+                   currentMonthRevenueRows.reduce(
+                     (s,t)=>s+activeAmount(t),
+                     0,
+                   ),
+               },
+             )
+           }
+           style={smallButton}
+         >
+           <Printer size={11}/>
+           Print
+         </button>
+       </div>
+     </div>
+
+     <div
+       style={{
+         overflowX:'auto',
+         border:'1px solid #1f2937',
+         borderRadius:6,
+         background:'#0b1120',
+       }}
+     >
+       <table
+         style={{
+           width:'100%',
+           minWidth:820,
+           borderCollapse:'collapse',
+           tableLayout:'fixed',
+           fontSize:10,
+         }}
+       >
+         <colgroup>
+           <col style={{width:88}}/>
+           <col style={{width:190}}/>
+           <col style={{width:82}}/>
+           <col style={{width:140}}/>
+           <col style={{width:120}}/>
+           <col style={{width:94}}/>
+           <col style={{width:124}}/>
+           <col style={{width:120}}/>
+         </colgroup>
+
+         <thead>
+           <tr>
+             <th style={revenueHeaderCell}>Date</th>
+             <th style={revenueHeaderCell}>Particulars</th>
+
+             <th
+               style={{
+                 ...revenueHeaderCell,
+                 textAlign:'right',
+               }}
+             >
+               Quantity
+             </th>
+
+             <th style={revenueHeaderCell}>
+               Buyer / Customer
+             </th>
+
+             <th style={revenueHeaderCell}>
+               Reference
+             </th>
+
+             <th style={revenueHeaderCell}>
+               Status
+             </th>
+
+             <th
+               style={{
+                 ...revenueHeaderCell,
+                 textAlign:'right',
+               }}
+             >
+               Amount
+             </th>
+
+             <th
+               style={{
+                 ...revenueHeaderCell,
+                 textAlign:'right',
+               }}
+             >
+               Actions
+             </th>
+           </tr>
+         </thead>
+
+         <tbody>
+           {currentMonthRevenueRows
+             .slice(0,50)
+             .map(r=>{
+               const isVoid=
+                 String(r.status||'').toUpperCase()==='VOID';
+
+               const reason=
+                 isVoid
+                   ? voidReasonFromNotes(r.notes)
+                   : '';
+
+               const animalId=revenueAnimalId(r);
+
+               return (
+                 <React.Fragment key={r.id}>
+                   <tr
+                     style={{
+                       color:isVoid?'#f87171':'#fff',
+                       background:isVoid
+                         ? 'rgba(239,68,68,.06)'
+                         : 'transparent',
+                       textDecoration:isVoid
+                         ? 'line-through'
+                         : 'none',
+                     }}
+                   >
+                     <td style={revenueCell}>
+                       {r.date?.slice(0,10)||'—'}
+                     </td>
+
+                     <td
+                       style={revenueCell}
+                       title={r.notes||r.category||''}
+                     >
+                       <div
+                         style={{
+                           fontWeight:800,
+                           color:isVoid
+                             ? '#f87171'
+                             : '#e2e8f0',
+                           overflow:'hidden',
+                           textOverflow:'ellipsis',
+                         }}
+                       >
+                         {revenueParticulars(r)}
+                       </div>
+
+                       {animalId&&
+                         <div
+                           style={{
+                             marginTop:2,
+                             color:'#38bdf8',
+                             fontSize:9,
+                             fontWeight:700,
+                           }}
+                         >
+                           Animal #{animalId}
+                         </div>
+                       }
+                     </td>
+
+                     <td
+                       style={{
+                         ...revenueCell,
+                         textAlign:'right',
+                         fontWeight:800,
+                         color:
+                           String(
+                             r.category||''
+                           ).toUpperCase()==='MILK_SALES'
+                             ? '#38bdf8'
+                             : '#cbd5e1',
+                       }}
+                     >
+                       {ledgerQuantity(r)}
+                     </td>
+
+                     <td
+                       style={revenueCell}
+                       title={r.counterparty||''}
+                     >
+                       {r.counterparty||'—'}
+                     </td>
+
+                     <td
+                       style={revenueCell}
+                       title={r.reference||''}
+                     >
+                       {r.reference||'—'}
+                     </td>
+
+                     <td
+                       style={{
+                         ...revenueCell,
+                         fontWeight:800,
+                         color:isVoid
+                           ? '#f87171'
+                           : r.status==='RECEIVABLE'
+                             ? '#f59e0b'
+                             : '#34d399',
+                       }}
+                     >
+                       {r.status||'RECORDED'}
+                     </td>
+
+                     <td
+                       style={{
+                         ...revenueCell,
+                         textAlign:'right',
+                         fontWeight:900,
+                       }}
+                     >
+                       {money(r.amount)}
+                     </td>
+
+                     <td
+                       style={{
+                         ...revenueCell,
+                         textAlign:'right',
+                         textDecoration:'none',
+                       }}
+                     >
+                       {isVoid
+                         ? (
+                           <span
+                             style={{
+                               color:'#f87171',
+                               fontSize:9,
+                               fontWeight:800,
+                             }}
+                           >
+                             Voided
+                           </span>
+                         )
+                         : (
+                           <div
+                             style={{
+                               display:'flex',
+                               justifyContent:'flex-end',
+                               gap:4,
+                             }}
+                           >
+                             {r.status==='RECEIVABLE'&&
+                               <button
+                                 type="button"
+                                 onClick={()=>
+                                   void updateStatus(
+                                     r,
+                                     'RECEIVED',
+                                   )
+                                 }
+                                 style={smallButton}
+                               >
+                                 Received
+                               </button>
+                             }
+
+                             <button
+                               type="button"
+                               onClick={()=>
+                                 setVoidTarget(r)
+                               }
+                               style={{
+                                 ...smallButton,
+                                 color:'#f87171',
+                               }}
+                             >
+                               <Ban size={10}/>
+                               Void
+                             </button>
+                           </div>
+                         )
+                       }
+                     </td>
+                   </tr>
+
+                   {isVoid&&
+                     <tr>
+                       <td
+                         colSpan={8}
+                         style={{
+                           padding:'3px 8px 7px',
+                           borderBottom:
+                             '1px solid #1a2234',
+                           color:'#fca5a5',
+                           fontSize:8,
+                           fontWeight:800,
+                         }}
+                       >
+                         VOID: {reason||'See audit trail'}
+                       </td>
+                     </tr>
+                   }
+                 </React.Fragment>
+               );
+             })
+           }
+         </tbody>
+       </table>
+     </div>
+
+     {!loading&&
+       currentMonthRevenueRows.length===0&&
+       <div style={empty}>
+         No revenue entries in the current calendar month.
+       </div>
+     }
+    </section>
    </div>
    <div style={{display:'grid',gap:10}}>
     <form onSubmit={saveExpense} style={card}><div style={sectionTitle}>Record Expense</div><div style={{fontSize:9,color:'#64748b',marginBottom:7}}>Feed purchases are entered here and automatically appear in the Feed tab. Other operating expenses remain accounting entries here.</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
