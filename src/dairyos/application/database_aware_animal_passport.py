@@ -22,6 +22,24 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
     """Backward-compatible Passport service with database projections."""
 
     @staticmethod
+    def _normalize_breeding_event_type(value):
+        """Extend the canonical Passport projection with manual pregnancy losses.
+
+        The base Passport already owns the established insemination, PD,
+        calving, and dry-off mappings. Miscarriage/abortion are additional
+        persisted breeding facts and must participate in the same reproductive
+        state resolution rather than disappearing from the projection.
+        """
+        raw = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if raw in {"pregnancy_lost", "pregnancy_loss", "miscarriage"}:
+            return "PREGNANCY_LOST"
+        if raw in {"abortion", "aborted"}:
+            return "ABORTION"
+        if raw == "stillbirth":
+            return "STILLBIRTH"
+        return LifetimeAnimalPassportService._normalize_breeding_event_type(value)
+
+    @staticmethod
     def _event_matches_animal(event, animal_id: str) -> bool:
         target = str(animal_id)
         for key in ("animal_id", "entity_id"):
@@ -110,10 +128,48 @@ class DatabaseAwareLifetimeAnimalPassportService(LifetimeAnimalPassportService):
             "observations": observations,
         }
 
+    @staticmethod
+    def _breeding_outcome_counts(records: list[dict]) -> dict[str, int]:
+        counts = {
+            "confirmed_pregnancies": 0,
+            "negative_pd_results": 0,
+            "calvings": 0,
+            "miscarriages": 0,
+            "abortions": 0,
+        }
+        for record in records:
+            event_type = str(record.get("event_type") or "").strip().lower().replace("-", "_")
+            result = str(record.get("result") or "").strip().upper()
+            if event_type == "pregnancy_confirmed" or (
+                event_type in {"pregnancy_check", "pregnancy_diagnosis"}
+                and result in {"POSITIVE", "PREGNANT", "CONFIRMED"}
+            ):
+                counts["confirmed_pregnancies"] += 1
+            elif event_type == "pregnancy_negative" or (
+                event_type in {"pregnancy_check", "pregnancy_diagnosis"}
+                and result in {"NEGATIVE", "OPEN", "NOT_PREGNANT", "NOT PREGNANT"}
+            ):
+                counts["negative_pd_results"] += 1
+            elif event_type in {"calving", "calved", "parturition"}:
+                counts["calvings"] += 1
+            elif event_type in {"pregnancy_lost", "pregnancy_loss", "miscarriage"} or result == "MISCARRIAGE":
+                counts["miscarriages"] += 1
+            elif event_type in {"abortion", "aborted"} or result in {"ABORTED", "ABORTION"}:
+                counts["abortions"] += 1
+        return counts
+
     def build(self, animal_id: str, as_of_date: date | None = None):
         passport = super().build(animal_id, as_of_date=as_of_date)
         if passport is None:
             return None
+
+        breeding_history = list(passport.get("history", {}).get("breeding", []))
+        outcome_counts = self._breeding_outcome_counts(breeding_history)
+        reproduction_current = passport.setdefault("reproduction", {}).setdefault("current", {})
+        reproduction_current.update(outcome_counts)
+        reproduction_current["pregnancy_losses"] = (
+            outcome_counts["miscarriages"] + outcome_counts["abortions"]
+        )
 
         operational_events = self._operational_event_projection(animal_id, as_of_date)
         passport["history"]["operational_events"] = [
