@@ -8,22 +8,53 @@ def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8-sig")
 
 
-def test_breeding_register_current_stage_is_read_only():
+def test_breeding_register_has_no_status_mutation_column():
     source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
 
-    assert "Current Stage" in source
-    assert "Status is changed only through the breeding entry forms." in source
+    assert "Current Stage" not in source
+    assert "Status is changed only through the breeding entry forms." not in source
     assert "handleStatusChange" not in source
     assert "statusOptionsForState" not in source
     assert 'title="Change current reproductive status.' not in source
+    assert (
+        "['Animal & Breeding Readiness','Insemination Date & Sire','Semen Type',"
+        "'Pregnancy & Calving Timeline','Clinical Notes']"
+    ) in source
 
 
-def test_breeding_entry_form_remains_authoritative_entry_surface():
+def test_breeding_entry_form_is_the_authoritative_lifecycle_surface():
     source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
 
     assert "Record Reproduction & Gestation Event" in source
     assert "Insemination (AI)" in source
     assert "Pregnancy Check (PD)" in source
     assert "Calving" in source
+    assert "Pregnancy Loss" in source
+    assert "Miscarriage" in source
+    assert "Aborted Pregnancy" in source
     assert "Save Breeding Entry" in source
     assert "await postJson('/farm/breeding'" in source
+
+
+def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
+    source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
+
+    assert "['INSEMINATED','BRED'].includes(norm(byId.get(a.id)?.state))" in source
+    assert "(eventType==='CALVING'||eventType==='LOSS')" in source
+    assert "norm(byId.get(a.id)?.state)==='PREGNANT'" in source
+    assert "No inseminated animals currently awaiting pregnancy diagnosis" in source
+    assert "No confirmed pregnant animals currently awaiting calving" in source
+    assert "No confirmed pregnant animals currently available for pregnancy-loss entry" in source
+
+
+def test_breeding_outcome_analytics_include_manual_outcomes():
+    source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
+
+    assert "Insemination Success Analytics" in source
+    assert "Pregnancy Outcome Analytics" in source
+    assert "Confirmed Pregnancies" in source
+    assert "Negative PD Results" in source
+    assert "Calvings" in source
+    assert "Miscarriages" in source
+    assert "Abortions" in source
+    assert "Pregnancy Loss Rate" in source
