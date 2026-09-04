@@ -2,14 +2,9 @@ from fastapi import APIRouter, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.domain.commands import Command
-from dairyos.api.breeding_biology import router as breeding_biology_router
 
 
 router = APIRouter(tags=["Command Center"])
-# Mounted first by dairyos.app. The breeding biology router therefore owns
-# the public breeding/reproduction/dashboard paths while legacy routes remain
-# importable for compatibility and internal callers.
-router.include_router(breeding_biology_router)
 
 
 @router.get("/command-center")
