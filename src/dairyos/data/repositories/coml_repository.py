@@ -32,14 +32,10 @@ class COMLRepository:
         opex_cost_per_liter: float,
         notes: str | None,
         updated_by: str,
-        official_source: str = "UNSPECIFIED",
     ) -> COMLRecord:
         row = self.get_by_month(month_start)
         now = utcnow()
         total = round(float(feed_cost_per_liter) + float(opex_cost_per_liter), 4)
-        source = str(official_source or "UNSPECIFIED").strip().upper()
-        if source not in {"AUTO", "MANUAL", "UNSPECIFIED"}:
-            raise ValueError("official_source must be AUTO, MANUAL, or UNSPECIFIED")
         if row is None:
             row = COMLRecord(
                 month_start=month_start,
@@ -47,7 +43,6 @@ class COMLRepository:
                 opex_cost_per_liter=float(opex_cost_per_liter),
                 total_coml_per_liter=total,
                 status="OFFICIAL",
-                official_source=source,
                 notes=notes,
                 created_at=now,
                 updated_at=now,
@@ -60,7 +55,6 @@ class COMLRepository:
             row.opex_cost_per_liter = float(opex_cost_per_liter)
             row.total_coml_per_liter = total
             row.status = "OFFICIAL"
-            row.official_source = source
             row.notes = notes
             row.updated_at = now
             row.locked_at = now
