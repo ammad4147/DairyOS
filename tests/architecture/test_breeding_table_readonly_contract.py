@@ -27,7 +27,7 @@ def test_breeding_entry_form_is_the_authoritative_lifecycle_surface():
 
     assert "Record Reproduction & Gestation Event" in source
     assert "Insemination (AI)" in source
-    assert "Pregnancy Check (PD)" in source
+    assert "Pregnancy Check / Review (PD)" in source
     assert "Calving" in source
     assert "Pregnancy Loss" in source
     assert "Miscarriage" in source
@@ -39,10 +39,23 @@ def test_breeding_entry_form_is_the_authoritative_lifecycle_surface():
 def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
     source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
 
-    assert "['INSEMINATED','BRED'].includes(norm(byId.get(a.id)?.state))" in source
+    # PD is available after insemination and remains available after a positive
+    # declaration so an operator can manually reconfirm or revise pregnancy.
+    assert (
+        "['INSEMINATED','BRED','PREGNANT'].includes(norm(byId.get(a.id)?.state))"
+        in source
+    )
+    assert "Pregnancy Check / Review (PD)" in source
+    assert "Negative (Revise to Not Pregnant / Open)" in source
+    assert (
+        "No inseminated or confirmed-pregnant animals currently available for "
+        "pregnancy diagnosis/review"
+    ) in source
+
+    # Calving and explicit pregnancy-loss entries remain restricted to animals
+    # whose current manual state is confirmed pregnant.
     assert "(eventType==='CALVING'||eventType==='LOSS')" in source
     assert "norm(byId.get(a.id)?.state)==='PREGNANT'" in source
-    assert "No inseminated animals currently awaiting pregnancy diagnosis" in source
     assert "No confirmed pregnant animals currently awaiting calving" in source
     assert "No confirmed pregnant animals currently available for pregnancy-loss entry" in source
 
