@@ -67,28 +67,45 @@ def test_pd_calving_and_pregnancy_loss_require_prior_manual_state(
     assert abortion.status_code == 409
 
 
-def test_confirmed_pregnancy_rejects_any_further_pd_until_cycle_closes(
+def test_confirmed_pregnancy_allows_manual_pd_reconfirmation_and_revision(
     client, registered_animal
 ):
     _establish_confirmed_pregnancy(client, registered_animal)
 
-    repeat_positive = _record(
+    reconfirm = _record(
         client, registered_animal, "pregnancy_confirmed", "POSITIVE"
     )
-    repeat_negative = _record(
+    assert reconfirm.status_code == 200, reconfirm.text
+    assert reconfirm.json()["reproductive_state"]["state"] == "PREGNANT"
+
+    revised_negative = _record(
         client, registered_animal, "pregnancy_negative", "NEGATIVE"
     )
-    repeat_diagnosis = _record(
-        client, registered_animal, "pregnancy_diagnosis", "NEGATIVE"
-    )
-
-    assert repeat_positive.status_code == 409
-    assert repeat_negative.status_code == 409
-    assert repeat_diagnosis.status_code == 409
+    assert revised_negative.status_code == 200, revised_negative.text
+    revised_state = revised_negative.json()["reproductive_state"]
+    assert revised_state["state"] == "OPEN"
+    assert revised_state["pregnancy_status"] == "NOT_PREGNANT"
+    assert revised_state["expected_calving_date"] is None
 
     state = client.get(f"/farm/animals/{registered_animal}/reproduction")
     assert state.status_code == 200, state.text
-    assert state.json()["state"] == "PREGNANT"
+    assert state.json()["state"] == "OPEN"
+
+    ledger = client.get("/farm/breeding")
+    assert ledger.status_code == 200, ledger.text
+    animal_events = [
+        row
+        for row in ledger.json()
+        if str(row.get("animal_id")) == registered_animal
+    ]
+    assert sum(
+        str(row.get("event_type")) == "pregnancy_confirmed"
+        for row in animal_events
+    ) >= 2
+    assert any(
+        str(row.get("event_type")) == "pregnancy_negative"
+        for row in animal_events
+    )
 
 
 def test_negative_pd_closes_the_insemination_cycle_everywhere(
