@@ -34,8 +34,8 @@ def test_analytics_surface_is_retired_from_operator_shell():
     assert not DIGITAL_TWIN_API.exists()
     assert not DIGITAL_TWIN_PLATFORM.exists()
     assert "currentView==='cop'" in text
-    assert "<COML/>" in text
-    assert "<COPOfficializationPanel/>" in text
+    assert "currentView==='cop'&&<COML/>" in text
+    assert "COPOfficializationPanel" not in text
     assert "DigitalTwinPanel" not in text
 
 
