@@ -54,6 +54,8 @@ _ALLOWED_EVENTS = {
     "pregnancy_diagnosis",
     "pregnancy_confirmed",
     "pregnancy_negative",
+    "pregnancy_lost",
+    "abortion",
     "calving",
     "calved",
     "parturition",
@@ -64,6 +66,7 @@ _PD_EVENTS = {
     "pregnancy_confirmed",
     "pregnancy_negative",
 }
+_PREGNANCY_LOSS_EVENTS = {"pregnancy_lost", "abortion"}
 
 
 class BreedingLifecycleRequest(BaseModel):
@@ -290,6 +293,12 @@ def _normalize_requested_event(
             )
         return "pregnancy_negative", "open"
 
+    if event == "pregnancy_lost":
+        return "pregnancy_lost", "MISCARRIAGE"
+
+    if event == "abortion":
+        return "abortion", "ABORTED"
+
     if event in {"calved", "parturition"}:
         return "calving", raw_result
 
@@ -381,6 +390,24 @@ def _validate_transition(
             raise HTTPException(
                 status_code=422,
                 detail="Calving cannot precede pregnancy confirmation.",
+            )
+
+    elif event_type in _PREGNANCY_LOSS_EVENTS:
+        if current != "PREGNANT":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Pregnancy loss can be recorded only for an animal currently "
+                    "confirmed pregnant."
+                ),
+            )
+        if (
+            state.pregnancy_confirmed_date is not None
+            and event_day < state.pregnancy_confirmed_date
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Pregnancy loss cannot precede pregnancy confirmation.",
             )
 
 
