@@ -67,6 +67,30 @@ def test_pd_calving_and_pregnancy_loss_require_prior_manual_state(
     assert abortion.status_code == 409
 
 
+def test_confirmed_pregnancy_rejects_any_further_pd_until_cycle_closes(
+    client, registered_animal
+):
+    _establish_confirmed_pregnancy(client, registered_animal)
+
+    repeat_positive = _record(
+        client, registered_animal, "pregnancy_confirmed", "POSITIVE"
+    )
+    repeat_negative = _record(
+        client, registered_animal, "pregnancy_negative", "NEGATIVE"
+    )
+    repeat_diagnosis = _record(
+        client, registered_animal, "pregnancy_diagnosis", "NEGATIVE"
+    )
+
+    assert repeat_positive.status_code == 409
+    assert repeat_negative.status_code == 409
+    assert repeat_diagnosis.status_code == 409
+
+    state = client.get(f"/farm/animals/{registered_animal}/reproduction")
+    assert state.status_code == 200, state.text
+    assert state.json()["state"] == "PREGNANT"
+
+
 def test_negative_pd_closes_the_insemination_cycle_everywhere(
     client, registered_animal
 ):
