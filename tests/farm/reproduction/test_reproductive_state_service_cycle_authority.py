@@ -121,7 +121,7 @@ def test_pregnancy_negative_returns_open():
     )
 
     assert state.pregnancy_status == "NOT_PREGNANT"
-    assert state.reproductive_status == "BRED"
+    assert state.reproductive_status == "OPEN"
 
 
 def test_post_calving_insemination_starts_new_cycle():
