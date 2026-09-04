@@ -16,11 +16,20 @@ def test_health_contract():
  assert "/resolve" in v
 
 def test_settings_contract():
- v=text("src/DairyOS.Web/src/components/SettingsTab.tsx");assert "STANDARDS" not in v;assert "smtp.gmail.com" in v;assert "smtp-mail.outlook.com" in v;assert "smtp.mail.yahoo.com" in v;assert "Notification Recipients" in v;assert "System Date & Time" in v;assert "Navigation Visibility" in v
+ v=text("src/DairyOS.Web/src/components/SettingsTab.tsx")
+ nav=text("src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx")
+ assert "STANDARDS" not in v
+ assert "smtp.gmail.com" in v
+ assert "smtp-mail.outlook.com" in v
+ assert "smtp.mail.yahoo.com" in v
+ assert "Notification Recipients" in v
+ assert "System Date & Time" in v
+ assert "NavigationVisibilityControl" in v
+ assert "Navigation Visibility" in nav
 
 def test_hidden_navigation_tabs_only_filter_header_buttons():
  v=text("src/DairyOS.Web/src/App.tsx")
- settings=text("src/DairyOS.Web/src/components/SettingsTab.tsx")
+ settings=text("src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx")
  assert "visibleNavItems=navItems.filter" in v
  assert "hiddenNavigationTabs.includes(tab.id)" in v
  assert settings.count("onHiddenNavigationTabsChange?.(hidden)") == 1

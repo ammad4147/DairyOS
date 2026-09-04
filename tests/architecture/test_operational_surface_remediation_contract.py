@@ -28,14 +28,16 @@ def test_health_clinical_log_contract():
 
 
 def test_sender_settings_are_visible_without_auth_and_navigation_is_protected():
-    frontend = text("src/DairyOS.Web/src/components/SettingsTab.tsx")
+    settings_tab = text("src/DairyOS.Web/src/components/SettingsTab.tsx")
+    navigation = text("src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx")
     backend = text("src/dairyos/api/settings.py")
     email_block = backend[backend.index('@router.get("/email")'):]
     assert 'require_permission("settings.email")' not in email_block
-    assert "Navigation Visibility" in frontend
-    assert "/auth/login" in frontend
-    assert "Authorization" in frontend
-    assert "Bearer ${token}" in frontend
+    assert "NavigationVisibilityControl" in settings_tab
+    assert "Navigation Visibility" in navigation
+    assert "/auth/login" in navigation
+    assert "Authorization" in navigation
+    assert "Bearer ${token}" in navigation
     assert 'require_permission("settings.navigation")' in backend
 
 
