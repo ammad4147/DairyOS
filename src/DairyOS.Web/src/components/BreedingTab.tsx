@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Plus } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import { apiUrl } from '../config/api';
@@ -109,28 +109,6 @@ function uiStatusFromState(value: string): BreedingRecord['status'] {
       return 'Lactating / Waiting';
     default:
       return 'Open / Ready';
-  }
-}
-
-function statusOptionsForState(
-  value: string,
-): Array<{
-  value: string;
-  label: BreedingRecord['status'];
-}> {
-  switch (normaliseState(value)) {
-    case 'INSEMINATED':
-    case 'BRED':
-      return [
-        { value: 'PREGNANT', label: 'Confirmed Pregnant' },
-        { value: 'OPEN', label: 'Open / Ready' },
-      ];
-    case 'PREGNANT':
-      return [
-        { value: 'CALVED', label: 'Open / Ready' },
-      ];
-    default:
-      return [];
   }
 }
 
@@ -380,82 +358,6 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
     else setActiveModalPassport(tag);
   };
 
-  const handleStatusChange = async (
-    animalId: string,
-    nextStatus: string,
-  ) => {
-    const state = currentStates.find(
-      value => value.animal_id === animalId,
-    );
-
-    if (!state || !nextStatus) return;
-
-    const options = statusOptionsForState(state.state);
-    const selected = options.find(
-      option => option.value === nextStatus,
-    );
-
-    if (!selected) {
-      setError(
-        `Invalid reproductive status transition from ${state.state}.`,
-      );
-      return;
-    }
-
-    let eventType: string;
-    let result: string;
-
-    switch (nextStatus) {
-      case 'INSEMINATED':
-        eventType = 'insemination';
-        result = 'COMPLETED';
-        break;
-
-      case 'PREGNANT':
-        eventType = 'pregnancy_confirmed';
-        result = 'CONFIRMED';
-        break;
-
-      case 'OPEN':
-        eventType = 'pregnancy_negative';
-        result = 'NEGATIVE';
-        break;
-
-      case 'CALVED':
-        eventType = 'calving';
-        result = 'COMPLETED';
-        break;
-
-
-      default:
-        setError(
-          `Unsupported reproductive status: ${nextStatus}.`,
-        );
-        return;
-    }
-
-    setError(null);
-
-    try {
-      await postJson('/farm/breeding', {
-        animal_id: animalId,
-        event_type: eventType,
-        technician: formInseminator.trim() || 'WEB',
-        result,
-        operator: formInseminator.trim() || 'WEB',
-        notes:
-          `Status transition: ${state.state} -> ${nextStatus}`,
-      });
-
-      await loadRecords();
-    } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to change the breeding status.',
-      );
-    }
-  };
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTag) return;
@@ -523,18 +425,8 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
       {error && <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(251,146,60,0.12)', border: '1px solid #7c2d12', color: '#fdba74', fontSize: '12px' }}>{error}</div>}
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 980, fontSize: '12px', borderCollapse: 'collapse' }}><thead><tr style={{ color: '#cbd5e1', borderBottom: '1px solid #334155', textAlign: 'left', background: '#161f30' }}><th style={{ padding: '10px 12px' }}>Animal &amp; Breeding Readiness</th><th style={{ padding: '10px 12px' }}>Current Stage</th><th style={{ padding: '10px 12px' }}>Insemination Date &amp; Sire</th><th style={{ padding: '10px 12px' }}>Semen Type</th><th style={{ padding: '10px 12px' }}>Pregnancy &amp; Calving Timeline</th><th style={{ padding: '10px 12px' }}>Clinical Notes</th></tr></thead><tbody>{loading ? null : records.map(r => <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ padding: '10px 12px' }}><button onClick={() => openPassportHandler(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }} title="Open Biological Passport">#{r.tag}</button><div style={{ fontSize: '10px', color: r.eligibleToBreed ? '#34d399' : '#94a3b8', marginTop:3 }}>{r.daysAfterCalving === null ? 'No calving date' : `${r.daysAfterCalving} days after calving`} · {r.eligibleToBreed ? 'Eligible to breed' : 'Not yet eligible'}</div></td><td style={{ padding: '10px 12px' }}>
   {(() => {
-    const state = currentStates.find(
-      value => value.animal_id === r.tag,
-    );
-
-    const options = state
-      ? statusOptionsForState(state.state)
-      : [];
-
-    const isConfirmed =
-      r.status === 'Confirmed Pregnant';
-    const isPending =
-      r.status === 'Inseminated (Pending PD)';
+    const isConfirmed = r.status === 'Confirmed Pregnant';
+    const isPending = r.status === 'Inseminated (Pending PD)';
 
     const background = isConfirmed
       ? 'rgba(167, 139, 250, 0.2)'
@@ -549,16 +441,10 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
         : '#34d399';
 
     return (
-      <select
-        value={r.status}
-        onChange={event => {
-          void handleStatusChange(
-            r.tag,
-            event.target.value,
-          );
-        }}
-        title="Change current reproductive status. Previous events remain in the Animal Passport."
+      <span
+        title="Status is changed only through the breeding entry forms."
         style={{
+          display: 'inline-block',
           padding: '3px 8px',
           borderRadius: '4px',
           fontSize: '10px',
@@ -566,30 +452,12 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Bre
           background,
           color,
           border: `1px solid ${color}`,
-          cursor: options.length
-            ? 'pointer'
-            : 'default',
+          cursor: 'default',
           maxWidth: '190px',
         }}
-        disabled={options.length === 0}
       >
-        <option value={r.status}>
-          {r.status}
-        </option>
-
-        {options
-          .filter(
-            option => option.label !== r.status,
-          )
-          .map(option => (
-            <option
-              key={option.value}
-              value={option.value}
-            >
-              {option.label}
-            </option>
-          ))}
-      </select>
+        {r.status}
+      </span>
     );
   })()}
 </td><td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold', color: '#fff' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>AI: {r.aiDate} • {r.inseminator}</div></td><td style={{ padding: '10px 12px', color: '#cbd5e1' }}><span style={{ color: r.semenType.includes('Sexed') ? '#f472b6' : '#cbd5e1', fontWeight: 'bold', fontSize: '11px' }}>{r.semenType}</span></td><td style={{ padding: '10px 12px' }}><div style={{ color: r.pregnancyDate==='-'?'#94a3b8':'#a78bfa' }}><strong>Pregnancy check:</strong> {r.pregnancyDate}</div><div style={{ color: '#cbd5e1', fontSize: '10px', marginTop:3 }}><strong>PD due:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399', marginTop:3 }}>Expected calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td><td style={{ padding: '10px 12px', color: '#cbd5e1', fontSize: '11px' }}>{r.notes}</td></tr>)}</tbody></table></div>
