@@ -19,6 +19,15 @@ const HIDDEN_KEYS = new Set([
   'data_status',
 ]);
 
+const IDENTIFIER_KEYS = new Set([
+  'animal_id',
+  'legacy_animal_id',
+  'dam_id',
+  'sire_id',
+  'ear_tag',
+  'rfid',
+]);
+
 const LABELS: Record<string, string> = {
   animal_id: 'Animal ID',
   animal_type: 'Animal type',
@@ -185,6 +194,10 @@ function primitive(value: unknown, key?: string): React.ReactNode {
 
   if (typeof value === 'number') {
     return <span>{value.toLocaleString('en-PK')}</span>;
+  }
+
+  if (key && IDENTIFIER_KEYS.has(key)) {
+    return <span>{String(value)}</span>;
   }
 
   if (key === 'created_at' || key === 'updated_at' || key?.endsWith('_date')) {

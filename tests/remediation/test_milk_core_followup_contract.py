@@ -22,5 +22,5 @@ def test_passport_core_does_not_depend_on_ancillary_fetches():
     source = read("src/DairyOS.Web/src/components/AnimalPassportModal.tsx")
     assert "const [a,p]=await Promise.all" in source
     assert "const safeFetch=async(url:string)" in source
-    assert "setPassport(await p.json())" in source
+    assert "const passportData=await p.json();setAnimal(animalData);setPassport(passportData)" in source
     assert "const [a,p,d,h,t,v]=await Promise.all" not in source

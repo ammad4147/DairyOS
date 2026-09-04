@@ -37,3 +37,15 @@ def test_global_navigation_fits_without_horizontal_scrolling():
  assert "margin:'0 4px',overflowX:'hidden',overflowY:'hidden'" in v
  assert "gap:3,flex:'0 0 auto'" in v
  assert "padding:'5px',borderRadius:6,cursor:'pointer',fontSize:9" in v
+
+def test_header_icon_controls_have_accessible_names():
+ v=text("src/DairyOS.Web/src/App.tsx")
+ passport=text("src/DairyOS.Web/src/components/AnimalPassportModal.tsx")
+ assert "aria-label={`Active warnings (${activeCount})`}" in v
+ assert 'aria-label="System Settings"' in v
+ assert 'aria-label="Close Animal Passport"' in passport
+
+def test_passport_renderer_preserves_permanent_identifier_casing():
+ v=text("src/DairyOS.Web/src/components/OperatorDataBlock.tsx")
+ assert "IDENTIFIER_KEYS" in v
+ assert "return <span>{String(value)}</span>;" in v
