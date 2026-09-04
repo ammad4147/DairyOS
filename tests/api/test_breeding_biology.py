@@ -84,5 +84,9 @@ def test_pd_request_is_normalized_to_a_factual_positive_or_negative_event():
     negative = BreedingLifecycleRequest(
         animal_id="A1", event_type="pregnancy_check", result="negative"
     )
-    assert _normalize_requested_event(positive) == ("pregnancy_confirmed", "POSITIVE")
-    assert _normalize_requested_event(negative) == ("pregnancy_negative", "NEGATIVE")
+
+    # A PD form submission remains a factual diagnosis encounter so analytics
+    # can count the manual check itself. The result drives the reproductive
+    # state projection to PREGNANT or OPEN without inventing another event.
+    assert _normalize_requested_event(positive) == ("pregnancy_diagnosis", "pregnant")
+    assert _normalize_requested_event(negative) == ("pregnancy_diagnosis", "open")
