@@ -11,7 +11,9 @@ def test_breeding_ui_has_no_heat_or_estrus_operational_concept():
     s = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
     for token in ["Standing Heat","Heat Observation","Active Heat Standing","On Heat","HEAT_OBSERVED","heat_detected","heat_detection","estrus","oestrus","last_heat"]:
         assert token not in s
-    assert "Eligible to Breed" in s
+    assert "Manual AI Candidates" in s
+    assert "Manual AI authority" in s
+    assert "operator entry remains authoritative" in s
     assert "days after calving" in s
     assert "Insemination Success Analytics" in s
     assert "1st Attempt" in s and "2nd Attempt" in s and "3rd Attempt" in s
