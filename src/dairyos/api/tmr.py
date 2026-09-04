@@ -128,6 +128,9 @@ class TMRStageIngredient(BaseModel):
     quantity: float = Field(ge=0)
     dose_unit: str = Field(default="kg")
     fallback_price_per_kg: float = Field(default=0, ge=0)
+    # Explicit operator choice. FINANCE remains the default for legacy rows,
+    # but MANUAL is always available and is persisted with the TMR version.
+    price_source: str = Field(default="FINANCE")
 
 
 class TMRStageUpdate(BaseModel):
@@ -227,6 +230,7 @@ def _default_stage_ingredients(factory, stage: str) -> list[dict]:
             {
                 **definition,
                 "quantity": float(quantity),
+                "price_source": "FINANCE",
             }
         )
     return result
@@ -245,6 +249,11 @@ def _saved_stage_ingredients(factory, stage: str) -> list[dict] | None:
         if isinstance(payload, list):
             return payload
     return None
+
+
+def _normalize_selected_price_source(value: object) -> str:
+    selected = str(value or "FINANCE").strip().upper()
+    return "MANUAL" if selected == "MANUAL" else "FINANCE"
 
 
 def _stage_ingredients(factory, stage: str) -> list[dict]:
@@ -280,6 +289,11 @@ def _stage_ingredients(factory, stage: str) -> list[dict]:
                         definition["fallback_price_per_kg"],
                     )
                     or 0.0
+                ),
+                # Rows saved before explicit source selection are treated as
+                # Finance-preferred, preserving the historical default.
+                "price_source": _normalize_selected_price_source(
+                    prior.get("price_source", base.get("price_source", "FINANCE"))
                 ),
             }
         )
@@ -352,14 +366,26 @@ def _priced_stage(
     for ingredient in _stage_ingredients(factory, stage):
         name = ingredient["catalog_name"]
         finance = price_authority.get(name)
-        fallback_rate = float(
+        manual_rate = float(
             ingredient["fallback_price_per_kg"] or 0.0
         )
-        rate = (
-            float(finance["price_per_kg"])
-            if finance is not None
-            else fallback_rate
+        selected_source = _normalize_selected_price_source(
+            ingredient.get("price_source")
         )
+
+        if selected_source == "MANUAL":
+            rate = manual_rate
+            effective_source = "MANUAL"
+        elif finance is not None:
+            rate = float(finance["price_per_kg"])
+            effective_source = "FINANCE"
+        else:
+            # Finance-preferred legacy/default rows remain usable when no
+            # Finance purchase price exists. The fallback is explicit.
+            rate = manual_rate
+            effective_source = "MANUAL_FALLBACK"
+            selected_source = "MANUAL"
+
         quantity = float(ingredient["quantity"] or 0.0)
         dose_unit = ingredient["dose_unit"]
         quantity_kg = (
@@ -375,10 +401,17 @@ def _priced_stage(
                 **ingredient,
                 "price_per_kg": round(rate, 4),
                 "price_source": (
-                    "FINANCE"
-                    if finance is not None
-                    else "MANUAL_FALLBACK"
+                    effective_source
                 ),
+                "selected_price_source": selected_source,
+                "manual_price_per_kg": round(manual_rate, 4),
+                "finance_price_per_kg": (
+                    round(float(finance["price_per_kg"]), 4)
+                    if finance is not None
+                    else None
+                ),
+                # Finance provenance remains visible even while Manual is
+                # selected, so the operator can compare both authorities.
                 "finance_transaction_id": (
                     finance["transaction_id"]
                     if finance is not None
@@ -554,6 +587,9 @@ def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
             float(stages[key]["cost_per_head_day"])
             for key in stage_keys
         ]
+        # Deliberate management-estimate simplification: detailed feeding
+        # stages are averaged to the DairyOS animal category before the
+        # category count is applied.
         head_cost = sum(values) / len(values) if values else 0.0
         count = int(counts.get(category, 0))
         result.append(
@@ -757,6 +793,7 @@ def save_tmr_stage(
     for row in payload.ingredients:
         name = row.catalog_name.strip()
         unit = row.dose_unit.strip().lower()
+        selected_source = str(row.price_source or "FINANCE").strip().upper()
         if name not in allowed:
             raise HTTPException(
                 status_code=422,
@@ -767,6 +804,11 @@ def save_tmr_stage(
                 status_code=422,
                 detail="dose_unit must be kg or g.",
             )
+        if selected_source not in {"FINANCE", "MANUAL"}:
+            raise HTTPException(
+                status_code=422,
+                detail="price_source must be FINANCE or MANUAL.",
+            )
         normalized.append(
             {
                 "catalog_name": name,
@@ -775,6 +817,7 @@ def save_tmr_stage(
                 "fallback_price_per_kg": float(
                     row.fallback_price_per_kg
                 ),
+                "price_source": selected_source,
             }
         )
 

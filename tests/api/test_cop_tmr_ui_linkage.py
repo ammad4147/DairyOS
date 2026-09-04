@@ -4,16 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-AUTO_COP = (
-    ROOT
-    / "src"
-    / "DairyOS.Web"
-    / "src"
-    / "components"
-    / "COPOfficializationPanel.tsx"
-)
-
-MANUAL_COP = (
+COP = (
     ROOT
     / "src"
     / "DairyOS.Web"
@@ -22,13 +13,7 @@ MANUAL_COP = (
     / "COML.tsx"
 )
 
-APP = (
-    ROOT
-    / "src"
-    / "DairyOS.Web"
-    / "src"
-    / "App.tsx"
-)
+APP = ROOT / "src" / "DairyOS.Web" / "src" / "App.tsx"
 
 DASHBOARD = (
     ROOT
@@ -43,162 +28,98 @@ DASHBOARD = (
 class CopTmrUiLinkageContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.auto_source = AUTO_COP.read_text(encoding="utf-8")
-        cls.manual_source = MANUAL_COP.read_text(encoding="utf-8")
+        cls.cop_source = COP.read_text(encoding="utf-8")
         cls.app_source = APP.read_text(encoding="utf-8")
         cls.dashboard_source = DASHBOARD.read_text(encoding="utf-8")
 
+    def test_single_combined_cop_surface_is_used(self):
+        self.assertIn("Cost of Production (COP)", self.cop_source)
+        self.assertIn("Auto", self.cop_source)
+        self.assertIn("Manual Override", self.cop_source)
+        self.assertIn("currentView==='cop'&&<COML/>", self.app_source)
+        self.assertNotIn("COPOfficializationPanel", self.app_source)
+
     def test_integrated_cop_endpoint_is_used(self):
-        self.assertIn(
-            "/farm/coml/integrated",
-            self.auto_source,
-        )
+        self.assertIn("/farm/coml/integrated", self.cop_source)
 
-    def test_current_month_is_month_to_date(self):
-        self.assertIn(
-            "live month-to-date",
-            self.auto_source,
-        )
-        self.assertIn(
-            "month === today.slice(0, 7)",
-            self.auto_source,
-        )
-
-    def test_historical_month_uses_calendar_end(self):
-        self.assertIn(
-            "calendarEnd",
-            self.auto_source,
-        )
-        self.assertIn(
-            "completed calendar period",
-            self.auto_source,
-        )
+    def test_auto_period_controls_are_present(self):
+        for text in (
+            "Analysis Period",
+            "This month",
+            "Last 30 days",
+            "Year to date",
+            "From",
+            "To",
+        ):
+            self.assertIn(text, self.cop_source)
+        self.assertIn("live month-to-date", self.cop_source)
+        self.assertIn("calendarEnd", self.cop_source)
 
     def test_selected_month_official_record_is_loaded(self):
-        self.assertIn(
-            "month_start: range.start",
-            self.auto_source,
-        )
-        self.assertIn(
-            "`${API_BASE}/farm/coml?${officialQuery}`",
-            self.auto_source,
-        )
+        self.assertIn("month_start: officialMonthStart", self.cop_source)
+        self.assertIn("`${API_BASE}/farm/coml?${officialQuery}`", self.cop_source)
 
-    def test_current_only_official_endpoint_is_not_used_by_auto_panel(self):
-        self.assertNotIn(
-            "/farm/coml/current",
-            self.auto_source,
-        )
+    def test_current_only_official_endpoint_is_not_used_by_cop_surface(self):
+        self.assertNotIn("/farm/coml/current", self.cop_source)
+
+    def test_primary_auto_surface_has_four_metrics(self):
+        for label in (
+            "Milk in period (L)",
+            "Feed Cost / L",
+            "OPEX / L",
+            "COP / L",
+        ):
+            self.assertIn(label, self.cop_source)
 
     def test_tmr_is_visible_feed_authority(self):
-        self.assertIn(
-            "TMR Feed / L",
-            self.auto_source,
-        )
-        self.assertIn(
-            "Governed TMR ration ×",
-            self.auto_source,
-        )
-        self.assertIn(
-            "active DairyOS herd",
-            self.auto_source,
-        )
+        self.assertIn("Governed TMR ration × active DairyOS herd", self.cop_source)
+        self.assertIn("TMR_HERD_COST+FINANCE_OPEX", self.cop_source)
+        self.assertIn("TMR Feed/L", self.cop_source)
 
     def test_finance_remains_opex_authority(self):
-        self.assertIn(
-            "Finance OPEX / L",
-            self.auto_source,
-        )
+        self.assertIn("Finance OPEX / L", self.cop_source)
+        self.assertIn("Finance OPEX", self.cop_source)
 
     def test_bulk_feed_purchase_is_not_consumption(self):
         self.assertIn(
             "not treated as same-day consumption in COP",
-            self.auto_source,
+            self.cop_source,
         )
 
-    def test_auto_cop_can_always_be_declared_official_when_calculable(self):
-        self.assertIn(
-            "Make Auto COP / L Official",
-            self.auto_source,
-        )
-        self.assertIn(
-            "/farm/coml/lock",
-            self.auto_source,
-        )
-        self.assertNotIn(
-            "selectedMonthIsOfficial",
-            self.auto_source,
-        )
+    def test_auto_cop_can_be_declared_official_on_primary_surface(self):
+        self.assertIn("Make Auto COP / L Official", self.cop_source)
+        self.assertIn("/farm/coml/lock", self.cop_source)
         self.assertIn(
             "Making Auto official replaces the month’s current official COP/L.",
-            self.auto_source,
+            self.cop_source,
         )
 
     def test_auto_refresh_is_present(self):
-        self.assertIn(
-            "60_000",
-            self.auto_source,
-        )
-        self.assertIn(
-            "auto-refresh every 60 seconds",
-            self.auto_source,
-        )
+        self.assertIn("60_000", self.cop_source)
+        self.assertIn("auto-refresh every 60 seconds", self.cop_source)
 
     def test_manual_calculator_is_direct_per_litre_entry(self):
-        self.assertIn(
-            "Manual COP / L Calculator",
-            self.manual_source,
-        )
-        self.assertIn(
-            "Manual Feed Cost per Liter",
-            self.manual_source,
-        )
-        self.assertIn(
-            "Manual OPEX per Liter",
-            self.manual_source,
-        )
-        self.assertIn(
-            "Feed Cost/L + OPEX/L",
-            self.manual_source,
-        )
-        self.assertNotIn(
-            "/farm/coml/calculate",
-            self.manual_source,
-        )
+        self.assertIn("Manual COP / L Calculator", self.cop_source)
+        self.assertIn("Manual Feed Cost per Liter", self.cop_source)
+        self.assertIn("Manual OPEX per Liter", self.cop_source)
+        self.assertIn("Feed Cost/L + OPEX/L", self.cop_source)
+        self.assertNotIn("/farm/coml/calculate", self.cop_source)
 
     def test_manual_cop_can_replace_the_monthly_official_value(self):
+        self.assertIn("Make Manual COP / L Official", self.cop_source)
         self.assertIn(
-            "Make Manual COP / L Official",
-            self.manual_source,
-        )
-        self.assertIn(
-            "/farm/coml/lock",
-            self.manual_source,
-        )
-        self.assertIn(
-            "replaces the month’s current official COP/L",
-            self.manual_source,
+            "Making Manual COP/L official replaces the month’s current official COP/L",
+            self.cop_source,
         )
 
-    def test_both_manual_and_auto_surfaces_are_rendered_on_cop_tab(self):
-        self.assertIn(
-            "currentView==='cop'&&<><COML/><COPOfficializationPanel/></>",
-            self.app_source,
-        )
+    def test_manual_draft_is_persisted_but_milk_remains_automatic(self):
+        self.assertIn("dairyos_cop_manual_per_litre_draft", self.cop_source)
+        self.assertIn("Milk remains automatic from the Milk ledger", self.cop_source)
 
     def test_dashboard_uses_persisted_official_cop_not_live_auto(self):
-        self.assertIn(
-            "/farm/coml/current",
-            self.dashboard_source,
-        )
-        self.assertIn(
-            "record?.total_coml_per_liter",
-            self.dashboard_source,
-        )
-        self.assertNotIn(
-            "/farm/coml/integrated",
-            self.dashboard_source,
-        )
+        self.assertIn("/farm/coml/current", self.dashboard_source)
+        self.assertIn("record?.total_coml_per_liter", self.dashboard_source)
+        self.assertNotIn("/farm/coml/integrated", self.dashboard_source)
 
 
 if __name__ == "__main__":
