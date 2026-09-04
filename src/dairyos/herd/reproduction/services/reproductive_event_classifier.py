@@ -4,7 +4,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 CONFIRMED_RESULTS = {"pregnant", "confirmed", "positive", "yes"}
-NEGATIVE_RESULTS = {"negative", "no"}
+NEGATIVE_RESULTS = {
+    "negative",
+    "no",
+    "open",
+    "not_pregnant",
+    "not pregnant",
+}
 
 INSEMINATION_EVENTS = {"insemination", "service", "ai", "artificial_insemination"}
 
