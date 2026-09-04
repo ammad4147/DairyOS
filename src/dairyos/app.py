@@ -165,12 +165,34 @@ from dairyos.api.payroll import router as payroll_router
 from dairyos.api.auth import router as auth_router
 from dairyos.api.authorization import router as authorization_router
 
+
+def _unmount_duplicate_routes(router, paths: set[str]) -> None:
+    """Keep compatibility functions importable without mounting duplicate APIs."""
+    router.routes[:] = [
+        route
+        for route in router.routes
+        if str(getattr(route, "path", "")) not in paths
+    ]
+
+
+# Breeding lifecycle writes and current reproductive state have one public
+# authority: breeding_biology_router. Historical compatibility functions may
+# remain importable for internal callers, but they are deliberately not mounted
+# as competing HTTP routes. The established Dashboard remains owned by its
+# dedicated dashboard router.
+_unmount_duplicate_routes(farm_router, {"/farm/breeding"})
+_unmount_duplicate_routes(
+    animal_passport_router,
+    {"/farm/animals/{animal_id}/reproduction"},
+)
+_unmount_duplicate_routes(
+    farm_planning_router,
+    {"/farm/animals/{animal_id}/reproduction"},
+)
+_unmount_duplicate_routes(breeding_biology_router, {"/dashboard"})
+
 app.include_router(command_router)
 app.include_router(dashboard_router)
-# Governed breeding routes must be registered before the generic farm-data
-# compatibility router and Animal Passport compatibility reproduction route.
-# FastAPI resolves duplicate method/path routes in registration order, so this
-# ordering makes form-governed breeding biology the live authority.
 app.include_router(breeding_biology_router)
 app.include_router(equipment_router)
 app.include_router(farm_router)
