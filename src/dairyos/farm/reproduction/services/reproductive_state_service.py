@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -272,7 +272,6 @@ class ReproductiveStateService:
                 pregnant = False
                 continue
 
-
             if is_dry_off(classifier_record):
                 if not any(
                     is_calving(self._classifier_record(previous))
@@ -331,7 +330,6 @@ class ReproductiveStateService:
             if last_calving_date is not None
             else None
         )
-
 
         inseminations = [
             event
@@ -407,7 +405,11 @@ class ReproductiveStateService:
         elif latest_state_event is not None:
             latest_type = normalize_event_type(latest_state_event["event_type"])
             if latest_type in {"pregnancy_negative", "pregnancy_lost", "abortion", "stillbirth"}:
-                reproductive_status = "BRED" if last_insemination_date is not None else "OPEN"
+                # A negative diagnosis or recorded pregnancy loss closes the
+                # preceding insemination cycle. The historical insemination
+                # remains in the ledger, but it must not keep the animal in
+                # the operational INSEMINATED/BRED queue.
+                reproductive_status = "OPEN"
             elif is_insemination(self._classifier_record(latest_state_event)):
                 reproductive_status = "BRED"
             elif is_dry_off(self._classifier_record(latest_state_event)):
