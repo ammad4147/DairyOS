@@ -125,7 +125,7 @@ def test_pregnancy_loss_returns_animal_to_open_state():
     )
 
     assert state.pregnancy_status == "NOT_PREGNANT"
-    assert state.reproductive_status == "BRED"
+    assert state.reproductive_status == "OPEN"
     assert state.expected_calving_date is None
 
 
