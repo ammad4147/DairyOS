@@ -336,7 +336,8 @@ def _validate_transition(
                 status_code=422,
                 detail=(
                     "This animal is not currently available for insemination. "
-                    "Calves, bulls, and CLOSE_UP animals are excluded."
+                    "Only Heifer, Lactating/Milking, and Dry animals are selectable; "
+                    "female calves, male calves, bulls, and CLOSE_UP animals are excluded."
                 ),
             )
         if current in {"INSEMINATED", "PREGNANT"}:
@@ -347,14 +348,8 @@ def _validate_transition(
                     "pregnancy diagnosis or calving before another insemination."
                 ),
             )
-        if not bool(state.eligible_to_breed):
-            detail = "Animal is not yet biologically eligible for insemination."
-            if state.voluntary_waiting_period_end is not None:
-                detail += (
-                    " Voluntary waiting period ends "
-                    f"{state.voluntary_waiting_period_end.isoformat()}."
-                )
-            raise HTTPException(status_code=409, detail=detail)
+        # Biological clocks, waiting periods, and readiness calculations are
+        # advisory only. A manual operator breeding entry is the authority.
 
     elif event_type in _PD_EVENTS:
         if current not in {"INSEMINATED", "PREGNANT"}:
