@@ -34,8 +34,8 @@ def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(clie
         f"/farm/animals/{registered_animal}/reproduction"
     ).json()
 
-    assert status["last_calving"]
-    datetime.fromisoformat(status["last_calving"])
+    assert status["last_calving_date"]
+    datetime.fromisoformat(status["last_calving_date"])
     assert status["state"] in {"CALVED", "LACTATING"}
     assert status["pregnancy_status"] != "PREGNANT"
     assert utcnow() is not None
