@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Ban, Edit3, Printer, Search } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 
@@ -320,7 +320,8 @@ export default function FinanceTab({
   }, [masterCategory, taxonomy]);
 
   const currentTaxonomy = taxonomy?.taxonomies?.[masterCategory] ?? {};
-  const expenseGroups = Object.keys(currentTaxonomy);
+  const groupedTaxonomyEntries = Object.entries(taxonomy?.taxonomies?.[masterCategory] ?? {}) as [string, string[]][];
+  const expenseGroups = groupedTaxonomyEntries.map(([group]) => group);
   const expenseItems = expenseGroup ? (currentTaxonomy[expenseGroup] ?? []) : [];
 
   const selectExpenseGroup = (nextGroup: string) => {
@@ -439,11 +440,13 @@ export default function FinanceTab({
     ? Number(quantity) * Number(unitRate)
     : Number(directAmount || 0);
 
+  const requiresCustomSpecification=subCategory==='Other'||subCategory==='Equipment Purchase';
+
   const ledgerParticulars = (t: Transaction) => t.sub_category || t.category || '—';
   const ledgerCounterparty = (t: Transaction) => t.counterparty || t.vendor_name || '—';
   const ledgerReference = (t: Transaction) => t.reference || '—';
   const ledgerStatus = (t: Transaction) => t.status || 'RECORDED';
-  const ledgerQuantity = (t: Transaction) => {
+  const ledgerQuantity= (t: Transaction) => {
     const qty = Number(t.quantity || 0);
     if (!(qty > 0)) return '—';
     const formatted = qty.toLocaleString('en-PK', { maximumFractionDigits: 2 });
@@ -455,13 +458,13 @@ export default function FinanceTab({
   };
 
   const revenueCategoryLabels: Record<string, string> = {
-    MILK_SALES: 'Milk Sales',
+    MILK_SALES:'Milk Sales',
     MANURE_SALES: 'Organic Manure / Dung',
     MILKING_ANIMAL_SALE: 'Milking Animal Sale',
     DRY_ANIMAL_SALE: 'Dry Animal Sale',
     HEIFER_SALE: 'Heifer Sale',
     FEMALE_CALF_SALE: 'Female Calf Sale',
-    MALE_CALF_SALE: 'Male Calf Sale',
+    MALE_CALF_SALE:'Male Calf Sale',
     BULL_SALE: 'Bull Sale',
     OTHER_REVENUE: 'Other Revenue',
   };
@@ -471,12 +474,68 @@ export default function FinanceTab({
     return revenueCategoryLabels[category] || ledgerParticulars(t);
   };
 
-  const revenueAnimalId = (t: Transaction) => {
+  const revenueAnimalId= (t: Transaction) => {
     const match = String(t.notes || '').match(/\bAnimal\s+([A-Za-z0-9_-]+)/i);
     return match?.[1] || '';
   };
 
-  const saveLedgerCsv = (
+  const saveRevenueLedgerCsv=(
+    rows: Transaction[],
+    start: string,
+    end: string,
+    summary: Record<string, number> = {},
+  ) => {
+    const header = ['Date', 'Particulars', 'Quantity', 'Buyer / Customer', 'Reference', 'Status', 'Amount'];
+    const detailRows = rows.map(t => {
+      const animalId = revenueAnimalId(t);
+      const particulars = animalId
+        ? `${revenueParticulars(t)} — Animal ${animalId}`
+        : revenueParticulars(t);
+
+      return [
+        String(t.date || '').slice(0, 10),
+        particulars,
+        ledgerQuantity(t),
+        ledgerCounterparty(t),
+        ledgerReference(t),
+        ledgerStatus(t),
+        Number(t.amount || 0).toFixed(2),
+      ];
+    });
+    const summaryRows = [
+      [],
+      ...Object.entries(summary).map(([labelText, value]) => [
+        labelText,
+        '',
+        '',
+        '',
+        '',
+        '',
+        Number(value || 0).toFixed(2),
+      ]),
+    ];
+    const csv = [
+      ['DairyOS — Revenue Ledger'],
+      ['Reporting Period', `${start} to ${end}`],
+      [],
+      header,
+      ...detailRows,
+      ...summaryRows,
+    ]
+      .map(line => line.map(csvCell).join(','))
+      .join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `DairyOS-Revenue-Ledger-${start}-to-${end}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const saveLedgerCsv=(
     title: string,
     rows: Transaction[],
     start: string,
@@ -496,9 +555,25 @@ export default function FinanceTab({
     ]);
     const summaryRows = [
       [],
-      ...Object.entries(summary).map(([label, value]) => [label, '', '', '', '', '', '', Number(value || 0).toFixed(2)]),
+      ...Object.entries(summary).map(([labelText, value]) => [
+        labelText,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        Number(value || 0).toFixed(2),
+      ]),
     ];
-    const csv = [[title], ['Reporting Period', `${start} to ${end}`], [], header, ...detailRows, ...summaryRows]
+    const csv = [
+      [title],
+      ['Reporting Period', `${start} to ${end}`],
+      [],
+      header,
+      ...detailRows,
+      ...summaryRows,
+    ]
       .map(line => line.map(csvCell).join(','))
       .join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -523,14 +598,58 @@ export default function FinanceTab({
     });
   };
 
-  const saveRevenueLedgerCsv = (
+
+  const printRevenueLedger=(
     rows: Transaction[],
     start: string,
     end: string,
     summary: Record<string, number> = {},
-  ) => saveLedgerCsv('Revenue Ledger', rows, start, end, summary);
+  ) => {
+    const popup = window.open('', '_blank', 'width=1100,height=800');
+    if (!popup) {
+      setError('The Revenue Ledger print window was blocked. Allow pop-ups for DairyOS and try again.');
+      return;
+    }
+    const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    } as Record<string, string>)[ch] || ch);
+    const tableRows = rows.map(t => {
+      const isVoid = String(t.status || '').toUpperCase() === 'VOID';
+      const reason = isVoid ? voidReasonFromNotes(t.notes) : '';
+      const animalId = revenueAnimalId(t);
+      const particulars = animalId
+        ? `${revenueParticulars(t)} — Animal ${animalId}`
+        : revenueParticulars(t);
 
-  const printLedger = (
+      return `
+        <tr class="${isVoid ? 'void' : ''}">
+          <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
+          <td>${esc(particulars)}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
+          <td class="quantity">${esc(ledgerQuantity(t))}</td>
+          <td>${esc(ledgerCounterparty(t))}</td>
+          <td>${esc(ledgerReference(t))}</td>
+          <td>${esc(ledgerStatus(t))}</td>
+          <td class="amount">${esc(money(Number(t.amount || 0)))}</td>
+        </tr>`;
+    }).join('');
+    const summaryHtml = Object.keys(summary).length
+      ? `<div class="summary">${Object.entries(summary).map(([labelText, value]) => `
+          <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
+      : '';
+
+    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DairyOS — Revenue Ledger</title><style>
+      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
+    </style></head><body><h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Date</th><th>Particulars</th><th style="text-align:right">Quantity</th><th>Buyer / Customer</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="7">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
+    popup.document.close();
+    popup.focus();
+    window.setTimeout(() => popup.print(), 250);
+  };
+
+  const printLedger=(
     title: string,
     rows: Transaction[],
     start: string,
@@ -576,12 +695,6 @@ export default function FinanceTab({
     window.setTimeout(() => popup.print(), 250);
   };
 
-  const printRevenueLedger = (
-    rows: Transaction[],
-    start: string,
-    end: string,
-    summary: Record<string, number> = {},
-  ) => printLedger('Revenue Ledger', rows, start, end, summary);
 
   const saveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -596,7 +709,7 @@ export default function FinanceTab({
           transaction_type: 'EXPENSE',
           master_category: masterCategory,
           sub_category: subCategory,
-          custom_specification: (subCategory === 'Other' || subCategory === 'Equipment Purchase') ? customSpecification : null,
+          custom_specification:requiresCustomSpecification?customSpecification:null,
           quantity: quantity ? Number(quantity) : null,
           unit: quantity ? unit : null,
           unit_rate: quantity ? Number(unitRate) : null,
@@ -711,7 +824,7 @@ export default function FinanceTab({
             disposition: 'SOLD',
             effective_date: revDate,
             reason: `Recorded through Finance: ${revCategory}`,
-            buyer_or_counterparty: revCounterparty || null,
+            buyer_or_counterparty:revCounterparty||null,
             amount,
             reference: revRef || `FIN-${body.id || 'SALE'}`,
             notes: revNotes || null,
@@ -724,7 +837,7 @@ export default function FinanceTab({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                status: 'VOID',
+                status:'VOID',
                 reason: 'Animal sale disposition failed; Finance row automatically revoked for reconciliation.',
               }),
             });
@@ -813,7 +926,7 @@ export default function FinanceTab({
   const financialCards: Array<[string, number, string]> = [
     ['Cash Revenue', cashRevenue, '#34d399'],
     ['Receivables', receivables, '#f59e0b'],
-    ['Payables', payableTotal, '#fb7185'],
+    ['Payables',payableTotal,'#fb7185'],
     ['Total Expenses', totalExpenses, '#f87171'],
     ['Net Cash Position', netCash, '#38bdf8'],
   ];
@@ -833,7 +946,7 @@ export default function FinanceTab({
           borderLeft: isVoid ? '2px solid #ef4444' : undefined,
         }}
       >
-        <div style={{ ...ledgerLine, textDecoration: isVoid ? 'line-through' : 'none' }}>
+        <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
           <span style={{ width: 76, flex: '0 0 76px' }}>{r.date?.slice(0, 10) || '—'}</span>
           <span title={particulars} style={ledgerEllipsis}>{particulars}</span>
           <span title={r.vendor_name || r.counterparty || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.vendor_name || r.counterparty || '—'}</span>
@@ -843,7 +956,7 @@ export default function FinanceTab({
         </div>
         {isVoid ? (
           <span title={reason || 'Reason recorded in audit trail'} style={{ ...voidReasonStyle, maxWidth: 190 }}>
-            VOID: {reason || 'See audit trail'}
+            VOID: {reason||'See audit trail'}
           </span>
         ) : (
           <>
@@ -939,7 +1052,7 @@ export default function FinanceTab({
               const reason = isVoid ? voidReasonFromNotes(r.notes) : '';
               return (
                 <div key={`${isRevenue(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
-                  <div style={{ ...ledgerLine, textDecoration: isVoid ? 'line-through' : 'none' }}>
+                  <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
                     <span style={{ width: 76, flex: '0 0 76px' }}>{String(r.date || '').slice(0, 10) || '—'}</span>
                     <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenue(r) ? '#34d399' : '#f59e0b' }}>{isRevenue(r) ? 'REV' : 'EXP'}</span>
                     <span style={ledgerEllipsis}>{r.sub_category || r.category || '—'}</span>
@@ -947,7 +1060,7 @@ export default function FinanceTab({
                     <span style={{ width: 76, flex: '0 0 76px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
                     <strong style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>{money(Number(r.amount || 0))}</strong>
                   </div>
-                  {isVoid && <span style={{ ...voidReasonStyle, maxWidth: 220 }}>VOID: {reason || 'See audit trail'}</span>}
+                  {isVoid && <span style={{ ...voidReasonStyle, maxWidth: 220 }}>VOID: {reason||'See audit trail'}</span>}
                 </div>
               );
             })}
@@ -1015,7 +1128,7 @@ export default function FinanceTab({
                     const animalId = revenueAnimalId(r);
                     return (
                       <React.Fragment key={r.id}>
-                        <tr style={{ color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent', textDecoration: isVoid ? 'line-through' : 'none' }}>
+                        <tr style={{ color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent', textDecoration:isVoid?'line-through':'none' }}>
                           <td style={revenueCell}>{r.date?.slice(0, 10) || '—'}</td>
                           <td style={revenueCell} title={r.notes || r.category || ''}>
                             <div style={{ fontWeight: 800, color: isVoid ? '#f87171' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis' }}>{revenueParticulars(r)}</div>
@@ -1035,7 +1148,7 @@ export default function FinanceTab({
                             )}
                           </td>
                         </tr>
-                        {isVoid && <tr><td colSpan={8} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason || 'See audit trail'}</td></tr>}
+                        {isVoid && <tr><td colSpan={8} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason||'See audit trail'}</td></tr>}
                       </React.Fragment>
                     );
                   })}
@@ -1062,7 +1175,7 @@ export default function FinanceTab({
                 {expenseItems.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
             </div>
-            {(subCategory === 'Other' || subCategory === 'Equipment Purchase') && <input required value={customSpecification} onChange={event => setCustomSpecification(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={subCategory === 'Equipment Purchase' ? 'Equipment name' : 'Specification'} />}
+            {requiresCustomSpecification && <input required value={customSpecification} onChange={event => setCustomSpecification(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={subCategory === 'Equipment Purchase' ? 'Equipment name' : 'Specification'} />}
             <input value={vendor} onChange={event => setVendor(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Vendor / Supplier" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="number" min="0" step="0.001" value={quantity} onChange={event => setQuantity(event.target.value)} style={inputStyle} placeholder="Quantity" />
@@ -1154,3 +1267,4 @@ export default function FinanceTab({
     </div>
   );
 }
+
