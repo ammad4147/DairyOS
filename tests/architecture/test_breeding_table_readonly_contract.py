@@ -16,10 +16,18 @@ def test_breeding_register_has_no_status_mutation_column():
     assert "handleStatusChange" not in source
     assert "statusOptionsForState" not in source
     assert 'title="Change current reproductive status.' not in source
-    assert (
-        "['Animal & Breeding Readiness','Insemination Date & Sire','Semen Type',"
-        "'Pregnancy & Calving Timeline','Clinical Notes']"
-    ) in source
+
+    # The register remains the same five-column table; only the first column's
+    # wording now reflects the approved rule that AI is a manual operator entry,
+    # not a DairyOS readiness declaration.
+    for heading in (
+        "Animal & Manual AI Status",
+        "Insemination Date & Sire",
+        "Semen Type",
+        "Pregnancy & Calving Timeline",
+        "Clinical Notes",
+    ):
+        assert heading in source
 
 
 def test_breeding_entry_form_is_the_authoritative_lifecycle_surface():
@@ -39,10 +47,21 @@ def test_breeding_entry_form_is_the_authoritative_lifecycle_surface():
 def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
     source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
 
+    # AI is manual-authority: Milking/Dry/Heifer animals are selectable unless
+    # they already have an active breeding cycle. Biological clocks may be shown
+    # as advisory guidance, but they must not decide whether the operator may
+    # record insemination.
+    assert "const aiCandidates = useMemo" in source
+    assert "manualAiAnimals.filter" in source
+    assert "return !['INSEMINATED', 'BRED', 'PREGNANT'].includes(x);" in source
+    assert "Manual AI Candidates" in source
+    assert "Manual AI authority" in source
+    assert "operator entry remains authoritative" in source
+
     # PD is available after insemination and remains available after a positive
     # declaration so an operator can manually reconfirm or revise pregnancy.
     assert (
-        "['INSEMINATED','BRED','PREGNANT'].includes(norm(byId.get(a.id)?.state))"
+        "manualAiAnimals.filter(a => ['INSEMINATED', 'BRED', 'PREGNANT'].includes(norm(byId.get(a.id)?.state)))"
         in source
     )
     assert "Pregnancy Check / Review (PD)" in source
@@ -54,8 +73,8 @@ def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
 
     # Calving and explicit pregnancy-loss entries remain restricted to animals
     # whose current manual state is confirmed pregnant.
-    assert "(eventType==='CALVING'||eventType==='LOSS')" in source
-    assert "norm(byId.get(a.id)?.state)==='PREGNANT'" in source
+    assert "eventType === 'CALVING' || eventType === 'LOSS'" in source
+    assert "manualAiAnimals.filter(a => norm(byId.get(a.id)?.state) === 'PREGNANT')" in source
     assert "No confirmed pregnant animals currently awaiting calving" in source
     assert "No confirmed pregnant animals currently available for pregnancy-loss entry" in source
 
