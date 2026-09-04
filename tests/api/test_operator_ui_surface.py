@@ -83,11 +83,11 @@ def test_active_shell_routes_to_current_operational_components():
         "HealthTab",
         "VaccinationTab",
         "COML",
-        "COPOfficializationPanel",
     ):
         assert component in source
+    assert "COPOfficializationPanel" not in source
     assert "DigitalTwinPanel" not in source
-    assert "currentView==='cop'" in source
+    assert "currentView==='cop'&&<COML/>" in source
 
 
 def test_digital_twin_scenario_lab_is_completely_retired(client: TestClient):
