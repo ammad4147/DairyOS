@@ -125,6 +125,7 @@ async def enforce_animal_identity(request: Request, call_next):
 
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
+from dairyos.api.breeding_biology import router as breeding_biology_router
 from dairyos.api.equipment_management import router as equipment_router
 from dairyos.api.farm_data_entry import router as farm_router
 from dairyos.api.veterinary_non_milking import router as veterinary_non_milking_router
@@ -166,6 +167,11 @@ from dairyos.api.authorization import router as authorization_router
 
 app.include_router(command_router)
 app.include_router(dashboard_router)
+# Governed breeding routes must be registered before the generic farm-data
+# compatibility router and Animal Passport compatibility reproduction route.
+# FastAPI resolves duplicate method/path routes in registration order, so this
+# ordering makes form-governed breeding biology the live authority.
+app.include_router(breeding_biology_router)
 app.include_router(equipment_router)
 app.include_router(farm_router)
 app.include_router(veterinary_non_milking_router)
