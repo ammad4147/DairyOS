@@ -38,6 +38,12 @@ function monthLabel(month: string): string {
 
 import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
+const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Karachi',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0, realTimeReceivables = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
@@ -48,6 +54,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [passportTag, setPassportTag] = useState<string | null>(null);
   const [selectedDropAlertId, setSelectedDropAlertId] = useState<string | null>(null);
   const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
+  const [unreconciledMilkLitres, setUnreconciledMilkLitres] = useState<number | null>(null);
   const { alerts, refresh: refreshAlerts } = useAlertAudit();
 
   const loadData = useCallback(async () => {
@@ -102,6 +109,36 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMilkCapacity = async () => {
+      try {
+        const throughDate = pakistanDateFormatter.format(new Date());
+        const response = await fetch(
+          `${API_BASE}/farm/milk/capacity?through_date=${throughDate}`,
+          { headers: { Accept: 'application/json' } },
+        );
+        if (!response.ok) throw new Error(`Milk capacity request failed: ${response.status}`);
+        const body = await response.json() as {
+          available_saleable_litres?: number | null;
+        };
+        const value = Number(body.available_saleable_litres);
+        if (!cancelled) {
+          setUnreconciledMilkLitres(Number.isFinite(value) ? value : null);
+        }
+      } catch {
+        if (!cancelled) setUnreconciledMilkLitres(null);
+      }
+    };
+
+    void loadMilkCapacity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardRefreshVersion]);
 
   const filteredYieldTrend = useMemo(() => {
     const values = Array.isArray(data?.yieldTrend)
@@ -244,6 +281,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   };
   const currentComlMonth = comlOutput?.month || new Date().toISOString().slice(0, 7);
   const currentComlValue = Number(comlOutput?.costOfMilkProductionPerLiter || 0);
+  const unreconciledMilkDisplay =
+    unreconciledMilkLitres === null
+      ? '--'
+      : `${unreconciledMilkLitres.toFixed(1)} L`;
 
   return (
     <div className="cmd-dash-wrapper" style={{ height:'calc(100vh - 60px)', overflow:'hidden', display:'flex', flexDirection:'column', boxSizing:'border-box', padding:10, minWidth:0 }}>
@@ -312,12 +353,30 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 })()}</span></div>)}</div></div>
             </div>
           </div>
-          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div><div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div></div></div>
+          <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}>
+            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div>
+            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Milk size={15}/> Unreconciled Milk</div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,flex:1,background:'#1e293b',borderRadius:6,padding:8,minWidth:0}}>
+                <div style={{fontSize:18,fontWeight:900,color:'#38bdf8'}}>{unreconciledMilkDisplay}</div>
+                <div style={{fontSize:9,color:'#94a3b8',textAlign:'center'}}>Overall Reconciliation / Closing Balance</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="cmd-col" style={{display:'flex',flexDirection:'column',gap:10,minHeight:0,minWidth:0,overflow:'hidden'}}>
           <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6,color:'#34d399',fontWeight:800,fontSize:12}}><Sparkles size={15}/> Production Extremes</span><select value={extremesCount} onChange={e=>setExtremesCount(Number(e.target.value))} style={selectStyle}>{extremesOptions.map(n=><option key={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}><div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#ef4444',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('health')}><HeartPulse size={15}/> Clinical Health</div><div style={healthBox}><span style={{fontWeight:800,color:'#fca5a5',fontSize:10}}><b style={{background:'#ef4444',color:'#fff',padding:'2px 4px',borderRadius:4,fontSize:8,marginRight:5}}>SICK</b>{healthData.sick} ANIMALS</span><span style={{fontSize:10,color:'#f87171'}}>Mastitis: {healthData.mastitis} | Temp: {healthData.highTemp}</span></div></div><div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('vaccination')}><ShieldCheck size={15}/> Vaccination Operations</div><div style={{...healthBox,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}><span style={{fontWeight:800,color:'#86efac',fontSize:10}}>PREVENTIVE</span><span style={{fontSize:10,color:'#cbd5e1'}}>Given: <b>{healthData.completedVax}</b> | Due: <b style={{color:'#fcd34d'}}>{healthData.dueVax}</b></span></div></div></div>
-          <div className="cmd-card" style={{flex:'0.85 1 0',...cardBase}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div></div>
+          <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
+            <div className="cmd-card" style={{...cardBase,minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div>
+            </div>
+            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase,minWidth:0}}>
+              <div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div>
+              <div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div>
+            </div>
+          </div>
         </div>
       </div>
       {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
