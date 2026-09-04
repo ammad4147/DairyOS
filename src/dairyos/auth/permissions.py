@@ -15,7 +15,7 @@ PERMISSIONS = (
     "breeding.view", "breeding.create", "breeding.edit",
     "health.view", "health.create", "health.edit",
     "coml.view", "analytics.view", "analytics.view_financial", "audit.view",
-    "settings.view", "settings.farm_profile", "settings.standards", "settings.email",
+    "settings.view", "settings.farm_profile", "settings.standards", "settings.email", "settings.navigation",
     "users.view", "users.create", "users.edit", "users.disable", "users.permissions",
 )
 
@@ -66,7 +66,7 @@ PERMISSION_GROUPS: dict[str, tuple[str, ...]] = {
     "COML": ("coml.view",),
     "Analytics": ("analytics.view", "analytics.view_financial"),
     "Audit": ("audit.view",),
-    "Settings": ("settings.view", "settings.farm_profile", "settings.standards", "settings.email"),
+    "Settings": ("settings.view", "settings.farm_profile", "settings.standards", "settings.email", "settings.navigation"),
     "User administration": ("users.view", "users.create", "users.edit", "users.disable", "users.permissions"),
 }
 

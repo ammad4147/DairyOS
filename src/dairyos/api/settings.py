@@ -48,6 +48,10 @@ class UpdateAlertPreferencesRequest(BaseModel):
     updated_by: str = Field(default="UI Operator")
 
 
+class UpdateNavigationPreferencesRequest(BaseModel):
+    hidden_tabs: list[str] = Field(default_factory=list)
+
+
 class ResetTestDataRequest(BaseModel):
     confirm: str
     updated_by: str = Field(default="UI Operator")
@@ -126,6 +130,23 @@ def update_alert_preferences(payload: UpdateAlertPreferencesRequest):
         rf.close()
 
 
+@router.put("/navigation")
+def update_navigation_preferences(
+    payload: UpdateNavigationPreferencesRequest,
+    admin=Depends(require_permission("settings.navigation")),
+):
+    service, rf = _service()
+    try:
+        return service.update_navigation_preferences(
+            hidden_tabs=payload.hidden_tabs,
+            updated_by=str(admin.get("sub") or "ADMIN"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        rf.close()
+
+
 @router.get("/deployment")
 def deployment_status():
     service, rf = _deployment_service()
@@ -185,19 +206,18 @@ class EmailTestRequest(BaseModel):
 
 
 @router.get("/email")
-def get_email_settings(_admin=Depends(require_permission("settings.email"))):
+def get_email_settings():
     return EmailService().public_config()
 
 
 @router.put("/email")
 def save_email_settings(
     payload: EmailSettingsRequest,
-    admin=Depends(require_permission("settings.email")),
 ):
     try:
         return EmailService().save_config(
             payload.model_dump(),
-            updated_by=str(admin.get("sub") or "ADMIN"),
+            updated_by="UI Operator",
         )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -206,7 +226,6 @@ def save_email_settings(
 @router.post("/email/test")
 def send_test_email(
     payload: EmailTestRequest,
-    _admin=Depends(require_permission("settings.email")),
 ):
     try:
         EmailService().send(

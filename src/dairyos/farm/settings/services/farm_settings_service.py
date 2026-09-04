@@ -25,6 +25,17 @@ DEFAULT_DASHBOARD_CARD_VISIBILITY = {
     "analytics": True,
 }
 DEFAULT_ALERT_PREFERENCES = {}
+NAVIGATION_TAB_IDS = (
+    "dashboard",
+    "animals",
+    "milk",
+    "feed",
+    "finance",
+    "breeding",
+    "health",
+    "vaccination",
+    "cop",
+)
 
 
 def _json_loads(
@@ -188,6 +199,23 @@ class FarmSettingsService:
             dict(DEFAULT_ALERT_PREFERENCES),
         )
 
+    def get_navigation_preferences(self) -> dict:
+        requested = {
+            str(value)
+            for value in _json_loads(
+                self.repository.get("navigation_hidden_tabs"),
+                [],
+            )
+        }
+        return {
+            "available_tabs": list(NAVIGATION_TAB_IDS),
+            "hidden_tabs": [
+                tab_id
+                for tab_id in NAVIGATION_TAB_IDS
+                if tab_id in requested
+            ],
+        }
+
     # ------------------------------------------------------------------
     # Public settings read model
     # ------------------------------------------------------------------
@@ -205,6 +233,7 @@ class FarmSettingsService:
             ),
             "dashboard": self.get_dashboard_preferences(),
             "alerts": self.get_alert_preferences(),
+            "navigation": self.get_navigation_preferences(),
         }
 
     # ------------------------------------------------------------------
@@ -384,4 +413,29 @@ class FarmSettingsService:
             updated_by=updated_by,
         )
 
+        return self.get_public_settings()
+
+    def update_navigation_preferences(
+        self,
+        *,
+        hidden_tabs: list[str],
+        updated_by: str | None = None,
+    ) -> dict:
+        requested = {str(value).strip() for value in hidden_tabs}
+        unknown = sorted(requested.difference(NAVIGATION_TAB_IDS))
+        if unknown:
+            raise ValueError(
+                "Unknown navigation tab(s): " + ", ".join(unknown)
+            )
+
+        normalized = [
+            tab_id
+            for tab_id in NAVIGATION_TAB_IDS
+            if tab_id in requested
+        ]
+        self.repository.set(
+            "navigation_hidden_tabs",
+            json.dumps(normalized),
+            updated_by=updated_by,
+        )
         return self.get_public_settings()

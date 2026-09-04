@@ -161,6 +161,8 @@ from dairyos.api.milk_quality import router as milk_quality_router
 from dairyos.api.tmr import router as tmr_router
 from dairyos.api.coml import router as coml_router
 from dairyos.api.payroll import router as payroll_router
+from dairyos.api.auth import router as auth_router
+from dairyos.api.authorization import router as authorization_router
 
 app.include_router(command_router)
 app.include_router(dashboard_router)
@@ -200,6 +202,8 @@ app.include_router(milk_quality_router)
 app.include_router(tmr_router)
 app.include_router(coml_router)
 app.include_router(payroll_router)
+app.include_router(auth_router)
+app.include_router(authorization_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 

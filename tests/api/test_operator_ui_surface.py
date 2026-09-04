@@ -5,6 +5,7 @@ The authoritative operator surface is the React/Vite application rooted at
 second UI contract.
 """
 
+import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = REPO_ROOT / "src" / "DairyOS.Web" / "src"
 APP_TSX = WEB_ROOT / "App.tsx"
+NAVIGATION_TS = WEB_ROOT / "navigation.ts"
 MAIN_TSX = WEB_ROOT / "main.tsx"
 DEAD_SHELL_TSX = WEB_ROOT / "ui" / "DairyOSShell.tsx"
 FASTAPI_APP = REPO_ROOT / "src" / "dairyos" / "app.py"
@@ -59,13 +61,14 @@ def test_legacy_and_duplicate_operator_surfaces_are_retired(client: TestClient):
 
 
 def test_active_operator_shell_contains_exact_approved_navigation():
-    source = _active_shell()
-    assert "const navItems=[" in source
-    for label in APPROVED_NAVIGATION:
-        assert f"label:'{label}'" in source
+    shell_source = _active_shell()
+    navigation_source = NAVIGATION_TS.read_text(encoding="utf-8-sig")
+    labels = tuple(re.findall(r"label:\s*'([^']+)'", navigation_source))
+    assert labels == APPROVED_NAVIGATION
+    assert "NAVIGATION_TABS.map" in shell_source
 
     for retired in ("Inventory", "Analytics", "Workforce", "Equipment"):
-        assert f"label:'{retired}'" not in source
+        assert retired not in navigation_source
 
 
 def test_active_shell_routes_to_current_operational_components():

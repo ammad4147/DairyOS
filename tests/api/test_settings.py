@@ -1,5 +1,16 @@
 """Settings: farm identity, operational preferences, and deployment control."""
 
+from dairyos.email.service import EmailService
+
+
+def admin_headers(client):
+    response = client.post(
+        "/auth/login",
+        json={"username": "admin", "password": "dairyos"},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
 
 def test_default_settings(client):
     response = client.get("/settings")
@@ -8,6 +19,76 @@ def test_default_settings(client):
     assert body["farm_name"] == "Trident Dairies"
     assert body["animal_id_prefix"] == "TD"
     assert "reset_protected" not in body
+    assert body["navigation"]["hidden_tabs"] == []
+    assert body["navigation"]["available_tabs"] == [
+        "dashboard", "animals", "milk", "feed", "finance",
+        "breeding", "health", "vaccination", "cop",
+    ]
+
+
+def test_navigation_visibility_requires_password_and_persists(client):
+    denied = client.put(
+        "/settings/navigation",
+        json={"hidden_tabs": ["feed", "finance"]},
+    )
+    assert denied.status_code == 401, denied.text
+
+    response = client.put(
+        "/settings/navigation",
+        json={"hidden_tabs": ["finance", "feed", "finance"]},
+        headers=admin_headers(client),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["navigation"]["hidden_tabs"] == ["feed", "finance"]
+    assert client.get("/settings").json()["navigation"]["hidden_tabs"] == ["feed", "finance"]
+
+
+def test_navigation_visibility_rejects_unknown_tabs(client):
+    response = client.put(
+        "/settings/navigation",
+        json={"hidden_tabs": ["not-a-dairyos-tab"]},
+        headers=admin_headers(client),
+    )
+    assert response.status_code == 422, response.text
+
+
+def test_email_settings_are_visible_and_editable_without_authentication(client, monkeypatch):
+    monkeypatch.setenv("DAIRYOS_EMAIL_SECRET", "test-email-settings-secret")
+    initial = client.get("/settings/email")
+    assert initial.status_code == 200, initial.text
+    assert "smtp_password" not in initial.json()
+
+    saved = client.put(
+        "/settings/email",
+        json={
+            "sender_email": "farm@example.com",
+            "sender_display_name": "DairyOS Farm",
+            "smtp_host": "smtp.example.com",
+            "smtp_port": 587,
+            "smtp_username": "farm@example.com",
+            "smtp_password": "not-returned",
+            "use_tls": True,
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["sender_email"] == "farm@example.com"
+    assert saved.json()["password_configured"] is True
+    assert "smtp_password" not in saved.json()
+
+
+def test_email_test_action_does_not_require_authentication(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        EmailService,
+        "send",
+        lambda self, **kwargs: sent.append(kwargs),
+    )
+    response = client.post(
+        "/settings/email/test",
+        json={"recipient": "operator@example.com"},
+    )
+    assert response.status_code == 200, response.text
+    assert sent[0]["recipient"] == "operator@example.com"
 
 
 def test_update_farm_name_and_prefix(client):

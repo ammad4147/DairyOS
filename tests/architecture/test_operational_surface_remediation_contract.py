@@ -27,13 +27,16 @@ def test_health_clinical_log_contract():
     assert "Type</th>" not in source
 
 
-def test_sender_settings_use_authenticated_backend_contract():
+def test_sender_settings_are_visible_without_auth_and_navigation_is_protected():
     frontend = text("src/DairyOS.Web/src/components/SettingsTab.tsx")
     backend = text("src/dairyos/api/settings.py")
+    email_block = backend[backend.index('@router.get("/email")'):]
+    assert 'require_permission("settings.email")' not in email_block
+    assert "Navigation Visibility" in frontend
     assert "/auth/login" in frontend
     assert "Authorization" in frontend
     assert "Bearer ${token}" in frontend
-    assert 'require_permission("settings.email")' in backend
+    assert 'require_permission("settings.navigation")' in backend
 
 
 def test_coml_selected_period_does_not_borrow_official_monthly_costs():

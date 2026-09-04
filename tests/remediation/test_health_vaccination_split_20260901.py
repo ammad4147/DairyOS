@@ -9,8 +9,9 @@ def text(path):
 
 def test_top_level_navigation_and_routes_are_split():
     s = text("src/DairyOS.Web/src/App.tsx")
-    assert "label:'Health'" in s
-    assert "label:'Vaccination'" in s
+    navigation = text("src/DairyOS.Web/src/navigation.ts")
+    assert "label: 'Health'" in navigation
+    assert "label: 'Vaccination'" in navigation
     assert "currentView==='health'" in s
     assert "currentView==='vaccination'" in s
     assert "VaccinationTab" in s
