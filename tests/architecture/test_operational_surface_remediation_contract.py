@@ -52,8 +52,12 @@ def test_coml_selected_period_does_not_borrow_official_monthly_costs():
         "src/dairyos/api/tmr.py"
     )
 
-    assert "Official Backend COP" in frontend
-    assert "reference only" in frontend
+    # The selected-period Auto calculation remains independent of the
+    # persisted official monthly management benchmark. The official value is
+    # loaded and displayed as reference/status, not substituted into Auto.
+    assert "/farm/coml/integrated" in frontend
+    assert "`${API_BASE}/farm/coml?${officialQuery}`" in frontend
+    assert "Official COP is the persisted management benchmark used by the Dashboard." in frontend
     assert "if (officialRec) return" not in frontend
 
     # Milk-period authority is shared through
