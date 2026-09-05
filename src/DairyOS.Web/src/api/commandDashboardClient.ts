@@ -50,6 +50,10 @@ export interface CommandDashboardData {
     pregnant: number;
     pregnancyRatio: number;
   };
+  finance: {
+    receivables: number;
+    receivableCount: number;
+  };
 }
 
 type LedgerProduction = {
@@ -95,6 +99,10 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
     inseminated: 0,
     pregnant: 0,
     pregnancyRatio: 0,
+  },
+  finance: {
+    receivables: 0,
+    receivableCount: 0,
   },
 });
 
@@ -267,6 +275,9 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
 
   const rawReproduction =
     raw?.reproduction || dashboard.reproduction || {};
+
+  const rawFinance =
+    raw?.finance || dashboard.finance || {};
 
   const todayProduction =
     sumLedgerForDate(
@@ -540,6 +551,20 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
         Number(
           rawReproduction.pregnancy_ratio_percent ??
           rawReproduction.pregnancyRatio ??
+          0,
+        ),
+    },
+
+    finance: {
+      receivables:
+        Number(
+          rawFinance.receivables ??
+          0,
+        ),
+      receivableCount:
+        Number(
+          rawFinance.receivable_count ??
+          rawFinance.receivableCount ??
           0,
         ),
     },
