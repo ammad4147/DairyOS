@@ -28,8 +28,8 @@ def test_first_deployed_start_after_slot_catches_up():
     assert [d.isoformat() for d in scheduler.sent] == ["2026-09-05"]
 
 
-def test_start_before_slot_does_not_catch_up():
+def test_start_before_todays_slot_catches_up_previous_expected_digest():
     scheduler = _Scheduler()
     current = datetime(2026, 9, 5, 22, 30, tzinfo=ZoneInfo("Asia/Karachi")).astimezone(ZoneInfo("UTC"))
     scheduler._run_catch_up(None, current)
-    assert scheduler.sent == []
+    assert [d.isoformat() for d in scheduler.sent] == ["2026-09-04"]
