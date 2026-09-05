@@ -120,3 +120,25 @@ def test_multiple_reinstatements_remain_traceable(service):
     assert len(reinstatements) == 2
     assert len(resolutions) == 3
     assert resolutions[-1].linked_event_id == reinstatements[-1].id
+
+
+def test_redetection_appends_observed_event(service):
+    finding = service.raise_or_update(
+        source_module="MILK",
+        severity="HIGH",
+        title="Milk reconciliation exception",
+        detail="Initial exception",
+        dedupe_key="MILK_RECONCILIATION:2026-09-06",
+    )
+
+    service.raise_or_update(
+        source_module="MILK",
+        severity="HIGH",
+        title="Milk reconciliation exception",
+        detail="Observed again",
+        dedupe_key="MILK_RECONCILIATION:2026-09-06",
+    )
+
+    events = service.history(finding.finding_id)
+    assert [event.event_type for event in events] == ["RAISED", "OBSERVED"]
+    assert events[1].note == "Observed again"
