@@ -58,12 +58,21 @@ def get_health_summary(container=Depends(get_container)):
     }
 
     treatments = factory.treatment().get_all()
-    withdrawal_animals = {
-        str(getattr(row, "animal_id", ""))
-        for row in treatments
-        if str(getattr(row, "animal_id", "")) in active_animals
-        and float(getattr(row, "milk_withdrawal_days", 0) or 0) > 0
-    }
+    withdrawal_animals = set()
+    for row in treatments:
+        animal_id = str(getattr(row, "animal_id", "") or "")
+        treated_on = _as_date(getattr(row, "treated_at", None))
+        withdrawal_until = _as_date(
+            getattr(row, "milk_withdrawal_until", None)
+        )
+
+        if (
+            animal_id
+            and treated_on is not None
+            and withdrawal_until is not None
+            and treated_on <= today <= withdrawal_until
+        ):
+            withdrawal_animals.add(animal_id)
 
     followups_due = 0
     for case in active:
