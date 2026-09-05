@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 TMR = ROOT / "src/dairyos/api/tmr.py"
@@ -43,6 +44,24 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn("factory.animal().active_animals()", self.tmr)
         self.assertIn('"category_cost_per_day"', self.tmr)
         self.assertIn('"total_herd_feed_cost_per_day"', self.tmr)
+
+
+    def test_active_herd_category_normalization_matches_herd_register(self):
+        from dairyos.api.tmr import _normalize_herd_category
+
+        cases = [
+            (dict(lifecycle_status="LACTATING", sex="FEMALE", is_currently_milking=True), "Milking"),
+            (dict(lifecycle_status="DRY", sex="FEMALE", is_currently_milking=False), "Dry"),
+            (dict(lifecycle_status="HEIFER", sex="FEMALE", is_currently_milking=False), "Heifer"),
+            (dict(lifecycle_status="CLOSE_UP", sex="FEMALE", is_currently_milking=False), "Heifer"),
+            (dict(lifecycle_status="CALF", sex="FEMALE", is_currently_milking=False), "Female Calf"),
+            (dict(lifecycle_status="CALF", sex="MALE", is_currently_milking=False), "Male Calf"),
+            (dict(lifecycle_status="BULL", sex="MALE", is_currently_milking=False), "Bull"),
+        ]
+
+        for values, expected in cases:
+            animal = SimpleNamespace(animal_type="CATTLE", **values)
+            self.assertEqual(_normalize_herd_category(animal), expected)
 
     def test_finance_price_authority_excludes_void(self):
         self.assertIn("if not is_active(row):", self.tmr)

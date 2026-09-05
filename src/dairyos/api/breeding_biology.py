@@ -483,7 +483,18 @@ def _state_payload(container, animal_id: str) -> dict[str, Any]:
     _assert_mature_female(animal)
     state, records = _current_state(container, animal_id)
     payload = asdict(state)
-    payload["state"] = _state_api_value(state)
+    projected_state = _state_api_value(state)
+    if (
+        projected_state == "LACTATING"
+        and str(getattr(animal, "lifecycle_status", "") or "").upper() == "DRY"
+        and not bool(getattr(animal, "is_currently_milking", False))
+    ):
+        # The reproductive service records that calving occurred; herd
+        # membership remains authoritative for whether the mother is actually
+        # back in milk. A post-calving mother stays Dry until the operator
+        # explicitly returns her to the milking herd.
+        projected_state = "DRY_OFF"
+    payload["state"] = projected_state
     payload["data_status"] = "LIVE_PERSISTED_DATA"
     payload["base_lifecycle_status"] = getattr(animal, "lifecycle_status", None)
     payload["base_category"] = getattr(animal, "animal_category", None)

@@ -1,5 +1,7 @@
 """Runtime contracts for form-governed breeding lifecycle transitions."""
 
+from datetime import date, timedelta
+
 import pytest
 
 
@@ -220,20 +222,21 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
 ):
     _establish_confirmed_pregnancy(client, registered_animal)
 
+    planned_return = (date.today() + timedelta(days=30)).isoformat()
     calving = _record(
         client,
         registered_animal,
         "calving",
         "COMPLETED",
         calf_sex="FEMALE",
-        planned_return_to_milking_date="2026-10-01",
+        planned_return_to_milking_date=planned_return,
     )
     assert calving.status_code == 200, calving.text
     calving_payload = calving.json()
-    assert calving_payload["reproductive_state"]["state"] == "LACTATING"
+    assert calving_payload["reproductive_state"]["state"] == "DRY_OFF"
     assert calving_payload["reproductive_state"]["pregnancy_status"] == "NOT_PREGNANT"
     assert calving_payload["calf_sex"] == "FEMALE"
-    assert calving_payload["planned_return_to_milking_date"] == "2026-10-01"
+    assert calving_payload["planned_return_to_milking_date"] == planned_return
     calf_id = calving_payload["calf_animal_id"]
 
     calf = client.get(f"/farm/animals/{calf_id}")
@@ -253,7 +256,7 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
     state = client.get(f"/farm/animals/{registered_animal}/reproduction")
     assert state.status_code == 200, state.text
     state_payload = state.json()
-    assert state_payload["state"] == "LACTATING"
+    assert state_payload["state"] == "DRY_OFF"
     assert state_payload["pregnancy_status"] == "NOT_PREGNANT"
     assert state_payload["last_calving_date"] is not None
 
@@ -284,4 +287,4 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
     ]
     assert calving_rows
     assert calving_rows[-1]["calf_animal_id"] == calf_id
-    assert calving_rows[-1]["planned_return_to_milking_date"] == "2026-10-01"
+    assert calving_rows[-1]["planned_return_to_milking_date"] == planned_return
