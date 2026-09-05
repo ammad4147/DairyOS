@@ -1,17 +1,10 @@
 """Cross-endpoint breeding classifier and biological-sequence consistency."""
 
+from tests.helpers.breeding import post_breeding
+
 
 def _record_breeding(client, animal_id, event_type, result):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": animal_id,
-            "event_type": event_type,
-            "technician": "Dr Vet",
-            "result": result,
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, animal_id, event_type, result)
     assert response.status_code == 200, response.text
     return response
 
