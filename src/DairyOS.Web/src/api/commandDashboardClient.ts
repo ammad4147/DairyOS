@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../config/api";
+import { farmToday } from '../utils/farmDate';
 
 export interface PerformerItem {
   id: string;
@@ -72,7 +73,7 @@ type LedgerResponse = {
 const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   todayLiters: 0,
   yesterdayLiters: 0,
-  todayDate: new Date().toISOString().split("T")[0],
+  todayDate: farmToday(),
   yesterdayDate: "",
   milkingAnimals: 0,
   adultAnimals: 0,
