@@ -47,7 +47,6 @@ type HerdAnimal = {
 };
 
 type Props = {
-  onUpdateReceivables?: (amount: number) => void;
   herdMasterList?: HerdAnimal[];
   onAnimalChanged?: () => void | Promise<void>;
   onOpenPayroll?: () => void;
@@ -230,7 +229,6 @@ const groupLabel = (value: string) =>
     .replace(/\b\w/g, letter => letter.toUpperCase());
 
 export default function FinanceTab({
-  onUpdateReceivables,
   herdMasterList = [],
   onAnimalChanged,
   onOpenPayroll,
@@ -380,9 +378,6 @@ export default function FinanceTab({
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const netCash = cashRevenue - totalExpenses;
 
-  useEffect(() => {
-    onUpdateReceivables?.(receivables);
-  }, [receivables, onUpdateReceivables]);
 
   const exploreBounds = useMemo(
     () => explorePeriodMode === 'MONTH'
