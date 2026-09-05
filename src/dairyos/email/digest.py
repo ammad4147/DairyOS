@@ -11,6 +11,17 @@ from dairyos.dashboard.services.dashboard_projection_service import DashboardPro
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.email.service import EmailService
+from dairyos.api.milk_production_analytics import _yield_drop_watchlist
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
+    MilkProductionTrendIntelligenceService,
+)
+from dairyos.farm.production.services.milk_reconciliation_service import (
+    MilkReconciliationService,
+)
+from dairyos.farm.herd.services.animal_classification_service import (
+    AnimalClassificationService,
+    AnimalClassificationError,
+)
 
 
 LOCAL_ZONE = ZoneInfo("Asia/Karachi")
@@ -49,71 +60,251 @@ class DashboardDigestService:
                 x for x in factory.finance().get_all()
                 if getattr(x, "transaction_date", None)
                 and getattr(x.transaction_date, "date", lambda: x.transaction_date)() == digest_date
+                and classifier.is_active(x)
             ]
-            active = [x for x in records if classifier.is_active(x)]
-            revenue = sum(float(x.amount or 0) for x in active if classifier.is_income(x))
-            expenses = sum(float(x.amount or 0) for x in active if classifier.is_expense(x))
+            revenue_received = sum(
+                float(x.amount or 0)
+                for x in records
+                if (
+                    str(getattr(x, "transaction_type", "") or "").upper() == "RECEIPT"
+                    or (
+                        classifier.is_income(x)
+                        and str(getattr(x, "status", "") or "").upper() == "RECEIVED"
+                    )
+                )
+            )
+            expenses = sum(
+                float(x.amount or 0)
+                for x in records
+                if classifier.is_expense(x)
+            )
             return {
-                "revenue": revenue,
+                "revenue_received": revenue_received,
                 "expenses": expenses,
-                "net": revenue - expenses,
-                "count": len(active),
             }
         finally:
             factory.close()
 
+    def _milk_snapshot(self, digest_date: date) -> dict:
+        factory = RepositoryFactory.create()
+        try:
+            reconciliation = MilkReconciliationService(
+                disposition_repository=factory.milk_dispositions(),
+                production_repository=factory.milk(),
+            ).reconcile(digest_date, raise_finding=False)
+
+            dispositions = [
+                item for item in factory.milk_dispositions().get_by_date(digest_date)
+                if str(getattr(item, "status", "RECORDED") or "RECORDED").upper() != "VOID"
+            ]
+            by_type = {}
+            for item in dispositions:
+                key = str(getattr(item, "disposition_type", "") or "").upper()
+                by_type[key] = by_type.get(key, 0.0) + float(
+                    getattr(item, "quantity_litres", 0.0) or 0.0
+                )
+
+            service = MilkProductionTrendIntelligenceService(repository_factory=factory)
+            animals = service._eligible_animals(factory)
+            histories = service._animal_histories(factory, animals)
+            records = factory.milk().get_all()
+            watchlist = _yield_drop_watchlist(
+                service=service,
+                records=records,
+                animals=animals,
+                histories=histories,
+                target_date=digest_date,
+                lookback_days=30,
+            )
+
+            trend = service.generate(
+                as_of_date=digest_date,
+                period_days=7,
+            ).summary()
+            change = trend.get("variance_percentage")
+            if change is None:
+                change = trend.get("change_percent")
+
+            return {
+                "total_yield": reconciliation.get("biological_production_litres"),
+                "change_percent": change,
+                "sold": by_type.get("SOLD", 0.0),
+                "domestic_use": by_type.get("DOMESTIC_USE", 0.0),
+                "calf_feed": by_type.get("CALF_FEED", 0.0),
+                "wastage": by_type.get("WASTAGE", 0.0),
+                "other": by_type.get("OTHER", 0.0),
+                "unaccounted": reconciliation.get("unaccounted_saleable_litres", 0.0) or 0.0,
+                "watchlist": watchlist,
+            }
+        finally:
+            factory.close()
+
+    def _herd_snapshot(self, digest_date: date) -> dict:
+        factory = RepositoryFactory.create()
+        try:
+            animals = list(factory.animal().active_animals() or [])
+            counts = {
+                "Milking": 0,
+                "Dry": 0,
+                "Heifer": 0,
+                "Female Calf": 0,
+                "Male Calf": 0,
+                "Bull": 0,
+            }
+            for animal in animals:
+                try:
+                    category = AnimalClassificationService.classify(
+                        getattr(animal, "lifecycle_status", None),
+                        getattr(animal, "sex", None),
+                    ).category.value
+                except AnimalClassificationError:
+                    continue
+                if category in counts:
+                    counts[category] += 1
+
+            mortalities = []
+            for event in self.container.event_journal.all_events():
+                if getattr(event, "name", None) != "OperationalInputReceived":
+                    continue
+                payload = dict(getattr(event, "payload", {}) or {})
+                if str(payload.get("input_type") or "").lower() != "animal_disposition":
+                    continue
+                if str(payload.get("disposition") or "").upper() != "DECEASED":
+                    continue
+                if str(payload.get("effective_date") or "")[:10] != digest_date.isoformat():
+                    continue
+                animal_id = str(payload.get("animal_id") or "")
+                animal = factory.animal().get_by_animal_id(animal_id)
+                mortalities.append(
+                    {
+                        "animal_id": animal_id,
+                        "category": (
+                            AnimalClassificationService.classify(
+                                getattr(animal, "lifecycle_status", None),
+                                getattr(animal, "sex", None),
+                            ).category.value
+                            if animal is not None else "Unknown"
+                        ),
+                        "breed": getattr(animal, "breed", None) if animal is not None else None,
+                        "cause": payload.get("cause") or payload.get("reason"),
+                    }
+                )
+
+            return {"total": len(animals), "counts": counts, "mortalities": mortalities}
+        finally:
+            factory.close()
+
+    def _active_warnings(self) -> list[str]:
+        factory = RepositoryFactory.create()
+        try:
+            findings = factory.operational_findings().get_open()
+            return [
+                str(getattr(item, "title", None) or getattr(item, "detail", None) or "Operational warning")
+                for item in findings
+            ]
+        finally:
+            factory.close()
+
+
     def render(self, *, digest_date: date, user_permissions: set[str]) -> tuple[str, str]:
         dashboard = self._dashboard()
-        milk = dashboard.get("milk", {})
-        animals = dashboard.get("animals", {})
         health = dashboard.get("health", {})
-        alerts = dashboard.get("heads_up_notifications", []) or []
-        decisions = dashboard.get("operational_decisions", []) or []
-        exceptions = dashboard.get("exceptions", []) or []
+        milk = self._milk_snapshot(digest_date)
+        herd = self._herd_snapshot(digest_date)
+        warnings = self._active_warnings()
 
         subject = f"DairyOS Daily Summary — {digest_date.isoformat()}"
-        lines = [subject, "", "MILK PRODUCTION"]
-        litres = milk.get("today_litres")
+        lines = [
+            subject,
+            f"Operational Date: {digest_date.isoformat()}",
+            "",
+            "MILK PRODUCTION",
+            f"Total yield today: {float(milk['total_yield'] or 0.0):.1f} litres",
+        ]
+
         change = milk.get("change_percent")
-        lines.append(f"Total yield today: {litres if litres is not None else 'No recorded production'} litres")
-        if change is not None:
-            lines.append(f"Change vs previous recorded day: {change}%")
+        lines.append(
+            "Change vs previous recorded day: "
+            + (f"{float(change):+.1f}%" if change is not None else "N/A")
+        )
+        lines += [
+            "",
+            "Milk Disposition",
+            f"Milk Sold: {float(milk['sold']):.1f} litres",
+            f"Domestic Use: {float(milk['domestic_use']):.1f} litres",
+            f"Calves Feed: {float(milk['calf_feed']):.1f} litres",
+            f"Wastage: {float(milk['wastage']):.1f} litres",
+        ]
+        if float(milk.get("other") or 0.0) > 0:
+            lines.append(f"Other Governed Disposition: {float(milk['other']):.1f} litres")
+        lines.append(f"Unaccounted Milk: {float(milk['unaccounted']):.1f} litres")
+
+        lines += ["", "YIELD DROP WATCHLIST"]
+        watchlist = milk.get("watchlist") or []
+        if not watchlist:
+            lines.append("No animals on the Yield Drop Watchlist.")
+        else:
+            for item in watchlist:
+                lines.append(
+                    f"- {item.get('animal_id')}: "
+                    f"{float(item.get('previous_litres') or 0.0):.1f} L → "
+                    f"{float(item.get('current_litres') or 0.0):.1f} L; "
+                    f"drop {float(item.get('drop_percentage') or 0.0):.1f}%; "
+                    f"severity {item.get('severity') or 'N/A'}"
+                )
+
+        counts = herd["counts"]
         lines += [
             "",
             "HERD STATUS",
-            f"Total headcount: {animals.get('total', 0)}",
-            f"Milking animals: {animals.get('milking', 0)}",
-            f"Dry animals: {animals.get('dry', 0)}",
-            f"Active health exceptions: {health.get('active_exceptions', 0)}",
+            f"Total headcount: {herd['total']}",
+            f"Milking: {counts['Milking']}",
+            f"Dry: {counts['Dry']}",
+            f"Heifers: {counts['Heifer']}",
+            f"Female Calves: {counts['Female Calf']}",
+            f"Male Calves: {counts['Male Calf']}",
+            f"Bulls: {counts['Bull']}",
+            "",
+            f"Active health Alerts: {health.get('active_exceptions', 0)}",
         ]
+
+        mortalities = herd.get("mortalities") or []
+        lines.append(f"Any Mortalities? {'Yes' if mortalities else 'No'}")
+        for mortality in mortalities:
+            basic = " · ".join(
+                part for part in [
+                    mortality.get("category"),
+                    mortality.get("breed"),
+                ] if part
+            )
+            detail = f"- Animal ID: {mortality.get('animal_id')} · {basic or 'Basic information unavailable'}"
+            if mortality.get("cause"):
+                detail += f" · Cause/Reason: {mortality['cause']}"
+            lines.append(detail)
 
         if "finance.view" in user_permissions or "dashboard.view_finance" in user_permissions:
             finance = self._financial_snapshot(digest_date)
             lines += [
                 "",
                 "FINANCIAL SNAPSHOT",
-                f"Revenue today: {_money(finance['revenue'])}",
+                f"Revenue Received today: {_money(finance['revenue_received'])}",
                 f"Expenses today: {_money(finance['expenses'])}",
-                f"Net movement today: {_money(finance['net'])}",
             ]
 
-        lines += ["", "ALERTS & PENDING ACTIONS"]
-        items = alerts + decisions + exceptions
-        if not items:
-            lines.append("No active dashboard alerts or pending operational findings.")
+        lines += ["", "ACTIVE WARNINGS"]
+        if not warnings:
+            lines.append("No active operational warnings.")
         else:
-            for item in items[:5]:
-                if isinstance(item, dict):
-                    title = item.get("title") or item.get("message") or item.get("type") or "Operational alert"
-                    lines.append(f"- {title}")
-                else:
-                    lines.append(f"- {item}")
+            for warning in warnings[:10]:
+                lines.append(f"- {warning}")
 
         lines += [
             "",
-            "This digest reflects the latest persisted DairyOS data available when it was generated. A catch-up digest may therefore reflect the last time the system was online rather than exactly 11 PM.",
+            "This digest reflects governed DairyOS records for the operational date shown. "
+            "Active warnings reflect unresolved findings at generation time.",
         ]
         return subject, "\n".join(lines)
+
 
     def send_for_date(self, digest_date: date) -> dict:
         factory = RepositoryFactory.create()
