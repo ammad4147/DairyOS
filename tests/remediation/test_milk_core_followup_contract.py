@@ -36,3 +36,23 @@ def test_milk_sales_have_no_frontend_shadow_counter():
     assert "realTimeTodaySold" not in milk
     assert "const soldToday =" in milk
     assert "dispositionTotal('SOLD')" in milk
+
+
+def test_dashboard_receivables_use_governed_backend_finance_projection():
+    app = read("src/DairyOS.Web/src/App.tsx")
+    dashboard = read("src/DairyOS.Web/src/components/UnifiedDashboard.tsx")
+    client = read("src/DairyOS.Web/src/api/commandDashboardClient.ts")
+    backend = read("src/dairyos/api/dashboard.py")
+
+    assert "accountsReceivable" not in app
+    assert "refreshReceivables" not in app
+    assert "onUpdateReceivables" not in app
+    assert "onUpdateReceivables" not in read(
+        "src/DairyOS.Web/src/components/FinanceTab.tsx"
+    )
+    assert "realTimeReceivables" not in dashboard
+    assert "data?.finance?.receivables" in dashboard
+    assert "finance: {" in client
+    assert "rawFinance.receivables" in client
+    assert 'dashboard["finance"] = {' in backend
+    assert '"receivables": receivables' in backend
