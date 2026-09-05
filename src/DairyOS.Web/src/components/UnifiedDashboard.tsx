@@ -21,7 +21,6 @@ interface Props {
   onOpenPassport?: (id: string) => void;
   herdMasterList?: HerdAnimal[];
   dashboardRefreshVersion?: number;
-  realTimeReceivables?: number;
 }
 
 type MonthlyComlOutput = {
@@ -45,7 +44,7 @@ const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
-export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0, realTimeReceivables = 0 }: Props) {
+export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +323,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                 color="#cbd5e1"
                 border="#64748b"
               />
-              <WideStat label="Receivables" value={`Rs. ${realTimeReceivables.toLocaleString()}`} color="#f59e0b" border="#f59e0b" />
+              <WideStat label="Receivables" value={`Rs. ${Number(data?.finance?.receivables || 0).toLocaleString()}`} color="#f59e0b" border="#f59e0b" />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
               <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip
