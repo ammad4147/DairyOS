@@ -34,7 +34,6 @@ type BackupHealth = {
 };
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
-const RECIPIENT_KEY = 'dairyos_notification_recipients';
 const SMTP_PRESETS: Record<string, { host: string; port: number; tls: boolean }> = {
   'gmail.com': { host: 'smtp.gmail.com', port: 587, tls: true },
   'googlemail.com': { host: 'smtp.gmail.com', port: 587, tls: true },
@@ -61,15 +60,6 @@ const card: React.CSSProperties = {
   background: '#111827', padding: 15, borderRadius: 8, border: '1px solid #1f2937', minWidth: 0,
 };
 
-function loadRecipients(): Recipient[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(RECIPIENT_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 function displayBackupTime(value?: string | null) {
   if (!value) return 'No successful backup recorded yet';
   const date = new Date(value);
@@ -89,7 +79,7 @@ export default function SettingsTab({
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({ configured: false });
   const [emailPassword, setEmailPassword] = useState('');
   const [testRecipient, setTestRecipient] = useState('');
-  const [recipients, setRecipients] = useState<Recipient[]>(loadRecipients());
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [recipientName, setRecipientName] = useState('');
   const [recipientDesignation, setRecipientDesignation] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -143,10 +133,16 @@ export default function SettingsTab({
   const loadEmail = async () => {
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/settings/email`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Unable to load email settings.');
-      setEmailConfig(data);
+      const [senderResponse, recipientsResponse] = await Promise.all([
+        fetch(`${API_BASE}/settings/email`),
+        fetch(`${API_BASE}/settings/email/recipients`),
+      ]);
+      const senderData = await senderResponse.json();
+      const recipientsData = await recipientsResponse.json();
+      if (!senderResponse.ok) throw new Error(senderData.detail || 'Unable to load email settings.');
+      if (!recipientsResponse.ok) throw new Error(recipientsData.detail || 'Unable to load notification recipients.');
+      setEmailConfig(senderData);
+      setRecipients(Array.isArray(recipientsData.recipients) ? recipientsData.recipients : []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load email settings.');
     }
@@ -210,28 +206,47 @@ export default function SettingsTab({
     }
   };
 
-  const addRecipient = () => {
+  const persistRecipients = async (next: Recipient[], successMessage?: string) => {
+    const response = await fetch(`${API_BASE}/settings/email/recipients`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipients: next }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Unable to save notification recipients.');
+    setRecipients(Array.isArray(data.recipients) ? data.recipients : []);
+    if (successMessage) setMessage(successMessage);
+  };
+
+  const addRecipient = async () => {
     const email = recipientEmail.trim();
     if (!recipientName.trim() || !email.includes('@')) {
       setError('Recipient name and valid email are required.');
       return;
     }
+    setError(''); setMessage('');
     const next = [...recipients, {
       id: `${Date.now()}`,
       name: recipientName.trim(),
       designation: recipientDesignation.trim(),
       email,
     }];
-    setRecipients(next);
-    localStorage.setItem(RECIPIENT_KEY, JSON.stringify(next));
-    setRecipientName(''); setRecipientDesignation(''); setRecipientEmail(''); setError('');
-    setMessage('Notification recipient added.');
+    try {
+      await persistRecipients(next, 'Notification recipient added.');
+      setRecipientName(''); setRecipientDesignation(''); setRecipientEmail('');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save notification recipient.');
+    }
   };
 
-  const removeRecipient = (id: string) => {
+  const removeRecipient = async (id: string) => {
+    setError(''); setMessage('');
     const next = recipients.filter(recipient => recipient.id !== id);
-    setRecipients(next);
-    localStorage.setItem(RECIPIENT_KEY, JSON.stringify(next));
+    try {
+      await persistRecipients(next, 'Notification recipient removed.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to remove notification recipient.');
+    }
   };
 
   const protectionStatus = String(backupHealth.status || 'NEVER_RUN').toUpperCase();
@@ -312,12 +327,12 @@ export default function SettingsTab({
                 <input value={recipientName} onChange={event => setRecipientName(event.target.value)} placeholder="Name" style={field} />
                 <input value={recipientDesignation} onChange={event => setRecipientDesignation(event.target.value)} placeholder="Designation" style={field} />
                 <input type="email" value={recipientEmail} onChange={event => setRecipientEmail(event.target.value)} placeholder="Email address" style={field} />
-                <button type="button" onClick={addRecipient} style={button}><Plus size={13} />Add Recipient</button>
+                <button type="button" onClick={() => void addRecipient()} style={button}><Plus size={13} />Add Recipient</button>
                 <div style={{ marginTop: 9, display: 'grid', gap: 5 }}>
                   {recipients.map(recipient => (
                     <div key={recipient.id} style={{ display: 'flex', gap: 7, alignItems: 'center', borderTop: '1px solid #1f2937', paddingTop: 6 }}>
                       <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 10 }}>{recipient.name}</strong><div style={{ color: '#94a3b8', fontSize: 9 }}>{recipient.designation || 'No designation'} · {recipient.email}</div></div>
-                      <button aria-label={`Remove ${recipient.name}`} title={`Remove ${recipient.name}`} onClick={() => removeRecipient(recipient.id)} style={{ background: 'none', border: 0, color: '#fca5a5', cursor: 'pointer' }}><Trash2 size={13} /></button>
+                      <button aria-label={`Remove ${recipient.name}`} title={`Remove ${recipient.name}`} onClick={() => void removeRecipient(recipient.id)} style={{ background: 'none', border: 0, color: '#fca5a5', cursor: 'pointer' }}><Trash2 size={13} /></button>
                     </div>
                   ))}
                 </div>
