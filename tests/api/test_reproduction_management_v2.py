@@ -2,22 +2,15 @@ from dairyos.data.database.models.breeding_record_model import BreedingRecordMod
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
+from tests.helpers.breeding import post_breeding
+
 def test_reproduction_overview_counts_one_conception_for_multiple_positive_checks(client, registered_animal):
     for event_type, result in (
         ("insemination", "completed"),
         ("pregnancy_diagnosis", "pregnant"),
         ("pregnancy_confirmed", "confirmed"),
     ):
-        response = client.post(
-            "/farm/breeding",
-            json={
-                "animal_id": registered_animal,
-                "event_type": event_type,
-                "technician": "Dr Vet",
-                "result": result,
-                "operator": "Dr Vet",
-            },
-        )
+        response = post_breeding(client, registered_animal, event_type, result)
         assert response.status_code == 200, response.text
 
     body = client.get("/farm/reproduction/overview").json()
@@ -31,16 +24,7 @@ def test_reproduction_overview_counts_one_conception_for_multiple_positive_check
 
 
 def test_reproduction_overview_excludes_records_without_timestamp_from_current_window(client, registered_animal):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "completed",
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200, response.text
 
     # The domain repository returns detached dataclass records. Mutating one
