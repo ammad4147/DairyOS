@@ -9,10 +9,9 @@ def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(clie
     """A regression assertion must not depend on the CI runner's wall clock.
 
     DairyOS operational date is farm-local (Asia/Karachi), while persisted
-    breeding timestamps are UTC. The endpoint may expose either CALVED or
-    LACTATING immediately after a recorded calving depending on the
-    operational-date boundary. The stable invariant is that calving exists
-    and the animal is no longer pregnant.
+    breeding timestamps are UTC. After calving, the mother remains DRY_OFF
+    until the operator explicitly returns her to the milking herd. The stable
+    invariant is that calving exists and the animal is no longer pregnant.
     """
     for event_type, result in (
         ("insemination", "completed"),
@@ -29,6 +28,6 @@ def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(clie
 
     assert status["last_calving_date"]
     datetime.fromisoformat(status["last_calving_date"])
-    assert status["state"] in {"CALVED", "LACTATING"}
+    assert status["state"] == "DRY_OFF"
     assert status["pregnancy_status"] != "PREGNANT"
     assert utcnow() is not None
