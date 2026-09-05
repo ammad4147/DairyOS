@@ -58,6 +58,16 @@ class BreedingRecordModel(Base):
         nullable=False,
     )
 
+    semen_or_bull = Column(
+        String,
+        nullable=True,
+    )
+
+    notes = Column(
+        String,
+        nullable=True,
+    )
+
     timestamp = Column(
         DateTime(timezone=True),
         nullable=True,

@@ -429,6 +429,8 @@ def _serialize_record(record) -> dict[str, Any]:
         "event_type": getattr(record, "event_type", None),
         "result": getattr(record, "result", None),
         "technician": getattr(record, "technician", None),
+        "semen_or_bull": getattr(record, "semen_or_bull", None),
+        "notes": getattr(record, "notes", None),
         "timestamp": timestamp.isoformat() if timestamp is not None else None,
     }
 
@@ -513,6 +515,8 @@ def record_breeding_entry(
         event_type=event_type,
         result=result,
         technician=technician,
+        semen_or_bull=(str(entry.semen_or_bull).strip() if entry.semen_or_bull else None),
+        notes=(str(entry.notes).strip() if entry.notes else None),
         timestamp=event_timestamp,
     )
     container.repository_factory.breeding().save(record)

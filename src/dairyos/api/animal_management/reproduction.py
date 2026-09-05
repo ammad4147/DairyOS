@@ -16,7 +16,7 @@ from .router import router
 
 _POLICY = ReproductivePolicy(
     voluntary_waiting_period_days=50,
-    gestation_days=280,
+    gestation_days=283,
     dry_off_days_before_calving=60,
 )
 

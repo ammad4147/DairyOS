@@ -47,6 +47,8 @@ class DatabaseBreedingRepository(
             event_type=record.event_type,
             result=record.result,
             technician=record.technician,
+            semen_or_bull=record.semen_or_bull,
+            notes=record.notes,
             timestamp=record.timestamp,
         )
 
@@ -71,6 +73,8 @@ class DatabaseBreedingRepository(
                 event_type=row.event_type,
                 result=row.result,
                 technician=row.technician,
+                semen_or_bull=row.semen_or_bull,
+                notes=row.notes,
                 record_id=row.record_id,
                 timestamp=row.timestamp,
             )
@@ -99,6 +103,8 @@ class DatabaseBreedingRepository(
                 event_type=row.event_type,
                 result=row.result,
                 technician=row.technician,
+                semen_or_bull=row.semen_or_bull,
+                notes=row.notes,
                 record_id=row.record_id,
                 timestamp=row.timestamp,
             )

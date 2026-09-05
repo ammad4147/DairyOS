@@ -25,6 +25,10 @@ class BreedingRecord:
 
     technician: str
 
+    semen_or_bull: str | None = None
+
+    notes: str | None = None
+
     record_id: str = field(
         default_factory=lambda: str(uuid4())
     )
