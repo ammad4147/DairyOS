@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { useFarmDateField } from '../utils/farmDate';
 
 const API_BASE =
   API_BASE_URL || 'http://127.0.0.1:8000';
@@ -363,7 +364,7 @@ export default function MilkTab({
   onOperationalChanged,
 }: Props) {
   const [date, setDate] =
-    useState(today());
+    useFarmDateField();
 
   const [
     selectedMonth,
@@ -373,7 +374,7 @@ export default function MilkTab({
   const [
     qualityDate,
     setQualityDate,
-  ] = useState(today());
+  ] = useFarmDateField();
 
   const automaticMonthRef =
     useRef(currentMonth());
