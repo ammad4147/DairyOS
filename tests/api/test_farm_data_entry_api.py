@@ -1,3 +1,4 @@
+from tests.helpers.breeding import post_breeding
 from dairyos.api.app import app
 
 
@@ -61,7 +62,7 @@ def test_list_health_observations(client):
 
 
 def test_record_breeding_entry(client, registered_animal):
-    response = client.post("/farm/breeding", json={"animal_id": registered_animal, "event_type": "insemination", "technician": "Dr Vet", "result": "completed", "operator": "Dr Vet"})
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200
     body = response.json()
     assert body["animal_id"] == registered_animal
