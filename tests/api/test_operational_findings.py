@@ -94,6 +94,8 @@ def test_redetection_updates_instead_of_duplicating(client):
     assert first.finding_id == second.finding_id
     assert second.observation_count == 2
     assert second.detail == "Updated detail"
+    events = _service().history(second.finding_id)
+    assert [event.event_type for event in events] == ["RAISED", "OBSERVED"]
 
 
 def test_resolved_finding_recurring_raises_new_not_reopened(client):
