@@ -14,7 +14,10 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
-from dairyos.data.database.destructive_guards import install_destructive_guards
+from dairyos.data.database.destructive_guards import (
+    install_destructive_guards,
+    verify_destructive_guards,
+)
 from dairyos.data.database.restore_verification import (
     restore_verification_due,
     verify_latest_backup_restore,
@@ -184,7 +187,10 @@ def migrate_if_needed() -> MigrationResult:
                     return MigrationResult(True, current, target, None)
 
             if current == target:
-                install_destructive_guards(connection)
+                if transient_admin_url:
+                    install_destructive_guards(connection)
+                else:
+                    verify_destructive_guards(connection)
                 return MigrationResult(False, current, target)
 
             if not current:

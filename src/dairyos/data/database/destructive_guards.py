@@ -13,6 +13,123 @@ from sqlalchemy import text
 DESTRUCTIVE_ROLE = "dairyos_destructive_admin"
 
 
+
+def verify_destructive_guards(connection) -> None:
+    """Fail closed when the installed PostgreSQL destructive guards are incomplete.
+
+    Normal DairyOS runtime connections are deliberately unprivileged.  They may
+    inspect the catalog but must not recreate owner-controlled functions or
+    triggers merely because the database is already at the packaged Alembic
+    head.
+    """
+    if connection.dialect.name != "postgresql":
+        return
+
+    role_exists = bool(
+        connection.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_roles
+                    WHERE rolname = 'dairyos_destructive_admin'
+                )
+                """
+            )
+        ).scalar_one()
+    )
+
+    required_functions = {
+        "dairyos_destructive_operation_allowed",
+        "dairyos_block_truncate",
+        "dairyos_block_bulk_delete",
+        "dairyos_install_table_guards",
+    }
+    installed_functions = {
+        str(row[0])
+        for row in connection.execute(
+            text(
+                """
+                SELECT p.proname
+                FROM pg_proc AS p
+                JOIN pg_namespace AS n
+                  ON n.oid = p.pronamespace
+                WHERE n.nspname = 'public'
+                  AND p.proname IN (
+                    'dairyos_destructive_operation_allowed',
+                    'dairyos_block_truncate',
+                    'dairyos_block_bulk_delete',
+                    'dairyos_install_table_guards'
+                  )
+                """
+            )
+        )
+    }
+
+    protected_tables = {
+        str(row[0])
+        for row in connection.execute(
+            text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_type = 'BASE TABLE'
+                  AND table_name <> 'alembic_version'
+                """
+            )
+        )
+    }
+
+    trigger_rows = connection.execute(
+        text(
+            """
+            SELECT c.relname, t.tgname
+            FROM pg_trigger AS t
+            JOIN pg_class AS c
+              ON c.oid = t.tgrelid
+            JOIN pg_namespace AS n
+              ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND NOT t.tgisinternal
+              AND t.tgname IN (
+                'dairyos_block_truncate',
+                'dairyos_block_bulk_delete'
+              )
+            """
+        )
+    )
+    triggers_by_table: dict[str, set[str]] = {}
+    for table_name, trigger_name in trigger_rows:
+        triggers_by_table.setdefault(str(table_name), set()).add(str(trigger_name))
+
+    missing_functions = sorted(required_functions - installed_functions)
+    missing_trigger_tables = sorted(
+        table_name
+        for table_name in protected_tables
+        if triggers_by_table.get(table_name, set())
+        != {"dairyos_block_truncate", "dairyos_block_bulk_delete"}
+    )
+
+    problems: list[str] = []
+    if not role_exists:
+        problems.append("role dairyos_destructive_admin is missing")
+    if missing_functions:
+        problems.append(
+            "functions missing: " + ", ".join(missing_functions)
+        )
+    if missing_trigger_tables:
+        problems.append(
+            "table guards missing or incomplete: "
+            + ", ".join(missing_trigger_tables)
+        )
+
+    if problems:
+        raise RuntimeError(
+            "DairyOS destructive guard verification failed: "
+            + "; ".join(problems)
+        )
+
 def install_destructive_guards(connection) -> None:
     if connection.dialect.name != "postgresql":
         return

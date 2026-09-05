@@ -91,3 +91,55 @@ def test_non_empty_database_without_history_is_rejected(monkeypatch):
         match="application tables but no Alembic history",
     ):
         migrations.migrate_if_needed()
+
+
+
+def test_current_head_runtime_verifies_guards_without_reinstall(monkeypatch):
+    target = ("20260905_04",)
+    _patch_migration_environment(monkeypatch, target, target, 1)
+    calls = []
+
+    monkeypatch.delenv(migrations.MIGRATION_DATABASE_URL_ENV, raising=False)
+    monkeypatch.setattr(
+        migrations,
+        "verify_destructive_guards",
+        lambda connection: calls.append(("verify", connection)),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "install_destructive_guards",
+        lambda connection: calls.append(("install", connection)),
+    )
+
+    result = migrations.migrate_if_needed()
+
+    assert result.migrated is False
+    assert [kind for kind, _connection in calls] == ["verify"]
+
+
+def test_current_head_privileged_gate_may_reinstall_guards(monkeypatch):
+    target = ("20260905_04",)
+    _patch_migration_environment(monkeypatch, target, target, 1)
+    calls = []
+
+    monkeypatch.setenv(
+        migrations.MIGRATION_DATABASE_URL_ENV,
+        "postgresql+psycopg://dairyos_admin:test@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(
+        migrations,
+        "verify_destructive_guards",
+        lambda connection: calls.append(("verify", connection)),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "install_destructive_guards",
+        lambda connection: calls.append(("install", connection)),
+    )
+    monkeypatch.setattr(migrations, "restore_verification_due", lambda: False)
+
+    result = migrations.migrate_if_needed()
+
+    assert result.migrated is False
+    assert [kind for kind, _connection in calls] == ["install"]
+    assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ

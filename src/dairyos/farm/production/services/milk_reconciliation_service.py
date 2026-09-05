@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from dairyos.data.models.milk_disposition import MilkDisposition
@@ -625,9 +625,48 @@ class MilkReconciliationService:
                         ),
                 }
 
-            saleable_delta = (
+            daily_saleable_delta = (
                 float(produced)
                 - accounted
+            )
+
+            # Ordinary milk is carried physical inventory.  A same-day
+            # disposition may therefore legitimately exceed that day's new
+            # production when prior saleable inventory exists.  Opening
+            # inventory may offset only an apparent same-day over-accounting;
+            # it must never manufacture a positive "unaccounted" balance for
+            # the current day.
+            opening_saleable_inventory = 0.0
+            if daily_saleable_delta < -0.01:
+                try:
+                    from dairyos.farm.production.services.milk_inventory_capacity_service import (
+                        overall_saleable_capacity,
+                    )
+
+                    previous_capacity = overall_saleable_capacity(
+                        production_date - timedelta(days=1),
+                        factory=owned_factory,
+                    )
+                    opening_saleable_inventory = max(
+                        float(
+                            previous_capacity.get(
+                                "available_saleable_litres",
+                                0.0,
+                            )
+                            or 0.0
+                        ),
+                        0.0,
+                    )
+                except Exception:
+                    opening_saleable_inventory = 0.0
+
+            saleable_delta = (
+                min(
+                    daily_saleable_delta + opening_saleable_inventory,
+                    0.0,
+                )
+                if daily_saleable_delta < 0.0
+                else daily_saleable_delta
             )
 
             # There is one physical milk pool. Withdrawal milk is production
@@ -669,6 +708,11 @@ class MilkReconciliationService:
                 "withdrawal_litres":
                     round(
                         withdrawal_litres,
+                        3,
+                    ),
+                "opening_saleable_inventory_litres":
+                    round(
+                        opening_saleable_inventory,
                         3,
                     ),
                 "withdrawal_accounted_litres":
@@ -757,6 +801,8 @@ class MilkReconciliationService:
                             f"{biological_production:.1f} L; "
                             "saleable "
                             f"{produced:.1f} L; "
+                            "opening carried inventory "
+                            f"{opening_saleable_inventory:.1f} L; "
                             "withdrawal "
                             f"{withdrawal_litres:.1f} L; "
                             "ordinary accounted "
@@ -766,7 +812,9 @@ class MilkReconciliationService:
                             "unaccounted saleable "
                             f"{max(saleable_delta, 0.0):.1f} L; "
                             "unaccounted withdrawal "
-                            f"{max(withdrawal_delta, 0.0):.1f} L."
+                            f"{max(withdrawal_delta, 0.0):.1f} L; "
+                            "over-accounted "
+                            f"{max(-saleable_delta, 0.0):.1f} L."
                         ),
                         subject_type="FARM",
                         subject_id="MILK",
