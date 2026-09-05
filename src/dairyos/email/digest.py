@@ -167,7 +167,7 @@ class DashboardDigestService:
                     self.mail.send(recipient=email, subject=subject, body=body, config=config)
                     delivery = EmailDigestDelivery(
                         digest_run_id=run.id,
-                        user_id=0,
+                        user_id=None,
                         recipient_email=email,
                         status="SENT",
                         sent_at=utcnow(),
@@ -178,7 +178,7 @@ class DashboardDigestService:
                 except Exception as exc:
                     delivery = EmailDigestDelivery(
                         digest_run_id=run.id,
-                        user_id=0,
+                        user_id=None,
                         recipient_email=email,
                         status="FAILED",
                         error_message=str(exc)[:2000],
