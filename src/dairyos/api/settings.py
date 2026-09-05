@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -424,6 +425,67 @@ class EmailSettingsRequest(BaseModel):
 
 class EmailTestRequest(BaseModel):
     recipient: str = Field(min_length=3)
+
+
+class NotificationRecipient(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    designation: str = ""
+    email: str = Field(min_length=3)
+
+
+class NotificationRecipientsRequest(BaseModel):
+    recipients: list[NotificationRecipient] = Field(default_factory=list)
+
+
+_NOTIFICATION_RECIPIENTS_KEY = "email_notification_recipients"
+
+
+@router.get("/email/recipients")
+def get_email_recipients():
+    factory = RepositoryFactory.create()
+    try:
+        raw = factory.app_settings().get(_NOTIFICATION_RECIPIENTS_KEY)
+        if not raw:
+            return {"recipients": []}
+        try:
+            parsed = json.loads(str(raw))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parsed = []
+        return {"recipients": parsed if isinstance(parsed, list) else []}
+    finally:
+        factory.close()
+
+
+@router.put("/email/recipients")
+def save_email_recipients(payload: NotificationRecipientsRequest):
+    normalized = []
+    seen = set()
+    for item in payload.recipients:
+        email = item.email.strip().lower()
+        if "@" not in email:
+            raise HTTPException(status_code=422, detail=f"Invalid notification recipient email: {item.email}")
+        if email in seen:
+            continue
+        seen.add(email)
+        normalized.append(
+            {
+                "id": item.id,
+                "name": item.name.strip(),
+                "designation": item.designation.strip(),
+                "email": email,
+            }
+        )
+    factory = RepositoryFactory.create()
+    try:
+        factory.app_settings().set(
+            _NOTIFICATION_RECIPIENTS_KEY,
+            json.dumps(normalized, sort_keys=True),
+            updated_by="UI Operator",
+        )
+        return {"recipients": normalized}
+    finally:
+        factory.close()
 
 
 @router.get("/email")
