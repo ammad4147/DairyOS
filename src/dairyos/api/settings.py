@@ -23,6 +23,7 @@ from dairyos.api.auth import (
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.email.service import EmailService
+from dairyos.email.digest import DashboardDigestService
 from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
@@ -427,6 +428,10 @@ class EmailTestRequest(BaseModel):
     recipient: str = Field(min_length=3)
 
 
+class EmailSnapshotRequest(BaseModel):
+    recipient_ids: list[str] = Field(default_factory=list)
+
+
 class NotificationRecipient(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -502,6 +507,26 @@ def save_email_settings(payload: EmailSettingsRequest):
         )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/email/snapshot")
+def send_email_snapshot(
+    payload: EmailSnapshotRequest,
+    container=Depends(get_container),
+):
+    try:
+        return DashboardDigestService(container=container).send_snapshot(
+            recipient_ids=payload.recipient_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DairyOS snapshot delivery failed: {exc}",
+        ) from exc
 
 
 @router.post("/email/test")
