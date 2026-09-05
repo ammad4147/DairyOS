@@ -139,7 +139,6 @@ type Props = {
   onModalClose?: () => void;
   herdMasterList?: HerdAnimal[];
   onSaveYield?: (addedLiters: number) => void;
-  realTimeTodaySold?: number;
   onOpenAnimalPassport?: (
     animalId: string,
   ) => void;
