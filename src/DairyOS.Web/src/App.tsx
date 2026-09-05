@@ -68,7 +68,7 @@ export default function MainAppShell(){
      {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} realTimeTodaySold={todayMilkSoldLiters} onOpenAnimalPassport={openLinkedPassport} onOperationalChanged={async()=>{setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
      {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
-     {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList}/>}
+     {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
     </main>
 
     {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
