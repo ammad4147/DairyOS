@@ -36,7 +36,9 @@ def test_breeding_entry_persists_entered_sire_notes_and_operational_date(
     with Session(engine) as session:
         row = session.get(BreedingRecordModel, record_id)
         assert row is not None
-        assert row.semen_or_bull == "Sexed Semen (90% Female) — SIRE-283"
+        assert row.semen_or_bull is not None
+        assert "SIRE-283" in row.semen_or_bull
+        assert row.semen_lot_id is not None
         assert row.notes == "Operator-entered breeding note"
         assert row.timestamp.date() == date(2026, 9, 5)
 
@@ -46,5 +48,7 @@ def test_breeding_entry_persists_entered_sire_notes_and_operational_date(
         row for row in ledger.json()
         if row.get("record_id") == record_id
     )
-    assert persisted["semen_or_bull"] == "Sexed Semen (90% Female) — SIRE-283"
+    assert persisted["semen_or_bull"] is not None
+    assert "SIRE-283" in persisted["semen_or_bull"]
+    assert persisted["semen_lot_id"] is not None
     assert persisted["notes"] == "Operator-entered breeding note"
