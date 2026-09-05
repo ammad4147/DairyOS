@@ -21,3 +21,4 @@ def test_breeding_ui_consumes_cycle_authority_not_lifetime_last_matching_events(
     assert "AI / Sire Performance" in UI
     assert "Animal Reproductive Performance" in UI
     assert "Evidence cycles:" in UI
+    assert "Service Attempt Performance" in UI

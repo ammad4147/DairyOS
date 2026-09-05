@@ -100,10 +100,14 @@ class BreedingCycleProjectionService:
             events.sort(key=lambda row: (row["_sort"], row["record_id"]))
             current: dict[str, Any] | None = None
             cycle_number = 0
+            service_attempt = 0
 
             for event in events:
                 row = _classifier(event)
                 event_type = event["event_type"]
+
+                if is_calving(row) and current is None:
+                    service_attempt = 0
 
                 if is_insemination(row):
                     if current is not None and current["status"].startswith("ACTIVE_"):
@@ -114,11 +118,13 @@ class BreedingCycleProjectionService:
                         current["outcome"] = "SUPERSEDED_BY_NEW_INSEMINATION"
                         current["closed_at"] = event["timestamp"]
                     cycle_number += 1
+                    service_attempt += 1
                     semen_type, sire_code = _semen_parts(event.get("semen_or_bull"))
                     current = {
                         "cycle_id": f"{animal_id}-C{cycle_number:03d}",
                         "animal_id": animal_id,
                         "cycle_number": cycle_number,
+                        "service_attempt_number": service_attempt,
                         "status": "ACTIVE_INSEMINATED",
                         "outcome": None,
                         "started_at": event["timestamp"],
@@ -167,6 +173,7 @@ class BreedingCycleProjectionService:
                     current["outcome_date"] = event["timestamp"][:10]
                     current["closed_at"] = event["timestamp"]
                     current = None
+                    service_attempt = 0
 
         cycles.sort(key=lambda cycle: (cycle["animal_id"], cycle["cycle_number"]))
         return cycles
@@ -199,8 +206,18 @@ class BreedingAnalyticsService:
 
         rows = []
         for value, items in groups.items():
-            documented = [c for c in items if not str(c["status"]).startswith("ACTIVE_")]
             conceptions = [c for c in items if c.get("pregnancy_confirmation_date")]
+            documented = [
+                c for c in items
+                if c.get("pregnancy_confirmation_date")
+                or c.get("outcome") in {
+                    "NOT_PREGNANT",
+                    "PREGNANCY_LOST",
+                    "ABORTION",
+                    "STILLBIRTH",
+                    "CALVING",
+                }
+            ]
             calvings = [c for c in items if c.get("outcome") == "CALVING"]
             losses = [
                 c for c in items
@@ -229,17 +246,29 @@ class BreedingAnalyticsService:
         rows = list(cycles)
         closed = [c for c in rows if not str(c["status"]).startswith("ACTIVE_")]
         conceptions = [c for c in rows if c.get("pregnancy_confirmation_date")]
+        documented = [
+            c for c in rows
+            if c.get("pregnancy_confirmation_date")
+            or c.get("outcome") in {
+                "NOT_PREGNANT",
+                "PREGNANCY_LOST",
+                "ABORTION",
+                "STILLBIRTH",
+                "CALVING",
+            }
+        ]
         calvings = [c for c in rows if c.get("outcome") == "CALVING"]
         losses = [
             c for c in rows
             if c.get("outcome") in {"PREGNANCY_LOST", "ABORTION", "STILLBIRTH"}
         ]
-        herd_conception = cls._rate(len(conceptions), len(closed))
+        herd_conception = cls._rate(len(conceptions), len(documented))
 
         by_animal = cls._group(rows, "animal_id")
         by_sire = cls._group(rows, "sire_code")
         by_semen_type = cls._group(rows, "semen_type")
         by_inseminator = cls._group(rows, "inseminator")
+        by_service_attempt = cls._group(rows, "service_attempt_number")
 
         signals: list[dict[str, Any]] = []
         for dimension, groups in (
@@ -247,6 +276,7 @@ class BreedingAnalyticsService:
             ("SIRE", by_sire),
             ("SEMEN_TYPE", by_semen_type),
             ("INSEMINATOR", by_inseminator),
+            ("SERVICE_ATTEMPT", by_service_attempt),
         ):
             for group in groups:
                 observed = group["documented_outcomes"]
@@ -314,6 +344,7 @@ class BreedingAnalyticsService:
             "by_sire": by_sire,
             "by_semen_type": by_semen_type,
             "by_inseminator": by_inseminator,
+            "by_service_attempt": by_service_attempt,
             "signals": signals,
             "signal_policy": {
                 "minimum_sample_size": cls.MIN_SIGNAL_SAMPLE,

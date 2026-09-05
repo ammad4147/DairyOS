@@ -38,6 +38,7 @@ def test_cycle_closure_and_restart_after_calving_abortion_negative_pd():
         "CLOSED_CALVING","CLOSED_ABORTION","CLOSED_NOT_PREGNANT","ACTIVE_INSEMINATED"
     ]
     assert cycles[-1]["sire_code"] == "SIRE-4"
+    assert [c["service_attempt_number"] for c in cycles] == [1, 1, 2, 3]
     current = BreedingCycleProjectionService.current_by_animal(cycles)
     assert current["A1"]["cycle_id"].endswith("C004")
 
@@ -76,3 +77,16 @@ def test_small_sample_does_not_generate_failure_signal():
     ]
     analytics=BreedingAnalyticsService.summarize(BreedingCycleProjectionService.project(records))
     assert not [s for s in analytics["signals"] if s["key"]=="ONE-OFF"]
+
+
+def test_active_confirmed_pregnancy_counts_as_observed_conception_but_pending_ai_does_not():
+    records = [
+        ev("A1","insemination","2026-01-01",semen="Conventional — S1"),
+        ev("A1","pregnancy_confirmed","2026-02-01","confirmed"),
+        ev("A2","insemination","2026-01-02",semen="Conventional — S2"),
+    ]
+    analytics = BreedingAnalyticsService.summarize(
+        BreedingCycleProjectionService.project(records)
+    )
+    assert analytics["herd_conception_rate_percent"] == 100.0
+    assert analytics["documented_conceptions"] == 1
