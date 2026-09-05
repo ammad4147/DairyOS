@@ -115,6 +115,19 @@ def _delete_test_rows_one_at_a_time(session, model) -> None:
         session.flush()
 
 
+def _clear_test_event_journal() -> None:
+    """Clear the disposable test journal without calling its bulk-delete API."""
+    session = _db_session.SessionLocal()
+    try:
+        _delete_test_rows_one_at_a_time(session, EventJournalModel)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 def _reset_test_persistence() -> None:
     """Create a clean durable persistence boundary for every API test."""
 
@@ -156,7 +169,7 @@ def _reset_test_persistence() -> None:
         session.rollback()
         raise
 
-    PersistentEventJournal().clear()
+    _clear_test_event_journal()
 
     if getattr(container, "animal_operational_state_repository", None) is not None:
         container.animal_operational_state_repository.clear()
@@ -186,7 +199,7 @@ def _reset_test_persistence() -> None:
 @pytest.fixture()
 def client(tmp_path):
     journal = PersistentEventJournal()
-    journal.clear()
+    _clear_test_event_journal()
 
     container.event_journal = journal
 
@@ -278,7 +291,7 @@ def _cleanup_persistence_after_test_session():
     try:
         _reset_test_persistence()
     finally:
-        PersistentEventJournal().clear()
+        _clear_test_event_journal()
 
         if getattr(container, "animal_operational_state_repository", None) is not None:
             container.animal_operational_state_repository.clear()
