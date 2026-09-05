@@ -47,7 +47,6 @@ type HerdAnimal = {
 };
 
 type Props = {
-  onSaveSale?: (liters: number) => void;
   onUpdateReceivables?: (amount: number) => void;
   herdMasterList?: HerdAnimal[];
   onAnimalChanged?: () => void | Promise<void>;
@@ -231,7 +230,6 @@ const groupLabel = (value: string) =>
     .replace(/\b\w/g, letter => letter.toUpperCase());
 
 export default function FinanceTab({
-  onSaveSale,
   onUpdateReceivables,
   herdMasterList = [],
   onAnimalChanged,
@@ -850,7 +848,6 @@ export default function FinanceTab({
           await onAnimalChanged?.();
         } catch {}
       }
-      if (revCategory === 'Milk Sales' && revQty) onSaveSale?.(Number(revQty));
       setRevAnimalId('');
       setRevAmount('');
       setRevQty('');
