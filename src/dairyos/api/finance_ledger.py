@@ -24,6 +24,7 @@ from dairyos.api.tmr import (
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
@@ -97,6 +98,14 @@ class FinanceLedgerEntry(BaseModel):
     status: str = "RECORDED"
     currency: str = "PKR"
     due_date: date | None = None
+    semen_type: str | None = None
+    sire_code: str | None = None
+    bull_name: str | None = None
+    semen_breed: str | None = None
+    semen_batch_number: str | None = None
+    semen_expiry_date: date | None = None
+    semen_storage_location: str | None = None
+    semen_country_source: str | None = None
 
 
 class FinanceLedgerEdit(BaseModel):
@@ -176,6 +185,7 @@ def _is_governed_tmr_feed_item(item_name: str | None) -> bool:
         probe.close()
 
 EQUIPMENT_PURCHASE_ITEM = "Equipment Purchase"
+SEMEN_PURCHASE_ITEM = "Semen Straws (Sexed / Conventional)"
 
 
 def _validate_expense_payload(
@@ -256,6 +266,27 @@ def _validate_expense_payload(
                 "Other or Equipment Purchase."
             ),
         )
+
+    if (
+        entry.master_category == "OPEX"
+        and entry.sub_category == SEMEN_PURCHASE_ITEM
+    ):
+        if entry.quantity is None or int(entry.quantity) != float(entry.quantity) or int(entry.quantity) <= 0:
+            raise HTTPException(status_code=422, detail="Semen purchase requires a positive whole number of straws.")
+        if str(entry.unit or "").strip().lower() not in {"straw", "straws"}:
+            raise HTTPException(status_code=422, detail="Semen purchase unit must be straw.")
+        if entry.unit_rate is None or _rate(entry.unit_rate) <= 0:
+            raise HTTPException(status_code=422, detail="Semen purchase requires rate per straw.")
+        if str(entry.semen_type or "").strip().upper() not in {"SEXED", "CONVENTIONAL"}:
+            raise HTTPException(status_code=422, detail="Semen purchase requires semen_type SEXED or CONVENTIONAL.")
+        if not str(entry.sire_code or "").strip():
+            raise HTTPException(status_code=422, detail="Semen purchase requires sire_code.")
+        if not str(entry.semen_batch_number or "").strip():
+            raise HTTPException(status_code=422, detail="Semen purchase requires batch / lot number.")
+        if not str(entry.counterparty or "").strip():
+            raise HTTPException(status_code=422, detail="Semen purchase requires supplier.")
+        if entry.semen_expiry_date and entry.transaction_date and entry.semen_expiry_date < entry.transaction_date:
+            raise HTTPException(status_code=422, detail="Semen expiry date cannot precede purchase date.")
 
     if entry.quantity is not None and not entry.unit:
         raise HTTPException(
@@ -1019,6 +1050,44 @@ def create_finance_ledger_entry(
 
     session.add(transaction)
     session.flush()
+
+    if (
+        transaction_type in classifier.EXPENSE_TYPES
+        and entry.master_category == "OPEX"
+        and entry.sub_category == SEMEN_PURCHASE_ITEM
+    ):
+        lot_code = f"SEM-{transaction.id}-{str(entry.semen_batch_number).strip()}"
+        semen_lot = SemenLot(
+            lot_code=lot_code,
+            sire_code=str(entry.sire_code).strip(),
+            bull_name=(str(entry.bull_name).strip() if entry.bull_name else None),
+            breed=(str(entry.semen_breed).strip() if entry.semen_breed else None),
+            semen_type=str(entry.semen_type).strip().upper(),
+            supplier=str(entry.counterparty).strip(),
+            batch_number=str(entry.semen_batch_number).strip(),
+            purchase_transaction_id=transaction.id,
+            purchase_date=entry.transaction_date or date.today(),
+            expiry_date=entry.semen_expiry_date,
+            storage_location=(str(entry.semen_storage_location).strip() if entry.semen_storage_location else None),
+            country_source=(str(entry.semen_country_source).strip() if entry.semen_country_source else None),
+            unit_cost=_rate(entry.unit_rate),
+            purchased_quantity=int(entry.quantity),
+            notes=entry.notes,
+            active=True,
+        )
+        session.add(semen_lot)
+        session.flush()
+        session.add(
+            SemenStockMovement(
+                semen_lot_id=semen_lot.id,
+                movement_type="PURCHASE",
+                quantity=int(entry.quantity),
+                signed_quantity=int(entry.quantity),
+                source_financial_transaction_id=transaction.id,
+                notes=f"Finance semen purchase #{transaction.id}",
+                recorded_by="FINANCE",
+            )
+        )
 
     try:
         _ensure_feed_catalog_authority(
