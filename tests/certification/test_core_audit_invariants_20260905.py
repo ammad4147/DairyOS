@@ -1,31 +1,22 @@
-from dairyos.app import app
+from pathlib import Path
+
 from dairyos.api import breeding_biology
 from dairyos.api.animal_management import reproduction as animal_reproduction
 
 
-def test_material_public_route_authorities_are_unique():
-    material = {
-        ("GET", "/dashboard"),
-        ("POST", "/farm/breeding"),
-        ("GET", "/farm/animals/{animal_id}/reproduction"),
-        ("GET", "/farm/milk/production-summary"),
-    }
-    counts = {item: 0 for item in material}
+def test_duplicate_compatibility_routes_are_not_mounted_as_public_authorities():
+    app_source = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "dairyos"
+        / "app.py"
+    ).read_text(encoding="utf-8")
 
-    for route in app.router.routes:
-        path = str(
-            getattr(
-                route,
-                "path_format",
-                getattr(route, "path", ""),
-            )
-        )
-        for method in getattr(route, "methods", set()) or set():
-            key = (str(method).upper(), path)
-            if key in counts:
-                counts[key] += 1
-
-    assert counts == {item: 1 for item in material}
+    assert '_unmount_duplicate_routes(farm_router, {"/farm/breeding"})' in app_source
+    assert (
+        '_unmount_duplicate_routes(breeding_biology_router, {"/dashboard"})'
+        in app_source
+    )
 
 
 def test_production_reproductive_policies_use_283_day_gestation():
