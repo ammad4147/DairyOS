@@ -1,9 +1,14 @@
+import pytest
 from sqlalchemy.orm import Session
 
-from dairyos.api import breeding_biology
+from dairyos.app import container
+from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.database.session import engine
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.farm.operations.repositories.adapters.database_breeding_repository import (
+    DatabaseBreedingRepository,
+)
 
 
 def _post(client, animal_id, event_type, result):
@@ -24,25 +29,15 @@ def test_projection_failure_keeps_durable_pending_outbox(
     registered_animal,
     monkeypatch,
 ):
-    original = breeding_biology._deliver_breeding_propagation
+    original_publisher = container.input_ingestion_service.event_publisher
 
-    def fail_delivery(container, propagation_id):
-        bind = container.repository_factory.session.get_bind()
-        with Session(bind=bind) as session:
-            row = session.query(BreedingPropagationOutbox).filter_by(
-                propagation_id=propagation_id
-            ).one()
-            row.attempts += 1
-            row.status = "PENDING"
-            row.last_error = "injected projection failure"
-            session.commit()
-            session.refresh(row)
-            return row
+    def fail_publish(event):
+        raise RuntimeError("injected operational projection failure")
 
     monkeypatch.setattr(
-        breeding_biology,
-        "_deliver_breeding_propagation",
-        fail_delivery,
+        container.input_ingestion_service,
+        "event_publisher",
+        fail_publish,
     )
     response = _post(client, registered_animal, "insemination", "COMPLETED")
     assert response.status_code == 200, response.text
@@ -55,12 +50,13 @@ def test_projection_failure_keeps_durable_pending_outbox(
             propagation_id=propagation_id
         ).one()
         assert row.status == "PENDING"
+        assert "injected operational projection failure" in row.last_error
         assert row.record_id == payload["record_id"]
 
     monkeypatch.setattr(
-        breeding_biology,
-        "_deliver_breeding_propagation",
-        original,
+        container.input_ingestion_service,
+        "event_publisher",
+        original_publisher,
     )
     retry = client.post(
         f"/farm/breeding/propagation/{propagation_id}/retry"
@@ -114,3 +110,34 @@ def test_calving_and_outbox_are_committed_as_one_postgresql_action(
         row["record_id"] == payload["record_id"]
         for row in status.json()
     )
+
+
+def test_postgresql_failure_rolls_back_breeding_and_outbox_together(
+    client,
+    registered_animal,
+    monkeypatch,
+):
+    original_save = DatabaseBreedingRepository.save
+
+    def fail_after_flush(self, record, *, commit=True):
+        original_save(self, record, commit=False)
+        raise RuntimeError("injected PostgreSQL unit-of-work failure")
+
+    monkeypatch.setattr(DatabaseBreedingRepository, "save", fail_after_flush)
+
+    with pytest.raises(RuntimeError, match="injected PostgreSQL unit-of-work failure"):
+        _post(client, registered_animal, "insemination", "COMPLETED")
+
+    with Session(engine) as session:
+        assert (
+            session.query(BreedingRecordModel)
+            .filter(BreedingRecordModel.animal_id == registered_animal)
+            .count()
+            == 0
+        )
+        assert (
+            session.query(BreedingPropagationOutbox)
+            .filter(BreedingPropagationOutbox.animal_id == registered_animal)
+            .count()
+            == 0
+        )
