@@ -9,19 +9,11 @@ from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationO
 from dairyos.farm.operations.repositories.adapters.database_breeding_repository import (
     DatabaseBreedingRepository,
 )
+from tests.helpers.breeding import post_breeding
 
 
 def _post(client, animal_id, event_type, result):
-    return client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": animal_id,
-            "event_type": event_type,
-            "result": result,
-            "technician": "Dr Vet",
-            "operator": "Dr Vet",
-        },
-    )
+    return post_breeding(client, animal_id, event_type, result)
 
 
 def test_projection_failure_keeps_durable_pending_outbox(
