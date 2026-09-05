@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Plus } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import { apiUrl } from '../config/api';
+import { useFarmDateField } from '../utils/farmDate';
 
 type Stage =
   | 'Inseminated (Pending PD)'
@@ -155,7 +156,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const [formSire, setFormSire] = useState('');
   const [formSemenType, setFormSemenType] = useState<'Sexed Semen (90% Female)' | 'Conventional' | ''>('');
   const [formInseminator, setFormInseminator] = useState('');
-  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formDate, setFormDate, resetFormDateToToday] = useFarmDateField();
   const [formPdResult, setFormPdResult] = useState<'POSITIVE' | 'NEGATIVE' | ''>('');
   const [formLossOutcome, setFormLossOutcome] = useState<LossOutcome>('');
   const [formCalfSex, setFormCalfSex] = useState<'FEMALE' | 'MALE' | ''>('');
@@ -357,6 +358,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
       setFormLossOutcome('');
       setFormCalfSex('');
       setFormReturnToMilkingDate('');
+      resetFormDateToToday();
       await loadRecords();
       await onChanged?.();
     } catch (e) {
@@ -380,7 +382,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   ];
 
   return <div style={{ padding: '20px', color: '#fff', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}><div><h2 style={{ margin: '0 0 4px', fontSize: '18px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} /> Breeding, Artificial Insemination (AI) & Gestation Ledger</h2><p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Manage operator-entered breeding events as authoritative Passport records. Biological clocks provide reminders and guidance only; lifecycle changes occur only through recorded manual breeding events.</p></div><button onClick={() => setShowEventModal(true)} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '6px', fontSize: '12px' }}><Plus size={15} /> + Record Breeding / AI Event</button></div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}><div><h2 style={{ margin: '0 0 4px', fontSize: '18px', color: '#fb923c', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} /> Breeding, Artificial Insemination (AI) & Gestation Ledger</h2><p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Manage operator-entered breeding events as authoritative Passport records. Biological clocks provide reminders and guidance only; lifecycle changes occur only through recorded manual breeding events.</p></div><button onClick={() => { resetFormDateToToday(); setShowEventModal(true); }} style={{ background: '#fb923c', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '6px', fontSize: '12px' }}><Plus size={15} /> + Record Breeding / AI Event</button></div>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: '12px', marginBottom: '16px' }}>{summaryCards.map(([l, v, c]) => <div key={String(l)} style={{ background: '#111827', border: '1px solid #1f2937', padding: '12px', borderRadius: '6px', borderLeft: `3px solid ${c}` }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>{l}</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: String(c) }}>{typeof v === 'number' ? `${v} Animals` : v}</div><div style={{ fontSize: '10px', color: '#64748b' }}>{l === 'Manual AI Candidates' ? 'Milking, Dry and Heifer only; active cycles excluded' : l === 'Inseminated (Pending PD)' ? 'PD Check Due Day 35' : l === 'Confirmed Pregnant' ? (avg == null ? 'No confirmed pregnancy data' : `Average ${avg}d Gestation`) : 'Pregnant / active reproductive cycle'}</div></div>)}</div>
     {error && <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(251,146,60,.12)', border: '1px solid #7c2d12', color: '#fdba74', fontSize: '12px' }}>{error}</div>}
     <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 980, fontSize: '12px', borderCollapse: 'collapse' }}><thead><tr style={{ color: '#cbd5e1', borderBottom: '1px solid #334155', textAlign: 'left', background: '#161f30' }}>{['Animal & Manual AI Status', 'Insemination Date & Sire', 'Semen Type', 'Pregnancy & Calving Timeline', 'Clinical Notes'].map(h => <th key={h} style={{ padding: '10px 12px' }}>{h}</th>)}</tr></thead><tbody>{loading ? null : rows.map(r => <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ padding: '10px 12px' }}><button onClick={() => onOpenPassport ? onOpenPassport(r.tag) : setActiveModalPassport(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>#{r.tag}</button><div style={{ fontSize: '10px', color: r.manualAiCandidate ? '#34d399' : '#94a3b8' }}>{r.daysAfterCalving == null ? 'No calving date / maiden animal' : `${r.daysAfterCalving} days after calving`} · {r.manualAiCandidate ? 'Manual AI entry available' : 'Active cycle or review state'}</div></td><td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>AI: {r.aiDate} • {r.inseminator}</div></td><td style={{ padding: '10px 12px' }}>{r.semenType}</td><td style={{ padding: '10px 12px' }}><div><strong>Pregnancy check:</strong> {r.pregnancyDate}</div><div style={{ fontSize: '10px' }}><strong>PD due:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399' }}>Expected calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td><td style={{ padding: '10px 12px' }}>{r.notes}</td></tr>)}</tbody></table></div>
