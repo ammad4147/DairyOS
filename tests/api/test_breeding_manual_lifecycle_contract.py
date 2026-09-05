@@ -4,19 +4,11 @@ from datetime import date, timedelta
 
 import pytest
 
+from tests.helpers.breeding import post_breeding
+
 
 def _record(client, animal_id: str, event_type: str, result: str, **extra):
-    return client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": animal_id,
-            "event_type": event_type,
-            "technician": "Dr Vet",
-            "result": result,
-            "operator": "Dr Vet",
-            **extra,
-        },
-    )
+    return post_breeding(client, animal_id, event_type, result, **extra)
 
 
 def _establish_confirmed_pregnancy(client, animal_id: str):
