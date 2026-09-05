@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Ban, Edit3, Printer, Search, WalletCards } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { useFarmDateField } from '../utils/farmDate';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -243,7 +244,7 @@ export default function FinanceTab({
   const [unit, setUnit] = useState('kg');
   const [unitRate, setUnitRate] = useState('');
   const [directAmount, setDirectAmount] = useState('');
-  const [expenseDate, setExpenseDate] = useState(today());
+  const [expenseDate, setExpenseDate, resetExpenseDateToToday] = useFarmDateField();
   const [vendor, setVendor] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BANK');
   const [reference, setReference] = useState('');
@@ -271,7 +272,7 @@ export default function FinanceTab({
   const [revAmount, setRevAmount] = useState('');
   const [revQty, setRevQty] = useState('');
   const [revRate, setRevRate] = useState('');
-  const [revDate, setRevDate] = useState(today());
+  const [revDate, setRevDate, resetRevDateToToday] = useFarmDateField();
   const [revRef, setRevRef] = useState('');
   const [revCounterparty, setRevCounterparty] = useState('');
   const [revNotes, setRevNotes] = useState('');
