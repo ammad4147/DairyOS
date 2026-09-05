@@ -108,14 +108,20 @@ class NightlyEmailScheduler:
                     self._send(now.date())
 
     def _run_catch_up(self, previous: datetime | None, current: datetime) -> None:
-        if previous is None:
-            return
         zone = self._zone()
         current_local = current.astimezone(zone)
-        previous_local = previous.astimezone(zone)
         digest_date = expected_digest_date(current_local)
         expected_slot = datetime.combine(digest_date, time(23, 0), tzinfo=zone)
-        if previous_local.date() == digest_date and previous_local.time() < time(23, 0) and current_local >= expected_slot:
+
+        if current_local < expected_slot:
+            return
+
+        if previous is None:
+            self._send(digest_date)
+            return
+
+        previous_local = previous.astimezone(zone)
+        if previous_local < expected_slot:
             self._send(digest_date)
 
     def _send(self, digest_date) -> None:
