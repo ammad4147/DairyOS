@@ -838,10 +838,44 @@ def create_finance_ledger_entry(
             detail="Unsupported transaction_type.",
         )
 
-    amount, legacy_category_value = _validate_expense_payload(
-        entry,
-        transaction_type,
-    )
+    if (
+        transaction_type in classifier.INCOME_TYPES
+        and str(entry.category or "").upper() == "MILK_SALES"
+    ):
+        if entry.quantity is None or float(entry.quantity) <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Milk Sales requires a positive quantity in litres.",
+            )
+        if entry.unit_rate is None or _rate(entry.unit_rate) <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Milk Sales requires a positive rate per litre.",
+            )
+        derived_milk_sale_amount = (
+            Decimal(str(entry.quantity)) * _rate(entry.unit_rate)
+        ).quantize(
+            MONEY_QUANTUM,
+            rounding=ROUND_HALF_UP,
+        )
+        if (
+            entry.amount is not None
+            and _money(entry.amount) != derived_milk_sale_amount
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Milk Sales amount is auto calculated as quantity times rate "
+                    "and cannot conflict with those values."
+                ),
+            )
+        amount = derived_milk_sale_amount
+        legacy_category_value = entry.category
+    else:
+        amount, legacy_category_value = _validate_expense_payload(
+            entry,
+            transaction_type,
+        )
 
     if (
         entry.payment_method is not None
@@ -915,12 +949,7 @@ def create_finance_ledger_entry(
 
         quantity_value = float(entry.quantity)
         unit_value = "litre"
-        unit_rate_value = (
-            Decimal(amount) / Decimal(str(quantity_value))
-        ).quantize(
-            RATE_QUANTUM,
-            rounding=ROUND_HALF_UP,
-        )
+        unit_rate_value = _rate(entry.unit_rate)
     else:
         quantity_value = (
             entry.quantity

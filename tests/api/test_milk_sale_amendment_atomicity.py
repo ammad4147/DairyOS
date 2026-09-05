@@ -14,12 +14,38 @@ def seed_sale(client, animal_id):
         session.add(MilkProduction(animal_id=animal_id, production_date=datetime(2026, 9, 1), total_yield=150, status="RECORDED"))
     response = client.post("/farm/finance-ledger", json={
         "transaction_type": "INCOME", "category": "MILK_SALES",
-        "amount": 20000, "quantity": 100, "transaction_date": "2026-09-01",
+        "quantity": 100, "unit_rate": 200, "transaction_date": "2026-09-01",
         "counterparty": "Buyer", "status": "RECEIVABLE", "due_date": "2026-09-30",
     })
     assert response.status_code == 200, response.text
     return response.json()["id"]
 
+
+
+
+def test_milk_sale_creation_derives_amount_from_quantity_and_rate(client, registered_animal):
+    with Session(engine) as session, session.begin():
+        session.add(MilkProduction(animal_id=registered_animal, production_date=datetime(2026, 9, 1), total_yield=150, status="RECORDED"))
+    response = client.post("/farm/finance-ledger", json={
+        "transaction_type": "INCOME", "category": "MILK_SALES",
+        "quantity": 80, "unit_rate": 225, "transaction_date": "2026-09-01",
+        "counterparty": "Buyer", "status": "RECEIVABLE", "due_date": "2026-09-30",
+    })
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["amount"] == 18000.0
+    assert payload["quantity"] == 80
+    assert Decimal(str(payload["unit_rate"])) == Decimal("225.000000")
+
+
+def test_milk_sale_rejects_conflicting_manual_amount(client, registered_animal):
+    response = client.post("/farm/finance-ledger", json={
+        "transaction_type": "INCOME", "category": "MILK_SALES",
+        "quantity": 80, "unit_rate": 225, "amount": 19000,
+        "transaction_date": "2026-09-01", "status": "RECEIVED",
+    })
+    assert response.status_code == 422
+    assert "auto calculated" in response.text
 
 def test_amendment_synchronizes_commercial_facts(client, registered_animal):
     transaction_id = seed_sale(client, registered_animal)

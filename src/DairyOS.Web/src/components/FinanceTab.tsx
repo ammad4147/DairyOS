@@ -262,6 +262,7 @@ export default function FinanceTab({
   const [revAnimalId, setRevAnimalId] = useState('');
   const [revAmount, setRevAmount] = useState('');
   const [revQty, setRevQty] = useState('');
+  const [revRate, setRevRate] = useState('');
   const [revDate, setRevDate] = useState(today());
   const [revRef, setRevRef] = useState('');
   const [revCounterparty, setRevCounterparty] = useState('');
@@ -744,6 +745,10 @@ export default function FinanceTab({
     'Male Calf Sale': 'MALE_CALF_SALE',
     'Bull Sale': 'BULL_SALE',
   };
+  const isMilkSale = revCategory === 'Milk Sales';
+  const calculatedMilkSaleAmount = isMilkSale && revQty && revRate
+    ? Number(revQty) * Number(revRate)
+    : 0;
   const isAnimalSale = Boolean(animalSaleCategories[revCategory]);
   const saleEligibleAnimals = useMemo(() => {
     if (!isAnimalSale) return [];
@@ -774,7 +779,13 @@ export default function FinanceTab({
 
   const saveRevenue = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = Number(revAmount);
+    const amount = isMilkSale
+      ? calculatedMilkSaleAmount
+      : Number(revAmount);
+    if (isMilkSale && (!(Number(revQty) > 0) || !(Number(revRate) > 0))) {
+      setError('Milk Sale requires a positive quantity and rate per litre.');
+      return;
+    }
     if (!(amount > 0)) return;
     if (isAnimalSale && !revAnimalId) {
       setError('Select the Animal ID being sold.');
@@ -794,9 +805,10 @@ export default function FinanceTab({
         body: JSON.stringify({
           transaction_type: revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
-          amount,
+          amount: isMilkSale ? undefined : amount,
           quantity: revQty ? Number(revQty) : null,
-          unit: revCategory === 'Milk Sales' && revQty ? 'litres' : null,
+          unit: isMilkSale && revQty ? 'litres' : null,
+          unit_rate: isMilkSale ? Number(revRate) : null,
           transaction_date: revDate,
           payment_method: revStatus === 'RECEIVABLE' ? 'CREDIT' : 'CASH',
           counterparty: revCounterparty || null,
@@ -846,6 +858,7 @@ export default function FinanceTab({
       setRevAnimalId('');
       setRevAmount('');
       setRevQty('');
+      setRevRate('');
       setRevRef('');
       setRevCounterparty('');
       setRevNotes('');
@@ -1093,9 +1106,14 @@ export default function FinanceTab({
               <select value={revCategory} onChange={event => setRevCategory(event.target.value)} style={inputStyle}>
                 <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option>
               </select>
-              <input required type="number" min="0" step="0.01" value={revAmount} onChange={event => setRevAmount(event.target.value)} style={inputStyle} placeholder="Amount" />
-              <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />
+              {isMilkSale
+                ? <input required type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity (Litres)" />
+                : <input required type="number" min="0" step="0.01" value={revAmount} onChange={event => setRevAmount(event.target.value)} style={inputStyle} placeholder="Amount" />}
+              {isMilkSale
+                ? <input required type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
+                : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
             </div>
+            {isMilkSale && <input readOnly value={calculatedMilkSaleAmount > 0 ? calculatedMilkSaleAmount.toFixed(2) : ''} style={{ ...inputStyle, marginTop: 6, color: '#34d399', fontWeight: 800 }} placeholder="Amount — auto calculated from Quantity × Rate" />}
             {isAnimalSale && (
               <div style={{ marginTop: 6 }}>
                 <select required value={revAnimalId} onChange={event => setRevAnimalId(event.target.value)} style={inputStyle}>

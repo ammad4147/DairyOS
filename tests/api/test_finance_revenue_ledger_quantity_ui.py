@@ -35,6 +35,16 @@ class FinanceRevenueLedgerQuantityContractTest(
 
         cls.ledger = cls.source[start:end]
 
+    def test_milk_sale_form_uses_quantity_and_rate_with_readonly_amount(self):
+        self.assertIn("const [revRate, setRevRate] = useState('');", self.source)
+        self.assertIn("const calculatedMilkSaleAmount", self.source)
+        self.assertIn('placeholder="Quantity (Litres)"', self.source)
+        self.assertIn('placeholder="Rate / Litre"', self.source)
+        self.assertIn("Amount — auto calculated from Quantity × Rate", self.source)
+        self.assertIn("readOnly value={calculatedMilkSaleAmount", self.source)
+        self.assertIn("unit_rate: isMilkSale ? Number(revRate) : null", self.source)
+        self.assertIn("amount: isMilkSale ? undefined : amount", self.source)
+
     def test_screen_uses_readable_revenue_table(self):
         self.assertIn(
             "<table",
