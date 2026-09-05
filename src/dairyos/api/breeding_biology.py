@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,6 +16,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.animal_registration import _animal_id_prefix, _new_animal_id
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.farm.reproduction.services.reproductive_state_service import (
@@ -88,6 +90,7 @@ class BreedingLifecycleRequest(BaseModel):
     timestamp: str | None = None
     calf_sex: str | None = None
     planned_return_to_milking_date: date | None = None
+    semen_lot_id: int | None = None
 
 
 def _operator(
@@ -439,6 +442,10 @@ def _serialize_record(record) -> dict[str, Any]:
         "technician": getattr(record, "technician", None),
         "semen_or_bull": getattr(record, "semen_or_bull", None),
         "notes": getattr(record, "notes", None),
+        "semen_lot_id": getattr(record, "semen_lot_id", None),
+        "semen_supplier": getattr(record, "semen_supplier", None),
+        "semen_batch_number": getattr(record, "semen_batch_number", None),
+        "semen_unit_cost": getattr(record, "semen_unit_cost", None),
         "timestamp": timestamp.isoformat() if timestamp is not None else None,
     }
 
@@ -500,6 +507,54 @@ def _state_payload(container, animal_id: str) -> dict[str, Any]:
     payload["base_category"] = getattr(animal, "animal_category", None)
     payload["events"] = [_serialize_record(record) for record in records]
     return payload
+
+
+
+def _semen_lot_payload(session, lot: SemenLot) -> dict[str, Any]:
+    balance = int(
+        session.query(func.coalesce(func.sum(SemenStockMovement.signed_quantity), 0))
+        .filter(SemenStockMovement.semen_lot_id == lot.id)
+        .scalar()
+        or 0
+    )
+    return {
+        "id": lot.id,
+        "lot_code": lot.lot_code,
+        "sire_code": lot.sire_code,
+        "bull_name": lot.bull_name,
+        "breed": lot.breed,
+        "semen_type": lot.semen_type,
+        "supplier": lot.supplier,
+        "batch_number": lot.batch_number,
+        "purchase_transaction_id": lot.purchase_transaction_id,
+        "purchase_date": lot.purchase_date.isoformat() if lot.purchase_date else None,
+        "expiry_date": lot.expiry_date.isoformat() if lot.expiry_date else None,
+        "storage_location": lot.storage_location,
+        "country_source": lot.country_source,
+        "unit_cost": float(lot.unit_cost or 0),
+        "purchased_quantity": int(lot.purchased_quantity or 0),
+        "available_straws": balance,
+        "active": bool(lot.active),
+    }
+
+
+@router.get("/farm/breeding/semen-stock")
+def semen_stock(container=Depends(get_container)):
+    bind = container.repository_factory.session.get_bind()
+    with Session(bind=bind) as session:
+        lots = session.query(SemenLot).order_by(SemenLot.sire_code, SemenLot.id).all()
+        rows = [_semen_lot_payload(session, lot) for lot in lots]
+        available = [row for row in rows if row["active"] and row["available_straws"] > 0]
+        return {
+            "data_status": "NO_DATA" if not rows else "LIVE_PERSISTED_DATA",
+            "lots": rows,
+            "available_lots": available,
+            "summary": {
+                "available_straws": sum(row["available_straws"] for row in available),
+                "sexed_available": sum(row["available_straws"] for row in available if row["semen_type"] == "SEXED"),
+                "conventional_available": sum(row["available_straws"] for row in available if row["semen_type"] == "CONVENTIONAL"),
+            },
+        }
 
 
 @router.get("/farm/breeding")
@@ -663,7 +718,63 @@ def record_breeding_entry(
     bind = container.repository_factory.session.get_bind()
     with Session(bind=bind) as session, session.begin():
         factory = RepositoryFactory(session)
+
+        if event_type == "insemination":
+            if entry.semen_lot_id is None:
+                raise HTTPException(status_code=422, detail="Insemination requires an available purchased semen lot.")
+            lot = (
+                session.query(SemenLot)
+                .filter(SemenLot.id == int(entry.semen_lot_id))
+                .with_for_update()
+                .first()
+            )
+            if lot is None or not bool(lot.active):
+                raise HTTPException(status_code=422, detail="Selected semen lot is not active.")
+            balance = int(
+                session.query(func.coalesce(func.sum(SemenStockMovement.signed_quantity), 0))
+                .filter(SemenStockMovement.semen_lot_id == lot.id)
+                .scalar()
+                or 0
+            )
+            if balance <= 0:
+                raise HTTPException(status_code=409, detail="Selected semen lot has no straws available.")
+            if lot.expiry_date is not None and lot.expiry_date < event_timestamp.date():
+                raise HTTPException(status_code=409, detail="Selected semen lot is expired.")
+            semen_label = (
+                ("Sexed Semen (90% Female)" if lot.semen_type == "SEXED" else "Conventional")
+                + " — " + lot.sire_code
+            )
+            record.semen_or_bull = semen_label
+            record.semen_lot_id = lot.id
+            record.semen_supplier = lot.supplier
+            record.semen_batch_number = lot.batch_number
+            record.semen_unit_cost = float(lot.unit_cost)
+            canonical_payload.update(
+                {
+                    "semen_lot_id": lot.id,
+                    "semen_lot_code": lot.lot_code,
+                    "sire_code": lot.sire_code,
+                    "semen_type": lot.semen_type,
+                    "semen_supplier": lot.supplier,
+                    "semen_batch_number": lot.batch_number,
+                    "semen_unit_cost": float(lot.unit_cost),
+                }
+            )
+
         factory.breeding().save(record, commit=False)
+
+        if event_type == "insemination":
+            session.add(
+                SemenStockMovement(
+                    semen_lot_id=record.semen_lot_id,
+                    movement_type="AI_CONSUMPTION",
+                    quantity=1,
+                    signed_quantity=-1,
+                    breeding_record_id=record.record_id,
+                    notes=f"Consumed by AI event {record.record_id} for animal {animal_id}",
+                    recorded_by=operator,
+                )
+            )
 
         if event_type == "calving":
             locked_animal = (
