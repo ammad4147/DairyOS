@@ -51,6 +51,10 @@ class DatabaseBreedingRepository(
             technician=record.technician,
             semen_or_bull=record.semen_or_bull,
             notes=record.notes,
+            semen_lot_id=record.semen_lot_id,
+            semen_supplier=record.semen_supplier,
+            semen_batch_number=record.semen_batch_number,
+            semen_unit_cost=record.semen_unit_cost,
             timestamp=record.timestamp,
         )
 
@@ -79,6 +83,10 @@ class DatabaseBreedingRepository(
                 technician=row.technician,
                 semen_or_bull=row.semen_or_bull,
                 notes=row.notes,
+                semen_lot_id=row.semen_lot_id,
+                semen_supplier=row.semen_supplier,
+                semen_batch_number=row.semen_batch_number,
+                semen_unit_cost=float(row.semen_unit_cost) if row.semen_unit_cost is not None else None,
                 record_id=row.record_id,
                 timestamp=row.timestamp,
             )
@@ -109,6 +117,10 @@ class DatabaseBreedingRepository(
                 technician=row.technician,
                 semen_or_bull=row.semen_or_bull,
                 notes=row.notes,
+                semen_lot_id=row.semen_lot_id,
+                semen_supplier=row.semen_supplier,
+                semen_batch_number=row.semen_batch_number,
+                semen_unit_cost=float(row.semen_unit_cost) if row.semen_unit_cost is not None else None,
                 record_id=row.record_id,
                 timestamp=row.timestamp,
             )
