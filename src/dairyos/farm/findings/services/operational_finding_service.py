@@ -78,14 +78,21 @@ class OperationalFindingService:
 
         existing = self.repository.find_open_by_dedupe_key(dedupe_key) if dedupe_key else None
         if existing is not None:
+            observed_at = utcnow()
             existing.severity = severity
             existing.title = title
             existing.detail = detail
             existing.observation_count = (existing.observation_count or 1) + 1
-            existing.last_observed_at = utcnow()
+            existing.last_observed_at = observed_at
             if self.repository.session:
                 self.repository.session.commit()
                 self.repository.session.refresh(existing)
+            self._append_event(
+                existing.finding_id,
+                "OBSERVED",
+                note=detail,
+                occurred_at=observed_at,
+            )
             return existing
 
         finding = OperationalFinding(
