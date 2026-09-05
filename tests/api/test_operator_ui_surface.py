@@ -1,4 +1,5 @@
 """Authoritative operator UI and operational API contract tests.
+from tests.helpers.breeding import ensure_test_semen_lot
 
 The authoritative operator surface is the React/Vite application rooted at
 ``src/DairyOS.Web/src/App.tsx``. Dead/legacy shells must not be used as a
@@ -143,11 +144,12 @@ def test_all_current_operational_data_entry_workflows_are_usable(client: TestCli
     )
     assert animal_response.status_code == 200, animal_response.text
     animal_id = animal_response.json()["animal_id"]
+    semen_lot = ensure_test_semen_lot(client)
     payloads = {
         "/farm/milk": {"animal_id": animal_id, "morning_yield": 8, "afternoon_yield": 7, "evening_yield": 6, "operator": "UI-Test"},
         "/farm/feed": {"feed_type": "Silage", "quantity_kg": 25, "group_or_pen": "Pen A", "operator": "UI-Test"},
         "/farm/health-observations": {"animal_id": animal_id, "symptom": "Normal", "severity": "LOW", "operator": "UI-Test"},
-        "/farm/breeding": {"animal_id": animal_id, "event_type": "insemination", "technician": "Dr Vet", "result": "completed", "operator": "UI-Test"},
+        "/farm/breeding": {"animal_id": animal_id, "event_type": "insemination", "technician": "Dr Vet", "result": "completed", "operator": "UI-Test", "semen_lot_id": semen_lot["id"]},
         "/farm/financial": {"transaction_type": "EXPENSE", "amount": 1000, "category": "FEED", "payment_method": "CASH", "operator": "UI-Test"},
     }
     for path, payload in payloads.items():
