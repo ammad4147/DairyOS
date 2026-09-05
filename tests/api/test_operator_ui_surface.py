@@ -1,5 +1,4 @@
 """Authoritative operator UI and operational API contract tests.
-from tests.helpers.breeding import ensure_test_semen_lot
 
 The authoritative operator surface is the React/Vite application rooted at
 ``src/DairyOS.Web/src/App.tsx``. Dead/legacy shells must not be used as a
@@ -10,6 +9,7 @@ import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tests.helpers.breeding import ensure_test_semen_lot
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = REPO_ROOT / "src" / "DairyOS.Web" / "src"
