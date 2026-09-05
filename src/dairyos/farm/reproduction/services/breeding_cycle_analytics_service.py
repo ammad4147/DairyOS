@@ -59,6 +59,10 @@ def _event_payload(record: Any) -> dict[str, Any]:
         "technician": _value(record, "technician"),
         "semen_or_bull": _value(record, "semen_or_bull"),
         "notes": _value(record, "notes"),
+        "semen_lot_id": _value(record, "semen_lot_id"),
+        "semen_supplier": _value(record, "semen_supplier"),
+        "semen_batch_number": _value(record, "semen_batch_number"),
+        "semen_unit_cost": _value(record, "semen_unit_cost"),
         "timestamp": timestamp.isoformat() if timestamp else None,
         "_sort": timestamp or datetime.min.replace(tzinfo=timezone.utc),
     }
@@ -135,6 +139,10 @@ class BreedingCycleProjectionService:
                         "sire_code": sire_code,
                         "semen_type": semen_type,
                         "inseminator": event.get("technician"),
+                        "semen_lot_id": event.get("semen_lot_id"),
+                        "semen_supplier": event.get("semen_supplier"),
+                        "semen_batch_number": event.get("semen_batch_number"),
+                        "semen_unit_cost": event.get("semen_unit_cost"),
                         "events": [],
                     }
                     cycles.append(current)
@@ -235,6 +243,15 @@ class BreedingAnalyticsService:
                 "conception_rate_percent": cls._rate(len(conceptions), len(documented)),
                 "loss_rate_per_conception_percent": cls._rate(len(losses), len(conceptions)),
                 "calving_rate_per_conception_percent": cls._rate(len(calvings), len(conceptions)),
+                "total_semen_cost": round(sum(float(c.get("semen_unit_cost") or 0) for c in items), 2),
+                "cost_per_conception": (
+                    round(sum(float(c.get("semen_unit_cost") or 0) for c in items) / len(conceptions), 2)
+                    if conceptions else None
+                ),
+                "cost_per_calving": (
+                    round(sum(float(c.get("semen_unit_cost") or 0) for c in items) / len(calvings), 2)
+                    if calvings else None
+                ),
                 "cycle_ids": [c["cycle_id"] for c in items],
                 "animal_ids": sorted({c["animal_id"] for c in items}),
             })
@@ -269,6 +286,8 @@ class BreedingAnalyticsService:
         by_semen_type = cls._group(rows, "semen_type")
         by_inseminator = cls._group(rows, "inseminator")
         by_service_attempt = cls._group(rows, "service_attempt_number")
+        by_semen_lot = cls._group(rows, "semen_lot_id")
+        by_semen_supplier = cls._group(rows, "semen_supplier")
 
         signals: list[dict[str, Any]] = []
         for dimension, groups in (
@@ -277,6 +296,8 @@ class BreedingAnalyticsService:
             ("SEMEN_TYPE", by_semen_type),
             ("INSEMINATOR", by_inseminator),
             ("SERVICE_ATTEMPT", by_service_attempt),
+            ("SEMEN_LOT", by_semen_lot),
+            ("SEMEN_SUPPLIER", by_semen_supplier),
         ):
             for group in groups:
                 observed = group["documented_outcomes"]
@@ -345,6 +366,8 @@ class BreedingAnalyticsService:
             "by_semen_type": by_semen_type,
             "by_inseminator": by_inseminator,
             "by_service_attempt": by_service_attempt,
+            "by_semen_lot": by_semen_lot,
+            "by_semen_supplier": by_semen_supplier,
             "signals": signals,
             "signal_policy": {
                 "minimum_sample_size": cls.MIN_SIGNAL_SAMPLE,
