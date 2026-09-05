@@ -2,6 +2,7 @@ from pathlib import Path
 
 from dairyos.api import breeding_biology
 from dairyos.api.animal_management import reproduction as animal_reproduction
+from tests.helpers.breeding import post_breeding
 
 
 def test_duplicate_compatibility_routes_are_not_mounted_as_public_authorities():
@@ -39,15 +40,13 @@ def _heifer(client, ear_tag):
 
 
 def _breed(client, animal_id, event_type, result):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": animal_id,
-            "event_type": event_type,
-            "result": result,
-            "technician": "AUDIT-TECH",
-            "operator": "AUDIT-TECH",
-        },
+    response = post_breeding(
+        client,
+        animal_id,
+        event_type,
+        result,
+        technician="AUDIT-TECH",
+        operator="AUDIT-TECH",
     )
     assert response.status_code == 200, response.text
     return response
