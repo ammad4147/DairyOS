@@ -264,9 +264,9 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const ratio = cycle ? pregnant / cycle * 100 : 0;
   const availableForManualAi = aiCandidates.length;
   const gest = pregStates
-    .map(s => s.pregnancy_confirmed_date)
-    .filter((x): x is string => Boolean(x))
-    .map(x => Math.max(0, Math.floor((Date.now() - new Date(x).getTime()) / 86400000)));
+    .map(s => dateOnly(s.last_insemination || s.last_insemination_date))
+    .filter(x => x !== '-')
+    .map(x => Math.max(0, Math.floor((Date.now() - new Date(`${x}T00:00:00`).getTime()) / 86400000)));
   const avg = gest.length ? Math.round(gest.reduce((a, b) => a + b, 0) / gest.length) : null;
   const pregnancyLosses = outcomes.miscarriages + outcomes.abortions;
   const lossRate = outcomes.confirmed ? pregnancyLosses / outcomes.confirmed * 100 : null;

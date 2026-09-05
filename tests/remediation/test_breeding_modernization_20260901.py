@@ -162,6 +162,13 @@ def test_legacy_heat_model_file_is_deleted():
     ).exists()
 
 
+def test_displayed_gestation_uses_insemination_date_everywhere():
+    source = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
+
+    assert "new Date(`${aiDate}T00:00:00`).getTime()" in source
+    assert ".map(s => dateOnly(s.last_insemination || s.last_insemination_date))" in source
+    assert ".map(s => s.pregnancy_confirmed_date)" not in source
+
 def test_breeding_mutations_refresh_shell_herd_dashboard_and_alerts():
     breeding = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
     app = text("src/DairyOS.Web/src/App.tsx")
