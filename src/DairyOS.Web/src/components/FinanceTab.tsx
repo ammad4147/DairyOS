@@ -249,6 +249,14 @@ export default function FinanceTab({
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [semenType, setSemenType] = useState<'SEXED'|'CONVENTIONAL'|''>('');
+  const [semenSireCode, setSemenSireCode] = useState('');
+  const [semenBullName, setSemenBullName] = useState('');
+  const [semenBreed, setSemenBreed] = useState('');
+  const [semenBatch, setSemenBatch] = useState('');
+  const [semenExpiry, setSemenExpiry] = useState('');
+  const [semenStorage, setSemenStorage] = useState('');
+  const [semenCountry, setSemenCountry] = useState('');
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('ALL');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -437,6 +445,7 @@ export default function FinanceTab({
     : Number(directAmount || 0);
 
   const requiresCustomSpecification=subCategory==='Other'||subCategory==='Equipment Purchase';
+  const isSemenPurchase = masterCategory === 'OPEX' && subCategory === 'Semen Straws (Sexed / Conventional)';
 
   const ledgerParticulars = (t: Transaction) => t.sub_category || t.category || '—';
   const ledgerCounterparty = (t: Transaction) => t.counterparty || t.vendor_name || '—';
@@ -707,7 +716,7 @@ export default function FinanceTab({
           sub_category: subCategory,
           custom_specification:requiresCustomSpecification?customSpecification:null,
           quantity: quantity ? Number(quantity) : null,
-          unit: quantity ? unit : null,
+          unit: quantity ? (isSemenPurchase ? 'straw' : unit) : null,
           unit_rate: quantity ? Number(unitRate) : null,
           amount: calculatedAmount,
           transaction_date: expenseDate,
@@ -717,6 +726,14 @@ export default function FinanceTab({
           notes: notes || null,
           status,
           due_date: status === 'PAYABLE' ? dueDate : null,
+          semen_type: isSemenPurchase ? semenType : null,
+          sire_code: isSemenPurchase ? semenSireCode : null,
+          bull_name: isSemenPurchase ? semenBullName || null : null,
+          semen_breed: isSemenPurchase ? semenBreed || null : null,
+          semen_batch_number: isSemenPurchase ? semenBatch : null,
+          semen_expiry_date: isSemenPurchase ? semenExpiry || null : null,
+          semen_storage_location: isSemenPurchase ? semenStorage || null : null,
+          semen_country_source: isSemenPurchase ? semenCountry || null : null,
         }),
       });
       const body = await response.json();
