@@ -4,12 +4,17 @@ from collections import Counter
 from dataclasses import asdict, replace
 from datetime import date, datetime, time, timezone
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.data.models.animal import Animal
+from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductivePolicy,
@@ -488,6 +493,78 @@ def list_breeding_entries(container=Depends(get_container)):
     return _breeding_rows(container)
 
 
+def _propagation_payload(row: BreedingPropagationOutbox) -> dict[str, Any]:
+    return {
+        "propagation_id": row.propagation_id,
+        "record_id": row.record_id,
+        "animal_id": row.animal_id,
+        "event_type": row.event_type,
+        "status": row.status,
+        "attempts": row.attempts,
+        "last_error": row.last_error,
+        "delivered_at": (
+            row.delivered_at.isoformat()
+            if row.delivered_at is not None
+            else None
+        ),
+    }
+
+
+def _deliver_breeding_propagation(container, propagation_id: str):
+    bind = container.repository_factory.session.get_bind()
+    with Session(bind=bind) as session:
+        row = (
+            session.query(BreedingPropagationOutbox)
+            .filter(BreedingPropagationOutbox.propagation_id == propagation_id)
+            .with_for_update()
+            .first()
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Breeding propagation not found.")
+        if row.status == "DELIVERED":
+            return row
+
+        row.attempts = int(row.attempts or 0) + 1
+        payload = dict(row.payload or {})
+        try:
+            container.input_gateway.record(
+                input_type="breeding",
+                payload=payload,
+                actor=row.actor,
+            )
+            row.status = "DELIVERED"
+            row.last_error = None
+            row.delivered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        except Exception as exc:
+            row.status = "PENDING"
+            row.last_error = f"{type(exc).__name__}: {exc}"
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return row
+
+
+@router.get("/farm/breeding/propagation")
+def list_breeding_propagation(container=Depends(get_container)):
+    bind = container.repository_factory.session.get_bind()
+    with Session(bind=bind) as session:
+        rows = (
+            session.query(BreedingPropagationOutbox)
+            .order_by(BreedingPropagationOutbox.id.desc())
+            .all()
+        )
+        return [_propagation_payload(row) for row in rows]
+
+
+@router.post("/farm/breeding/propagation/{propagation_id}/retry")
+def retry_breeding_propagation(
+    propagation_id: str,
+    container=Depends(get_container),
+):
+    row = _deliver_breeding_propagation(container, propagation_id)
+    return _propagation_payload(row)
+
+
 @router.post("/farm/breeding")
 def record_breeding_entry(
     entry: BreedingLifecycleRequest,
@@ -519,32 +596,7 @@ def record_breeding_entry(
         notes=(str(entry.notes).strip() if entry.notes else None),
         timestamp=event_timestamp,
     )
-    container.repository_factory.breeding().save(record)
-
-    if event_type == "calving":
-        animal.lifecycle_status = "LACTATING"
-        directive = str(
-            getattr(animal, "non_milking_directive", "NONE") or "NONE"
-        ).upper()
-        animal.is_currently_milking = directive not in {
-            "TEMPORARY_NON_MILKING",
-            "PERMANENT_NON_MILKING",
-        }
-        container.repository_factory.animal().save(animal)
-
-        frequency = (
-            str(getattr(animal, "milking_frequency", "") or "").upper()
-            or _farm_milking_frequency(container)
-        )
-        if frequency not in {"TWICE_DAILY", "THRICE_DAILY"}:
-            frequency = _farm_milking_frequency(container)
-        container.repository_factory.animal().set_milking_frequency(
-            animal_id,
-            frequency,
-            changed_by=operator,
-            reason="calving_lactation_start",
-            effective_date=event_timestamp.date(),
-        )
+    propagation_id = f"BREEDING-{uuid4()}"
 
     canonical_payload = {
         **entry.model_dump(),
@@ -556,16 +608,76 @@ def record_breeding_entry(
         "timestamp": event_timestamp.replace(tzinfo=timezone.utc).isoformat(),
         "status": "RECORDED",
         "record_id": record.record_id,
+        "_propagation_id": propagation_id,
+        "_require_durable_projection": True,
     }
-    event = container.input_gateway.record(
-        input_type="breeding",
-        payload=canonical_payload,
-        actor=operator,
-    )
-    event_payload = dict(getattr(event, "payload", {}) or {})
+
+    bind = container.repository_factory.session.get_bind()
+    with Session(bind=bind) as session, session.begin():
+        factory = RepositoryFactory(session)
+        factory.breeding().save(record, commit=False)
+
+        if event_type == "calving":
+            locked_animal = (
+                session.query(Animal)
+                .filter(Animal.animal_id == animal_id)
+                .with_for_update()
+                .first()
+            )
+            if locked_animal is None:
+                raise HTTPException(status_code=404, detail="Animal not found.")
+
+            locked_animal.lifecycle_status = "LACTATING"
+            directive = str(
+                getattr(locked_animal, "non_milking_directive", "NONE") or "NONE"
+            ).upper()
+            locked_animal.is_currently_milking = directive not in {
+                "TEMPORARY_NON_MILKING",
+                "PERMANENT_NON_MILKING",
+            }
+            factory.animal().save(locked_animal, commit=False)
+
+            frequency = (
+                str(getattr(locked_animal, "milking_frequency", "") or "").upper()
+                or _farm_milking_frequency(container)
+            )
+            if frequency not in {"TWICE_DAILY", "THRICE_DAILY"}:
+                frequency = _farm_milking_frequency(container)
+            factory.animal().set_milking_frequency(
+                animal_id,
+                frequency,
+                changed_by=operator,
+                reason="calving_lactation_start",
+                effective_date=event_timestamp.date(),
+                commit=False,
+            )
+
+        session.add(
+            BreedingPropagationOutbox(
+                propagation_id=propagation_id,
+                record_id=record.record_id,
+                animal_id=animal_id,
+                event_type=event_type,
+                actor=operator,
+                payload=canonical_payload,
+                status="PENDING",
+            )
+        )
+
+    propagation = _deliver_breeding_propagation(container, propagation_id)
+    public_payload = {
+        key: value
+        for key, value in canonical_payload.items()
+        if not key.startswith("_")
+    }
     return {
-        **canonical_payload,
-        **event_payload,
+        **public_payload,
+        "propagation": _propagation_payload(propagation),
+        "propagation_status": (
+            "DELIVERED"
+            if propagation.status == "DELIVERED"
+            else "DEGRADED"
+        ),
         "reproductive_state": _state_payload(container, animal_id),
     }
 

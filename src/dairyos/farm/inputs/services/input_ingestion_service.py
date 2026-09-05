@@ -87,6 +87,10 @@ class InputIngestionService:
             actor=actor,
         )
 
+        propagation_id = payload.get("_propagation_id")
+        if propagation_id:
+            event.event_id = str(propagation_id)
+
 
         if self.repository:
 
@@ -95,11 +99,17 @@ class InputIngestionService:
             )
 
 
-        # Defensive publishing with error isolation to protect core persistence
-        try:
+        # Most operational inputs preserve the historical defensive isolation.
+        # Durable cross-store projections opt into strict publishing so a
+        # PostgreSQL outbox can retain retry state instead of silently losing
+        # a secondary projection failure.
+        if payload.get("_require_durable_projection"):
             self.event_publisher(event)
-        except Exception:
-            pass
+        else:
+            try:
+                self.event_publisher(event)
+            except Exception:
+                pass
 
 
         if self.tracking_service:

@@ -73,6 +73,14 @@ class PersistentEventJournal:
         session = self._session_factory()
 
         try:
+            existing = (
+                session.query(EventJournalModel)
+                .filter(EventJournalModel.event_id == entry.event_id)
+                .first()
+            )
+            if existing is not None:
+                return existing
+
             model = EventJournalModel(
                 event_id=entry.event_id,
                 event_type=entry.event_type,

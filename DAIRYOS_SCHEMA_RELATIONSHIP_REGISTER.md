@@ -14,6 +14,7 @@ database-enforced integrity rule is added.
 | `20260905_01` | Converts governed Finance, Milk-commercial and official COP monetary/rate scalar columns from binary floating point to fixed-point `NUMERIC`. |
 | `20260905_02` | Enforces at most one non-VOID active Finance posting per Payroll record through a partial unique index. |
 | `20260905_03` | Adds nullable `semen_or_bull` and `notes` columns to `breeding_records` so operator-entered breeding details remain in PostgreSQL authority. |
+| `20260905_04` | Adds `breeding_propagation_outbox` for durable, retryable, idempotent Breeding/calving propagation to non-transactional operational-input/event projections. |
 
 The current remediation chain does not introduce a new foreign key.
 

@@ -40,6 +40,8 @@ class DatabaseBreedingRepository(
     def save(
         self,
         record: BreedingRecord,
+        *,
+        commit: bool = True,
     ):
         model = BreedingRecordModel(
             record_id=record.record_id,
@@ -53,8 +55,10 @@ class DatabaseBreedingRepository(
         )
 
         self.session.add(model)
-        self.session.commit()
-        self.session.refresh(model)
+        self.session.flush()
+        if commit:
+            self.session.commit()
+            self.session.refresh(model)
 
         return record
 
