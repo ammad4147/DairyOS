@@ -13,6 +13,8 @@ from datetime import datetime, UTC
 from sqlalchemy import (
     Column,
     DateTime,
+    Integer,
+    Numeric,
     String,
 )
 
@@ -67,6 +69,11 @@ class BreedingRecordModel(Base):
         String,
         nullable=True,
     )
+
+    semen_lot_id = Column(Integer, nullable=True, index=True)
+    semen_supplier = Column(String, nullable=True)
+    semen_batch_number = Column(String, nullable=True)
+    semen_unit_cost = Column(Numeric(18, 6), nullable=True)
 
     timestamp = Column(
         DateTime(timezone=True),
