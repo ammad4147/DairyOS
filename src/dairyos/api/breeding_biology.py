@@ -738,6 +738,8 @@ def record_breeding_entry(
             )
             if balance <= 0:
                 raise HTTPException(status_code=409, detail="Selected semen lot has no straws available.")
+            if lot.purchase_date is not None and lot.purchase_date > event_timestamp.date():
+                raise HTTPException(status_code=409, detail="Selected semen lot was purchased after the AI date.")
             if lot.expiry_date is not None and lot.expiry_date < event_timestamp.date():
                 raise HTTPException(status_code=409, detail="Selected semen lot is expired.")
             semen_label = (
