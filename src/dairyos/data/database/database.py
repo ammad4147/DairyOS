@@ -37,6 +37,10 @@ from dairyos.data.database.models.breeding_record_model import (
     BreedingRecordModel,
 )
 
+from dairyos.data.models.breeding_propagation_outbox import (
+    BreedingPropagationOutbox,
+)
+
 from dairyos.data.models.health_observation import (
     HealthObservation,
 )
