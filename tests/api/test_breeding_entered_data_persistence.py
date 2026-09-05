@@ -6,6 +6,7 @@ from dairyos.api import animal_management
 from dairyos.api import breeding_biology
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.database.session import engine
+from tests.helpers.breeding import post_breeding
 
 
 def test_live_reproduction_policies_use_one_283_day_gestation_authority():
@@ -17,18 +18,17 @@ def test_breeding_entry_persists_entered_sire_notes_and_operational_date(
     client,
     registered_animal,
 ):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "COMPLETED",
-            "semen_or_bull": "Sexed Semen (90% Female) — SIRE-283",
-            "notes": "Operator-entered breeding note",
-            "operator": "Dr Vet",
-            "timestamp": "2026-09-05",
-        },
+    response = post_breeding(
+        client,
+        registered_animal,
+        "insemination",
+        "COMPLETED",
+        technician="Dr Vet",
+        notes="Operator-entered breeding note",
+        operator="Dr Vet",
+        timestamp="2026-09-05",
+        _test_sire_code="SIRE-283",
+        _test_semen_type="SEXED",
     )
     assert response.status_code == 200, response.text
     record_id = response.json()["record_id"]
