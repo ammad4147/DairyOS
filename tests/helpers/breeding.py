@@ -26,7 +26,7 @@ def ensure_test_semen_lot(
             "unit": "straw",
             "unit_rate": 100,
             "amount": quantity * 100,
-            "transaction_date": date.today().isoformat(),
+            "transaction_date": "2020-01-01",
             "payment_method": "CASH",
             "counterparty": "Test Genetics Supplier",
             "status": "PAID",
