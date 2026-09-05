@@ -746,13 +746,23 @@ def record_breeding_entry(
                 ("Sexed Semen (90% Female)" if lot.semen_type == "SEXED" else "Conventional")
                 + " — " + lot.sire_code
             )
-            record.semen_or_bull = semen_label
-            record.semen_lot_id = lot.id
-            record.semen_supplier = lot.supplier
-            record.semen_batch_number = lot.batch_number
-            record.semen_unit_cost = float(lot.unit_cost)
+            record = BreedingRecord(
+                animal_id=animal_id,
+                event_type=event_type,
+                result=result,
+                technician=technician,
+                semen_or_bull=semen_label,
+                notes=(str(entry.notes).strip() if entry.notes else None),
+                semen_lot_id=lot.id,
+                semen_supplier=lot.supplier,
+                semen_batch_number=lot.batch_number,
+                semen_unit_cost=float(lot.unit_cost),
+                record_id=record.record_id,
+                timestamp=event_timestamp,
+            )
             canonical_payload.update(
                 {
+                    "semen_or_bull": semen_label,
                     "semen_lot_id": lot.id,
                     "semen_lot_code": lot.lot_code,
                     "sire_code": lot.sire_code,
