@@ -1,14 +1,14 @@
-from datetime import datetime
-
-from dairyos.core.time_utils import utcnow
-from dairyos.data.models.operational_finding import OperationalFinding
+from dairyos.farm.findings.services.operational_finding_service import (
+    OperationalFindingService,
+)
 
 
 class MilkFindingService:
-    """Write milk-derived findings through the existing OperationalFinding entity."""
+    """Milk finding adapter over the authoritative OperationalFinding lifecycle."""
 
     def __init__(self, repository):
         self.repository = repository
+        self._service = OperationalFindingService(repository)
 
     def raise_or_update(
         self,
@@ -21,34 +21,13 @@ class MilkFindingService:
         route: str,
         dedupe_key: str,
     ):
-        now = utcnow()
-        existing = self.repository.find_open_by_dedupe_key(dedupe_key)
-        if existing is not None:
-            existing.severity = severity
-            existing.title = title
-            existing.detail = detail
-            existing.last_observed_at = now
-            existing.observation_count = int(existing.observation_count or 0) + 1
-            if self.repository.session:
-                self.repository.session.commit()
-                self.repository.session.refresh(existing)
-            return existing
-
-        prefix = f"AL-{now.strftime('%y%m%d')}"
-        sequence = self.repository.count_opened_on(prefix) + 1
-        finding = OperationalFinding(
-            finding_id=f"{prefix}-{sequence:03d}",
+        return self._service.raise_or_update(
             source_module="MILK",
-            subject_type=subject_type,
-            subject_id=subject_id,
             severity=severity,
             title=title,
             detail=detail,
-            status="RAISED",
+            subject_type=subject_type,
+            subject_id=subject_id,
             route=route,
             dedupe_key=dedupe_key,
-            observation_count=1,
-            raised_at=now,
-            last_observed_at=now,
         )
-        return self.repository.add(finding)
