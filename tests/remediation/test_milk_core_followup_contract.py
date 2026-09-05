@@ -24,3 +24,15 @@ def test_passport_core_does_not_depend_on_ancillary_fetches():
     assert "const safeFetch=async(url:string)" in source
     assert "const passportData=await p.json();setAnimal(animalData);setPassport(passportData)" in source
     assert "const [a,p,d,h,t,v]=await Promise.all" not in source
+
+
+def test_milk_sales_have_no_frontend_shadow_counter():
+    app = read("src/DairyOS.Web/src/App.tsx")
+    finance = read("src/DairyOS.Web/src/components/FinanceTab.tsx")
+    milk = read("src/DairyOS.Web/src/components/MilkTab.tsx")
+
+    assert "todayMilkSoldLiters" not in app
+    assert "onSaveSale" not in finance
+    assert "realTimeTodaySold" not in milk
+    assert "const soldToday =" in milk
+    assert "dispositionTotal('SOLD')" in milk
