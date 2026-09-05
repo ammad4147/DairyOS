@@ -29,16 +29,15 @@ export default function MainAppShell(){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false);
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount,refresh:refreshAlerts}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
- const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0),[accountsReceivable,setAccountsReceivable]=useState(0);
+ const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0);
  const [hiddenNavigationTabs,setHiddenNavigationTabs]=useState<NavigationTabId[]>([]);
 
  const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();const records = Array.isArray(payload) ? payload : Array.isArray(payload?.value) ? payload.value : [];setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
- const refreshReceivables=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/finance-ledger`);if(!response.ok)throw new Error(`Unable to load Finance ledger (${response.status})`);const payload=await response.json();const records=Array.isArray(payload?.transactions)?payload.transactions:[];const total=records.filter((row:any)=>String(row?.status||'').toUpperCase()==='RECEIVABLE').reduce((sum:number,row:any)=>sum+Number(row?.amount||0),0);setAccountsReceivable(total);}catch(error){console.error('DairyOS receivables load failed:',error)}},[]);
 
- useEffect(()=>{const storedName=localStorage.getItem('dairyos_farm_name');const storedLocation=localStorage.getItem('dairyos_farm_loc');if(storedName)setFarmName(storedName);if(storedLocation)setFarmLocation(storedLocation);void refreshAnimals();void refreshReceivables();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs))}catch(error){console.error('DairyOS navigation preferences load failed:',error)}})()},[refreshAnimals,refreshReceivables]);
+ useEffect(()=>{const storedName=localStorage.getItem('dairyos_farm_name');const storedLocation=localStorage.getItem('dairyos_farm_loc');if(storedName)setFarmName(storedName);if(storedLocation)setFarmLocation(storedLocation);void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs))}catch(error){console.error('DairyOS navigation preferences load failed:',error)}})()},[refreshAnimals]);
 
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
- const handleRegisterAnimal=()=>{void refreshAnimals();void refreshReceivables()};
+ const handleRegisterAnimal=()=>{void refreshAnimals()};
  const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location);localStorage.setItem('dairyos_farm_name',p.farmName);localStorage.setItem('dairyos_farm_loc',p.location)};
  const openPayroll=()=>window.open(`${window.location.origin}${window.location.pathname}?window=payroll`,'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
@@ -58,9 +57,9 @@ export default function MainAppShell(){
     </header>
 
     <main style={{flex:1,minHeight:0,minWidth:0,overflowY:'auto',overflowX:'hidden',background:'#0b0f19',position:'relative'}}>
-     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion} realTimeReceivables={accountsReceivable}/>}
+     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion}/>} 
      {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>}
-     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll}/>}
+     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll}/>} 
      {currentView==='feed'&&<FeedTab/>}
      {currentView==='cop'&&<COML/>}
      {currentView==='audit'&&<AuditTab/>}
