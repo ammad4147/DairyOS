@@ -160,3 +160,16 @@ def test_legacy_heat_model_file_is_deleted():
     assert not (
         ROOT / "src/dairyos/farm/reproduction/models/heat_event.py"
     ).exists()
+
+
+def test_breeding_mutations_refresh_shell_herd_dashboard_and_alerts():
+    breeding = text("src/DairyOS.Web/src/components/BreedingTab.tsx")
+    app = text("src/DairyOS.Web/src/App.tsx")
+
+    assert "onChanged?: () => void | Promise<void>" in breeding
+    assert "await onChanged?.();" in breeding
+    assert (
+        "onChanged={async()=>{await refreshAnimals();"
+        "setDashboardRefreshVersion(prev=>prev+1);"
+        "await refreshAlerts()}}"
+    ) in app
