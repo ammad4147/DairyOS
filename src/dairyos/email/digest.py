@@ -159,30 +159,44 @@ class DashboardDigestService:
                 if not email or email in recipients_seen:
                     continue
                 recipients_seen.add(email)
+                existing_delivery = (
+                    factory.session.query(EmailDigestDelivery)
+                    .filter(
+                        EmailDigestDelivery.digest_run_id == run.id,
+                        EmailDigestDelivery.user_id.is_(None),
+                        EmailDigestDelivery.recipient_email == email,
+                    )
+                    .first()
+                )
+                if existing_delivery is not None and existing_delivery.status == "SENT":
+                    continue
                 try:
                     subject, body = self.render(
                         digest_date=digest_date,
                         user_permissions={"dashboard.view", "dashboard.view_finance"},
                     )
                     self.mail.send(recipient=email, subject=subject, body=body, config=config)
-                    delivery = EmailDigestDelivery(
+                    delivery = existing_delivery or EmailDigestDelivery(
                         digest_run_id=run.id,
                         user_id=None,
                         recipient_email=email,
                         status="SENT",
-                        sent_at=utcnow(),
                     )
+                    delivery.status = "SENT"
+                    delivery.sent_at = utcnow()
+                    delivery.error_message = None
                     factory.session.add(delivery)
                     factory.session.commit()
                     delivered += 1
                 except Exception as exc:
-                    delivery = EmailDigestDelivery(
+                    delivery = existing_delivery or EmailDigestDelivery(
                         digest_run_id=run.id,
                         user_id=None,
                         recipient_email=email,
                         status="FAILED",
-                        error_message=str(exc)[:2000],
                     )
+                    delivery.status = "FAILED"
+                    delivery.error_message = str(exc)[:2000]
                     factory.session.add(delivery)
                     factory.session.commit()
                     failed += 1
