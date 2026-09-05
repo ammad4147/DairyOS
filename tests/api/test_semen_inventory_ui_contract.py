@@ -10,7 +10,7 @@ def test_finance_has_special_semen_purchase_details():
     assert "Sire / Bull Code" in FINANCE
     assert "Batch / Lot Number" in FINANCE
     assert "Storage Tank / Location" in FINANCE
-    assert "semen_batch_number" in FINANCE
+    assert "semen_batch_number: isSemenPurchase ? semenBatch : null" in FINANCE
 
 
 def test_breeding_ai_selects_available_purchased_semen_only():
