@@ -1,4 +1,5 @@
 from datetime import date
+from tests.helpers.breeding import post_breeding
 
 
 def _animal(client, ear_tag):
@@ -52,16 +53,14 @@ def test_open_health_case_is_live_on_dashboard(client):
 
 def test_insemination_is_live_on_dashboard(client):
     animal_id = _animal(client, "DASH-BREEDING-AI-001")
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": animal_id,
-            "event_type": "insemination",
-            "result": "COMPLETED",
-            "technician": "AUDIT-TECH",
-            "timestamp": date.today().isoformat(),
-            "operator": "AUDIT-TECH",
-        },
+    response = post_breeding(
+        client,
+        animal_id,
+        "insemination",
+        "COMPLETED",
+        technician="AUDIT-TECH",
+        timestamp=date.today().isoformat(),
+        operator="AUDIT-TECH",
     )
     assert response.status_code == 200, response.text
 
