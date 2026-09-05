@@ -11,7 +11,7 @@ class EmailDigestDelivery(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     digest_run_id = Column(Integer, ForeignKey("email_digest_runs.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     recipient_email = Column(String, nullable=False)
     sent_at = Column(DateTime, nullable=True)
     status = Column(String, nullable=False)
