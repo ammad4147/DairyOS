@@ -15,6 +15,10 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     normalize_event_type,
 )
 from dairyos.herd.reproduction.services.reproduction_kpi_service import ReproductionKpiService
+from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
+    BreedingAnalyticsService,
+    BreedingCycleProjectionService,
+)
 
 router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"])
 
@@ -199,13 +203,45 @@ def animal_reproduction_history(animal_id: str, container=Depends(get_container)
             )
         records = [r for r in factory.breeding().get_all() if r.animal_id == animal_id]
         ordered = sorted(records, key=lambda r: _as_utc(r.timestamp))
+        cycles = BreedingCycleProjectionService.project(ordered)
         return {
             "animal_id": animal_id,
             "record_count": len(ordered),
             "latest_event": _serialize(ordered[-1]) if ordered else None,
             "records": [_serialize(r) for r in ordered],
+            "cycles": cycles,
+            "current_cycle": BreedingCycleProjectionService.current_by_animal(cycles).get(animal_id),
             "data_status": "NO_DATA" if not ordered else "LIVE_PERSISTED_DATA",
         }
+    finally:
+        if owns_factory:
+            factory.close()
+
+
+@router.get("/cycles")
+def reproduction_cycles(container=Depends(get_container)):
+    factory, owns_factory = _fresh_factory(container)
+    try:
+        records = factory.breeding().get_all()
+        cycles = BreedingCycleProjectionService.project(records)
+        return {
+            "data_status": "NO_DATA" if not cycles else "LIVE_PERSISTED_DATA",
+            "cycle_count": len(cycles),
+            "current_cycles": BreedingCycleProjectionService.current_by_animal(cycles),
+            "cycles": cycles,
+        }
+    finally:
+        if owns_factory:
+            factory.close()
+
+
+@router.get("/analytics")
+def reproduction_cycle_analytics(container=Depends(get_container)):
+    factory, owns_factory = _fresh_factory(container)
+    try:
+        records = factory.breeding().get_all()
+        cycles = BreedingCycleProjectionService.project(records)
+        return BreedingAnalyticsService.summarize(cycles)
     finally:
         if owns_factory:
             factory.close()

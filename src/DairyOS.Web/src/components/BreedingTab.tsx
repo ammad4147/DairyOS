@@ -43,6 +43,9 @@ interface Row {
   daysAfterCalving: number | null;
   manualAiCandidate: boolean;
 }
+interface Cycle { cycle_id:string; animal_id:string; cycle_number:number; status:string; outcome?:string|null; insemination_date?:string|null; pregnancy_confirmation_date?:string|null; sire_code?:string|null; semen_type?:string|null; inseminator?:string|null; events:any[] }
+interface AnalyticsGroup { key:string; cycles:number; documented_outcomes:number; conceptions:number; negative_pd:number; pregnancy_losses:number; calvings:number; conception_rate_percent?:number|null; loss_rate_per_conception_percent?:number|null; cycle_ids:string[]; animal_ids:string[] }
+interface Analytics { data_status:string; cycle_count:number; closed_cycle_count:number; active_cycle_count:number; herd_conception_rate_percent?:number|null; herd_loss_rate_per_conception_percent?:number|null; by_animal:AnalyticsGroup[]; by_sire:AnalyticsGroup[]; by_semen_type:AnalyticsGroup[]; by_inseminator:AnalyticsGroup[]; signals:any[]; signal_policy?:any }
 interface Props { onOpenPassport?: (tag: string) => void; herdMasterList?: HerdAnimal[]; onChanged?: () => void | Promise<void> }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -143,6 +146,8 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState({ first: null as number | null, second: null as number | null, third: null as number | null });
   const [outcomes, setOutcomes] = useState({ confirmed: 0, negative: 0, calvings: 0, miscarriages: 0, abortions: 0 });
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [formTag, setFormTag] = useState('');
   const [formSire, setFormSire] = useState('');
   const [formSemenType, setFormSemenType] = useState<'Sexed Semen (90% Female)' | 'Conventional' | ''>('');
@@ -164,11 +169,16 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
     setLoading(true);
     setError(null);
     try {
-      const [breeding, overview, current] = await Promise.all([
+      const [breeding, overview, cyclePayload, analyticsPayload, current] = await Promise.all([
         getJson<any[]>('/farm/breeding'),
         getJson<any>('/farm/reproduction/overview'),
+        getJson<any>('/farm/reproduction/cycles'),
+        getJson<Analytics>('/farm/reproduction/analytics'),
         Promise.all(manualAiAnimals.map(a => getJson<State>(`/farm/animals/${encodeURIComponent(a.id)}/reproduction`))),
       ]);
+      const projectedCycles = Array.isArray(cyclePayload?.cycles) ? cyclePayload.cycles as Cycle[] : [];
+      setCycles(projectedCycles);
+      setAnalytics(analyticsPayload);
       const live = current.filter(s => {
         const d = norm(s.data_status);
         return !!s.animal_id && (!d || d === 'LIVE_PERSISTED_DATA' || d === 'LIVE_PERSISTED');
@@ -187,10 +197,10 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
 
       const selectableIds = new Set(manualAiAnimals.map(animal => animal.id));
       const mapped = Array.from(latest.entries()).map(([id, item], i): Row => {
-        const events = breeding
-          .filter(x => String(x.animal_id || '') === id)
-          .sort((a, b) => new Date(String(a.timestamp || a.date || '')).getTime() - new Date(String(b.timestamp || b.date || '')).getTime());
-        const last = (p: (e: string, r: string) => boolean) => [...events].reverse().find(x => p(ev(x.event_type), norm(x.result)));
+        const animalCycles = projectedCycles.filter(c => c.animal_id === id).sort((a,b)=>a.cycle_number-b.cycle_number);
+        const activeCycle = [...animalCycles].reverse().find(c => norm(c.status).startsWith('ACTIVE_'));
+        const cycleEvents = activeCycle?.events || [];
+        const last = (p: (e: string, r: string) => boolean) => [...cycleEvents].reverse().find(x => p(ev(x.event_type), norm(x.result)));
         const ai = last(e => e.includes('insemin') || e === 'ai');
         const pd = last((e, r) => e.includes('pregnancy') && (e.includes('confirmed') || e.includes('negative') || r.includes('POSITIVE') || r.includes('NEGATIVE')));
         const s = live.find(x => x.animal_id === id);
@@ -214,7 +224,9 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
           daysPregnant: gestationDays == null ? 0 : Math.max(0, gestationDays),
           expectedCalving: st === 'Confirmed Pregnant' ? dateOnly(s?.expected_calving || s?.expected_calving_date) : '-',
           pdDueDate: st === 'Inseminated (Pending PD)' ? addDays(aiDate, 35) : '-',
-          notes: String(item.notes || item.result || pd?.notes || pd?.result || 'Reproductive event recorded.'),
+          notes: activeCycle
+            ? `Cycle ${activeCycle.cycle_number} · ${String(activeCycle.status).replace(/_/g,' ')}`
+            : `Previous cycle closed · ${String(animalCycles.at(-1)?.outcome || item.result || 'No active cycle').replace(/_/g,' ')}`,
           daysAfterCalving: s?.days_in_milk == null ? null : Number(s.days_in_milk),
           manualAiCandidate: selectableIds.has(id) && !['Inseminated (Pending PD)', 'Confirmed Pregnant'].includes(st),
         };
@@ -241,6 +253,8 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
     } catch (e) {
       setRows([]);
       setStates([]);
+      setCycles([]);
+      setAnalytics(null);
       setError(e instanceof Error ? e.message : 'Unable to load persisted breeding records.');
     } finally {
       setLoading(false);
@@ -365,6 +379,20 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
     <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 980, fontSize: '12px', borderCollapse: 'collapse' }}><thead><tr style={{ color: '#cbd5e1', borderBottom: '1px solid #334155', textAlign: 'left', background: '#161f30' }}>{['Animal & Manual AI Status', 'Insemination Date & Sire', 'Semen Type', 'Pregnancy & Calving Timeline', 'Clinical Notes'].map(h => <th key={h} style={{ padding: '10px 12px' }}>{h}</th>)}</tr></thead><tbody>{loading ? null : rows.map(r => <tr key={r.id} style={{ borderBottom: '1px solid #1a2234' }}><td style={{ padding: '10px 12px' }}><button onClick={() => onOpenPassport ? onOpenPassport(r.tag) : setActiveModalPassport(r.tag)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>#{r.tag}</button><div style={{ fontSize: '10px', color: r.manualAiCandidate ? '#34d399' : '#94a3b8' }}>{r.daysAfterCalving == null ? 'No calving date / maiden animal' : `${r.daysAfterCalving} days after calving`} · {r.manualAiCandidate ? 'Manual AI entry available' : 'Active cycle or review state'}</div></td><td style={{ padding: '10px 12px' }}><div style={{ fontWeight: 'bold' }}>{r.sireCode}</div><div style={{ fontSize: '10px', color: '#94a3b8' }}>AI: {r.aiDate} • {r.inseminator}</div></td><td style={{ padding: '10px 12px' }}>{r.semenType}</td><td style={{ padding: '10px 12px' }}><div><strong>Pregnancy check:</strong> {r.pregnancyDate}</div><div style={{ fontSize: '10px' }}><strong>PD due:</strong> {r.pdDueDate}</div>{r.expectedCalving !== '-' && <div style={{ fontSize: '10px', color: '#34d399' }}>Expected calving: {r.expectedCalving} ({r.daysPregnant}d)</div>}</td><td style={{ padding: '10px 12px' }}>{r.notes}</td></tr>)}</tbody></table></div>
     <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginTop: '12px' }}><div style={{ fontWeight: 800, color: '#fb923c', fontSize: '12px', marginBottom: '10px' }}>Insemination Success Analytics</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '8px' }}>{[['1st Attempt', attempt.first], ['2nd Attempt', attempt.second], ['3rd Attempt', attempt.third]].map(([l, v]) => <div key={String(l)} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '10px' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>{String(l)} Insemination Success Ratio</div><div style={{ fontSize: '20px', fontWeight: 900, color: '#34d399' }}>{v == null ? 'No documented outcome' : `${Number(v).toFixed(1)}%`}</div></div>)}</div></div>
     <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginTop: '12px' }}><div style={{ fontWeight: 800, color: '#fb923c', fontSize: '12px', marginBottom: '10px' }}>Pregnancy Outcome Analytics</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '8px' }}>{[['Confirmed Pregnancies', outcomes.confirmed], ['Negative PD Results', outcomes.negative], ['Calvings', outcomes.calvings], ['Miscarriages', outcomes.miscarriages], ['Abortions', outcomes.abortions], ['Pregnancy Loss Rate', lossRate == null ? 'No documented pregnancy' : `${lossRate.toFixed(1)}%`]].map(([l, v]) => <div key={String(l)} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '10px' }}><div style={{ fontSize: '10px', color: '#94a3b8' }}>{String(l)}</div><div style={{ fontSize: '18px', fontWeight: 900, color: '#cbd5e1' }}>{v}</div></div>)}</div></div>
+    <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
+      <div style={{ fontWeight: 900, color: '#fb923c', fontSize: '13px' }}>Breeding Analytics — Cycle Linked</div>
+      <div style={{ fontSize: '9px', color: '#64748b', marginTop: 3 }}>Every rate is derived from persisted breeding cycles and retains its contributing cycle IDs. Signals require sample context and are management-review flags, not causal diagnoses.</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:8, marginTop:9 }}>
+        <div style={{ background:'#0f172a', border:'1px solid #334155', borderRadius:6, padding:9 }}><div style={{fontSize:9,color:'#94a3b8'}}>Cycles</div><strong>{analytics?.cycle_count ?? 0}</strong></div>
+        <div style={{ background:'#0f172a', border:'1px solid #334155', borderRadius:6, padding:9 }}><div style={{fontSize:9,color:'#94a3b8'}}>Closed / Active</div><strong>{analytics?.closed_cycle_count ?? 0} / {analytics?.active_cycle_count ?? 0}</strong></div>
+        <div style={{ background:'#0f172a', border:'1px solid #334155', borderRadius:6, padding:9 }}><div style={{fontSize:9,color:'#94a3b8'}}>Observed Herd Conception</div><strong>{analytics?.herd_conception_rate_percent == null ? 'No documented outcome' : `${analytics.herd_conception_rate_percent.toFixed(1)}%`}</strong></div>
+        <div style={{ background:'#0f172a', border:'1px solid #334155', borderRadius:6, padding:9 }}><div style={{fontSize:9,color:'#94a3b8'}}>Pregnancy Loss / Conception</div><strong>{analytics?.herd_loss_rate_per_conception_percent == null ? 'No conception data' : `${analytics.herd_loss_rate_per_conception_percent.toFixed(1)}%`}</strong></div>
+      </div>
+      {(analytics?.signals?.length ?? 0) > 0 && <div style={{marginTop:10}}><div style={{fontSize:10,fontWeight:900,color:'#fbbf24'}}>Patterns requiring review</div>{analytics!.signals.map((signal:any,i:number)=><div key={i} style={{marginTop:5,padding:7,background:'#1c1917',border:'1px solid #78350f',borderRadius:5,fontSize:9,color:'#fde68a'}}><strong>{signal.dimension}: {signal.key}</strong> · n={signal.sample_size} · {signal.explanation}<div style={{color:'#a8a29e',marginTop:2}}>Evidence cycles: {(signal.cycle_ids||[]).join(', ')}</div></div>)}</div>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:8,marginTop:10}}>
+        {([['Animal Reproductive Performance',analytics?.by_animal],['AI / Sire Performance',analytics?.by_sire],['Semen Type Performance',analytics?.by_semen_type],['Inseminator Performance',analytics?.by_inseminator]] as [string,AnalyticsGroup[]|undefined][]).map(([title,groups])=><div key={title} style={{background:'#0f172a',border:'1px solid #334155',borderRadius:6,padding:8,overflow:'auto'}}><div style={{fontSize:10,fontWeight:900,marginBottom:5}}>{title}</div><table style={{width:'100%',minWidth:430,borderCollapse:'collapse',fontSize:9}}><thead><tr style={{color:'#94a3b8',textAlign:'left'}}><th>Key</th><th>Cycles</th><th>Observed</th><th>Conceptions</th><th>Negative PD</th><th>Losses</th><th>Conception %</th></tr></thead><tbody>{(groups||[]).slice(0,12).map(g=><tr key={g.key} style={{borderTop:'1px solid #1f2937'}}><td style={{padding:'4px 3px',fontWeight:800}}>{g.key}</td><td>{g.cycles}</td><td>{g.documented_outcomes}</td><td>{g.conceptions}</td><td>{g.negative_pd}</td><td>{g.pregnancy_losses}</td><td>{g.conception_rate_percent == null ? '—' : `${g.conception_rate_percent.toFixed(1)}%`}</td></tr>)}</tbody></table></div>)}
+      </div>
+    </div>
     {showEventModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}><div style={{ background: '#111827', border: '1px solid #fb923c', borderRadius: '10px', width: '480px', padding: '22px' }}><h3 style={{ margin: '0 0 14px', color: '#fb923c', fontSize: '16px' }}><Activity size={18} /> Record Reproduction & Gestation Event</h3><div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '14px' }}>{(['AI', 'PD', 'CALVING', 'LOSS'] as EventMode[]).map(m => <button key={m} type="button" onClick={() => setEventType(m)} style={{ background: eventType === m ? '#fb923c' : '#1e293b', color: eventType === m ? '#0f172a' : '#cbd5e1', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>{m === 'AI' ? 'Insemination (AI)' : m === 'PD' ? 'Pregnancy Check / Review (PD)' : m === 'CALVING' ? 'Calving' : 'Pregnancy Loss'}</button>)}</div><form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}><div><label style={labelStyle}>Select Animal ID</label><select value={formTag} onChange={e => setFormTag(e.target.value)} disabled={!candidates.length} style={inputStyle}>{candidates.length ? candidates.map(a => <option key={a.id} value={a.id}>{a.id} ({a.breed})</option>) : <option value="">{empty}</option>}</select></div>{eventType === 'AI' && <><div style={{ background: '#0f172a', border: '1px solid #334155', padding: '8px', borderRadius: '4px', fontSize: '10px', color: '#cbd5e1' }}>Manual AI authority: Milking, Dry and Heifer animals are selectable. Advisory clock: {selected?.days_in_milk == null ? 'no calving date / maiden heifer' : `${selected.days_in_milk} days after calving`} · waiting-period guidance {selected?.eligible_to_breed ? 'passed' : 'not passed'}; operator entry remains authoritative.</div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}><div><label style={labelStyle}>Sire Code / Bull</label><input required value={formSire} onChange={e => setFormSire(e.target.value)} style={inputStyle} /></div><div><label style={labelStyle}>Semen Type</label><select required value={formSemenType} onChange={e => setFormSemenType(e.target.value as typeof formSemenType)} style={inputStyle}><option value="">Select actual semen type</option><option value="Sexed Semen (90% Female)">Sexed Semen (90% Female)</option><option value="Conventional">Conventional Semen</option></select></div></div></>}{eventType === 'PD' && <div><label style={labelStyle}>PD Check / Review Result</label><select required value={formPdResult} onChange={e => setFormPdResult(e.target.value as typeof formPdResult)} style={inputStyle}><option value="">Select actual result</option><option value="POSITIVE">Positive (Confirmed Pregnant)</option><option value="NEGATIVE">Negative (Revise to Not Pregnant / Open)</option></select></div>}{eventType === 'LOSS' && <div><label style={labelStyle}>Pregnancy Loss Outcome</label><select required value={formLossOutcome} onChange={e => setFormLossOutcome(e.target.value as LossOutcome)} style={inputStyle}><option value="">Select actual outcome</option><option value="MISCARRIAGE">Miscarriage</option><option value="ABORTION">Aborted Pregnancy</option></select></div>}{eventType === 'CALVING' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}><div><label style={labelStyle}>Calf Sex</label><select required value={formCalfSex} onChange={e => setFormCalfSex(e.target.value as typeof formCalfSex)} style={inputStyle}><option value="">Select calf sex</option><option value="FEMALE">Female</option><option value="MALE">Male</option></select></div><div><label style={labelStyle}>Mother Planned Return to Milking</label><input type="date" required min={formDate} value={formReturnToMilkingDate} onChange={e => setFormReturnToMilkingDate(e.target.value)} style={inputStyle} /></div></div>}<div><label style={labelStyle}>{eventType === 'AI' ? 'AI Date' : eventType === 'PD' ? 'Check / Review Date' : eventType === 'CALVING' ? 'Calving Date' : 'Pregnancy Loss Date'}</label><input type="date" required value={formDate} onChange={e => setFormDate(e.target.value)} style={inputStyle} /></div>{eventType === 'AI' && <div><label style={labelStyle}>Inseminator / Vet</label><input value={formInseminator} onChange={e => setFormInseminator(e.target.value)} style={inputStyle} /></div>}<div><label style={labelStyle}>Reproductive / Clinical Notes</label><input value={formNotes} onChange={e => setFormNotes(e.target.value)} style={inputStyle} /></div><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}><button type="button" onClick={() => setShowEventModal(false)}>Cancel</button><button type="submit" disabled={loading || !formTag || !candidates.length}>Save Breeding Entry</button></div></form></div></div>}
     {activeModalPassport && <AnimalPassportModal animalId={activeModalPassport} onClose={() => setActiveModalPassport(null)} />}
   </div>;
