@@ -12,10 +12,16 @@ def test_material_public_route_authorities_are_unique():
     }
     counts = {item: 0 for item in material}
 
-    for route in app.routes:
-        path = str(getattr(route, "path", ""))
+    for route in app.router.routes:
+        path = str(
+            getattr(
+                route,
+                "path_format",
+                getattr(route, "path", ""),
+            )
+        )
         for method in getattr(route, "methods", set()) or set():
-            key = (method, path)
+            key = (str(method).upper(), path)
             if key in counts:
                 counts[key] += 1
 
