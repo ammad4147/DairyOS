@@ -14,14 +14,14 @@ from dairyos.data.models.milk_production import MilkProduction
 @pytest.fixture(autouse=True)
 def reset_runtime_state():
     journal = PersistentEventJournal()
-    journal.clear()
     container.event_journal = journal
 
     session = SessionLocal()
     try:
-        session.query(MilkProduction).delete(synchronize_session=False)
-        session.query(AnimalMilkingScheduleHistory).delete(synchronize_session=False)
-        session.query(Animal).delete(synchronize_session=False)
+        for model in (MilkProduction, AnimalMilkingScheduleHistory, Animal):
+            for row in session.query(model).all():
+                session.delete(row)
+                session.flush()
         session.commit()
     except Exception:
         session.rollback()

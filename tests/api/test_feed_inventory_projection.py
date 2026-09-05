@@ -12,8 +12,10 @@ client = TestClient(app)
 def _clean():
     session = SessionLocal()
     try:
-        session.query(InventoryTransaction).delete(synchronize_session=False)
-        session.query(FeedInventoryItem).delete(synchronize_session=False)
+        for model in (InventoryTransaction, FeedInventoryItem):
+            for row in session.query(model).all():
+                session.delete(row)
+                session.flush()
         session.commit()
     finally:
         session.close()

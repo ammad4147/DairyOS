@@ -8,7 +8,9 @@ from dairyos.data.repositories.animal_repository import AnimalRepository
 
 
 def _clean_farms(session):
-    session.query(FarmModel).delete()
+    for row in session.query(FarmModel).all():
+        session.delete(row)
+        session.flush()
     session.commit()
 
 

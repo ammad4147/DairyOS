@@ -2,13 +2,22 @@ from datetime import datetime, UTC
 
 
 from dairyos.app import container
+from dairyos.data.database.models.event_journal_model import EventJournalModel
+from dairyos.data.database.session import SessionLocal
 
 from dairyos.domain.events import Event
 
 
 def test_runtime_restore_rebuilds_animal_operational_state():
 
-    container.event_journal.clear()
+    session = SessionLocal()
+    try:
+        for row in session.query(EventJournalModel).all():
+            session.delete(row)
+            session.flush()
+        session.commit()
+    finally:
+        session.close()
 
 
     event = Event(

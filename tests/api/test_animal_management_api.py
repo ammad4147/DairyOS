@@ -15,13 +15,14 @@ from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingSch
 def reset_runtime_state():
     """Isolate persistent animal state before every API test."""
     journal = PersistentEventJournal()
-    journal.clear()
     container.event_journal = journal
 
     session = SessionLocal()
     try:
-        session.query(AnimalMilkingScheduleHistory).delete(synchronize_session=False)
-        session.query(Animal).delete(synchronize_session=False)
+        for model in (AnimalMilkingScheduleHistory, Animal):
+            for row in session.query(model).all():
+                session.delete(row)
+                session.flush()
         session.commit()
     except Exception:
         session.rollback()
