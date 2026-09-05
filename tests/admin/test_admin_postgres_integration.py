@@ -157,6 +157,11 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
     try:
         _stage("3/9 inserting certification record")
         with engine.begin() as connection:
+            assert connection.execute(
+                text(
+                    "SELECT to_regclass('public.breeding_propagation_outbox')"
+                )
+            ).scalar_one() == "breeding_propagation_outbox"
             connection.execute(text("TRUNCATE TABLE animal RESTART IDENTITY CASCADE"))
             connection.execute(
                 text(
