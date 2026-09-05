@@ -1,17 +1,10 @@
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
+from tests.helpers.breeding import post_breeding
+
 def test_reproduction_overview_reads_persisted_breeding_records(client, registered_animal):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "completed",
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200, response.text
 
     pregnancy = client.post(
@@ -59,9 +52,12 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
                     "planned_return_to_milking_date": "2026-10-01",
                 }
             )
-        response = client.post(
-            "/farm/breeding",
-            json=payload,
+        response = post_breeding(
+            client,
+            registered_animal,
+            event_type,
+            result,
+            **{k: v for k, v in payload.items() if k not in {"animal_id", "event_type", "result", "technician", "operator"}},
         )
         assert response.status_code == 200, response.text
 
@@ -74,16 +70,7 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
 
 
 def test_animal_reproduction_history_uses_permanent_animal_id(client, registered_animal):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "completed",
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200, response.text
 
     history = client.get(f"/farm/reproduction/animals/{registered_animal}")
