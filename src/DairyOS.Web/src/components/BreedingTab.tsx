@@ -184,8 +184,10 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
         const st = stage(s?.state);
         const aiDate = dateOnly(s?.last_insemination || s?.last_insemination_date || ai?.timestamp || ai?.date);
         const semen = String(ai?.semen_or_bull || ai?.sire_code || '');
-        const confirmed = st === 'Confirmed Pregnant' ? s?.pregnancy_confirmed_date : null;
-        const ms = confirmed ? new Date(confirmed).getTime() : NaN;
+        const gestationStartMs =
+          st === 'Confirmed Pregnant' && aiDate !== '-'
+            ? new Date(`${aiDate}T00:00:00`).getTime()
+            : NaN;
         return {
           id: String(item.record_id || item.id || `BRD-${i + 1}`),
           tag: id,
@@ -195,7 +197,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
           sireCode: semen || '-',
           semenType: semen.toLowerCase().includes('sexed') ? 'Sexed Semen (90% Female)' : semen ? 'Conventional' : 'Not recorded',
           inseminator: String(ai?.technician || ai?.inseminator || '-'),
-          daysPregnant: Number.isNaN(ms) ? 0 : Math.max(0, Math.floor((Date.now() - ms) / 86400000)),
+          daysPregnant: Number.isNaN(gestationStartMs) ? 0 : Math.max(0, Math.floor((Date.now() - gestationStartMs) / 86400000)),
           expectedCalving: st === 'Confirmed Pregnant' ? dateOnly(s?.expected_calving || s?.expected_calving_date) : '-',
           pdDueDate: st === 'Inseminated (Pending PD)' ? addDays(aiDate, 35) : '-',
           notes: String(item.notes || item.result || pd?.notes || pd?.result || 'Reproductive event recorded.'),
