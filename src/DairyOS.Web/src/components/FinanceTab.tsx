@@ -747,6 +747,7 @@ export default function FinanceTab({
       setNotes('');
       setCustomSpecification('');
       setDueDate('');
+      resetExpenseDateToToday();
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Expense save failed.');
@@ -881,6 +882,7 @@ export default function FinanceTab({
       setRevCounterparty('');
       setRevNotes('');
       setRevDueDate('');
+      resetRevDateToToday();
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Revenue save failed.');
