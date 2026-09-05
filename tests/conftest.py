@@ -74,6 +74,7 @@ from dairyos.data.models.animal import Animal
 from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.inventory_transaction import InventoryTransaction
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
@@ -141,6 +142,9 @@ def _reset_test_persistence() -> None:
         # domain registers and operational projections.
         for model in (
             BreedingPropagationOutbox,
+            SemenStockMovement,
+            BreedingRecordModel,
+            SemenLot,
             FinancialTransaction,
             PayrollRecord,
             MilkDisposition,
@@ -152,7 +156,6 @@ def _reset_test_persistence() -> None:
             OperationalFinding,
             InventoryTransaction,
             User,
-            BreedingRecordModel,
             MilkingSessionRecord,
             AppSetting,
             TreatmentRecord,
