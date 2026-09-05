@@ -45,15 +45,23 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
         ("pregnancy_confirmed", "confirmed"),
         ("calving", "completed"),
     ):
+        payload = {
+            "animal_id": registered_animal,
+            "event_type": event_type,
+            "technician": "Dr Vet",
+            "result": result,
+            "operator": "Dr Vet",
+        }
+        if event_type == "calving":
+            payload.update(
+                {
+                    "calf_sex": "FEMALE",
+                    "planned_return_to_milking_date": "2026-10-01",
+                }
+            )
         response = client.post(
             "/farm/breeding",
-            json={
-                "animal_id": registered_animal,
-                "event_type": event_type,
-                "technician": "Dr Vet",
-                "result": result,
-                "operator": "Dr Vet",
-            },
+            json=payload,
         )
         assert response.status_code == 200, response.text
 
