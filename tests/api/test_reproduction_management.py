@@ -1,17 +1,10 @@
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
+from tests.helpers.breeding import post_breeding
+
 def test_reproduction_overview_reads_persisted_breeding_records(client, registered_animal):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "completed",
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200, response.text
 
     pregnancy = client.post(
@@ -44,16 +37,7 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
         ("pregnancy_confirmed", "confirmed"),
         ("calving", "completed"),
     ):
-        response = client.post(
-            "/farm/breeding",
-            json={
-                "animal_id": registered_animal,
-                "event_type": event_type,
-                "technician": "Dr Vet",
-                "result": result,
-                "operator": "Dr Vet",
-            },
-        )
+        response = post_breeding(client, registered_animal, event_type, result)
         assert response.status_code == 200, response.text
 
     body = client.get("/farm/reproduction/overview").json()
@@ -67,16 +51,7 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
 
 
 def test_animal_reproduction_history_uses_permanent_animal_id(client, registered_animal):
-    response = client.post(
-        "/farm/breeding",
-        json={
-            "animal_id": registered_animal,
-            "event_type": "insemination",
-            "technician": "Dr Vet",
-            "result": "completed",
-            "operator": "Dr Vet",
-        },
-    )
+    response = post_breeding(client, registered_animal, "insemination", "completed")
     assert response.status_code == 200, response.text
 
     history = client.get(f"/farm/reproduction/animals/{registered_animal}")
