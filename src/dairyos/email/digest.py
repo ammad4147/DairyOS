@@ -25,6 +25,8 @@ from dairyos.farm.herd.services.animal_classification_service import (
 
 
 LOCAL_ZONE = ZoneInfo("Asia/Karachi")
+_SNAPSHOT_AUDIT_KEY = "email_snapshot_delivery_audit"
+_SNAPSHOT_AUDIT_LIMIT = 500
 
 
 def _local_now() -> datetime:
@@ -304,6 +306,172 @@ class DashboardDigestService:
             "Active warnings reflect unresolved findings at generation time.",
         ]
         return subject, "\n".join(lines)
+
+
+    def render_snapshot(
+        self,
+        *,
+        snapshot_date: date,
+        generated_at: datetime,
+        user_permissions: set[str],
+    ) -> tuple[str, str]:
+        """Render a live manual snapshot without consuming a nightly digest slot."""
+        _daily_subject, body = self.render(
+            digest_date=snapshot_date,
+            user_permissions=user_permissions,
+        )
+        generated_local = generated_at.astimezone(LOCAL_ZONE)
+        subject = (
+            "DairyOS Snapshot — "
+            f"{generated_local.strftime('%Y-%m-%d %H:%M')} PKT"
+        )
+        lines = body.splitlines()
+        if lines:
+            lines[0] = "DairyOS Snapshot"
+        snapshot_line = (
+            "Snapshot Generated: "
+            f"{generated_local.strftime('%Y-%m-%d %H:%M:%S')} PKT"
+        )
+        if len(lines) >= 2 and lines[1].startswith("Operational Date:"):
+            lines.insert(2, snapshot_line)
+        else:
+            lines.insert(0, snapshot_line)
+        lines[-1:] = [
+            "This snapshot reflects governed DairyOS records available at the "
+            "generation time shown. Active warnings reflect unresolved findings "
+            "at generation time."
+        ]
+        return subject, "\n".join(lines)
+
+    def _configured_snapshot_recipients(self, factory) -> list[dict]:
+        raw_recipients = factory.app_settings().get(
+            "email_notification_recipients"
+        )
+        if not raw_recipients:
+            return []
+        try:
+            parsed = json.loads(str(raw_recipients))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return [
+            item
+            for item in parsed
+            if isinstance(item, dict)
+            and str(item.get("id") or "").strip()
+            and str(item.get("email") or "").strip()
+        ]
+
+    def _append_snapshot_audit(self, factory, entry: dict) -> None:
+        raw = factory.app_settings().get(_SNAPSHOT_AUDIT_KEY)
+        history = []
+        if raw:
+            try:
+                parsed = json.loads(str(raw))
+                if isinstance(parsed, list):
+                    history = parsed
+            except (TypeError, ValueError, json.JSONDecodeError):
+                history = []
+        history.append(entry)
+        factory.app_settings().set(
+            _SNAPSHOT_AUDIT_KEY,
+            json.dumps(history[-_SNAPSHOT_AUDIT_LIMIT:], sort_keys=True),
+            updated_by="EMAIL_MANUAL_SNAPSHOT",
+        )
+
+    def send_snapshot(
+        self,
+        *,
+        recipient_ids: list[str],
+        generated_at: datetime | None = None,
+    ) -> dict:
+        """Send a manual live snapshot to selected configured recipients."""
+        now = generated_at or utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=ZoneInfo("UTC"))
+        generated_local = now.astimezone(LOCAL_ZONE)
+        snapshot_date = generated_local.date()
+        selected_ids = {
+            str(recipient_id).strip()
+            for recipient_id in recipient_ids
+            if str(recipient_id).strip()
+        }
+        if not selected_ids:
+            raise ValueError("Select at least one notification recipient.")
+
+        factory = RepositoryFactory.create()
+        try:
+            configured = self._configured_snapshot_recipients(factory)
+            by_id = {
+                str(item.get("id") or "").strip(): item
+                for item in configured
+            }
+            unknown = sorted(selected_ids - set(by_id))
+            if unknown:
+                raise ValueError(
+                    "One or more selected recipients are no longer configured."
+                )
+
+            config = self.mail.get_config()
+            if config is None:
+                raise RuntimeError("DairyOS email sender is not configured")
+
+            subject, body = self.render_snapshot(
+                snapshot_date=snapshot_date,
+                generated_at=now,
+                user_permissions={"dashboard.view", "dashboard.view_finance"},
+            )
+            delivered = 0
+            failed = 0
+            results = []
+            for recipient_id in sorted(selected_ids):
+                recipient = by_id[recipient_id]
+                email = str(recipient.get("email") or "").strip().lower()
+                status = "SENT"
+                error_message = None
+                try:
+                    self.mail.send(
+                        recipient=email,
+                        subject=subject,
+                        body=body,
+                        config=config,
+                    )
+                    delivered += 1
+                except Exception as exc:
+                    status = "FAILED"
+                    error_message = str(exc)[:2000]
+                    failed += 1
+
+                audit_entry = {
+                    "delivery_type": "MANUAL_SNAPSHOT",
+                    "recipient_id": recipient_id,
+                    "recipient_email": email,
+                    "operational_date": snapshot_date.isoformat(),
+                    "generated_at": now.isoformat(),
+                    "status": status,
+                    "error_message": error_message,
+                }
+                self._append_snapshot_audit(factory, audit_entry)
+                results.append(audit_entry)
+
+            return {
+                "status": (
+                    "COMPLETED"
+                    if failed == 0
+                    else "FAILED"
+                    if delivered == 0
+                    else "COMPLETED-WITH-ERRORS"
+                ),
+                "delivery_type": "MANUAL_SNAPSHOT",
+                "operational_date": snapshot_date.isoformat(),
+                "generated_at": now.isoformat(),
+                "delivered": delivered,
+                "failed": failed,
+                "results": results,
+            }
+        finally:
+            factory.close()
 
 
     def send_for_date(self, digest_date: date) -> dict:
