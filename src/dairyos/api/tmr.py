@@ -437,10 +437,36 @@ def _priced_stage(
 
 
 def _normalize_herd_category(animal) -> str | None:
+    """Resolve Feed population from the same biological facts as Herd Register."""
+    lifecycle = str(
+        getattr(animal, "lifecycle_status", "") or ""
+    ).strip().upper()
+    sex = str(getattr(animal, "sex", "") or "").strip().upper()
+
+    # Current milking membership is an explicit operational fact and wins.
+    if bool(getattr(animal, "is_currently_milking", False)):
+        return "Milking"
+
+    if lifecycle == "DRY":
+        return "Dry"
+    if lifecycle in {"HEIFER", "CLOSE_UP"}:
+        return "Heifer"
+    if lifecycle == "CALF":
+        if sex == "FEMALE":
+            return "Female Calf"
+        if sex == "MALE":
+            return "Male Calf"
+    if lifecycle == "BULL" or (
+        sex == "MALE"
+        and lifecycle not in {"CALF", "SOLD", "DECEASED"}
+    ):
+        return "Bull"
+
+    # Compatibility fallback for older/imported rows whose lifecycle facts
+    # are incomplete but whose legacy animal_type carries the category.
     raw = str(getattr(animal, "animal_type", "") or "").strip().upper()
     normalized = raw.replace("_", " ").replace("-", " ")
     normalized = " ".join(normalized.split())
-
     aliases = {
         "MILKING": "Milking",
         "MILKING COW": "Milking",
@@ -457,13 +483,7 @@ def _normalize_herd_category(animal) -> str | None:
         "BULL": "Bull",
         "BULLS": "Bull",
     }
-    category = aliases.get(normalized)
-    if category is not None:
-        return category
-
-    if bool(getattr(animal, "is_currently_milking", False)):
-        return "Milking"
-    return None
+    return aliases.get(normalized)
 
 
 def _active_herd_counts(factory) -> dict[str, int]:

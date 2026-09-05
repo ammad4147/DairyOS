@@ -3,7 +3,7 @@
 import pytest
 
 
-def _record(client, animal_id: str, event_type: str, result: str):
+def _record(client, animal_id: str, event_type: str, result: str, **extra):
     return client.post(
         "/farm/breeding",
         json={
@@ -12,6 +12,7 @@ def _record(client, animal_id: str, event_type: str, result: str):
             "technician": "Dr Vet",
             "result": result,
             "operator": "Dr Vet",
+            **extra,
         },
     )
 
@@ -219,11 +220,35 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
 ):
     _establish_confirmed_pregnancy(client, registered_animal)
 
-    calving = _record(client, registered_animal, "calving", "COMPLETED")
+    calving = _record(
+        client,
+        registered_animal,
+        "calving",
+        "COMPLETED",
+        calf_sex="FEMALE",
+        planned_return_to_milking_date="2026-10-01",
+    )
     assert calving.status_code == 200, calving.text
     calving_payload = calving.json()
     assert calving_payload["reproductive_state"]["state"] == "LACTATING"
     assert calving_payload["reproductive_state"]["pregnancy_status"] == "NOT_PREGNANT"
+    assert calving_payload["calf_sex"] == "FEMALE"
+    assert calving_payload["planned_return_to_milking_date"] == "2026-10-01"
+    calf_id = calving_payload["calf_animal_id"]
+
+    calf = client.get(f"/farm/animals/{calf_id}")
+    assert calf.status_code == 200, calf.text
+    calf_payload = calf.json()
+    assert calf_payload["sex"] == "FEMALE"
+    assert calf_payload["lifecycle_status"] == "CALF"
+    assert calf_payload["dam_id"] == registered_animal
+    assert calf_payload["is_currently_milking"] is False
+
+    mother = client.get(f"/farm/animals/{registered_animal}")
+    assert mother.status_code == 200, mother.text
+    mother_payload = mother.json()
+    assert mother_payload["is_currently_milking"] is False
+    assert mother_payload["lifecycle_status"] == "DRY"
 
     state = client.get(f"/farm/animals/{registered_animal}/reproduction")
     assert state.status_code == 200, state.text
@@ -248,3 +273,15 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
         event["event_type"] == "CALVING"
         for event in passport_payload["reproduction"]["lifetime_events"]
     )
+
+    ledger = client.get("/farm/breeding")
+    assert ledger.status_code == 200, ledger.text
+    calving_rows = [
+        row
+        for row in ledger.json()
+        if str(row.get("animal_id")) == registered_animal
+        and str(row.get("event_type")) == "calving"
+    ]
+    assert calving_rows
+    assert calving_rows[-1]["calf_animal_id"] == calf_id
+    assert calving_rows[-1]["planned_return_to_milking_date"] == "2026-10-01"

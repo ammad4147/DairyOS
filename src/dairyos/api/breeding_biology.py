@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.animal_registration import _animal_id_prefix, _new_animal_id
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -85,6 +86,8 @@ class BreedingLifecycleRequest(BaseModel):
     notes: str | None = None
     operator: str = Field(default="API", min_length=1)
     timestamp: str | None = None
+    calf_sex: str | None = None
+    planned_return_to_milking_date: date | None = None
 
 
 def _operator(
@@ -586,6 +589,34 @@ def record_breeding_entry(
     )
 
     operator = _operator(entry, current_user)
+
+    calf_sex = None
+    planned_return_date = None
+    if event_type == "calving":
+        calf_sex = str(entry.calf_sex or "").strip().upper()
+        if calf_sex not in {"FEMALE", "MALE"}:
+            raise HTTPException(
+                status_code=422,
+                detail="Calving requires calf_sex to be FEMALE or MALE.",
+            )
+        planned_return_date = entry.planned_return_to_milking_date
+        if planned_return_date is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Calving requires the operator-entered planned return "
+                    "to milking date."
+                ),
+            )
+        if planned_return_date < event_timestamp.date():
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Planned return to milking date cannot precede "
+                    "the calving date."
+                ),
+            )
+
     technician = str(entry.technician or operator).strip() or operator
     record = BreedingRecord(
         animal_id=animal_id,
@@ -606,6 +637,12 @@ def record_breeding_entry(
         "technician": technician,
         "operator": operator,
         "timestamp": event_timestamp.replace(tzinfo=timezone.utc).isoformat(),
+        "calf_sex": calf_sex,
+        "planned_return_to_milking_date": (
+            planned_return_date.isoformat()
+            if planned_return_date is not None
+            else None
+        ),
         "status": "RECORDED",
         "record_id": record.record_id,
         "_propagation_id": propagation_id,
@@ -627,30 +664,34 @@ def record_breeding_entry(
             if locked_animal is None:
                 raise HTTPException(status_code=404, detail="Animal not found.")
 
-            locked_animal.lifecycle_status = "LACTATING"
-            directive = str(
-                getattr(locked_animal, "non_milking_directive", "NONE") or "NONE"
-            ).upper()
-            locked_animal.is_currently_milking = directive not in {
-                "TEMPORARY_NON_MILKING",
-                "PERMANENT_NON_MILKING",
-            }
+            # Calving ends the pregnancy but does not silently put the mother
+            # into the active milking herd. The operator's planned return date
+            # is retained with the calving event; actual return remains an
+            # explicit later herd-lifecycle action.
+            locked_animal.lifecycle_status = "DRY"
+            locked_animal.is_currently_milking = False
+            locked_animal.milking_frequency = None
             factory.animal().save(locked_animal, commit=False)
 
-            frequency = (
-                str(getattr(locked_animal, "milking_frequency", "") or "").upper()
-                or _farm_milking_frequency(container)
+            calf_animal_id = _new_animal_id(
+                factory.animal(),
+                _animal_id_prefix(container),
             )
-            if frequency not in {"TWICE_DAILY", "THRICE_DAILY"}:
-                frequency = _farm_milking_frequency(container)
-            factory.animal().set_milking_frequency(
-                animal_id,
-                frequency,
-                changed_by=operator,
-                reason="calving_lactation_start",
-                effective_date=event_timestamp.date(),
-                commit=False,
+            calf = Animal(
+                animal_id=calf_animal_id,
+                animal_type="CATTLE",
+                sex=calf_sex,
+                date_of_birth=event_timestamp.date(),
+                dam_id=animal_id,
+                lifecycle_status="CALF",
+                status="ACTIVE",
+                is_currently_milking=False,
+                milking_frequency=None,
+                breed=getattr(locked_animal, "breed", None),
+                active=True,
             )
+            factory.animal().save(calf, commit=False)
+            canonical_payload["calf_animal_id"] = calf_animal_id
 
         session.add(
             BreedingPropagationOutbox(
