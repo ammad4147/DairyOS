@@ -1,9 +1,12 @@
 """Persisted accounting destination for produced milk litres."""
 
-from sqlalchemy import Column, Date, DateTime, Float, Index, Integer, String
+from decimal import Decimal
+
+from sqlalchemy import Column, Date, DateTime, Float, Index, Integer, Numeric, String
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class MilkDisposition(Base):
@@ -16,9 +19,9 @@ class MilkDisposition(Base):
 
     sale_id = Column(String, nullable=True, index=True)
     counterparty = Column(String, nullable=True)
-    selling_price_per_litre = Column(Float, nullable=True)
-    amount_due = Column(Float, nullable=False, default=0.0)
-    amount_received = Column(Float, nullable=False, default=0.0)
+    selling_price_per_litre = Column(Numeric(18, 6), nullable=True)
+    amount_due = Column(Numeric(18, 2), nullable=False, default=0)
+    amount_received = Column(Numeric(18, 2), nullable=False, default=0)
 
     notes = Column(String, nullable=True)
     recorded_by = Column(String, nullable=True)
@@ -37,9 +40,9 @@ class MilkDisposition(Base):
     )
 
     @property
-    def receivable_outstanding(self) -> float:
+    def receivable_outstanding(self) -> Decimal:
         return max(
-            float(self.amount_due or 0.0)
-            - float(self.amount_received or 0.0),
-            0.0,
+            Decimal(self.amount_due or 0)
+            - Decimal(self.amount_received or 0),
+            Decimal("0.00"),
         )

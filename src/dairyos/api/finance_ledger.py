@@ -10,6 +10,7 @@ disposition ledger so Finance and Milk remain synchronized.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -24,6 +25,9 @@ from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.production.services.milk_reconciliation_service import (
+    MilkReconciliationService,
+)
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import (
     MASTER_CATEGORIES,
@@ -33,9 +37,6 @@ from dairyos.finance.expense_taxonomy import (
 )
 from dairyos.finance.profitability.services.feed_opex_cost_service import (
     FeedOpexCostService,
-)
-from dairyos.farm.production.services.milk_reconciliation_service import (
-    MilkReconciliationService,
 )
 
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
@@ -60,17 +61,34 @@ ALLOWED_STATUS_TRANSITIONS = {
 
 SETTLED_STATUSES = frozenset({"PAID", "RECEIVED"})
 
+MONEY_QUANTUM = Decimal("0.01")
+RATE_QUANTUM = Decimal("0.000001")
+
+
+def _money(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(
+        MONEY_QUANTUM,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def _rate(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(
+        RATE_QUANTUM,
+        rounding=ROUND_HALF_UP,
+    )
+
 
 class FinanceLedgerEntry(BaseModel):
     transaction_type: str = "EXPENSE"
     category: str | None = None
-    amount: float | None = Field(default=None, ge=0)
+    amount: Decimal | None = Field(default=None, ge=0)
     master_category: str | None = None
     sub_category: str | None = None
     custom_specification: str | None = None
     quantity: float | None = Field(default=None, gt=0)
     unit: str | None = None
-    unit_rate: float | None = Field(default=None, gt=0)
+    unit_rate: Decimal | None = Field(default=None, gt=0)
     transaction_date: date | None = None
     payment_method: str | None = None
     counterparty: str | None = None
@@ -83,13 +101,13 @@ class FinanceLedgerEntry(BaseModel):
 
 class FinanceLedgerEdit(BaseModel):
     category: str | None = None
-    amount: float | None = Field(default=None, ge=0)
+    amount: Decimal | None = Field(default=None, ge=0)
     master_category: str | None = None
     sub_category: str | None = None
     custom_specification: str | None = None
     quantity: float | None = Field(default=None, gt=0)
     unit: str | None = None
-    unit_rate: float | None = Field(default=None, gt=0)
+    unit_rate: Decimal | None = Field(default=None, gt=0)
     transaction_date: date | None = None
     payment_method: str | None = None
     counterparty: str | None = None
@@ -163,14 +181,14 @@ EQUIPMENT_PURCHASE_ITEM = "Equipment Purchase"
 def _validate_expense_payload(
     entry: FinanceLedgerEntry | FinanceLedgerEdit,
     transaction_type: str,
-) -> tuple[float, str | None]:
+) -> tuple[Decimal, str | None]:
     if transaction_type not in classifier.EXPENSE_TYPES:
         if entry.amount is None:
             raise HTTPException(
                 status_code=422,
                 detail="amount is required for non-expense entries.",
             )
-        return float(entry.amount), entry.category
+        return _money(entry.amount), entry.category
 
     if entry.master_category not in MASTER_CATEGORIES:
         raise HTTPException(
@@ -252,9 +270,14 @@ def _validate_expense_payload(
         )
 
     if entry.quantity is not None:
-        amount = float(entry.quantity) * float(entry.unit_rate)
+        amount = (
+            Decimal(str(entry.quantity)) * Decimal(entry.unit_rate)
+        ).quantize(
+            MONEY_QUANTUM,
+            rounding=ROUND_HALF_UP,
+        )
     elif entry.amount is not None:
-        amount = float(entry.amount)
+        amount = _money(entry.amount)
     else:
         raise HTTPException(
             status_code=422,
@@ -566,14 +589,20 @@ def _ensure_feed_catalog_authority(
 def _linked_milk_sale(
     factory,
     finance_id: int,
+    *,
+    lock: bool = False,
 ) -> MilkDisposition | None:
-    return (
+    query = (
         factory.session.query(MilkDisposition)
         .filter(
             MilkDisposition.sale_id == f"FIN-{finance_id}",
         )
-        .first()
     )
+
+    if lock:
+        query = query.with_for_update()
+
+    return query.first()
 
 
 def _sync_milk_sale(
@@ -642,7 +671,7 @@ def _sync_milk_sale(
             detail=str(exc),
         ) from exc
 
-    amount = float(transaction.amount or 0.0)
+    amount = _money(transaction.amount)
 
     if amount <= 0:
         raise HTTPException(
@@ -650,12 +679,17 @@ def _sync_milk_sale(
             detail="Milk Sales amount must be greater than zero.",
         )
 
-    price_per_litre = amount / quantity
+    price_per_litre = (
+        amount / Decimal(str(quantity))
+    ).quantize(
+        RATE_QUANTUM,
+        rounding=ROUND_HALF_UP,
+    )
 
     amount_received = (
         amount
         if status in SETTLED_STATUSES
-        else 0.0
+        else Decimal("0.00")
     )
 
     disposition = MilkDisposition(
@@ -700,10 +734,35 @@ def _sync_existing_milk_sale_status(
         transaction.status or "RECORDED",
     ).upper()
 
-    if status in SETTLED_STATUSES:
-        disposition.amount_received = float(
-            transaction.amount or 0.0
+    if status != "VOID":
+        production_date = transaction.transaction_date.date()
+        quantity = float(transaction.quantity or 0)
+        if quantity <= 0:
+            raise HTTPException(status_code=422, detail="Milk Sales requires a positive quantity in litres.")
+        try:
+            MilkReconciliationService.validate_disposition_quantity(
+                production_basis=MilkReconciliationService._production_total(
+                    production_date, production_repository=factory.milk(),
+                ),
+                dispositions=factory.milk_dispositions().get_by_date(production_date),
+                disposition_type="SOLD", quantity_litres=quantity, exclude_id=disposition.id,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        disposition.production_date = production_date
+        disposition.quantity_litres = quantity
+        disposition.counterparty = transaction.counterparty
+        disposition.amount_due = Decimal(str(transaction.amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        disposition.selling_price_per_litre = (
+            disposition.amount_due / Decimal(str(quantity))
+        ).quantize(
+            Decimal("0.000001"),
+            rounding=ROUND_HALF_UP,
         )
+        transaction.unit_rate = disposition.selling_price_per_litre
+
+    if status in SETTLED_STATUSES:
+        disposition.amount_received = disposition.amount_due
         disposition.status = "RECORDED"
 
     elif status == "RECEIVABLE":
@@ -833,7 +892,10 @@ def create_finance_ledger_entry(
         quantity_value = float(entry.quantity)
         unit_value = "litre"
         unit_rate_value = (
-            float(amount) / quantity_value
+            Decimal(amount) / Decimal(str(quantity_value))
+        ).quantize(
+            RATE_QUANTUM,
+            rounding=ROUND_HALF_UP,
         )
     else:
         quantity_value = (
@@ -1036,9 +1098,25 @@ def feed_opex_profitability(
             detail="period_end cannot be earlier than period_start.",
         )
 
-    return FeedOpexCostService(container).calculate(
-        period_start,
-        period_end,
+    # FeedOpexCostService is deliberately a stateless calculation service.
+    # Keep this route on the same persisted-input contract as the adjacent
+    # cost-of-production route instead of treating the RuntimeContainer as a
+    # service instance.
+    factory = _factory(container)
+    days = (period_end - period_start).days + 1
+
+    def in_period(row, field):
+        value = getattr(row, field, None)
+        if isinstance(value, datetime):
+            value = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+            value = value.date()
+        return value is not None and period_start <= value <= period_end
+
+    return FeedOpexCostService().evaluate(
+        [row for row in factory.milk().get_all() if in_period(row, "production_date")],
+        [row for row in factory.finance().get_all() if in_period(row, "transaction_date")],
+        days=days,
+        now=datetime.combine(period_end, datetime.max.time(), tzinfo=UTC),
     )
 
 
@@ -1048,10 +1126,47 @@ def edit_finance_ledger_entry(
     payload: FinanceLedgerEdit,
     container=Depends(get_container),
 ):
-    factory = _factory(container)
+    runtime_factory = _factory(container)
+
+    if getattr(runtime_factory, "session", None) is None:
+        return _edit_finance_ledger_entry(
+            transaction_id,
+            payload,
+            runtime_factory,
+        )
+
+    # Cross-module Finance/Milk amendments require an isolated application
+    # transaction. RepositoryFactory.create() is the governed persistence
+    # composition boundary; do not borrow the runtime's long-lived session.
+    factory = RepositoryFactory.create()
+    try:
+        with factory.session.begin():
+            return _edit_finance_ledger_entry(
+                transaction_id,
+                payload,
+                factory,
+            )
+    finally:
+        factory.close()
+
+
+def _edit_finance_ledger_entry(transaction_id, payload, factory):
     repository = factory.finance()
 
-    row = repository.get_by_id(transaction_id)
+    # Canonical cross-module lock order:
+    # MilkDisposition first, then primary FinancialTransaction.
+    linked_disposition = _linked_milk_sale(
+        factory,
+        transaction_id,
+        lock=True,
+    )
+
+    row = (
+        factory.session.query(FinancialTransaction)
+        .filter_by(id=transaction_id)
+        .with_for_update()
+        .first()
+    )
 
     if row is None:
         raise HTTPException(
@@ -1268,8 +1383,15 @@ def edit_finance_ledger_entry(
     if status not in SETTLED_STATUSES:
         row.settled_date = None
 
-    repository.add(row)
+    if str(row.category or "").upper() == "MILK_SALES" and (payload.quantity is not None or payload.unit_rate is not None):
+        row.quantity = payload.quantity if payload.quantity is not None else row.quantity
+        row.unit_rate = payload.unit_rate if payload.unit_rate is not None else row.unit_rate
+        calculated = (Decimal(str(row.quantity)) * Decimal(str(row.unit_rate))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if payload.amount is not None and Decimal(str(payload.amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) != calculated:
+            raise HTTPException(status_code=422, detail="Milk sale amount must equal quantity times rate.")
+        row.amount = calculated
 
+    factory.session.add(row)
     _sync_existing_milk_sale_status(
         factory=factory,
         transaction=row,
@@ -1284,7 +1406,7 @@ def edit_finance_ledger_entry(
         factory.session.rollback()
         raise
 
-    factory.session.commit()
+    factory.session.flush()
 
     return _row_dict(row)
 
@@ -1312,10 +1434,43 @@ def update_finance_ledger_status(
     payload: FinanceStatusUpdate,
     container=Depends(get_container),
 ):
-    factory = _factory(container)
+    runtime_factory = _factory(container)
+
+    if getattr(runtime_factory, "session", None) is None:
+        return _update_finance_ledger_status(
+            transaction_id,
+            payload,
+            runtime_factory,
+        )
+
+    factory = RepositoryFactory.create()
+    try:
+        with factory.session.begin():
+            return _update_finance_ledger_status(
+                transaction_id,
+                payload,
+                factory,
+            )
+    finally:
+        factory.close()
+
+
+def _update_finance_ledger_status(transaction_id, payload, factory):
     repository = factory.finance()
 
-    row = repository.get_by_id(transaction_id)
+    # Use the same lock order as Milk-side mutations.
+    linked_disposition = _linked_milk_sale(
+        factory,
+        transaction_id,
+        lock=True,
+    )
+
+    row = (
+        factory.session.query(FinancialTransaction)
+        .filter_by(id=transaction_id)
+        .with_for_update()
+        .first()
+    )
 
     if row is None:
         raise HTTPException(
@@ -1378,13 +1533,13 @@ def update_finance_ledger_status(
             f"REASON={payload.reason.strip()}"
         ).strip()
 
-    repository.add(row)
+    factory.session.add(row)
 
     _sync_existing_milk_sale_status(
         factory=factory,
         transaction=row,
     )
 
-    factory.session.commit()
+    factory.session.flush()
 
     return _row_dict(row)

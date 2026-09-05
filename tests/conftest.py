@@ -62,6 +62,7 @@ from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.database.models.operational_event_model import OperationalEventModel
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.health_case import HealthCase
@@ -110,6 +111,7 @@ def _reset_test_persistence() -> None:
         # domain registers and operational projections.
         for model in (
             FinancialTransaction,
+            PayrollRecord,
             MilkDisposition,
             MilkProduction,
             FeedRecord,

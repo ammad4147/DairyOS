@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Ban, Edit3, Printer, Search } from 'lucide-react';
+import { Ban, Edit3, Printer, Search, WalletCards } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
@@ -51,6 +51,7 @@ type Props = {
   onUpdateReceivables?: (amount: number) => void;
   herdMasterList?: HerdAnimal[];
   onAnimalChanged?: () => void | Promise<void>;
+  onOpenPayroll?: () => void;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -234,6 +235,7 @@ export default function FinanceTab({
   onUpdateReceivables,
   herdMasterList = [],
   onAnimalChanged,
+  onOpenPayroll,
 }: Props = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
@@ -975,9 +977,27 @@ export default function FinanceTab({
           <div style={{ fontSize: 18, fontWeight: 800 }}>Finance & Accounting</div>
           <div style={{ fontSize: 10, color: '#94a3b8' }}>Revenue, receivables, expenses, payables and the persistent accounting ledger.</div>
         </div>
-        <button type="button" onClick={() => setExploreOpen(value => !value)} style={{ ...button(exploreOpen ? '#475569' : '#7c3aed'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <Search size={11} />{exploreOpen ? 'Close Explorer' : 'Explore Ledgers'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onOpenPayroll}
+            title="Open Finance Payroll"
+            disabled={!onOpenPayroll}
+            style={{
+              ...button('#0f766e'),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              opacity: onOpenPayroll ? 1 : 0.55,
+              cursor: onOpenPayroll ? 'pointer' : 'not-allowed',
+            }}
+          >
+            <WalletCards size={11} />Payroll
+          </button>
+          <button type="button" onClick={() => setExploreOpen(value => !value)} style={{ ...button(exploreOpen ? '#475569' : '#7c3aed'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Search size={11} />{exploreOpen ? 'Close Explorer' : 'Explore Ledgers'}
+          </button>
+        </div>
       </div>
 
       {error && <div style={{ background: 'rgba(239,68,68,.12)', border: '1px solid #ef4444', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 10, fontSize: 10 }}>{error}</div>}

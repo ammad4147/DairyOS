@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
+from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.payroll import PayrollRecord
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 router = APIRouter(prefix="/farm/payroll", tags=["Finance Payroll"])
 
@@ -91,14 +93,52 @@ def create_payroll(request: PayrollCreateRequest, container=Depends(get_containe
 
 @router.post("/{record_id}/pay")
 def pay_payroll(record_id: int, payment_date: date | None = None, container=Depends(get_container)):
-    repo = _repo(container)
-    record = repo.get_by_id(record_id)
+    runtime_factory = container.repository_factory
+
+    # Preserve non-persistent test/compatibility factories where applicable.
+    if getattr(runtime_factory, "session", None) is None:
+        return _pay_payroll(
+            record_id,
+            payment_date,
+            runtime_factory,
+        )
+
+    # Payroll payment and Finance posting are one business action and therefore
+    # receive one isolated application transaction.
+    factory = RepositoryFactory.create()
+    try:
+        with factory.session.begin():
+            return _pay_payroll(
+                record_id,
+                payment_date,
+                factory,
+            )
+    finally:
+        factory.close()
+
+
+def _pay_payroll(record_id, payment_date, factory):
+    repo = factory.payroll()
+    session = getattr(factory, "session", None)
+
+    # A payroll payment and its Finance posting are one business action.  The
+    # persistent path takes a row lock and performs a single commit so a
+    # failed Finance write cannot leave Payroll marked PAID (or vice versa).
+    if session is not None:
+        record = (
+            session.query(PayrollRecord)
+            .filter(PayrollRecord.id == record_id)
+            .with_for_update()
+            .first()
+        )
+    else:
+        record = repo.get_by_id(record_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Payroll record not found")
     if record.status == "PAID" and record.finance_transaction_id is not None:
         return _serialize(record)
 
-    finance_repo = container.repository_factory.finance()
+    finance_repo = factory.finance()
     source_reference = f"PAYROLL#{record.id}"
     existing = next(
         (
@@ -112,13 +152,22 @@ def pay_payroll(record_id: int, payment_date: date | None = None, container=Depe
     if existing is not None:
         record.finance_transaction_id = existing.id
         record.status = "PAID"
-        record.payment_date = payment_date or existing.settled_date or date.today()
-        repo.save(record)
+        record.payment_date = payment_date or existing.settled_date or utcnow().date()
+        if session is not None:
+            try:
+                session.add(record)
+                session.flush()
+                session.refresh(record)
+            except Exception:
+                session.rollback()
+                raise
+        else:
+            repo.save(record)
         return _serialize(record)
 
-    pay_date = payment_date or date.today()
+    pay_date = payment_date or utcnow().date()
     quantity = float(record.worked_days or 0)
-    net_pay = float(record.net_pay)
+    net_pay = Decimal(record.net_pay)
     transaction = FinancialTransaction(
         transaction_type="EXPENSE",
         category="LABOUR",
@@ -135,12 +184,25 @@ def pay_payroll(record_id: int, payment_date: date | None = None, container=Depe
         custom_specification=record.employee_role,
         quantity=quantity if quantity > 0 else None,
         unit="day" if quantity > 0 else None,
-        unit_rate=net_pay / quantity if quantity > 0 else None,
+        unit_rate=net_pay / Decimal(str(quantity)) if quantity > 0 else None,
         settled_date=pay_date,
         payroll_record_id=record.id,
     )
-    saved = finance_repo.add(transaction)
-    record.mark_paid(pay_date)
-    record.finance_transaction_id = saved.id
-    repo.save(record)
+    if session is not None:
+        try:
+            session.add(transaction)
+            session.flush()
+            record.mark_paid(pay_date)
+            record.finance_transaction_id = transaction.id
+            session.add(record)
+            session.flush()
+            session.refresh(record)
+        except Exception:
+            session.rollback()
+            raise
+    else:
+        saved = finance_repo.add(transaction)
+        record.mark_paid(pay_date)
+        record.finance_transaction_id = saved.id
+        repo.save(record)
     return _serialize(record)

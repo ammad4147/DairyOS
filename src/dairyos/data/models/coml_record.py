@@ -5,10 +5,11 @@ intentionally independent from transactional Finance, Milk, Feed Inventory,
 and live production metrics.
 """
 
-from sqlalchemy import Column, Date, DateTime, Float, Integer, String
+from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class COMLRecord(Base):
@@ -16,9 +17,9 @@ class COMLRecord(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     month_start = Column(Date, nullable=False, unique=True, index=True)
-    feed_cost_per_liter = Column(Float, nullable=False)
-    opex_cost_per_liter = Column(Float, nullable=False)
-    total_coml_per_liter = Column(Float, nullable=False)
+    feed_cost_per_liter = Column(Numeric(18, 6), nullable=False)
+    opex_cost_per_liter = Column(Numeric(18, 6), nullable=False)
+    total_coml_per_liter = Column(Numeric(18, 6), nullable=False)
     status = Column(String, nullable=False, default="OFFICIAL")
     notes = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow)

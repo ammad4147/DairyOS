@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.coml_record import COMLRecord
@@ -28,19 +29,30 @@ class COMLRepository:
         self,
         *,
         month_start: date,
-        feed_cost_per_liter: float,
-        opex_cost_per_liter: float,
+        feed_cost_per_liter: Decimal,
+        opex_cost_per_liter: Decimal,
         notes: str | None,
         updated_by: str,
     ) -> COMLRecord:
         row = self.get_by_month(month_start)
         now = utcnow()
-        total = round(float(feed_cost_per_liter) + float(opex_cost_per_liter), 4)
+        feed = Decimal(feed_cost_per_liter).quantize(
+            Decimal("0.000001"),
+            rounding=ROUND_HALF_UP,
+        )
+        opex = Decimal(opex_cost_per_liter).quantize(
+            Decimal("0.000001"),
+            rounding=ROUND_HALF_UP,
+        )
+        total = (feed + opex).quantize(
+            Decimal("0.000001"),
+            rounding=ROUND_HALF_UP,
+        )
         if row is None:
             row = COMLRecord(
                 month_start=month_start,
-                feed_cost_per_liter=float(feed_cost_per_liter),
-                opex_cost_per_liter=float(opex_cost_per_liter),
+                feed_cost_per_liter=feed,
+                opex_cost_per_liter=opex,
                 total_coml_per_liter=total,
                 status="OFFICIAL",
                 notes=notes,
@@ -51,8 +63,8 @@ class COMLRepository:
             )
             self.session.add(row)
         else:
-            row.feed_cost_per_liter = float(feed_cost_per_liter)
-            row.opex_cost_per_liter = float(opex_cost_per_liter)
+            row.feed_cost_per_liter = feed
+            row.opex_cost_per_liter = opex
             row.total_coml_per_liter = total
             row.status = "OFFICIAL"
             row.notes = notes

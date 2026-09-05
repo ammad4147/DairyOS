@@ -1,16 +1,37 @@
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    text,
+)
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class FinancialTransaction(Base):
     __tablename__ = "financial_transactions"
+    __table_args__ = (
+        Index(
+            "uq_financial_transactions_payroll_record_id",
+            "payroll_record_id",
+            unique=True,
+            postgresql_where=text("payroll_record_id IS NOT NULL AND COALESCE(status, 'RECORDED') <> 'VOID'"),
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_type = Column(String, nullable=False)
     category = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
+    # Accounting authority: persist currency as fixed-point, never binary float.
+    amount = Column(Numeric(18, 2), nullable=False)
     transaction_date = Column(DateTime, default=utcnow, nullable=False)
     reference = Column(String, default="")
 
@@ -34,7 +55,7 @@ class FinancialTransaction(Base):
     custom_specification = Column(String, nullable=True)
     quantity = Column(Float, nullable=True)
     unit = Column(String, nullable=True)
-    unit_rate = Column(Float, nullable=True)
+    unit_rate = Column(Numeric(18, 6), nullable=True)
 
     due_date = Column(Date, nullable=True)
     settled_date = Column(Date, nullable=True)

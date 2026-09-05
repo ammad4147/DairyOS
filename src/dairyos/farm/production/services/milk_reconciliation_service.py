@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
 
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -815,7 +816,7 @@ class MilkReconciliationService:
         quantity_litres: float,
         sale_id: str | None = None,
         counterparty: str | None = None,
-        selling_price_per_litre: float | None = None,
+        selling_price_per_litre: Decimal | None = None,
         notes: str | None = None,
         recorded_by: str | None = None,
     ):
@@ -881,10 +882,24 @@ class MilkReconciliationService:
             )
 
             amount_due = (
-                float(quantity_litres)
-                * float(selling_price_per_litre)
+                (
+                    Decimal(str(quantity_litres))
+                    * Decimal(selling_price_per_litre)
+                ).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP,
+                )
                 if disposition_type == "SOLD"
-                else 0.0
+                else Decimal("0.00")
+            )
+
+            governed_rate = (
+                Decimal(selling_price_per_litre).quantize(
+                    Decimal("0.000001"),
+                    rounding=ROUND_HALF_UP,
+                )
+                if disposition_type == "SOLD"
+                else None
             )
 
             disposition = MilkDisposition(
@@ -893,9 +908,9 @@ class MilkReconciliationService:
                 quantity_litres=float(quantity_litres),
                 sale_id=sale_id,
                 counterparty=counterparty,
-                selling_price_per_litre=selling_price_per_litre,
+                selling_price_per_litre=governed_rate,
                 amount_due=amount_due,
-                amount_received=0.0,
+                amount_received=Decimal("0.00"),
                 notes=notes,
                 recorded_by=recorded_by,
             )

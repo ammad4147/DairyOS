@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from calendar import month_name
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -44,8 +44,8 @@ class COMLCalculationRequest(BaseModel):
 
 class COMLLockRequest(BaseModel):
     month_start: date
-    feed_cost_per_liter: float = Field(ge=0)
-    opex_cost_per_liter: float = Field(ge=0)
+    feed_cost_per_liter: Decimal = Field(ge=0)
+    opex_cost_per_liter: Decimal = Field(ge=0)
     notes: str | None = None
     updated_by: str = Field(default="UI Operator", min_length=1)
 
@@ -160,8 +160,14 @@ def get_coml_history(container=Depends(get_container)):
 @router.post("/lock")
 def lock_coml(payload: COMLLockRequest, current_user=Depends(get_optional_current_user), container=Depends(get_container)):
     selected = _month_start(payload.month_start)
-    feed = round(float(payload.feed_cost_per_liter), 4)
-    opex = round(float(payload.opex_cost_per_liter), 4)
+    feed = Decimal(payload.feed_cost_per_liter).quantize(
+        Decimal("0.000001"),
+        rounding=ROUND_HALF_UP,
+    )
+    opex = Decimal(payload.opex_cost_per_liter).quantize(
+        Decimal("0.000001"),
+        rounding=ROUND_HALF_UP,
+    )
     if feed + opex <= 0:
         raise HTTPException(status_code=422, detail="Feed Cost/L + OPEX/L must be greater than zero.")
     factory = container.repository_factory

@@ -60,7 +60,7 @@ export default function MainAppShell(){
     <main style={{flex:1,minHeight:0,minWidth:0,overflowY:'auto',overflowX:'hidden',background:'#0b0f19',position:'relative'}}>
      {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion} realTimeReceivables={accountsReceivable}/>}
      {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>}
-     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onSaveSale={liters=>setTodayMilkSoldLiters(prev=>prev+liters)} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
+     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onSaveSale={liters=>setTodayMilkSoldLiters(prev=>prev+liters)} onUpdateReceivables={amount=>{setAccountsReceivable(amount);void refreshReceivables()}} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll}/>}
      {currentView==='feed'&&<FeedTab/>}
      {currentView==='cop'&&<COML/>}
      {currentView==='audit'&&<AuditTab/>}

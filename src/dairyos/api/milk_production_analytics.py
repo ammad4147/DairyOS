@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,13 +29,13 @@ class MilkDispositionRequest(BaseModel):
     quantity_litres: float = Field(gt=0)
     sale_id: str | None = None
     counterparty: str | None = None
-    selling_price_per_litre: float | None = Field(default=None, ge=0)
+    selling_price_per_litre: Decimal | None = Field(default=None, ge=0)
     notes: str | None = None
     recorded_by: str = Field(default="UI Operator", min_length=1)
 
 
 class MilkReceiptRequest(BaseModel):
-    amount: float = Field(gt=0)
+    amount: Decimal = Field(gt=0)
     payment_method: str | None = None
     counterparty: str | None = None
     notes: str | None = None
@@ -341,14 +342,31 @@ def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest):
         if str(disposition.disposition_type).upper() != "SOLD":
             raise HTTPException(status_code=422, detail="Only SOLD milk dispositions can receive payment.")
 
-        outstanding = disposition.receivable_outstanding
-        if payload.amount > outstanding + 0.01:
+        outstanding = Decimal(disposition.receivable_outstanding)
+        tolerance = Decimal("0.01")
+
+        if payload.amount > outstanding + tolerance:
+            excess = (
+                payload.amount - outstanding
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
             raise HTTPException(
                 status_code=422,
-                detail=f"Receipt exceeds outstanding receivable by {payload.amount - outstanding:.2f}.",
+                detail=(
+                    "Receipt exceeds outstanding receivable by "
+                    f"{excess:.2f}."
+                ),
             )
 
-        disposition.amount_received = float(disposition.amount_received or 0.0) + payload.amount
+        disposition.amount_received = (
+            Decimal(disposition.amount_received or 0)
+            + payload.amount
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
         from dairyos.core.time_utils import utcnow
         disposition.updated_at = utcnow()
 
