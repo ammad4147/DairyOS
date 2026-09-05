@@ -84,6 +84,10 @@ from dairyos.data.models.drug_withdrawal_reference import (
 from dairyos.data.models.inventory_transaction import (
     InventoryTransaction,
 )
+from dairyos.data.models.semen_inventory import (
+    SemenLot,
+    SemenStockMovement,
+)
 
 from dairyos.data.models.user import (
     User,
