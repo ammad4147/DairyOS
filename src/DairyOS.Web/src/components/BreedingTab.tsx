@@ -42,7 +42,7 @@ interface Row {
   daysAfterCalving: number | null;
   manualAiCandidate: boolean;
 }
-interface Props { onOpenPassport?: (tag: string) => void; herdMasterList?: HerdAnimal[] }
+interface Props { onOpenPassport?: (tag: string) => void; herdMasterList?: HerdAnimal[]; onChanged?: () => void | Promise<void> }
 
 async function getJson<T>(path: string): Promise<T> {
   const r = await fetch(apiUrl(path));
@@ -122,7 +122,7 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '3px',
 };
 
-export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Props) {
+export default function BreedingTab({ onOpenPassport, herdMasterList = [], onChanged }: Props) {
   const [activeModalPassport, setActiveModalPassport] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventType, setEventType] = useState<EventMode>('AI');
@@ -308,6 +308,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [] }: Pro
       setFormPdResult('');
       setFormLossOutcome('');
       await loadRecords();
+      await onChanged?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to save the breeding event.');
     }
