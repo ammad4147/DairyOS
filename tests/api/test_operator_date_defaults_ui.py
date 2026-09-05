@@ -6,6 +6,7 @@ FINANCE = (ROOT / "src/DairyOS.Web/src/components/FinanceTab.tsx").read_text(enc
 MILK = (ROOT / "src/DairyOS.Web/src/components/MilkTab.tsx").read_text(encoding="utf-8")
 PASSPORT = (ROOT / "src/DairyOS.Web/src/components/AnimalPassportModal.tsx").read_text(encoding="utf-8")
 FARM_DATE = (ROOT / "src/DairyOS.Web/src/utils/farmDate.ts").read_text(encoding="utf-8")
+DASHBOARD = (ROOT / "src/DairyOS.Web/src/api/commandDashboardClient.ts").read_text(encoding="utf-8")
 
 
 def test_farm_date_helper_uses_pakistan_timezone_and_preserves_operator_override():
@@ -34,3 +35,8 @@ def test_semantic_dates_remain_operator_selected_not_forced_to_today():
     assert 'value={form.birthDate}' in PASSPORT
     assert 'label="Date of Acquisition"' in PASSPORT
     assert 'value={form.acquisitionDate}' in PASSPORT
+
+
+def test_dashboard_fallback_date_uses_farm_local_today():
+    assert "todayDate: farmToday()" in DASHBOARD
+    assert 'todayDate: new Date().toISOString().split("T")[0]' not in DASHBOARD
