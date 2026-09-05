@@ -25,6 +25,7 @@ interface State {
   days_in_milk?: number | null;
   eligible_to_breed?: boolean;
   data_status?: string;
+  as_of_date?: string;
 }
 interface Row {
   id: string;
@@ -70,15 +71,25 @@ const ev = (v: unknown) => String(v || '').trim().toLowerCase().replace(/[\s-]+/
 const categoryKey = (v: unknown) => String(v || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 const dateOnly = (v: unknown) => {
   if (!v) return '-';
-  const d = new Date(String(v));
-  return Number.isNaN(d.getTime()) ? String(v).slice(0, 10) : d.toISOString().split('T')[0];
+  const value = String(v).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '-';
+};
+const calendarDayNumber = (v: string) => {
+  if (v === '-') return NaN;
+  const [year, month, day] = v.split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return NaN;
+  return Date.UTC(year, month - 1, day);
 };
 const addDays = (v: string, n: number) => {
-  if (v === '-') return '-';
-  const d = new Date(`${v}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '-';
-  d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  const start = calendarDayNumber(v);
+  if (Number.isNaN(start)) return '-';
+  return new Date(start + n * 86400000).toISOString().slice(0, 10);
+};
+const daysBetween = (start: string, end: string) => {
+  const startDay = calendarDayNumber(start);
+  const endDay = calendarDayNumber(end);
+  if (Number.isNaN(startDay) || Number.isNaN(endDay)) return null;
+  return Math.floor((endDay - startDay) / 86400000);
 };
 const aiSelectableCategory = (c: string) => [
   'milking',
@@ -184,10 +195,11 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
         const st = stage(s?.state);
         const aiDate = dateOnly(s?.last_insemination || s?.last_insemination_date || ai?.timestamp || ai?.date);
         const semen = String(ai?.semen_or_bull || ai?.sire_code || '');
-        const gestationStartMs =
-          st === 'Confirmed Pregnant' && aiDate !== '-'
-            ? new Date(`${aiDate}T00:00:00`).getTime()
-            : NaN;
+        const asOfDate = dateOnly(s?.as_of_date);
+        const gestationDays =
+          st === 'Confirmed Pregnant'
+            ? daysBetween(aiDate, asOfDate)
+            : null;
         return {
           id: String(item.record_id || item.id || `BRD-${i + 1}`),
           tag: id,
@@ -197,7 +209,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
           sireCode: semen || '-',
           semenType: semen.toLowerCase().includes('sexed') ? 'Sexed Semen (90% Female)' : semen ? 'Conventional' : 'Not recorded',
           inseminator: String(ai?.technician || ai?.inseminator || '-'),
-          daysPregnant: Number.isNaN(gestationStartMs) ? 0 : Math.max(0, Math.floor((Date.now() - gestationStartMs) / 86400000)),
+          daysPregnant: gestationDays == null ? 0 : Math.max(0, gestationDays),
           expectedCalving: st === 'Confirmed Pregnant' ? dateOnly(s?.expected_calving || s?.expected_calving_date) : '-',
           pdDueDate: st === 'Inseminated (Pending PD)' ? addDays(aiDate, 35) : '-',
           notes: String(item.notes || item.result || pd?.notes || pd?.result || 'Reproductive event recorded.'),
@@ -264,9 +276,13 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const ratio = cycle ? pregnant / cycle * 100 : 0;
   const availableForManualAi = aiCandidates.length;
   const gest = pregStates
-    .map(s => dateOnly(s.last_insemination || s.last_insemination_date))
-    .filter(x => x !== '-')
-    .map(x => Math.max(0, Math.floor((Date.now() - new Date(`${x}T00:00:00`).getTime()) / 86400000)));
+    .map(s => {
+      const aiDate = dateOnly(s.last_insemination || s.last_insemination_date);
+      const asOfDate = dateOnly(s.as_of_date);
+      const value = daysBetween(aiDate, asOfDate);
+      return value == null ? null : Math.max(0, value);
+    })
+    .filter((value): value is number => value != null);
   const avg = gest.length ? Math.round(gest.reduce((a, b) => a + b, 0) / gest.length) : null;
   const pregnancyLosses = outcomes.miscarriages + outcomes.abortions;
   const lossRate = outcomes.confirmed ? pregnancyLosses / outcomes.confirmed * 100 : null;

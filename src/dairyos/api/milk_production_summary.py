@@ -644,6 +644,9 @@ def milk_production_summary(
                 "morning_liters": _clean_kpi_num(
                     current["morning_liters"]
                 ),
+                "afternoon_liters": _clean_kpi_num(
+                    current["afternoon_liters"]
+                ),
                 "evening_liters": _clean_kpi_num(
                     current["evening_liters"]
                 ),

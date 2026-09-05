@@ -53,6 +53,7 @@ def test_milk_production_summary_returns_explicit_no_data(client):
     assert body["kpis"]["average_per_day_liters"] is None
     assert body["kpis"]["average_per_cow_liters"] is None
     assert body["kpis"]["morning_liters"] is None
+    assert body["kpis"]["afternoon_liters"] is None
     assert body["kpis"]["evening_liters"] is None
     assert body["kpis"]["open_drop_findings"] == 0
     assert body["production_by_animal"]["rows"] == []
@@ -237,7 +238,17 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     assert body["kpis"]["average_per_day_liters"] == 38.0
     assert body["kpis"]["average_per_cow_liters"] == 19.0
     assert body["kpis"]["morning_liters"] == 32.0
+    assert body["kpis"]["afternoon_liters"] == 18.0
     assert body["kpis"]["evening_liters"] == 26.0
+    assert set(body["kpis"]) == {
+        "total_production_liters",
+        "average_per_day_liters",
+        "average_per_cow_liters",
+        "morning_liters",
+        "afternoon_liters",
+        "evening_liters",
+        "open_drop_findings",
+    }
 
     assert body["kpis"]["open_drop_findings"] == 1
 

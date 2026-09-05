@@ -129,9 +129,9 @@ def get_dashboard(container=Depends(get_container)):
             )
         except (TypeError, ValueError):
             continue
-        if state in {"INSEMINATED", "PREGNANT"}:
+        if state == "INSEMINATED":
             reproduction_counts["inseminated"] += 1
-        if state == "PREGNANT":
+        elif state == "PREGNANT":
             reproduction_counts["pregnant"] += 1
 
     milk_service = MilkProductionTrendIntelligenceService(
@@ -306,12 +306,21 @@ def get_dashboard(container=Depends(get_container)):
         "due_vaccinations": due_vaccinations,
         "data_status": "LIVE_PERSISTED_DATA",
     }
+    active_reproductive_cycle = (
+        reproduction_counts["inseminated"]
+        + reproduction_counts["pregnant"]
+    )
     pregnancy_ratio = (
         round(
-            (reproduction_counts["pregnant"] / reproduction_counts["inseminated"]) * 100.0,
+            (
+                reproduction_counts["pregnant"]
+                / active_reproductive_cycle
+            )
+            * 100.0,
             2,
         )
-        if reproduction_counts["inseminated"] else 0.0
+        if active_reproductive_cycle
+        else 0.0
     )
     payload["reproduction"] = {
         **reproduction_counts,

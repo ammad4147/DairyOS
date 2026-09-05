@@ -354,6 +354,30 @@ def _require_void_reason(
         )
 
 
+def _append_status_transition(
+    row: FinancialTransaction,
+    current_status: str,
+    next_status: str,
+    *,
+    reason: str | None = None,
+) -> None:
+    """Append durable lifecycle evidence without replacing operator notes."""
+    if current_status == next_status:
+        return
+
+    stamp = datetime.now(UTC).isoformat()
+    entry = (
+        f"STATUS_TRANSITION_AT={stamp} "
+        f"FROM={current_status} TO={next_status}"
+    )
+    if (reason or "").strip():
+        entry += f" REASON={reason.strip()}"
+
+    row.notes = (
+        f"{row.notes or ''}\n{entry}"
+    ).strip()
+
+
 def _age_bucket(
     due_date: date | None,
     as_of: date | None = None,
@@ -1371,6 +1395,12 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
     if payload.notes is not None:
         row.notes = payload.notes
 
+    _append_status_transition(
+        row,
+        current_status,
+        status,
+        reason=payload.notes if status == "VOID" else None,
+    )
     row.status = status
     row.due_date = due_date
 
@@ -1515,6 +1545,12 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
             ),
         )
 
+    _append_status_transition(
+        row,
+        current_status,
+        status,
+        reason=payload.reason,
+    )
     row.status = status
     if status in SETTLED_STATUSES:
         row.settled_date = row.settled_date or date.today()
@@ -1523,15 +1559,6 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
         and current_status in SETTLED_STATUSES
     ):
         row.settled_date = None
-
-    if payload.reason:
-        stamp = datetime.now(UTC).isoformat()
-
-        row.notes = (
-            f"{row.notes or ''}\n"
-            f"STATUS_TRANSITION_AT={stamp} "
-            f"REASON={payload.reason.strip()}"
-        ).strip()
 
     factory.session.add(row)
 
