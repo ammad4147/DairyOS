@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+import json
 from zoneinfo import ZoneInfo
 
 from dairyos.auth.permissions import permissions_from_json
@@ -130,6 +131,18 @@ class DashboardDigestService:
                 return {"status": "already-completed", "digest_date": digest_date.isoformat(), "run_id": run.id}
 
             users = [u for u in factory.users().get_all() if u.active and u.personal_email]
+            configured_recipients = []
+            raw_recipients = factory.app_settings().get("email_notification_recipients")
+            if raw_recipients:
+                try:
+                    parsed_recipients = json.loads(str(raw_recipients))
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    parsed_recipients = []
+                if isinstance(parsed_recipients, list):
+                    configured_recipients = [
+                        item for item in parsed_recipients
+                        if isinstance(item, dict) and str(item.get("email") or "").strip()
+                    ]
             config = self.mail.get_config()
             if config is None:
                 run.status = "FAILED"
@@ -139,7 +152,46 @@ class DashboardDigestService:
 
             delivered = 0
             failed = 0
+            recipients_seen = set()
+
+            for recipient in configured_recipients:
+                email = str(recipient.get("email") or "").strip().lower()
+                if not email or email in recipients_seen:
+                    continue
+                recipients_seen.add(email)
+                try:
+                    subject, body = self.render(
+                        digest_date=digest_date,
+                        user_permissions={"dashboard.view", "dashboard.view_finance"},
+                    )
+                    self.mail.send(recipient=email, subject=subject, body=body, config=config)
+                    delivery = EmailDigestDelivery(
+                        digest_run_id=run.id,
+                        user_id=0,
+                        recipient_email=email,
+                        status="SENT",
+                        sent_at=utcnow(),
+                    )
+                    factory.session.add(delivery)
+                    factory.session.commit()
+                    delivered += 1
+                except Exception as exc:
+                    delivery = EmailDigestDelivery(
+                        digest_run_id=run.id,
+                        user_id=0,
+                        recipient_email=email,
+                        status="FAILED",
+                        error_message=str(exc)[:2000],
+                    )
+                    factory.session.add(delivery)
+                    factory.session.commit()
+                    failed += 1
+
             for user in users:
+                user_email = str(user.personal_email or "").strip().lower()
+                if user_email in recipients_seen:
+                    continue
+                recipients_seen.add(user_email)
                 existing = factory.session.query(EmailDigestDelivery).filter_by(digest_run_id=run.id, user_id=user.id).first()
                 if existing is not None and existing.status == "SENT":
                     continue
@@ -172,7 +224,10 @@ class DashboardDigestService:
                     failed += 1
                 factory.session.commit()
 
-            run.status = "COMPLETED" if failed == 0 else "COMPLETED-WITH-ERRORS"
+            if delivered == 0 and failed == 0:
+                run.status = "FAILED-NO-RECIPIENT"
+            else:
+                run.status = "COMPLETED" if failed == 0 else "COMPLETED-WITH-ERRORS"
             run.completed_at = utcnow()
             factory.session.add(run)
             factory.session.commit()
