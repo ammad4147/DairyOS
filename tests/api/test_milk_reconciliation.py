@@ -61,6 +61,7 @@ class FakeDispositionRepository:
 class FakeFindingRepository:
     def __init__(self):
         self.rows = []
+        self.lifecycle_events = []
         self.session = None
 
     def find_open_by_dedupe_key(self, dedupe_key):
@@ -92,6 +93,19 @@ class FakeFindingRepository:
             ),
             None,
         )
+
+    def add_lifecycle_event(self, event):
+        if getattr(event, "id", None) is None:
+            event.id = len(self.lifecycle_events) + 1
+        self.lifecycle_events.append(event)
+        return event
+
+    def get_lifecycle_events(self, finding_id):
+        return [
+            event
+            for event in self.lifecycle_events
+            if event.finding_id == finding_id
+        ]
 
 
 class FakeFactory:
