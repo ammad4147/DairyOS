@@ -108,5 +108,5 @@ def test_full_event_sequence_agrees_across_all_three_endpoints(
     status = client.get(
         f"/farm/animals/{registered_animal}/reproduction"
     ).json()
-    assert status["state"] in {"CALVED", "LACTATING"}
+    assert status["state"] == "DRY_OFF"
     assert status["pregnancy_status"] != "PREGNANT"
