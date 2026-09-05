@@ -80,6 +80,8 @@ export default function SettingsTab({
   const [emailPassword, setEmailPassword] = useState('');
   const [testRecipient, setTestRecipient] = useState('');
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
+  const [snapshotSending, setSnapshotSending] = useState(false);
   const [recipientName, setRecipientName] = useState('');
   const [recipientDesignation, setRecipientDesignation] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -142,7 +144,9 @@ export default function SettingsTab({
       if (!senderResponse.ok) throw new Error(senderData.detail || 'Unable to load email settings.');
       if (!recipientsResponse.ok) throw new Error(recipientsData.detail || 'Unable to load notification recipients.');
       setEmailConfig(senderData);
-      setRecipients(Array.isArray(recipientsData.recipients) ? recipientsData.recipients : []);
+      const loadedRecipients = Array.isArray(recipientsData.recipients) ? recipientsData.recipients : [];
+      setRecipients(loadedRecipients);
+      setSelectedRecipientIds(loadedRecipients.map((recipient: Recipient) => recipient.id));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load email settings.');
     }
@@ -214,7 +218,11 @@ export default function SettingsTab({
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Unable to save notification recipients.');
-    setRecipients(Array.isArray(data.recipients) ? data.recipients : []);
+    const savedRecipients = Array.isArray(data.recipients) ? data.recipients : [];
+    setRecipients(savedRecipients);
+    setSelectedRecipientIds(previous =>
+      previous.filter(id => savedRecipients.some((recipient: Recipient) => recipient.id === id)),
+    );
     if (successMessage) setMessage(successMessage);
   };
 
@@ -246,6 +254,49 @@ export default function SettingsTab({
       await persistRecipients(next, 'Notification recipient removed.');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to remove notification recipient.');
+    }
+  };
+
+  const toggleSnapshotRecipient = (id: string) => {
+    setSelectedRecipientIds(previous =>
+      previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id],
+    );
+  };
+
+  const allRecipientsSelected = recipients.length > 0
+    && recipients.every(recipient => selectedRecipientIds.includes(recipient.id));
+
+  const toggleAllSnapshotRecipients = () => {
+    setSelectedRecipientIds(
+      allRecipientsSelected ? [] : recipients.map(recipient => recipient.id),
+    );
+  };
+
+  const shareSnapshot = async () => {
+    if (selectedRecipientIds.length === 0) {
+      setError('Select at least one notification recipient.');
+      return;
+    }
+    setError(''); setMessage(''); setSnapshotSending(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/email/snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_ids: selectedRecipientIds }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Unable to share DairyOS snapshot.');
+      const delivered = Number(data.delivered || 0);
+      const failed = Number(data.failed || 0);
+      setMessage(
+        failed > 0
+          ? `DairyOS snapshot shared with ${delivered} recipient(s); ${failed} delivery failed.`
+          : `DairyOS snapshot shared with ${delivered} recipient(s).`,
+      );
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'Unable to share DairyOS snapshot.');
+    } finally {
+      setSnapshotSending(false);
     }
   };
 
@@ -329,12 +380,38 @@ export default function SettingsTab({
                 <input type="email" value={recipientEmail} onChange={event => setRecipientEmail(event.target.value)} placeholder="Email address" style={field} />
                 <button type="button" onClick={() => void addRecipient()} style={button}><Plus size={13} />Add Recipient</button>
                 <div style={{ marginTop: 9, display: 'grid', gap: 5 }}>
+                  {recipients.length > 0 && (
+                    <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 7, padding: '6px 0', borderTop: '1px solid #1f2937' }}>
+                      <input type="checkbox" checked={allRecipientsSelected} onChange={toggleAllSnapshotRecipients} />
+                      Select All for Snapshot
+                    </label>
+                  )}
                   {recipients.map(recipient => (
                     <div key={recipient.id} style={{ display: 'flex', gap: 7, alignItems: 'center', borderTop: '1px solid #1f2937', paddingTop: 6 }}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${recipient.name} for snapshot`}
+                        checked={selectedRecipientIds.includes(recipient.id)}
+                        onChange={() => toggleSnapshotRecipient(recipient.id)}
+                      />
                       <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 10 }}>{recipient.name}</strong><div style={{ color: '#94a3b8', fontSize: 9 }}>{recipient.designation || 'No designation'} · {recipient.email}</div></div>
                       <button aria-label={`Remove ${recipient.name}`} title={`Remove ${recipient.name}`} onClick={() => void removeRecipient(recipient.id)} style={{ background: 'none', border: 0, color: '#fca5a5', cursor: 'pointer' }}><Trash2 size={13} /></button>
                     </div>
                   ))}
+                </div>
+                <div style={{ marginTop: 10, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
+                  <strong style={{ fontSize: 12 }}>Share DairyOS Snapshot</strong>
+                  <div style={{ color: '#64748b', fontSize: 9, margin: '5px 0 8px' }}>
+                    Sends the current governed DairyOS snapshot through the configured DairyOS Sender. This does not replace or suppress the automatic nightly summary.
+                  </div>
+                  <button
+                    type="button"
+                    disabled={snapshotSending || selectedRecipientIds.length === 0}
+                    onClick={() => void shareSnapshot()}
+                    style={{ ...button, opacity: snapshotSending || selectedRecipientIds.length === 0 ? 0.5 : 1 }}
+                  >
+                    <Mail size={13} />{snapshotSending ? 'Sharing Snapshot…' : 'Share DairyOS Snapshot'}
+                  </button>
                 </div>
               </section>
             </div>
