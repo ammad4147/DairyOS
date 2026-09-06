@@ -136,3 +136,18 @@ def test_integrated_cop_resolves_governed_semen_consumption():
     assert "purchase_transaction_id == item.id" in COML_API
     assert "SemenStockMovement.signed_quantity < 0" in COML_API
     assert "lot.unit_cost" in COML_API
+
+
+def test_ambiguous_expenses_do_not_receive_silent_cop_defaults():
+    from dairyos.finance.opex_attribution import (
+        default_attribution_method,
+        default_cop_classification,
+    )
+
+    assert default_cop_classification("OPEX", "Other") is None
+    assert default_cop_classification("OPEX", "Small Tools & Implements") is None
+    assert default_cop_classification("OPEX", "Building / Yard Repairs") is None
+    assert default_cop_classification("OPEX", "Taxes / Local Fees") is None
+    assert default_attribution_method("Tractor Diesel & Servicing") is None
+    assert default_attribution_method("Farm Vehicle Fuel & Maintenance") is None
+    assert default_attribution_method("Water Pumping & Borehole Maintenance") is None
