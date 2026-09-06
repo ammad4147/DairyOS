@@ -85,7 +85,7 @@ begin
   TaskCommand :=
     '/Create /F /TN "DairyOS-Automatic-Backup" ' +
     '/SC HOURLY /MO 6 /ST 00:00 /RL LIMITED ' +
-    '/TR """' + BackupExe + '"""';
+    '/TR "' + BackupExe + '"';
 
   if (not Exec(
     ExpandConstant('{sys}\schtasks.exe'),

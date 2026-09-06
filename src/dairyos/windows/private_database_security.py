@@ -440,9 +440,25 @@ def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
         admin.execute("SELECT pg_reload_conf()")
 
 
-def _reassert_privileges(config: PrivatePostgreSQLConfig, admin_password: str) -> None:
+def _reassert_privileges(
+    config: PrivatePostgreSQLConfig,
+    *,
+    app_password: str,
+    admin_password: str,
+    backup_password: str,
+) -> None:
     app_role = application_role(config)
     with _connect(config, user=ADMIN_ROLE, password=admin_password) as connection:
+        app_pw = _literal(connection, app_password)
+        backup_pw = _literal(connection, backup_password)
+        connection.execute(
+            f"ALTER ROLE {app_role} LOGIN NOSUPERUSER NOCREATEDB "
+            f"NOCREATEROLE NOREPLICATION PASSWORD {app_pw}"
+        )
+        connection.execute(
+            f"ALTER ROLE {BACKUP_ROLE} LOGIN NOSUPERUSER NOCREATEDB "
+            f"NOCREATEROLE NOREPLICATION PASSWORD {backup_pw}"
+        )
         connection.execute(f"REVOKE CONNECT ON DATABASE {config.database} FROM PUBLIC")
         connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {app_role}, {ADMIN_ROLE}, {BACKUP_ROLE}")
         connection.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
@@ -463,9 +479,13 @@ def ensure_private_database_security(config: PrivatePostgreSQLConfig) -> None:
         return
 
     app_password, admin_password, backup_password = _passwords(config)
-    del app_password, backup_password
     write_secure_hba(config.data_root, config.user, config.database)
-    _reassert_privileges(config, admin_password)
+    _reassert_privileges(
+        config,
+        app_password=app_password,
+        admin_password=admin_password,
+        backup_password=backup_password,
+    )
 
 
 def application_password(config: PrivatePostgreSQLConfig) -> str:
