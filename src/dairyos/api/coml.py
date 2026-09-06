@@ -16,6 +16,7 @@ from dairyos.api.tmr import (
 from dairyos.core.time_utils import utcnow
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.finance.classification.transaction_classifier import is_expense
+from dairyos.finance.opex_attribution import attributed_amount
 
 router = APIRouter(prefix="/farm/coml", tags=["COML"])
 
@@ -289,188 +290,60 @@ def get_integrated_coml(
 
     # --------------------------------------------------------
     # Finance operating OPEX
+    #
+    # Finance transaction date is not COP authority. Only rows
+    # classified OPEX and defensibly attributed to the selected
+    # period contribute to Estimated OPEX/L.
     # --------------------------------------------------------
 
     opex_total = 0.0
-    opex_source = "finance_opex_ledger_empty"
-
-    def _as_date(value):
-        if value is None:
-            return None
-
-        if (
-            hasattr(value, "date")
-            and callable(value.date)
-        ):
-            try:
-                return value.date()
-            except Exception:
-                pass
-
-        if (
-            hasattr(value, "year")
-            and hasattr(value, "month")
-            and hasattr(value, "day")
-        ):
-            return value
-
-        try:
-            from datetime import datetime
-
-            return datetime.fromisoformat(
-                str(value).replace(
-                    "Z",
-                    "+00:00",
-                )
-            ).date()
-        except Exception:
-            return None
-
-    OPEX_HINTS = (
-        "opex",
-        "vet",
-        "wage",
-        "salary",
-        "electric",
-        "fuel",
-        "maintenance",
-        "hygiene",
-        "transport",
-        "rent",
-        "banking",
-    )
+    unattributed_opex_total = 0.0
+    unattributed_opex_count = 0
+    non_opex_excluded_total = 0.0
+    opex_source = "finance_attributed_opex"
 
     try:
-        for item in factory.finance().get_all() or []:
-            raw_date = (
-                getattr(
+        if effective_end is not None:
+            for item in factory.finance().get_all() or []:
+                status = str(
+                    getattr(item, "status", "RECORDED") or "RECORDED"
+                ).strip().upper()
+                if status == "VOID" or not is_expense(item):
+                    continue
+
+                master = str(
+                    getattr(item, "master_category", "") or ""
+                ).strip().upper()
+                if master != "OPEX":
+                    continue
+
+                amount = float(getattr(item, "amount", 0.0) or 0.0)
+                if amount <= 0:
+                    continue
+
+                attributed, attribution_status = attributed_amount(
                     item,
-                    "transaction_date",
-                    None,
+                    start,
+                    effective_end,
                 )
-                or getattr(
-                    item,
-                    "created_at",
-                    None,
-                )
-            )
 
-            transaction_date = _as_date(
-                raw_date
-            )
+                if attribution_status == "ATTRIBUTED":
+                    opex_total += float(attributed)
+                elif attribution_status == "UNATTRIBUTED":
+                    unattributed_opex_total += amount
+                    unattributed_opex_count += 1
+                elif attribution_status == "NON_OPEX":
+                    non_opex_excluded_total += amount
 
-            status = str(
-                getattr(
-                    item,
-                    "status",
-                    "RECORDED",
-                )
-                or "RECORDED"
-            ).strip().upper()
-
-            if (
-                transaction_date is None
-                or effective_end is None
-                or not (
-                    start
-                    <= transaction_date
-                    <= effective_end
-                )
-                or not is_expense(item)
-                or status == "VOID"
-            ):
-                continue
-
-            master = str(
-                getattr(
-                    item,
-                    "master_category",
-                    None,
-                )
-                or getattr(
-                    item,
-                    "category",
-                    None,
-                )
-                or ""
-            ).upper()
-
-            sub = str(
-                getattr(
-                    item,
-                    "sub_category",
-                    None,
-                )
-                or getattr(
-                    item,
-                    "subcategory",
-                    None,
-                )
-                or getattr(
-                    item,
-                    "category",
-                    None,
-                )
-                or getattr(
-                    item,
-                    "notes",
-                    None,
-                )
-                or ""
-            ).lower()
-
-            amount = float(
-                getattr(
-                    item,
-                    "amount",
-                    0.0,
-                )
-                or 0.0
-            )
-
-            if amount <= 0:
-                continue
-
-            # Finance Feed purchases establish quantity and rate.
-            # They are not consumed-feed COP expense.
-            if not (
-                master == "OPEX"
-                or any(
-                    hint in sub
-                    for hint in OPEX_HINTS
-                )
-            ):
-                continue
-
-            # Feed-related capital/equipment purchases are visible in
-            # Finance and Feed Equipment but are not operating COP.
-            if (
-                str(
-                    getattr(
-                        item,
-                        "sub_category",
-                        "",
-                    )
-                    or ""
-                ).strip()
-                == "Equipment Purchase"
-            ):
-                continue
-
-            opex_total += amount
-
-        if opex_total > 0:
-            opex_source = (
-                "finance_opex_ledger"
-            )
+        if opex_total <= 0:
+            opex_source = "finance_attributed_opex_empty"
 
     except Exception:
-        # Preserve endpoint availability but make an authority failure
-        # explicit in provenance rather than mislabelling it as data.
         opex_total = 0.0
-        opex_source = (
-            "finance_opex_lookup_failed"
-        )
+        unattributed_opex_total = 0.0
+        unattributed_opex_count = 0
+        non_opex_excluded_total = 0.0
+        opex_source = "finance_opex_attribution_failed"
 
     # --------------------------------------------------------
     # Auto COP
@@ -545,6 +418,15 @@ def get_integrated_coml(
             ),
             "opex_total": round(
                 opex_total,
+                2,
+            ),
+            "unattributed_opex_total": round(
+                unattributed_opex_total,
+                2,
+            ),
+            "unattributed_opex_count": unattributed_opex_count,
+            "non_opex_excluded_total": round(
+                non_opex_excluded_total,
                 2,
             ),
             "feed_cost_per_liter": (
