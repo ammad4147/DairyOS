@@ -29,6 +29,10 @@ from dairyos.windows.appliance_database import (
 from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
 from dairyos.windows.private_postgres import stop as stop_private_postgres
 from dairyos.windows.postgres_service import PostgreSQLServiceError, ensure_postgresql_running
+from dairyos.windows.system_postgres_admin import (
+    SystemPostgresAdminCredentialError,
+    stage_migration_database_url,
+)
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 
@@ -285,6 +289,9 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     env = os.environ.copy()
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
+    # Privileged database access is migration-only and must never reach the
+    # restricted backend child, even if an upstream cleanup regresses.
+    env.pop("DAIRYOS_MIGRATION_DATABASE_URL", None)
     LOG.info("Starting DairyOS backend on %s:%s", config.host, selected_port)
 
     # The frozen desktop build is windowed, so the backend child has no
@@ -500,7 +507,12 @@ def run(config: SupervisorConfig) -> int:
                         "PostgreSQL Windows Service is running: %s",
                         service_name,
                     )
-        except (PostgreSQLServiceError, ApplianceDatabaseError) as exc:
+                stage_migration_database_url()
+        except (
+            PostgreSQLServiceError,
+            ApplianceDatabaseError,
+            SystemPostgresAdminCredentialError,
+        ) as exc:
             LOG.exception("DairyOS database runtime preflight failed")
             show_startup_error(
                 "DairyOS database unavailable",
