@@ -12,6 +12,9 @@ import time
 import urllib.request
 import webbrowser
 
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+
 from dairyos.admin import auth
 from dairyos.admin.service import AdminService, PURGE_CONFIRMATION, RESET_CONFIRMATION
 from dairyos.lifecycle.manager import LifecycleManager
@@ -146,12 +149,6 @@ def _require_session(request) -> None:
 
 
 def create_app():
-    try:
-        from fastapi import FastAPI, Form, Request
-        from fastapi.responses import HTMLResponse, RedirectResponse
-    except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("FastAPI is required for the DairyOS Admin Tool") from exc
-
     app = FastAPI(title="DairyOS Administration", docs_url=None, redoc_url=None)
 
     @app.get("/", response_class=HTMLResponse)
