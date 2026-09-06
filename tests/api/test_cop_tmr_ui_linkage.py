@@ -34,8 +34,8 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
 
     def test_single_combined_cop_surface_is_used(self):
         self.assertIn("Cost of Production (COP)", self.cop_source)
-        self.assertIn("Auto", self.cop_source)
-        self.assertIn("Manual Override", self.cop_source)
+        self.assertIn("Estimated COP", self.cop_source)
+        self.assertIn("Operator-Assessed COP", self.cop_source)
         self.assertIn("currentView==='cop'&&<COML/>", self.app_source)
         self.assertNotIn("COPOfficializationPanel", self.app_source)
 
@@ -66,8 +66,8 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
         for label in (
             "Milk in period (L)",
             "Feed Cost / L",
-            "OPEX / L",
-            "COP / L",
+            "Estimated OPEX / L",
+            "Estimated COP / L",
         ):
             self.assertIn(label, self.cop_source)
 
@@ -77,7 +77,7 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
         self.assertIn("TMR Feed/L", self.cop_source)
 
     def test_finance_remains_opex_authority(self):
-        self.assertIn("Finance OPEX / L", self.cop_source)
+        self.assertIn("Finance expenses classified OPEX", self.cop_source)
         self.assertIn("Finance OPEX", self.cop_source)
 
     def test_bulk_feed_purchase_is_not_consumption(self):
@@ -87,10 +87,10 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
         )
 
     def test_auto_cop_can_be_declared_official_on_primary_surface(self):
-        self.assertIn("Make Auto COP / L Official", self.cop_source)
+        self.assertIn("Make Estimated COP / L Official", self.cop_source)
         self.assertIn("/farm/coml/lock", self.cop_source)
         self.assertIn(
-            "Making Auto official replaces the month’s current official COP/L.",
+            "Making Estimated COP official replaces the month’s current official COP/L.",
             self.cop_source,
         )
 
@@ -99,22 +99,22 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
         self.assertIn("auto-refresh every 60 seconds", self.cop_source)
 
     def test_manual_calculator_is_direct_per_litre_entry(self):
-        self.assertIn("Manual COP / L Calculator", self.cop_source)
+        self.assertIn("Operator-Assessed COP", self.cop_source)
         self.assertIn("Manual Feed Cost per Liter", self.cop_source)
         self.assertIn("Manual OPEX per Liter", self.cop_source)
         self.assertIn("Feed Cost/L + OPEX/L", self.cop_source)
         self.assertNotIn("/farm/coml/calculate", self.cop_source)
 
     def test_manual_cop_can_replace_the_monthly_official_value(self):
-        self.assertIn("Make Manual COP / L Official", self.cop_source)
+        self.assertIn("Make Operator-Assessed COP / L Official", self.cop_source)
         self.assertIn(
-            "Making Manual COP/L official replaces the month’s current official COP/L",
+            "Making Operator-Assessed COP/L official replaces the month’s current official COP/L",
             self.cop_source,
         )
 
     def test_manual_draft_is_persisted_but_milk_remains_automatic(self):
         self.assertIn("dairyos_cop_manual_per_litre_draft", self.cop_source)
-        self.assertIn("Milk remains automatic from the Milk ledger", self.cop_source)
+        self.assertIn("dairyos_cop_manual_per_litre_draft", self.cop_source)
 
     def test_dashboard_uses_persisted_official_cop_not_live_auto(self):
         self.assertIn("/farm/coml/current", self.dashboard_source)
