@@ -136,3 +136,12 @@ def test_existing_privileged_url_is_not_overwritten(monkeypatch, tmp_path):
     admin.stage_migration_database_url()
 
     assert admin.os.environ[admin.MIGRATION_DATABASE_URL_ENV] == "postgresql+psycopg://private-admin"
+
+
+@pytest.mark.skipif(admin.os.name != "nt", reason="Windows DPAPI contract")
+def test_windows_dpapi_round_trip_uses_user_protection():
+    payload = admin._protect("dpapi-round-trip-secret")
+
+    assert payload["scheme"] == "windows-dpapi-user"
+    assert payload["value"] != "dpapi-round-trip-secret"
+    assert admin._unprotect(payload) == "dpapi-round-trip-secret"
