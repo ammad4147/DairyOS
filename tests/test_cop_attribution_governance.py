@@ -11,6 +11,8 @@ COML_API = (ROOT / "src/dairyos/api/coml.py").read_text(encoding="utf-8")
 FINANCE_API = (ROOT / "src/dairyos/api/finance_ledger.py").read_text(encoding="utf-8")
 FINANCE_UI = (ROOT / "src/DairyOS.Web/src/components/FinanceTab.tsx").read_text(encoding="utf-8")
 COP_UI = (ROOT / "src/DairyOS.Web/src/components/COML.tsx").read_text(encoding="utf-8")
+PAYROLL_API = (ROOT / "src/dairyos/api/payroll.py").read_text(encoding="utf-8")
+TAXONOMY = (ROOT / "src/dairyos/finance/expense_taxonomy.py").read_text(encoding="utf-8")
 
 
 def row(**kwargs):
@@ -113,3 +115,16 @@ def test_finance_ui_exposes_governed_classification_without_cop_screen_clutter()
     assert "Estimated COP / L" in COP_UI
     assert "Operator-Assessed COP" in COP_UI
     assert "Some OPEX is awaiting attribution and is excluded from this estimate." in COP_UI
+
+
+def test_payroll_uses_authoritative_pay_period_for_opex_attribution():
+    assert 'cop_classification="OPEX"' in PAYROLL_API
+    assert 'cop_attribution_method="PERIODIC"' in PAYROLL_API
+    assert "cop_coverage_start=record.period_start" in PAYROLL_API
+    assert "cop_coverage_end=record.period_end" in PAYROLL_API
+
+
+def test_financing_interest_is_separated_from_bank_service_charges():
+    assert '"Loan Interest",' in TAXONOMY
+    assert '"Bank Charges",' in TAXONOMY
+    assert '"Loan Interest / Bank Charges"' not in TAXONOMY
