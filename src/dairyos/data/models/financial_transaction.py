@@ -60,6 +60,14 @@ class FinancialTransaction(Base):
     due_date = Column(Date, nullable=True)
     settled_date = Column(Date, nullable=True)
 
+    # COP governance metadata. Finance remains the transaction authority;
+    # these fields only control whether/how an expense contributes to Estimated COP.
+    cop_classification = Column(String, nullable=True)
+    cop_attribution_method = Column(String, nullable=True)
+    cop_service_date = Column(Date, nullable=True)
+    cop_coverage_start = Column(Date, nullable=True)
+    cop_coverage_end = Column(Date, nullable=True)
+
     def is_income(self):
         from ...finance.classification import transaction_classifier
         return transaction_classifier.is_income(self)
