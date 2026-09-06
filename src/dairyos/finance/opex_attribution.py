@@ -16,6 +16,13 @@ CONDITIONAL_ITEMS = frozenset({
     "Other",
     "Small Tools & Implements",
     "Building / Yard Repairs",
+    "Taxes / Local Fees",
+})
+
+CONDITIONAL_METHOD_ITEMS = frozenset({
+    "Tractor Diesel & Servicing",
+    "Farm Vehicle Fuel & Maintenance",
+    "Water Pumping & Borehole Maintenance",
 })
 
 PERIODIC_ITEMS = frozenset({
@@ -103,7 +110,7 @@ def default_cop_classification(master_category: str | None, sub_category: str | 
 
 def default_attribution_method(sub_category: str | None) -> str | None:
     item = str(sub_category or "").strip()
-    if item in NON_OPEX_ITEMS:
+    if item in NON_OPEX_ITEMS or item in CONDITIONAL_METHOD_ITEMS:
         return None
     if item in DIRECT_ITEMS:
         return "DIRECT"
