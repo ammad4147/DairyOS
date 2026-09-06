@@ -7,3 +7,4 @@ pydantic>=2.11
 python-dotenv>=1.1
 uvicorn>=0.35
 PyYAML>=6.0
+elasticsearch>=8.11,<9
