@@ -114,7 +114,11 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         )
 
         self.assertIn(
-            "opex_total += amount",
+            "attributed_amount(",
+            integrated,
+        )
+        self.assertIn(
+            "unattributed_opex_count",
             integrated,
         )
 
