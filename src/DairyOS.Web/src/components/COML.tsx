@@ -24,6 +24,9 @@ type AutoData = {
   costs?: {
     feed_total?: number;
     opex_total?: number;
+    unattributed_opex_total?: number;
+    unattributed_opex_count?: number;
+    non_opex_excluded_total?: number;
     feed_cost_per_liter?: number | null;
     opex_cost_per_liter?: number | null;
     total_coml_per_liter?: number | null;
@@ -301,8 +304,8 @@ export default function COML() {
           feed_cost_per_liter: feed,
           opex_cost_per_liter: opex,
           notes: isAuto
-            ? `AUTO-CALCULATED COP made official from selected period ${periodStart} to ${periodEnd}; TMR Feed/L ${feed.toFixed(4)}; Finance OPEX/L ${opex.toFixed(4)}; milk ${milkLitres} L; COP/L ${total.toFixed(4)}.`
-            : `MANUAL COP made official for ${officialMonthStart}; Feed Cost/L ${feed.toFixed(4)}; OPEX/L ${opex.toFixed(4)}; COP/L ${total.toFixed(4)}.`,
+            ? `ESTIMATED COP made official from selected period ${periodStart} to ${periodEnd}; TMR Feed/L ${feed.toFixed(4)}; Finance OPEX/L ${opex.toFixed(4)}; milk ${milkLitres} L; COP/L ${total.toFixed(4)}.`
+            : `OPERATOR-ASSESSED COP made official for ${officialMonthStart}; Feed Cost/L ${feed.toFixed(4)}; OPEX/L ${opex.toFixed(4)}; COP/L ${total.toFixed(4)}.`,
           updated_by: 'UI Operator',
         }),
       });
@@ -364,7 +367,7 @@ export default function COML() {
             Cost of Production (COP)
           </div>
           <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-            Choose a period for Auto (milk logs + ledger). Manual override is saved while you work and takes priority when selected.
+            Choose a period for Estimated COP. Operator-Assessed COP is available when deliberate period-specific costing is needed.
           </div>
         </div>
         <button type="button" onClick={() => void load()} style={button('#334155')}>
@@ -487,15 +490,21 @@ export default function COML() {
             detail={mode === 'AUTO' ? `${money(feedTotal)} whole-herd TMR cost` : 'Manual override'}
           />
           <Metric
-            title="OPEX / L"
+            title={mode === 'AUTO' ? "Estimated OPEX / L" : "OPEX / L"}
             value={money(displayedOpex)}
             detail={mode === 'AUTO' ? `${money(opexTotal)} Finance OPEX` : 'Manual override'}
           />
           <Metric
-            title="COP / L"
+            title={mode === 'AUTO' ? "Estimated COP / L" : "Operator-Assessed COP / L"}
             value={money(displayedTotal)}
-            detail={mode === 'AUTO' ? 'TMR Feed/L + Finance OPEX/L' : 'Feed Cost/L + OPEX/L'}
+            detail={mode === 'AUTO' ? 'Feed Cost/L + Estimated OPEX/L' : 'Feed Cost/L + OPEX/L'}
           />
+        </div>
+      )}
+
+      {mode === 'AUTO' && Number(autoData?.costs?.unattributed_opex_count ?? 0) > 0 && (
+        <div style={{ marginTop: 10, color: '#fbbf24', fontSize: 9 }}>
+          Some OPEX is awaiting attribution and is excluded from this estimate.
         </div>
       )}
 
@@ -509,12 +518,15 @@ export default function COML() {
             <strong>Feed authority:</strong> Governed TMR ration × active DairyOS herd. Bulk Finance Feed purchases supply ingredient quantity and price authority but are not treated as same-day consumption in COP. A TMR ingredient explicitly set to Manual uses that governed manual price instead.
           </div>
           <div style={{ marginTop: 3 }}>
-            <strong>OPEX authority:</strong> Finance OPEX / L for the selected period. If logs/ledger are incomplete, use Manual Override.
+            <strong>OPEX authority:</strong> Finance expenses classified OPEX and attributed to this period by governed Direct, Periodic, Consumption or Allocated rules. Non-OPEX is excluded.
+          </div>
+          <div style={{ marginTop: 3 }}>
+            Estimated COP/L is calculated from governed DairyOS production and attributed operating costs. Some costs may be allocated across service or consumption periods, so this is an operational estimate rather than an exact accounting cost. For deliberate period-specific costing, use Operator-Assessed COP.
           </div>
         </div>
       ) : (
         <div style={{ marginTop: 10, padding: 9, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 6, fontSize: 9, color: '#94a3b8' }}>
-          Manual COP / L Calculator: enter Feed Cost / L and OPEX / L directly. Milk remains automatic from the Milk ledger. Feed Cost/L + OPEX/L gives Manual COP / L.
+          Operator-Assessed COP: enter Feed Cost / L and OPEX / L directly for deliberate period-specific costing. Feed Cost/L + OPEX/L gives Operator-Assessed COP / L.
         </div>
       )}
 
@@ -533,7 +545,7 @@ export default function COML() {
             style={{ ...button('#059669'), opacity: !canMakeAutoOfficial || saving ? 0.5 : 1 }}
           >
             <CheckCircle2 size={13} />
-            {saving ? 'Making Official…' : 'Make Auto COP / L Official'}
+            {saving ? 'Making Official…' : 'Make Estimated COP / L Official'}
           </button>
         ) : (
           <button
@@ -543,13 +555,13 @@ export default function COML() {
             style={{ ...button('#d97706'), opacity: !canMakeManualOfficial || saving ? 0.5 : 1 }}
           >
             <CheckCircle2 size={13} />
-            {saving ? 'Making Official…' : 'Make Manual COP / L Official'}
+            {saving ? 'Making Official…' : 'Make Operator-Assessed COP / L Official'}
           </button>
         )}
       </div>
 
       <div style={{ marginTop: 9, color: '#64748b', fontSize: 9 }}>
-        Making Auto official replaces the month’s current official COP/L. Making Manual COP/L official replaces the month’s current official COP/L. Changing the analysis period recalculates Auto immediately; there is no separate secondary Auto calculator.
+        Making Estimated COP official replaces the month’s current official COP/L. Making Operator-Assessed COP/L official replaces the month’s current official COP/L. Changing the analysis period recalculates Auto immediately; there is no separate secondary Auto calculator.
         {' '}Calendar month end reference: {calendarEnd(periodEnd)}.
       </div>
     </section>
