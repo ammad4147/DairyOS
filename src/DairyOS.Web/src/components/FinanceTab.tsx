@@ -343,7 +343,7 @@ export default function FinanceTab({
   useEffect(() => {
     if (masterCategory !== 'OPEX') return;
     const defaults = taxonomy?.cop_governance?.defaults?.[subCategory];
-    setCopClassification(defaults?.classification || 'OPEX');
+    setCopClassification(defaults?.classification || '');
     setCopAttributionMethod(defaults?.attribution_method || '');
     setCopServiceDate(expenseDate);
     setCopCoverageStart('');
@@ -1245,10 +1245,10 @@ export default function FinanceTab({
         <div style={{ display: 'grid', gap: 10 }}>
           <form onSubmit={saveExpense} style={card}>
             <div style={sectionTitle}>Record Expense</div>
-            <div style={{ fontSize: 9, color: '#64748b', marginBottom: 7 }}>Feed purchases are entered here and automatically appear in the Feed tab. Other operating expenses remain accounting entries here.</div>
+            <div style={{ fontSize: 9, color: '#64748b', marginBottom: 7 }}>Feed purchases are entered here and automatically appear in the Feed tab. Farm expenses are classified here as OPEX or Non-OPEX for Estimated COP.</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button type="button" onClick={() => setMasterCategory('FEED')} style={{ background: masterCategory === 'FEED' ? '#0369a1' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'FEED' ? '#38bdf8' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Feed Expenses</button>
-              <button type="button" onClick={() => setMasterCategory('OPEX')} style={{ background: masterCategory === 'OPEX' ? '#92400e' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'OPEX' ? '#f59e0b' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>OPEX</button>
+              <button type="button" onClick={() => setMasterCategory('OPEX')} style={{ background: masterCategory === 'OPEX' ? '#92400e' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'OPEX' ? '#f59e0b' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Farm Expenses</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 6, marginTop: 6 }}>
               <select aria-label="Expense category group" required value={expenseGroup} onChange={event => selectExpenseGroup(event.target.value)} style={inputStyle}>
@@ -1278,7 +1278,7 @@ export default function FinanceTab({
                 <div style={{ fontSize: 9, fontWeight: 900, color: '#cbd5e1', marginBottom: 6 }}>COP Classification & Attribution</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <select aria-label="COP classification" value={copClassification} onChange={event => setCopClassification(event.target.value)} style={inputStyle}>
-                    <option value="OPEX">OPEX — eligible for Estimated COP</option>
+                    <option value="">Select OPEX / Non-OPEX</option><option value="OPEX">OPEX — eligible for Estimated COP</option>
                     <option value="NON_OPEX">Non-OPEX — excluded from Estimated COP</option>
                   </select>
                   {copClassification === 'OPEX' && (
@@ -1292,12 +1292,14 @@ export default function FinanceTab({
                   )}
                 </div>
                 {copClassification === 'OPEX' && copAttributionMethod === 'DIRECT' && (
-                  <input aria-label="COP service date" type="date" value={copServiceDate} onChange={event => setCopServiceDate(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} />
+                  <label style={{ display:'block', marginTop:6, fontSize:8, color:'#94a3b8' }}>Service / Incurred Date
+                    <input aria-label="COP service date" type="date" value={copServiceDate} onChange={event => setCopServiceDate(event.target.value)} style={{ ...inputStyle, marginTop: 3 }} />
+                  </label>
                 )}
                 {copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
-                    <input aria-label="COP coverage start" type="date" value={copCoverageStart} onChange={event => setCopCoverageStart(event.target.value)} style={inputStyle} />
-                    <input aria-label="COP coverage end" type="date" value={copCoverageEnd} onChange={event => setCopCoverageEnd(event.target.value)} style={inputStyle} />
+                    <label style={{ fontSize:8, color:'#94a3b8' }}>Coverage Start<input aria-label="COP coverage start" type="date" value={copCoverageStart} onChange={event => setCopCoverageStart(event.target.value)} style={{...inputStyle,marginTop:3}} /></label>
+                    <label style={{ fontSize:8, color:'#94a3b8' }}>Coverage End<input aria-label="COP coverage end" type="date" value={copCoverageEnd} onChange={event => setCopCoverageEnd(event.target.value)} style={{...inputStyle,marginTop:3}} /></label>
                   </div>
                 )}
                 {copClassification === 'OPEX' && copAttributionMethod === 'CONSUMPTION' && (
