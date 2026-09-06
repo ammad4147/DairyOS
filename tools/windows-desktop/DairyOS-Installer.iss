@@ -204,6 +204,96 @@ begin
   end;
 end;
 
+function StopInstalledDairyOSForUninstall(): Boolean;
+var
+  PgCtl: String;
+  DataDir: String;
+  PidFile: String;
+  ResultCode: Integer;
+begin
+  Result := False;
+
+  { Stop only the private DairyOS PostgreSQL cluster, identified by its
+    persistent data directory. Never terminate arbitrary postgres.exe
+    processes because the workstation may host unrelated PostgreSQL services. }
+  PgCtl := ExpandConstant('{app}\runtime\PostgreSQL\bin\pg_ctl.exe');
+  DataDir := DairyOSDataRoot() + '\postgres\data';
+  PidFile := DataDir + '\postmaster.pid';
+
+  if FileExists(PidFile) then
+  begin
+    if not FileExists(PgCtl) then
+    begin
+      MsgBox(
+        'DairyOS private PostgreSQL is running but the bundled pg_ctl.exe is missing. ' +
+        'Uninstall is blocked so the application runtime is not left partially removed.',
+        mbError,
+        MB_OK
+      );
+      exit;
+    end;
+
+    if (not Exec(
+      PgCtl,
+      '-D "' + DataDir + '" stop -m fast -w -t 30',
+      ExpandConstant('{app}'),
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      ResultCode
+    )) or (ResultCode <> 0) then
+    begin
+      MsgBox(
+        'DairyOS private PostgreSQL could not be stopped cleanly. ' +
+        'Uninstall is blocked so the database and application runtime remain intact.',
+        mbError,
+        MB_OK
+      );
+      exit;
+    end;
+  end;
+
+  { Stop only DairyOS-owned executable images after PostgreSQL has shut down.
+    This releases the frozen runtime files before Inno Setup begins deletion. }
+  Exec(
+    ExpandConstant('{sys}\taskkill.exe'),
+    '/F /T /IM DairyOS.exe',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+  Exec(
+    ExpandConstant('{sys}\taskkill.exe'),
+    '/F /T /IM DairyOS-Admin.exe',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+  Exec(
+    ExpandConstant('{sys}\taskkill.exe'),
+    '/F /T /IM DairyOSBackup.exe',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+
+  { Remove the scheduled task whose executable is about to be removed.
+    Backup data itself remains under ProgramData. }
+  Exec(
+    ExpandConstant('{sys}\schtasks.exe'),
+    '/Delete /F /TN "DairyOS-Automatic-Backup"',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+
+  Sleep(1000);
+  Result := True;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   Choice: Integer;
@@ -213,7 +303,10 @@ begin
   Result := True;
 
   if IsSilentUninstall() then
+  begin
+    Result := StopInstalledDairyOSForUninstall();
     exit;
+  end;
 
   Choice := MsgBox(
     'DairyOS farm data and the private database are retained by default when the application is uninstalled.' + #13#10 + #13#10 +
@@ -227,7 +320,7 @@ begin
 
   if Choice = IDYES then
   begin
-    Result := True;
+    Result := StopInstalledDairyOSForUninstall();
     exit;
   end;
 

@@ -147,6 +147,21 @@ jobs:
             }
           }
 
+          # Repoint the certified farm root to ProgramData for the uninstall
+          # lifecycle exercise, start the private cluster, and prove that the
+          # uninstaller stops it itself rather than relying on preflight cleanup.
+          $programDataCluster = Join-Path $dataRoot "postgres"
+          if (Test-Path $programDataCluster) { Remove-Item $programDataCluster -Recurse -Force }
+          Copy-Item (Join-Path $certDataRoot "postgres") $programDataCluster -Recurse -Force
+          $programDataPgData = Join-Path $programDataCluster "data"
+          $pgCtl = Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"
+          $pgLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-running-postgres.log"
+          & $pgCtl -D $programDataPgData -l $pgLog -w -t 30 start
+          if ($LASTEXITCODE -ne 0) { throw "Unable to start private PostgreSQL for running-uninstall certification." }
+          if (-not (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf)) {
+            throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
+          }
+
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
           $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART")
@@ -157,6 +172,11 @@ jobs:
             $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
             if ($remaining) { throw "Application runtime remains after uninstall: $installRoot" }
           }
+          if (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf) {
+            throw "Private PostgreSQL remained running after uninstall."
+          }
+          $task = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
+          if ($LASTEXITCODE -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
           if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
           if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
 

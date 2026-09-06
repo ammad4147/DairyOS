@@ -39,3 +39,20 @@ def test_silent_uninstall_bypasses_interactive_data_prompt():
     assert "(Param = '/SILENT') or (Param = '/VERYSILENT')" in source
     assert "if IsSilentUninstall() then" in source
     assert "if WizardSilent() then" not in source
+
+
+def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
+    source = _source()
+
+    assert "function StopInstalledDairyOSForUninstall(): Boolean;" in source
+    assert "runtime\\PostgreSQL\\bin\\pg_ctl.exe" in source
+    assert "DairyOSDataRoot() + '\\postgres\\data'" in source
+    assert "postmaster.pid" in source
+    assert "stop -m fast -w -t 30" in source
+    assert "/F /T /IM DairyOS.exe" in source
+    assert "/F /T /IM DairyOS-Admin.exe" in source
+    assert "/F /T /IM DairyOSBackup.exe" in source
+    assert "taskkill.exe" in source
+    assert "/IM postgres.exe" not in source
+    assert 'DairyOS-Automatic-Backup' in source
+    assert "Result := StopInstalledDairyOSForUninstall();" in source
