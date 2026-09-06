@@ -78,3 +78,7 @@ Write-Host ""
 Write-Host "DAIRYOS DESKTOP RELEASE BUILD: PASS" -ForegroundColor Green
 Write-Host "Bundle: $bundle"
 Get-FileHash $exe -Algorithm SHA256
+
+# robocopy returns 1 when files were copied successfully. Clear the native
+# process exit code explicitly so callers receive a true success status.
+exit 0
