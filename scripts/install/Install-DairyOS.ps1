@@ -130,7 +130,31 @@ try {
         $env:DAIRYOS_ENV = "production"
         $env:DAIRYOS_DATA_DIR = $DataRoot
 
-        & $VenvPython -c "from dairyos.windows.migrations import migrate_if_needed; print(migrate_if_needed())"
+        & $VenvPython -c "from dairyos.windows.system_postgres_admin import validate_stored_admin_credential; validate_stored_admin_credential()"
+        if ($LASTEXITCODE -ne 0) {
+            $secureDbAdminPassword = Read-Host "Enter the system PostgreSQL dairyos_admin password for one-time secure adoption/repair" -AsSecureString
+            $dbAdminPasswordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureDbAdminPassword)
+            try {
+                $plainDbAdminPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($dbAdminPasswordPtr)
+                $env:DAIRYOS_SYSTEM_POSTGRES_ADMIN_PASSWORD = $plainDbAdminPassword
+                & $VenvPython -c "import os; from dairyos.windows.system_postgres_admin import adopt_admin_password; adopt_admin_password(os.environ['DAIRYOS_SYSTEM_POSTGRES_ADMIN_PASSWORD'])"
+                if ($LASTEXITCODE -ne 0) {
+                    throw "The system PostgreSQL dairyos_admin credential was rejected and was not adopted."
+                }
+                Write-Host "System PostgreSQL migration credential adopted with Windows DPAPI protection." -ForegroundColor Green
+            }
+            finally {
+                if ($dbAdminPasswordPtr -ne [IntPtr]::Zero) {
+                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($dbAdminPasswordPtr)
+                }
+                Remove-Item Env:DAIRYOS_SYSTEM_POSTGRES_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+            }
+        }
+        else {
+            Write-Host "Existing DPAPI-protected system PostgreSQL migration credential is valid." -ForegroundColor Green
+        }
+
+        & $VenvPython -c "from dairyos.windows.system_postgres_admin import stage_migration_database_url; from dairyos.windows.migrations import migrate_if_needed; stage_migration_database_url(); print(migrate_if_needed())"
         if ($LASTEXITCODE -ne 0) {
             throw "DairyOS production migration gate failed during installation."
         }
