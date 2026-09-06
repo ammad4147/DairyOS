@@ -12,6 +12,12 @@ NON_OPEX_ITEMS = frozenset({
     "Loan Interest",
 })
 
+CONDITIONAL_ITEMS = frozenset({
+    "Other",
+    "Small Tools & Implements",
+    "Building / Yard Repairs",
+})
+
 PERIODIC_ITEMS = frozenset({
     "Milker Wages",
     "Feeder / Shed Worker Wages",
@@ -90,6 +96,8 @@ def default_cop_classification(master_category: str | None, sub_category: str | 
     master = str(master_category or "").strip().upper()
     item = str(sub_category or "").strip()
     if master != "OPEX":
+        return None
+    if item in CONDITIONAL_ITEMS:
         return None
     return "NON_OPEX" if item in NON_OPEX_ITEMS else "OPEX"
 
