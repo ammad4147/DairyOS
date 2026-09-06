@@ -7,7 +7,10 @@ import html
 import os
 from pathlib import Path
 import secrets
+import threading
 import time
+import urllib.request
+import webbrowser
 
 from dairyos.admin import auth
 from dairyos.admin.service import AdminService, PURGE_CONFIRMATION, RESET_CONFIRMATION
@@ -318,10 +321,32 @@ def create_app():
     return app
 
 
+def _admin_url(host: str, port: int) -> str:
+    rendered_host = f"[{host}]" if host == "::1" else host
+    return f"http://{rendered_host}:{port}/"
+
+
+def _open_browser_when_ready(url: str, *, timeout: float = 15.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1.0) as response:
+                if response.status == 200:
+                    webbrowser.open(url)
+                    return
+        except Exception:
+            time.sleep(0.1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="DairyOS standalone administration tool")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18082)
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Start the Admin HTTP server without opening a browser.",
+    )
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "::1", "localhost"}:
         raise SystemExit("DairyOS Admin Tool is restricted to loopback hosts.")
@@ -329,6 +354,14 @@ def main() -> None:
         import uvicorn
     except ImportError as exc:  # pragma: no cover
         raise SystemExit("uvicorn is required") from exc
+
+    if not args.no_browser:
+        threading.Thread(
+            target=_open_browser_when_ready,
+            args=(_admin_url(args.host, args.port),),
+            daemon=True,
+        ).start()
+
     uvicorn.run(create_app(), host=args.host, port=args.port)
 
 
