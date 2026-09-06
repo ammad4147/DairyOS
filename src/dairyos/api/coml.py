@@ -17,6 +17,7 @@ from dairyos.core.time_utils import utcnow
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.finance.classification.transaction_classifier import is_expense
 from dairyos.finance.opex_attribution import attributed_amount
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 
 router = APIRouter(prefix="/farm/coml", tags=["COML"])
 
@@ -326,6 +327,47 @@ def get_integrated_coml(
                     start,
                     effective_end,
                 )
+
+                if (
+                    attribution_status == "UNATTRIBUTED"
+                    and str(getattr(item, "cop_attribution_method", "") or "").upper()
+                    == "CONSUMPTION"
+                    and str(getattr(item, "sub_category", "") or "").strip()
+                    == "Semen Straws (Sexed / Conventional)"
+                ):
+                    lot = (
+                        factory.session.query(SemenLot)
+                        .filter(SemenLot.purchase_transaction_id == item.id)
+                        .first()
+                    )
+                    if lot is not None:
+                        movements = (
+                            factory.session.query(SemenStockMovement)
+                            .filter(
+                                SemenStockMovement.semen_lot_id == lot.id,
+                                SemenStockMovement.signed_quantity < 0,
+                            )
+                            .all()
+                        )
+                        used_quantity = sum(
+                            abs(int(movement.signed_quantity or 0))
+                            for movement in movements
+                            if (
+                                getattr(movement, "recorded_at", None) is not None
+                                and start
+                                <= movement.recorded_at.date()
+                                <= effective_end
+                            )
+                        )
+                        if used_quantity > 0:
+                            attributed = (
+                                Decimal(str(lot.unit_cost))
+                                * Decimal(used_quantity)
+                            ).quantize(
+                                Decimal("0.01"),
+                                rounding=ROUND_HALF_UP,
+                            )
+                            attribution_status = "ATTRIBUTED"
 
                 if attribution_status == "ATTRIBUTED":
                     opex_total += float(attributed)
