@@ -15,6 +15,9 @@ type TaxonomyResponse = {
   master_categories: MasterCategory[];
   taxonomies: Record<MasterCategory, Record<string, string[]>>;
   items: Record<MasterCategory, string[]>;
+  cop_governance?: {
+    defaults?: Record<string, { classification?: string | null; attribution_method?: string | null }>;
+  };
 };
 
 type Transaction = {
@@ -38,6 +41,11 @@ type Transaction = {
   status?: string | null;
   due_date?: string | null;
   settled_date?: string | null;
+  cop_classification?: string | null;
+  cop_attribution_method?: string | null;
+  cop_service_date?: string | null;
+  cop_coverage_start?: string | null;
+  cop_coverage_end?: string | null;
 };
 
 type HerdAnimal = {
@@ -250,6 +258,11 @@ export default function FinanceTab({
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [copClassification, setCopClassification] = useState('OPEX');
+  const [copAttributionMethod, setCopAttributionMethod] = useState('');
+  const [copServiceDate, setCopServiceDate] = useState('');
+  const [copCoverageStart, setCopCoverageStart] = useState('');
+  const [copCoverageEnd, setCopCoverageEnd] = useState('');
   const [semenType, setSemenType] = useState<'SEXED'|'CONVENTIONAL'|''>('');
   const [semenSireCode, setSemenSireCode] = useState('');
   const [semenBullName, setSemenBullName] = useState('');
@@ -326,6 +339,16 @@ export default function FinanceTab({
     setSubCategory(firstItem);
     setCustomSpecification('');
   }, [masterCategory, taxonomy]);
+
+  useEffect(() => {
+    if (masterCategory !== 'OPEX') return;
+    const defaults = taxonomy?.cop_governance?.defaults?.[subCategory];
+    setCopClassification(defaults?.classification || 'OPEX');
+    setCopAttributionMethod(defaults?.attribution_method || '');
+    setCopServiceDate(expenseDate);
+    setCopCoverageStart('');
+    setCopCoverageEnd('');
+  }, [masterCategory, subCategory, taxonomy, expenseDate]);
 
   const currentTaxonomy = taxonomy?.taxonomies?.[masterCategory] ?? {};
   const groupedTaxonomyEntries = Object.entries(taxonomy?.taxonomies?.[masterCategory] ?? {}) as [string, string[]][];
@@ -735,6 +758,11 @@ export default function FinanceTab({
           semen_expiry_date: isSemenPurchase ? semenExpiry || null : null,
           semen_storage_location: isSemenPurchase ? semenStorage || null : null,
           semen_country_source: isSemenPurchase ? semenCountry || null : null,
+          cop_classification: masterCategory === 'OPEX' ? copClassification : null,
+          cop_attribution_method: masterCategory === 'OPEX' && copClassification === 'OPEX' ? (copAttributionMethod || null) : null,
+          cop_service_date: masterCategory === 'OPEX' && copClassification === 'OPEX' && copAttributionMethod === 'DIRECT' ? (copServiceDate || null) : null,
+          cop_coverage_start: masterCategory === 'OPEX' && copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) ? (copCoverageStart || null) : null,
+          cop_coverage_end: masterCategory === 'OPEX' && copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) ? (copCoverageEnd || null) : null,
         }),
       });
       const body = await response.json();
@@ -937,6 +965,11 @@ export default function FinanceTab({
           notes: form.get('notes'),
           status: form.get('status'),
           due_date: form.get('due_date') || null,
+          cop_classification: form.get('cop_classification') || null,
+          cop_attribution_method: form.get('cop_attribution_method') || null,
+          cop_service_date: form.get('cop_service_date') || null,
+          cop_coverage_start: form.get('cop_coverage_start') || null,
+          cop_coverage_end: form.get('cop_coverage_end') || null,
         }),
       });
       const body = await response.json();
@@ -1240,6 +1273,41 @@ export default function FinanceTab({
               {paymentMethod === 'CREDIT' ? <input required type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} style={inputStyle} /> : <input value={reference} onChange={event => setReference(event.target.value)} style={inputStyle} placeholder="Reference" />}
             </div>
             {paymentMethod === 'CREDIT' && <input value={reference} onChange={event => setReference(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
+            {masterCategory === 'OPEX' && (
+              <div style={{ marginTop: 6, padding: 8, border: '1px solid #334155', borderRadius: 6, background: '#0f172a' }}>
+                <div style={{ fontSize: 9, fontWeight: 900, color: '#cbd5e1', marginBottom: 6 }}>COP Classification & Attribution</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <select aria-label="COP classification" value={copClassification} onChange={event => setCopClassification(event.target.value)} style={inputStyle}>
+                    <option value="OPEX">OPEX — eligible for Estimated COP</option>
+                    <option value="NON_OPEX">Non-OPEX — excluded from Estimated COP</option>
+                  </select>
+                  {copClassification === 'OPEX' && (
+                    <select aria-label="COP attribution method" value={copAttributionMethod} onChange={event => setCopAttributionMethod(event.target.value)} style={inputStyle}>
+                      <option value="">Attribution unresolved</option>
+                      <option value="DIRECT">Direct</option>
+                      <option value="PERIODIC">Periodic</option>
+                      <option value="CONSUMPTION">Consumption</option>
+                      <option value="ALLOCATED">Allocated / Estimated</option>
+                    </select>
+                  )}
+                </div>
+                {copClassification === 'OPEX' && copAttributionMethod === 'DIRECT' && (
+                  <input aria-label="COP service date" type="date" value={copServiceDate} onChange={event => setCopServiceDate(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} />
+                )}
+                {copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
+                    <input aria-label="COP coverage start" type="date" value={copCoverageStart} onChange={event => setCopCoverageStart(event.target.value)} style={inputStyle} />
+                    <input aria-label="COP coverage end" type="date" value={copCoverageEnd} onChange={event => setCopCoverageEnd(event.target.value)} style={inputStyle} />
+                  </div>
+                )}
+                {copClassification === 'OPEX' && copAttributionMethod === 'CONSUMPTION' && (
+                  <div style={{ marginTop: 6, fontSize: 8, color: '#fbbf24' }}>Consumption costs enter Estimated COP only when DairyOS has an authoritative usage linkage. Otherwise they remain unattributed until resolved.</div>
+                )}
+                {copClassification === 'OPEX' && !copAttributionMethod && (
+                  <div style={{ marginTop: 6, fontSize: 8, color: '#fbbf24' }}>This expense is excluded from Estimated COP until attribution is resolved.</div>
+                )}
+              </div>
+            )}
             <input value={notes} onChange={event => setNotes(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Notes" />
             <button disabled={saving} type="submit" style={{ ...button('#0284c7'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : 'Save Expense'}</button>
           </form>
@@ -1299,6 +1367,11 @@ export default function FinanceTab({
               <select name="payment_method" defaultValue={editTarget.payment_method || 'BANK'} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option>CREDIT</option></select>
               <select name="status" defaultValue={editTarget.status === 'PAYABLE' ? 'PAYABLE' : 'PAID'} style={inputStyle}><option>PAID</option><option>PAYABLE</option></select>
               <input name="due_date" type="date" defaultValue={editTarget.due_date || ''} style={inputStyle} />
+              <select name="cop_classification" defaultValue={editTarget.cop_classification || ''} style={inputStyle}><option value="">COP classification unresolved</option><option value="OPEX">OPEX</option><option value="NON_OPEX">NON-OPEX</option></select>
+              <select name="cop_attribution_method" defaultValue={editTarget.cop_attribution_method || ''} style={inputStyle}><option value="">Attribution unresolved</option><option value="DIRECT">DIRECT</option><option value="PERIODIC">PERIODIC</option><option value="CONSUMPTION">CONSUMPTION</option><option value="ALLOCATED">ALLOCATED</option></select>
+              <input name="cop_service_date" type="date" defaultValue={editTarget.cop_service_date || ''} style={inputStyle} title="COP service/incurred date" />
+              <input name="cop_coverage_start" type="date" defaultValue={editTarget.cop_coverage_start || ''} style={inputStyle} title="COP coverage start" />
+              <input name="cop_coverage_end" type="date" defaultValue={editTarget.cop_coverage_end || ''} style={inputStyle} title="COP coverage end" />
               <input name="notes" defaultValue={editTarget.notes || ''} style={inputStyle} placeholder="Notes" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}><button type="button" onClick={() => setEditTarget(null)} style={smallButton}>Cancel</button><button disabled={editSaving} type="submit" style={button('#0284c7')}>{editSaving ? 'Saving…' : 'Save Changes'}</button></div>
