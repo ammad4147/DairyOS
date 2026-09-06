@@ -28,6 +28,11 @@ jobs:
         shell: pwsh
         run: ./scripts/Build-DairyOS-Admin.ps1
 
+      - name: Verify Windows credential and migration isolation contracts
+        shell: pwsh
+        run: |
+          python -m pytest tests/windows/test_system_postgres_admin.py tests/windows/test_migration_gate.py tests/windows/test_supervisor_startup.py -q
+
       - name: Verify frozen executable exists
         shell: pwsh
         run: |
