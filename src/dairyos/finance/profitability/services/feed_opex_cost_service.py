@@ -9,6 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
+from dairyos.finance.opex_attribution import attributed_amount
 
 
 class FeedOpexCostService:
@@ -29,30 +30,42 @@ class FeedOpexCostService:
 
         feed_cost = Decimal("0.00")
         opex_cost = Decimal("0.00")
+        unattributed_opex = Decimal("0.00")
+        non_opex_excluded = Decimal("0.00")
 
-        # AUDIT-FIX [LOGIC-FIN-01]: Filter financial transactions to the specified period cutoff
+        period_start = cutoff.date()
+        period_end = now_dt.date()
+
         for row in financial_records:
             if not classifier.is_expense(row):
                 continue
 
-            timestamp = CostOfProductionService._as_utc(getattr(row, "transaction_date", None))
-            if timestamp is None or timestamp < cutoff:
-                continue
-
             master = str(getattr(row, "master_category", "") or "").strip().upper()
             category = str(getattr(row, "category", "") or "").strip().upper()
-            amount = Decimal(
-                getattr(row, "amount", 0) or 0
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
+            amount = Decimal(getattr(row, "amount", 0) or 0).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
             )
+
             if master == "FEED" or (not master and category == "FEED"):
-                feed_cost += amount
-            elif master == "OPEX" or (not master and category in {
-                "HEALTH", "BREEDING", "LABOUR", "UTILITIES", "EQUIPMENT", "OTHER_OPERATING"
-            }):
-                opex_cost += amount
+                # This compatibility service preserves its legacy Feed purchase
+                # component. The governed COML endpoint uses TMR consumption cost.
+                timestamp = CostOfProductionService._as_utc(
+                    getattr(row, "transaction_date", None)
+                )
+                if timestamp is not None and timestamp >= cutoff:
+                    feed_cost += amount
+                continue
+
+            if master != "OPEX":
+                continue
+
+            attributed, status = attributed_amount(row, period_start, period_end)
+            if status == "ATTRIBUTED":
+                opex_cost += attributed
+            elif status == "UNATTRIBUTED":
+                unattributed_opex += amount
+            elif status == "NON_OPEX":
+                non_opex_excluded += amount
 
         total = feed_cost + opex_cost
         volume_decimal = Decimal(str(volume))
@@ -86,6 +99,8 @@ class FeedOpexCostService:
             **result,
             "feed_cost": float(feed_cost),
             "opex": float(opex_cost),
+            "unattributed_opex": float(unattributed_opex),
+            "non_opex_excluded": float(non_opex_excluded),
             "total_operating_cost": float(total),
             "feed_cost_per_litre": (
                 float(feed_per_litre)
