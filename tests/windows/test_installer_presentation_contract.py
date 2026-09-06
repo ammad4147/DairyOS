@@ -6,16 +6,32 @@ ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
 def _source() -> str:
     return ISS.read_text(encoding="utf-8")
 
-def test_installer_uses_clearer_typography_and_separated_data_choices():
+def test_installer_uses_large_dpi_aware_data_choice_page():
     source = _source()
-    assert "WizardForm.Font.Name := 'Segoe UI'" in source
-    assert "WizardForm.Font.Size := 10" in source
+
+    assert "WizardResizable=yes" in source
+    assert "WizardSizePercent=140,135" in source
+    assert "ScaleX(" in source
+    assert "ScaleY(" in source
+    assert ".AdjustHeight();" in source
     assert "Existing DairyOS farm data was detected on this computer." in source
     assert "No existing DairyOS farm data was detected on this computer." in source
     assert "Use existing DairyOS data" in source
     assert "Start a new DairyOS farm" in source
     assert "Restore from a verified DairyOS backup" in source
-    assert "IMPORTANT:" in source
+    assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
+    assert "WizardForm.Font.Name" not in source
+    assert "WizardForm.Font.Size" not in source
+
+
+def test_install_data_choice_does_not_use_small_followup_message_boxes():
+    source = _source()
+    start = source.index("function NextButtonClick")
+    end = source.index("function ShouldLaunchDairyOS", start)
+    block = source[start:end]
+
+    assert "MsgBox(" not in block
+    assert "RestoreRequested" in block
 
 def test_uninstall_prompt_has_three_clear_actions_without_changing_safety_model():
     source = _source()

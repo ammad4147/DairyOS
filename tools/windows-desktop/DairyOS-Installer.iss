@@ -19,6 +19,8 @@ OutputBaseFilename=DairyOS-Windows-Installer
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+WizardResizable=yes
+WizardSizePercent=140,135
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -123,13 +125,12 @@ end;
 procedure InitializeWizard();
 var
   Intro: TNewStaticText;
+  ExistingDetail: TNewStaticText;
+  RestoreDetail: TNewStaticText;
   Caution: TNewStaticText;
 begin
   ExistingDataDetected := DetectExistingDairyOSData();
   RestoreRequested := False;
-
-  WizardForm.Font.Name := 'Segoe UI';
-  WizardForm.Font.Size := 10;
 
   DataChoicePage := CreateCustomPage(
     wpSelectDir,
@@ -139,125 +140,150 @@ begin
 
   Intro := TNewStaticText.Create(DataChoicePage);
   Intro.Parent := DataChoicePage.Surface;
-  Intro.Left := 0;
-  Intro.Top := 6;
-  Intro.Width := DataChoicePage.SurfaceWidth;
+  Intro.Left := ScaleX(8);
+  Intro.Top := ScaleY(8);
+  Intro.Width := DataChoicePage.SurfaceWidth - ScaleX(16);
   Intro.AutoSize := False;
   Intro.WordWrap := True;
   Intro.Font.Name := 'Segoe UI';
-  Intro.Font.Size := 11;
+  Intro.Font.Size := 12;
   Intro.Font.Style := [fsBold];
-  Intro.Height := 46;
+  Intro.Caption := '';
+  Intro.AdjustHeight();
 
   if ExistingDataDetected then
   begin
     Intro.Caption := 'Existing DairyOS farm data was detected on this computer.';
+    Intro.AdjustHeight();
 
     UseExistingRadio := TRadioButton.Create(DataChoicePage);
     UseExistingRadio.Parent := DataChoicePage.Surface;
-    UseExistingRadio.Left := 4;
-    UseExistingRadio.Top := 66;
-    UseExistingRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    UseExistingRadio.Left := ScaleX(12);
+    UseExistingRadio.Top := Intro.Top + Intro.Height + ScaleY(20);
+    UseExistingRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
+    UseExistingRadio.Height := ScaleY(24);
     UseExistingRadio.Font.Name := 'Segoe UI';
-    UseExistingRadio.Font.Size := 10;
+    UseExistingRadio.Font.Size := 11;
     UseExistingRadio.Font.Style := [fsBold];
     UseExistingRadio.Caption := 'Use existing DairyOS data';
     UseExistingRadio.Checked := True;
 
+    ExistingDetail := TNewStaticText.Create(DataChoicePage);
+    ExistingDetail.Parent := DataChoicePage.Surface;
+    ExistingDetail.Left := ScaleX(34);
+    ExistingDetail.Top := UseExistingRadio.Top + UseExistingRadio.Height + ScaleY(4);
+    ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
+    ExistingDetail.AutoSize := False;
+    ExistingDetail.WordWrap := True;
+    ExistingDetail.Font.Name := 'Segoe UI';
+    ExistingDetail.Font.Size := 10;
+    ExistingDetail.Caption :=
+      'Reinstall the DairyOS application and reconnect to the existing farm database. ' +
+      'Existing farm data is retained.';
+    ExistingDetail.AdjustHeight();
+
     RestoreRadio := TRadioButton.Create(DataChoicePage);
     RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := 4;
-    RestoreRadio.Top := 105;
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    RestoreRadio.Left := ScaleX(12);
+    RestoreRadio.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(22);
+    RestoreRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
+    RestoreRadio.Height := ScaleY(24);
     RestoreRadio.Font.Name := 'Segoe UI';
-    RestoreRadio.Font.Size := 10;
+    RestoreRadio.Font.Size := 11;
     RestoreRadio.Font.Style := [fsBold];
     RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
 
-    Caution := TNewStaticText.Create(DataChoicePage);
-    Caution.Parent := DataChoicePage.Surface;
-    Caution.Left := 4;
-    Caution.Top := 154;
-    Caution.Width := DataChoicePage.SurfaceWidth - 8;
-    Caution.AutoSize := False;
-    Caution.WordWrap := True;
-    Caution.Font.Name := 'Segoe UI';
-    Caution.Font.Size := 9;
-    Caution.Font.Color := $003A3A9A;
-    Caution.Height := 92;
-    Caution.Caption :=
-      'IMPORTANT:' + #13#10 +
-      '- Use existing data to reinstall DairyOS and reconnect to the current farm database.' + #13#10 +
-      '- Restore installs DairyOS first, then opens authenticated DairyOS Administration for recovery.' + #13#10 +
-      '- This installer will not delete or overwrite the existing farm database.';
+    RestoreDetail := TNewStaticText.Create(DataChoicePage);
+    RestoreDetail.Parent := DataChoicePage.Surface;
+    RestoreDetail.Left := ScaleX(34);
+    RestoreDetail.Top := RestoreRadio.Top + RestoreRadio.Height + ScaleY(4);
+    RestoreDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
+    RestoreDetail.AutoSize := False;
+    RestoreDetail.WordWrap := True;
+    RestoreDetail.Font.Name := 'Segoe UI';
+    RestoreDetail.Font.Size := 10;
+    RestoreDetail.Caption :=
+      'Install DairyOS first, then open authenticated DairyOS Administration ' +
+      'to restore a verified backup.';
+    RestoreDetail.AdjustHeight();
   end
   else
   begin
     Intro.Caption := 'No existing DairyOS farm data was detected on this computer.';
+    Intro.AdjustHeight();
 
     FreshRadio := TRadioButton.Create(DataChoicePage);
     FreshRadio.Parent := DataChoicePage.Surface;
-    FreshRadio.Left := 4;
-    FreshRadio.Top := 66;
-    FreshRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    FreshRadio.Left := ScaleX(12);
+    FreshRadio.Top := Intro.Top + Intro.Height + ScaleY(20);
+    FreshRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
+    FreshRadio.Height := ScaleY(24);
     FreshRadio.Font.Name := 'Segoe UI';
-    FreshRadio.Font.Size := 10;
+    FreshRadio.Font.Size := 11;
     FreshRadio.Font.Style := [fsBold];
     FreshRadio.Caption := 'Start a new DairyOS farm';
     FreshRadio.Checked := True;
 
+    ExistingDetail := TNewStaticText.Create(DataChoicePage);
+    ExistingDetail.Parent := DataChoicePage.Surface;
+    ExistingDetail.Left := ScaleX(34);
+    ExistingDetail.Top := FreshRadio.Top + FreshRadio.Height + ScaleY(4);
+    ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
+    ExistingDetail.AutoSize := False;
+    ExistingDetail.WordWrap := True;
+    ExistingDetail.Font.Name := 'Segoe UI';
+    ExistingDetail.Font.Size := 10;
+    ExistingDetail.Caption :=
+      'Create a new DairyOS farm database on this computer.';
+    ExistingDetail.AdjustHeight();
+
     RestoreRadio := TRadioButton.Create(DataChoicePage);
     RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := 4;
-    RestoreRadio.Top := 105;
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    RestoreRadio.Left := ScaleX(12);
+    RestoreRadio.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(22);
+    RestoreRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
+    RestoreRadio.Height := ScaleY(24);
     RestoreRadio.Font.Name := 'Segoe UI';
-    RestoreRadio.Font.Size := 10;
+    RestoreRadio.Font.Size := 11;
     RestoreRadio.Font.Style := [fsBold];
     RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
 
-    Caution := TNewStaticText.Create(DataChoicePage);
-    Caution.Parent := DataChoicePage.Surface;
-    Caution.Left := 4;
-    Caution.Top := 154;
-    Caution.Width := DataChoicePage.SurfaceWidth - 8;
-    Caution.AutoSize := False;
-    Caution.WordWrap := True;
-    Caution.Font.Name := 'Segoe UI';
-    Caution.Font.Size := 9;
-    Caution.Font.Color := $003A3A9A;
-    Caution.Height := 92;
-    Caution.Caption :=
-      'IMPORTANT:' + #13#10 +
-      '- Start a new farm only when this computer does not contain the farm database.' + #13#10 +
-      '- Choose Restore if you are recovering a prior DairyOS farm from a verified backup.' + #13#10 +
-      '- Restore is completed through authenticated DairyOS Administration.';
+    RestoreDetail := TNewStaticText.Create(DataChoicePage);
+    RestoreDetail.Parent := DataChoicePage.Surface;
+    RestoreDetail.Left := ScaleX(34);
+    RestoreDetail.Top := RestoreRadio.Top + RestoreRadio.Height + ScaleY(4);
+    RestoreDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
+    RestoreDetail.AutoSize := False;
+    RestoreDetail.WordWrap := True;
+    RestoreDetail.Font.Name := 'Segoe UI';
+    RestoreDetail.Font.Size := 10;
+    RestoreDetail.Caption :=
+      'Use this when recovering a previous DairyOS farm from a verified backup.';
+    RestoreDetail.AdjustHeight();
   end;
+
+  Caution := TNewStaticText.Create(DataChoicePage);
+  Caution.Parent := DataChoicePage.Surface;
+  Caution.Left := ScaleX(12);
+  Caution.Top := RestoreDetail.Top + RestoreDetail.Height + ScaleY(28);
+  Caution.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
+  Caution.AutoSize := False;
+  Caution.WordWrap := True;
+  Caution.Font.Name := 'Segoe UI';
+  Caution.Font.Size := 10;
+  Caution.Font.Style := [fsBold];
+  Caution.Caption :=
+    'IMPORTANT' + #13#10 +
+    'The installer will not delete or overwrite an existing DairyOS farm database. ' +
+    'Permanent data deletion is available only through authenticated DairyOS Administration.';
+  Caution.AdjustHeight();
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
   if (DataChoicePage <> nil) and (CurPageID = DataChoicePage.ID) then
-  begin
     RestoreRequested := (RestoreRadio <> nil) and RestoreRadio.Checked;
-    if ExistingDataDetected and (UseExistingRadio <> nil) and UseExistingRadio.Checked then
-    begin
-      MsgBox(
-        'DairyOS will reinstall the application and reuse the existing farm data. Existing farm data will not be deleted or replaced.',
-        mbInformation,
-        MB_OK
-      );
-    end;
-    if RestoreRequested then
-    begin
-      MsgBox(
-        'After installation, DairyOS Administration will open for authenticated restore. The installer itself will not overwrite farm data.',
-        mbInformation,
-        MB_OK
-      );
-    end;
-  end;
 end;
 
 function ShouldLaunchDairyOS(): Boolean;
