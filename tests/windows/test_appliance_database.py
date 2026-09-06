@@ -54,6 +54,7 @@ def test_frozen_database_uses_separate_app_admin_and_backup_credentials(monkeypa
         lambda value: calls.append(("security", value)),
     )
     monkeypatch.setattr(appliance, "application_password", lambda value: "app-secret")
+    monkeypatch.setattr(appliance, "application_role", lambda value: "dairyos")
     monkeypatch.setattr(appliance, "admin_database_url", lambda value: "postgresql+psycopg://admin")
     monkeypatch.setattr(appliance, "backup_database_url", lambda value: "postgresql+psycopg://backup")
 

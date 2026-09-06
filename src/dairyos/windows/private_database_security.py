@@ -32,6 +32,7 @@ from dairyos.windows.private_postgres import PrivatePostgreSQLConfig
 SECURITY_VERSION = 1
 SECURITY_FILENAME = "security.json"
 APP_ROLE = "dairyos"
+LEGACY_APP_ROLE = "dairyos_app"
 ADMIN_ROLE = "dairyos_admin"
 BACKUP_ROLE = "dairyos_backup"
 DESTRUCTIVE_ROLE = "dairyos_destructive_admin"
@@ -179,14 +180,24 @@ def _passwords(config: PrivatePostgreSQLConfig) -> tuple[str, str, str]:
         raise PrivateDatabaseSecurityError("DairyOS private database security credentials are incomplete.") from exc
 
 
+def application_role(config: PrivatePostgreSQLConfig) -> str:
+    """Return the restricted application login for this private cluster."""
+    state = _read_state(config)
+    configured = str(state.get("application_role", "")).strip() if state else ""
+    if configured:
+        return configured
+    return LEGACY_APP_ROLE if config.user == APP_ROLE else APP_ROLE
+
+
 def write_secure_hba(data_root: Path, user: str, database: str) -> None:
     """Write the steady-state SCRAM-only loopback authentication policy."""
     hba = data_root / "pg_hba.conf"
+    app_role = LEGACY_APP_ROLE if user == APP_ROLE else APP_ROLE
     lines = [
         "# Managed by DairyOS. Role-separated, loopback-only private database.",
-        f"local   {database}   {APP_ROLE}                              scram-sha-256",
-        f"host    {database}   {APP_ROLE}      127.0.0.1/32             scram-sha-256",
-        f"host    {database}   {APP_ROLE}      ::1/128                  scram-sha-256",
+        f"local   {database}   {app_role}                              scram-sha-256",
+        f"host    {database}   {app_role}      127.0.0.1/32             scram-sha-256",
+        f"host    {database}   {app_role}      ::1/128                  scram-sha-256",
         f"local   {database}   {BACKUP_ROLE}                           scram-sha-256",
         f"host    {database}   {BACKUP_ROLE}   127.0.0.1/32             scram-sha-256",
         f"host    {database}   {BACKUP_ROLE}   ::1/128                  scram-sha-256",
@@ -230,7 +241,7 @@ def _literal(connection, value: str) -> str:
 
 
 
-def _transfer_application_ownership(connection) -> None:
+def _transfer_application_ownership(connection, source_role: str) -> None:
     """Move only DairyOS-owned user objects to the administrative owner.
 
     The historical private cluster is initialized with dairyos as the
@@ -261,7 +272,7 @@ def _transfer_application_ownership(connection) -> None:
           AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
         ORDER BY n.nspname, c.relname
         """,
-        (APP_ROLE,),
+        (source_role,),
     ).fetchall()
     for schema_name, object_name, relkind in relations:
         connection.execute(
@@ -289,7 +300,7 @@ def _transfer_application_ownership(connection) -> None:
           AND p.prokind IN ('f', 'p')
         ORDER BY n.nspname, p.proname
         """,
-        (APP_ROLE,),
+        (source_role,),
     ).fetchall()
     for schema_name, routine_name, identity_arguments, prokind in routines:
         connection.execute(
@@ -314,7 +325,7 @@ def _transfer_application_ownership(connection) -> None:
           AND t.typtype IN ('d', 'e')
         ORDER BY n.nspname, t.typname
         """,
-        (APP_ROLE,),
+        (source_role,),
     ).fetchall()
     for schema_name, type_name, typtype in owned_types:
         connection.execute(
@@ -336,7 +347,7 @@ def _transfer_application_ownership(connection) -> None:
           AND n.nspname NOT LIKE 'pg_%%'
         ORDER BY n.nspname
         """,
-        (APP_ROLE,),
+        (source_role,),
     ).fetchall()
     for (schema_name,) in schemas:
         connection.execute(
@@ -351,6 +362,7 @@ def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
     app_password = secrets.token_urlsafe(36)
     admin_password = secrets.token_urlsafe(48)
     backup_password = secrets.token_urlsafe(36)
+    app_role = LEGACY_APP_ROLE if config.user == APP_ROLE else APP_ROLE
 
     # A legacy/new private cluster reaches this point through loopback trust as
     # the historical bootstrap role ``dairyos``.  All privileged work is done
@@ -377,39 +389,44 @@ def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
                 ELSE
                     ALTER ROLE {BACKUP_ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD {backup_pw};
                 END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{app_role}') THEN
+                    CREATE ROLE {app_role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD {app_pw};
+                ELSE
+                    ALTER ROLE {app_role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD {app_pw};
+                END IF;
             END
             $dairyos$;
             """
         )
         connection.execute(f"GRANT {DESTRUCTIVE_ROLE} TO {ADMIN_ROLE}")
-        _transfer_application_ownership(connection)
+        if config.user != ADMIN_ROLE:
+            _transfer_application_ownership(connection, config.user)
         connection.execute(f"ALTER DATABASE {config.database} OWNER TO {ADMIN_ROLE}")
         connection.execute(f"REVOKE CONNECT ON DATABASE {config.database} FROM PUBLIC")
-        connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {APP_ROLE}, {ADMIN_ROLE}, {BACKUP_ROLE}")
+        connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {app_role}, {ADMIN_ROLE}, {BACKUP_ROLE}")
         connection.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
-        connection.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}, {BACKUP_ROLE}")
-        connection.execute(f"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}")
-        connection.execute(f"REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {APP_ROLE}")
+        connection.execute(f"GRANT USAGE ON SCHEMA public TO {app_role}, {BACKUP_ROLE}")
+        connection.execute(f"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO {app_role}")
+        connection.execute(f"REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {app_role}")
         connection.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {BACKUP_ROLE}")
         connection.execute(f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {BACKUP_ROLE}")
-        connection.execute(f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {APP_ROLE}")
+        connection.execute(f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {app_role}")
         connection.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {BACKUP_ROLE}")
-        connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT SELECT, INSERT, UPDATE ON TABLES TO {APP_ROLE}")
+        connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT SELECT, INSERT, UPDATE ON TABLES TO {app_role}")
         connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT SELECT ON TABLES TO {BACKUP_ROLE}")
-        connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {APP_ROLE}")
+        connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {app_role}")
         connection.execute(f"ALTER DEFAULT PRIVILEGES FOR ROLE {ADMIN_ROLE} IN SCHEMA public GRANT SELECT ON SEQUENCES TO {BACKUP_ROLE}")
 
-        # Demote the historical bootstrap identity only after ownership and
-        # grants have been transferred to the separate administrator.
-        connection.execute(
-            f"ALTER ROLE {APP_ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD {app_pw}"
-        )
+        # The initdb bootstrap superuser must remain a superuser. It is never
+        # used by the application backend; only the separately created
+        # restricted application role receives the runtime credential.
 
     _atomic_json(
         security_state_path(config),
         {
             "version": SECURITY_VERSION,
-            "application_role": APP_ROLE,
+            "application_role": app_role,
+            "bootstrap_role": config.user,
             "admin_role": ADMIN_ROLE,
             "backup_role": BACKUP_ROLE,
             "application_password": _protect(app_password),
@@ -418,22 +435,23 @@ def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
         },
     )
 
-    write_secure_hba(config.data_root, APP_ROLE, config.database)
+    write_secure_hba(config.data_root, config.user, config.database)
     with _connect(config, user=ADMIN_ROLE, password=admin_password) as admin:
         admin.execute("SELECT pg_reload_conf()")
 
 
 def _reassert_privileges(config: PrivatePostgreSQLConfig, admin_password: str) -> None:
+    app_role = application_role(config)
     with _connect(config, user=ADMIN_ROLE, password=admin_password) as connection:
         connection.execute(f"REVOKE CONNECT ON DATABASE {config.database} FROM PUBLIC")
-        connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {APP_ROLE}, {ADMIN_ROLE}, {BACKUP_ROLE}")
+        connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {app_role}, {ADMIN_ROLE}, {BACKUP_ROLE}")
         connection.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
-        connection.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}, {BACKUP_ROLE}")
-        connection.execute(f"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}")
-        connection.execute(f"REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {APP_ROLE}")
+        connection.execute(f"GRANT USAGE ON SCHEMA public TO {app_role}, {BACKUP_ROLE}")
+        connection.execute(f"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO {app_role}")
+        connection.execute(f"REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {app_role}")
         connection.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {BACKUP_ROLE}")
         connection.execute(f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM {BACKUP_ROLE}")
-        connection.execute(f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {APP_ROLE}")
+        connection.execute(f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {app_role}")
         connection.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {BACKUP_ROLE}")
         connection.execute(f"GRANT {DESTRUCTIVE_ROLE} TO {ADMIN_ROLE}")
         connection.execute("SELECT pg_reload_conf()")
@@ -446,7 +464,7 @@ def ensure_private_database_security(config: PrivatePostgreSQLConfig) -> None:
 
     app_password, admin_password, backup_password = _passwords(config)
     del app_password, backup_password
-    write_secure_hba(config.data_root, APP_ROLE, config.database)
+    write_secure_hba(config.data_root, config.user, config.database)
     _reassert_privileges(config, admin_password)
 
 
@@ -474,7 +492,7 @@ def _database_url(config: PrivatePostgreSQLConfig, user: str, password: str, dat
 
 
 def application_database_url(config: PrivatePostgreSQLConfig) -> str:
-    return _database_url(config, APP_ROLE, application_password(config))
+    return _database_url(config, application_role(config), application_password(config))
 
 
 def admin_database_url(config: PrivatePostgreSQLConfig) -> str:

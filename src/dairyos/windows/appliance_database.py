@@ -8,6 +8,7 @@ import os
 from dairyos.windows import private_postgres
 from dairyos.windows.private_database_security import (
     application_password,
+    application_role,
     admin_database_url,
     backup_database_url,
     ensure_private_database_security,
@@ -100,7 +101,7 @@ def prepare_database(*, postgres_timeout: float = 30.0) -> ApplianceDatabase:
         host=private.host,
         port=private.port,
         database=private.database,
-        user=private.user,
+        user=application_role(private),
         password_value=application_password(private),
         migration_database_url=admin_database_url(private),
         backup_database_url=backup_database_url(private),

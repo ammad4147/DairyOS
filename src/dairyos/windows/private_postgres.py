@@ -43,7 +43,7 @@ class PrivatePostgreSQLStatus:
 RUNTIME_STATE_FILENAME = "runtime.json"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_DATABASE = "dairyos"
-DEFAULT_USER = "dairyos"
+DEFAULT_USER = "dairyos_admin"
 _VERSION_RE = re.compile(r"PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})", re.IGNORECASE)
 
 
@@ -488,6 +488,11 @@ def start(
             f"binary={runtime_version}, declared={expected_version}."
         )
     existing_state = _read_state()
+    cluster_exists = data_root.exists() and any(data_root.iterdir())
+    if cluster_exists:
+        cluster_user = str(existing_state.get("user") or "dairyos")
+    else:
+        cluster_user = user
     persisted_port = _configured_port()
     selected_port = port or persisted_port or _choose_port(host)
     if persisted_port is not None and port is not None and persisted_port != port:
@@ -499,11 +504,11 @@ def start(
     if not data_root.exists() or not any(data_root.iterdir()):
         initialize_cluster(
             data_root=data_root,
-            user=user,
+            user=cluster_user,
         )
 
     _write_postgresql_conf(data_root, host, selected_port)
-    _write_pg_hba_conf(data_root, user, database)
+    _write_pg_hba_conf(data_root, cluster_user, database)
     pg_ctl = _binary("pg_ctl.exe")
     pid_path = _pid_file(data_root)
 
@@ -541,7 +546,7 @@ def start(
         log_file = paths.logs_dir(create=True) / "private-postgres.log"
 
         pgctl_env = os.environ.copy()
-        pgctl_env["PGUSER"] = user
+        pgctl_env["PGUSER"] = cluster_user
 
         _run(
             [
@@ -566,13 +571,13 @@ def start(
         host=host,
         port=selected_port,
         database=database,
-        user=user,
+        user=cluster_user,
     )
     state = {
         "host": host,
         "port": selected_port,
         "database": database,
-        "user": user,
+        "user": cluster_user,
         "version": runtime_version,
         "data_root": str(data_root),
     }
@@ -588,7 +593,7 @@ def start(
         host=host,
         port=selected_port,
         database=database,
-        user=user,
+        user=cluster_user,
         bundled_version=runtime_version,
     )
 

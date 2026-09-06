@@ -207,3 +207,7 @@ def test_stale_postmaster_pid_is_removed_and_cluster_is_started(
     assert not pid_file.exists()
     assert any(command[-1] == "status" for command in calls)
     assert any(command[-1] == "start" for command in calls)
+
+
+def test_new_private_clusters_use_admin_bootstrap_role():
+    assert pg.DEFAULT_USER == "dairyos_admin"
