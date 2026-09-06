@@ -70,6 +70,18 @@ foreach ($path in $required) {
     if (-not (Test-Path $path -PathType Leaf)) { throw "Desktop release validation failed; required file is missing: $path" }
 }
 
+Write-Host "=== VERIFY POSTGRESQL BUNDLE VERSION ===" -ForegroundColor Cyan
+$declaredVersion = (Get-Content (Join-Path $runtimeDir "postgresql.version") -Raw).Trim()
+$reportedVersionText = & (Join-Path $runtimeTarget "bin\postgres.exe") --version 2>&1
+if ($LASTEXITCODE -ne 0) { throw "Bundled postgres.exe --version failed with exit code $LASTEXITCODE." }
+$reportedVersionText = [string]$reportedVersionText
+$versionMatch = [regex]::Match($reportedVersionText, 'PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+if (-not $versionMatch.Success) { throw "Unable to parse bundled PostgreSQL version: $reportedVersionText" }
+$reportedVersion = $versionMatch.Groups[1].Value
+if ($reportedVersion -ne $declaredVersion) {
+    throw "Bundled PostgreSQL version mismatch: binary=$reportedVersion declared=$declaredVersion"
+}
+
 Write-Host "=== VERIFY FROZEN ENTRY POINT ===" -ForegroundColor Cyan
 $process = Start-Process -FilePath $exe -ArgumentList "--help" -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw "Frozen DairyOS.exe --help exited with code $($process.ExitCode)." }

@@ -446,6 +446,43 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         watchdog.stop()
 
 
+def database_preflight(config: SupervisorConfig) -> int:
+    """Exercise the packaged database startup path without opening the UI."""
+    private_database = None
+    try:
+        database = prepare_database(
+            postgres_timeout=config.postgres_timeout
+        )
+        private_database = database.private_postgres
+        if private_database is None:
+            raise ApplianceDatabaseError(
+                "Packaged database preflight did not resolve private PostgreSQL."
+            )
+
+        apply_database_environment(database)
+        migration = migrate_if_needed()
+        LOG.info(
+            "Installed database preflight passed: migrated=%s current=%s "
+            "target=%s backup=%s",
+            migration.migrated,
+            migration.current_heads,
+            migration.target_heads,
+            migration.backup_path,
+        )
+        return 0
+    except (ApplianceDatabaseError, MigrationGateError) as exc:
+        LOG.exception("Installed DairyOS database preflight failed")
+        return 4
+    finally:
+        if private_database is not None:
+            try:
+                stop_private_postgres(private_database)
+            except Exception:
+                LOG.exception(
+                    "Failed to stop private PostgreSQL after database preflight"
+                )
+
+
 def run(config: SupervisorConfig) -> int:
     instance = SingleInstance()
     if not instance.acquire():
@@ -593,6 +630,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--health-timeout", type=float, default=60.0)
     parser.add_argument("--restart-attempts", type=int, default=2)
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
+    parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
     return parser
 
@@ -614,15 +652,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     if os.name != "nt":
         LOG.warning("Desktop supervisor is running on a non-Windows host; Job Object and WebView2 are unavailable.")
-    return run(
-        SupervisorConfig(
-            host=args.host,
-            port=args.port,
-            health_timeout=args.health_timeout,
-            restart_attempts=max(0, args.restart_attempts),
-            postgres_timeout=max(1.0, args.postgres_timeout),
-        )
+
+    config = SupervisorConfig(
+        host=args.host,
+        port=args.port,
+        health_timeout=args.health_timeout,
+        restart_attempts=max(0, args.restart_attempts),
+        postgres_timeout=max(1.0, args.postgres_timeout),
     )
+    if args.database_preflight:
+        if not getattr(sys, "frozen", False):
+            LOG.error("--database-preflight is reserved for the packaged DairyOS executable.")
+            return 64
+        return database_preflight(config)
+    return run(config)
 
 
 if __name__ == "__main__":

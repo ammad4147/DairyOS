@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import socket
 import subprocess
+import sys
 import time
 
 from dairyos.platform import paths
@@ -47,7 +48,20 @@ _VERSION_RE = re.compile(r"PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})", re.IGNORE
 
 
 def runtime_root() -> Path:
-    """Return the PostgreSQL runtime shipped with the DairyOS bundle."""
+    """Return the PostgreSQL runtime shipped with the DairyOS bundle.
+
+    A frozen DairyOS appliance owns the runtime beside its executable. Machine
+    or inherited environment values must never redirect an installed
+    DairyOS.exe to a stale or unrelated PostgreSQL tree after reinstall.
+    Development/source runs retain the existing explicit override seams.
+    """
+    if getattr(sys, "frozen", False):
+        return (
+            Path(sys.executable).resolve().parent
+            / "runtime"
+            / "PostgreSQL"
+        )
+
     override = os.environ.get("DAIRYOS_PRIVATE_POSTGRES_RUNTIME")
     if override:
         return Path(override).expanduser().resolve()
@@ -56,13 +70,6 @@ def runtime_root() -> Path:
     if install_root:
         return (
             Path(install_root).expanduser().resolve()
-            / "runtime"
-            / "PostgreSQL"
-        )
-
-    if getattr(__import__("sys"), "frozen", False):
-        return (
-            Path(__import__("sys").executable).resolve().parent
             / "runtime"
             / "PostgreSQL"
         )
@@ -84,16 +91,32 @@ def runtime_state_path() -> Path:
 
 
 def bundled_version() -> str:
-    """Return the bundled PostgreSQL version declared by the bundle."""
-    override = os.environ.get("DAIRYOS_PRIVATE_POSTGRES_VERSION", "").strip()
-    if override:
-        return override
+    """Return the PostgreSQL version declared by the DairyOS bundle."""
+    frozen = bool(getattr(sys, "frozen", False))
+    if not frozen:
+        override = os.environ.get(
+            "DAIRYOS_PRIVATE_POSTGRES_VERSION",
+            "",
+        ).strip()
+        if override:
+            return override
 
     version_file = runtime_root().parent / "postgresql.version"
-    if version_file.is_file():
+    if not version_file.is_file():
+        if frozen:
+            raise PrivatePostgreSQLError(
+                "The bundled PostgreSQL version marker is missing: "
+                f"{version_file}"
+            )
+    else:
         value = version_file.read_text(encoding="utf-8").strip()
         if value:
             return value
+        if frozen:
+            raise PrivatePostgreSQLError(
+                "The bundled PostgreSQL version marker is empty: "
+                f"{version_file}"
+            )
 
     detected = detect_installed_version()
     if detected:
