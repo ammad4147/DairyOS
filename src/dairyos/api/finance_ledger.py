@@ -39,6 +39,12 @@ from dairyos.finance.expense_taxonomy import (
 from dairyos.finance.profitability.services.feed_opex_cost_service import (
     FeedOpexCostService,
 )
+from dairyos.finance.opex_attribution import (
+    ATTRIBUTION_METHODS,
+    COP_CLASSIFICATIONS,
+    default_attribution_method,
+    default_cop_classification,
+)
 
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
 
@@ -98,6 +104,11 @@ class FinanceLedgerEntry(BaseModel):
     status: str = "RECORDED"
     currency: str = "PKR"
     due_date: date | None = None
+    cop_classification: str | None = None
+    cop_attribution_method: str | None = None
+    cop_service_date: date | None = None
+    cop_coverage_start: date | None = None
+    cop_coverage_end: date | None = None
     semen_type: str | None = None
     sire_code: str | None = None
     bull_name: str | None = None
@@ -124,6 +135,11 @@ class FinanceLedgerEdit(BaseModel):
     notes: str | None = None
     status: str | None = None
     due_date: date | None = None
+    cop_classification: str | None = None
+    cop_attribution_method: str | None = None
+    cop_service_date: date | None = None
+    cop_coverage_start: date | None = None
+    cop_coverage_end: date | None = None
 
 
 class FinanceStatusUpdate(BaseModel):
@@ -162,6 +178,23 @@ def _row_dict(row: FinancialTransaction) -> dict:
             row.settled_date.isoformat() if row.settled_date else None
         ),
         "payroll_record_id": getattr(row, "payroll_record_id", None),
+        "cop_classification": getattr(row, "cop_classification", None),
+        "cop_attribution_method": getattr(row, "cop_attribution_method", None),
+        "cop_service_date": (
+            row.cop_service_date.isoformat()
+            if getattr(row, "cop_service_date", None)
+            else None
+        ),
+        "cop_coverage_start": (
+            row.cop_coverage_start.isoformat()
+            if getattr(row, "cop_coverage_start", None)
+            else None
+        ),
+        "cop_coverage_end": (
+            row.cop_coverage_end.isoformat()
+            if getattr(row, "cop_coverage_end", None)
+            else None
+        ),
     }
 
 
@@ -342,6 +375,67 @@ def _validate_dates(
             status_code=422,
             detail="due_date cannot be earlier than transaction_date.",
         )
+
+
+def _resolve_cop_metadata(
+    entry: FinanceLedgerEntry | FinanceLedgerEdit,
+    transaction_type: str,
+) -> tuple[str | None, str | None, date | None, date | None, date | None]:
+    if transaction_type not in classifier.EXPENSE_TYPES:
+        return None, None, None, None, None
+
+    master = str(entry.master_category or "").upper()
+    if master != "OPEX":
+        return None, None, None, None, None
+
+    classification = str(
+        entry.cop_classification
+        or default_cop_classification(master, entry.sub_category)
+        or ""
+    ).upper()
+    if classification not in COP_CLASSIFICATIONS:
+        raise HTTPException(
+            status_code=422,
+            detail="COP classification must be OPEX or NON_OPEX for OPEX expenses.",
+        )
+
+    if classification == "NON_OPEX":
+        return classification, None, None, None, None
+
+    method = str(
+        entry.cop_attribution_method
+        or default_attribution_method(entry.sub_category)
+        or ""
+    ).upper()
+    if method not in ATTRIBUTION_METHODS:
+        raise HTTPException(
+            status_code=422,
+            detail="OPEX attribution method is required: DIRECT, PERIODIC, CONSUMPTION or ALLOCATED.",
+        )
+
+    service_date = entry.cop_service_date
+    coverage_start = entry.cop_coverage_start
+    coverage_end = entry.cop_coverage_end
+
+    if method == "DIRECT" and service_date is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Direct OPEX attribution requires the service/incurred date.",
+        )
+
+    if method in {"PERIODIC", "ALLOCATED"}:
+        if coverage_start is None or coverage_end is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{method.title()} OPEX attribution requires coverage start and end dates.",
+            )
+        if coverage_end < coverage_start:
+            raise HTTPException(
+                status_code=422,
+                detail="COP coverage end cannot be earlier than coverage start.",
+            )
+
+    return classification, method, service_date, coverage_start, coverage_end
 
 
 def _validate_transition(
@@ -998,6 +1092,11 @@ def create_finance_ledger_entry(
             else None
         )
 
+    cop_classification, cop_method, cop_service_date, cop_coverage_start, cop_coverage_end = _resolve_cop_metadata(
+        entry,
+        transaction_type,
+    )
+
     factory = _factory(container)
     session = factory.session
 
@@ -1035,6 +1134,11 @@ def create_finance_ledger_entry(
         unit=unit_value,
         unit_rate=unit_rate_value,
         due_date=entry.due_date,
+        cop_classification=cop_classification,
+        cop_attribution_method=cop_method,
+        cop_service_date=cop_service_date,
+        cop_coverage_start=cop_coverage_start,
+        cop_coverage_end=cop_coverage_end,
         settled_date=(
             date.today()
             if status in SETTLED_STATUSES
@@ -1397,6 +1501,16 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
             legacy_category_value
             or row.category
         )
+
+        cop_classification, cop_method, cop_service_date, cop_coverage_start, cop_coverage_end = _resolve_cop_metadata(
+            temp,
+            transaction_type,
+        )
+        row.cop_classification = cop_classification
+        row.cop_attribution_method = cop_method
+        row.cop_service_date = cop_service_date
+        row.cop_coverage_start = cop_coverage_start
+        row.cop_coverage_end = cop_coverage_end
 
     else:
         amount = (
