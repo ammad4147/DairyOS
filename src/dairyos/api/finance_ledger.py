@@ -477,6 +477,39 @@ def _require_void_reason(
         )
 
 
+def _append_cop_attribution_transition(
+    row: FinancialTransaction,
+    *,
+    classification: str | None,
+    method: str | None,
+    service_date: date | None,
+    coverage_start: date | None,
+    coverage_end: date | None,
+) -> None:
+    before = (
+        getattr(row, "cop_classification", None),
+        getattr(row, "cop_attribution_method", None),
+        getattr(row, "cop_service_date", None),
+        getattr(row, "cop_coverage_start", None),
+        getattr(row, "cop_coverage_end", None),
+    )
+    after = (
+        classification,
+        method,
+        service_date,
+        coverage_start,
+        coverage_end,
+    )
+    if before == after:
+        return
+    stamp = datetime.now(UTC).isoformat()
+    entry = (
+        f"COP_ATTRIBUTION_CHANGE_AT={stamp} "
+        f"FROM={before!r} TO={after!r}"
+    )
+    row.notes = f"{row.notes or ''}\n{entry}".strip()
+
+
 def _append_status_transition(
     row: FinancialTransaction,
     current_status: str,
@@ -1540,6 +1573,14 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
         cop_classification, cop_method, cop_service_date, cop_coverage_start, cop_coverage_end = _resolve_cop_metadata(
             temp,
             transaction_type,
+        )
+        _append_cop_attribution_transition(
+            row,
+            classification=cop_classification,
+            method=cop_method,
+            service_date=cop_service_date,
+            coverage_start=cop_coverage_start,
+            coverage_end=cop_coverage_end,
         )
         row.cop_classification = cop_classification
         row.cop_attribution_method = cop_method
