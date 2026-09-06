@@ -35,8 +35,8 @@ def test_hidden_navigation_tabs_only_filter_header_buttons():
  assert settings.count("onHiddenNavigationTabsChange?.(hidden)") == 1
  for view in ("dashboard", "animals", "milk", "feed", "finance", "breeding", "health", "vaccination", "cop"):
   assert f"currentView==='{view}'" in v
-def test_passport_final_disposal():
- v=text("src/DairyOS.Web/src/components/AnimalPassportModal.tsx");assert "Final Disposal" in v;assert "Record Mortality" in v;assert "['exit','Sold / Mortality']" not in v;assert "disposition:'DECEASED'" in v
+def test_passport_mortality_surface():
+ v=text("src/DairyOS.Web/src/components/AnimalPassportModal.tsx");assert "['exit','Mortality']" in v;assert "Record Mortality" in v;assert "Final Disposal" not in v;assert "['exit','Sold / Mortality']" not in v;assert "disposition:'DECEASED'" in v
 def test_finance_animal_sale_linkage():
  v=text("src/DairyOS.Web/src/components/FinanceTab.tsx")
  for label in ("Milking Animal Sale","Dry Animal Sale","Heifer Sale","Female Calf Sale","Male Calf Sale","Bull Sale"):assert label in v
