@@ -21,6 +21,12 @@ if ($LASTEXITCODE -ne 0) { throw "DairyOS Admin Tool build failed." }
 $adminExe = Join-Path $repo "dist\DairyOS-Admin\DairyOS-Admin.exe"
 if (-not (Test-Path $adminExe -PathType Leaf)) { throw "DairyOS-Admin.exe was not produced: $adminExe" }
 Copy-Item $adminExe (Join-Path $bundlePath "DairyOS-Admin.exe") -Force
+
+$manualSource = Join-Path $repo "docs\operator\DairyOS-Operator-Manual.html"
+if (-not (Test-Path $manualSource -PathType Leaf)) { throw "DairyOS Operator Manual is missing: $manualSource" }
+$manualDir = Join-Path $bundlePath "Documentation"
+New-Item -ItemType Directory -Force -Path $manualDir | Out-Null
+Copy-Item $manualSource (Join-Path $manualDir "DairyOS-Operator-Manual.html") -Force
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
 $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
