@@ -212,12 +212,14 @@ jobs:
             throw "Private PostgreSQL remained running after uninstall."
           }
           $task = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
-          if ($LASTEXITCODE -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
+          $taskExit = $LASTEXITCODE
+          if ($taskExit -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
           if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
           if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
 
           Remove-Item $marker -Force
           Write-Host "INSTALL / UNINSTALL DATA-PRESERVATION CERTIFICATION: PASS"
+          exit 0
 
       - name: Publish installer artifact
         uses: actions/upload-artifact@v4
