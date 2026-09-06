@@ -44,6 +44,7 @@ from dairyos.finance.opex_attribution import (
     COP_CLASSIFICATIONS,
     default_attribution_method,
     default_cop_classification,
+    NON_OPEX_ITEMS,
 )
 
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])
@@ -1284,6 +1285,18 @@ def finance_taxonomy():
         "items": {
             "FEED": feed_items,
             "OPEX": opex_items,
+        },
+        "cop_governance": {
+            "classifications": sorted(COP_CLASSIFICATIONS),
+            "attribution_methods": sorted(ATTRIBUTION_METHODS),
+            "non_opex_items": sorted(NON_OPEX_ITEMS),
+            "defaults": {
+                item: {
+                    "classification": default_cop_classification("OPEX", item),
+                    "attribution_method": default_attribution_method(item),
+                }
+                for item in opex_items
+            },
         },
     }
 
