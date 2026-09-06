@@ -19,8 +19,18 @@ def test_installer_uses_clearer_typography_and_separated_data_choices():
 
 def test_uninstall_prompt_has_three_clear_actions_without_changing_safety_model():
     source = _source()
-    assert "YES — KEEP DATA AND UNINSTALL" in source
-    assert "NO — CREATE VERIFIED BACKUP FIRST" in source
-    assert "CANCEL — DO NOT UNINSTALL" in source
+    assert "YES - KEEP DATA AND UNINSTALL" in source
+    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
+    assert "CANCEL - DO NOT UNINSTALL" in source
     assert "Permanent data deletion is available only through authenticated DairyOS Administration." in source
     assert "StopInstalledDairyOSForUninstall" in source
+
+
+def test_installer_user_facing_text_avoids_garbled_unicode_punctuation():
+    source = _source()
+
+    assert "•" not in source
+    assert "—" not in source
+    assert "YES - KEEP DATA AND UNINSTALL" in source
+    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
+    assert "CANCEL - DO NOT UNINSTALL" in source

@@ -187,9 +187,9 @@ begin
     Caution.Height := 92;
     Caution.Caption :=
       'IMPORTANT:' + #13#10 +
-      '• Use existing data to reinstall DairyOS and reconnect to the current farm database.' + #13#10 +
-      '• Restore installs DairyOS first, then opens authenticated DairyOS Administration for recovery.' + #13#10 +
-      '• This installer will not delete or overwrite the existing farm database.';
+      '- Use existing data to reinstall DairyOS and reconnect to the current farm database.' + #13#10 +
+      '- Restore installs DairyOS first, then opens authenticated DairyOS Administration for recovery.' + #13#10 +
+      '- This installer will not delete or overwrite the existing farm database.';
   end
   else
   begin
@@ -229,9 +229,9 @@ begin
     Caution.Height := 92;
     Caution.Caption :=
       'IMPORTANT:' + #13#10 +
-      '• Start a new farm only when this computer does not contain the farm database.' + #13#10 +
-      '• Choose Restore if you are recovering a prior DairyOS farm from a verified backup.' + #13#10 +
-      '• Restore is completed through authenticated DairyOS Administration.';
+      '- Start a new farm only when this computer does not contain the farm database.' + #13#10 +
+      '- Choose Restore if you are recovering a prior DairyOS farm from a verified backup.' + #13#10 +
+      '- Restore is completed through authenticated DairyOS Administration.';
   end;
 end;
 
@@ -393,11 +393,11 @@ begin
 
   Choice := MsgBox(
     'Choose how to proceed with DairyOS uninstall:' + #13#10 + #13#10 +
-    'YES — KEEP DATA AND UNINSTALL' + #13#10 +
+    'YES - KEEP DATA AND UNINSTALL' + #13#10 +
     'Removes the DairyOS application but keeps the farm database and backups.' + #13#10 + #13#10 +
-    'NO — CREATE VERIFIED BACKUP FIRST' + #13#10 +
+    'NO - CREATE VERIFIED BACKUP FIRST' + #13#10 +
     'Cancels uninstall and opens DairyOS Administration.' + #13#10 + #13#10 +
-    'CANCEL — DO NOT UNINSTALL' + #13#10 + #13#10 +
+    'CANCEL - DO NOT UNINSTALL' + #13#10 + #13#10 +
     'Permanent data deletion is available only through authenticated DairyOS Administration.',
     mbConfirmation,
     MB_YESNOCANCEL
