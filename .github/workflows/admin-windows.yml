@@ -58,6 +58,53 @@ jobs:
             throw "Frozen DairyOS Admin Tool --help exited with code $($proc.ExitCode)"
           }
 
+      - name: Verify frozen Admin Tool serves the Administration page
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "dist\DairyOS-Admin\DairyOS-Admin.exe"
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "dairyos-admin-runtime"
+          $stdout = Join-Path $env:RUNNER_TEMP "dairyos-admin.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "dairyos-admin.stderr.log"
+          New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+          $env:DAIRYOS_DATA_DIR = $runtimeRoot
+
+          $proc = Start-Process -FilePath $exe -ArgumentList "--no-browser","--host","127.0.0.1","--port","18082" -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+
+          try {
+            $response = $null
+            for ($attempt = 0; $attempt -lt 40; $attempt++) {
+              if ($proc.HasExited) {
+                $out = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+                $err = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+                throw "Frozen DairyOS Admin exited before serving HTTP. Exit=$($proc.ExitCode) STDOUT=$out STDERR=$err"
+              }
+
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:18082/" -UseBasicParsing -TimeoutSec 2
+                if ($response.StatusCode -eq 200) { break }
+              }
+              catch {
+                Start-Sleep -Milliseconds 250
+              }
+            }
+
+            if ($null -eq $response -or $response.StatusCode -ne 200) {
+              throw "Frozen DairyOS Admin did not return HTTP 200 from the loopback endpoint."
+            }
+
+            if ($response.Content -notmatch "DairyOS Administration") {
+              throw "Frozen DairyOS Admin returned HTTP 200 but not the Administration page."
+            }
+
+            Write-Host "Frozen DairyOS Admin HTTP runtime: PASS"
+          }
+          finally {
+            if (-not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force
+              $proc.WaitForExit()
+            }
+          }
+
       - name: Publish Admin Tool artifact
         uses: actions/upload-artifact@v4
         with:
