@@ -33,6 +33,14 @@ datas += tmp_ret[0]
 binaries += tmp_ret[1]
 hiddenimports += tmp_ret[2]
 
+# Search is part of the normal application runtime. Collect the client package
+# explicitly so the frozen desktop does not depend on a developer Python
+# installation or dynamic import discovery at runtime.
+tmp_ret = collect_all("elasticsearch")
+datas += tmp_ret[0]
+binaries += tmp_ret[1]
+hiddenimports += tmp_ret[2]
+
 
 PRODUCTION_EXCLUDES = [
     "dairyos.admin",
