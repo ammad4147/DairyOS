@@ -312,10 +312,17 @@ def get_integrated_coml(
                 if status == "VOID" or not is_expense(item):
                     continue
 
-                master = str(
+                master_raw = str(
                     getattr(item, "master_category", "") or ""
-                ).strip().upper()
-                if master != "OPEX":
+                ).strip()
+
+                # Equipment Purchase is a capital/non-operating item for COP
+                # purposes even if exposed through the broader Finance taxonomy.
+                if master_raw == "Equipment Purchase":
+                    continue
+
+                master = master_raw.upper()
+                if not (master == "OPEX"):
                     continue
 
                 amount = float(getattr(item, "amount", 0.0) or 0.0)
