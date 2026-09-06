@@ -89,7 +89,9 @@ jobs:
             }
 
             if ($null -eq $response -or $response.StatusCode -ne 200) {
-              throw "Frozen DairyOS Admin did not return HTTP 200 from the loopback endpoint."
+              $out = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+              $err = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+              throw "Frozen DairyOS Admin did not return HTTP 200 from the loopback endpoint. STDOUT=$out STDERR=$err"
             }
 
             if ($response.Content -notmatch "DairyOS Administration") {
