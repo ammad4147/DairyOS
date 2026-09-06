@@ -139,6 +139,12 @@ def _read_password() -> tuple[str, str, int, str]:
     return password, host, port, database
 
 
+def validate_stored_admin_credential() -> None:
+    """Decrypt and authenticate the adopted credential without changing storage."""
+    password, host, port, database = _read_password()
+    validate_admin_password(password, host=host, port=port, database=database)
+
+
 def migration_database_url() -> str:
     password, host, port, database = _read_password()
     return _admin_url(password, host=host, port=port, database=database)
