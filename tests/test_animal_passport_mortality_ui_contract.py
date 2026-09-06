@@ -7,7 +7,8 @@ UI = (
 
 
 def test_mortality_form_is_mortality_specific():
-    assert 'title="Record Mortality"' in UI
+    assert "['exit','Mortality']" in UI
+    assert 'title={mortalityRecorded?"Mortality Record":"Record Mortality"}' in UI
     assert 'label="Date of Mortality"' in UI
     assert 'label="Cause of Mortality"' in UI
     assert 'label="Veterinarian / Responsible Person"' in UI
@@ -21,9 +22,18 @@ def test_mortality_form_is_mortality_specific():
     assert 'label="Effective Date"' not in UI
 
 
-def test_mortality_history_is_preserved_and_sale_records_are_not_presented_here():
-    assert 'title="Mortality History"' in UI
-    assert "item?.disposition||''" in UI
-    assert "==='DECEASED'" in UI
-    assert "No mortality has been recorded for this animal." in UI
-    assert "Animal Passport and all historical records remain preserved." in UI
+def test_mortality_record_freezes_after_registration_without_history_table():
+    assert "mortalityRecorded?" in UI
+    assert "<FrozenField" in UI
+    assert "Mortality History" not in UI
+    assert "No mortality has been recorded for this animal." not in UI
+    assert "This final lifecycle record is frozen in the Animal Passport" in UI
+    assert "if(isNew||mortalityRecorded)return" in UI
+    assert "all existing DairyOS linkages and historical records remain available" in UI
+
+
+def test_mortality_submission_keeps_existing_disposition_linkage():
+    assert "/disposition" in UI
+    assert "setAnimal(result.animal)" in UI
+    assert "onSave?.(toUi(result.animal))" in UI
+    assert "await load()" in UI
