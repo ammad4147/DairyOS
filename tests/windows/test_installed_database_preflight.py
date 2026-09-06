@@ -83,3 +83,43 @@ def test_packaged_database_preflight_stops_database_after_migration_failure(
 
     assert supervisor.database_preflight(supervisor.SupervisorConfig()) == 4
     assert stopped == [private]
+
+
+def test_packaged_database_preflight_preserves_migration_failure_report(
+    monkeypatch,
+    tmp_path,
+):
+    private = SimpleNamespace()
+    database = SimpleNamespace(private_postgres=private)
+    report = tmp_path / "preflight.txt"
+
+    monkeypatch.setenv("DAIRYOS_PREFLIGHT_REPORT", str(report))
+    monkeypatch.setattr(
+        supervisor,
+        "prepare_database",
+        lambda postgres_timeout: database,
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "apply_database_environment",
+        lambda received: None,
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "migrate_if_needed",
+        lambda: (_ for _ in ()).throw(
+            supervisor.MigrationGateError("diagnostic-migration-failure")
+        ),
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "stop_private_postgres",
+        lambda received: None,
+    )
+
+    assert supervisor.database_preflight(supervisor.SupervisorConfig()) == 4
+
+    text = report.read_text(encoding="utf-8")
+    assert "status=FAIL" in text
+    assert "diagnostic-migration-failure" in text
+    assert "stage=stop-private-database" not in text

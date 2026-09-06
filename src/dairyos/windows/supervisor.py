@@ -478,6 +478,7 @@ def database_preflight(config: SupervisorConfig) -> int:
     private_database = None
     exit_code = 4
     success_detail = ""
+    failure_detail = ""
     _write_database_preflight_report("RUNNING", "stage=prepare-private-database")
 
     try:
@@ -520,31 +521,33 @@ def database_preflight(config: SupervisorConfig) -> int:
         exit_code = 0
     except (ApplianceDatabaseError, MigrationGateError) as exc:
         LOG.exception("Installed DairyOS database preflight failed")
-        _write_database_preflight_report("FAIL", _exception_chain(exc))
+        failure_detail = _exception_chain(exc)
         exit_code = 4
     finally:
         if private_database is not None:
-            _write_database_preflight_report(
-                "RUNNING",
-                (
-                    "stage=stop-private-database\n"
-                    f"pending_exit_code={exit_code}"
-                ),
-            )
             try:
                 stop_private_postgres(private_database)
             except Exception as exc:
                 LOG.exception(
                     "Failed to stop private PostgreSQL after database preflight"
                 )
-                _write_database_preflight_report(
-                    "FAIL",
-                    "stage=stop-private-database\n" + _exception_chain(exc),
+                stop_detail = (
+                    "stage=stop-private-database\n" + _exception_chain(exc)
+                )
+                failure_detail = (
+                    f"{failure_detail.rstrip()}\n{stop_detail}"
+                    if failure_detail
+                    else stop_detail
                 )
                 exit_code = 4
 
     if exit_code == 0:
         _write_database_preflight_report("PASS", success_detail)
+    else:
+        _write_database_preflight_report(
+            "FAIL",
+            failure_detail or "Installed database preflight failed without diagnostic detail.",
+        )
     return exit_code
 
 
