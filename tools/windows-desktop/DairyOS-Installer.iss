@@ -87,67 +87,115 @@ end;
 procedure InitializeWizard();
 var
   Intro: TNewStaticText;
+  Caution: TNewStaticText;
 begin
   ExistingDataDetected := DetectExistingDairyOSData();
   RestoreRequested := False;
 
+  WizardForm.Font.Name := 'Segoe UI';
+  WizardForm.Font.Size := 10;
+
   DataChoicePage := CreateCustomPage(
     wpSelectDir,
     'DairyOS Farm Data',
-    'Choose how this installation should use DairyOS farm data.'
+    'Choose how DairyOS should use farm data on this computer.'
   );
 
   Intro := TNewStaticText.Create(DataChoicePage);
   Intro.Parent := DataChoicePage.Surface;
   Intro.Left := 0;
-  Intro.Top := 8;
+  Intro.Top := 6;
   Intro.Width := DataChoicePage.SurfaceWidth;
   Intro.AutoSize := False;
   Intro.WordWrap := True;
-  Intro.Height := 58;
+  Intro.Font.Name := 'Segoe UI';
+  Intro.Font.Size := 11;
+  Intro.Font.Style := [fsBold];
+  Intro.Height := 46;
 
   if ExistingDataDetected then
   begin
-    Intro.Caption :=
-      'Existing DairyOS data was detected at ' + DairyOSDataRoot() + '. ' +
-      'The installer will not delete or replace it. Choose whether to reconnect ' +
-      'to that data or open the authenticated Admin Tool after installation to restore a verified backup.';
+    Intro.Caption := 'Existing DairyOS farm data was detected on this computer.';
 
     UseExistingRadio := TRadioButton.Create(DataChoicePage);
     UseExistingRadio.Parent := DataChoicePage.Surface;
-    UseExistingRadio.Left := 0;
-    UseExistingRadio.Top := 78;
-    UseExistingRadio.Width := DataChoicePage.SurfaceWidth;
-    UseExistingRadio.Caption := 'Use existing DairyOS data (recommended)';
+    UseExistingRadio.Left := 4;
+    UseExistingRadio.Top := 66;
+    UseExistingRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    UseExistingRadio.Font.Name := 'Segoe UI';
+    UseExistingRadio.Font.Size := 10;
+    UseExistingRadio.Font.Style := [fsBold];
+    UseExistingRadio.Caption := 'Use existing DairyOS data';
     UseExistingRadio.Checked := True;
 
     RestoreRadio := TRadioButton.Create(DataChoicePage);
     RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := 0;
-    RestoreRadio.Top := 108;
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth;
-    RestoreRadio.Caption := 'Restore a verified backup using DairyOS Administration after installation';
+    RestoreRadio.Left := 4;
+    RestoreRadio.Top := 105;
+    RestoreRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    RestoreRadio.Font.Name := 'Segoe UI';
+    RestoreRadio.Font.Size := 10;
+    RestoreRadio.Font.Style := [fsBold];
+    RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
+
+    Caution := TNewStaticText.Create(DataChoicePage);
+    Caution.Parent := DataChoicePage.Surface;
+    Caution.Left := 4;
+    Caution.Top := 154;
+    Caution.Width := DataChoicePage.SurfaceWidth - 8;
+    Caution.AutoSize := False;
+    Caution.WordWrap := True;
+    Caution.Font.Name := 'Segoe UI';
+    Caution.Font.Size := 9;
+    Caution.Font.Color := $003A3A9A;
+    Caution.Height := 92;
+    Caution.Caption :=
+      'IMPORTANT:' + #13#10 +
+      '• Use existing data to reinstall DairyOS and reconnect to the current farm database.' + #13#10 +
+      '• Restore installs DairyOS first, then opens authenticated DairyOS Administration for recovery.' + #13#10 +
+      '• This installer will not delete or overwrite the existing farm database.';
   end
   else
   begin
-    Intro.Caption :=
-      'No existing DairyOS farm data was detected at ' + DairyOSDataRoot() + '. ' +
-      'Choose a new farm installation or restore a verified DairyOS backup through the authenticated Admin Tool.';
+    Intro.Caption := 'No existing DairyOS farm data was detected on this computer.';
 
     FreshRadio := TRadioButton.Create(DataChoicePage);
     FreshRadio.Parent := DataChoicePage.Surface;
-    FreshRadio.Left := 0;
-    FreshRadio.Top := 78;
-    FreshRadio.Width := DataChoicePage.SurfaceWidth;
+    FreshRadio.Left := 4;
+    FreshRadio.Top := 66;
+    FreshRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    FreshRadio.Font.Name := 'Segoe UI';
+    FreshRadio.Font.Size := 10;
+    FreshRadio.Font.Style := [fsBold];
     FreshRadio.Caption := 'Start a new DairyOS farm';
     FreshRadio.Checked := True;
 
     RestoreRadio := TRadioButton.Create(DataChoicePage);
     RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := 0;
-    RestoreRadio.Top := 108;
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth;
-    RestoreRadio.Caption := 'Restore a verified backup using DairyOS Administration after installation';
+    RestoreRadio.Left := 4;
+    RestoreRadio.Top := 105;
+    RestoreRadio.Width := DataChoicePage.SurfaceWidth - 8;
+    RestoreRadio.Font.Name := 'Segoe UI';
+    RestoreRadio.Font.Size := 10;
+    RestoreRadio.Font.Style := [fsBold];
+    RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
+
+    Caution := TNewStaticText.Create(DataChoicePage);
+    Caution.Parent := DataChoicePage.Surface;
+    Caution.Left := 4;
+    Caution.Top := 154;
+    Caution.Width := DataChoicePage.SurfaceWidth - 8;
+    Caution.AutoSize := False;
+    Caution.WordWrap := True;
+    Caution.Font.Name := 'Segoe UI';
+    Caution.Font.Size := 9;
+    Caution.Font.Color := $003A3A9A;
+    Caution.Height := 92;
+    Caution.Caption :=
+      'IMPORTANT:' + #13#10 +
+      '• Start a new farm only when this computer does not contain the farm database.' + #13#10 +
+      '• Choose Restore if you are recovering a prior DairyOS farm from a verified backup.' + #13#10 +
+      '• Restore is completed through authenticated DairyOS Administration.';
   end;
 end;
 
@@ -160,7 +208,7 @@ begin
     if ExistingDataDetected and (UseExistingRadio <> nil) and UseExistingRadio.Checked then
     begin
       MsgBox(
-        'Existing DairyOS farm data will be retained and reused. The installer will replace application files only.',
+        'DairyOS will reinstall the application and reuse the existing farm data. Existing farm data will not be deleted or replaced.',
         mbInformation,
         MB_OK
       );
@@ -168,8 +216,7 @@ begin
     if RestoreRequested then
     begin
       MsgBox(
-        'After installation, DairyOS Administration will open. Authenticate there and use Restore Verified Backup. ' +
-        'The installer itself will not overwrite farm data.',
+        'After installation, DairyOS Administration will open for authenticated restore. The installer itself will not overwrite farm data.',
         mbInformation,
         MB_OK
       );
@@ -309,11 +356,13 @@ begin
   end;
 
   Choice := MsgBox(
-    'DairyOS farm data and the private database are retained by default when the application is uninstalled.' + #13#10 + #13#10 +
-    'YES: continue uninstall and KEEP all DairyOS data.' + #13#10 +
-    'NO: cancel uninstall and open DairyOS Administration so you can create a verified backup first.' + #13#10 +
-    'CANCEL: cancel uninstall.' + #13#10 + #13#10 +
-    'Permanent data deletion is available only through the authenticated DairyOS Administration purge operation.',
+    'Choose how to proceed with DairyOS uninstall:' + #13#10 + #13#10 +
+    'YES — KEEP DATA AND UNINSTALL' + #13#10 +
+    'Removes the DairyOS application but keeps the farm database and backups.' + #13#10 + #13#10 +
+    'NO — CREATE VERIFIED BACKUP FIRST' + #13#10 +
+    'Cancels uninstall and opens DairyOS Administration.' + #13#10 + #13#10 +
+    'CANCEL — DO NOT UNINSTALL' + #13#10 + #13#10 +
+    'Permanent data deletion is available only through authenticated DairyOS Administration.',
     mbConfirmation,
     MB_YESNOCANCEL
   );
