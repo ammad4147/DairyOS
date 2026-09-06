@@ -207,7 +207,7 @@ def get_integrated_coml(
     container=Depends(get_container),
 ):
     """
-    Auto COP from governed operational actuals.
+    Estimated COP from governed operational actuals.
 
     TMR is Feed cost authority.
     Finance is OPEX authority.
@@ -215,7 +215,7 @@ def get_integrated_coml(
 
     Future dates are never populated from today's live TMR or from
     future-dated Finance/Milk records. OperationalDateAuthority defines
-    the final date that can contribute to Auto COP.
+    the final date that can contribute to Estimated COP.
     """
     factory = container.repository_factory
 
@@ -388,7 +388,7 @@ def get_integrated_coml(
         opex_source = "finance_opex_attribution_failed"
 
     # --------------------------------------------------------
-    # Auto COP
+    # Estimated COP
     # --------------------------------------------------------
 
     feed_per_l = (
@@ -527,10 +527,10 @@ def get_integrated_coml(
         ),
         "official": official,
         "message": (
-            "Auto COP uses governed TMR whole-herd feed cost, "
-            "authoritative milk production and active Finance OPEX "
-            "through the governed operational date. Bulk Feed "
-            "purchase spend and Equipment Purchase are not treated "
-            "as operating consumption."
+            "Estimated COP uses governed TMR whole-herd feed cost, "
+            "authoritative milk production and attributed Finance OPEX "
+            "through the governed operational date. Bulk Feed purchases "
+            "are not treated as same-day consumption and Non-OPEX is "
+            "excluded from Operating Estimated COP."
         ),
     }
