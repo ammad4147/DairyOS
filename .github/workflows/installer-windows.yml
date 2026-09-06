@@ -147,17 +147,44 @@ jobs:
             }
           }
 
-          # Repoint the certified farm root to ProgramData for the uninstall
-          # lifecycle exercise, start the private cluster, and prove that the
-          # uninstaller stops it itself rather than relying on preflight cleanup.
+          # Initialize the actual ProgramData private cluster through the
+          # packaged DairyOS database path. Do not clone a PostgreSQL cluster
+          # by filesystem copy: runtime/config state is bound to its data root.
+          $env:DAIRYOS_DATA_DIR = $dataRoot
+          $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-programdata-preflight.txt"
+          Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
+          $programDataPreflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
+          if (-not $programDataPreflight.WaitForExit(180000)) {
+            Stop-Process -Id $programDataPreflight.Id -Force -ErrorAction SilentlyContinue
+            throw "ProgramData database preflight exceeded 180 seconds."
+          }
+          $programDataPreflight.Refresh()
+          if ($programDataPreflight.ExitCode -ne 0) {
+            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
+              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
+            }
+            throw "ProgramData database preflight failed with code $($programDataPreflight.ExitCode)."
+          }
+
           $programDataCluster = Join-Path $dataRoot "postgres"
-          if (Test-Path $programDataCluster) { Remove-Item $programDataCluster -Recurse -Force }
-          Copy-Item (Join-Path $certDataRoot "postgres") $programDataCluster -Recurse -Force
           $programDataPgData = Join-Path $programDataCluster "data"
+          $runtimeStatePath = Join-Path $programDataCluster "runtime.json"
+          if (-not (Test-Path $runtimeStatePath -PathType Leaf)) {
+            throw "ProgramData runtime.json missing before uninstall certification."
+          }
+          $runtimeState = Get-Content $runtimeStatePath -Raw | ConvertFrom-Json
+          $programDataPort = [int]$runtimeState.port
+          if ($programDataPort -lt 1 -or $programDataPort -gt 65535) {
+            throw "ProgramData private PostgreSQL port is invalid: $programDataPort"
+          }
+
           $pgCtl = Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"
           $pgLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-running-postgres.log"
-          & $pgCtl -D $programDataPgData -l $pgLog -w -t 30 start
-          if ($LASTEXITCODE -ne 0) { throw "Unable to start private PostgreSQL for running-uninstall certification." }
+          & $pgCtl -D $programDataPgData -l $pgLog -o "-p $programDataPort -h 127.0.0.1" -w -t 30 start
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path $pgLog -PathType Leaf) { Get-Content $pgLog }
+            throw "Unable to start ProgramData private PostgreSQL for running-uninstall certification."
+          }
           if (-not (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf)) {
             throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
           }
