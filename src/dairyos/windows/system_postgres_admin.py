@@ -200,6 +200,7 @@ def stage_migration_database_url() -> None:
         return
     os.environ[MIGRATION_DATABASE_URL_ENV] = migration_database_url()
 
+
 def _connect_runtime(
     *,
     password: str | None,

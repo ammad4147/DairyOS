@@ -76,6 +76,11 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     )
     monkeypatch.setattr(
         supervisor,
+        "stage_runtime_database_url",
+        lambda: calls.append("stage-runtime"),
+    )
+    monkeypatch.setattr(
+        supervisor,
         "stage_migration_database_url",
         lambda: calls.append("stage-admin"),
     )
@@ -108,7 +113,14 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     )
 
     assert supervisor.run(config) == 0
-    assert calls[:5] == ["stage-admin", "migrate", "start-backend", "ready", "webview"]
+    assert calls[:6] == [
+        "stage-runtime",
+        "stage-admin",
+        "migrate",
+        "start-backend",
+        "ready",
+        "webview",
+    ]
     assert job.created is True
     assert job.closed is True
     assert "instance-release" in calls
@@ -139,6 +151,11 @@ def test_migration_failure_does_not_start_backend(monkeypatch):
         supervisor,
         "ensure_postgresql_running",
         lambda timeout: "postgresql-x64-18",
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "stage_runtime_database_url",
+        lambda: calls.append("stage-runtime"),
     )
     monkeypatch.setattr(
         supervisor,
@@ -186,6 +203,10 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
         "DAIRYOS_MIGRATION_DATABASE_URL",
         "postgresql+psycopg://dairyos_admin:secret@127.0.0.1/dairyos",
     )
+    monkeypatch.setenv(
+        "DAIRYOS_DATABASE_URL",
+        "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos",
+    )
     monkeypatch.setenv("DAIRYOS_RUNTIME_LOG_DIR", str(tmp_path))
     monkeypatch.setattr(supervisor.subprocess, "Popen", popen)
     monkeypatch.setattr(
@@ -202,3 +223,4 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     assert result is process
     assert url == "http://127.0.0.1:8123"
     assert "DAIRYOS_MIGRATION_DATABASE_URL" not in captured["env"]
+    assert captured["env"]["DAIRYOS_DATABASE_URL"] == "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos"
