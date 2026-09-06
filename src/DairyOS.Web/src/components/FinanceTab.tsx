@@ -799,19 +799,23 @@ export default function FinanceTab({
   const isAnimalSale = Boolean(animalSaleCategories[revCategory]);
   const saleEligibleAnimals = useMemo(() => {
     if (!isAnimalSale) return [];
-    const wanted: Record<string, string[]> = {
-      'Milking Animal Sale': ['milking'],
-      'Dry Animal Sale': ['dry'],
-      'Heifer Sale': ['heifer'],
-      'Female Calf Sale': ['female', 'calf'],
-      'Male Calf Sale': ['male', 'calf'],
-      'Bull Sale': ['bull'],
+    const wantedCategory: Record<string, string> = {
+      'Milking Animal Sale': 'MILKING',
+      'Dry Animal Sale': 'DRY',
+      'Heifer Sale': 'HEIFER',
+      'Female Calf Sale': 'FEMALE_CALF',
+      'Male Calf Sale': 'MALE_CALF',
+      'Bull Sale': 'BULL',
     };
-    const tokens = wanted[revCategory] || [];
-    return herdMasterList.filter(a => {
-      const hay = `${a.category} ${a.status}`.toLowerCase();
-      return tokens.every(token => hay.includes(token));
-    });
+    const expectedCategory = wantedCategory[revCategory] || '';
+    const normalizeCategory = (value: string) =>
+      String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_');
+    return herdMasterList.filter(
+      animal => normalizeCategory(animal.category) === expectedCategory,
+    );
   }, [herdMasterList, isAnimalSale, revCategory]);
 
   useEffect(() => {
@@ -819,6 +823,7 @@ export default function FinanceTab({
       setRevAnimalId('');
       return;
     }
+    setRevQty('1');
     if (revAnimalId && !saleEligibleAnimals.some(a => a.id === revAnimalId)) {
       setRevAnimalId('');
     }
@@ -853,8 +858,8 @@ export default function FinanceTab({
           transaction_type: revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
           amount: isMilkSale ? undefined : amount,
-          quantity: revQty ? Number(revQty) : null,
-          unit: isMilkSale && revQty ? 'litres' : null,
+          quantity: isAnimalSale ? 1 : (revQty ? Number(revQty) : null),
+          unit: isAnimalSale ? 'head' : (isMilkSale && revQty ? 'litres' : null),
           unit_rate: isMilkSale ? Number(revRate) : null,
           transaction_date: revDate,
           payment_method: revStatus === 'RECEIVABLE' ? 'CREDIT' : 'CASH',
@@ -1164,7 +1169,9 @@ export default function FinanceTab({
                 : <input required type="number" min="0" step="0.01" value={revAmount} onChange={event => setRevAmount(event.target.value)} style={inputStyle} placeholder="Amount" />}
               {isMilkSale
                 ? <input required type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
-                : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
+                : isAnimalSale
+                  ? <input type="number" value="1" readOnly disabled style={inputStyle} aria-label="Animal sale quantity" title="A selected Animal ID represents one head." />
+                  : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
             </div>
             {isMilkSale && <input readOnly value={calculatedMilkSaleAmount > 0 ? calculatedMilkSaleAmount.toFixed(2) : ''} style={{ ...inputStyle, marginTop: 6, color: '#34d399', fontWeight: 800 }} placeholder="Amount — auto calculated from Quantity × Rate" />}
             {isAnimalSale && (
