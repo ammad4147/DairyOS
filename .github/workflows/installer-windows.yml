@@ -77,9 +77,14 @@ jobs:
           $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
           if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
 
-          $taskQuery = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
+          $taskQuery = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" /FO LIST /V 2>&1
           if ($LASTEXITCODE -ne 0) {
             throw "Installer did not provision DairyOS-Automatic-Backup before application startup: $taskQuery"
+          }
+          $expectedBackupExe = Join-Path $installRoot "DairyOSBackup.exe"
+          $taskText = ($taskQuery | Out-String)
+          if ($taskText -notlike "*$expectedBackupExe*") {
+            throw "Automatic backup task points to the wrong executable. Expected: $expectedBackupExe"
           }
 
           $required = @(
@@ -169,6 +174,22 @@ jobs:
               Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
             }
             throw "ProgramData database preflight failed with code $($programDataPreflight.ExitCode)."
+          }
+
+          $backupWorker = Join-Path $installRoot "DairyOSBackup.exe"
+          $backupRun = Start-Process -FilePath $backupWorker -WorkingDirectory $installRoot -PassThru -Wait
+          if ($backupRun.ExitCode -ne 0) {
+            $backupHealth = Join-Path $dataRoot "backups\\backup-health.json"
+            if (Test-Path $backupHealth -PathType Leaf) { Get-Content $backupHealth }
+            throw "Installed DairyOS backup worker failed with code $($backupRun.ExitCode)."
+          }
+          $backupHealth = Join-Path $dataRoot "backups\\backup-health.json"
+          if (-not (Test-Path $backupHealth -PathType Leaf)) {
+            throw "Installed DairyOS backup worker did not produce backup-health.json."
+          }
+          $backupHealthPayload = Get-Content $backupHealth -Raw | ConvertFrom-Json
+          if ($backupHealthPayload.status -notin @("HEALTHY","DEGRADED")) {
+            throw "Installed DairyOS backup protection is not successful: $($backupHealthPayload.status)"
           }
 
           $programDataCluster = Join-Path $dataRoot "postgres"
