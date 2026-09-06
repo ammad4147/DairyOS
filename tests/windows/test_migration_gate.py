@@ -143,3 +143,34 @@ def test_current_head_privileged_gate_may_reinstall_guards(monkeypatch):
     assert result.migrated is False
     assert [kind for kind, _connection in calls] == ["install"]
     assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
+
+
+def test_privileged_url_is_cleared_when_engine_creation_fails(monkeypatch):
+    monkeypatch.setenv(
+        migrations.MIGRATION_DATABASE_URL_ENV,
+        "postgresql+psycopg://dairyos_admin:secret@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_database_url",
+        lambda: "postgresql+psycopg://dairyos_admin:secret@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_build_config",
+        lambda: (SimpleNamespace(attributes={}), SimpleNamespace(get_heads=lambda: ())),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "create_engine",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("engine failed")),
+    )
+    monkeypatch.setattr(migrations, "restore_verification_due", lambda: False)
+
+    with pytest.raises(
+        migrations.MigrationGateError,
+        match="database preflight failed",
+    ):
+        migrations.migrate_if_needed()
+
+    assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
