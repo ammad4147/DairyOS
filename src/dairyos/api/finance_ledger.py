@@ -1469,6 +1469,31 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
                 "master_category": master,
                 "sub_category": sub,
                 "custom_specification": custom,
+                "cop_classification": (
+                    payload.cop_classification
+                    if payload.cop_classification is not None
+                    else getattr(row, "cop_classification", None)
+                ),
+                "cop_attribution_method": (
+                    payload.cop_attribution_method
+                    if payload.cop_attribution_method is not None
+                    else getattr(row, "cop_attribution_method", None)
+                ),
+                "cop_service_date": (
+                    payload.cop_service_date
+                    if payload.cop_service_date is not None
+                    else getattr(row, "cop_service_date", None)
+                ),
+                "cop_coverage_start": (
+                    payload.cop_coverage_start
+                    if payload.cop_coverage_start is not None
+                    else getattr(row, "cop_coverage_start", None)
+                ),
+                "cop_coverage_end": (
+                    payload.cop_coverage_end
+                    if payload.cop_coverage_end is not None
+                    else getattr(row, "cop_coverage_end", None)
+                ),
                 "quantity": (
                     payload.quantity
                     if payload.quantity is not None
