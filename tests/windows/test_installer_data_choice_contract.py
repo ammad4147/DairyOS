@@ -28,3 +28,14 @@ def test_uninstaller_explicitly_keeps_data_and_routes_backup_to_admin_tool():
     assert "create a verified backup first" in source
     assert "DairyOS-Admin.exe" in source
     assert "Permanent data deletion is available only through" in source
+
+
+def test_silent_uninstall_bypasses_interactive_data_prompt():
+    source = _source()
+
+    assert "function IsSilentUninstall(): Boolean;" in source
+    assert "ParamCount" in source
+    assert "ParamStr(I)" in source
+    assert "(Param = '/SILENT') or (Param = '/VERYSILENT')" in source
+    assert "if IsSilentUninstall() then" in source
+    assert "if WizardSilent() then" not in source

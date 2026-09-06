@@ -186,6 +186,23 @@ begin
   Result := RestoreRequested;
 end;
 
+function IsSilentUninstall(): Boolean;
+var
+  I: Integer;
+  Param: String;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    Param := Uppercase(ParamStr(I));
+    if (Param = '/SILENT') or (Param = '/VERYSILENT') then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   Choice: Integer;
@@ -194,7 +211,7 @@ var
 begin
   Result := True;
 
-  if WizardSilent() then
+  if IsSilentUninstall() then
     exit;
 
   Choice := MsgBox(
