@@ -17,7 +17,7 @@ def test_installer_exposes_existing_data_and_restore_choices():
     assert "Restore from a verified DairyOS backup" in source
     assert "Start a new DairyOS farm" in source
     assert "ShouldLaunchAdminAfterInstall" in source
-    assert "The installer itself will not overwrite farm data." in source
+    assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
 
 
 def test_uninstaller_explicitly_keeps_data_and_routes_backup_to_admin_tool():
