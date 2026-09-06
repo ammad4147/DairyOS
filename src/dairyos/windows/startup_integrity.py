@@ -69,6 +69,28 @@ def prior_installation_exists() -> bool:
     return marker_path().is_file()
 
 
+def _marker_applies_to_data_root(marker: Path, root: Path) -> bool:
+    """Return whether a durable marker belongs to the inspected data root.
+
+    Legacy or unreadable markers are treated conservatively as applicable.
+    Modern markers explicitly bound to a different data root must not cause a
+    disposable/new installation to be misclassified as an established farm.
+    """
+    if not marker.is_file():
+        return False
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return True
+    recorded = str(payload.get("data_root", "")).strip() if isinstance(payload, dict) else ""
+    if not recorded:
+        return True
+    try:
+        return Path(recorded).expanduser().resolve() == root.expanduser().resolve()
+    except OSError:
+        return Path(recorded) == root
+
+
 def record_successful_start(*, data_root: Path | None = None) -> Path | None:
     """Record a healthy packaged start and enforce automatic backup provisioning.
 
@@ -127,7 +149,7 @@ def inspect_startup_integrity(
     facts = StartupIntegrityFacts(
         data_root=root,
         marker_path=marker,
-        prior_installation=marker.is_file(),
+        prior_installation=_marker_applies_to_data_root(marker, root),
         persistent_data=persistent_data,
         application_tables=application_tables,
     )

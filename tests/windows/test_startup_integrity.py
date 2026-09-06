@@ -109,3 +109,57 @@ def test_record_successful_start_persists_marker_and_provisions_backup(monkeypat
 
     startup_integrity.record_successful_start(data_root=root)
     assert calls == [True, False]
+
+
+def test_marker_for_different_data_root_does_not_block_new_disposable_root(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    marker = startup_integrity.marker_path()
+    other_root = tmp_path / "Established-Farm"
+    marker.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "recorded_at": "2026-09-06T00:00:00+00:00",
+                "data_root": str(other_root),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    facts = startup_integrity.inspect_startup_integrity(
+        application_tables=0,
+        enforce=True,
+    )
+
+    assert facts.prior_installation is False
+    assert facts.recovery_required is False
+    assert root != other_root
+
+
+def test_marker_for_same_data_root_still_blocks_empty_database(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    marker = startup_integrity.marker_path()
+    marker.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "recorded_at": "2026-09-06T00:00:00+00:00",
+                "data_root": str(root),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(startup_integrity.StartupIntegrityError):
+        startup_integrity.inspect_startup_integrity(
+            application_tables=0,
+            enforce=True,
+        )
