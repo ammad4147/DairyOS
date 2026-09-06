@@ -454,8 +454,42 @@ class LifetimeAnimalPassportService:
             "daily_totals_considered": len(daily_totals),
         }
 
+        monthly_buckets: dict[str, dict[date, float]] = defaultdict(dict)
+        for production_date, litres in daily_totals.items():
+            month_key = production_date.strftime("%Y-%m")
+            monthly_buckets[month_key][production_date] = litres
+
+        monthly_output: list[dict[str, Any]] = []
+        for month_key in sorted(monthly_buckets, reverse=True):
+            entries = monthly_buckets[month_key]
+            month_total = round(sum(entries.values()), 3)
+            month_peak_date = max(entries, key=entries.get) if entries else None
+            monthly_output.append(
+                {
+                    "month": month_key,
+                    "milk_liters": month_total,
+                    "recorded_days": len(entries),
+                    "average_liters_per_recorded_day": (
+                        round(month_total / len(entries), 3)
+                        if entries
+                        else 0.0
+                    ),
+                    "peak_daily_yield_liters": (
+                        round(entries[month_peak_date], 3)
+                        if month_peak_date
+                        else None
+                    ),
+                    "peak_daily_yield_date": (
+                        month_peak_date.isoformat()
+                        if month_peak_date
+                        else None
+                    ),
+                }
+            )
+
         return {
             "lactations": lactations,
+            "monthly_output": monthly_output,
             "lifetime": lifetime,
             "summary": dict(lifetime),
         }
