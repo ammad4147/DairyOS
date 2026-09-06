@@ -418,23 +418,20 @@ def _resolve_cop_metadata(
     coverage_start = entry.cop_coverage_start
     coverage_end = entry.cop_coverage_end
 
-    if method == "DIRECT" and service_date is None:
+    # Missing attribution dates are allowed to persist as explicitly
+    # unattributed OPEX so legacy/API callers are not forced into a guessed
+    # transaction-date allocation. The COP engine excludes such rows until
+    # the operator supplies defensible service/coverage metadata.
+    if (
+        method in {"PERIODIC", "ALLOCATED"}
+        and coverage_start is not None
+        and coverage_end is not None
+        and coverage_end < coverage_start
+    ):
         raise HTTPException(
             status_code=422,
-            detail="Direct OPEX attribution requires the service/incurred date.",
+            detail="COP coverage end cannot be earlier than coverage start.",
         )
-
-    if method in {"PERIODIC", "ALLOCATED"}:
-        if coverage_start is None or coverage_end is None:
-            raise HTTPException(
-                status_code=422,
-                detail=f"{method.title()} OPEX attribution requires coverage start and end dates.",
-            )
-        if coverage_end < coverage_start:
-            raise HTTPException(
-                status_code=422,
-                detail="COP coverage end cannot be earlier than coverage start.",
-            )
 
     return classification, method, service_date, coverage_start, coverage_end
 
