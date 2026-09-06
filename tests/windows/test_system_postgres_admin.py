@@ -38,6 +38,8 @@ def _configure(monkeypatch, tmp_path):
     monkeypatch.setenv("DAIRYOS_DB_PORT", "5432")
     monkeypatch.setenv("DAIRYOS_DB_NAME", "dairyos")
     monkeypatch.delenv(admin.MIGRATION_DATABASE_URL_ENV, raising=False)
+    monkeypatch.delenv(admin.DATABASE_URL_ENV, raising=False)
+    monkeypatch.delenv(admin.DATABASE_PASSWORD_ENV, raising=False)
     monkeypatch.setattr(
         admin,
         "_protect",
@@ -145,3 +147,90 @@ def test_windows_dpapi_round_trip_uses_user_protection():
     assert payload["scheme"] == "windows-dpapi-user"
     assert payload["value"] != "dpapi-round-trip-secret"
     assert admin._unprotect(payload) == "dpapi-round-trip-secret"
+
+def test_runtime_adoption_stores_restricted_role_separately(monkeypatch, tmp_path):
+    _configure(monkeypatch, tmp_path)
+    calls = []
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        return _Connection()
+
+    monkeypatch.setattr(admin.psycopg, "connect", connect)
+
+    path = admin.adopt_runtime_password("runtime-secret")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert calls[0]["user"] == "dairyos"
+    assert calls[0]["password"] == "runtime-secret"
+    assert path.name == admin.RUNTIME_CREDENTIAL_FILENAME
+    assert payload["role"] == "dairyos"
+    assert payload["password"] == {
+        "scheme": "test",
+        "value": "protected:runtime-secret",
+    }
+    assert path != admin.credential_state_path()
+
+
+def test_runtime_stage_uses_protected_restricted_url(monkeypatch, tmp_path):
+    _configure(monkeypatch, tmp_path)
+    monkeypatch.setattr(admin.psycopg, "connect", lambda **_kwargs: _Connection())
+
+    admin.adopt_runtime_password("run@time/secret")
+    admin.stage_runtime_database_url()
+
+    url = admin.os.environ[admin.DATABASE_URL_ENV]
+    assert url.startswith("postgresql+psycopg://dairyos:")
+    assert "run%40time%2Fsecret" in url
+    assert "dairyos_admin" not in url
+
+
+def test_runtime_stage_preserves_passwordless_loopback(monkeypatch, tmp_path):
+    _configure(monkeypatch, tmp_path)
+    calls = []
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        return _Connection()
+
+    monkeypatch.setattr(admin.psycopg, "connect", connect)
+
+    admin.stage_runtime_database_url()
+
+    assert calls[0]["user"] == "dairyos"
+    assert calls[0]["password"] is None
+    assert admin.DATABASE_URL_ENV not in admin.os.environ
+
+
+def test_runtime_stage_requires_protected_credential_when_passwordless_fails(
+    monkeypatch,
+    tmp_path,
+):
+    _configure(monkeypatch, tmp_path)
+
+    def reject(**_kwargs):
+        raise RuntimeError("password required")
+
+    monkeypatch.setattr(admin.psycopg, "connect", reject)
+
+    with pytest.raises(
+        admin.SystemPostgresRuntimeCredentialError,
+        match="no protected runtime credential",
+    ):
+        admin.stage_runtime_database_url()
+
+
+def test_runtime_explicit_environment_override_is_preserved(monkeypatch, tmp_path):
+    _configure(monkeypatch, tmp_path)
+    monkeypatch.setenv(
+        admin.DATABASE_URL_ENV,
+        "postgresql+psycopg://external-runtime",
+    )
+
+    admin.stage_runtime_database_url()
+
+    assert (
+        admin.os.environ[admin.DATABASE_URL_ENV]
+        == "postgresql+psycopg://external-runtime"
+    )
+

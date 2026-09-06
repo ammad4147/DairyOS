@@ -45,12 +45,20 @@ from dairyos.data.models.health_observation import (
     HealthObservation,
 )
 
+from dairyos.data.models.health_case import (
+    HealthCase,
+)
+
 from dairyos.data.models.milk_production import (
     MilkProduction,
 )
 
 from dairyos.data.models.operational_finding import (
     OperationalFinding,
+)
+
+from dairyos.data.models.operational_finding_lifecycle_event import (
+    OperationalFindingLifecycleEvent,
 )
 
 from dairyos.data.models.milk_disposition import (

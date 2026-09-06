@@ -31,7 +31,9 @@ from dairyos.windows.private_postgres import stop as stop_private_postgres
 from dairyos.windows.postgres_service import PostgreSQLServiceError, ensure_postgresql_running
 from dairyos.windows.system_postgres_admin import (
     SystemPostgresAdminCredentialError,
+    SystemPostgresRuntimeCredentialError,
     stage_migration_database_url,
+    stage_runtime_database_url,
 )
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
@@ -507,11 +509,13 @@ def run(config: SupervisorConfig) -> int:
                         "PostgreSQL Windows Service is running: %s",
                         service_name,
                     )
+                stage_runtime_database_url()
                 stage_migration_database_url()
         except (
             PostgreSQLServiceError,
             ApplianceDatabaseError,
             SystemPostgresAdminCredentialError,
+            SystemPostgresRuntimeCredentialError,
         ) as exc:
             LOG.exception("DairyOS database runtime preflight failed")
             show_startup_error(
