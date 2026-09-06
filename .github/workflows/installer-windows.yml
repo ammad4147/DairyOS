@@ -77,6 +77,11 @@ jobs:
           $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
           if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
 
+          $taskQuery = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer did not provision DairyOS-Automatic-Backup before application startup: $taskQuery"
+          }
+
           $required = @(
             (Join-Path $installRoot "DairyOS.exe"),
             (Join-Path $installRoot "DairyOSBackup.exe"),

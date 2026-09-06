@@ -48,52 +48,45 @@ def _task_command() -> str:
     return f'"{Path(sys.executable).resolve()}" -m dairyos.windows.backup_task'
 
 
-def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
-    """Create/update the unskippable six-hour Windows backup schedule."""
+def scheduled_backup_task_exists() -> bool:
+    """Return whether the installer-provisioned automatic backup task exists."""
 
     if os.name != "nt":
-        return
+        return True
 
-    command = _task_command()
-    create = subprocess.run(
-        [
-            "schtasks.exe",
-            "/Create",
-            "/F",
-            "/TN",
-            TASK_NAME,
-            "/SC",
-            "HOURLY",
-            "/MO",
-            str(INTERVAL_HOURS),
-            "/ST",
-            "00:00",
-            "/RL",
-            "LIMITED",
-            "/TR",
-            command,
-        ],
+    query = subprocess.run(
+        ["schtasks.exe", "/Query", "/TN", TASK_NAME],
         capture_output=True,
         text=True,
         check=False,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
-    if create.returncode != 0:
-        detail = create.stderr.strip() or create.stdout.strip() or "schtasks /Create failed"
-        raise BackupTaskError(f"Could not provision automatic DairyOS backups: {detail}")
+    return query.returncode == 0
+
+
+def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
+    """Verify the installer-provisioned six-hour backup schedule.
+
+    Task creation is an installation-time privileged operation. Normal DairyOS
+    startup is intentionally non-elevated and must never attempt task creation.
+    The application therefore verifies the task installed by Inno Setup and
+    fails closed if that protection has disappeared.
+    """
+
+    if os.name != "nt":
+        return
+
+    if not scheduled_backup_task_exists():
+        raise BackupTaskError(
+            "Automatic DairyOS backups are not provisioned. "
+            "Repair or reinstall DairyOS using the Windows installer."
+        )
 
     if run_immediately:
-        started = subprocess.run(
-            ["schtasks.exe", "/Run", "/TN", TASK_NAME],
-            capture_output=True,
-            text=True,
-            check=False,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        LOG.info(
+            "Automatic DairyOS backup task verified; first backup will run "
+            "on the installer-provisioned schedule."
         )
-        if started.returncode != 0:
-            detail = started.stderr.strip() or started.stdout.strip() or "schtasks /Run failed"
-            raise BackupTaskError(f"Could not start the first DairyOS backup: {detail}")
-
 
 def _ordinary_database_url(database) -> str:
     return URL.create(

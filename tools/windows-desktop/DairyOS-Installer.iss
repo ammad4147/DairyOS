@@ -69,6 +69,42 @@ begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
 end;
 
+
+procedure ProvisionAutomaticBackupTask();
+var
+  BackupExe: String;
+  TaskCommand: String;
+  ResultCode: Integer;
+begin
+  BackupExe := ExpandConstant('{app}\DairyOSBackup.exe');
+  if not FileExists(BackupExe) then
+    RaiseException('DairyOSBackup.exe is missing; automatic backups cannot be provisioned.');
+
+  TaskCommand :=
+    '/Create /F /TN "DairyOS-Automatic-Backup" ' +
+    '/SC HOURLY /MO 6 /ST 00:00 /RL LIMITED ' +
+    '/TR """' + BackupExe + '"""';
+
+  if (not Exec(
+    ExpandConstant('{sys}\schtasks.exe'),
+    TaskCommand,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS automatic backup protection could not be installed. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    ProvisionAutomaticBackupTask();
+end;
+
 function DetectExistingDairyOSData(): Boolean;
 var
   Root: String;

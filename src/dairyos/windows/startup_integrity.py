@@ -92,12 +92,12 @@ def _marker_applies_to_data_root(marker: Path, root: Path) -> bool:
 
 
 def record_successful_start(*, data_root: Path | None = None) -> Path | None:
-    """Record a healthy packaged start and enforce automatic backup provisioning.
+    """Record a healthy packaged start after backup protection is verified.
 
-    The scheduled task is deliberately not optional.  On the first successful
-    packaged start DairyOS both creates the recurring six-hour task and starts
-    the first backup immediately.  Subsequent starts refresh the task definition
-    so upgrades cannot silently lose the protection schedule.
+    The recurring backup task is deliberately not optional, but provisioning is
+    installer-owned because Windows task creation is privileged. Packaged
+    application startup only verifies that the installer-provisioned schedule
+    remains present.
     """
     if not _is_packaged_windows():
         return None
@@ -105,8 +105,8 @@ def record_successful_start(*, data_root: Path | None = None) -> Path | None:
     target = marker_path()
     first_successful_start = not target.is_file()
 
-    # Provision before persisting the success marker. If the backup schedule
-    # cannot be installed, the packaged startup is not considered complete.
+    # Verify before persisting the success marker. If the installer-provisioned
+    # schedule is missing, packaged startup is not considered complete.
     _ensure_automatic_backups(run_immediately=first_successful_start)
 
     target.parent.mkdir(parents=True, exist_ok=True)
