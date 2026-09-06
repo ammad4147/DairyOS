@@ -476,6 +476,10 @@ def _exception_chain(exc: BaseException) -> str:
 def database_preflight(config: SupervisorConfig) -> int:
     """Exercise the packaged database startup path without opening the UI."""
     private_database = None
+    exit_code = 4
+    success_detail = ""
+    _write_database_preflight_report("RUNNING", "stage=prepare-private-database")
+
     try:
         database = prepare_database(
             postgres_timeout=config.postgres_timeout
@@ -486,7 +490,17 @@ def database_preflight(config: SupervisorConfig) -> int:
                 "Packaged database preflight did not resolve private PostgreSQL."
             )
 
+        _write_database_preflight_report(
+            "RUNNING",
+            (
+                "stage=apply-database-environment\n"
+                f"host={database.host}\n"
+                f"port={database.port}"
+            ),
+        )
         apply_database_environment(database)
+
+        _write_database_preflight_report("RUNNING", "stage=migration-gate")
         migration = migrate_if_needed()
         LOG.info(
             "Installed database preflight passed: migrated=%s current=%s "
@@ -496,29 +510,42 @@ def database_preflight(config: SupervisorConfig) -> int:
             migration.target_heads,
             migration.backup_path,
         )
-        _write_database_preflight_report(
-            "PASS",
-            (
-                f"mode={database.mode}\n"
-                f"host={database.host}\n"
-                f"port={database.port}\n"
-                f"migrated={migration.migrated}\n"
-                f"target_heads={migration.target_heads}"
-            ),
+        success_detail = (
+            f"mode={database.mode}\n"
+            f"host={database.host}\n"
+            f"port={database.port}\n"
+            f"migrated={migration.migrated}\n"
+            f"target_heads={migration.target_heads}"
         )
-        return 0
+        exit_code = 0
     except (ApplianceDatabaseError, MigrationGateError) as exc:
         LOG.exception("Installed DairyOS database preflight failed")
         _write_database_preflight_report("FAIL", _exception_chain(exc))
-        return 4
+        exit_code = 4
     finally:
         if private_database is not None:
+            _write_database_preflight_report(
+                "RUNNING",
+                (
+                    "stage=stop-private-database\n"
+                    f"pending_exit_code={exit_code}"
+                ),
+            )
             try:
                 stop_private_postgres(private_database)
-            except Exception:
+            except Exception as exc:
                 LOG.exception(
                     "Failed to stop private PostgreSQL after database preflight"
                 )
+                _write_database_preflight_report(
+                    "FAIL",
+                    "stage=stop-private-database\n" + _exception_chain(exc),
+                )
+                exit_code = 4
+
+    if exit_code == 0:
+        _write_database_preflight_report("PASS", success_detail)
+    return exit_code
 
 
 def run(config: SupervisorConfig) -> int:

@@ -62,6 +62,7 @@ jobs:
 
       - name: Certify silent install and keep-data uninstall
         shell: pwsh
+        timeout-minutes: 8
         run: |
           $installer = Join-Path $PWD "dist\DairyOS-Installer\DairyOS-Windows-Installer.exe"
           $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Cert"
@@ -114,7 +115,16 @@ jobs:
           $installedExe = Join-Path $installRoot "DairyOS.exe"
           foreach ($cycle in 1..2) {
             Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
-            $preflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru -Wait
+            $preflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
+            if (-not $preflight.WaitForExit(180000)) {
+              Stop-Process -Id $preflight.Id -Force -ErrorAction SilentlyContinue
+              if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
+                Write-Host "=== INSTALLED DATABASE PREFLIGHT TIMEOUT DIAGNOSTIC ==="
+                Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
+              }
+              throw "Installed DairyOS database preflight cycle $cycle exceeded 180 seconds."
+            }
+            $preflight.Refresh()
             if ($preflight.ExitCode -ne 0) {
               if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
                 Write-Host "=== INSTALLED DATABASE PREFLIGHT DIAGNOSTIC ==="
