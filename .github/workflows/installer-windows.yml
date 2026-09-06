@@ -71,7 +71,7 @@ jobs:
 
           if (Test-Path $installRoot) { Remove-Item $installRoot -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
-          "preserve-me" | Set-Content -Path $marker -Encoding ascii
+          Remove-Item $marker -Force -ErrorAction SilentlyContinue
 
           $setupArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$installRoot")
           $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
@@ -187,6 +187,15 @@ jobs:
           }
           if (-not (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf)) {
             throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
+          }
+
+          # Create the keep-data sentinel only after the real ProgramData farm
+          # has been initialized. Creating an arbitrary persistent file before
+          # first bootstrap would correctly trigger DairyOS startup-integrity
+          # protection against silently replacing an established farm.
+          "preserve-me" | Set-Content -Path $marker -Encoding ascii
+          if (-not (Test-Path $marker -PathType Leaf)) {
+            throw "Unable to create ProgramData preservation marker before uninstall."
           }
 
           $uninstaller = Join-Path $installRoot "unins000.exe"

@@ -56,3 +56,15 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
     assert "/IM postgres.exe" not in source
     assert 'DairyOS-Automatic-Backup' in source
     assert "Result := StopInstalledDairyOSForUninstall();" in source
+
+
+def test_ci_does_not_create_preservation_sentinel_before_programdata_bootstrap():
+    workflow = (
+        ROOT / ".github" / "workflows" / "installer-windows.yml"
+    ).read_text(encoding="utf-8")
+
+    early = workflow.index("New-Item -ItemType Directory -Force -Path $dataRoot")
+    preflight = workflow.index("$programDataPreflight = Start-Process")
+    marker_write = workflow.index('"preserve-me" | Set-Content -Path $marker -Encoding ascii')
+
+    assert early < preflight < marker_write
