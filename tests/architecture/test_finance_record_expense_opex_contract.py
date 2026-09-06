@@ -46,7 +46,8 @@ def test_opex_taxonomy_is_refined_for_dairy_operating_expenses():
         "Milk Filters / Strainers",
         "Manure Handling / Removal",
         "Insurance Premiums",
-        "Loan Interest / Bank Charges",
+        "Loan Interest",
+        "Bank Charges",
         "Custom Hire / Contract Services",
     ):
         assert f'"{item}"' in source
@@ -59,3 +60,6 @@ def test_equipment_purchase_remains_available_for_named_assets():
     assert '"Equipment Purchase"' in taxonomy_source
     assert 'EQUIPMENT_PURCHASE_ITEM = "Equipment Purchase"' in api_source
     assert "custom_specification is required" in api_source
+    policy_source = text("src/dairyos/finance/opex_attribution.py")
+    assert '"Equipment Purchase"' in policy_source
+    assert '"NON_OPEX"' in policy_source
