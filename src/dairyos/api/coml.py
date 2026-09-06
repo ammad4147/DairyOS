@@ -322,6 +322,9 @@ def get_integrated_coml(
                     continue
 
                 master = master_raw.upper()
+                # Canonical operating-COP authority:
+                # if master != "OPEX":
+                #     continue
                 if not (master == "OPEX"):
                     continue
 
