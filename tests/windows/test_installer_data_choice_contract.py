@@ -23,9 +23,9 @@ def test_installer_exposes_existing_data_and_restore_choices():
 def test_uninstaller_explicitly_keeps_data_and_routes_backup_to_admin_tool():
     source = _source()
 
-    assert "YES — KEEP DATA AND UNINSTALL" in source
+    assert "YES - KEEP DATA AND UNINSTALL" in source
     assert "Removes the DairyOS application but keeps the farm database and backups." in source
-    assert "NO — CREATE VERIFIED BACKUP FIRST" in source
+    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
     assert "DairyOS-Admin.exe" in source
     assert "Permanent data deletion is available only through" in source
 
