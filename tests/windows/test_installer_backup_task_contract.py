@@ -25,7 +25,7 @@ def test_installer_ci_verifies_task_action_and_executes_backup_worker():
     installer = ISS.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "\'/TR \"" + "\' + BackupExe + \"" + "\'" in installer
+    assert "'/TR \"' + BackupExe + '\"'" in installer
     assert "Automatic backup task points to the wrong executable" in workflow
     assert "Installed DairyOS backup worker failed with code" in workflow
     assert "backup-health.json" in workflow
