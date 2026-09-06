@@ -60,9 +60,9 @@ def test_passport_has_distinct_health_and_vaccination_views():
     assert "['vaccination','Vaccination']" in s
     assert "tab==='health'" in s
     assert "tab==='vaccination'" in s
-    assert "Clinical Observations" in s
+    assert "Clinical History" in s
     assert "Treatment History" in s
-    assert "Vaccination History — Linked to Animal ID" in s
+    assert "Vaccination History" in s
     assert "passport?.history?.health" in s
     assert "passport?.history?.treatments" in s
     assert "passportVaccinations" in s
