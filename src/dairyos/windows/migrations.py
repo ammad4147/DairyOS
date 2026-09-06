@@ -153,12 +153,14 @@ def migrate_if_needed() -> MigrationResult:
     stop farm operations.
     """
     transient_admin_url = os.environ.get(MIGRATION_DATABASE_URL_ENV, "").strip()
-    database_url = _database_url()
-    config, script = _build_config()
-    engine = create_engine(database_url, pool_pre_ping=True)
+    engine = None
     backup_path: Path | None = None
 
     try:
+        database_url = _database_url()
+        config, script = _build_config()
+        engine = create_engine(database_url, pool_pre_ping=True)
+
         with engine.begin() as connection:
             connection.execute(
                 text("SELECT pg_advisory_xact_lock(:lock_key)"),
@@ -237,7 +239,8 @@ def migrate_if_needed() -> MigrationResult:
             f"DairyOS database preflight failed; startup is blocked: {exc}"
         ) from exc
     finally:
-        engine.dispose()
+        if engine is not None:
+            engine.dispose()
         if transient_admin_url:
             try:
                 if restore_verification_due():
