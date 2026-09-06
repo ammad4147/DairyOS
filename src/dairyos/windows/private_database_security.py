@@ -229,6 +229,124 @@ def _literal(connection, value: str) -> str:
     return sql.Literal(value).as_string(connection)
 
 
+
+def _transfer_application_ownership(connection) -> None:
+    """Move only DairyOS-owned user objects to the administrative owner.
+
+    The historical private cluster is initialized with dairyos as the
+    bootstrap superuser. A blanket REASSIGN OWNED would also target objects
+    that belong to PostgreSQL's bootstrap identity and can therefore fail on
+    database-system dependencies. Restrict transfer to objects in user
+    schemas inside the DairyOS database.
+    """
+    from psycopg import sql
+
+    relation_kinds = {
+        "r": "TABLE",
+        "p": "TABLE",
+        "v": "VIEW",
+        "m": "MATERIALIZED VIEW",
+        "S": "SEQUENCE",
+        "f": "FOREIGN TABLE",
+    }
+    relations = connection.execute(
+        """
+        SELECT n.nspname, c.relname, c.relkind
+        FROM pg_class AS c
+        JOIN pg_namespace AS n ON n.oid = c.relnamespace
+        JOIN pg_roles AS r ON r.oid = c.relowner
+        WHERE r.rolname = %s
+          AND n.nspname <> 'information_schema'
+          AND n.nspname NOT LIKE 'pg_%'
+          AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+        ORDER BY n.nspname, c.relname
+        """,
+        (APP_ROLE,),
+    ).fetchall()
+    for schema_name, object_name, relkind in relations:
+        connection.execute(
+            sql.SQL("ALTER {} {}.{} OWNER TO {}").format(
+                sql.SQL(relation_kinds[relkind]),
+                sql.Identifier(schema_name),
+                sql.Identifier(object_name),
+                sql.Identifier(ADMIN_ROLE),
+            )
+        )
+
+    routines = connection.execute(
+        """
+        SELECT
+            n.nspname,
+            p.proname,
+            pg_get_function_identity_arguments(p.oid),
+            p.prokind
+        FROM pg_proc AS p
+        JOIN pg_namespace AS n ON n.oid = p.pronamespace
+        JOIN pg_roles AS r ON r.oid = p.proowner
+        WHERE r.rolname = %s
+          AND n.nspname <> 'information_schema'
+          AND n.nspname NOT LIKE 'pg_%'
+          AND p.prokind IN ('f', 'p')
+        ORDER BY n.nspname, p.proname
+        """,
+        (APP_ROLE,),
+    ).fetchall()
+    for schema_name, routine_name, identity_arguments, prokind in routines:
+        connection.execute(
+            sql.SQL("ALTER {} {}.{}({}) OWNER TO {}").format(
+                sql.SQL("PROCEDURE" if prokind == "p" else "FUNCTION"),
+                sql.Identifier(schema_name),
+                sql.Identifier(routine_name),
+                sql.SQL(identity_arguments),
+                sql.Identifier(ADMIN_ROLE),
+            )
+        )
+
+    owned_types = connection.execute(
+        """
+        SELECT n.nspname, t.typname, t.typtype
+        FROM pg_type AS t
+        JOIN pg_namespace AS n ON n.oid = t.typnamespace
+        JOIN pg_roles AS r ON r.oid = t.typowner
+        WHERE r.rolname = %s
+          AND n.nspname <> 'information_schema'
+          AND n.nspname NOT LIKE 'pg_%'
+          AND t.typtype IN ('d', 'e')
+        ORDER BY n.nspname, t.typname
+        """,
+        (APP_ROLE,),
+    ).fetchall()
+    for schema_name, type_name, typtype in owned_types:
+        connection.execute(
+            sql.SQL("ALTER {} {}.{} OWNER TO {}").format(
+                sql.SQL("DOMAIN" if typtype == "d" else "TYPE"),
+                sql.Identifier(schema_name),
+                sql.Identifier(type_name),
+                sql.Identifier(ADMIN_ROLE),
+            )
+        )
+
+    schemas = connection.execute(
+        """
+        SELECT n.nspname
+        FROM pg_namespace AS n
+        JOIN pg_roles AS r ON r.oid = n.nspowner
+        WHERE r.rolname = %s
+          AND n.nspname <> 'information_schema'
+          AND n.nspname NOT LIKE 'pg_%'
+        ORDER BY n.nspname
+        """,
+        (APP_ROLE,),
+    ).fetchall()
+    for (schema_name,) in schemas:
+        connection.execute(
+            sql.SQL("ALTER SCHEMA {} OWNER TO {}").format(
+                sql.Identifier(schema_name),
+                sql.Identifier(ADMIN_ROLE),
+            )
+        )
+
+
 def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
     app_password = secrets.token_urlsafe(36)
     admin_password = secrets.token_urlsafe(48)
@@ -264,7 +382,7 @@ def _bootstrap_security(config: PrivatePostgreSQLConfig) -> None:
             """
         )
         connection.execute(f"GRANT {DESTRUCTIVE_ROLE} TO {ADMIN_ROLE}")
-        connection.execute(f"REASSIGN OWNED BY {APP_ROLE} TO {ADMIN_ROLE}")
+        _transfer_application_ownership(connection)
         connection.execute(f"ALTER DATABASE {config.database} OWNER TO {ADMIN_ROLE}")
         connection.execute(f"REVOKE CONNECT ON DATABASE {config.database} FROM PUBLIC")
         connection.execute(f"GRANT CONNECT ON DATABASE {config.database} TO {APP_ROLE}, {ADMIN_ROLE}, {BACKUP_ROLE}")

@@ -494,8 +494,8 @@ def database_preflight(config: SupervisorConfig) -> int:
             "RUNNING",
             (
                 "stage=apply-database-environment\n"
-                f"host={database.host}\n"
-                f"port={database.port}"
+                f"host={getattr(database, 'host', '')}\n"
+                f"port={getattr(database, 'port', '')}"
             ),
         )
         apply_database_environment(database)
@@ -511,9 +511,9 @@ def database_preflight(config: SupervisorConfig) -> int:
             migration.backup_path,
         )
         success_detail = (
-            f"mode={database.mode}\n"
-            f"host={database.host}\n"
-            f"port={database.port}\n"
+            f"mode={getattr(database, 'mode', '')}\n"
+            f"host={getattr(database, 'host', '')}\n"
+            f"port={getattr(database, 'port', '')}\n"
             f"migrated={migration.migrated}\n"
             f"target_heads={migration.target_heads}"
         )
