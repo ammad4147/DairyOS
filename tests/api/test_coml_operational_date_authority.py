@@ -127,10 +127,13 @@ class ComlOperationalDateAuthorityContractTest(
 
     def test_finance_opex_uses_effective_end(self):
         self.assertIn(
-            "<= effective_end",
+            "attributed_amount(",
             self.coml,
         )
-
+        self.assertIn(
+            "effective_end,",
+            self.coml,
+        )
         self.assertIn(
             "factory.finance().get_all()",
             self.coml,
@@ -142,43 +145,31 @@ class ComlOperationalDateAuthorityContractTest(
             self.coml,
         )
 
-    def test_equipment_purchase_uses_item_not_row(self):
-        self.assertIn(
-            '"sub_category"',
-            self.coml,
-        )
-
-        self.assertNotIn(
-            'getattr(row, "sub_category"',
-            self.coml,
-        )
-
-        normalized = "".join(
-            self.coml.split()
-        )
-
-        self.assertIn(
-            'getattr(item,"sub_category","",)',
-            normalized,
-        )
-
-    def test_equipment_purchase_is_excluded_from_cop(self):
-        self.assertIn(
-            '== "Equipment Purchase"',
-            self.coml,
-        )
+    def test_equipment_purchase_is_excluded_through_governed_classification(self):
+        policy = (
+            ROOT
+            / "src"
+            / "dairyos"
+            / "finance"
+            / "opex_attribution.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"Equipment Purchase"', policy)
+        self.assertIn('"NON_OPEX"', policy)
+        self.assertIn("attributed_amount(", self.coml)
 
     def test_finance_opex_is_still_authoritative(self):
         self.assertIn(
-            'master == "OPEX"',
+            'if master != "OPEX":',
             self.coml,
         )
-
         self.assertIn(
-            "opex_total += amount",
+            "attributed_amount(",
             self.coml,
         )
-
+        self.assertIn(
+            'attribution_status == "ATTRIBUTED"',
+            self.coml,
+        )
         self.assertIn(
             '"TMR_HERD_COST+FINANCE_OPEX"',
             self.coml,
