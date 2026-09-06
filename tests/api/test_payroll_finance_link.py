@@ -91,3 +91,7 @@ def test_payroll_payment_posts_one_finance_transaction_and_is_idempotent():
     assert row.master_category == "OPEX"
     assert row.category == "LABOUR"
     assert row.sub_category == "Milker Wages"
+    assert row.cop_classification == "OPEX"
+    assert row.cop_attribution_method == "PERIODIC"
+    assert row.cop_coverage_start == date(2026, 8, 1)
+    assert row.cop_coverage_end == date(2026, 8, 31)
