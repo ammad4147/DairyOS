@@ -128,3 +128,11 @@ def test_financing_interest_is_separated_from_bank_service_charges():
     assert '"Loan Interest",' in TAXONOMY
     assert '"Bank Charges",' in TAXONOMY
     assert '"Loan Interest / Bank Charges"' not in TAXONOMY
+
+
+def test_integrated_cop_resolves_governed_semen_consumption():
+    assert "SemenLot" in COML_API
+    assert "SemenStockMovement" in COML_API
+    assert "purchase_transaction_id == item.id" in COML_API
+    assert "SemenStockMovement.signed_quantity < 0" in COML_API
+    assert "lot.unit_cost" in COML_API
