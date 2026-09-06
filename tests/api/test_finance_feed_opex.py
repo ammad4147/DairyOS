@@ -96,6 +96,9 @@ def test_other_requires_custom_specification(client):
         unit=None,
         unit_rate=None,
         amount=3500,
+        cop_classification="OPEX",
+        cop_attribution_method="DIRECT",
+        cop_service_date="2026-08-22",
     )
     assert response.status_code == 200, response.text
     row = response.json()
@@ -123,6 +126,10 @@ def test_feed_opex_cost_endpoint_splits_same_persistent_ledger(client, registere
         quantity=1,
         unit="bill",
         unit_rate=500,
+        cop_classification="OPEX",
+        cop_attribution_method="PERIODIC",
+        cop_coverage_start="2026-08-22",
+        cop_coverage_end="2026-08-22",
     ).status_code == 200
 
     body = client.get("/farm/finance-ledger/cost-of-production?days=30")
@@ -130,6 +137,7 @@ def test_feed_opex_cost_endpoint_splits_same_persistent_ledger(client, registere
     data = body.json()
     assert data["feed_cost"] == 1000
     assert data["opex"] == 500
+    assert data["unattributed_opex"] == 0
     assert data["total_operating_cost"] == 1500
     assert data["cmpl"] == 15
     assert data["feed_cost_per_litre"] == 10
