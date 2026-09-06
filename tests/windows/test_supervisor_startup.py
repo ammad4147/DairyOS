@@ -76,6 +76,11 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     )
     monkeypatch.setattr(
         supervisor,
+        "stage_migration_database_url",
+        lambda: calls.append("stage-admin"),
+    )
+    monkeypatch.setattr(
+        supervisor,
         "migrate_if_needed",
         lambda: calls.append("migrate") or SimpleNamespace(
             migrated=True,
@@ -103,7 +108,7 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     )
 
     assert supervisor.run(config) == 0
-    assert calls[:4] == ["migrate", "start-backend", "ready", "webview"]
+    assert calls[:5] == ["stage-admin", "migrate", "start-backend", "ready", "webview"]
     assert job.created is True
     assert job.closed is True
     assert "instance-release" in calls
@@ -137,6 +142,11 @@ def test_migration_failure_does_not_start_backend(monkeypatch):
     )
     monkeypatch.setattr(
         supervisor,
+        "stage_migration_database_url",
+        lambda: calls.append("stage-admin"),
+    )
+    monkeypatch.setattr(
+        supervisor,
         "migrate_if_needed",
         lambda: (_ for _ in ()).throw(
             supervisor.MigrationGateError("migration failed")
@@ -157,3 +167,38 @@ def test_migration_failure_does_not_start_backend(monkeypatch):
     assert supervisor.run(config) == 3
     assert "start-backend" not in calls
     assert job.created is True
+
+
+def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_path):
+    captured = {}
+    process = _FakeProcess()
+
+    class _AssigningJob:
+        def assign(self, received):
+            assert received is process
+
+    def popen(command, **kwargs):
+        captured["command"] = command
+        captured["env"] = kwargs["env"]
+        return process
+
+    monkeypatch.setenv(
+        "DAIRYOS_MIGRATION_DATABASE_URL",
+        "postgresql+psycopg://dairyos_admin:secret@127.0.0.1/dairyos",
+    )
+    monkeypatch.setenv("DAIRYOS_RUNTIME_LOG_DIR", str(tmp_path))
+    monkeypatch.setattr(supervisor.subprocess, "Popen", popen)
+    monkeypatch.setattr(
+        supervisor,
+        "backend_command",
+        lambda host, port: ["backend", host, str(port)],
+    )
+
+    result, url = supervisor.start_backend(
+        supervisor.SupervisorConfig(host="127.0.0.1", port=8123),
+        _AssigningJob(),
+    )
+
+    assert result is process
+    assert url == "http://127.0.0.1:8123"
+    assert "DAIRYOS_MIGRATION_DATABASE_URL" not in captured["env"]
