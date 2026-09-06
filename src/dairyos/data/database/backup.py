@@ -52,7 +52,11 @@ def _tool(name: str) -> str:
     )
 
 
-def _connection_args(database_url: str) -> tuple[list[str], dict[str, str]]:
+def _connection_args(
+    database_url: str,
+    *,
+    allow_environment_password_override: bool = False,
+) -> tuple[list[str], dict[str, str]]:
     url = make_url(database_url)
     if url.get_backend_name() != "postgresql":
         raise PostgreSQLBackupError("DairyOS backup requires a PostgreSQL database URL.")
@@ -68,7 +72,11 @@ def _connection_args(database_url: str) -> tuple[list[str], dict[str, str]]:
         args += ["--dbname", url.database]
 
     env = os.environ.copy()
-    password = url.password
+    password = (
+        os.getenv("DAIRYOS_DB_PASSWORD") or url.password
+        if allow_environment_password_override
+        else url.password
+    )
     if password is not None:
         env["PGPASSWORD"] = password
     return args, env
@@ -132,7 +140,10 @@ def restore_backup(database_url: str, backup: str | Path) -> None:
     backup = Path(backup)
     if not backup.is_file() or backup.stat().st_size == 0:
         raise PostgreSQLBackupError(f"Backup artifact does not exist or is empty: {backup}")
-    args, env = _connection_args(database_url)
+    args, env = _connection_args(
+        database_url,
+        allow_environment_password_override=True,
+    )
     command = [
         _tool("pg_restore"),
         "--exit-on-error",
