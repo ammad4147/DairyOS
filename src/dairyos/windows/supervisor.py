@@ -446,6 +446,33 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         watchdog.stop()
 
 
+def _write_database_preflight_report(status: str, detail: str) -> None:
+    report = os.environ.get("DAIRYOS_PREFLIGHT_REPORT", "").strip()
+    if not report:
+        return
+
+    path = Path(report).expanduser().resolve()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"status={status}\n{detail.rstrip()}\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        LOG.exception("Unable to write DairyOS database preflight report: %s", path)
+
+
+def _exception_chain(exc: BaseException) -> str:
+    lines = []
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen and len(lines) < 8:
+        seen.add(id(current))
+        lines.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    return "\n".join(lines)
+
+
 def database_preflight(config: SupervisorConfig) -> int:
     """Exercise the packaged database startup path without opening the UI."""
     private_database = None
@@ -469,9 +496,20 @@ def database_preflight(config: SupervisorConfig) -> int:
             migration.target_heads,
             migration.backup_path,
         )
+        _write_database_preflight_report(
+            "PASS",
+            (
+                f"mode={database.mode}\n"
+                f"host={database.host}\n"
+                f"port={database.port}\n"
+                f"migrated={migration.migrated}\n"
+                f"target_heads={migration.target_heads}"
+            ),
+        )
         return 0
     except (ApplianceDatabaseError, MigrationGateError) as exc:
         LOG.exception("Installed DairyOS database preflight failed")
+        _write_database_preflight_report("FAIL", _exception_chain(exc))
         return 4
     finally:
         if private_database is not None:
