@@ -1,0 +1,111 @@
+name: DairyOS Installer Windows
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  installer-windows-certification:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/DairyOS.Web/package-lock.json
+
+      - name: Install Python project and desktop dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop,test]"
+
+      - name: Install frontend dependencies
+        shell: pwsh
+        run: npm --prefix src/DairyOS.Web ci
+
+      - name: Ensure Inno Setup compiler
+        shell: pwsh
+        run: |
+          $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
+          $known = @(
+            (Join-Path $env:ProgramFiles "Inno Setup 7\ISCC.exe"),
+            (Join-Path $pf86 "Inno Setup 7\ISCC.exe"),
+            (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe"),
+            (Join-Path $pf86 "Inno Setup 6\ISCC.exe")
+          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+          if (-not $known) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Unable to install Inno Setup." }
+          }
+
+      - name: Build certified desktop bundle
+        shell: pwsh
+        run: ./scripts/Build-DairyOS-Desktop.ps1
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: ./scripts/Build-DairyOS-Installer.ps1
+
+      - name: Certify silent install and keep-data uninstall
+        shell: pwsh
+        run: |
+          $installer = Join-Path $PWD "dist\DairyOS-Installer\DairyOS-Windows-Installer.exe"
+          $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Cert"
+          $dataRoot = Join-Path $env:ProgramData "DairyOS"
+          $marker = Join-Path $dataRoot "installer-certification-marker.txt"
+
+          if (Test-Path $installRoot) { Remove-Item $installRoot -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          "preserve-me" | Set-Content -Path $marker -Encoding ascii
+
+          $setupArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$installRoot")
+          $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
+          if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
+
+          $required = @(
+            (Join-Path $installRoot "DairyOS.exe"),
+            (Join-Path $installRoot "DairyOSBackup.exe"),
+            (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe"),
+            (Join-Path $installRoot "runtime\PostgreSQL\bin\psql.exe"),
+            (Join-Path $installRoot "_internal\src\DairyOS.Web\dist\index.html")
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Installed DairyOS component is missing: $path" }
+          }
+
+          $uninstaller = Join-Path $installRoot "unins000.exe"
+          if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
+          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART")
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
+
+          if (Test-Path $installRoot) {
+            $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
+            if ($remaining) { throw "Application runtime remains after uninstall: $installRoot" }
+          }
+          if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
+          if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
+
+          Remove-Item $marker -Force
+          Write-Host "INSTALL / UNINSTALL DATA-PRESERVATION CERTIFICATION: PASS"
+
+      - name: Publish installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-Windows-Installer
+          path: dist/DairyOS-Installer/DairyOS-Windows-Installer.exe
+          if-no-files-found: error
