@@ -208,14 +208,14 @@ export default function COML() {
       const autoBody = await autoResponse.json().catch(() => null);
       const officialBody = await officialResponse.json().catch(() => null);
       if (!autoResponse.ok) {
-        throw new Error(autoBody?.detail || 'Auto COP calculation is unavailable.');
+        throw new Error(autoBody?.detail || 'Estimated COP calculation is unavailable.');
       }
       setAutoData(autoBody);
       setOfficial(officialResponse.ok ? officialBody : null);
     } catch (exc) {
       setAutoData(null);
       setError(
-        exc instanceof Error ? exc.message : 'Unable to load Auto COP.',
+        exc instanceof Error ? exc.message : 'Unable to load Estimated COP.',
       );
     } finally {
       if (!quiet) setLoading(false);
@@ -313,18 +313,18 @@ export default function COML() {
       if (!response.ok) {
         throw new Error(
           body?.detail
-          || `Unable to make ${isAuto ? 'Auto' : 'Manual'} COP official.`,
+          || `Unable to make ${isAuto ? 'Estimated' : 'Operator-Assessed'} COP official.`,
         );
       }
       setOfficial(body);
       setMessage(
-        `${isAuto ? 'Auto' : 'Manual'} COP is now the official COP/L for ${officialMonthStart.slice(0, 7)}. The Dashboard will use this persisted official value.`,
+        `${isAuto ? 'Estimated' : 'Operator-Assessed'} COP is now the official COP/L for ${officialMonthStart.slice(0, 7)}. The Dashboard will use this persisted official value.`,
       );
     } catch (exc) {
       setError(
         exc instanceof Error
           ? exc.message
-          : `Unable to make ${isAuto ? 'Auto' : 'Manual'} COP official.`,
+          : `Unable to make ${isAuto ? 'Estimated' : 'Operator-Assessed'} COP official.`,
       );
     } finally {
       setSaving(false);
@@ -381,14 +381,14 @@ export default function COML() {
           onClick={() => setMode('AUTO')}
           style={button(mode === 'AUTO' ? '#7e22ce' : '#1e293b')}
         >
-          Auto
+          Estimated COP
         </button>
         <button
           type="button"
           onClick={() => setMode('MANUAL')}
           style={button(mode === 'MANUAL' ? '#d97706' : '#1e293b')}
         >
-          <SlidersHorizontal size={12} /> Manual Override
+          <SlidersHorizontal size={12} /> Operator-Assessed COP
         </button>
       </div>
 
@@ -437,7 +437,7 @@ export default function COML() {
           Production and costs below are for this range only.
           {isCurrentMonthToDate ? ' · live month-to-date' : ''}
           {' · '}auto-refresh every 60 seconds
-          {mode === 'MANUAL' ? ' · Manual draft was restored from your last session when available.' : ''}
+          {mode === 'MANUAL' ? ' · Operator-Assessed draft was restored from your last session when available.' : ''}
         </div>
       </div>
 
@@ -476,7 +476,7 @@ export default function COML() {
       )}
 
       {loading ? (
-        <div style={{ marginTop: 12, color: '#64748b', fontSize: 10 }}>Loading Auto COP…</div>
+        <div style={{ marginTop: 12, color: '#64748b', fontSize: 10 }}>Loading Estimated COP…</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 8, marginTop: 12 }}>
           <Metric
@@ -510,7 +510,7 @@ export default function COML() {
 
       {mode === 'AUTO' ? (
         <div style={{ marginTop: 10, padding: 9, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 6, fontSize: 9, color: '#94a3b8' }}>
-          <strong style={{ color: '#38bdf8' }}>Auto sources</strong>
+          <strong style={{ color: '#38bdf8' }}>Estimated COP sources</strong>
           <div style={{ marginTop: 4 }}>
             Milk source: {autoData?.production?.source || 'milk_production_ledger'} · Cost source: {autoData?.costs?.source || 'TMR_HERD_COST+FINANCE_OPEX'}.
           </div>
