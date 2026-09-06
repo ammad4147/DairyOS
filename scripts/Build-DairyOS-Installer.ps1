@@ -14,6 +14,13 @@ $iss = Join-Path $repo "tools\windows-desktop\DairyOS-Installer.iss"
 
 if (-not (Test-Path (Join-Path $bundlePath "DairyOS.exe") -PathType Leaf)) { throw "Certified desktop bundle is missing DairyOS.exe: $bundlePath" }
 if (-not (Test-Path (Join-Path $bundlePath "DairyOSBackup.exe") -PathType Leaf)) { throw "Certified desktop bundle is missing DairyOSBackup.exe: $bundlePath" }
+
+Write-Host "=== BUILD STANDALONE ADMIN TOOL ===" -ForegroundColor Cyan
+& (Join-Path $repo "scripts\Build-DairyOS-Admin.ps1")
+if ($LASTEXITCODE -ne 0) { throw "DairyOS Admin Tool build failed." }
+$adminExe = Join-Path $repo "dist\DairyOS-Admin\DairyOS-Admin.exe"
+if (-not (Test-Path $adminExe -PathType Leaf)) { throw "DairyOS-Admin.exe was not produced: $adminExe" }
+Copy-Item $adminExe (Join-Path $bundlePath "DairyOS-Admin.exe") -Force
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
 $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")

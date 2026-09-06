@@ -31,7 +31,7 @@ jobs:
       - name: Verify Windows credential and migration isolation contracts
         shell: pwsh
         run: |
-          python -m pytest --confcutdir=tests/windows tests/windows/test_system_postgres_admin.py tests/windows/test_migration_gate.py tests/windows/test_supervisor_startup.py -q
+          python -m pytest --confcutdir=tests/windows tests/windows/test_system_postgres_admin.py tests/windows/test_migration_gate.py tests/windows/test_supervisor_startup.py tests/windows/test_admin_auth.py tests/windows/test_admin_complete_contract.py -q
 
       - name: Verify frozen executable exists
         shell: pwsh

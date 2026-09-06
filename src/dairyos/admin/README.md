@@ -1,47 +1,35 @@
 # DairyOS Administration Tool
 
-The administrative tool is a separate operator surface for privileged lifecycle and recovery operations. It is not part of the nine-tab DairyOS operational UI.
+The Admin Tool is a standalone privileged lifecycle and recovery surface. It is not part of the nine-tab operational DairyOS UI and it never uses the PostgreSQL administrator password as the human administrator credential.
 
-## Boundary
+## Authentication lifecycle
 
-The operational application does not provide an administrative password gate or a destructive reset implementation. Privileged actions are performed from this standalone tool and delegated to the canonical `dairyos.lifecycle` services.
-
-## Entry points
-
-- `dairyos-admin` starts the standalone local administration UI.
-- `dairyos-admin-cli` provides explicit operator automation.
-- `scripts/Start-DairyOS-Admin.ps1` is the Windows development/operator launcher.
+- First launch requires creation of a DairyOS Admin password.
+- Passwords are never stored in plaintext; only a salted PBKDF2-SHA256 verifier is persisted.
+- Setup issues a high-entropy recovery key. Only its verifier is stored.
+- Every password change or recovery rotates the recovery key and invalidates the previous one.
+- Normal sessions require the Admin password.
+- Restore, rollback, reset, purge and uninstall require fresh password re-entry.
+- Reset and purge additionally retain the exact operation-specific confirmation phrases.
+- Failed/successful authentication and lifecycle actions are written to the Admin audit log.
+- There is no master password, developer bypass, or automatic recovery-key reset.
 
 ## Administrative operations
 
+The GUI and CLI provide:
 - Validate installation and database health
 - Create verified backup
 - Restore a verified snapshot
 - Roll back to a verified snapshot
 - Reset operational farm data
-- Permanently purge the data root
-- Uninstall while optionally retaining data
+- Permanently purge the data root after external recovery backup
+- Uninstall while retaining data
+- Change administrator password
+- Recover administrator password with the recovery key
+- Review administrative audit history
 
-## Reset safety boundary
+## Safety boundary
 
-Reset is not implemented through `/settings/reset`. The standalone Admin Tool:
+The existing lifecycle safeguards remain authoritative. Reset requires a healthy configured database, a verified pre-reset backup, stopped operational runtime, external recovery copy, checksum validation, zero-state verification, and automatic rollback on failure.
 
-1. requires the exact operation-specific confirmation token;
-2. requires a healthy configured PostgreSQL database;
-3. fails closed if the normal DairyOS backend is still listening;
-4. creates a lifecycle pre-reset backup;
-5. records the PostgreSQL dump SHA-256 in the backup manifest;
-6. copies the recovery artifact outside the DairyOS data root;
-7. verifies filesystem and database-backup checksums;
-8. records reset intent externally;
-9. deactivates the persisted deployment gate;
-10. truncates every discovered non-preserved operational table with identity reset and cascade;
-11. verifies the resulting zero-state across the complete operational table inventory;
-12. records the reset result externally; and
-13. restores the pre-reset lifecycle snapshot if mutation or verification fails.
-
-## Destructive-operation rule
-
-Confirmation tokens are operation guards, not an authentication system. Authorization belongs to the external administrative execution context.
-
-Permanent purge continues to use the existing external-backup boundary so the recovery artifact survives data-root deletion.
+The Admin Tool binds only to loopback addresses.

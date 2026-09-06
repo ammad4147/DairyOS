@@ -39,6 +39,7 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 
 [Icons]
 Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
+Name: "{autoprograms}\DairyOS Administration"; Filename: "{app}\DairyOS-Admin.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
 
 [Dirs]
