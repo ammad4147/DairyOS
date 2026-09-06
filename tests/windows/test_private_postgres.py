@@ -211,3 +211,11 @@ def test_stale_postmaster_pid_is_removed_and_cluster_is_started(
 
 def test_new_private_clusters_use_admin_bootstrap_role():
     assert pg.DEFAULT_USER == "dairyos_admin"
+
+
+def test_hardened_cluster_skips_passwordless_bootstrap_database_probe():
+    import inspect
+
+    source = inspect.getsource(pg.start)
+    assert 'security_state_present = (data_root.parent / "security.json").is_file()' in source
+    assert "if not security_state_present:" in source

@@ -567,12 +567,14 @@ def start(
             env=pgctl_env,
         )
     _wait_for_server(host, selected_port, timeout=timeout)
-    _ensure_role_and_database(
-        host=host,
-        port=selected_port,
-        database=database,
-        user=cluster_user,
-    )
+    security_state_present = (data_root.parent / "security.json").is_file()
+    if not security_state_present:
+        _ensure_role_and_database(
+            host=host,
+            port=selected_port,
+            database=database,
+            user=cluster_user,
+        )
     state = {
         "host": host,
         "port": selected_port,
