@@ -62,3 +62,50 @@ def test_frozen_bundle_uses_marker_not_environment_version(monkeypatch, tmp_path
     monkeypatch.setenv("DAIRYOS_PRIVATE_POSTGRES_VERSION", "99.9")
 
     assert pg.bundled_version() == "18.6"
+
+
+def test_initialize_cluster_allows_initdb_to_create_data_directory(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "postgres" / "data"
+    data_root.mkdir(parents=True)
+    calls = []
+
+    monkeypatch.setattr(pg, "_binary", lambda name: Path(name))
+
+    class Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        assert not data_root.exists()
+        data_root.mkdir()
+        (data_root / "PG_VERSION").write_text("18\n", encoding="utf-8")
+        return Result()
+
+    monkeypatch.setattr(pg, "_run", fake_run)
+
+    pg.initialize_cluster(data_root=data_root, user="dairyos")
+
+    assert calls
+    assert calls[0][0] == "initdb.exe"
+    assert calls[0][1:3] == ["-D", str(data_root)]
+    assert (data_root / "PG_VERSION").is_file()
+
+
+def test_initialize_cluster_never_removes_nonempty_data_directory(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "postgres" / "data"
+    data_root.mkdir(parents=True)
+    marker = data_root / "existing-farm-data"
+    marker.write_text("preserve", encoding="utf-8")
+
+    with pytest.raises(pg.PrivatePostgreSQLError, match="not empty"):
+        pg.initialize_cluster(data_root=data_root, user="dairyos")
+
+    assert marker.read_text(encoding="utf-8") == "preserve"

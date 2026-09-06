@@ -340,13 +340,24 @@ def initialize_cluster(
     user: str,
 ) -> None:
     """Initialize only a genuinely empty private PostgreSQL cluster."""
-    if data_root.exists() and any(data_root.iterdir()):
-        raise PrivatePostgreSQLError(
-            f"Cannot initialize PostgreSQL: data directory is not empty: {data_root}"
-        )
+    if data_root.exists():
+        if any(data_root.iterdir()):
+            raise PrivatePostgreSQLError(
+                f"Cannot initialize PostgreSQL: data directory is not empty: {data_root}"
+            )
+
+        # On Windows, initdb must be allowed to create the cluster directory
+        # itself so it can apply the required ownership/ACLs. An empty directory
+        # pre-created by DairyOS can inherit permissions that initdb cannot
+        # tighten, producing a first-start "Permission denied" failure.
+        try:
+            data_root.rmdir()
+        except OSError as exc:
+            raise PrivatePostgreSQLError(
+                f"Cannot prepare empty PostgreSQL data directory for initdb: {data_root}"
+            ) from exc
 
     data_root.parent.mkdir(parents=True, exist_ok=True)
-    data_root.mkdir(parents=True, exist_ok=True)
 
     _run(
         [
