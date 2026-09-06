@@ -257,7 +257,7 @@ def _transfer_application_ownership(connection) -> None:
         JOIN pg_roles AS r ON r.oid = c.relowner
         WHERE r.rolname = %s
           AND n.nspname <> 'information_schema'
-          AND n.nspname NOT LIKE 'pg_%'
+          AND n.nspname NOT LIKE 'pg_%%'
           AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
         ORDER BY n.nspname, c.relname
         """,
@@ -285,7 +285,7 @@ def _transfer_application_ownership(connection) -> None:
         JOIN pg_roles AS r ON r.oid = p.proowner
         WHERE r.rolname = %s
           AND n.nspname <> 'information_schema'
-          AND n.nspname NOT LIKE 'pg_%'
+          AND n.nspname NOT LIKE 'pg_%%'
           AND p.prokind IN ('f', 'p')
         ORDER BY n.nspname, p.proname
         """,
@@ -310,7 +310,7 @@ def _transfer_application_ownership(connection) -> None:
         JOIN pg_roles AS r ON r.oid = t.typowner
         WHERE r.rolname = %s
           AND n.nspname <> 'information_schema'
-          AND n.nspname NOT LIKE 'pg_%'
+          AND n.nspname NOT LIKE 'pg_%%'
           AND t.typtype IN ('d', 'e')
         ORDER BY n.nspname, t.typname
         """,
@@ -333,7 +333,7 @@ def _transfer_application_ownership(connection) -> None:
         JOIN pg_roles AS r ON r.oid = n.nspowner
         WHERE r.rolname = %s
           AND n.nspname <> 'information_schema'
-          AND n.nspname NOT LIKE 'pg_%'
+          AND n.nspname NOT LIKE 'pg_%%'
         ORDER BY n.nspname
         """,
         (APP_ROLE,),
