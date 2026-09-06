@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from dairyos.admin import app as admin_app
+
 
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "src" / "dairyos" / "admin" / "app.py"
@@ -49,3 +53,16 @@ def test_admin_windows_ci_certifies_real_frozen_http_runtime():
     assert "Invoke-WebRequest" in workflow
     assert "http://127.0.0.1:18082/" in workflow
     assert "DairyOS Administration" in workflow
+
+
+def test_admin_app_really_constructs_and_serves_root(monkeypatch, tmp_path):
+    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(admin_app.auth, "configured", lambda: False)
+
+    application = admin_app.create_app()
+    with TestClient(application) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "DairyOS Administration" in response.text
+    assert "First-run Administrator Setup" in response.text
