@@ -19,7 +19,6 @@ OutputBaseFilename=DairyOS-Windows-Installer
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-WizardResizable=yes
 WizardSizePercent=140,135
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
