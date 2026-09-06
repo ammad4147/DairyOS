@@ -126,7 +126,8 @@ OPEX_TAXONOMY = {
         "Office / Stationery / Printing",
         "Security / Watchman Services",
         "Taxes / Local Fees",
-        "Loan Interest / Bank Charges",
+        "Loan Interest",
+        "Bank Charges",
     ],
     "LAND_RENT_CUSTOM_SERVICES": [
         "Farm Land Lease / Rent",
