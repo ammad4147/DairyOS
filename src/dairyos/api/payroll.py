@@ -187,6 +187,10 @@ def _pay_payroll(record_id, payment_date, factory):
         unit_rate=net_pay / Decimal(str(quantity)) if quantity > 0 else None,
         settled_date=pay_date,
         payroll_record_id=record.id,
+        cop_classification="OPEX",
+        cop_attribution_method="PERIODIC",
+        cop_coverage_start=record.period_start,
+        cop_coverage_end=record.period_end,
     )
     if session is not None:
         try:
