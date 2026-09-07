@@ -34,6 +34,26 @@ def test_empty_runtime_without_marker_is_allowed(monkeypatch, tmp_path):
     assert facts.prior_installation is False
 
 
+def test_empty_installer_storage_does_not_block_first_database_bootstrap(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    (root / "storage").mkdir(parents=True)
+    (root / "backups").mkdir()
+    (root / "logs").mkdir()
+    (root / "postgres").mkdir()
+    (root / "lifecycle.json").write_text("{}\n", encoding="utf-8")
+
+    facts = startup_integrity.inspect_startup_integrity(
+        application_tables=0,
+        enforce=True,
+    )
+
+    assert facts.persistent_data is False
+    assert facts.recovery_required is False
+
+
 def test_existing_persistent_data_blocks_empty_database(monkeypatch, tmp_path):
     root = _set_data_root(monkeypatch, tmp_path)
     (root / "storage").mkdir(parents=True)
