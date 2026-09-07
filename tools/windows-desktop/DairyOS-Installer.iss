@@ -100,6 +100,42 @@ begin
     );
 end;
 
+procedure ProvisionLifecycleManifestAcl();
+var
+  LifecyclePath: String;
+  IcaclsExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  LifecyclePath := DairyOSDataRoot() + '\lifecycle.json';
+
+  if not FileExists(LifecyclePath) then
+    RaiseException(
+      'DairyOS lifecycle.json is missing after lifecycle provisioning. ' +
+      'Setup cannot continue safely.'
+    );
+
+  { lifecycle.json is mutable application metadata. Setup creates it while
+    elevated, while normal DairyOS Administration operates without elevation.
+    Grant Modify only on this file to the built-in Users SID. Do not grant
+    recursive rights to ProgramData, PostgreSQL or security state. }
+  IcaclsExe := ExpandConstant('{sys}\icacls.exe');
+  Params := '"' + LifecyclePath + '" /grant:r *S-1-5-32-545:(M)';
+
+  if (not Exec(
+    IcaclsExe,
+    Params,
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS lifecycle metadata permissions could not be provisioned. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
 procedure ProvisionAutomaticBackupTask();
 var
   BackupExe: String;
@@ -134,6 +170,7 @@ begin
   if CurStep = ssPostInstall then
   begin
     ProvisionLifecycleState();
+    ProvisionLifecycleManifestAcl();
     ProvisionAutomaticBackupTask();
   end;
 end;

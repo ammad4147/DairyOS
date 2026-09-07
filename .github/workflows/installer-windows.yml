@@ -77,6 +77,44 @@ jobs:
           $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
           if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
 
+          # lifecycle.json is created by elevated Setup but is intentionally
+          # mutable by the normal non-elevated DairyOS Admin Tool.
+          $lifecyclePath = Join-Path $dataRoot "lifecycle.json"
+          if (-not (Test-Path $lifecyclePath -PathType Leaf)) {
+            throw "Installer did not provision lifecycle.json."
+          }
+
+          $usersSid = "S-1-5-32-545"
+          $modify = [System.Security.AccessControl.FileSystemRights]::Modify
+          $lifecycleAllowsModify = $false
+
+          foreach ($rule in (Get-Acl $lifecyclePath).Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate(
+                [System.Security.Principal.SecurityIdentifier]
+              ).Value
+            }
+            catch {
+              continue
+            }
+
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq
+                [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $lifecycleAllowsModify = $true
+              break
+            }
+          }
+
+          if (-not $lifecycleAllowsModify) {
+            throw "Installed lifecycle.json is not modifiable by the built-in Users group."
+          }
+
+          Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
+
           $taskQuery = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" /FO LIST /V 2>&1
           if ($LASTEXITCODE -ne 0) {
             throw "Installer did not provision DairyOS-Automatic-Backup before application startup: $taskQuery"

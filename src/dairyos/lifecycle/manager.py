@@ -375,6 +375,44 @@ def _check_database(database_url: str) -> None:
             cursor.fetchone()
 
 
+def _replace_file_preserving_acl(temporary: str | Path, path: Path) -> None:
+    """Atomically replace a file while preserving its Windows DACL."""
+    if os.name != "nt" or not path.exists():
+        os.replace(temporary, path)
+        return
+
+    # ReplaceFileW preserves the replaced file's DACL and other persistent
+    # metadata while replacing its contents. This is required for lifecycle
+    # metadata because installation can run elevated while normal DairyOS
+    # administration subsequently runs without elevation.
+    import ctypes
+    from ctypes import wintypes
+
+    replace_file = ctypes.WinDLL(
+        "kernel32",
+        use_last_error=True,
+    ).ReplaceFileW
+    replace_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    replace_file.restype = wintypes.BOOL
+
+    if not replace_file(
+        str(path),
+        str(temporary),
+        None,
+        0,
+        None,
+        None,
+    ):
+        error = ctypes.get_last_error()
+        raise OSError(error, ctypes.FormatError(error), str(path))
+
 def _write_json_atomic(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
@@ -384,7 +422,7 @@ def _write_json_atomic(path: Path, payload: object) -> None:
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        _replace_file_preserving_acl(temporary, path)
     finally:
         try:
             os.unlink(temporary)
