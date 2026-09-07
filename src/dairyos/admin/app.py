@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import html
 import os
 from pathlib import Path
@@ -16,17 +17,31 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from dairyos.admin import auth
+from dairyos.admin.database import acquire_admin_database
 from dairyos.admin.service import AdminService, PURGE_CONFIRMATION, RESET_CONFIRMATION
 from dairyos.lifecycle.manager import LifecycleManager
 
 SESSION_TTL_SECONDS = 30 * 60
 _SESSIONS: dict[str, float] = {}
+_ADMIN_DATABASE_LEASE = None
 
 
 def _manager() -> LifecycleManager:
-    installation_root = os.environ.get("DAIRYOS_INSTALLATION_ROOT", str(Path.cwd()))
-    data_root = os.environ.get("DAIRYOS_DATA_ROOT") or os.environ.get("DAIRYOS_DATA_DIR")
-    return LifecycleManager(installation_root, data_root=data_root)
+    global _ADMIN_DATABASE_LEASE
+    if _ADMIN_DATABASE_LEASE is None:
+        installation_root = os.environ.get(
+            "DAIRYOS_INSTALLATION_ROOT",
+            str(Path.cwd()),
+        )
+        data_root = os.environ.get("DAIRYOS_DATA_ROOT") or os.environ.get(
+            "DAIRYOS_DATA_DIR"
+        )
+        _ADMIN_DATABASE_LEASE = acquire_admin_database(
+            installation_root,
+            data_root=data_root,
+        )
+        atexit.register(_ADMIN_DATABASE_LEASE.close)
+    return _ADMIN_DATABASE_LEASE.manager
 
 
 def _service() -> AdminService:
