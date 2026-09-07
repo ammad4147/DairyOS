@@ -37,6 +37,12 @@ def _platform_data_root() -> Path:
     """The conventional per-user data directory for this operating system."""
 
     if sys.platform == "win32":
+        if bool(getattr(sys, "frozen", False)):
+            base = os.environ.get("PROGRAMDATA")
+            if base:
+                return Path(base) / APPLICATION_NAME
+            return Path(r"C:\ProgramData") / APPLICATION_NAME
+
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if base:
             return Path(base) / APPLICATION_NAME
