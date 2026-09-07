@@ -29,17 +29,18 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
     manifest = _load_verified_manifest(backup_path)
 
     database_backup = manifest.get("database_backup")
-    if not database_backup:
+    if manager.database_url and not database_backup:
         raise LifecycleError(
-            "DairyOS restore requires a verified PostgreSQL database dump."
+            "DairyOS PostgreSQL restore requires a verified database dump."
         )
-    if not manager.database_url:
+    if database_backup and not manager.database_url:
         raise LifecycleError(
             "Backup contains a database dump but no database URL is configured."
         )
 
-    dump_path = backup_path / str(database_backup)
-    verify_backup_archive(dump_path)
+    dump_path = backup_path / str(database_backup) if database_backup else None
+    if dump_path is not None:
+        verify_backup_archive(dump_path)
 
     # Materialize the target file state completely before touching live state.
     with tempfile.TemporaryDirectory(prefix="dairyos-restore-stage-") as temporary:
@@ -53,24 +54,31 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
 
         rollback = manager.backup(
             label="pre-restore-rollback",
-            require_database=True,
+            require_database=bool(manager.database_url),
         )
         rollback_manifest = _load_verified_manifest(rollback)
-        rollback_dump = rollback / str(rollback_manifest["database_backup"])
-        verify_backup_archive(rollback_dump)
+        rollback_database_backup = rollback_manifest.get("database_backup")
+        rollback_dump = (
+            rollback / str(rollback_database_backup)
+            if rollback_database_backup
+            else None
+        )
+        if rollback_dump is not None:
+            verify_backup_archive(rollback_dump)
 
         database_changed = False
         files_changed = False
         try:
-            restore_backup(manager.database_url, dump_path)
-            database_changed = True
+            if dump_path is not None:
+                restore_backup(manager.database_url, dump_path)
+                database_changed = True
             _replace_non_database_files(manager.data_root, staged_root)
             files_changed = True
-            manager.validate(require_database=True)
+            manager.validate(require_database=bool(manager.database_url))
         except Exception as exc:
             rollback_errors: list[str] = []
 
-            if database_changed:
+            if database_changed and rollback_dump is not None:
                 try:
                     restore_backup(manager.database_url, rollback_dump)
                 except Exception as rollback_exc:  # pragma: no cover - catastrophic path
