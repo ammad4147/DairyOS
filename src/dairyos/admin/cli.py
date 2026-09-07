@@ -10,14 +10,22 @@ import os
 from pathlib import Path
 
 from dairyos.admin import auth
+from dairyos.admin.database import acquire_admin_database
 from dairyos.admin.service import AdminService
-from dairyos.lifecycle.manager import LifecycleManager
 
 
-def _service() -> AdminService:
-    installation_root = os.environ.get("DAIRYOS_INSTALLATION_ROOT", str(Path.cwd()))
-    data_root = os.environ.get("DAIRYOS_DATA_ROOT") or os.environ.get("DAIRYOS_DATA_DIR")
-    return AdminService(LifecycleManager(installation_root, data_root=data_root))
+def _database_lease():
+    installation_root = os.environ.get(
+        "DAIRYOS_INSTALLATION_ROOT",
+        str(Path.cwd()),
+    )
+    data_root = os.environ.get("DAIRYOS_DATA_ROOT") or os.environ.get(
+        "DAIRYOS_DATA_DIR"
+    )
+    return acquire_admin_database(
+        installation_root,
+        data_root=data_root,
+    )
 
 
 def _password() -> str:
@@ -77,28 +85,32 @@ def main() -> None:
     if not auth.configured():
         raise SystemExit("Admin password is not configured. Run: dairyos-admin-cli setup")
 
-    service = _service()
-    if args.command == "status":
-        _reauth("cli-status")
-        print(json.dumps(service.status(), indent=2, default=str))
-    elif args.command == "backup":
-        _reauth("cli-backup")
-        print(json.dumps(asdict(service.backup(args.label)), indent=2))
-    elif args.command == "restore":
-        _reauth("cli-restore")
-        print(json.dumps(asdict(service.restore(args.backup)), indent=2))
-    elif args.command == "rollback":
-        _reauth("cli-rollback")
-        print(json.dumps(asdict(service.rollback(args.backup)), indent=2))
-    elif args.command == "reset":
-        _reauth("cli-reset")
-        print(json.dumps(asdict(service.reset(args.confirm)), indent=2))
-    elif args.command == "purge":
-        _reauth("cli-purge")
-        print(json.dumps(asdict(service.purge(args.confirm)), indent=2))
-    elif args.command == "uninstall":
-        _reauth("cli-uninstall")
-        print(json.dumps(asdict(service.uninstall(args.purge, args.confirm)), indent=2))
+    lease = _database_lease()
+    service = AdminService(lease.manager)
+    try:
+        if args.command == "status":
+            _reauth("cli-status")
+            print(json.dumps(service.status(), indent=2, default=str))
+        elif args.command == "backup":
+            _reauth("cli-backup")
+            print(json.dumps(asdict(service.backup(args.label)), indent=2))
+        elif args.command == "restore":
+            _reauth("cli-restore")
+            print(json.dumps(asdict(service.restore(args.backup)), indent=2))
+        elif args.command == "rollback":
+            _reauth("cli-rollback")
+            print(json.dumps(asdict(service.rollback(args.backup)), indent=2))
+        elif args.command == "reset":
+            _reauth("cli-reset")
+            print(json.dumps(asdict(service.reset(args.confirm)), indent=2))
+        elif args.command == "purge":
+            _reauth("cli-purge")
+            print(json.dumps(asdict(service.purge(args.confirm)), indent=2))
+        elif args.command == "uninstall":
+            _reauth("cli-uninstall")
+            print(json.dumps(asdict(service.uninstall(args.purge, args.confirm)), indent=2))
+    finally:
+        lease.close()
 
 
 if __name__ == "__main__":
