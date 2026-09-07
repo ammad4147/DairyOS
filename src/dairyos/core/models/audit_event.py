@@ -1,29 +1,18 @@
 """
-DairyOS Audit Event Entity
+Legacy DairyOS AuditEvent compatibility entity.
+
+This module is retained for import compatibility only. It is not a
+production SQLAlchemy persistence authority.
 """
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
 
-from dairyos.data.database.base import Base
-
-
-class AuditEvent(Base):
-
-    __tablename__ = "audit_events"
-
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
-
-    action: Mapped[str] = mapped_column(
-        String(200),
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
+@dataclass
+class AuditEvent:
+    id: int | None = None
+    action: str = ""
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
     )

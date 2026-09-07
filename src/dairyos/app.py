@@ -12,14 +12,6 @@ from fastapi.responses import JSONResponse
 
 from dairyos.application.application_runtime import ApplicationRuntime
 from dairyos.runtime.container import RuntimeContainer
-from dairyos.data.database.migrations import (
-    migrate_finance_feed_opex,
-    migrate_feed_inventory,
-    migrate_milk_quality,
-    migrate_coml,
-    migrate_operational_finding_audit,
-    migrate_payroll,
-)
 from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
 from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
 from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
@@ -40,24 +32,9 @@ missed_milking_scheduler = DailyMissedMilkingScheduler(interval_seconds=30)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    migrated = migrate_finance_feed_opex()
-    inventory_migrated = migrate_feed_inventory()
-    quality_migrated = migrate_milk_quality()
-    coml_migrated = migrate_coml()
-    finding_audit_migrated = migrate_operational_finding_audit()
-    payroll_migrated = migrate_payroll()
-    if migrated:
-        logging.info("Finance Feed/OPEX migration added columns: %s", ", ".join(migrated))
-    if inventory_migrated:
-        logging.info("Feed inventory migration created/updated: %s", ", ".join(inventory_migrated))
-    if quality_migrated:
-        logging.info("Milk quality migration created: %s", ", ".join(quality_migrated))
-    if coml_migrated:
-        logging.info("COML migration created: %s", ", ".join(coml_migrated))
-    if finding_audit_migrated:
-        logging.info("Operational finding audit migration added columns: %s", ", ".join(finding_audit_migrated))
-    if payroll_migrated:
-        logging.info("Finance payroll migration created: %s", ", ".join(payroll_migrated))
+    # Database schema is prepared before backend startup by the governed
+    # Windows migration gate / Alembic lifecycle. Normal application
+    # startup must never create, alter, or repair database schema.
     container.start()
     feed_storage_scheduler.start()
     missed_milking_scheduler.start()

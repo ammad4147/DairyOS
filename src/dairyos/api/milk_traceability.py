@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
-from dairyos.data.database.migrations import migrate_milk_crud
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
@@ -34,10 +33,8 @@ from dairyos.farm.settings.services.operational_date_authority import (
 from dairyos.core.time_utils import utcnow
 
 
-# The application runtime creates the tables before importing this router.
-# This additive migration then upgrades already-deployed databases without
-# requiring a separate manual migration command.
-migrate_milk_crud()
+# Schema preparation is migration-gate owned. Importing this router is
+# intentionally database-schema read-only.
 
 router = APIRouter(prefix="/farm/milk", tags=["Milk"])
 

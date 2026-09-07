@@ -1,52 +1,15 @@
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+"""
+Legacy compatibility alias.
 
-from ..base import Base
+Canonical DairyOS animal persistence authority:
 
+    dairyos.data.models.animal.Animal
 
-class AnimalModel(Base):
+This module must not declare a second physical ``animals`` table.
+"""
 
-    __tablename__ = "animals"
+from dairyos.data.models.animal import Animal
 
+AnimalModel = Animal
 
-    animal_id: Mapped[str] = mapped_column(
-        String,
-        primary_key=True
-    )
-
-
-    animal_type: Mapped[str] = mapped_column(
-        String,
-        nullable=False
-    )
-
-
-    status: Mapped[str] = mapped_column(
-        String,
-        nullable=False
-    )
-
-    lifecycle_status: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True
-    )
-
-    ear_tag: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True
-    )
-
-    rfid: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True
-    )
-
-    dam_id: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True
-    )
-
-    sire_id: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True
-    )
+__all__ = ["AnimalModel"]

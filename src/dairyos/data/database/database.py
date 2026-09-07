@@ -1,4 +1,4 @@
-"""
+﻿"""
 DairyOS PostgreSQL database initialization.
 
 Sprint-038
@@ -28,6 +28,11 @@ from dairyos.data.models.animal_milking_schedule_history import (
 
 from dairyos.data.database.models.farm_model import (
     FarmModel,
+)
+
+from dairyos.data.models.equipment import (
+    Equipment,
+    EquipmentServiceEvent,
 )
 
 from dairyos.data.models.feed_record import FeedRecord
@@ -113,9 +118,9 @@ def initialize_database() -> None:
     so ``create_all()`` must never silently compete with Alembic in those
     environments.
     """
-    # A frozen DairyOS executable is always migration-owned. Do not permit
-    # development create_all() semantics to run merely because a machine-level
-    # DAIRYOS_ENV value was not inherited by the child process.
+    # A frozen DairyOS executable is always migration-owned.
+    # Packaged production must never fall back to development create_all()
+    # merely because DAIRYOS_ENV was absent, stale, or not inherited.
     if bool(getattr(sys, "frozen", False)):
         return
 

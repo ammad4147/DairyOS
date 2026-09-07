@@ -1,26 +1,15 @@
-from sqlalchemy import Column, Integer, Float, DateTime, String, ForeignKey
-from dairyos.data.database.session import Base
-from dairyos.core.time_utils import utcnow
+"""
+Legacy compatibility alias.
 
+Canonical DairyOS milk-production persistence authority:
 
-class MilkProductionORM(Base):
-    __tablename__ = "milk_production_orm"
+    dairyos.data.models.milk_production.MilkProduction
 
-    id = Column(Integer, primary_key=True, index=True)
-    animal_id = Column(String, ForeignKey("animal.animal_id"), index=True, nullable=False)
-    quantity_liters = Column(Float, nullable=False)
-    morning_yield = Column(Float, nullable=True)
-    afternoon_yield = Column(Float, nullable=True)
-    evening_yield = Column(Float, nullable=True)
-    milking_session = Column(String, nullable=True)
-    status = Column(String, default="RECORDED", nullable=False)
-    recorded_at = Column(DateTime, default=utcnow, nullable=False)
+This module must not declare a second ``milk_production_orm`` table.
+"""
 
-    @property
-    def cow_id(self) -> str:
-        """Backward compatibility alias for cow_id."""
-        return self.animal_id
+from dairyos.data.models.milk_production import MilkProduction
 
-    @cow_id.setter
-    def cow_id(self, value: str):
-        self.animal_id = value
+MilkProductionORM = MilkProduction
+
+__all__ = ["MilkProductionORM"]

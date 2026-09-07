@@ -15,26 +15,22 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path "$PSScriptRoot\..\..").Path
 Set-Location $repoRoot
 
-function Test-TcpPort {
-    param([int]$Port)
+function Select-FreePort {
+    # Ask Windows to allocate an actually bindable ephemeral loopback port.
+    # Holding the listener until the port number has been obtained avoids
+    # relying on potentially stale TCP-listener enumeration.
+    $probe = [System.Net.Sockets.TcpListener]::new(
+        [System.Net.IPAddress]::Loopback,
+        0
+    )
 
     try {
-        $listener = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
-        return ($listener | Where-Object { $_.Port -eq $Port }).Count -gt 0
+        $probe.Start()
+        return ([System.Net.IPEndPoint]$probe.LocalEndpoint).Port
     }
-    catch {
-        return $false
+    finally {
+        $probe.Stop()
     }
-}
-
-function Select-FreePort {
-    foreach ($port in 55432..55462) {
-        if (-not (Test-TcpPort -Port $port)) {
-            return $port
-        }
-    }
-
-    throw "No free local test PostgreSQL port was found in 55432-55462."
 }
 
 function Resolve-PostgreSqlBinary {
@@ -127,7 +123,7 @@ foreach ($name in @(
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
 
-$started = $false
+$clusterInitialized = $false
 
 try {
     Write-Host "============================================================"
@@ -148,6 +144,12 @@ try {
         throw "initdb failed with exit code $LASTEXITCODE."
     }
 
+    # Once initdb succeeds, this invocation owns the exact disposable cluster.
+    # Cleanup must therefore attempt a targeted pg_ctl stop even when
+    # pg_ctl start subsequently returns a non-zero exit code after a partial
+    # server start.
+    $clusterInitialized = $true
+
     & $pgCtl `
         -D "$dataDir" `
         -l "$logFile" `
@@ -159,14 +161,14 @@ try {
         throw "pg_ctl start failed with exit code $LASTEXITCODE."
     }
 
-    $started = $true
+    # pg_ctl returning is not sufficient evidence that the Windows server is
+    # already accepting client connections. Prove readiness before createdb.
+    Wait-ForPostgres -PgIsReady $pgIsReady -Port $port
 
     & $createdb -h 127.0.0.1 -p $port -U postgres dairyos_test
     if ($LASTEXITCODE -ne 0) {
         throw "createdb failed with exit code $LASTEXITCODE."
     }
-
-    Wait-ForPostgres -PgIsReady $pgIsReady -Port $port
 
     # The application reads these values during module import, so they must be
     # set before pytest imports dairyos.app through tests/conftest.py.
@@ -198,8 +200,24 @@ try {
     Write-Host "PASS: ISOLATED LOCAL TEST RUN COMPLETED SUCCESSFULLY" -ForegroundColor Green
 }
 finally {
-    if ($started) {
-        & $pgCtl -D "$dataDir" stop -m fast -w *> $null
+    if ($clusterInitialized -and (Test-Path $dataDir -PathType Container)) {
+        # Stop only the disposable cluster created by this invocation.
+        # Never terminate PostgreSQL by process name or PID.
+        #
+        # postmaster.pid is the positive evidence that this exact cluster
+        # reached a state in which pg_ctl stop is meaningful. Cleanup is
+        # deliberately best-effort so it cannot mask the original test or
+        # startup failure.
+        $postmasterPid = Join-Path $dataDir "postmaster.pid"
+
+        if (Test-Path $postmasterPid -PathType Leaf) {
+            try {
+                & $pgCtl -D "$dataDir" stop -m fast -w 2>&1 | Out-Null
+            }
+            catch {
+                Write-Warning "Disposable PostgreSQL cleanup reported: $($_.Exception.Message)"
+            }
+        }
     }
 
     foreach ($name in $previousEnvironment.Keys) {
