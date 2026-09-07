@@ -71,6 +71,35 @@ begin
 end;
 
 
+procedure ProvisionLifecycleState();
+var
+  AdminExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  AdminExe := ExpandConstant('{app}\DairyOS-Admin.exe');
+  if not FileExists(AdminExe) then
+    RaiseException('DairyOS-Admin.exe is missing; lifecycle state cannot be initialized.');
+
+  Params :=
+    '--lifecycle-install ' +
+    '--installation-root "' + ExpandConstant('{app}') + '" ' +
+    '--data-root "' + DairyOSDataRoot() + '"';
+
+  if (not Exec(
+    AdminExe,
+    Params,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS lifecycle state could not be initialized. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
 procedure ProvisionAutomaticBackupTask();
 var
   BackupExe: String;
@@ -103,7 +132,10 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
+  begin
+    ProvisionLifecycleState();
     ProvisionAutomaticBackupTask();
+  end;
 end;
 
 function DetectExistingDairyOSData(): Boolean;
