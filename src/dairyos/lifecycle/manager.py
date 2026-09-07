@@ -22,7 +22,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable
 
-from dairyos.data.database.backup import (\n    PostgreSQLBackupError,\n    create_backup,\n    restore_backup,\n    verify_backup_archive,\n)
+from dairyos.data.database.backup import (
+    PostgreSQLBackupError,
+    create_backup,
+    restore_backup,
+    verify_backup_archive,
+)
 from dairyos.platform import paths
 
 
