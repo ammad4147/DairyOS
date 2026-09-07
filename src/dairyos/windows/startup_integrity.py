@@ -144,7 +144,16 @@ def inspect_startup_integrity(
             "installation_state.json",
             "lifecycle.json",
         }
-        persistent_data = any(item.name not in ignored for item in root.iterdir())
+        for item in root.iterdir():
+            if item.name in ignored:
+                continue
+            if item.name == "storage" and item.is_dir():
+                if any(item.iterdir()):
+                    persistent_data = True
+                    break
+                continue
+            persistent_data = True
+            break
 
     facts = StartupIntegrityFacts(
         data_root=root,
