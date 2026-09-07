@@ -256,12 +256,27 @@ def _read_state() -> dict[str, object]:
 def _write_state(payload: dict[str, object]) -> None:
     path = runtime_state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
+    serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
-    temporary.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    # Runtime state represents persistent private-cluster authority, not
+    # transient process state. Do not replace an already-identical file.
+    #
+    # This is especially important on Windows where DairyOS startup,
+    # administration, and scheduled backup can execute under different
+    # security contexts. Replacing an unchanged runtime.json from an elevated
+    # process can change the target file's owner/ACL and prevent a later
+    # ordinary DairyOS process from atomically replacing it.
+    if path.is_file():
+        try:
+            if path.read_text(encoding="utf-8") == serialized:
+                return
+        except OSError:
+            # Preserve the existing atomic-write failure semantics when the
+            # current state cannot be read.
+            pass
+
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(serialized, encoding="utf-8")
     temporary.replace(path)
 
 

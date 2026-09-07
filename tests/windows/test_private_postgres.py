@@ -219,3 +219,139 @@ def test_hardened_cluster_skips_passwordless_bootstrap_database_probe():
     source = inspect.getsource(pg.start)
     assert 'security_state_present = (data_root.parent / "security.json").is_file()' in source
     assert "if not security_state_present:" in source
+
+
+def test_write_state_does_not_replace_identical_runtime_state(
+    monkeypatch,
+    tmp_path,
+):
+    from dairyos.windows import private_postgres
+
+    data_root = tmp_path / "postgres" / "data"
+    monkeypatch.setattr(
+        private_postgres,
+        "postgres_data_root",
+        lambda: data_root,
+    )
+
+    payload = {
+        "host": "127.0.0.1",
+        "port": 55348,
+        "database": "dairyos",
+        "user": "dairyos_admin",
+        "version": "18.6",
+        "data_root": str(data_root),
+        "created_at": 1788797440.3815248,
+    }
+
+    private_postgres._write_state(payload)
+
+    state_path = private_postgres.runtime_state_path()
+    original_stat = state_path.stat()
+    original_content = state_path.read_text(encoding="utf-8")
+
+    def forbidden_replace(self, target):
+        raise AssertionError(
+            "Identical runtime state must not replace runtime.json"
+        )
+
+    monkeypatch.setattr(type(state_path), "replace", forbidden_replace)
+
+    private_postgres._write_state(payload)
+
+    assert state_path.read_text(encoding="utf-8") == original_content
+    assert state_path.stat().st_ino == original_stat.st_ino
+
+
+def test_write_state_replaces_runtime_state_when_content_changes(
+    monkeypatch,
+    tmp_path,
+):
+    from dairyos.windows import private_postgres
+
+    data_root = tmp_path / "postgres" / "data"
+    monkeypatch.setattr(
+        private_postgres,
+        "postgres_data_root",
+        lambda: data_root,
+    )
+
+    original = {
+        "host": "127.0.0.1",
+        "port": 55348,
+        "database": "dairyos",
+        "user": "dairyos_admin",
+        "version": "18.6",
+        "data_root": str(data_root),
+        "created_at": 1788797440.3815248,
+    }
+
+    changed = dict(original)
+    changed["version"] = "18.7"
+
+    private_postgres._write_state(original)
+    private_postgres._write_state(changed)
+
+    assert private_postgres._read_state() == changed
+
+
+def test_start_does_not_replace_identical_persisted_runtime_state(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "postgres" / "data"
+    data_root.mkdir(parents=True)
+
+    # Existing persistent cluster evidence.
+    (data_root / "PG_VERSION").write_text("18\n", encoding="utf-8")
+    (data_root / "postmaster.pid").write_text("12345\n", encoding="utf-8")
+    (data_root.parent / "security.json").write_text("{}\n", encoding="utf-8")
+
+    monkeypatch.setattr(pg, "postgres_data_root", lambda: data_root)
+    monkeypatch.setattr(pg, "runtime_root", lambda: tmp_path / "runtime" / "PostgreSQL")
+    monkeypatch.setattr(pg, "detect_installed_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "bundled_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "_binary", lambda name: Path(name))
+    monkeypatch.setattr(pg, "_is_port_open", lambda host, port: True)
+    monkeypatch.setattr(pg, "_wait_for_server", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pg, "_write_postgresql_conf", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pg, "_write_pg_hba_conf", lambda *args, **kwargs: None)
+
+    payload = {
+        "host": "127.0.0.1",
+        "port": 55348,
+        "database": "dairyos",
+        "user": "dairyos_admin",
+        "version": "18.6",
+        "data_root": str(data_root),
+        "created_at": 1788797440.3815248,
+    }
+
+    pg._write_state(payload)
+
+    state_path = pg.runtime_state_path()
+    before = state_path.read_text(encoding="utf-8")
+
+    original_replace = type(state_path).replace
+
+    def guarded_replace(self, target):
+        if self.name == "runtime.tmp" and Path(target).name == "runtime.json":
+            raise AssertionError(
+                "start() must not replace identical persisted runtime.json"
+            )
+        return original_replace(self, target)
+
+    monkeypatch.setattr(type(state_path), "replace", guarded_replace)
+
+    config = pg.start(
+        host="127.0.0.1",
+        port=55348,
+        database="dairyos",
+        user="dairyos_admin",
+    )
+
+    assert config.data_root == data_root
+    assert config.port == 55348
+    assert config.database == "dairyos"
+    assert config.user == "dairyos_admin"
+    assert state_path.read_text(encoding="utf-8") == before
