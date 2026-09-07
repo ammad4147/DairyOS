@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dairyos.data.database.backup import verify_backup_archive, verify_backup_artifact
+from dairyos.data.database.backup import verify_backup_artifact
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
 from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
 from dairyos.lifecycle.reset import reset_operational_data, verify_zero_state
@@ -213,8 +213,12 @@ def _verify_backup_directory(
             "Verified DairyOS backup is missing its PostgreSQL database dump."
         )
     if database_backup:
+        if require_database and manifest.get("database_backup_archive_verified") is not True:
+            raise LifecycleError(
+                "PostgreSQL backup archive was not verified when the backup was created."
+            )
         dump_path = path / str(database_backup)
-        metadata = verify_backup_archive(dump_path)
+        metadata = verify_backup_artifact(dump_path)
         expected = manifest.get("database_backup_sha256")
         if expected and str(metadata["sha256"]).lower() != str(expected).lower():
             raise LifecycleError("PostgreSQL backup SHA-256 verification failed.")
