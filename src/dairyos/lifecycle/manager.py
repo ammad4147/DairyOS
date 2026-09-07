@@ -218,6 +218,7 @@ class LifecycleManager:
                 "installation_root": str(self.installation_root),
                 "files": manifest_entries,
                 "database_backup": database_backup,
+                "database_backup_archive_verified": bool(database_backup),
             }
             _write_json_atomic(staging / "backup.json", backup_manifest)
             destination.parent.mkdir(parents=True, exist_ok=True)
