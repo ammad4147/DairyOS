@@ -21,6 +21,7 @@ def test_admin_backup_verification_accepts_matching_database_checksum(tmp_path: 
         json.dumps(
             {
                 "database_backup": "database.dump",
+                "database_backup_archive_verified": True,
                 "database_backup_sha256": digest,
                 "files": [{"path": "example.txt", "sha256": file_digest}],
             }
@@ -40,6 +41,7 @@ def test_admin_backup_verification_rejects_tampered_database_dump(tmp_path: Path
         json.dumps(
             {
                 "database_backup": "database.dump",
+                "database_backup_archive_verified": True,
                 "database_backup_sha256": hashlib.sha256(b"original").hexdigest(),
                 "files": [],
             }
@@ -48,4 +50,45 @@ def test_admin_backup_verification_rejects_tampered_database_dump(tmp_path: Path
     )
 
     with pytest.raises(LifecycleError, match="PostgreSQL backup SHA-256"):
+        _verify_backup_directory(backup)
+
+
+
+def test_admin_backup_verification_rejects_missing_database_dump(tmp_path: Path):
+    backup = tmp_path / "backup"
+    files = backup / "files"
+    files.mkdir(parents=True)
+    (backup / "backup.json").write_text(
+        json.dumps(
+            {
+                "database_backup": None,
+                "database_backup_archive_verified": False,
+                "files": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(LifecycleError, match="missing its PostgreSQL database dump"):
+        _verify_backup_directory(backup)
+
+
+def test_admin_backup_verification_rejects_unverified_database_archive(tmp_path: Path):
+    backup = tmp_path / "backup"
+    files = backup / "files"
+    files.mkdir(parents=True)
+    dump = backup / "database.dump"
+    dump.write_bytes(b"database-backup")
+    (backup / "backup.json").write_text(
+        json.dumps(
+            {
+                "database_backup": "database.dump",
+                "database_backup_archive_verified": False,
+                "files": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(LifecycleError, match="archive was not verified"):
         _verify_backup_directory(backup)
