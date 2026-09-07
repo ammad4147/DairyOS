@@ -344,7 +344,22 @@ def main() -> None:
         action="store_true",
         help="Start the Admin HTTP server without opening a browser.",
     )
+    parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--installation-root", help=argparse.SUPPRESS)
+    parser.add_argument("--data-root", help=argparse.SUPPRESS)
     args = parser.parse_args()
+
+    if args.lifecycle_install:
+        installation_root = args.installation_root or str(Path.cwd())
+        manager = LifecycleManager(
+            installation_root,
+            data_root=args.data_root,
+            database_url=None,
+        )
+        manager.install()
+        manager.validate(require_database=False)
+        return
+
     if args.host not in {"127.0.0.1", "::1", "localhost"}:
         raise SystemExit("DairyOS Admin Tool is restricted to loopback hosts.")
     try:
