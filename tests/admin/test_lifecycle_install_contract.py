@@ -15,3 +15,34 @@ def test_install_creates_installation_root(tmp_path: Path) -> None:
     assert installation_root.is_dir()
     assert Path(manifest.installation_root) == installation_root.resolve()
     assert manager.validate(require_database=False)["valid"] is True
+
+
+
+def test_admin_hidden_lifecycle_install_bootstraps_required_layout(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from dairyos.admin import app as admin_app
+
+    installation_root = tmp_path / "installed"
+    data_root = tmp_path / "programdata"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "DairyOS-Admin.exe",
+            "--lifecycle-install",
+            "--installation-root",
+            str(installation_root),
+            "--data-root",
+            str(data_root),
+        ],
+    )
+
+    admin_app.main()
+
+    assert installation_root.is_dir()
+    assert (data_root / "storage").is_dir()
+    assert (data_root / "backups").is_dir()
+    assert (data_root / "logs").is_dir()
+    assert (data_root / "lifecycle.json").is_file()
