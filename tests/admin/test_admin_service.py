@@ -77,7 +77,7 @@ def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
     )
     with pytest.raises(LifecycleError, match="PostgreSQL backup"):
         AdminService(manager).reset(RESET_CONFIRMATION)
-    assert manager.calls == [("backup", "pre-reset", False)]
+    assert manager.calls == [("backup", "pre-reset", True)]
 
 
 def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch):
@@ -101,4 +101,4 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
     result = AdminService(manager).reset(RESET_CONFIRMATION)
     assert result.success is True
     assert called == [("postgresql+psycopg://example", "DairyOS Admin Tool")]
-    assert manager.calls == [("validate", True), ("backup", "pre-reset", False)]
+    assert manager.calls == [("validate", True), ("backup", "pre-reset", True)]
