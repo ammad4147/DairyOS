@@ -167,8 +167,17 @@ class LifecycleManager:
             raise LifecycleValidationError(json.dumps(result, indent=2))
         return result
 
-    def backup(self, label: str = "pre-change") -> Path:
+    def backup(
+        self,
+        label: str = "pre-change",
+        *,
+        require_database: bool = False,
+    ) -> Path:
         self._ensure_data_layout()
+        if require_database and not self.database_url:
+            raise LifecycleError(
+                "A verified DairyOS backup requires a PostgreSQL database URL."
+            )
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         destination = self.backup_root / f"{timestamp}-{_safe_label(label)}"
         staging_parent = self.backup_root / ".staging"
