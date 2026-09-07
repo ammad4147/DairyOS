@@ -32,3 +32,55 @@ def test_restore_can_use_explicit_environment_password_override(monkeypatch):
 
     assert args[username_index + 1] == "dairyos_admin_test_runner"
     assert env["PGPASSWORD"] == "admin-environment-password"
+
+def test_restore_backup_can_disable_environment_password_override(
+    monkeypatch,
+    tmp_path,
+):
+    from types import SimpleNamespace
+
+    captured = {}
+
+    def fake_connection_args(
+        database_url,
+        *,
+        allow_environment_password_override=False,
+    ):
+        captured["database_url"] = database_url
+        captured["override"] = allow_environment_password_override
+        return [], {}
+
+    monkeypatch.setattr(backup, "_connection_args", fake_connection_args)
+    monkeypatch.setattr(backup, "_tool", lambda name: name)
+    monkeypatch.setattr(
+        backup,
+        "_run_postgresql_command",
+        lambda command, env, operation: SimpleNamespace(
+            returncode=0,
+            stdout="",
+            stderr="",
+        ),
+    )
+
+    artifact = tmp_path / "restore.dump"
+    artifact.write_bytes(b"not-empty")
+
+    backup.restore_backup(
+        "postgresql+psycopg://dairyos_admin:url-password@127.0.0.1:55312/dairyos",
+        artifact,
+        allow_environment_password_override=False,
+    )
+
+    assert captured["override"] is False
+
+
+def test_restore_verification_uses_explicit_admin_url_password():
+    import inspect
+
+    from dairyos.data.database import restore_verification
+
+    source = inspect.getsource(
+        restore_verification.verify_latest_backup_restore
+    )
+
+    assert "allow_environment_password_override=False" in source

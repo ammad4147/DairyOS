@@ -135,14 +135,19 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
     return destination
 
 
-def restore_backup(database_url: str, backup: str | Path) -> None:
+def restore_backup(
+    database_url: str,
+    backup: str | Path,
+    *,
+    allow_environment_password_override: bool = True,
+) -> None:
     """Restore a custom-format backup into an existing PostgreSQL database."""
     backup = Path(backup)
     if not backup.is_file() or backup.stat().st_size == 0:
         raise PostgreSQLBackupError(f"Backup artifact does not exist or is empty: {backup}")
     args, env = _connection_args(
         database_url,
-        allow_environment_password_override=True,
+        allow_environment_password_override=allow_environment_password_override,
     )
     command = [
         _tool("pg_restore"),

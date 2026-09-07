@@ -112,7 +112,11 @@ def verify_latest_backup_restore(
         with maintenance_engine.connect() as connection:
             connection.execute(text(f'CREATE DATABASE "{scratch_name}"'))
 
-        restore_backup(str(scratch_url), backup)
+        restore_backup(
+            str(scratch_url),
+            backup,
+            allow_environment_password_override=False,
+        )
 
         scratch_engine = create_engine(str(scratch_url), pool_pre_ping=True)
         with scratch_engine.connect() as connection:
