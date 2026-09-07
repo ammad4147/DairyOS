@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dairyos.data.database.backup import verify_backup_artifact
+from dairyos.data.database.backup import verify_backup_archive, verify_backup_artifact
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
 from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
 from dairyos.lifecycle.reset import reset_operational_data, verify_zero_state
@@ -40,13 +40,21 @@ class AdminService:
         return self.manager.validate(require_database=bool(self.manager.database_url))
 
     def backup(self, label: str = "admin") -> AdminResult:
-        artifact = self.manager.backup(label=label)
+        if not self.manager.database_url:
+            raise LifecycleError(
+                "Admin backup requires the canonical PostgreSQL database authority."
+            )
+        artifact = self.manager.backup(label=label, require_database=True)
         _record_database_checksum(artifact)
-        _verify_backup_directory(artifact)
+        _verify_backup_directory(artifact, require_database=True)
         return AdminResult("backup", True, "Backup completed and verified.", str(artifact))
 
     def restore(self, backup: str | Path) -> AdminResult:
-        _verify_backup_directory(backup)
+        if not self.manager.database_url:
+            raise LifecycleError(
+                "Admin restore requires the canonical PostgreSQL database authority."
+            )
+        _verify_backup_directory(backup, require_database=True)
         restore_snapshot(self.manager, backup)
         self.manager.validate(require_database=bool(self.manager.database_url))
         return AdminResult("restore", True, "Snapshot restored and validated.", str(Path(backup).resolve()))
@@ -189,16 +197,24 @@ def _record_database_checksum(backup: str | Path) -> None:
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _verify_backup_directory(backup: str | Path) -> None:
+def _verify_backup_directory(
+    backup: str | Path,
+    *,
+    require_database: bool = True,
+) -> None:
     path = Path(backup).resolve()
     manifest_path = path / "backup.json"
     if not manifest_path.is_file():
         raise LifecycleError(f"Invalid DairyOS backup: {path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     database_backup = manifest.get("database_backup")
+    if require_database and not database_backup:
+        raise LifecycleError(
+            "Verified DairyOS backup is missing its PostgreSQL database dump."
+        )
     if database_backup:
         dump_path = path / str(database_backup)
-        metadata = verify_backup_artifact(dump_path)
+        metadata = verify_backup_archive(dump_path)
         expected = manifest.get("database_backup_sha256")
         if expected and str(metadata["sha256"]).lower() != str(expected).lower():
             raise LifecycleError("PostgreSQL backup SHA-256 verification failed.")
