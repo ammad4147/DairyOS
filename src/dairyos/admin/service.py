@@ -82,7 +82,11 @@ class AdminService:
         self.manager.validate(require_database=True)
 
         _admin_stage("reset: pre-reset backup")
-        artifact = self.manager.backup(label="pre-reset") if backup_before_reset else None
+        artifact = (
+            self.manager.backup(label="pre-reset", require_database=True)
+            if backup_before_reset
+            else None
+        )
         if artifact is None:
             raise LifecycleError("Reset requires a verified pre-reset backup.")
 
