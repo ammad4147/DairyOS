@@ -20,7 +20,10 @@ def create_external_purge_backup(manager: LifecycleManager) -> Path:
     root so the backup survives deletion of the data root itself.
     """
 
-    internal = manager.backup(label="pre-purge")
+    internal = manager.backup(
+        label="pre-purge",
+        require_database=bool(manager.database_url),
+    )
     parent = manager.data_root.parent / PURGE_BACKUP_ROOT_NAME
     parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
