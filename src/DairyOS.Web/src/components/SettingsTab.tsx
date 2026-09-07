@@ -74,8 +74,10 @@ export default function SettingsTab({
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
   const [activeTab, setActiveTab] = useState<'FARM' | 'EMAIL'>('FARM');
-  const [farmName, setFarmName] = useState(localStorage.getItem('dairyos_farm_name') || 'Barki Dairy Farm');
-  const [location, setLocation] = useState(localStorage.getItem('dairyos_farm_loc') || 'Lahore, Punjab, PK');
+  const [farmName, setFarmName] = useState('');
+  const [location, setLocation] = useState('');
+  const [farmLoaded, setFarmLoaded] = useState(false);
+  const [farmSaving, setFarmSaving] = useState(false);
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({ configured: false });
   const [emailPassword, setEmailPassword] = useState('');
   const [testRecipient, setTestRecipient] = useState('');
@@ -106,12 +108,13 @@ export default function SettingsTab({
     void (async () => {
       try {
         const response = await fetch(`${API_BASE}/settings`);
-        if (!response.ok) return;
+        if (!response.ok) throw new Error('Unable to load farm profile. Reopen Settings to retry.');
         const data = await response.json();
-        if (data.farm_name) setFarmName(data.farm_name);
-        if (data.location) setLocation(data.location);
+        setFarmName(data.farm_name);
+        setLocation(data.location ?? '');
+        setFarmLoaded(true);
       } catch (loadError) {
-        console.error(loadError);
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load farm profile.');
       }
     })();
   }, []);
@@ -156,12 +159,27 @@ export default function SettingsTab({
     if (activeTab === 'EMAIL') void loadEmail();
   }, [activeTab]);
 
-  const saveFarm = () => {
-    localStorage.setItem('dairyos_farm_name', farmName);
-    localStorage.setItem('dairyos_farm_loc', location);
-    onFarmProfileUpdate?.({ farmName, location });
-    window.dispatchEvent(new Event('storage'));
-    setMessage('Farm profile saved.');
+  const saveFarm = async () => {
+    setError('');
+    setMessage('');
+    setFarmSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farm_name: farmName, location }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Unable to save farm profile.');
+      setFarmName(data.farm_name);
+      setLocation(data.location);
+      onFarmProfileUpdate?.({ farmName: data.farm_name, location: data.location });
+      setMessage('Farm profile saved.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save farm profile.');
+    } finally {
+      setFarmSaving(false);
+    }
   };
 
   const applyProviderPreset = (email: string) => {
@@ -321,7 +339,7 @@ export default function SettingsTab({
             <section style={card}>
               <label style={label}>Farm Name</label><input value={farmName} onChange={event => setFarmName(event.target.value)} style={field} />
               <label style={label}>Location</label><input value={location} onChange={event => setLocation(event.target.value)} style={field} />
-              <button onClick={saveFarm} style={button}><Save size={13} />Save Farm</button>
+              <button onClick={saveFarm} disabled={!farmLoaded || farmSaving} style={button}><Save size={13} />{farmSaving ? 'Saving…' : 'Save Farm'}</button>
             </section>
             <section style={card}>
               <strong style={{ fontSize: 12 }}>System Date & Time</strong>

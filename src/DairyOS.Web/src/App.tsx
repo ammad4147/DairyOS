@@ -34,11 +34,11 @@ export default function MainAppShell(){
 
  const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();const records = Array.isArray(payload) ? payload : Array.isArray(payload?.value) ? payload.value : [];setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
 
- useEffect(()=>{const storedName=localStorage.getItem('dairyos_farm_name');const storedLocation=localStorage.getItem('dairyos_farm_loc');if(storedName)setFarmName(storedName);if(storedLocation)setFarmLocation(storedLocation);void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs))}catch(error){console.error('DairyOS navigation preferences load failed:',error)}})()},[refreshAnimals]);
+ useEffect(()=>{void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setFarmName(settings.farm_name);setFarmLocation(settings.location ?? '');setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs))}catch(error){console.error('DairyOS settings load failed:',error)}})()},[refreshAnimals]);
 
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
  const handleRegisterAnimal=()=>{void refreshAnimals()};
- const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location);localStorage.setItem('dairyos_farm_name',p.farmName);localStorage.setItem('dairyos_farm_loc',p.location)};
+ const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location)};
  const openPayroll=()=>window.open(`${window.location.origin}${window.location.pathname}?window=payroll`,'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
 

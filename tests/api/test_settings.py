@@ -110,6 +110,38 @@ def test_invalid_prefix_is_rejected(client):
     assert too_long.status_code == 422, too_long.text
 
 
+def test_farm_profile_persists_without_browser_storage(client):
+    saved = client.put("/settings", json={
+        "farm_name": "  Restart Test Farm  ", "location": "  Lahore, Punjab  ",
+    })
+    assert saved.status_code == 200, saved.text
+    # Every settings request constructs and closes a fresh repository factory.
+    # A new client has no cookies or browser storage from the save operation.
+    from fastapi.testclient import TestClient
+    with TestClient(client.app) as restarted:
+        settings = restarted.get("/settings").json()
+    assert settings["farm_name"] == "Restart Test Farm"
+    assert settings["location"] == "Lahore, Punjab"
+
+
+def test_location_can_be_cleared_and_omission_preserves_it(client):
+    assert client.put("/settings", json={"location": "Lahore"}).status_code == 200
+    renamed = client.put("/settings", json={"farm_name": "New Name"}).json()
+    assert renamed["location"] == "Lahore"
+    cleared = client.put("/settings", json={"location": "   "}).json()
+    assert cleared["location"] == ""
+    assert client.get("/settings").json()["location"] == ""
+
+
+def test_invalid_name_does_not_change_saved_profile(client):
+    client.put("/settings", json={"farm_name": "Saved Farm", "location": "Lahore"})
+    rejected = client.put("/settings", json={"farm_name": "  ", "location": "Changed"})
+    assert rejected.status_code == 422
+    settings = client.get("/settings").json()
+    assert settings["farm_name"] == "Saved Farm"
+    assert settings["location"] == "Lahore"
+
+
 def test_blank_farm_name_is_rejected(client):
     response = client.put("/settings", json={"farm_name": "   "})
     assert response.status_code == 422, response.text

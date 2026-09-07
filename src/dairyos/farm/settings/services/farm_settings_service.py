@@ -223,6 +223,7 @@ class FarmSettingsService:
     def get_public_settings(self) -> dict:
         return {
             "farm_name": self.get_farm_name(),
+            "location": str(self.repository.get("farm_location", "") or "").strip(),
             "animal_id_prefix": self.get_animal_id_prefix(),
             "timezone": self.get_timezone(),
             "operational_date_convention": (
@@ -244,6 +245,7 @@ class FarmSettingsService:
         self,
         *,
         farm_name: str | None = None,
+        location: str | None = None,
         animal_id_prefix: str | None = None,
         updated_by: str | None = None,
     ) -> dict:
@@ -279,6 +281,11 @@ class FarmSettingsService:
                 "animal_id_prefix",
                 prefix,
                 updated_by=updated_by,
+            )
+
+        if location is not None:
+            self.repository.set(
+                "farm_location", location.strip(), updated_by=updated_by,
             )
 
         return self.get_public_settings()

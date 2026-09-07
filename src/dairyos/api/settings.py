@@ -135,6 +135,7 @@ def _rotate_recovery_code(settings, *, updated_by: str) -> str:
 
 class UpdateIdentityRequest(BaseModel):
     farm_name: str | None = None
+    location: str | None = None
     animal_id_prefix: str | None = None
     updated_by: str = Field(default="UI Operator")
 
@@ -196,6 +197,7 @@ def update_identity(payload: UpdateIdentityRequest):
     try:
         return service.update_identity(
             farm_name=payload.farm_name,
+            location=payload.location,
             animal_id_prefix=payload.animal_id_prefix,
             updated_by=payload.updated_by,
         )
