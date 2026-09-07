@@ -105,7 +105,13 @@ def verify_latest_backup_restore(
 
     maintenance_url = admin_url.set(database="postgres")
     scratch_url = admin_url.set(database=scratch_name)
-    maintenance_engine = create_engine(str(maintenance_url), isolation_level="AUTOCOMMIT", pool_pre_ping=True)
+    maintenance_database_url = maintenance_url.render_as_string(hide_password=False)
+    scratch_database_url = scratch_url.render_as_string(hide_password=False)
+    maintenance_engine = create_engine(
+        maintenance_database_url,
+        isolation_level="AUTOCOMMIT",
+        pool_pre_ping=True,
+    )
     scratch_engine = None
 
     try:
@@ -113,12 +119,15 @@ def verify_latest_backup_restore(
             connection.execute(text(f'CREATE DATABASE "{scratch_name}"'))
 
         restore_backup(
-            str(scratch_url),
+            scratch_database_url,
             backup,
             allow_environment_password_override=False,
         )
 
-        scratch_engine = create_engine(str(scratch_url), pool_pre_ping=True)
+        scratch_engine = create_engine(
+            scratch_database_url,
+            pool_pre_ping=True,
+        )
         with scratch_engine.connect() as connection:
             application_tables = int(
                 connection.execute(

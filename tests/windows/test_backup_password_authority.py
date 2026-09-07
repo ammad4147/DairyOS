@@ -84,3 +84,38 @@ def test_restore_verification_uses_explicit_admin_url_password():
     )
 
     assert "allow_environment_password_override=False" in source
+
+def test_sqlalchemy_url_string_masks_password_but_explicit_render_preserves_it():
+    from sqlalchemy.engine import make_url
+
+    url = make_url(
+        "postgresql+psycopg://"
+        "dairyos_admin:actual-admin-password@127.0.0.1:55312/dairyos"
+    )
+
+    masked = str(url)
+    unmasked = url.render_as_string(hide_password=False)
+
+    assert "actual-admin-password" not in masked
+    assert "***" in masked
+    assert "actual-admin-password" in unmasked
+
+
+def test_restore_verification_renders_admin_password_unmasked():
+    import inspect
+
+    from dairyos.data.database import restore_verification
+
+    source = inspect.getsource(
+        restore_verification.verify_latest_backup_restore
+    )
+
+    assert "render_as_string(hide_password=False)" in source
+    assert "maintenance_database_url" in source
+    assert "scratch_database_url" in source
+    assert "restore_backup(" in source
+    assert "scratch_database_url," in source
+
+    assert "create_engine(str(maintenance_url)" not in source
+    assert "restore_backup(str(scratch_url)" not in source
+    assert "create_engine(str(scratch_url)" not in source
