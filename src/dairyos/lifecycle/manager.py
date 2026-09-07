@@ -22,7 +22,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable
 
-from dairyos.data.database.backup import PostgreSQLBackupError, create_backup, restore_backup
+from dairyos.data.database.backup import (\n    PostgreSQLBackupError,\n    create_backup,\n    restore_backup,\n    verify_backup_archive,\n)
 from dairyos.platform import paths
 
 
@@ -177,7 +177,11 @@ class LifecycleManager:
                 if not source.is_file():
                     continue
                 relative = source.relative_to(self.data_root)
-                if relative.parts and relative.parts[0] == "backups":
+                if relative.parts and relative.parts[0].lower() in {
+                    "backups",
+                    "postgres",
+                    "postgresql",
+                }:
                     continue
                 target = files_root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -195,9 +199,15 @@ class LifecycleManager:
                 try:
                     db_path = staging / "database.dump"
                     create_backup(self.database_url, db_path)
+                    verify_backup_archive(db_path)
                     database_backup = db_path.name
                 except PostgreSQLBackupError as exc:
                     raise LifecycleError(f"Database backup failed: {exc}") from exc
+
+            if require_database and not database_backup:
+                raise LifecycleError(
+                    "DairyOS backup did not produce a PostgreSQL database dump."
+                )
 
             backup_manifest = {
                 "created_at": _utc_now(),
