@@ -236,28 +236,9 @@ class LifecycleManager:
                 shutil.rmtree(staging, ignore_errors=True)
 
     def restore(self, backup: str | Path) -> None:
-        backup_path = Path(backup).expanduser().resolve()
-        backup_manifest_path = backup_path / "backup.json"
-        if not backup_manifest_path.is_file():
-            raise LifecycleError(f"Invalid DairyOS backup: {backup_path}")
-        backup_manifest = json.loads(backup_manifest_path.read_text(encoding="utf-8"))
+        from dairyos.lifecycle.restore import restore_snapshot
 
-        files_root = backup_path / "files"
-        if files_root.exists():
-            self._ensure_data_layout()
-            for source in files_root.rglob("*"):
-                if not source.is_file():
-                    continue
-                relative = source.relative_to(files_root)
-                destination = self.data_root / relative
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
-
-        database_backup = backup_manifest.get("database_backup")
-        if database_backup:
-            if not self.database_url:
-                raise LifecycleError("Backup contains a database dump but no database URL is configured")
-            restore_backup(self.database_url, backup_path / str(database_backup))
+        restore_snapshot(self, backup)
 
     def rollback(self, backup: str | Path) -> dict[str, object]:
         self.restore(backup)
