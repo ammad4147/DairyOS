@@ -29,6 +29,26 @@ def test_env_override_wins_over_the_platform_default(tmp_path, monkeypatch):
     assert paths.config_path() == tmp_path / "farm" / "config.json"
 
 
+def test_packaged_windows_defaults_to_programdata(tmp_path, monkeypatch):
+    monkeypatch.delenv(paths.DATA_DIR_ENV_VAR, raising=False)
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "ProgramData"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData" / "Local"))
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    assert paths.data_root(create=False) == tmp_path / "ProgramData" / "DairyOS"
+
+
+def test_source_windows_default_remains_localappdata(tmp_path, monkeypatch):
+    monkeypatch.delenv(paths.DATA_DIR_ENV_VAR, raising=False)
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "ProgramData"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData" / "Local"))
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.delattr(sys, "frozen", raising=False)
+
+    assert paths.data_root(create=False) == tmp_path / "AppData" / "Local" / "DairyOS"
+
+
 def test_data_root_is_created_on_demand(tmp_path, monkeypatch):
     target = tmp_path / "not-yet-there"
     monkeypatch.setenv(paths.DATA_DIR_ENV_VAR, str(target))
