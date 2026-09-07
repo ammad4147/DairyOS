@@ -25,9 +25,21 @@ npm --prefix $webRoot run build
 if ($LASTEXITCODE -ne 0) { throw "DairyOS frontend production build failed." }
 if (-not (Test-Path $webIndex -PathType Leaf)) { throw "Frontend build completed without dist/index.html." }
 
-Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
+Write-Host "=== PREPARE DESKTOP BUILD DEPENDENCIES ===" -ForegroundColor Cyan
 python -m pip install --upgrade pyinstaller
 if ($LASTEXITCODE -ne 0) { throw "Unable to install PyInstaller." }
+
+python -m pip install -e ".[desktop]"
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to install DairyOS desktop dependencies."
+}
+
+python -c "import webview; print('pywebview import: PASS')"
+if ($LASTEXITCODE -ne 0) {
+    throw "pywebview is unavailable in the active build environment."
+}
+
+Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
 
 Remove-Item $DistRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
