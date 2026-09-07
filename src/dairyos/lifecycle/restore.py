@@ -185,6 +185,13 @@ def _replace_non_database_files(data_root: Path, staged_root: Path) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
 
+    # Lifecycle directories are structural state, not merely containers for
+    # files. File-only snapshots may legitimately contain no entries under
+    # logs/ or storage/, so restore must recreate the required layout before
+    # validation. backups/ is preserved above but ensure it exists as well.
+    for name in ("storage", "backups", "logs"):
+        (data_root / name).mkdir(parents=True, exist_ok=True)
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
