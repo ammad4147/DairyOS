@@ -16,8 +16,8 @@ class FakeManager:
         self.calls.append(("validate", require_database))
         return {"valid": True}
 
-    def backup(self, label="pre-change"):
-        self.calls.append(("backup", label))
+    def backup(self, label="pre-change", *, require_database=False):
+        self.calls.append(("backup", label, require_database))
         path = self.tmp_path / label
         path.mkdir(parents=True, exist_ok=True)
         (path / "backup.json").write_text(json.dumps({"files": []}), encoding="utf-8")
@@ -31,11 +31,25 @@ class FakeManager:
         self.calls.append(("uninstall", mode, confirmation))
 
 
-def test_backup_delegates_to_canonical_lifecycle_manager(tmp_path):
+def test_backup_delegates_to_canonical_lifecycle_manager(tmp_path, monkeypatch):
     manager = FakeManager(tmp_path)
+    manager.database_url = "postgresql+psycopg://example"
+    monkeypatch.setattr("dairyos.admin.service._record_database_checksum", lambda path: None)
+    monkeypatch.setattr("dairyos.admin.service._verify_backup_directory", lambda path, **kwargs: None)
+
     result = AdminService(manager).backup("operator")
+
     assert result.success is True
-    assert manager.calls == [("backup", "operator")]
+    assert manager.calls == [("backup", "operator", True)]
+
+
+def test_backup_refuses_missing_database_authority(tmp_path):
+    manager = FakeManager(tmp_path)
+
+    with pytest.raises(LifecycleError, match="canonical PostgreSQL"):
+        AdminService(manager).backup("operator")
+
+    assert manager.calls == []
 
 
 def test_reset_requires_exact_confirmation(tmp_path):
@@ -63,7 +77,7 @@ def test_reset_requires_a_verified_backup(tmp_path, monkeypatch):
     )
     with pytest.raises(LifecycleError, match="PostgreSQL backup"):
         AdminService(manager).reset(RESET_CONFIRMATION)
-    assert manager.calls == [("backup", "pre-reset")]
+    assert manager.calls == [("backup", "pre-reset", False)]
 
 
 def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch):
@@ -87,4 +101,4 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
     result = AdminService(manager).reset(RESET_CONFIRMATION)
     assert result.success is True
     assert called == [("postgresql+psycopg://example", "DairyOS Admin Tool")]
-    assert manager.calls == [("validate", True), ("backup", "pre-reset")]
+    assert manager.calls == [("validate", True), ("backup", "pre-reset", False)]
