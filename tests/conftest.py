@@ -63,6 +63,7 @@ from dairyos.data.database.models.operational_event_model import OperationalEven
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.models.operational_write import OperationalWrite, OperationalProjectionOutbox
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
@@ -121,6 +122,8 @@ def _clear_test_event_journal() -> None:
     """Clear the disposable test journal without calling its bulk-delete API."""
     session = _db_session.SessionLocal()
     try:
+        _delete_test_rows_one_at_a_time(session, OperationalProjectionOutbox)
+        _delete_test_rows_one_at_a_time(session, OperationalWrite)
         _delete_test_rows_one_at_a_time(session, EventJournalModel)
         session.commit()
     except Exception:
@@ -142,6 +145,8 @@ def _reset_test_persistence() -> None:
         # domain registers and operational projections.
         for model in (
             BreedingPropagationOutbox,
+            OperationalProjectionOutbox,
+            OperationalWrite,
             SemenStockMovement,
             BreedingRecordModel,
             SemenLot,

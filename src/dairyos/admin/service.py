@@ -54,12 +54,27 @@ class AdminService:
             raise LifecycleError(
                 "Admin restore requires the canonical PostgreSQL database authority."
             )
-        _verify_backup_directory(backup, require_database=True)
-        restore_snapshot(self.manager, backup)
+        from dairyos.admin.backup_catalog import verify_restore_candidate
+        from dairyos.admin.database_restore import restore_database_only
+
+        candidate = verify_restore_candidate(backup)
+        _assert_runtime_stopped()
+        if candidate.kind == "database":
+            restore_database_only(self.manager, candidate.path)
+            return AdminResult("restore", True, "Database restored and validated. Operational read models rebuilt; other files and local Admin settings were retained.", str(candidate.path))
+        _verify_backup_directory(candidate.path, require_database=True)
+        restore_snapshot(self.manager, candidate.path)
         self.manager.validate(require_database=bool(self.manager.database_url))
         return AdminResult("restore", True, "Snapshot restored and validated.", str(Path(backup).resolve()))
 
     def rollback(self, backup: str | Path) -> AdminResult:
+        from dairyos.admin.backup_catalog import verify_restore_candidate
+
+        verify_restore_candidate(backup)
+        if Path(backup).is_file():
+            result = self.restore(backup)
+            return AdminResult("rollback", result.success, result.message, result.artifact)
+        _assert_runtime_stopped()
         _verify_backup_directory(backup)
         result = self.manager.rollback(backup)
         return AdminResult(
@@ -182,7 +197,7 @@ def _assert_runtime_stopped() -> None:
         except OSError:
             return
     raise LifecycleError(
-        f"DairyOS runtime is still listening on {host}:{port}. Stop the operational application before executing Reset."
+        f"DairyOS runtime is still listening on {host}:{port}. Stop the operational application before reset or recovery."
     )
 
 

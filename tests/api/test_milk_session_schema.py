@@ -38,6 +38,8 @@ class _Gateway:
 
 
 class _Container:
+    # This adapter represents the already-open transaction in this unit test.
+    _operational_write_active = True
     def __init__(self):
         self.repository_factory = _RepositoryFactory()
         self.input_gateway = _Gateway()

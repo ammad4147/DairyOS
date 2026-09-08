@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.findings.services.operational_finding_service import (
@@ -170,8 +171,10 @@ def _raise_equipment_findings(
     equipment,
     *,
     operator: str,
+    factory=None,
 ) -> None:
-    factory = RepositoryFactory.create()
+    owns_factory = factory is None
+    factory = factory or RepositoryFactory.create()
     try:
         findings = OperationalFindingService(
             factory.operational_findings()
@@ -231,7 +234,8 @@ def _raise_equipment_findings(
                 ),
             )
     finally:
-        factory.close()
+        if owns_factory:
+            factory.close()
 
 
 def _publish_projection_event(
@@ -285,6 +289,7 @@ def _publish_projection_event(
 
 
 @router.post("")
+@operational_write
 def create_or_update_equipment(
     entry: EquipmentRequest,
     container=Depends(get_container),
@@ -390,6 +395,7 @@ def create_or_update_equipment(
     _raise_equipment_findings(
         entity,
         operator=operator,
+        factory=container.repository_factory,
     )
 
     response = _serialize_equipment(entity)
@@ -460,6 +466,7 @@ def get_equipment(
 
 
 @router.patch("/{equipment_id}")
+@operational_write
 def update_equipment(
     equipment_id: str,
     entry: EquipmentPatchRequest,
@@ -539,12 +546,14 @@ def update_equipment(
     _raise_equipment_findings(
         entity,
         operator=operator,
+        factory=container.repository_factory,
     )
 
     return _serialize_equipment(entity)
 
 
 @router.post("/{equipment_id}/service")
+@operational_write
 def record_equipment_service(
     equipment_id: str,
     entry: EquipmentServiceRequest,
@@ -623,6 +632,7 @@ def record_equipment_service(
     _raise_equipment_findings(
         entity,
         operator=operator,
+        factory=container.repository_factory,
     )
 
     return {

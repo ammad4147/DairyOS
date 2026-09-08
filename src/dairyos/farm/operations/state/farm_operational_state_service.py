@@ -7,6 +7,9 @@ from dairyos.farm.operations.state.operational_state_runtime import (
 )
 
 
+from copy import deepcopy
+
+
 class FarmOperationalStateService:
     """
     Application service for farm operational state.
@@ -113,6 +116,19 @@ class FarmOperationalStateService:
 
         state = self.runtime.ensure_state()
 
+        event_id = getattr(event, "event_id", None)
+        event_type = getattr(event, "event_type", None) or getattr(event, "name", "")
+        identity = f"{event_id}:{event_type}" if event_id else None
+        if identity and self.repository is not None:
+            restored = self.repository.get_current(state.farm_id)
+            if restored is not None and str(restored.operational_date) == str(state.operational_date):
+                state = restored
+                self.runtime.current_state = state
+        applied = list(getattr(state, "applied_event_ids", []))
+        if identity in applied:
+            return state
+        previous = deepcopy(state)
+
         state.record_event(
             event
         )
@@ -137,7 +153,13 @@ class FarmOperationalStateService:
             for notification in notifications
         ]
 
-        self.runtime.persist_state()
+        if identity:
+            state.applied_event_ids = [*applied, identity]
+        try:
+            self.runtime.persist_state()
+        except Exception:
+            self.runtime.current_state = previous
+            raise
 
         return state
 

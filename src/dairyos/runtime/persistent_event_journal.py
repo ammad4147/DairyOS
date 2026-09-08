@@ -101,6 +101,18 @@ class PersistentEventJournal:
         finally:
             session.close()
 
+    @staticmethod
+    def append_in_session(session, event):
+        """Join a caller-owned unit of work without committing or projecting."""
+        entry = JournalEntry.from_event(event)
+        model = EventJournalModel(
+            event_id=entry.event_id, event_type=entry.event_type,
+            timestamp=entry.timestamp, payload=entry.payload,
+        )
+        session.add(model)
+        session.flush()
+        return model
+
     def clear(self):
         """
         Remove all journal entries.
@@ -259,42 +271,34 @@ class PersistentEventJournal:
         Persistence metadata remains owned by the journal boundary.
         """
 
-        session = self._session_factory()
+        events = []
+        for entry in self.all_entries():
+            event = Event(
+                name=entry.event_type,
+                payload=entry.payload,
+                timestamp=entry.timestamp.isoformat(),
+            )
+            event.event_id = entry.event_id
+            events.append(event)
+        return events
 
+    def all_entries(self) -> list[JournalEntry]:
+        """Return the canonical persisted replay stream, including identity."""
+        session = self._session_factory()
         try:
             rows = (
-                session.query(
-                    EventJournalModel
-                )
-                .order_by(
-                    EventJournalModel.id.asc()
-                )
+                session.query(EventJournalModel)
+                .order_by(EventJournalModel.id.asc())
                 .all()
             )
-
-            events = []
-
-            for row in rows:
-                payload = dict(
-                    row.payload or {}
+            return [
+                JournalEntry(
+                    event_id=str(row.event_id),
+                    event_type=row.event_type,
+                    timestamp=row.timestamp,
+                    payload=dict(row.payload or {}),
                 )
-
-                timestamp = ""
-
-                if row.timestamp is not None:
-                    timestamp = row.timestamp.isoformat()
-
-                event = Event(
-                    name=row.event_type,
-                    payload=payload,
-                    timestamp=timestamp,
-                )
-
-                events.append(
-                    event
-                )
-
-            return events
-
+                for row in rows
+            ]
         finally:
             session.close()

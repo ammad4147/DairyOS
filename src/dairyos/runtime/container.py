@@ -167,6 +167,11 @@ class RuntimeContainer:
         self.operations = self.runtime.farm_operations_runtime
         self.dashboard = self
         self.restore_state()
+        from dairyos.application.operational_write import OperationalWriteService
+
+        self.projection_delivery_status = OperationalWriteService(
+            self.repository_factory.session.get_bind(), self.input_ingestion_service
+        ).deliver_pending()
         self._started = True
 
     def stop(self):

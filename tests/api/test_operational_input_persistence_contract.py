@@ -40,6 +40,8 @@ class _RepositoryFactory:
 
 
 class _Container:
+    # Unit-test the mutation body; PostgreSQL boundary is exercised separately.
+    _operational_write_active = True
     def __init__(self, order, fail=False):
         self.repository_factory = _RepositoryFactory(order, fail=fail)
         self.input_gateway = _Gateway(order)

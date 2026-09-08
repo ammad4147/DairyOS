@@ -38,6 +38,8 @@ from dairyos.runtime.persistent_event_journal import (
     PersistentEventJournal,
 )
 
+from dairyos.application.file_projection_rebuilder import FileProjectionRebuilder
+
 from dairyos.farm.operations.repositories.adapters import (
     MemoryBreedingRepository,
 )
@@ -445,6 +447,13 @@ class ApplicationRuntime:
             else AnimalEventProjection(
                 repository=self._animal_operational_state_repository
             )
+        )
+
+        self._file_projection_rebuilder = FileProjectionRebuilder(
+            event_journal=self._event_journal,
+            operational_input_repository=self._operational_input_repository,
+            animal_operational_state_repository=self._animal_operational_state_repository,
+            animal_event_projection=self._animal_event_projection,
         )
 
         # ------------------------------------------------------------------
@@ -936,6 +945,16 @@ class ApplicationRuntime:
         self._farm_operational_event_dispatch(event)
 
     def _farm_operational_event_dispatch(self, event):
+        if getattr(event, "name", None) == "OperationalInputReceived" and event.payload.get("input_type") == "treatment":
+            from datetime import datetime
+
+            payload = event.payload
+            self._withdrawal_service.add_period(WithdrawalPeriod(
+                treatment_id=str(payload["treatment_id"]),
+                animal_id=payload["animal_id"],
+                start_time=datetime.fromisoformat(payload["treated_at"]),
+                end_time=datetime.fromisoformat(payload["milk_withdrawal_until"]),
+            ))
         self._operational_state_service.handle(event)
 
         self._operational_input_projection_bridge.project(event)
@@ -951,9 +970,23 @@ class ApplicationRuntime:
 
         for event in self._event_journal.all_events():
 
-            self._operational_state_service.handle(event)
+            if event.name == "OperationalInputReceived":
+                from datetime import datetime
+                from dairyos.domain.events.operational_input_received import OperationalInputReceived
 
-            self._operational_input_projection_bridge.project(event)
+                try:
+                    self._input_ingestion_service.deliver(OperationalInputReceived(
+                        input_type=event.payload["input_type"], payload=event.payload,
+                        source=event.payload.get("source", ""), actor=event.payload.get("actor", ""),
+                        event_id=event.event_id, timestamp=datetime.fromisoformat(event.timestamp),
+                    ), durable=True)
+                except Exception:
+                    # The journal and outbox retain recovery authority. File
+                    # projection failure must not stop the retry service starting.
+                    self.projection_replay_degraded = True
+            else:
+                self._operational_state_service.handle(event)
+                self._operational_input_projection_bridge.project(event)
 
             if getattr(event, "name", None) != "lifecycle_changed":
                 continue
@@ -994,6 +1027,10 @@ class ApplicationRuntime:
             self._farm_operation_event_bus.publish(
                 farm_event
             )
+
+    def rebuild_file_projections(self) -> None:
+        """Recreate event-owned JSON projections after controlled recovery."""
+        self._file_projection_rebuilder.rebuild()
 
     # ======================================================================
     # Persistence

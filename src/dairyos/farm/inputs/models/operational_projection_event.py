@@ -10,3 +10,5 @@ class OperationalProjectionEvent:
     payload: dict[str, Any]
 
     operator: str | None = None
+    event_id: str | None = None
+    timestamp: object = None

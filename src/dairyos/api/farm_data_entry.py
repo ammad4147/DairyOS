@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 
 from dairyos.data.models.milk_production import MilkProduction
@@ -55,8 +56,27 @@ router = APIRouter(
 )
 
 
+@router.get("/operational-projections")
+def operational_projection_status(container=Depends(get_container)):
+    from dairyos.application.operational_write import OperationalWriteService
+
+    return OperationalWriteService(
+        container.repository_factory.session.get_bind(), container.input_ingestion_service
+    ).delivery_status()
+
+
+@router.post("/operational-projections/retry")
+def retry_operational_projections(container=Depends(get_container)):
+    from dairyos.application.operational_write import OperationalWriteService
+
+    return OperationalWriteService(
+        container.repository_factory.session.get_bind(), container.input_ingestion_service
+    ).deliver_pending()
+
+
 class BaseEntryRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
+    request_id: str | None = Field(default=None, min_length=1, max_length=128)
 
     operator: str = Field(
         default="API",
@@ -394,20 +414,14 @@ def _operator(
     return str(payload.get("operator") or "API")
 
 
+@operational_write
 def _record(
     container,
     input_type: str,
     payload: dict[str, Any],
     current_user: dict[str, Any] | None = None,
 ):
-    """Persist domain data before publishing the operational input event.
-
-    Repository-backed inputs therefore cannot advertise an accepted
-    operational event when their domain record failed to persist. Inputs
-    without a domain repository (workforce/inventory/equipment) remain
-    authoritative through the durable operational-input repository/event
-    stream.
-    """
+    """Write domain data and enqueue its canonical event in one transaction."""
     operator = _operator(payload, current_user)
 
     canonical_payload = {
@@ -693,6 +707,7 @@ def _animal_daily_settled_sessions(
     return settled
 
 @router.post("/milk")
+@operational_write
 def record_milk_entry(
     entry: LegacyCompatibleMilkEntryRequest,
     container=Depends(get_container),
@@ -815,6 +830,7 @@ def record_milk_entry(
 
 
 @router.post("/milk/not-milked")
+@operational_write
 def declare_session_not_milked(
     entry: MilkNotMilkedRequest,
     container=Depends(get_container),
@@ -1223,6 +1239,7 @@ def list_health_observations(
 
 
 @router.post("/treatments")
+@operational_write
 def record_treatment(
     entry: TreatmentEntryRequest,
     container=Depends(get_container),
@@ -1371,7 +1388,7 @@ def record_treatment(
             None,
         )
 
-        if withdrawal_svc is not None:
+        if withdrawal_svc is not None and not getattr(container, "_operational_write_active", False):
             withdrawal_svc.add_period(
                 WithdrawalPeriod(
                     treatment_id=str(record.id),

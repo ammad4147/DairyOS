@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
@@ -126,6 +127,7 @@ def youngstock_profile(animal_id: str, container=Depends(get_container)):
 
 
 @router.post("/{animal_id}/growth")
+@operational_write
 def record_growth(animal_id: str, payload: dict[str, Any], container=Depends(get_container)):
     animal = _animal(container, animal_id)
     if animal is None:
@@ -151,6 +153,7 @@ def record_growth(animal_id: str, payload: dict[str, Any], container=Depends(get
 
 
 @router.post("/{animal_id}/weaning")
+@operational_write
 def record_weaning(animal_id: str, payload: dict[str, Any], container=Depends(get_container)):
     animal = _animal(container, animal_id)
     if animal is None:

@@ -21,6 +21,7 @@ class DatabaseOperationalStateRepository:
     """
 
     _OWNED_PAYLOAD_FIELDS = {
+        "applied_event_ids",
         "milk_status",
         "feeding_status",
         "health_alerts",
@@ -64,6 +65,7 @@ class DatabaseOperationalStateRepository:
     def _canonical_payload(self, state):
         return self._serialize(
             {
+                "applied_event_ids": getattr(state, "applied_event_ids", []),
                 "milk_status": state.milk_status,
                 "feeding_status": state.feeding_status,
                 "health_alerts": state.health_alerts,
@@ -84,6 +86,7 @@ class DatabaseOperationalStateRepository:
     def get_current(self, farm_id: str):
         record = (
             self.session.query(OperationalStateModel)
+            .populate_existing()
             .filter(
                 OperationalStateModel.farm_id == farm_id
             )
@@ -99,6 +102,7 @@ class DatabaseOperationalStateRepository:
             farm_id=record.farm_id,
             operational_date=record.operational_date,
         )
+        state.applied_event_ids = list(payload.get("applied_event_ids", []))
 
         state.milk_status = payload.get(
             "milk_status",

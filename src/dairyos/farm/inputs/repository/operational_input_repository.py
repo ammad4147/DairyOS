@@ -34,6 +34,9 @@ class OperationalInputRepository:
 
     def save(self, record):
         """Persist one operational input, idempotently by event identity."""
+        # Outbox workers merge with the latest projection, not a startup snapshot.
+        self._records = []
+        self._load()
         event_id = getattr(record, "event_id", None)
 
         if event_id is not None:

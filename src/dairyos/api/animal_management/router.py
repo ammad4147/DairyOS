@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
@@ -194,6 +195,7 @@ def get_animal(animal_id: str, container=Depends(get_container)):
 
 
 @router.patch("/animals/{animal_id}")
+@operational_write
 def update_animal(animal_id: str, payload: dict, container=Depends(get_container)):
     repository = animal_repository(container)
     animal = repository.get_by_animal_id(animal_id)
@@ -269,6 +271,7 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
 
 
 @router.patch("/animals/{animal_id}/disposition")
+@operational_write
 def record_animal_disposition(animal_id: str, payload: dict, container=Depends(get_container)):
     repository = animal_repository(container)
     animal = repository.get_by_animal_id(animal_id)
@@ -318,6 +321,7 @@ def disposition_history(animal_id: str, container=Depends(get_container)):
 
 
 @router.post("/animals/{animal_id}/activate")
+@operational_write
 def activate_animal(animal_id: str, payload: dict | None = None, container=Depends(get_container)):
     payload = payload or {}
     repository = animal_repository(container)
@@ -331,6 +335,7 @@ def activate_animal(animal_id: str, payload: dict | None = None, container=Depen
 
 
 @router.patch("/animals/{animal_id}/lifecycle")
+@operational_write
 def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_container)):
     repository = animal_repository(container)
     animal = repository.get_by_animal_id(animal_id)
@@ -390,6 +395,7 @@ def milking_frequency_history(animal_id: str, container=Depends(get_container)):
 
 
 @router.post("/animals/{animal_id}/vaccinations")
+@operational_write
 def record_vaccination(animal_id: str, payload: dict, container=Depends(get_container)):
     animal = get_animal_record(container, animal_id)
     if not animal:

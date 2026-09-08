@@ -49,7 +49,7 @@ Name: "{commonappdata}\DairyOS"
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
-Filename: "{app}\DairyOS-Admin.exe"; Description: "Open DairyOS Administration to restore verified backup"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchAdminAfterInstall
+Filename: "{app}\DairyOS-Admin.exe"; Parameters: "--restore-mode"; Description: "Choose a verified backup in DairyOS Administration"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchAdminAfterInstall
 
 [UninstallDelete]
 ; Deliberately empty. ProgramData contains farm data, the private PostgreSQL
@@ -272,7 +272,8 @@ begin
     RestoreDetail.Font.Size := 10;
     RestoreDetail.Caption :=
       'Install DairyOS first, then open authenticated DairyOS Administration ' +
-      'to restore a verified backup.';
+      'to choose from automatically discovered verified backups, newest first. ' +
+      'Full farm snapshots and database-only backups are labelled separately.';
     RestoreDetail.AdjustHeight();
   end
   else
@@ -326,7 +327,8 @@ begin
     RestoreDetail.Font.Name := 'Segoe UI';
     RestoreDetail.Font.Size := 10;
     RestoreDetail.Caption :=
-      'Use this when recovering a previous DairyOS farm from a verified backup.';
+      'After installation, Administration automatically lists verified backups. ' +
+      'Choose a full farm snapshot or a clearly labelled database-only backup.';
     RestoreDetail.AdjustHeight();
   end;
 

@@ -20,6 +20,8 @@ from dairyos.admin import auth
 from dairyos.admin.database import acquire_admin_database
 from dairyos.admin.service import AdminService, PURGE_CONFIRMATION, RESET_CONFIRMATION
 from dairyos.lifecycle.manager import LifecycleManager
+from dairyos.admin.backup_catalog import discover_verified_backups
+from dairyos.platform import paths
 
 SESSION_TTL_SECONDS = 30 * 60
 _SESSIONS: dict[str, float] = {}
@@ -61,7 +63,7 @@ main{{max-width:1100px;margin:28px auto;padding:20px}} h1{{margin-bottom:4px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}}
 section{{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px}}
 button{{padding:9px 13px;margin:4px 0;border:0;border-radius:6px;cursor:pointer}}
-input{{padding:9px;margin:4px 0;width:calc(100% - 20px);background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:5px}}
+input,select{{box-sizing:border-box;padding:9px;margin:4px 0;width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:5px}}
 .danger{{background:#991b1b;color:white}} .normal{{background:#334155;color:white}}
 pre{{white-space:pre-wrap;background:#020617;padding:12px;border-radius:6px;overflow:auto}}
 small{{color:#94a3b8}} a{{color:#7dd3fc}} code{{color:#fbbf24}}
@@ -109,6 +111,21 @@ def _recover_page(message: str = "") -> str:
 def _dashboard(message: str = "") -> str:
     reset_token = _esc(RESET_CONFIRMATION)
     purge_token = _esc(PURGE_CONFIRMATION)
+    data_root = Path(os.environ.get("DAIRYOS_DATA_ROOT") or paths.data_root(create=False))
+    backups, unavailable = discover_verified_backups(data_root)
+    backup_options = "".join(
+        f"<option value='{_esc(item.path)}'>{_esc(item.display_name)}</option>"
+        for item in backups
+    )
+    empty_notice = "" if backups else "<p>No verified backups were found in the known DairyOS backup locations.</p>"
+    discovery_notice = f"<p><small>{len(backups)} verified choices. {len(unavailable)} candidates or locations unavailable or failed verification.</small></p>"
+    backup_picker = (
+        "<label>Verified backup (newest first)<select name='backup'>"
+        "<option value=''>Choose a backup</option>" + backup_options + "</select></label>"
+        + empty_notice
+        + "<details><summary>Backup stored elsewhere</summary><label>Full snapshot directory or database .dump path<input name='backup_path' placeholder='Optional external backup path'></label></details>"
+        + "<p><small>Full snapshot: database and saved files. Database only: farm database; excludes attachments and local Admin settings. Operational read models are rebuilt from the restored journal.</small></p>"
+    )
     audit_rows = auth.read_audit(25)
     audit_text = "\n".join(
         f"{row.get('timestamp')}  {row.get('event')}  {'PASS' if row.get('success') else 'FAIL'}  {row.get('detail','')}"
@@ -118,12 +135,12 @@ def _dashboard(message: str = "") -> str:
 <div class='grid'>
 <section><h2>Health</h2><form method='post' action='/validate'><button class='normal'>Validate Installation & Database</button></form></section>
 <section><h2>Create Verified Backup</h2><form method='post' action='/backup'><button class='normal'>Create Backup</button></form></section>
-<section><h2>Restore Verified Backup</h2><form method='post' action='/restore'>
-<input name='backup' placeholder='Full verified backup directory path' required>
+<section id='restore-backup'><h2>Restore Verified Backup</h2>{discovery_notice}<p><a href='/#restore-backup'>Refresh verified backups</a></p><form method='post' action='/restore'>
+{backup_picker}
 <input type='password' name='password' placeholder='Re-enter administrator password' required>
 <button class='danger'>Restore Backup</button></form></section>
 <section><h2>Rollback</h2><form method='post' action='/rollback'>
-<input name='backup' placeholder='Full verified backup directory path' required>
+{backup_picker}
 <input type='password' name='password' placeholder='Re-enter administrator password' required>
 <button class='danger'>Rollback to Backup</button></form></section>
 <section><h2>Reset Application Data</h2><small>Creates and verifies an external recovery artifact before mutation.</small>
@@ -254,11 +271,16 @@ def create_app():
             return _dashboard(f"Backup failed: {exc}")
 
     @app.post("/restore", response_class=HTMLResponse)
-    def restore(request: Request, backup: str = Form(""), password: str = Form("")):
+    def restore(request: Request, backup: str = Form(""), password: str = Form(""), backup_path: str = Form("")):
         _require_session(request)
         try:
             auth.require_password(password, event="restore-reauth")
-            result = _service().restore(backup)
+            if backup.strip() and backup_path.strip():
+                raise ValueError("Choose a listed backup or an external path, not both.")
+            selected = backup_path.strip() or backup.strip()
+            if not selected:
+                raise ValueError("Choose a verified backup before restoring.")
+            result = _service().restore(selected)
             auth.record_audit("restore", success=True, detail=result.artifact or "")
             return _dashboard(f"{result.message}\n{result.artifact}")
         except Exception as exc:
@@ -266,11 +288,16 @@ def create_app():
             return _dashboard(f"Restore not executed: {exc}")
 
     @app.post("/rollback", response_class=HTMLResponse)
-    def rollback(request: Request, backup: str = Form(""), password: str = Form("")):
+    def rollback(request: Request, backup: str = Form(""), password: str = Form(""), backup_path: str = Form("")):
         _require_session(request)
         try:
             auth.require_password(password, event="rollback-reauth")
-            result = _service().rollback(backup)
+            if backup.strip() and backup_path.strip():
+                raise ValueError("Choose a listed backup or an external path, not both.")
+            selected = backup_path.strip() or backup.strip()
+            if not selected:
+                raise ValueError("Choose a verified backup before rollback.")
+            result = _service().rollback(selected)
             auth.record_audit("rollback", success=result.success, detail=result.artifact or "")
             return _dashboard(f"{result.message}\n{result.artifact}")
         except Exception as exc:
@@ -362,7 +389,14 @@ def main() -> None:
     parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--installation-root", help=argparse.SUPPRESS)
     parser.add_argument("--data-root", help=argparse.SUPPRESS)
+    parser.add_argument("--restore-mode", action="store_true", help="Open the verified backup chooser after Admin authentication.")
     args = parser.parse_args()
+
+    if args.data_root:
+        os.environ["DAIRYOS_DATA_ROOT"] = args.data_root
+        os.environ["DAIRYOS_DATA_DIR"] = args.data_root
+    if args.installation_root:
+        os.environ["DAIRYOS_INSTALLATION_ROOT"] = args.installation_root
 
     if args.lifecycle_install:
         installation_root = args.installation_root or str(Path.cwd())
@@ -385,7 +419,7 @@ def main() -> None:
     if not args.no_browser:
         threading.Thread(
             target=_open_browser_when_ready,
-            args=(_admin_url(args.host, args.port),),
+            args=(_admin_url(args.host, args.port) + ("#restore-backup" if args.restore_mode else ""),),
             daemon=True,
         ).start()
 

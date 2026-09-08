@@ -212,6 +212,8 @@ class OperationalInputProjectionBridge:
             event_type=projection_event_type,
             payload=projected_payload,
             operator=payload.get("actor"),
+            event_id=getattr(event, "event_id", None),
+            timestamp=getattr(event, "timestamp", None),
         )
 
         self.state_service.handle(

@@ -48,7 +48,7 @@ class InputIngestionService:
         )
 
 
-    def ingest(
+    def prepare(
         self,
         input_type: str,
         payload: dict,
@@ -91,6 +91,15 @@ class InputIngestionService:
         if propagation_id:
             event.event_id = str(propagation_id)
 
+        return event
+
+    def ingest(self, input_type, payload, source, actor):
+        event = self.prepare(input_type, payload, source, actor)
+        return self.deliver(event, durable=bool(payload.get("_require_durable_projection")))
+
+    def deliver(self, event, *, durable=False):
+        """Materialize an already identified event; never generate a retry identity."""
+
 
         if self.repository:
 
@@ -103,7 +112,7 @@ class InputIngestionService:
         # Durable cross-store projections opt into strict publishing so a
         # PostgreSQL outbox can retain retry state instead of silently losing
         # a secondary projection failure.
-        if payload.get("_require_durable_projection"):
+        if durable:
             self.event_publisher(event)
         else:
             try:

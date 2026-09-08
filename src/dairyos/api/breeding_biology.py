@@ -16,6 +16,9 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.animal_registration import _animal_id_prefix, _new_animal_id
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.database.models.event_journal_model import EventJournalModel
+from dairyos.domain.events.operational_input_received import OperationalInputReceived
+from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
@@ -596,11 +599,16 @@ def _deliver_breeding_propagation(container, propagation_id: str):
         row.attempts = int(row.attempts or 0) + 1
         payload = dict(row.payload or {})
         try:
-            container.input_gateway.record(
-                input_type="breeding",
-                payload=payload,
-                actor=row.actor,
-            )
+            journal = session.query(EventJournalModel).filter_by(event_id=propagation_id).first()
+            if journal is None:
+                # Compatibility for pending intents written before XSTORE.
+                container.input_gateway.record(input_type="breeding", payload=payload, actor=row.actor)
+            else:
+                container.input_ingestion_service.deliver(OperationalInputReceived(
+                    input_type="breeding", payload=dict(journal.payload),
+                    actor=row.actor, source=journal.payload.get("source", "farm_operator"),
+                    event_id=journal.event_id, timestamp=journal.timestamp,
+                ), durable=True)
             row.status = "DELIVERED"
             row.last_error = None
             row.delivered_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -827,6 +835,11 @@ def record_breeding_entry(
             factory.animal().save(calf, commit=False)
             canonical_payload["calf_animal_id"] = calf_animal_id
 
+        canonical_event = container.input_ingestion_service.prepare(
+            input_type="breeding", payload=canonical_payload,
+            source="farm_operator", actor=operator,
+        )
+        PersistentEventJournal.append_in_session(session, canonical_event)
         session.add(
             BreedingPropagationOutbox(
                 propagation_id=propagation_id,
