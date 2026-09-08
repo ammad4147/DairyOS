@@ -233,6 +233,12 @@ class LifecycleManager:
                 "files": manifest_entries,
                 "database_backup": database_backup,
                 "database_backup_archive_verified": bool(database_backup),
+                "database_backup_sha256": (
+                    _sha256(staging / database_backup) if database_backup else None
+                ),
+                "database_backup_size_bytes": (
+                    (staging / database_backup).stat().st_size if database_backup else None
+                ),
             }
             _write_json_atomic(staging / "backup.json", backup_manifest)
             destination.parent.mkdir(parents=True, exist_ok=True)

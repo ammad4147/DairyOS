@@ -42,7 +42,13 @@ class OperationalInputRepository:
                     return existing
 
         self._records.append(record)
-        self._persist()
+        try:
+            self._persist()
+        except Exception:
+            # A failed materialization must not make the next delivery look
+            # successful merely because this process remembers the event.
+            self._records.pop()
+            raise
         return record
 
     def list_all(self):
@@ -57,8 +63,13 @@ class OperationalInputRepository:
 
     def clear(self):
         """Clear persisted operational inputs; intended for controlled tests."""
+        previous = self._records
         self._records = []
-        self._persist()
+        try:
+            self._persist()
+        except Exception:
+            self._records = previous
+            raise
 
     @staticmethod
     def _serialize(value):

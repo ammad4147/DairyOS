@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -72,8 +71,8 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
             if dump_path is not None:
                 restore_backup(manager.database_url, dump_path)
                 database_changed = True
-            _replace_non_database_files(manager.data_root, staged_root)
             files_changed = True
+            _replace_non_database_files(manager.data_root, staged_root)
             manager.validate(require_database=bool(manager.database_url))
         except Exception as exc:
             rollback_errors: list[str] = []
@@ -113,35 +112,9 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
 
 
 def _load_verified_manifest(backup_path: Path) -> dict[str, object]:
-    manifest_path = backup_path / "backup.json"
-    files_root = backup_path / "files"
+    from .backup_validation import verified_manifest
 
-    if not manifest_path.is_file() or not files_root.is_dir():
-        raise LifecycleError(f"Invalid DairyOS backup: {backup_path}")
-
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    entries = manifest.get("files") or []
-
-    for entry in entries:
-        relative = Path(str(entry["path"]))
-        if not relative.parts:
-            raise LifecycleError("Backup contains an empty file path.")
-        source = files_root / relative
-        if not source.is_file():
-            raise LifecycleError(f"Backup file is missing: {relative}")
-        expected_hash = str(entry.get("sha256") or "")
-        if expected_hash and _sha256(source) != expected_hash:
-            raise LifecycleError(f"Backup integrity check failed: {relative}")
-
-    database_backup = manifest.get("database_backup")
-    if database_backup:
-        dump_path = backup_path / str(database_backup)
-        if not dump_path.is_file():
-            raise LifecycleError(
-                f"PostgreSQL backup artifact is missing: {dump_path}"
-            )
-
-    return manifest
+    return verified_manifest(backup_path)
 
 
 def _stage_non_database_files(

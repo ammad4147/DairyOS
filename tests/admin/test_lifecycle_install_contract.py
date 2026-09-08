@@ -24,6 +24,10 @@ def test_admin_hidden_lifecycle_install_bootstraps_required_layout(
 ) -> None:
     from dairyos.admin import app as admin_app
 
+    # main() applies explicit CLI roots to its process environment. This
+    # in-process test must restore that environment for subsequent API tests.
+    monkeypatch.setattr(admin_app.os, "environ", admin_app.os.environ.copy())
+
     installation_root = tmp_path / "installed"
     data_root = tmp_path / "programdata"
 

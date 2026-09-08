@@ -15,8 +15,6 @@ only the read-only backup credential.
 from __future__ import annotations
 
 import base64
-import ctypes
-from ctypes import wintypes
 import json
 import os
 from pathlib import Path
@@ -25,6 +23,11 @@ import tempfile
 from urllib.parse import quote
 
 import psycopg
+
+from dairyos.windows.protected_secret import (
+    protect_bytes as _protect_windows,
+    unprotect_bytes as _unprotect_windows,
+)
 
 from dairyos.windows.private_postgres import PrivatePostgreSQLConfig
 
@@ -42,13 +45,6 @@ class PrivateDatabaseSecurityError(RuntimeError):
     """Raised when the managed private database cannot be safely hardened."""
 
 
-class _DATA_BLOB(ctypes.Structure):
-    _fields_ = [
-        ("cbData", wintypes.DWORD),
-        ("pbData", ctypes.POINTER(ctypes.c_byte)),
-    ]
-
-
 def security_state_path(config: PrivatePostgreSQLConfig | None = None) -> Path:
     if config is not None:
         return config.data_root.parent / SECURITY_FILENAME
@@ -59,56 +55,6 @@ def security_state_path(config: PrivatePostgreSQLConfig | None = None) -> Path:
 
 def security_state_exists(config: PrivatePostgreSQLConfig | None = None) -> bool:
     return security_state_path(config).is_file()
-
-
-def _protect_windows(plain: bytes) -> bytes:
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
-    source_buffer = ctypes.create_string_buffer(plain)
-    source = _DATA_BLOB(len(plain), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_byte)))
-    target = _DATA_BLOB()
-    CRYPTPROTECT_UI_FORBIDDEN = 0x1
-
-    if not crypt32.CryptProtectData(
-        ctypes.byref(source),
-        "DairyOS database credential",
-        None,
-        None,
-        None,
-        CRYPTPROTECT_UI_FORBIDDEN,
-        ctypes.byref(target),
-    ):
-        raise ctypes.WinError(ctypes.get_last_error())
-
-    try:
-        return ctypes.string_at(target.pbData, target.cbData)
-    finally:
-        kernel32.LocalFree(target.pbData)
-
-
-def _unprotect_windows(cipher: bytes) -> bytes:
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
-    source_buffer = ctypes.create_string_buffer(cipher)
-    source = _DATA_BLOB(len(cipher), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_byte)))
-    target = _DATA_BLOB()
-    CRYPTPROTECT_UI_FORBIDDEN = 0x1
-
-    if not crypt32.CryptUnprotectData(
-        ctypes.byref(source),
-        None,
-        None,
-        None,
-        None,
-        CRYPTPROTECT_UI_FORBIDDEN,
-        ctypes.byref(target),
-    ):
-        raise ctypes.WinError(ctypes.get_last_error())
-
-    try:
-        return ctypes.string_at(target.pbData, target.cbData)
-    finally:
-        kernel32.LocalFree(target.pbData)
 
 
 def _protect(value: str) -> dict[str, str]:

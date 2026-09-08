@@ -152,6 +152,7 @@ def restore_backup(
     command = [
         _tool("pg_restore"),
         "--exit-on-error",
+        "--single-transaction",
         "--no-owner",
         "--clean",
         "--if-exists",

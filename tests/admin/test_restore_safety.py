@@ -92,7 +92,9 @@ def test_restore_database_failure_leaves_live_files_and_postgres_untouched(
 
     assert (live / "storage" / "live.txt").read_text(encoding="utf-8") == "live"
     assert not (live / "storage" / "target.txt").exists()
-    assert (live / "postgres" / "data" / "identity").read_text(encoding="utf-8") == "keep"
+    assert (live / "postgres" / "data" / "identity").read_text(
+        encoding="utf-8"
+    ) == "keep"
     assert manager.backup_calls == [("pre-restore-rollback", True)]
 
 
@@ -136,9 +138,50 @@ def test_restore_never_promotes_or_deletes_physical_postgres_trees(
 
     assert not (live / "storage" / "live.txt").exists()
     assert (live / "storage" / "target.txt").read_text(encoding="utf-8") == "target"
-    assert (live / "postgres" / "data" / "identity").read_text(encoding="utf-8") == "keep"
+    assert (live / "postgres" / "data" / "identity").read_text(
+        encoding="utf-8"
+    ) == "keep"
     assert not (live / "postgres" / "data" / "replacement").exists()
-    assert (live / "postgresql" / "data" / "stray").read_text(encoding="utf-8") == "preserve"
+    assert (live / "postgresql" / "data" / "stray").read_text(
+        encoding="utf-8"
+    ) == "preserve"
     assert not (live / "postgresql" / "data" / "replacement").exists()
     assert restored == [target / "database.dump"]
     assert manager.validate_calls == [True]
+
+
+def test_partial_file_promotion_failure_restores_pre_restore_state(
+    tmp_path, monkeypatch
+):
+    from dairyos.lifecycle import restore
+
+    live = tmp_path / "live"
+    (live / "storage").mkdir(parents=True)
+    (live / "storage/live.txt").write_text("live")
+    target = _write_backup(tmp_path / "target", {"storage/target.txt": b"target"})
+    rollback = _write_backup(tmp_path / "rollback", {"storage/live.txt": b"live"})
+    manager = FakeManager(live, rollback)
+    restored = []
+    monkeypatch.setattr(restore, "verify_backup_archive", lambda path: {})
+    monkeypatch.setattr(
+        restore, "restore_backup", lambda url, path: restored.append(path)
+    )
+    promote = restore._replace_non_database_files
+    calls = 0
+
+    def fail_after_mutation(root, staged):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            (root / "storage/live.txt").unlink()
+            (root / "storage/partial.txt").write_text("partial")
+            raise OSError("partial promotion")
+        promote(root, staged)
+
+    monkeypatch.setattr(restore, "_replace_non_database_files", fail_after_mutation)
+    with pytest.raises(LifecycleError, match="pre-restore state was restored"):
+        restore_snapshot(manager, target)
+    assert restored == [target / "database.dump", rollback / "database.dump"]
+    assert (live / "storage/live.txt").read_text() == "live"
+    assert not (live / "storage/partial.txt").exists()
+    assert calls == 2

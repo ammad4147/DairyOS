@@ -1,4 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 
 from dairyos.domain.events.operational_input_received import OperationalInputReceived
 from dairyos.farm.inputs.repository.operational_input_repository import (
@@ -8,7 +10,7 @@ from dairyos.farm.inputs.repository.operational_input_repository import (
 
 def test_operational_input_repository_survives_repository_restart(tmp_path):
     path = tmp_path / "operational_inputs.json"
-    timestamp = datetime(2026, 8, 12, 12, 0, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 8, 12, 12, 0, tzinfo=UTC)
     event = OperationalInputReceived(
         input_type="milk_production",
         payload={
@@ -72,3 +74,45 @@ def test_operational_input_api_record_is_visible_after_repository_reopen(
     assert records
     assert records[-1].payload["animal_id"] == registered_animal
     assert records[-1].payload["morning_yield"] == 8.0
+
+
+def test_failed_materialization_can_be_retried_without_false_deduplication(
+    tmp_path, monkeypatch
+):
+    repository = OperationalInputRepository(tmp_path / "inputs.json")
+    event = OperationalInputReceived(
+        "equipment", {"equipment_id": "TEST"}, "API", "test"
+    )
+    persist = repository._persist
+
+    def fail():
+        raise PermissionError("injected atomic replacement failure")
+
+    monkeypatch.setattr(repository, "_persist", fail)
+    with pytest.raises(PermissionError):
+        repository.save(event)
+    assert repository.list_all() == []
+    monkeypatch.setattr(repository, "_persist", persist)
+    repository.save(event)
+    repository.save(event)
+    reopened = OperationalInputRepository(repository.storage_path)
+    assert [record.event_id for record in reopened.list_all()] == [event.event_id]
+
+
+def test_failed_clear_keeps_in_memory_and_durable_state_consistent(
+    tmp_path, monkeypatch
+):
+    repository = OperationalInputRepository(tmp_path / "inputs.json")
+    event = OperationalInputReceived(
+        "equipment", {"equipment_id": "TEST"}, "API", "test"
+    )
+    repository.save(event)
+
+    def fail():
+        raise OSError("injected write failure")
+
+    monkeypatch.setattr(repository, "_persist", fail)
+    with pytest.raises(OSError):
+        repository.clear()
+    assert repository.list_all() == [event]
+    assert len(OperationalInputRepository(repository.storage_path).list_all()) == 1
