@@ -605,21 +605,11 @@ def _storage_summary_for_day(factory, day, today, live_summary: dict):
     2. For an unsynchronised past day, use weekly Vet-endorsed TMR when present.
     3. Otherwise use the live TMR as an explicit fallback.
     """
-    if day == today:
-        return live_summary, "LIVE_TMR"
-
-    from dairyos.api.tmr import _endorsement_snapshots, _week_bounds
-
-    week_start, _ = _week_bounds(day)
-
-    for snapshot in _endorsement_snapshots(factory):
-        if str(snapshot.get("week_start") or "") == week_start.isoformat():
-            return snapshot, "WEEKLY_VET_ENDORSED_TMR"
-
-    return live_summary, "UNENDORSED_LIVE_TMR_FALLBACK"
+    from dairyos.farm.operations.services.daily_tmr_authority import summary_for_day
+    return summary_for_day(factory, day, today, live_summary)
 
 
-def reconcile_tmr_feed_storage(factory):
+def reconcile_tmr_feed_storage(factory, *, start_date=None, end_date=None):
     """
     Idempotently materialise governed TMR consumption into Feed Storage.
 
@@ -629,6 +619,7 @@ def reconcile_tmr_feed_storage(factory):
     """
     from datetime import date, timedelta
     from dairyos.api.tmr import build_live_tmr_summary
+    from dairyos.farm.operations.services.daily_tmr_authority import daily_snapshots, materialize_daily_cost
 
     _lock_stock(factory)
     live_summary = build_live_tmr_summary(
@@ -660,6 +651,10 @@ def reconcile_tmr_feed_storage(factory):
         if auto_dates
         else today
     )
+    if start_date is not None:
+        start = start_date
+    end = min(end_date, today) if end_date is not None else today
+    snapshots = daily_snapshots(factory)
 
     created_rows = 0
     reconciled_rows = 0
@@ -667,7 +662,7 @@ def reconcile_tmr_feed_storage(factory):
 
     day = start
 
-    while day <= today:
+    while day <= end:
         day_iso = day.isoformat()
 
         existing_for_day = [
@@ -679,7 +674,7 @@ def reconcile_tmr_feed_storage(factory):
         ]
 
         # Once a prior operational day has been materialised it is immutable.
-        if day < today and existing_for_day:
+        if day < today and day_iso in snapshots:
             day_rows.append(
                 {
                     "date": day_iso,
@@ -698,6 +693,18 @@ def reconcile_tmr_feed_storage(factory):
         )
 
         requirement = _tmr_ingredient_requirement(summary)
+
+        # Freeze all governed demand, including ingredients whose physical
+        # stock has not been established. Existing historical stock movements
+        # supply their locked quantities and are never rewritten.
+        if day < today:
+            materialize_daily_cost(factory, day, summary, basis, requirement, existing_for_day)
+            if existing_for_day:
+                day_rows.append({"date": day_iso, "basis": "LOCKED_DAILY_AUTO_TMR", "status": "UNCHANGED"})
+                day += timedelta(days=1)
+                continue
+        else:
+            materialize_daily_cost(factory, day, summary, basis, requirement, [], snapshots.get(day_iso))
 
         existing_items = {
             str(getattr(row, "item", "") or "")

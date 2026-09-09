@@ -239,12 +239,14 @@ def _default_stage_ingredients(factory, stage: str) -> list[dict]:
     return result
 
 
-def _saved_stage_ingredients(factory, stage: str) -> list[dict] | None:
+def _saved_stage_ingredients(factory, stage: str, as_of: date | None = None) -> list[dict] | None:
     group = f"{STAGE_GROUP_PREFIX}{stage}"
     rows = factory.feed_rations().get_active_for_group(group)
     if not rows:
         return None
     for row in rows:
+        if as_of is not None and (_as_date(row.effective_date) or date.max) > as_of:
+            continue
         try:
             payload = json.loads(row.ingredients_json)
         except (TypeError, json.JSONDecodeError):
@@ -259,9 +261,9 @@ def _normalize_selected_price_source(value: object) -> str:
     return "MANUAL" if selected == "MANUAL" else "FINANCE"
 
 
-def _stage_ingredients(factory, stage: str) -> list[dict]:
+def _stage_ingredients(factory, stage: str, as_of: date | None = None) -> list[dict]:
     definitions = _ingredient_definitions(factory)
-    saved = _saved_stage_ingredients(factory, stage)
+    saved = _saved_stage_ingredients(factory, stage, as_of)
     saved_by_name = {
         str(row.get("catalog_name") or "").strip(): row
         for row in (saved or [])
@@ -317,7 +319,7 @@ def _finance_feed_item_name(row) -> str | None:
     return sub
 
 
-def _finance_price_authority(factory) -> dict[str, dict]:
+def _finance_price_authority(factory, as_of: date | None = None) -> dict[str, dict]:
     authority: dict[str, dict] = {}
     for row in factory.finance().get_all() or []:
         if not is_active(row):
@@ -337,6 +339,8 @@ def _finance_price_authority(factory) -> dict[str, dict]:
         if rate <= 0:
             continue
         transaction_date = getattr(row, "transaction_date", None)
+        if as_of is not None and (_as_date(transaction_date) or date.max) > as_of:
+            continue
         key = (
             str(transaction_date or ""),
             int(getattr(row, "id", 0) or 0),
@@ -361,12 +365,13 @@ def _priced_stage(
     factory,
     stage: str,
     price_authority: dict[str, dict],
+    as_of: date | None = None,
 ) -> dict:
     rows = []
     total = 0.0
     total_kg = 0.0
 
-    for ingredient in _stage_ingredients(factory, stage):
+    for ingredient in _stage_ingredients(factory, stage, as_of):
         name = ingredient["catalog_name"]
         finance = price_authority.get(name)
         manual_rate = float(
@@ -652,7 +657,7 @@ def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> di
     operational_date = OperationalDateAuthority(
         repository_factory=factory,
     ).current_date()
-    price_authority = _finance_price_authority(factory)
+    price_authority = _finance_price_authority(factory, operational_date)
     stages = {
         key: _priced_stage(factory, key, price_authority)
         for key in STAGE_LABELS
@@ -729,13 +734,13 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
 
     live = build_live_tmr_summary(factory, include_weekly_review=False)
     live_daily = float(live["total_herd_feed_cost_per_day"])
-    endorsements = _endorsement_snapshots(factory)
+    from dairyos.api.feed_inventory import reconcile_tmr_feed_storage
+    from dairyos.farm.operations.services.daily_tmr_authority import daily_snapshots
 
-    by_week: dict[str, dict] = {}
-    for snapshot in reversed(endorsements):
-        week_start = str(snapshot.get("week_start") or "")
-        if week_start:
-            by_week[week_start] = snapshot
+    snapshots = {}
+    if start < today:
+        reconcile_tmr_feed_storage(factory, start_date=start, end_date=min(effective_end, today - timedelta(days=1)))
+        snapshots = daily_snapshots(factory)
 
     day = start
     total = 0.0
@@ -746,17 +751,16 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
 
     while day <= effective_end:
         week_start, _ = _week_bounds(day)
-        snapshot = by_week.get(week_start.isoformat())
+        record = snapshots.get(day.isoformat())
+        snapshot = json.loads(record.ingredients_json) if record is not None else None
 
         if day == today:
             amount = live_daily
             basis = "LIVE_TMR"
         elif snapshot is not None:
-            amount = float(
-                snapshot.get("total_herd_feed_cost_per_day") or 0.0
-            )
-            basis = "WEEKLY_VET_ENDORSED_TMR"
-            endorsed_days += 1
+            amount = float(snapshot["feed_cost"])
+            basis = "LOCKED_DAILY_AUTO_TMR"
+            endorsed_days += int(snapshot["basis"] == "WEEKLY_VET_ENDORSED_TMR")
         else:
             # Historical fact must never be reconstructed from today's ration,
             # price or herd state. Preserve the gap explicitly.

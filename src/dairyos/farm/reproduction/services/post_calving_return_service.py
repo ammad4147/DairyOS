@@ -12,6 +12,8 @@ from datetime import date, datetime
 from typing import Any
 
 from dairyos.data.models.animal import Animal
+from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
@@ -52,15 +54,23 @@ def _event_order(value: Any) -> datetime:
         return datetime.min
 
 
-def _latest_calving_plans(event_journal) -> dict[str, tuple[datetime, date]]:
+def persisted_breeding_payloads(repository_factory) -> list[dict]:
+    """Read canonical database payloads, including undelivered breeding writes."""
+    session = repository_factory.session
+    payloads = [
+        dict(row.payload or {})
+        for row in session.query(EventJournalModel)
+        .filter(EventJournalModel.event_type == "OperationalInputReceived").all()
+        if str((row.payload or {}).get("input_type", "")).lower() == "breeding"
+    ]
+    payloads.extend(dict(row.payload or {}) for row in session.query(BreedingPropagationOutbox).all())
+    return payloads
+
+
+def _latest_calving_plans(repository_factory) -> dict[str, tuple[datetime, date]]:
     plans: dict[str, tuple[datetime, date]] = {}
 
-    for event in event_journal.all_events():
-        if getattr(event, "name", None) != "OperationalInputReceived":
-            continue
-        payload = dict(getattr(event, "payload", {}) or {})
-        if str(payload.get("input_type") or "").strip().lower() != "breeding":
-            continue
+    for payload in persisted_breeding_payloads(repository_factory):
         if str(payload.get("event_type") or "").strip().lower() not in {
             "calving",
             "calved",
@@ -70,15 +80,15 @@ def _latest_calving_plans(event_journal) -> dict[str, tuple[datetime, date]]:
 
         animal_id = str(payload.get("animal_id") or "").strip()
         planned = _as_date(payload.get("planned_return_to_milking_date"))
-        if not animal_id or planned is None:
+        if not animal_id:
             continue
 
-        order = _event_order(payload.get("timestamp") or getattr(event, "timestamp", None))
+        order = _event_order(payload.get("timestamp"))
         current = plans.get(animal_id)
         if current is None or order >= current[0]:
             plans[animal_id] = (order, planned)
 
-    return plans
+    return {key: value for key, value in plans.items() if value[1] is not None}
 
 
 def _already_applied(repository, animal_id: str, planned: date) -> bool:
@@ -122,10 +132,10 @@ def reconcile_due_post_calving_returns(
     applied: list[str] = []
 
     try:
-        for animal_id, (_, planned) in _latest_calving_plans(event_journal).items():
+        for animal_id, (calved_at, planned) in _latest_calving_plans(repository_factory).items():
             if planned > operational_date:
                 continue
-            if _already_applied(repository, animal_id, planned):
+            if calved_at.date() > operational_date or planned < calved_at.date():
                 continue
 
             animal = (
@@ -135,6 +145,10 @@ def reconcile_due_post_calving_returns(
                 .first()
             )
             if animal is None:
+                continue
+            # Check after taking the mother lock so concurrent readers cannot
+            # both apply the same transition.
+            if _already_applied(repository, animal_id, planned):
                 continue
             if getattr(animal, "active", True) is False:
                 continue
@@ -149,10 +163,12 @@ def reconcile_due_post_calving_returns(
             ):
                 continue
 
-            frequency = _farm_frequency(
-                repository,
-                exclude_animal_id=animal_id,
-            )
+            history = repository.get_milking_frequency_history(animal_id) or []
+            prior = [row for row in history
+                     if (_as_date(row.effective_from) or date.max) <= planned
+                     and row.milking_frequency in _MILKING_FREQUENCIES]
+            frequency = (max(prior, key=lambda row: row.effective_from).milking_frequency
+                         if prior else _farm_frequency(repository, exclude_animal_id=animal_id))
 
             animal.lifecycle_status = "LACTATING"
             animal.is_currently_milking = True

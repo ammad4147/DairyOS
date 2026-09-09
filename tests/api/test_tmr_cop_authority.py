@@ -77,9 +77,10 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn('"status": "ENDORSED" if latest else "DUE"', self.tmr)
         self.assertIn("Vet review due:", self.tmr)
 
-    def test_period_feed_cost_uses_weekly_snapshot_live_today_and_fails_closed_for_history(self):
+    def test_period_feed_cost_uses_daily_materialization_and_live_today(self):
         self.assertIn('basis = "LIVE_TMR"', self.tmr)
-        self.assertIn('basis = "WEEKLY_VET_ENDORSED_TMR"', self.tmr)
+        self.assertIn('basis = "LOCKED_DAILY_AUTO_TMR"', self.tmr)
+        self.assertIn('reconcile_tmr_feed_storage(factory, start_date=start', self.tmr)
         self.assertIn('basis = "HISTORICAL_TMR_AUTHORITY_MISSING"', self.tmr)
         self.assertIn('"missing_authority_days"', self.tmr)
         self.assertNotIn('"UNENDORSED_LIVE_TMR_FALLBACK"', self.tmr)

@@ -36,6 +36,8 @@ async def lifespan(_app: FastAPI):
     # Windows migration gate / Alembic lifecycle. Normal application
     # startup must never create, alter, or repair database schema.
     container.start()
+    from dairyos.farm.reproduction.services.post_calving_return_service import reconcile_due_post_calving_returns
+    reconcile_due_post_calving_returns(container.repository_factory, container.event_journal)
     feed_storage_scheduler.start()
     missed_milking_scheduler.start()
     email_scheduler.start()
