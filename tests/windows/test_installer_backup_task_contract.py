@@ -18,7 +18,7 @@ def test_installer_provisions_backup_task_with_structured_action():
     assert "Setup cannot continue safely" in source
     start = source.index("procedure ProvisionAutomaticBackupTask();")
     end = source.index("procedure CurStepChanged", start)
-    assert "TaskCommand :=\n    '/Create" not in source[start:end]\n    assert "schtasks.exe" not in source[start:end]
+    assert "TaskCommand :=" not in source[start:end]\n    assert "schtasks.exe" not in source[start:end]
 
 
 def test_installer_ci_verifies_structured_task_before_app_start():
