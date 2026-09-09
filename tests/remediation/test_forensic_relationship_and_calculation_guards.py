@@ -4,6 +4,9 @@ from types import SimpleNamespace
 
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.models.feed_ration import FeedRation
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.semen_inventory import SemenStockMovement
 from dairyos.data.models.treatment_record import TreatmentRecord
@@ -25,6 +28,29 @@ def _fk_targets(column):
 def test_health_case_links_are_database_enforced():
     assert "health_cases.id" in _fk_targets(HealthObservation.__table__.c.health_case_id)
     assert "health_cases.id" in _fk_targets(TreatmentRecord.__table__.c.health_case_id)
+
+
+def test_feed_and_payroll_finance_links_are_database_enforced():
+    assert "financial_transactions.id" in _fk_targets(
+        FeedRecord.__table__.c.cost_source_financial_transaction_id
+    )
+    assert "financial_transactions.id" in _fk_targets(
+        PayrollRecord.__table__.c.finance_transaction_id
+    )
+    assert "payroll_record.id" in _fk_targets(
+        FinancialTransaction.__table__.c.payroll_record_id
+    )
+
+    payroll_fk = next(
+        iter(PayrollRecord.__table__.c.finance_transaction_id.foreign_keys)
+    ).constraint
+    finance_fk = next(
+        iter(FinancialTransaction.__table__.c.payroll_record_id.foreign_keys)
+    ).constraint
+    assert payroll_fk.deferrable is True
+    assert payroll_fk.initially == "DEFERRED"
+    assert finance_fk.deferrable is True
+    assert finance_fk.initially == "DEFERRED"
 
 
 def test_breeding_semen_links_are_database_enforced():

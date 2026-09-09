@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -26,7 +26,19 @@ class PayrollRecord(Base):
     deductions = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
     status = Column(String, nullable=False, default="DRAFT", index=True)
     payment_date = Column(Date, nullable=True)
-    finance_transaction_id = Column(Integer, nullable=True, unique=True, index=True)
+    finance_transaction_id = Column(
+        Integer,
+        ForeignKey(
+            "financial_transactions.id",
+            ondelete="RESTRICT",
+            name="fk_payroll_record_finance_transaction",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utcnow)
     updated_at = Column(DateTime, nullable=False, default=utcnow)
