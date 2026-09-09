@@ -208,7 +208,14 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         item.status !== 'RESOLVED'
     );
 
-    if (alert) setSelectedDropAlertId(alert.id);
+    if (alert) {
+      setSelectedDropAlertId(alert.id);
+      return;
+    }
+
+    // A live-derived yield drop may exist before a persisted operational
+    // finding has been created. It must still remain visible and actionable.
+    openPassportHandler(animalId);
   };
 
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
@@ -269,8 +276,91 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
   const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
   const displayedTop = allTopPerformers.slice(0,extremesCount), displayedBottom = allBottomPerformers.slice(0,extremesCount);
-  const activeDropAlerts = alerts.filter(a => a.source === 'MILK_DROP' && a.status !== 'RESOLVED');
-  const selectedDropAlert = selectedDropAlertId ? alerts.find(a => a.id === selectedDropAlertId) || null : null;
+  const persistedDropAlerts = alerts.filter(
+    a =>
+      a.source === 'MILK_DROP' &&
+      a.status !== 'RESOLVED'
+  );
+
+  const persistedDropAnimalIds = new Set(
+    persistedDropAlerts
+      .map(item => item.animalId)
+      .filter(Boolean)
+  );
+
+  const derivedDropAlerts = (
+    Array.isArray(data?.yieldDropWatchlist)
+      ? data.yieldDropWatchlist
+      : []
+  )
+    .filter((item: any) => {
+      const animalId = String(
+        item?.animal_id ??
+        item?.animalId ??
+        ''
+      ).trim();
+
+      return (
+        animalId &&
+        !persistedDropAnimalIds.has(animalId)
+      );
+    })
+    .map((item: any) => {
+      const animalId = String(
+        item?.animal_id ??
+        item?.animalId ??
+        ''
+      ).trim();
+
+      const dropPercent = Number(
+        item?.drop_percentage ??
+        item?.dropPercent ??
+        item?.drop_percent ??
+        0
+      );
+
+      const currentLevel =
+        String(
+          item?.severity ?? ''
+        ).toUpperCase() === 'CRITICAL' ||
+        dropPercent >= 30
+          ? 'RED'
+          : 'AMBER';
+
+      return {
+        id: `derived-milk-drop-${animalId}`,
+        source: 'MILK_DROP' as const,
+        animalId,
+        title:
+          item?.title ??
+          `Milk yield drop: ${animalId}`,
+        details:
+          item?.detail ??
+          item?.details ??
+          '',
+        initialLevel: currentLevel,
+        currentLevel,
+        status: 'ACTIVE' as const,
+        createdAt:
+          item?.current_date ??
+          '',
+        lifecycleEvents: [],
+        dropPercent,
+        derivedLive: true,
+      };
+    });
+
+  const activeDropAlerts = [
+    ...persistedDropAlerts,
+    ...derivedDropAlerts,
+  ];
+
+  const selectedDropAlert =
+    selectedDropAlertId
+      ? alerts.find(
+          a => a.id === selectedDropAlertId
+        ) || null
+      : null;
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
   const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; } | undefined;
   const reproData = {
