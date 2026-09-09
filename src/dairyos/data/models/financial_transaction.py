@@ -47,18 +47,7 @@ class FinancialTransaction(Base):
     )
     milk_sale_id = Column(String, nullable=True)
     feed_record_id = Column(String, nullable=True)
-    payroll_record_id = Column(
-        Integer,
-        ForeignKey(
-            "payroll_record.id",
-            ondelete="RESTRICT",
-            name="fk_financial_transaction_payroll_record",
-            deferrable=True,
-            initially="DEFERRED",
-        ),
-        nullable=True,
-        index=True,
-    )
+    payroll_record_id = Column(Integer, nullable=True, index=True)
     status = Column(String, default="RECORDED")
 
     master_category = Column(String, nullable=True)

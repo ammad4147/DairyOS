@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Index, CheckConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index, CheckConstraint
 from sqlalchemy.orm import validates
 from dairyos.core.inventory_units import convert_quantity
 from datetime import datetime
@@ -84,17 +84,6 @@ class InventoryTransaction(Base):
 
     source_id = Column(
         String,
-        nullable=True,
-        index=True,
-    )
-
-    source_financial_transaction_id = Column(
-        Integer,
-        ForeignKey(
-            "financial_transactions.id",
-            ondelete="RESTRICT",
-            name="fk_inventory_transaction_source_finance",
-        ),
         nullable=True,
         index=True,
     )

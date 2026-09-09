@@ -66,7 +66,6 @@ from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationO
 from dairyos.data.models.operational_write import OperationalWrite, OperationalProjectionOutbox
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.feed_record import FeedRecord
-from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.operational_finding import OperationalFinding
@@ -156,9 +155,7 @@ def _reset_test_persistence() -> None:
             MilkDisposition,
             MilkProduction,
             FeedRecord,
-            FeedRation,
             HealthObservation,
-            TreatmentRecord,
             HealthCase,
             OperationalFindingLifecycleEvent,
             OperationalFinding,
@@ -166,6 +163,7 @@ def _reset_test_persistence() -> None:
             User,
             MilkingSessionRecord,
             AppSetting,
+            TreatmentRecord,
             AnimalMilkingScheduleHistory,
             Animal,
             OperationalEventModel,

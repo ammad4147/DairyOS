@@ -67,7 +67,7 @@ class FeedStorageSchedulerAuthorityContractTest(
 
     def test_reconciliation_is_reusable_factory_service(self):
         self.assertIn(
-            "def reconcile_tmr_feed_storage(factory, *, start_date=None, end_date=None):",
+            "def reconcile_tmr_feed_storage(factory):",
             self.feed,
         )
 

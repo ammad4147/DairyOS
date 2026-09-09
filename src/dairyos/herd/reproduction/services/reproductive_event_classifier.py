@@ -25,7 +25,6 @@ PREGNANCY_CHECK_EVENTS = {
     "pregnancy_negative",
 }
 CALVING_EVENTS = {"calving", "calved", "parturition"}
-PREGNANCY_LOSS_EVENTS = {"pregnancy_lost", "abortion", "stillbirth"}
 DRY_OFF_EVENTS = {"dry_off"}
 
 EXPECTED_GESTATION_DAYS = 283
@@ -74,10 +73,6 @@ def is_calving(record) -> bool:
     return _event_type(record) in CALVING_EVENTS
 
 
-def is_pregnancy_loss(record) -> bool:
-    return _event_type(record) in PREGNANCY_LOSS_EVENTS
-
-
 def is_dry_off(record) -> bool:
     return _event_type(record) in DRY_OFF_EVENTS
 
@@ -104,9 +99,6 @@ def classify_animal_state(events) -> dict:
         elif is_calving(event):
             state = "CALVED"
             calving = event.timestamp
-        elif is_pregnancy_loss(event):
-            state = "OPEN"
-            pregnancy_result = event.result
         elif is_dry_off(event):
             state = "DRY_OFF"
 

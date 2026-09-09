@@ -20,13 +20,4 @@ class FeedRecord(Base):
     unit_cost_per_kg = Column(Float, nullable=True)
     total_feed_cost = Column(Float, nullable=True)
     cost_basis = Column(String, nullable=True)
-    cost_source_financial_transaction_id = Column(
-        Integer,
-        ForeignKey(
-            "financial_transactions.id",
-            ondelete="RESTRICT",
-            name="fk_feed_record_cost_source_financial_transaction",
-        ),
-        nullable=True,
-        index=True,
-    )
+    cost_source_financial_transaction_id = Column(Integer, nullable=True)

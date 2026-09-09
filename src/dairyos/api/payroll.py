@@ -11,7 +11,6 @@ from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 router = APIRouter(prefix="/farm/payroll", tags=["Finance Payroll"])
 
@@ -88,14 +87,6 @@ def create_payroll(request: PayrollCreateRequest, container=Depends(get_containe
     if request.period_end < request.period_start:
         raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
     record = PayrollRecord(**request.model_dump())
-    if record.net_pay < 0:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Payroll net pay cannot be negative. "
-                "Advances and deductions cannot exceed gross pay."
-            ),
-        )
     created = _repo(container).add(record)
     return _serialize(created)
 
@@ -161,11 +152,7 @@ def _pay_payroll(record_id, payment_date, factory):
     if existing is not None:
         record.finance_transaction_id = existing.id
         record.status = "PAID"
-        record.payment_date = (
-            payment_date
-            or existing.settled_date
-            or OperationalDateAuthority(repository_factory=factory).current_date()
-        )
+        record.payment_date = payment_date or existing.settled_date or utcnow().date()
         if session is not None:
             try:
                 session.add(record)
@@ -178,19 +165,9 @@ def _pay_payroll(record_id, payment_date, factory):
             repo.save(record)
         return _serialize(record)
 
-    pay_date = payment_date or OperationalDateAuthority(
-        repository_factory=factory
-    ).current_date()
+    pay_date = payment_date or utcnow().date()
     quantity = float(record.worked_days or 0)
     net_pay = Decimal(record.net_pay)
-    if net_pay <= 0:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Payroll net pay must be greater than zero before payment. "
-                "Advances and deductions cannot consume or exceed gross pay."
-            ),
-        )
     transaction = FinancialTransaction(
         transaction_type="EXPENSE",
         category="LABOUR",
