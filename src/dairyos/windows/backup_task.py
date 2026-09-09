@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 from sqlalchemy.engine import URL
 
@@ -48,20 +49,54 @@ def _task_command() -> str:
     return f'"{Path(sys.executable).resolve()}" -m dairyos.windows.backup_task'
 
 
-def scheduled_backup_task_exists() -> bool:
-    """Return whether the installer-provisioned automatic backup task exists."""
+def _scheduled_task_action() -> tuple[str, str] | None:
+    """Return the structured Task Scheduler action, or None when absent."""
 
     if os.name != "nt":
-        return True
+        return (str(packaged_backup_executable()), "")
 
     query = subprocess.run(
-        ["schtasks.exe", "/Query", "/TN", TASK_NAME],
+        ["schtasks.exe", "/Query", "/TN", TASK_NAME, "/XML"],
         capture_output=True,
         text=True,
         check=False,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
-    return query.returncode == 0
+    if query.returncode != 0:
+        return None
+
+    try:
+        root = ET.fromstring(query.stdout)
+    except ET.ParseError as exc:
+        raise BackupTaskError(
+            "Automatic DairyOS backup task exists but its Task Scheduler "
+            "definition could not be parsed. Repair or reinstall DairyOS."
+        ) from exc
+
+    namespace = {"task": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+    command = root.findtext(".//task:Exec/task:Command", default="", namespaces=namespace)
+    arguments = root.findtext(".//task:Exec/task:Arguments", default="", namespaces=namespace)
+    return (str(command or "").strip(), str(arguments or "").strip())
+
+
+def scheduled_backup_task_exists() -> bool:
+    """Return whether the installer task exists with the exact safe action."""
+
+    if os.name != "nt":
+        return True
+
+    action = _scheduled_task_action()
+    if action is None:
+        return False
+
+    executable, arguments = action
+    expected = packaged_backup_executable()
+    try:
+        actual = Path(executable).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return False
+
+    return actual == expected and arguments == ""
 
 
 def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
@@ -69,17 +104,37 @@ def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
 
     Task creation is an installation-time privileged operation. Normal DairyOS
     startup is intentionally non-elevated and must never attempt task creation.
-    The application therefore verifies the task installed by Inno Setup and
-    fails closed if that protection has disappeared.
+    The application verifies both task existence and its structured executable
+    action so a malformed Program Files split cannot qualify as farm data
+    protection.
     """
 
     if os.name != "nt":
         return
 
-    if not scheduled_backup_task_exists():
+    action = _scheduled_task_action()
+    if action is None:
         raise BackupTaskError(
             "Automatic DairyOS backups are not provisioned. "
             "Repair or reinstall DairyOS using the Windows installer."
+        )
+
+    executable, arguments = action
+    expected = packaged_backup_executable()
+    try:
+        actual = Path(executable).expanduser().resolve()
+    except (OSError, RuntimeError) as exc:
+        raise BackupTaskError(
+            "Automatic DairyOS backup task has an invalid executable path. "
+            "Repair or reinstall DairyOS."
+        ) from exc
+
+    if actual != expected or arguments:
+        raise BackupTaskError(
+            "Automatic DairyOS backup task is misconfigured. "
+            f"Expected executable '{expected}' with no arguments, got "
+            f"executable '{executable}' and arguments '{arguments}'. "
+            "Repair or reinstall DairyOS."
         )
 
     if run_immediately:

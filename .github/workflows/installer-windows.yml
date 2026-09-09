@@ -115,15 +115,21 @@ jobs:
 
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
 
-          $taskQuery = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" /FO LIST /V 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installer did not provision DairyOS-Automatic-Backup before application startup: $taskQuery"
-          }
+          $task = Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup" -ErrorAction Stop
           $expectedBackupExe = Join-Path $installRoot "DairyOSBackup.exe"
-          $taskText = ($taskQuery | Out-String)
-          if ($taskText -notlike "*$expectedBackupExe*") {
-            throw "Automatic backup task points to the wrong executable. Expected: $expectedBackupExe"
+          $actions = @($task.Actions)
+          if ($actions.Count -ne 1) {
+            throw "Automatic backup task must contain exactly one action; found $($actions.Count)."
           }
+          $taskExecute = ([string]$actions[0].Execute).Trim('"')
+          $taskArguments = ([string]$actions[0].Arguments).Trim()
+          if ($taskExecute -ne $expectedBackupExe) {
+            throw "Automatic backup task executable is malformed. Expected '$expectedBackupExe', got '$taskExecute'."
+          }
+          if ($taskArguments) {
+            throw "Automatic backup task must not carry command-line arguments. Got: '$taskArguments'"
+          }
+          Write-Host "AUTOMATIC BACKUP TASK STRUCTURED ACTION: PASS"
 
           $required = @(
             (Join-Path $installRoot "DairyOS.exe"),
@@ -215,20 +221,50 @@ jobs:
           }
 
           $backupWorker = Join-Path $installRoot "DairyOSBackup.exe"
-          $backupRun = Start-Process -FilePath $backupWorker -WorkingDirectory $installRoot -PassThru -Wait
-          if ($backupRun.ExitCode -ne 0) {
-            $backupHealth = Join-Path $dataRoot "backups\\backup-health.json"
-            if (Test-Path $backupHealth -PathType Leaf) { Get-Content $backupHealth }
-            throw "Installed DairyOS backup worker failed with code $($backupRun.ExitCode)."
+          $backupHealth = Join-Path $dataRoot "backups\backup-health.json"
+          $beforeBackupWrite = if (Test-Path $backupHealth -PathType Leaf) {
+            (Get-Item $backupHealth).LastWriteTimeUtc
+          } else {
+            [datetime]::MinValue
           }
-          $backupHealth = Join-Path $dataRoot "backups\\backup-health.json"
+
+          # Exercise the installed Scheduled Task itself. A direct worker run
+          # cannot certify Task Scheduler action quoting or registration.
+          $taskStartedAt = Get-Date
+          Start-ScheduledTask -TaskName "DairyOS-Automatic-Backup"
+
+          $deadline = (Get-Date).AddMinutes(3)
+          do {
+            Start-Sleep -Seconds 2
+            $taskInfo = Get-ScheduledTaskInfo -TaskName "DairyOS-Automatic-Backup"
+            $taskState = (Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup").State
+            if (
+              $taskState -ne "Running" -and
+              $taskInfo.LastRunTime -ge $taskStartedAt.AddSeconds(-2)
+            ) {
+              break
+            }
+          } while ((Get-Date) -lt $deadline)
+
+          $taskInfo = Get-ScheduledTaskInfo -TaskName "DairyOS-Automatic-Backup"
+          if ($taskInfo.LastRunTime -lt $taskStartedAt.AddSeconds(-2)) {
+            throw "Installed DairyOS scheduled backup task did not run within the certification timeout."
+          }
+          if ($taskInfo.LastTaskResult -ne 0) {
+            if (Test-Path $backupHealth -PathType Leaf) { Get-Content $backupHealth }
+            throw "Installed DairyOS scheduled backup task failed with result $($taskInfo.LastTaskResult)."
+          }
           if (-not (Test-Path $backupHealth -PathType Leaf)) {
-            throw "Installed DairyOS backup worker did not produce backup-health.json."
+            throw "Installed DairyOS scheduled backup task did not produce backup-health.json."
+          }
+          if ((Get-Item $backupHealth).LastWriteTimeUtc -le $beforeBackupWrite) {
+            throw "Scheduled backup task completed without refreshing backup-health.json."
           }
           $backupHealthPayload = Get-Content $backupHealth -Raw | ConvertFrom-Json
           if ($backupHealthPayload.status -notin @("HEALTHY","DEGRADED")) {
             throw "Installed DairyOS backup protection is not successful: $($backupHealthPayload.status)"
           }
+          Write-Host "INSTALLED SCHEDULED BACKUP EXECUTION: PASS"
 
           $programDataCluster = Join-Path $dataRoot "postgres"
           $programDataPgData = Join-Path $programDataCluster "data"

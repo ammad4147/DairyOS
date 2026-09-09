@@ -139,6 +139,9 @@ end;
 procedure ProvisionAutomaticBackupTask();
 var
   BackupExe: String;
+  EscapedBackupExe: String;
+  PowerShellExe: String;
+  PowerShellCommand: String;
   TaskCommand: String;
   ResultCode: Integer;
 begin
@@ -146,13 +149,30 @@ begin
   if not FileExists(BackupExe) then
     RaiseException('DairyOSBackup.exe is missing; automatic backups cannot be provisioned.');
 
+  { Use the ScheduledTasks API rather than schtasks /TR command-line parsing.
+    /TR can persist an invalid Program Files split. New-ScheduledTaskAction
+    stores Execute and Arguments as separate structured fields. }
+  EscapedBackupExe := BackupExe;
+  StringChangeEx(EscapedBackupExe, '''', '''''', True);
+
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  PowerShellCommand :=
+    '$ErrorActionPreference = ''Stop''; ' +
+    '$action = New-ScheduledTaskAction -Execute ''' + EscapedBackupExe + '''; ' +
+    '$trigger = New-ScheduledTaskTrigger -Once -At ([datetime]::Today) ' +
+      '-RepetitionInterval (New-TimeSpan -Hours 6); ' +
+    '$principal = New-ScheduledTaskPrincipal ' +
+      '-UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) ' +
+      '-LogonType Interactive -RunLevel Limited; ' +
+    'Register-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
+      '-Action $action -Trigger $trigger -Principal $principal -Force | Out-Null';
+
   TaskCommand :=
-    '/Create /F /TN "DairyOS-Automatic-Backup" ' +
-    '/SC HOURLY /MO 6 /ST 00:00 /RL LIMITED ' +
-    '/TR "' + BackupExe + '"';
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+    PowerShellCommand + '"';
 
   if (not Exec(
-    ExpandConstant('{sys}\schtasks.exe'),
+    PowerShellExe,
     TaskCommand,
     ExpandConstant('{app}'),
     SW_HIDE,
