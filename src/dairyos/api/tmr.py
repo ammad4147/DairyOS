@@ -878,10 +878,21 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         if str(snapshot.get("operational_date") or "")
     }
 
+    # Today's governed TMR remains the live calculation authority until
+    # the noon snapshot is persisted. Once today's snapshot exists, that
+    # immutable record replaces the provisional live value automatically.
+    live_today = None
+    if start <= today <= effective_end and today.isoformat() not in by_date:
+        live_today = build_live_tmr_summary(
+            factory,
+            include_weekly_review=False,
+        )
+
     day = start
     total = 0.0
     daily_rows: list[dict] = []
     locked_days = 0
+    provisional_days = 0
     missing_authority_days: list[str] = []
 
     while day <= effective_end:
@@ -898,6 +909,18 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
             basis = "LOCKED_DAILY_TMR"
             record_id = snapshot.get("record_id")
             locked_at = snapshot.get("locked_at")
+
+        elif day == today and live_today is not None:
+            amount = float(
+                live_today.get("total_herd_feed_cost_per_day")
+                or 0.0
+            )
+            total += amount
+            provisional_days += 1
+            basis = "LIVE_TMR_PENDING_NOON_LOCK"
+            record_id = None
+            locked_at = None
+
         else:
             amount = None
             basis = "DAILY_TMR_SNAPSHOT_MISSING"
@@ -931,6 +954,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         ),
         "daily": daily_rows,
         "locked_days": locked_days,
+        "provisional_days": provisional_days,
         "complete": complete,
         "missing_authority_days": missing_authority_days,
         "source": "TMR_DAILY_NOON_SNAPSHOT",

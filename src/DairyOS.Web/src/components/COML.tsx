@@ -95,6 +95,10 @@ const button = (background: string): React.CSSProperties => ({
 });
 
 const money = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return 'N/A';
+  }
+
   const amount = Number(value);
   return Number.isFinite(amount)
     ? `PKR ${amount.toLocaleString('en-PK', {
