@@ -5,7 +5,7 @@ from dairyos.lifecycle import manager as lifecycle_manager
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MANAGER = ROOT / "src" / "dairyos" / "lifecycle" / "manager.py"
+MANAGER = ROOT / "src" / "dairyos/lifecycle/manager.py"
 ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
 WORKFLOW = ROOT / ".github" / "workflows" / "installer-windows.yml"
 
@@ -43,7 +43,7 @@ def test_installer_grants_modify_only_to_lifecycle_manifest():
 
     start = source.index("procedure ProvisionLifecycleManifestAcl();")
     end = source.index(
-        "procedure ProvisionAutomaticBackupTask();",
+        "procedure ProvisionBackupTreeAcl();",
         start,
     )
     block = source[start:end]
@@ -53,10 +53,11 @@ def test_installer_grants_modify_only_to_lifecycle_manifest():
     assert "postgres\\data" not in block
 
     lifecycle = source.index("    ProvisionLifecycleState();")
-    acl = source.index("    ProvisionLifecycleManifestAcl();")
-    backup = source.index("    ProvisionAutomaticBackupTask();")
+    lifecycle_acl = source.index("    ProvisionLifecycleManifestAcl();")
+    backup_acl = source.index("    ProvisionBackupTreeAcl();")
+    backup_task = source.index("    ProvisionAutomaticBackupTask();")
 
-    assert lifecycle < acl < backup
+    assert lifecycle < lifecycle_acl < backup_acl < backup_task
 
 
 def test_installer_ci_certifies_installed_lifecycle_acl():
@@ -66,12 +67,18 @@ def test_installer_ci_certifies_installed_lifecycle_acl():
     assert "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS" in source
     assert "Installed lifecycle.json is not modifiable" in source
 
+
 def test_backup_acl_is_scoped_separately_from_lifecycle_acl():
     source = ISS.read_text(encoding="utf-8")
     start = source.index("procedure ProvisionBackupTreeAcl();")
     end = source.index("procedure ProvisionAutomaticBackupTask();", start)
     block = source[start:end]
-    assert "DairyOSDataRoot() + '\\backups'" in block
-    assert "(OI)(CI)(M)" in block
-    assert "postgres" not in block.lower()
-    assert "security" not in block.lower()
+
+    assert "BackupPath := DairyOSDataRoot() + '\\backups';" in block
+    assert "*S-1-5-32-545:(OI)(CI)(M)" in block
+    assert "/T /C" in block
+
+    # Verify scope by path targets/commands, not explanatory prose.
+    assert "DairyOSDataRoot() + '\\postgres" not in block
+    assert "DairyOSDataRoot() + '\\security" not in block
+    assert "security.json" not in block
