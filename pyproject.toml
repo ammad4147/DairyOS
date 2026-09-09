@@ -22,7 +22,7 @@ dependencies = [
   "uvicorn>=0.35",
   "PyYAML>=6.0",
   "cryptography>=45.0",
-  "elasticsearch>=8.11,<9",
+  "elasticsearch>=8.11,<10",
 ]
 
 [project.optional-dependencies]
