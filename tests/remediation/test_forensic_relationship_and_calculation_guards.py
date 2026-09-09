@@ -6,6 +6,7 @@ from dairyos.data.database.models.breeding_record_model import BreedingRecordMod
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.semen_inventory import SemenStockMovement
@@ -39,6 +40,9 @@ def test_feed_and_payroll_finance_links_are_database_enforced():
     )
     assert "payroll_record.id" in _fk_targets(
         FinancialTransaction.__table__.c.payroll_record_id
+    )
+    assert "financial_transactions.id" in _fk_targets(
+        InventoryTransaction.__table__.c.source_financial_transaction_id
     )
 
     payroll_fk = next(

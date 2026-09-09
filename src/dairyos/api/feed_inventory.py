@@ -353,6 +353,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         supplier=payload.supplier,
         notes=((f"Finance transaction #{payload.source_financial_transaction_id}. {payload.notes or ''}").strip() if payload.source_financial_transaction_id is not None else payload.notes),
         recorded_by=payload.recorded_by or "WEB",
+        source_financial_transaction_id=payload.source_financial_transaction_id,
     )
     return _movement_row(factory.inventory().add(transaction))
 
