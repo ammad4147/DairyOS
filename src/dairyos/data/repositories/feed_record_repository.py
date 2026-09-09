@@ -24,8 +24,11 @@ class FeedRecordRepository:
                 AppSettingRepository(session=self.session)
             ).get_operational_date()
             record.feeding_date = datetime.combine(operational_date, time.min)
-        except Exception:
-            return
+        except Exception as exc:
+            raise RuntimeError(
+                "Feed operational date authority is unavailable; the record was not "
+                "assigned a fallback system date."
+            ) from exc
 
     def add(self, record):
         self._apply_operational_date(record)

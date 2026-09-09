@@ -146,6 +146,9 @@ class CostOfProductionService:
                 "SOLD",
                 "DISPOSED",
                 "WASTAGE",
+                # Withdrawal governs saleability/disposition, not biological
+                # production. Keep these litres in every production denominator.
+                "WITHDRAWAL",
             }
         )
 

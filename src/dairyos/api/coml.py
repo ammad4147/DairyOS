@@ -285,8 +285,12 @@ def get_integrated_coml(
         requested_end,
     )
 
-    feed_total = float(
-        feed_basis["total_feed_cost"]
+    raw_feed_total = feed_basis.get("total_feed_cost")
+    feed_authority_complete = bool(feed_basis.get("complete", True))
+    feed_total = (
+        float(raw_feed_total)
+        if raw_feed_total is not None and feed_authority_complete
+        else None
     )
 
     # --------------------------------------------------------
@@ -390,12 +394,18 @@ def get_integrated_coml(
         if opex_total <= 0:
             opex_source = "finance_attributed_opex_empty"
 
-    except Exception:
-        opex_total = 0.0
-        unattributed_opex_total = 0.0
-        unattributed_opex_count = 0
-        non_opex_excluded_total = 0.0
-        opex_source = "finance_opex_attribution_failed"
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "FINANCE_OPEX_ATTRIBUTION_FAILED",
+                "message": (
+                    "Estimated COP is unavailable because Finance OPEX "
+                    "attribution failed. No zero-cost substitute was used."
+                ),
+                "exception_type": type(exc).__name__,
+            },
+        ) from exc
 
     # --------------------------------------------------------
     # Estimated COP
@@ -403,7 +413,7 @@ def get_integrated_coml(
 
     feed_per_l = (
         feed_total / liters
-        if liters > 0
+        if liters > 0 and feed_total is not None
         else None
     )
 
@@ -416,7 +426,7 @@ def get_integrated_coml(
     total_per_l = (
         (feed_total + opex_total)
         / liters
-        if liters > 0
+        if liters > 0 and feed_total is not None
         else None
     )
 
@@ -427,7 +437,11 @@ def get_integrated_coml(
     )
 
     return {
-        "data_status": "AUTO_AGGREGATED",
+        "data_status": (
+            "AUTO_AGGREGATED"
+            if feed_authority_complete
+            else "INCOMPLETE_COST_AUTHORITY"
+        ),
         "period": {
             "start": start.isoformat(),
             "end": requested_end.isoformat(),
@@ -464,9 +478,10 @@ def get_integrated_coml(
             ),
         },
         "costs": {
-            "feed_total": round(
-                feed_total,
-                2,
+            "feed_total": (
+                round(feed_total, 2)
+                if feed_total is not None
+                else None
             ),
             "opex_total": round(
                 opex_total,

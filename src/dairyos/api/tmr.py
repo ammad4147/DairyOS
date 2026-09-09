@@ -739,6 +739,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
     daily_rows = []
     endorsed_days = 0
     fallback_days = 0
+    missing_authority_days = []
 
     while day <= effective_end:
         week_start, _ = _week_bounds(day)
@@ -754,15 +755,23 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
             basis = "WEEKLY_VET_ENDORSED_TMR"
             endorsed_days += 1
         else:
-            amount = live_daily
-            basis = "UNENDORSED_LIVE_TMR_FALLBACK"
+            # Historical fact must never be reconstructed from today's ration,
+            # price or herd state. Preserve the gap explicitly.
+            amount = None
+            basis = "HISTORICAL_TMR_AUTHORITY_MISSING"
             fallback_days += 1
+            missing_authority_days.append(day.isoformat())
 
-        total += amount
+        if amount is not None:
+            total += amount
         daily_rows.append(
             {
                 "date": day.isoformat(),
-                "feed_cost": round(amount, 4),
+                "feed_cost": (
+                    round(amount, 4)
+                    if amount is not None
+                    else None
+                ),
                 "basis": basis,
                 "week_start": week_start.isoformat(),
             }
@@ -770,10 +779,16 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         day += timedelta(days=1)
 
     return {
-        "total_feed_cost": round(total, 4),
+        "total_feed_cost": (
+            round(total, 4)
+            if not missing_authority_days
+            else None
+        ),
         "daily": daily_rows,
         "endorsed_days": endorsed_days,
         "fallback_days": fallback_days,
+        "complete": not missing_authority_days,
+        "missing_authority_days": missing_authority_days,
         "source": "TMR_HERD_COST",
         "requested_period": {
             "start": start.isoformat(),

@@ -148,7 +148,7 @@ class MilkNotMilkedRequest(BaseEntryRequest):
 
 class FeedEntryRequest(BaseEntryRequest):
     feed_type: str
-    quantity_kg: float
+    quantity_kg: float = Field(gt=0, allow_inf_nan=False)
     group_or_pen: str | None = None
     animal_id: str | None = None
 
@@ -243,7 +243,7 @@ class EquipmentEntryRequest(BaseEntryRequest):
 
 class FinancialEntryRequest(BaseEntryRequest):
     transaction_type: str
-    amount: float
+    amount: float = Field(gt=0, allow_inf_nan=False)
     category: str | None = None
     payment_method: str | None = None
     counterparty: str | None = None
@@ -1212,10 +1212,19 @@ def record_health_observation(
             rf = RepositoryFactory.create()
             owns_factory = True
         try:
-            if rf.health_cases().get_by_id(entry.health_case_id) is None:
+            linked_case = rf.health_cases().get_by_id(entry.health_case_id)
+            if linked_case is None:
                 raise HTTPException(
                     status_code=404,
                     detail=f"health_case_id {entry.health_case_id} does not exist.",
+                )
+            if str(linked_case.animal_id) != str(entry.animal_id):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"health_case_id {entry.health_case_id} belongs to animal "
+                        f"{linked_case.animal_id}, not {entry.animal_id}."
+                    ),
                 )
         finally:
             if owns_factory:
@@ -1346,15 +1355,31 @@ def record_treatment(
                     status_code=404,
                     detail=f"health_case_id {entry.health_case_id} does not exist.",
                 )
+            if str(linked_case.animal_id) != str(entry.animal_id):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"health_case_id {entry.health_case_id} belongs to animal "
+                        f"{linked_case.animal_id}, not {entry.animal_id}."
+                    ),
+                )
         elif entry.animal_id:
             open_cases = [
                 c for c in case_repo.get_all()
                 if getattr(c, "animal_id", None) == entry.animal_id
                 and getattr(c, "status", None) != "RESOLVED"
             ]
-            if open_cases:
-                linked_case = open_cases[-1]
+            if len(open_cases) == 1:
+                linked_case = open_cases[0]
                 entry.health_case_id = linked_case.id
+            elif len(open_cases) > 1:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Multiple open health cases exist for this animal. "
+                        "Select health_case_id explicitly; DairyOS will not guess."
+                    ),
+                )
 
         record = TreatmentRecord(
             animal_id=entry.animal_id,
@@ -1790,6 +1815,19 @@ def record_financial_entry(
     # against the governed list the same way lifecycle_status is, at the
     # only place a new value can enter the ledger. An unset category still
     # falls back to OTHER_OPERATING in _record(), unchanged.
+
+    from dairyos.finance.classification.transaction_classifier import KNOWN_TYPES
+
+    transaction_type = str(entry.transaction_type or "").strip().upper()
+    if transaction_type not in KNOWN_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "transaction_type must be one of: "
+                + ", ".join(sorted(KNOWN_TYPES))
+            ),
+        )
+    payload["transaction_type"] = transaction_type
 
     allowed_categories = set(GOVERNED["financial_categories"])
     if entry.category is not None and entry.category not in allowed_categories:
