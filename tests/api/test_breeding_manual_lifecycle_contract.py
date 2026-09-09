@@ -280,3 +280,49 @@ def test_calving_requires_confirmed_pregnancy_and_updates_lifecycle_projections(
     assert calving_rows
     assert calving_rows[-1]["calf_animal_id"] == calf_id
     assert calving_rows[-1]["planned_return_to_milking_date"] == planned_return
+
+
+def test_due_planned_return_to_milking_is_applied_automatically_and_once(
+    client, registered_animal
+):
+    _establish_confirmed_pregnancy(client, registered_animal)
+
+    planned_return = date.today().isoformat()
+    calving = _record(
+        client,
+        registered_animal,
+        "calving",
+        "COMPLETED",
+        calf_sex="FEMALE",
+        planned_return_to_milking_date=planned_return,
+    )
+    assert calving.status_code == 200, calving.text
+
+    # Calving itself closes pregnancy and places the mother Dry. The next
+    # authoritative herd read applies a due operator-entered return date.
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200, dashboard.text
+
+    mother = client.get(f"/farm/animals/{registered_animal}")
+    assert mother.status_code == 200, mother.text
+    payload = mother.json()
+    assert payload["lifecycle_status"] == "LACTATING"
+    assert payload["is_currently_milking"] is True
+    assert payload["milking_frequency"] in {"TWICE_DAILY", "THRICE_DAILY"}
+
+    history = client.get(f"/farm/animals/{registered_animal}/milking-frequency/history")
+    if history.status_code == 200:
+        rows = history.json()
+        applied = [
+            row
+            for row in rows
+            if str(row.get("reason") or "").upper()
+            == "POST_CALVING_PLANNED_RETURN"
+        ]
+        assert len(applied) == 1
+
+    # Repeated reads are idempotent and cannot create another transition.
+    assert client.get("/dashboard").status_code == 200
+    mother_again = client.get(f"/farm/animals/{registered_animal}")
+    assert mother_again.status_code == 200
+    assert mother_again.json()["lifecycle_status"] == "LACTATING"

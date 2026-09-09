@@ -13,6 +13,9 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.farm.reproduction.services.post_calving_return_service import (
+    reconcile_due_post_calving_returns,
+)
 from dairyos.api.farm_planning import (
     _current_state_api_value,
     _resolve_current_reproductive_state,
@@ -70,6 +73,10 @@ def _vaccination_dashboard_counts(container, operational_date: date) -> tuple[in
 @router.get("/dashboard")
 def get_dashboard(container=Depends(get_container)):
     """Return the established Dashboard contract from persisted runtime data."""
+    reconcile_due_post_calving_returns(
+        container.repository_factory,
+        container.event_journal,
+    )
     payload = container.dashboard_projection_service.project_api_contract(container)
     animal_repository = container.animal_repository
     finance_repository = (

@@ -10,6 +10,9 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductivePolicy,
     ReproductiveStateService,
 )
+from dairyos.farm.reproduction.services.post_calving_return_service import (
+    reconcile_due_post_calving_returns,
+)
 
 from .router import router
 
@@ -46,6 +49,11 @@ def animal_reproduction_status(
     available in the same projection; the state service remains the single
     authority for all resulting status fields.
     """
+    reconcile_due_post_calving_returns(
+        container.repository_factory,
+        container.event_journal,
+    )
+
     factory = getattr(container, "repository_factory", None)
     owns_factory = False
     if factory is None:

@@ -14,6 +14,9 @@ from dairyos.data.models.feed_ration import FeedRation
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.farm.reproduction.services.post_calving_return_service import (
+    reconcile_due_post_calving_returns,
+)
 
 router = APIRouter(prefix="/farm/tmr", tags=["tmr"])
 
@@ -808,6 +811,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
 @router.get("")
 def get_tmr(container=Depends(get_container)):
     factory = container.repository_factory
+    reconcile_due_post_calving_returns(factory, container.event_journal)
     return build_live_tmr_summary(factory)
 
 

@@ -10,6 +10,9 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
+from dairyos.farm.reproduction.services.post_calving_return_service import (
+    reconcile_due_post_calving_returns,
+)
 
 router = APIRouter(prefix="/farm/animals", tags=["animals"])
 
@@ -146,7 +149,13 @@ def _persist(repository: Any, payload: dict[str, Any]) -> Any:
 
 @router.get("")
 def list_animals() -> list[dict[str, Any]]:
-    repository = _repository(_runtime())
+    runtime = _runtime()
+    if runtime is not None:
+        reconcile_due_post_calving_returns(
+            runtime.repository_factory,
+            runtime.event_journal,
+        )
+    repository = _repository(runtime)
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
     records = _repository_call(repository, ("list", "list_all", "get_all", "all"))
@@ -192,7 +201,13 @@ def create_animal(request: AnimalCreateRequest) -> dict[str, Any]:
 
 @router.get("/{animal_id}")
 def get_animal(animal_id: str) -> dict[str, Any]:
-    repository = _repository(_runtime())
+    runtime = _runtime()
+    if runtime is not None:
+        reconcile_due_post_calving_returns(
+            runtime.repository_factory,
+            runtime.event_journal,
+        )
+    repository = _repository(runtime)
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
     record = _repository_call(repository, ("get_by_animal_id", "get_by_id", "find_by_id", "find"), animal_id)
