@@ -29,7 +29,7 @@ def _task_xml(command: str, arguments: str | None = None) -> str:
 
 
 def test_existing_scheduled_task_requires_exact_structured_action(monkeypatch, tmp_path):
-    monkeypatch.setattr(backup_task.os, "name", "nt", raising=False)
+    monkeypatch.setattr(backup_task, "os", SimpleNamespace(name="nt"))
     executable = tmp_path / "DairyOSBackup.exe"
     executable.write_bytes(b"backup")
     monkeypatch.setattr(backup_task, "packaged_backup_executable", lambda: executable.resolve())
@@ -46,7 +46,7 @@ def test_existing_scheduled_task_requires_exact_structured_action(monkeypatch, t
 
 
 def test_missing_installer_task_blocks_with_repair_instruction(monkeypatch):
-    monkeypatch.setattr(backup_task.os, "name", "nt", raising=False)
+    monkeypatch.setattr(backup_task, "os", SimpleNamespace(name="nt"))
     monkeypatch.setattr(
         backup_task.subprocess,
         "run",
@@ -64,7 +64,7 @@ def test_missing_installer_task_blocks_with_repair_instruction(monkeypatch):
     ],
 )
 def test_malformed_scheduled_task_action_fails_closed(monkeypatch, tmp_path, command, arguments):
-    monkeypatch.setattr(backup_task.os, "name", "nt", raising=False)
+    monkeypatch.setattr(backup_task, "os", SimpleNamespace(name="nt"))
     executable = tmp_path / "DairyOSBackup.exe"
     executable.write_bytes(b"backup")
     monkeypatch.setattr(backup_task, "packaged_backup_executable", lambda: executable.resolve())
@@ -79,7 +79,7 @@ def test_malformed_scheduled_task_action_fails_closed(monkeypatch, tmp_path, com
 
 
 def test_runtime_never_uses_schtasks_create_or_run(monkeypatch, tmp_path):
-    monkeypatch.setattr(backup_task.os, "name", "nt", raising=False)
+    monkeypatch.setattr(backup_task, "os", SimpleNamespace(name="nt"))
     executable = tmp_path / "DairyOSBackup.exe"
     executable.write_bytes(b"backup")
     monkeypatch.setattr(backup_task, "packaged_backup_executable", lambda: executable.resolve())
