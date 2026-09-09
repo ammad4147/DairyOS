@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from dairyos.api.breeding_biology import (
     BreedingLifecycleRequest,
     _assert_mature_female,
+    _event_timestamp,
     _normalize_requested_event,
     _resolve_state,
     _state_api_value,
@@ -44,6 +45,14 @@ def test_breeding_gate_accepts_mature_female_lifecycles(lifecycle):
     _assert_mature_female(
         SimpleNamespace(active=True, sex="FEMALE", lifecycle_status=lifecycle)
     )
+
+
+def test_missing_breeding_timestamp_uses_operational_date():
+    timestamp = _event_timestamp(
+        None,
+        operational_date=date(2026, 9, 10),
+    )
+    assert timestamp.date() == date(2026, 9, 10)
 
 
 def test_negative_pd_closes_the_insemination_cycle_and_returns_open():

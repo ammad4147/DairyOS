@@ -105,11 +105,24 @@ def _operator(
     return str(entry.operator or entry.technician or "API").strip() or "API"
 
 
-def _event_timestamp(value: str | None) -> datetime:
+def _event_timestamp(
+    value: str | None,
+    *,
+    operational_date: date | None = None,
+) -> datetime:
     now = datetime.now(timezone.utc)
     text = str(value or "").strip()
     if not text:
-        return now.replace(tzinfo=None)
+        event_day = operational_date or now.date()
+        return datetime.combine(
+            event_day,
+            time(
+                hour=now.hour,
+                minute=now.minute,
+                second=now.second,
+                microsecond=now.microsecond,
+            ),
+        )
 
     try:
         if len(text) == 10:
@@ -653,7 +666,12 @@ def record_breeding_entry(
     _assert_mature_female(animal)
 
     event_type, result = _normalize_requested_event(entry)
-    event_timestamp = _event_timestamp(entry.timestamp)
+    event_timestamp = _event_timestamp(
+        entry.timestamp,
+        operational_date=OperationalDateAuthority(
+            repository_factory=container.repository_factory,
+        ).current_date(),
+    )
     state, _ = _current_state(container, animal_id)
     _validate_transition(
         animal=animal,
