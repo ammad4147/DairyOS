@@ -1,7 +1,7 @@
 """Financial intelligence derived from persisted farm transactions and milk."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, time
 
 from fastapi import APIRouter, Query
 
@@ -10,6 +10,9 @@ from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
 from dairyos.finance.profitability.services.mofc_service import MOFCService
 from dairyos.core.time_utils import utcnow
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
 
@@ -18,10 +21,19 @@ router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
 def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
     factory = RepositoryFactory.create()
     try:
+        operational_date = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
+        period_end = datetime.combine(
+            operational_date,
+            time.max,
+            tzinfo=UTC,
+        )
         return FeedOpexCostService().evaluate(
             factory.milk().get_all(),
             factory.finance().get_all(),
             days=days,
+            now=period_end,
         )
     finally:
         factory.close()

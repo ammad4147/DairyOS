@@ -39,6 +39,9 @@ from dairyos.finance.expense_taxonomy import (
 from dairyos.finance.profitability.services.feed_opex_cost_service import (
     FeedOpexCostService,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.finance.opex_attribution import (
     ATTRIBUTION_METHODS,
     COP_CLASSIFICATIONS,
@@ -1338,10 +1341,19 @@ def finance_cost_of_production(
 ):
     factory = _factory(container)
 
+    operational_date = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_date()
+    period_end = datetime.combine(
+        operational_date,
+        datetime.max.time(),
+        tzinfo=UTC,
+    )
     return FeedOpexCostService().evaluate(
         factory.milk().get_all(),
         factory.finance().get_all(),
         days=days,
+        now=period_end,
     )
 
 
