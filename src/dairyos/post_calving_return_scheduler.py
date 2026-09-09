@@ -33,9 +33,8 @@ class PostCalvingReturnScheduler:
         if self._thread and self._thread.is_alive():
             return
         self._stop.clear()
-        self._reconcile()
         self._thread = threading.Thread(
-            target=self._loop,
+            target=self._run_immediate_then_loop,
             name="dairyos-post-calving-return-scheduler",
             daemon=True,
         )
@@ -48,6 +47,12 @@ class PostCalvingReturnScheduler:
             self._thread.join(timeout=2)
         self._thread = None
         log.info("Post-calving return scheduler stopped")
+
+    def _run_immediate_then_loop(self) -> None:
+        # Startup must never wait for operational reconciliation. Run the
+        # catch-up inside the daemon worker, then continue periodically.
+        self._reconcile()
+        self._loop()
 
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_seconds):

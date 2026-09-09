@@ -141,7 +141,10 @@ def reconcile_due_post_calving_returns(
             animal = (
                 session.query(Animal)
                 .filter(Animal.animal_id == animal_id)
-                .with_for_update()
+                # Never wait indefinitely for a concurrent operator or
+                # background transaction holding the mother row. Scheduler
+                # callers fail fast and retry on the next reconciliation cycle.
+                .with_for_update(nowait=True)
                 .first()
             )
             if animal is None:
