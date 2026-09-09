@@ -9,10 +9,6 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
-from dairyos.core.tmr_stage_authority import (
-    allowed_stages_for_category,
-    validate_stage_for_category,
-)
 
 router = APIRouter()
 
@@ -229,39 +225,6 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
     elif not animal.is_currently_milking:
         animal.milking_frequency = None
 
-    current_category = serialize_animal(animal).get("animal_category")
-    if "production_group" in payload:
-        try:
-            stage = validate_stage_for_category(
-                current_category,
-                payload.get("production_group"),
-                allow_blank=True,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        allowed = allowed_stages_for_category(current_category)
-        animal.production_group = (
-            stage
-            if stage is not None
-            else (allowed[0] if len(allowed) == 1 else None)
-        )
-    elif any(
-        key in payload
-        for key in {"animal_category", "category", "lifecycle_status", "sex"}
-    ):
-        allowed = allowed_stages_for_category(current_category)
-        if len(allowed) == 1:
-            animal.production_group = allowed[0]
-        else:
-            try:
-                animal.production_group = validate_stage_for_category(
-                    current_category,
-                    animal.production_group,
-                    allow_blank=True,
-                )
-            except ValueError:
-                animal.production_group = None
-
     editable_fields = {
         "animal_type",
         "legacy_animal_id",
@@ -273,15 +236,10 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
         "date_of_acquisition",
         "dam_id",
         "sire_id",
+        "production_group",
         "location",
     }
     changed = {}
-    if "production_group" in payload or any(
-        key in payload
-        for key in {"animal_category", "category", "lifecycle_status", "sex"}
-    ):
-        changed["production_group"] = animal.production_group
-
     for field in editable_fields:
         if field in payload:
             value = payload[field]
@@ -308,16 +266,7 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
         changed["animal_category"] = serialize_animal(animal).get("animal_category")
         changed["lifecycle_status"] = animal.lifecycle_status
         changed["sex"] = animal.sex
-    _record_operational_event(
-        container,
-        "animal_profile_update",
-        {
-            "animal_id": animal_id,
-            "changed_fields": sorted(changed.keys()),
-            "production_group": animal.production_group,
-        },
-        str(payload.get("operator") or "API"),
-    )
+    _record_operational_event(container, "animal_profile_update", {"animal_id": animal_id, "changed_fields": sorted(changed.keys())}, str(payload.get("operator") or "API"))
     return serialize_animal(updated)
 
 
@@ -403,42 +352,13 @@ def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_contai
     animal.lifecycle_status = classification.lifecycle_status
     animal.sex = classification.sex
     animal.status = payload.get("status", classification.lifecycle_status)
-    category = classification.category.value
-    allowed = allowed_stages_for_category(category)
-    raw_stage = payload.get("production_group", getattr(animal, "production_group", None))
-    try:
-        validated_stage = validate_stage_for_category(
-            category,
-            raw_stage,
-            allow_blank=True,
-        )
-    except ValueError as exc:
-        if "production_group" in payload:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        validated_stage = None
-
-    animal.production_group = (
-        validated_stage
-        if validated_stage is not None
-        else (allowed[0] if len(allowed) == 1 else None)
-    )
+    animal.production_group = payload.get("production_group", getattr(animal, "production_group", None))
     animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
     if not animal.is_currently_milking:
         animal.milking_frequency = None
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
-    _record_operational_event(
-        container,
-        "animal_lifecycle",
-        {
-            "animal_id": animal_id,
-            "previous_status": previous,
-            "lifecycle_status": classification.lifecycle_status,
-            "production_group": animal.production_group,
-            "reason": payload.get("reason"),
-        },
-        str(payload.get("operator") or "API"),
-    )
+    _record_operational_event(container, "animal_lifecycle", {"animal_id": animal_id, "previous_status": previous, "lifecycle_status": classification.lifecycle_status, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
     return serialize_animal(updated)
 
 

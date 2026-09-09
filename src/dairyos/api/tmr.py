@@ -14,11 +14,6 @@ from dairyos.data.models.feed_ration import FeedRation
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.core.tmr_stage_authority import (
-    CATEGORY_STAGE_MAP,
-    STAGE_LABELS,
-    normalize_stage,
-)
 
 router = APIRouter(prefix="/farm/tmr", tags=["tmr"])
 
@@ -95,6 +90,17 @@ DEFAULT_INGREDIENTS = [
     },
 ]
 
+STAGE_LABELS = {
+    "early_milking": "Early Lactation",
+    "mid_milking": "Mid Lactation",
+    "late_milking": "Late Lactation",
+    "far_off": "Far-Off Dry",
+    "close_up": "Close-Up Dry",
+    "heifer_growth": "Growing Heifer",
+    "calf_starter": "Calf Starter",
+    "bull": "Bull",
+}
+
 STAGE_DEFAULT_QUANTITIES = {
     "early_milking": [22, 9.5, 2.5, 2.5, 1, 400, 200, 200, 0, 50, 30],
     "mid_milking": [20, 7, 3.5, 1.5, 0.5, 200, 150, 150, 0, 40, 15],
@@ -107,39 +113,14 @@ STAGE_DEFAULT_QUANTITIES = {
     "bull": [15, 3, 4, 0.5, 0.5, 0, 100, 50, 0, 30, 0],
 }
 
-def _stage_population(factory, counts: dict[str, int]) -> tuple[dict[str, int], dict[str, int]]:
-    stage_counts = {stage: 0 for stage in STAGE_LABELS}
-    unallocated = {category: 0 for category in CATEGORY_STAGE_MAP}
-    inactive_statuses = {"SOLD", "DECEASED", "DEAD", "DISPOSED", "INACTIVE", "VOID"}
-
-    for animal in factory.animal().active_animals():
-        status = str(getattr(animal, "status", "ACTIVE") or "ACTIVE").upper()
-        if status in inactive_statuses:
-            continue
-        category = _normalize_herd_category(animal)
-        if category not in CATEGORY_STAGE_MAP:
-            continue
-        stage_keys = CATEGORY_STAGE_MAP[category]
-        if len(stage_keys) == 1:
-            stage_counts[stage_keys[0]] += 1
-            continue
-        assigned = normalize_stage(
-            getattr(animal, "production_group", None)
-        )
-        if assigned in stage_keys:
-            stage_counts[assigned] += 1
-        else:
-            unallocated[category] += 1
-
-    # Defensive parity check: any mismatch is incomplete authority rather than
-    # something DairyOS silently compensates for.
-    for category, stage_keys in CATEGORY_STAGE_MAP.items():
-        allocated = sum(stage_counts[key] for key in stage_keys)
-        expected = int(counts.get(category, 0))
-        if allocated + unallocated[category] != expected:
-            unallocated[category] += max(0, expected - allocated - unallocated[category])
-
-    return stage_counts, unallocated
+CATEGORY_STAGE_MAP = {
+    "Milking": ["early_milking", "mid_milking", "late_milking"],
+    "Dry": ["far_off", "close_up"],
+    "Heifer": ["heifer_growth"],
+    "Female Calf": ["calf_starter"],
+    "Male Calf": ["calf_starter"],
+    "Bull": ["bull"],
+}
 
 
 class TMRStageIngredient(BaseModel):
@@ -624,65 +605,25 @@ def _weekly_review(factory, today: date) -> dict:
     }
 
 
-def _category_costs(
-    stages: dict,
-    counts: dict[str, int],
-    *,
-    stage_counts: dict[str, int] | None = None,
-    unallocated: dict[str, int] | None = None,
-) -> list[dict]:
+def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
     result = []
     for category, stage_keys in CATEGORY_STAGE_MAP.items():
         values = [
             float(stages[key]["cost_per_head_day"])
             for key in stage_keys
         ]
-        estimate_head_cost = sum(values) / len(values) if values else 0.0
+        # Deliberate management-estimate simplification: detailed feeding
+        # stages are averaged to the DairyOS animal category before the
+        # category count is applied.
+        head_cost = sum(values) / len(values) if values else 0.0
         count = int(counts.get(category, 0))
-
-        allocated_counts = {
-            key: int((stage_counts or {}).get(key, 0))
-            for key in stage_keys
-        }
-        unallocated_count = int((unallocated or {}).get(category, 0))
-        allocation_complete = (
-            stage_counts is not None
-            and unallocated_count == 0
-            and sum(allocated_counts.values()) == count
-        )
-
-        authoritative_category_cost = None
-        authoritative_head_cost = None
-        if allocation_complete:
-            authoritative_category_cost = sum(
-                float(stages[key]["cost_per_head_day"]) * allocated_counts[key]
-                for key in stage_keys
-            )
-            authoritative_head_cost = (
-                authoritative_category_cost / count if count > 0 else 0.0
-            )
-
         result.append(
             {
                 "category": category,
                 "stage_keys": stage_keys,
-                "stage_counts": allocated_counts,
                 "animal_count": count,
-                "unallocated_animals": unallocated_count,
-                "allocation_complete": allocation_complete,
-                # Kept for operator management visibility only.
-                "cost_per_head_day": round(estimate_head_cost, 4),
-                "category_cost_per_day": round(estimate_head_cost * count, 4),
-                "authoritative_cost_per_head_day": (
-                    round(authoritative_head_cost, 4)
-                    if authoritative_head_cost is not None
-                    else None
-                ),
-                "authoritative_category_cost_per_day": (
-                    round(authoritative_category_cost, 4)
-                    if authoritative_category_cost is not None
-                    else None
-                ),
+                "cost_per_head_day": round(head_cost, 4),
+                "category_cost_per_day": round(head_cost * count, 4),
             }
         )
     return result
@@ -719,43 +660,10 @@ def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> di
         for key in STAGE_LABELS
     }
     counts = _active_herd_counts(factory)
-    stage_counts, unallocated = _stage_population(factory, counts)
-    categories = _category_costs(
-        stages,
-        counts,
-        stage_counts=stage_counts,
-        unallocated=unallocated,
-    )
+    categories = _category_costs(stages, counts)
     total_daily = sum(
         float(row["category_cost_per_day"])
         for row in categories
-    )
-    stage_allocation_complete = all(
-        bool(row["allocation_complete"])
-        for row in categories
-    )
-    used_stages = {
-        stage
-        for stage, population in stage_counts.items()
-        if population > 0
-    }
-    price_authority_complete = all(
-        str(ingredient.get("price_source") or "").upper() != "MANUAL_FALLBACK"
-        for stage in used_stages
-        for ingredient in stages[stage]["ingredients"]
-        if float(ingredient.get("quantity") or 0.0) > 0
-    )
-    cop_authority_complete = (
-        stage_allocation_complete
-        and price_authority_complete
-    )
-    authoritative_total_daily = (
-        sum(
-            float(row["authoritative_category_cost_per_day"] or 0.0)
-            for row in categories
-        )
-        if cop_authority_complete
-        else None
     )
     milk_today = milk_litres_for_period(
         factory,
@@ -763,8 +671,8 @@ def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> di
         operational_date,
     )
     feed_per_litre = (
-        authoritative_total_daily / milk_today
-        if milk_today > 0 and authoritative_total_daily is not None
+        total_daily / milk_today
+        if milk_today > 0
         else None
     )
     payload = {
@@ -775,30 +683,13 @@ def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> di
         "categories": categories,
         "herd_counts": counts,
         "total_herd_feed_cost_per_day": round(total_daily, 4),
-        "authoritative_total_herd_feed_cost_per_day": (
-            round(authoritative_total_daily, 4)
-            if authoritative_total_daily is not None
-            else None
-        ),
-        "stage_allocation_complete": stage_allocation_complete,
-        "price_authority_complete": price_authority_complete,
-        "cop_authority_complete": cop_authority_complete,
-        "unallocated_stage_animals": {
-            category: count
-            for category, count in unallocated.items()
-            if count > 0
-        },
         "milk_production_today_liters": round(milk_today, 4),
         "feed_cost_per_litre_today": (
             round(feed_per_litre, 4)
             if feed_per_litre is not None
             else None
         ),
-        "feed_cost_basis": (
-            "TMR_EXPLICIT_STAGE_X_ACTIVE_HERD"
-            if cop_authority_complete
-            else "TMR_MANAGEMENT_ESTIMATE_INCOMPLETE_AUTHORITY"
-        ),
+        "feed_cost_basis": "TMR_RATION_X_ACTIVE_HERD",
     }
     if include_weekly_review:
         payload["weekly_review"] = _weekly_review(factory, operational_date)
@@ -839,7 +730,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
     )
 
     live = build_live_tmr_summary(factory, include_weekly_review=False)
-    live_daily = live.get("authoritative_total_herd_feed_cost_per_day")
+    live_daily = float(live["total_herd_feed_cost_per_day"])
     from dairyos.farm.operations.services.daily_tmr_authority import daily_snapshots
 
     # Reporting is a read boundary. Historical TMR authority is materialised
@@ -860,29 +751,12 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         snapshot = json.loads(record.ingredients_json) if record is not None else None
 
         if day == today:
-            amount = (
-                float(live_daily)
-                if live_daily is not None
-                and bool(live.get("cop_authority_complete"))
-                else None
-            )
-            basis = (
-                "LIVE_TMR"
-                if amount is not None
-                else "LIVE_TMR_AUTHORITY_INCOMPLETE"
-            )
-            if amount is None:
-                fallback_days += 1
-                missing_authority_days.append(day.isoformat())
-        elif snapshot is not None and bool(snapshot.get("authority_complete")):
+            amount = live_daily
+            basis = "LIVE_TMR"
+        elif snapshot is not None:
             amount = float(snapshot["feed_cost"])
             basis = "LOCKED_DAILY_AUTO_TMR"
             endorsed_days += int(snapshot["basis"] == "WEEKLY_VET_ENDORSED_TMR")
-        elif snapshot is not None:
-            amount = None
-            basis = "HISTORICAL_TMR_AUTHORITY_UNVERIFIED"
-            fallback_days += 1
-            missing_authority_days.append(day.isoformat())
         else:
             # Historical fact must never be reconstructed from today's ration,
             # price or herd state. Preserve the gap explicitly.

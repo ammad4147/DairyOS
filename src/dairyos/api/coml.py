@@ -477,8 +477,6 @@ def get_integrated_coml(
                 else "milk_production_ledger_empty"
             ),
         },
-        "feed_authority_complete": feed_authority_complete,
-        "feed_missing_authority_days": feed_basis.get("missing_authority_days", []),
         "costs": {
             "feed_total": (
                 round(feed_total, 2)
@@ -554,20 +552,10 @@ def get_integrated_coml(
         ),
         "official": official,
         "message": (
-            (
-                "Estimated COP uses governed TMR stage-weighted whole-herd "
-                "feed cost, authoritative milk production and attributed "
-                "Finance OPEX through the governed operational date. Bulk "
-                "Feed purchases are not treated as same-day consumption and "
-                "Non-OPEX is excluded from Operating Estimated COP."
-            )
-            if feed_authority_complete
-            else (
-                "Estimated COP is unavailable because authoritative TMR feed "
-                "cost is incomplete. Assign governed Production Group / TMR "
-                "Stage values to Milking and Dry animals, use Finance prices "
-                "or explicitly selected Manual prices, and preserve locked "
-                "daily TMR authority for historical dates."
-            )
+            "Estimated COP uses governed TMR whole-herd feed cost, "
+            "authoritative milk production and attributed Finance OPEX "
+            "through the governed operational date. Bulk Feed purchases "
+            "are not treated as same-day consumption and Non-OPEX is "
+            "excluded from Operating Estimated COP."
         ),
     }

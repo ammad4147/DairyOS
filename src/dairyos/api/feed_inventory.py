@@ -473,43 +473,80 @@ def _storage_movement_breakdown(movements) -> dict:
 
 
 def _tmr_ingredient_requirement(summary: dict) -> dict[str, float]:
-    """Convert exact governed stage populations into whole-herd kg/day demand."""
-    if not bool(summary.get("stage_allocation_complete")):
-        raise ValueError(
-            "TMR stage allocation is incomplete. Assign every Milking and Dry "
-            "animal to its governed production_group before automatic Feed "
-            "Storage consumption can be calculated."
-        )
+    """
+    Convert governed TMR category rations into whole-herd kg/day demand.
 
+    Milking and Dry use the arithmetic mean of their governed stage rations,
+    exactly matching DairyOS category cost authority.
+    """
     stages = summary.get("stages") or {}
     categories = summary.get("categories") or []
+
     demand: dict[str, float] = {}
 
     for category in categories:
-        if not bool(category.get("allocation_complete")):
-            raise ValueError(
-                f"TMR stage allocation is incomplete for {category.get('category')}."
-            )
+        animal_count = int(category.get("animal_count") or 0)
 
-        stage_counts = category.get("stage_counts") or {}
-        for stage_key in category.get("stage_keys") or []:
-            population = int(stage_counts.get(stage_key) or 0)
-            if population <= 0:
-                continue
+        if animal_count <= 0:
+            continue
+
+        stage_keys = list(category.get("stage_keys") or [])
+
+        if not stage_keys:
+            continue
+
+        names: set[str] = set()
+
+        for stage_key in stage_keys:
             stage = stages.get(stage_key) or {}
+
             for ingredient in stage.get("ingredients") or []:
                 name = str(ingredient.get("catalog_name") or "").strip()
-                if not name:
-                    continue
-                quantity = float(ingredient.get("quantity") or 0.0)
-                dose_unit = str(
-                    ingredient.get("dose_unit") or "kg"
-                ).strip().lower()
-                quantity_kg = quantity / 1000.0 if dose_unit == "g" else quantity
-                demand[name] = (
-                    demand.get(name, 0.0)
-                    + quantity_kg * population
+
+                if name:
+                    names.add(name)
+
+        for name in names:
+            stage_values: list[float] = []
+
+            for stage_key in stage_keys:
+                stage = stages.get(stage_key) or {}
+                ingredient_row = next(
+                    (
+                        row
+                        for row in stage.get("ingredients") or []
+                        if str(row.get("catalog_name") or "").strip() == name
+                    ),
+                    None,
                 )
+
+                if ingredient_row is None:
+                    stage_values.append(0.0)
+                    continue
+
+                quantity = float(ingredient_row.get("quantity") or 0.0)
+                dose_unit = str(
+                    ingredient_row.get("dose_unit") or "kg"
+                ).strip().lower()
+
+                quantity_kg = (
+                    quantity / 1000.0
+                    if dose_unit == "g"
+                    else quantity
+                )
+
+                stage_values.append(quantity_kg)
+
+            average_per_head = (
+                sum(stage_values) / len(stage_keys)
+                if stage_keys
+                else 0.0
+            )
+
+            demand[name] = (
+                demand.get(name, 0.0)
+                + average_per_head * animal_count
+            )
 
     return {
         name: round(quantity, 6)

@@ -26,8 +26,7 @@ def setup_period(monkeypatch):
     monkeypatch.setattr(OperationalDateAuthority, "current_date", lambda self: today)
     factory = container.repository_factory
     factory.session.add(Animal(animal_id="PERIOD", animal_type="CATTLE", sex="FEMALE",
-        lifecycle_status="LACTATING", is_currently_milking=True,
-        production_group="early_milking", date_of_acquisition=date(2026, 1, 1)))
+        lifecycle_status="LACTATING", is_currently_milking=True, date_of_acquisition=date(2026, 1, 1)))
     name = "Corn / Maize Silage"
     for stage in STAGE_LABELS:
         factory.session.add(FeedRation(name=stage, animal_group=f"TMR_STAGE:{stage}",
@@ -52,92 +51,73 @@ def setup_period(monkeypatch):
     return factory, today, name
 
 
-def test_historical_period_fails_closed_without_locked_stage_authority(client, monkeypatch):
+def test_multiday_and_today_use_each_days_herd_price_and_locked_cost(client, monkeypatch):
     factory, today, _ = setup_period(monkeypatch)
-
-    with pytest.raises(ValueError, match="stage allocation"):
-        reconcile_tmr_feed_storage(
-            factory,
-            start_date=today - timedelta(days=2),
-            end_date=today - timedelta(days=1),
-        )
-
-    result = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today)
-    assert result["complete"] is False
-    assert result["missing_authority_days"] == ["2026-09-08", "2026-09-09"]
-    assert [row["feed_cost"] for row in result["daily"]] == [None, None, 40.0]
-    assert result["total_feed_cost"] is None
-
-def test_locked_authoritative_daily_snapshot_wins_over_reconstruction(client, monkeypatch):
-    factory, today, _ = setup_period(monkeypatch)
-    factory.session.add(
-        FeedRation(
-            name="Daily TMR 2026-09-08",
-            animal_group="TMR_DAILY_MATERIALIZED",
-            effective_date="2026-09-08",
-            operator="SYSTEM_TMR",
-            ingredients_json=json.dumps(
-                {
-                    "date": "2026-09-08",
-                    "basis": "DATE_EFFECTIVE_TMR",
-                    "authority_complete": True,
-                    "herd_counts": {"Milking": 1},
-                    "stage_counts": {"Milking": {"early_milking": 1}},
-                    "ingredients": [],
-                    "feed_cost": 30.0,
-                }
-            ),
-        )
-    )
-    factory.session.commit()
-
-    result = tmr_feed_cost_for_period(
+    # Historical authority is created only through the explicit writer/scheduler
+    # path. Reporting must never backfill it as a GET/read side effect.
+    reconcile_tmr_feed_storage(
         factory,
-        today - timedelta(days=2),
-        today - timedelta(days=2),
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=1),
     )
-    assert result["complete"] is True
-    assert result["total_feed_cost"] == 30.0
-    assert result["daily"][0]["basis"] == "LOCKED_DAILY_AUTO_TMR"
-
-def test_current_day_exact_cop_formulas_use_authoritative_stage_cost(client, monkeypatch):
-    factory, today, _ = setup_period(monkeypatch)
-    factory.session.add(
-        MilkProduction(
-            animal_id="PERIOD",
-            production_date=datetime(2026, 9, 10),
-            total_yield=30,
-        )
-    )
-    factory.session.add(
-        FinancialTransaction(
-            transaction_type="EXPENSE",
-            category="OPEX",
-            master_category="OPEX",
-            amount=120,
-            cop_classification="OPEX",
-            cop_attribution_method="DIRECT",
-            cop_service_date=today,
-            transaction_date=datetime(2026, 9, 10),
-        )
-    )
+    result = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today)
+    assert [row["feed_cost"] for row in result["daily"]] == [10, 40, 40]
+    assert result["total_feed_cost"] == 90
+    snapshots = daily_snapshots(factory)
+    before = {key: row.ingredients_json for key, row in snapshots.items()}
+    factory.animal().get_by_animal_id("PERIOD").is_currently_milking = False
+    factory.animal().get_by_animal_id("PERIOD").lifecycle_status = "DRY"
     factory.session.commit()
+    repeated = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today - timedelta(days=1))
+    assert repeated["total_feed_cost"] == 50
+    assert {key: row.ingredients_json for key, row in daily_snapshots(factory).items()} == before
 
-    response = client.get(
-        "/farm/coml/integrated",
-        params={"period_start": "2026-09-10", "period_end": "2026-09-10"},
+
+def test_locked_legacy_daily_consumption_wins_over_reconstructed_dose(client, monkeypatch):
+    factory, today, name = setup_period(monkeypatch)
+    factory.session.add(InventoryTransaction(item=name, movement_type="ADJUSTMENT", quantity=3,
+        signed_quantity=-3, unit="kg", recorded_by="SYSTEM_TMR",
+        notes="TMR_AUTO_CONSUMPTION_DATE=2026-09-08; BASIS=LIVE_TMR"))
+    factory.session.commit()
+    reconcile_tmr_feed_storage(
+        factory,
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=2),
     )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["data_status"] == "AUTO_AGGREGATED"
-    assert body["feed_authority_complete"] is True
-    costs = body["costs"]
-    assert costs["feed_total"] == 40
-    assert costs["opex_total"] == 120
-    assert costs["feed_cost_per_liter"] == 1.3333
-    assert costs["opex_cost_per_liter"] == 4
-    assert costs["total_coml_per_liter"] == 5.3333
+    result = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today - timedelta(days=2))
+    assert result["total_feed_cost"] == 30
+    assert len(factory.inventory().get_all()) == 1
 
+
+def test_selected_period_exact_cop_formulas(client, monkeypatch):
+    factory, today, _ = setup_period(monkeypatch)
+    for day, liters in [(8, 10), (9, 20), (10, 30), (11, 900)]:
+        factory.session.add(MilkProduction(animal_id="PERIOD", production_date=datetime(2026, 9, day), total_yield=liters))
+    factory.session.add(FinancialTransaction(transaction_type="EXPENSE", category="OPEX", master_category="OPEX",
+        amount=120, cop_classification="OPEX", cop_attribution_method="DIRECT",
+        cop_service_date=today, transaction_date=datetime(2026, 9, 10)))
+    factory.session.commit()
+    reconcile_tmr_feed_storage(
+        factory,
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=1),
+    )
+    before = {
+        key: row.ingredients_json
+        for key, row in daily_snapshots(factory).items()
+    }
+    response = client.get("/farm/coml/integrated", params={"period_start": "2026-09-08", "period_end": "2026-09-10"})
+    assert {
+        key: row.ingredients_json
+        for key, row in daily_snapshots(factory).items()
+    } == before
+    assert response.status_code == 200, response.text
+    costs = response.json()["costs"]
+    assert costs["feed_total"] == 90
+    assert costs["opex_total"] == 120
+    assert costs["feed_cost_per_liter"] == 1.5
+    assert costs["opex_cost_per_liter"] == 2
+    assert costs["total_coml_per_liter"] == 3.5
 
 
 @pytest.mark.parametrize("source", ["outbox", "journal"])

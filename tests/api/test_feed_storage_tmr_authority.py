@@ -47,16 +47,12 @@ class FeedStorageTmrAuthorityContractTest(
             self.feed,
         )
 
-    def test_tmr_consumption_uses_exact_stage_head_counts(self):
+    def test_tmr_consumption_uses_category_head_counts(self):
         self.assertIn(
-            "stage_counts",
+            "animal_count",
             self.feed,
         )
         self.assertIn(
-            "population",
-            self.feed,
-        )
-        self.assertNotIn(
             "average_per_head",
             self.feed,
         )

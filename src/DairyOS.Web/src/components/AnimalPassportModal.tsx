@@ -54,33 +54,7 @@ export default function AnimalPassportModal({animalId,onClose,onSave,onOpenPassp
  </div></div>
 }
 
-const TMR_GROUPS:Record<string,{value:string;label:string}[]>={
- Milking:[
-  {value:'early_milking',label:'Early Lactation'},
-  {value:'mid_milking',label:'Mid Lactation'},
-  {value:'late_milking',label:'Late Lactation'},
- ],
- Dry:[
-  {value:'far_off',label:'Far-Off Dry'},
-  {value:'close_up',label:'Close-Up Dry'},
- ],
- Heifer:[{value:'heifer_growth',label:'Growing Heifer'}],
- 'Female Calf':[{value:'calf_starter',label:'Calf Starter'}],
- 'Male Calf':[{value:'calf_starter',label:'Calf Starter'}],
- Bull:[{value:'bull',label:'Bull'}],
-};
-
-function ProfileForm({form,setForm,isNew=false,generatedId,availableDams=[]}:{form:any;setForm:(v:any)=>void;isNew?:boolean;generatedId?:string;availableDams?:BackendAnimal[]}){
- const milking=form.category==='Milking';
- const calf=form.category==='Female Calf'||form.category==='Male Calf';
- const productionGroups=TMR_GROUPS[form.category]||[];
- const setCategory=(category:string)=>{
-  const groups=TMR_GROUPS[category]||[];
-  const currentValid=groups.some(group=>group.value===form.productionGroup);
-  const productionGroup=groups.length===1?groups[0].value:(currentValid?form.productionGroup:'');
-  setForm({...form,category,productionGroup,frequency:category==='Milking'?(form.frequency||'TWICE_DAILY'):'',dam:(category==='Female Calf'||category==='Male Calf')?form.dam:''});
- };
- return <div style={grid2}>
+function ProfileForm({form,setForm,isNew=false,generatedId,availableDams=[]}:{form:any;setForm:(v:any)=>void;isNew?:boolean;generatedId?:string;availableDams?:BackendAnimal[]}){const milking=form.category==='Milking';const calf=form.category==='Female Calf'||form.category==='Male Calf';const setCategory=(category:string)=>setForm({...form,category,frequency:category==='Milking'?(form.frequency||'TWICE_DAILY'):'',dam:(category==='Female Calf'||category==='Male Calf')?form.dam:''});return <div style={grid2}>
  <Field label="Permanent DairyOS Animal ID"><input value={generatedId||'Will be generated automatically by DairyOS'} readOnly disabled style={{...input,color:generatedId?'#6ee7b7':'#94a3b8',fontWeight:800}}/></Field>
  <Field label="Legacy ID (optional)"><input value={form.legacyId} placeholder="Prior or external identifier; does not replace the permanent DairyOS ID" onChange={e=>setForm({...form,legacyId:e.target.value})} style={input}/></Field>
  <Field label="Ear Tag"><input value={form.earTag} placeholder="Physical ear tag, if different" onChange={e=>setForm({...form,earTag:e.target.value})} style={input}/></Field>
@@ -93,7 +67,7 @@ function ProfileForm({form,setForm,isNew=false,generatedId,availableDams=[]}:{fo
  <Field label={calf?'Mother / Dam ID':'Dam ID'}>{calf?<select value={form.dam} required onChange={e=>setForm({...form,dam:e.target.value})} style={input}><option value="">Select mother from Animal Register</option>{availableDams.map(dam=><option key={dam.animal_id} value={dam.animal_id}>{dam.animal_id} · {dam.breed||'Breed not recorded'} · {dam.lifecycle_status||dam.status||'Female'}</option>)}</select>:<input value={form.dam} placeholder="Optional dam Animal ID" onChange={e=>setForm({...form,dam:e.target.value})} style={input}/>}</Field>
  {milking&&<Field label="Milking Frequency"><select value={form.frequency||'TWICE_DAILY'} onChange={e=>setForm({...form,frequency:e.target.value})} style={input}><option value="TWICE_DAILY">TWICE DAILY</option><option value="THRICE_DAILY">THRICE DAILY</option></select></Field>}
  <Field label="Location"><input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} style={input}/></Field>
- <Field label="Production Group / TMR Stage"><select required value={form.productionGroup} onChange={e=>setForm({...form,productionGroup:e.target.value})} style={input}><option value="">Select governed TMR stage</option>{productionGroups.map(group=><option key={group.value} value={group.value}>{group.label}</option>)}</select></Field>
+ <Field label="Production Group"><input value={form.productionGroup} onChange={e=>setForm({...form,productionGroup:e.target.value})} style={input}/></Field>
  {!milking&&<div style={{gridColumn:'1/-1',fontSize:9,color:'#64748b'}}>Milking Frequency is not applicable to {form.category} animals and is therefore not shown.</div>}
  </div>}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label style={{fontSize:10,color:'#b6c2d2'}}><div style={{marginBottom:4,fontWeight:800}}>{label}</div>{children}</label>}
