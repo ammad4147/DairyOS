@@ -45,7 +45,17 @@ jobs:
           python-version: "3.12"
 
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          # GitHub-hosted Ubuntu images may carry unrelated third-party apt
+          # sources (for example Google Chrome). A transient hash mismatch in
+          # those repositories must not block DairyOS PostgreSQL certification.
+          for source in /etc/apt/sources.list.d/*; do
+            if [ -f "$source" ] && grep -q "dl.google.com/linux/chrome-stable/deb" "$source"; then
+              sudo mv "$source" "$source.disabled"
+            fi
+          done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
 
       - name: Install project and test runner
         run: python -m pip install --upgrade pip && pip install -e . pytest httpx2
