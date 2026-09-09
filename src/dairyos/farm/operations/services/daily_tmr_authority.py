@@ -78,8 +78,9 @@ def herd_counts_for_day(factory, day):
 
 def summary_for_day(factory, day, today, live_summary):
     from dairyos.api.tmr import (
-        STAGE_LABELS, _as_date, _category_costs, _endorsement_snapshots,
-        _finance_price_authority, _priced_stage, _week_bounds,
+        CATEGORY_STAGE_MAP, STAGE_LABELS, _as_date, _category_costs,
+        _endorsement_snapshots, _finance_price_authority, _priced_stage,
+        _week_bounds,
     )
 
     if day == today:
@@ -106,10 +107,54 @@ def summary_for_day(factory, day, today, live_summary):
             stage["cost_per_head_day"] = sum(row["cost_per_head_day"] for row in stage["ingredients"])
         basis = "WEEKLY_VET_ENDORSED_TMR"
     counts = herd_counts_for_day(factory, day)
-    categories = _category_costs(stages, counts)
-    return {**live_summary, "operational_date": day.isoformat(), "stages": stages,
-            "herd_counts": counts, "categories": categories,
-            "total_herd_feed_cost_per_day": sum(row["category_cost_per_day"] for row in categories)}, basis
+
+    # Historical stage membership is not reconstructed from today's
+    # production_group. Single-stage categories remain exact; Milking and Dry
+    # require a previously locked daily snapshot to be authoritative.
+    stage_counts = {stage: 0 for stage in STAGE_LABELS}
+    unallocated = {category: 0 for category in CATEGORY_STAGE_MAP}
+    for category, stage_keys in CATEGORY_STAGE_MAP.items():
+        population = int(counts.get(category, 0))
+        if len(stage_keys) == 1:
+            stage_counts[stage_keys[0]] = population
+        else:
+            unallocated[category] = population
+
+    categories = _category_costs(
+        stages,
+        counts,
+        stage_counts=stage_counts,
+        unallocated=unallocated,
+    )
+    allocation_complete = all(row["allocation_complete"] for row in categories)
+    price_complete = all(
+        str(ingredient.get("price_source") or "").upper() != "MANUAL_FALLBACK"
+        for stage, population in stage_counts.items()
+        if population > 0
+        for ingredient in stages[stage]["ingredients"]
+        if float(ingredient.get("quantity") or 0.0) > 0
+    )
+    return {
+        **live_summary,
+        "operational_date": day.isoformat(),
+        "stages": stages,
+        "herd_counts": counts,
+        "categories": categories,
+        "stage_allocation_complete": allocation_complete,
+        "price_authority_complete": price_complete,
+        "cop_authority_complete": allocation_complete and price_complete,
+        "total_herd_feed_cost_per_day": sum(
+            row["category_cost_per_day"] for row in categories
+        ),
+        "authoritative_total_herd_feed_cost_per_day": (
+            sum(
+                float(row["authoritative_category_cost_per_day"] or 0.0)
+                for row in categories
+            )
+            if allocation_complete and price_complete
+            else None
+        ),
+    }, basis
 
 
 def daily_snapshots(factory):
@@ -125,28 +170,72 @@ def materialize_daily_cost(factory, day, summary, basis, requirement, existing_f
     for row in existing_for_day:
         locked[row.item] = locked.get(row.item, 0.0) - float(convert_quantity(row.signed_quantity, row.unit, "kg"))
     quantities.update(locked)
+    if not bool(summary.get("stage_allocation_complete")):
+        raise ValueError(
+            f"Cannot materialize TMR quantities for {day}: "
+            "stage allocation is incomplete."
+        )
+
+    cost_authority_complete = bool(summary.get("price_authority_complete"))
     costs, weights = {}, {}
     for category in summary["categories"]:
+        if not bool(category.get("allocation_complete")):
+            raise ValueError(
+                f"Cannot materialize TMR for {day}: incomplete stage allocation "
+                f"for {category.get('category')}."
+            )
+        stage_counts = category.get("stage_counts") or {}
         for key in category["stage_keys"]:
+            population = int(stage_counts.get(key) or 0)
+            if population <= 0:
+                continue
             for row in summary["stages"][key]["ingredients"]:
                 kg = float(row["quantity"]) / (1000 if row["dose_unit"] == "g" else 1)
-                quantity = kg * category["animal_count"] / len(category["stage_keys"])
+                quantity = kg * population
                 name = row["catalog_name"]
                 weights[name] = weights.get(name, 0.0) + quantity
                 costs[name] = costs.get(name, 0.0) + quantity * float(row["price_per_kg"])
     lines = []
     for name, quantity in sorted(quantities.items()):
         rate = costs.get(name, 0.0) / weights[name] if weights.get(name) else None
-        if rate is None:
+        if rate is None and cost_authority_complete:
             from dairyos.api.tmr import _finance_price_authority
             price = _finance_price_authority(factory, day).get(name)
             if price is None and quantity:
-                raise ValueError(f"No historical TMR price for {name} on {day}")
-            rate = price["price_per_kg"] if price else 0.0
-        lines.append({"item": name, "quantity_kg": quantity, "price_per_kg": rate,
-                      "cost": quantity * rate})
-    payload = {"date": day.isoformat(), "basis": basis, "herd_counts": summary["herd_counts"],
-               "ingredients": lines, "feed_cost": sum(row["cost"] for row in lines)}
+                cost_authority_complete = False
+            else:
+                rate = price["price_per_kg"] if price else 0.0
+
+        lines.append(
+            {
+                "item": name,
+                "quantity_kg": quantity,
+                "price_per_kg": rate if cost_authority_complete else None,
+                "cost": quantity * rate if cost_authority_complete and rate is not None else None,
+            }
+        )
+    if not cost_authority_complete:
+        for line in lines:
+            line["price_per_kg"] = None
+            line["cost"] = None
+
+    payload = {
+        "date": day.isoformat(),
+        "basis": basis,
+        "herd_counts": summary["herd_counts"],
+        "stage_counts": {
+            category["category"]: category.get("stage_counts") or {}
+            for category in summary["categories"]
+        },
+        "quantity_authority_complete": True,
+        "authority_complete": cost_authority_complete,
+        "ingredients": lines,
+        "feed_cost": (
+            sum(float(row["cost"] or 0.0) for row in lines)
+            if cost_authority_complete
+            else None
+        ),
+    }
     if record is None:
         record = FeedRation(name=f"Daily TMR {day}", animal_group=DAILY_GROUP,
             effective_date=day.isoformat(), operator="SYSTEM_TMR")

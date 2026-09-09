@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 TMR = ROOT / "src/dairyos/api/tmr.py"
+TMR_STAGE = ROOT / "src/dairyos/core/tmr_stage_authority.py"
 COML = ROOT / "src/dairyos/api/coml.py"
 FINANCE = ROOT / "src/dairyos/api/finance_ledger.py"
 APP = ROOT / "src/dairyos/app.py"
@@ -13,20 +14,25 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmr = TMR.read_text(encoding="utf-8")
+        cls.tmr_stage = TMR_STAGE.read_text(encoding="utf-8")
         cls.coml = COML.read_text(encoding="utf-8")
         cls.finance = FINANCE.read_text(encoding="utf-8")
         cls.app = APP.read_text(encoding="utf-8")
 
     def test_six_dairyos_categories_are_mapped(self):
-        for value in (
-            '"Milking": ["early_milking", "mid_milking", "late_milking"]',
-            '"Dry": ["far_off", "close_up"]',
-            '"Heifer": ["heifer_growth"]',
-            '"Female Calf": ["calf_starter"]',
-            '"Male Calf": ["calf_starter"]',
-            '"Bull": ["bull"]',
-        ):
-            self.assertIn(value, self.tmr)
+        from dairyos.core.tmr_stage_authority import CATEGORY_STAGE_MAP
+
+        self.assertEqual(
+            CATEGORY_STAGE_MAP,
+            {
+                "Milking": ("early_milking", "mid_milking", "late_milking"),
+                "Dry": ("far_off", "close_up"),
+                "Heifer": ("heifer_growth",),
+                "Female Calf": ("calf_starter",),
+                "Male Calf": ("calf_starter",),
+                "Bull": ("bull",),
+            },
+        )
 
     def test_bull_ration_is_present(self):
         self.assertIn(
@@ -34,16 +40,19 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
             self.tmr,
         )
 
-    def test_category_cost_uses_arithmetic_mean(self):
+    def test_category_cost_separates_management_estimate_from_authority(self):
         self.assertIn(
-            "head_cost = sum(values) / len(values) if values else 0.0",
+            "estimate_head_cost = sum(values) / len(values) if values else 0.0",
             self.tmr,
         )
+        self.assertIn("authoritative_category_cost", self.tmr)
+        self.assertIn('"allocation_complete"', self.tmr)
 
     def test_active_herd_counts_drive_daily_cost(self):
         self.assertIn("factory.animal().active_animals()", self.tmr)
         self.assertIn('"category_cost_per_day"', self.tmr)
         self.assertIn('"total_herd_feed_cost_per_day"', self.tmr)
+        self.assertIn('"authoritative_total_herd_feed_cost_per_day"', self.tmr)
 
 
     def test_active_herd_category_normalization_matches_herd_register(self):

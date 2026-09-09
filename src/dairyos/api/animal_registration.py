@@ -23,6 +23,10 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationService,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+from dairyos.core.tmr_stage_authority import (
+    allowed_stages_for_category,
+    validate_stage_for_category,
+)
 
 
 router = APIRouter(prefix="/farm/animals", tags=["Animal Registration"])
@@ -296,6 +300,31 @@ def register_animal(payload: dict, container=Depends(get_container)):
     animal_payload["milking_frequency"] = (
         milking_frequency if is_milking else None
     )
+    category = AnimalClassificationService.classify(
+        lifecycle_status,
+        sex,
+    ).category.value
+    allowed_tmr_stages = allowed_stages_for_category(category)
+    raw_production_group = animal_payload.get("production_group")
+    try:
+        validated_stage = validate_stage_for_category(
+            category,
+            raw_production_group,
+            allow_blank=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    animal_payload["production_group"] = (
+        validated_stage
+        if validated_stage is not None
+        else (
+            allowed_tmr_stages[0]
+            if len(allowed_tmr_stages) == 1
+            else None
+        )
+    )
+
     animal_payload["date_of_birth"] = _normalise_date(
         animal_payload.get("date_of_birth")
     )

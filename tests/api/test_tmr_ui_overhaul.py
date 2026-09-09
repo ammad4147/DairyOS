@@ -93,15 +93,15 @@ class TmrUiOverhaulContractTest(unittest.TestCase):
         ):
             self.assertIn(category, self.source)
 
-    def test_milking_average_basis_is_explained(self):
+    def test_milking_management_estimate_is_explicit(self):
         self.assertIn(
-            "Average of Early, Mid and Late Lactation TMR",
+            "Management estimate only: average of Early, Mid and Late Lactation TMR",
             self.source,
         )
 
-    def test_dry_average_basis_is_explained(self):
+    def test_dry_management_estimate_is_explicit(self):
         self.assertIn(
-            "Average of Far-Off Dry and Close-Up Dry TMR",
+            "Management estimate only: average of Far-Off Dry and Close-Up Dry TMR",
             self.source,
         )
 
@@ -117,7 +117,7 @@ class TmrUiOverhaulContractTest(unittest.TestCase):
 
     def test_whole_herd_daily_cost_is_displayed(self):
         self.assertIn(
-            "Whole Herd Feed Cost / Day",
+            "Management Estimate Feed Cost / Day",
             self.source,
         )
         self.assertIn(
@@ -127,7 +127,7 @@ class TmrUiOverhaulContractTest(unittest.TestCase):
 
     def test_live_feed_cost_per_litre_is_displayed(self):
         self.assertIn(
-            "Live Feed Cost / L",
+            "Authoritative Feed Cost / L",
             self.source,
         )
         self.assertIn(
