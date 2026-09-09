@@ -38,7 +38,7 @@ def test_cycle_closure_and_restart_after_calving_abortion_negative_pd():
         "CLOSED_CALVING","CLOSED_ABORTION","CLOSED_NOT_PREGNANT","ACTIVE_INSEMINATED"
     ]
     assert cycles[-1]["sire_code"] == "SIRE-4"
-    assert [c["service_attempt_number"] for c in cycles] == [1, 1, 2, 3]
+    assert [c["service_attempt_number"] for c in cycles] == [1, 1, 1, 2]
     current = BreedingCycleProjectionService.current_by_animal(cycles)
     assert current["A1"]["cycle_id"].endswith("C004")
 

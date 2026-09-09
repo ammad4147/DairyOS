@@ -3,7 +3,10 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from dairyos.app import app
+from dairyos.app import app, container
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.financial_transaction import FinancialTransaction
 
@@ -25,6 +28,12 @@ def finance_test_ids():
 client = TestClient(app)
 
 
+def operational_today():
+    return OperationalDateAuthority(
+        repository_factory=container.repository_factory
+    ).current_date()
+
+
 def create_expense(test_ids: list[int], **overrides):
     payload = {
         "transaction_type": "EXPENSE",
@@ -33,7 +42,7 @@ def create_expense(test_ids: list[int], **overrides):
         "quantity": 10,
         "unit": "kg",
         "unit_rate": 100,
-        "transaction_date": date.today().isoformat(),
+        "transaction_date": operational_today().isoformat(),
         "payment_method": "BANK",
         "counterparty": "Test Feed Supplier",
         "status": "PAID",
@@ -65,7 +74,7 @@ def test_void_transaction_cannot_be_edited(finance_test_ids):
         finance_test_ids,
         status="PAYABLE",
         payment_method="CREDIT",
-        due_date=(date.today() + timedelta(days=7)).isoformat(),
+        due_date=(operational_today() + timedelta(days=7)).isoformat(),
     )
     assert created.status_code == 200, created.text
     transaction_id = created.json()["id"]
@@ -84,8 +93,8 @@ def test_void_transaction_cannot_be_edited(finance_test_ids):
 
 
 def test_payable_requires_due_date_and_reports_ageing(finance_test_ids):
-    transaction_date = date.today() - timedelta(days=35)
-    due_date = date.today() - timedelta(days=35)
+    transaction_date = operational_today() - timedelta(days=35)
+    due_date = operational_today() - timedelta(days=35)
     created = create_expense(
         finance_test_ids,
         transaction_date=transaction_date.isoformat(),
@@ -111,7 +120,7 @@ def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date
         finance_test_ids,
         payment_method="CREDIT",
         status="PAYABLE",
-        due_date=(date.today() + timedelta(days=7)).isoformat(),
+        due_date=(operational_today() + timedelta(days=7)).isoformat(),
     )
     assert created.status_code == 200, created.text
     transaction_id = created.json()["id"]
@@ -123,7 +132,7 @@ def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date
     assert paid.status_code == 200, paid.text
     paid_body = paid.json()
     assert paid_body["status"] == "PAID"
-    assert paid_body["settled_date"] == date.today().isoformat()
+    assert paid_body["settled_date"] == operational_today().isoformat()
 
     payables = client.get("/farm/finance-ledger/ageing")
     assert payables.status_code == 200, payables.text
@@ -134,9 +143,9 @@ def test_payable_settlement_removes_it_from_outstanding_and_records_settled_date
 def test_due_date_before_transaction_date_is_rejected(finance_test_ids):
     created = create_expense(
         finance_test_ids,
-        transaction_date=date.today().isoformat(),
+        transaction_date=operational_today().isoformat(),
         payment_method="CREDIT",
         status="PAYABLE",
-        due_date=(date.today() - timedelta(days=1)).isoformat(),
+        due_date=(operational_today() - timedelta(days=1)).isoformat(),
     )
     assert created.status_code == 422
