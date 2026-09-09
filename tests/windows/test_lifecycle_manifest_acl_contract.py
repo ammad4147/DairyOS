@@ -65,3 +65,13 @@ def test_installer_ci_certifies_installed_lifecycle_acl():
     assert '$usersSid = "S-1-5-32-545"' in source
     assert "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS" in source
     assert "Installed lifecycle.json is not modifiable" in source
+
+def test_backup_acl_is_scoped_separately_from_lifecycle_acl():
+    source = ISS.read_text(encoding="utf-8")
+    start = source.index("procedure ProvisionBackupTreeAcl();")
+    end = source.index("procedure ProvisionAutomaticBackupTask();", start)
+    block = source[start:end]
+    assert "DairyOSDataRoot() + '\\backups'" in block
+    assert "(OI)(CI)(M)" in block
+    assert "postgres" not in block.lower()
+    assert "security" not in block.lower()

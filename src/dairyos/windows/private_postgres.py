@@ -615,6 +615,22 @@ def start(
     )
 
 
+def persisted_cluster_is_running() -> bool:
+    """Return whether the persisted private DairyOS cluster is genuinely running."""
+    data_root = postgres_data_root()
+    pid_path = _pid_file(data_root)
+    if not pid_path.is_file():
+        return False
+
+    state = _read_state()
+    host = str(state.get("host") or DEFAULT_HOST)
+    try:
+        port = int(state.get("port"))
+    except (TypeError, ValueError):
+        return False
+
+    return 1 <= port <= 65535 and _is_port_open(host, port)
+
 def stop(
     config: PrivatePostgreSQLConfig,
     *,

@@ -136,6 +136,40 @@ begin
     );
 end;
 
+procedure ProvisionBackupTreeAcl();
+var
+  BackupPath: String;
+  IcaclsExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  BackupPath := DairyOSDataRoot() + '\backups';
+
+  if not DirExists(BackupPath) then
+    ForceDirectories(BackupPath);
+
+  { Automatic backups run as the ordinary interactive user with a limited
+    token. The backup tree is mutable farm-protection state: rolling dumps,
+    mirror metadata and backup-health.json must support atomic replacement,
+    pruning and retained-install repair. Scope Modify strictly to backups; do
+    not broaden PostgreSQL or security-state permissions. }
+  IcaclsExe := ExpandConstant('{sys}\icacls.exe');
+  Params := '"' + BackupPath + '" /grant:r *S-1-5-32-545:(OI)(CI)(M) /T /C';
+
+  if (not Exec(
+    IcaclsExe,
+    Params,
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS backup-data permissions could not be provisioned. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
 procedure ProvisionAutomaticBackupTask();
 var
   BackupExe: String;
@@ -191,6 +225,7 @@ begin
   begin
     ProvisionLifecycleState();
     ProvisionLifecycleManifestAcl();
+    ProvisionBackupTreeAcl();
     ProvisionAutomaticBackupTask();
   end;
 end;

@@ -94,3 +94,53 @@ def test_runtime_never_uses_schtasks_create_or_run(monkeypatch, tmp_path):
     flattened = " ".join(" ".join(cmd) for cmd in seen)
     assert "/Create" not in flattened
     assert "/Run" not in flattened
+
+
+def test_backup_worker_leaves_preexisting_private_cluster_running(monkeypatch):
+    private = object()
+    database = SimpleNamespace(
+        private_postgres=private,
+        backup_database_url="postgresql+psycopg://backup@localhost/dairyos",
+    )
+    monkeypatch.setattr(backup_task, "persisted_cluster_is_running", lambda: True)
+    monkeypatch.setattr(backup_task, "prepare_database", lambda **kwargs: database)
+    monkeypatch.setattr(
+        backup_task,
+        "run_automatic_backup",
+        lambda url: SimpleNamespace(
+            primary="primary",
+            mirror="mirror",
+            monthly_primary=None,
+            physically_redundant=True,
+        ),
+    )
+    stopped = []
+    monkeypatch.setattr(backup_task, "stop_private_postgres", lambda config: stopped.append(config))
+
+    assert backup_task.run_backup_once() == 0
+    assert stopped == []
+
+
+def test_backup_worker_stops_only_cluster_it_started(monkeypatch):
+    private = object()
+    database = SimpleNamespace(
+        private_postgres=private,
+        backup_database_url="postgresql+psycopg://backup@localhost/dairyos",
+    )
+    monkeypatch.setattr(backup_task, "persisted_cluster_is_running", lambda: False)
+    monkeypatch.setattr(backup_task, "prepare_database", lambda **kwargs: database)
+    monkeypatch.setattr(
+        backup_task,
+        "run_automatic_backup",
+        lambda url: SimpleNamespace(
+            primary="primary",
+            mirror="mirror",
+            monthly_primary=None,
+            physically_redundant=True,
+        ),
+    )
+    stopped = []
+    monkeypatch.setattr(backup_task, "stop_private_postgres", lambda config: stopped.append(config))
+
+    assert backup_task.run_backup_once() == 0
+    assert stopped == [private]

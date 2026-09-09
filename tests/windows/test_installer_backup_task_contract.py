@@ -40,3 +40,22 @@ def test_installer_ci_executes_registered_scheduled_task_and_checks_health():
     assert "LastTaskResult" in workflow
     assert "backup-health.json" in workflow
     assert "INSTALLED SCHEDULED BACKUP EXECUTION: PASS" in workflow
+
+
+def test_installer_provisions_modify_acl_only_for_mutable_backup_tree():
+    source = ISS.read_text(encoding="utf-8")
+    assert "procedure ProvisionBackupTreeAcl();" in source
+    assert "BackupPath := DairyOSDataRoot() + '\\backups';" in source
+    assert "*S-1-5-32-545:(OI)(CI)(M)" in source
+    assert "/T /C" in source
+
+    start = source.index("procedure ProvisionBackupTreeAcl();")
+    end = source.index("procedure ProvisionAutomaticBackupTask();", start)
+    block = source[start:end]
+    assert "postgres\\data" not in block
+    assert "security.json" not in block
+
+    lifecycle_acl = source.index("    ProvisionLifecycleManifestAcl();")
+    backup_acl = source.index("    ProvisionBackupTreeAcl();")
+    task = source.index("    ProvisionAutomaticBackupTask();")
+    assert lifecycle_acl < backup_acl < task

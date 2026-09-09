@@ -13,7 +13,10 @@ from sqlalchemy.engine import URL
 
 from dairyos.data.database.automatic_backups import run_automatic_backup
 from dairyos.windows.appliance_database import prepare_database
-from dairyos.windows.private_postgres import stop as stop_private_postgres
+from dairyos.windows.private_postgres import (
+    persisted_cluster_is_running,
+    stop as stop_private_postgres,
+)
 
 
 LOG = logging.getLogger("dairyos.windows.backup_task")
@@ -155,10 +158,17 @@ def _ordinary_database_url(database) -> str:
 
 
 def run_backup_once() -> int:
-    """Create one backup using only the read-only backup database identity."""
+    """Create one backup using only the read-only backup database identity.
+
+    The worker may start the private cluster when DairyOS is closed, but must
+    never stop a cluster that was already running for an active desktop/backend
+    session before the backup began.
+    """
 
     private = None
+    cluster_was_running = False
     try:
+        cluster_was_running = persisted_cluster_is_running()
         database = prepare_database(postgres_timeout=60.0)
         private = database.private_postgres
         database_url = database.backup_database_url or _ordinary_database_url(database)
@@ -176,11 +186,11 @@ def run_backup_once() -> int:
         LOG.exception("DairyOS automatic backup failed")
         return 1
     finally:
-        if private is not None:
+        if private is not None and not cluster_was_running:
             try:
                 stop_private_postgres(private)
             except Exception:
-                LOG.exception("Failed to stop private PostgreSQL after scheduled backup")
+                LOG.exception("Failed to stop private PostgreSQL started by scheduled backup")
 
 
 def main() -> int:

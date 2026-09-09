@@ -115,6 +115,66 @@ jobs:
 
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
 
+
+          # Automatic backup runs with a limited user token. Certify that the
+          # mutable backup tree and an existing elevated-created health file
+          # are modifiable by built-in Users before exercising the task.
+          $backupRoot = Join-Path $dataRoot "backups"
+          $backupHealth = Join-Path $backupRoot "backup-health.json"
+          if (-not (Test-Path $backupRoot -PathType Container)) {
+            throw "Installer did not provision DairyOS backup root."
+          }
+
+          # Seed retained/elevated metadata to reproduce the real-world ACL
+          # boundary that previously allowed dump creation but blocked atomic
+          # health replacement.
+          if (-not (Test-Path $backupHealth -PathType Leaf)) {
+            '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $backupHealth -Encoding utf8
+          }
+
+          $backupAcl = Get-Acl $backupRoot
+          $backupAllowsModify = $false
+          foreach ($rule in $backupAcl.Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+            } catch {
+              continue
+            }
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $backupAllowsModify = $true
+              break
+            }
+          }
+          if (-not $backupAllowsModify) {
+            throw "Installed backups tree is not modifiable by the built-in Users group."
+          }
+
+          $healthAcl = Get-Acl $backupHealth
+          $healthAllowsModify = $false
+          foreach ($rule in $healthAcl.Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+            } catch {
+              continue
+            }
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $healthAllowsModify = $true
+              break
+            }
+          }
+          if (-not $healthAllowsModify) {
+            throw "Existing backup-health.json is not modifiable by the built-in Users group."
+          }
+          Write-Host "BACKUP TREE ACL CERTIFICATION: PASS"
+
           $task = Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup" -ErrorAction Stop
           $expectedBackupExe = Join-Path $installRoot "DairyOSBackup.exe"
           $actions = @($task.Actions)
