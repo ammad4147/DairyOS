@@ -83,7 +83,13 @@ class HealthObservation(Base):
 
     health_case_id = Column(
         Integer,
+        ForeignKey(
+            "health_cases.id",
+            ondelete="RESTRICT",
+            name="fk_health_observation_case",
+        ),
         nullable=True,
+        index=True,
     )
 
     @property

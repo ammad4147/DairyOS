@@ -734,13 +734,12 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
 
     live = build_live_tmr_summary(factory, include_weekly_review=False)
     live_daily = float(live["total_herd_feed_cost_per_day"])
-    from dairyos.api.feed_inventory import reconcile_tmr_feed_storage
     from dairyos.farm.operations.services.daily_tmr_authority import daily_snapshots
 
-    snapshots = {}
-    if start < today:
-        reconcile_tmr_feed_storage(factory, start_date=start, end_date=min(effective_end, today - timedelta(days=1)))
-        snapshots = daily_snapshots(factory)
+    # Reporting is a read boundary. Historical TMR authority is materialised
+    # prospectively by FeedStorageScheduler (or by the explicit POST sync
+    # endpoint), never as a side effect of GET /farm/coml/integrated.
+    snapshots = daily_snapshots(factory) if start < today else {}
 
     day = start
     total = 0.0

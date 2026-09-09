@@ -72,7 +72,16 @@ class BreedingRecordModel(Base):
         nullable=True,
     )
 
-    semen_lot_id = Column(Integer, nullable=True, index=True)
+    semen_lot_id = Column(
+        Integer,
+        ForeignKey(
+            "semen_lots.id",
+            ondelete="RESTRICT",
+            name="fk_breeding_records_semen_lot",
+        ),
+        nullable=True,
+        index=True,
+    )
     semen_supplier = Column(String, nullable=True)
     semen_batch_number = Column(String, nullable=True)
     semen_unit_cost = Column(Numeric(18, 6), nullable=True)

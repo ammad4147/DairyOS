@@ -103,5 +103,11 @@ class TreatmentRecord(Base):
     # additive, not a required field on the existing write path.
     health_case_id = Column(
         Integer,
+        ForeignKey(
+            "health_cases.id",
+            ondelete="RESTRICT",
+            name="fk_treatment_record_case",
+        ),
         nullable=True,
+        index=True,
     )

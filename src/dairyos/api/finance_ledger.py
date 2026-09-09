@@ -561,8 +561,10 @@ def _age_bucket(
 
 def _ageing_payload(
     rows: list[FinancialTransaction],
+    *,
+    as_of: date | None = None,
 ) -> dict:
-    as_of = date.today()
+    as_of = as_of or date.today()
 
     outstanding = [
         row
@@ -818,7 +820,9 @@ def _sync_milk_sale(
 
     production_date = (
         entry.transaction_date
-        or date.today()
+        or OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
     )
 
     existing = _linked_milk_sale(
@@ -1174,7 +1178,9 @@ def create_finance_ledger_entry(
         cop_coverage_start=cop_coverage_start,
         cop_coverage_end=cop_coverage_end,
         settled_date=(
-            date.today()
+            OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date()
             if status in SETTLED_STATUSES
             else None
         ),
@@ -1204,7 +1210,9 @@ def create_finance_ledger_entry(
             supplier=str(entry.counterparty).strip(),
             batch_number=str(entry.semen_batch_number).strip(),
             purchase_transaction_id=transaction.id,
-            purchase_date=entry.transaction_date or date.today(),
+            purchase_date=entry.transaction_date or OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date(),
             expiry_date=entry.semen_expiry_date,
             storage_location=(str(entry.semen_storage_location).strip() if entry.semen_storage_location else None),
             country_source=(str(entry.semen_country_source).strip() if entry.semen_country_source else None),
@@ -1364,7 +1372,12 @@ def finance_ledger_ageing(
     factory = _factory(container)
     rows = factory.finance().get_all()
 
-    return _ageing_payload(rows)
+    return _ageing_payload(
+        rows,
+        as_of=OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date(),
+    )
 
 
 @router.get("/profitability/feed-opex")
@@ -1708,7 +1721,9 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
         status in SETTLED_STATUSES
         and row.settled_date is None
     ):
-        row.settled_date = date.today()
+        row.settled_date = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
 
     if status not in SETTLED_STATUSES:
         row.settled_date = None
@@ -1853,7 +1868,9 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
     )
     row.status = status
     if status in SETTLED_STATUSES:
-        row.settled_date = row.settled_date or date.today()
+        row.settled_date = row.settled_date or OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
     elif not (
         status == "VOID"
         and current_status in SETTLED_STATUSES

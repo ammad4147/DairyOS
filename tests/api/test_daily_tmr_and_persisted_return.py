@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from dairyos.api.tmr import STAGE_LABELS, tmr_feed_cost_for_period
+from dairyos.api.feed_inventory import reconcile_tmr_feed_storage
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
@@ -52,6 +53,13 @@ def setup_period(monkeypatch):
 
 def test_multiday_and_today_use_each_days_herd_price_and_locked_cost(client, monkeypatch):
     factory, today, _ = setup_period(monkeypatch)
+    # Historical authority is created only through the explicit writer/scheduler
+    # path. Reporting must never backfill it as a GET/read side effect.
+    reconcile_tmr_feed_storage(
+        factory,
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=1),
+    )
     result = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today)
     assert [row["feed_cost"] for row in result["daily"]] == [10, 40, 40]
     assert result["total_feed_cost"] == 90
@@ -71,6 +79,11 @@ def test_locked_legacy_daily_consumption_wins_over_reconstructed_dose(client, mo
         signed_quantity=-3, unit="kg", recorded_by="SYSTEM_TMR",
         notes="TMR_AUTO_CONSUMPTION_DATE=2026-09-08; BASIS=LIVE_TMR"))
     factory.session.commit()
+    reconcile_tmr_feed_storage(
+        factory,
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=2),
+    )
     result = tmr_feed_cost_for_period(factory, today - timedelta(days=2), today - timedelta(days=2))
     assert result["total_feed_cost"] == 30
     assert len(factory.inventory().get_all()) == 1
@@ -84,7 +97,20 @@ def test_selected_period_exact_cop_formulas(client, monkeypatch):
         amount=120, cop_classification="OPEX", cop_attribution_method="DIRECT",
         cop_service_date=today, transaction_date=datetime(2026, 9, 10)))
     factory.session.commit()
+    reconcile_tmr_feed_storage(
+        factory,
+        start_date=today - timedelta(days=2),
+        end_date=today - timedelta(days=1),
+    )
+    before = {
+        key: row.ingredients_json
+        for key, row in daily_snapshots(factory).items()
+    }
     response = client.get("/farm/coml/integrated", params={"period_start": "2026-09-08", "period_end": "2026-09-10"})
+    assert {
+        key: row.ingredients_json
+        for key, row in daily_snapshots(factory).items()
+    } == before
     assert response.status_code == 200, response.text
     costs = response.json()["costs"]
     assert costs["feed_total"] == 90

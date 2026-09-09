@@ -173,6 +173,11 @@ class BreedingCycleProjectionService:
                     current["outcome_date"] = event["timestamp"][:10]
                     current["closed_at"] = event["timestamp"]
                     current = None
+                    # Pregnancy loss/abortion/stillbirth closes the pregnancy
+                    # and starts a new post-loss service sequence. The next AI
+                    # is attempt 1 of that new sequence, not attempt N+1 from
+                    # the lost pregnancy.
+                    service_attempt = 0
                     continue
 
                 if is_calving(row):

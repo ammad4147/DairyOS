@@ -168,6 +168,14 @@ def _pay_payroll(record_id, payment_date, factory):
     pay_date = payment_date or utcnow().date()
     quantity = float(record.worked_days or 0)
     net_pay = Decimal(record.net_pay)
+    if net_pay <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Payroll net pay must be greater than zero before payment. "
+                "Advances and deductions cannot consume or exceed gross pay."
+            ),
+        )
     transaction = FinancialTransaction(
         transaction_type="EXPENSE",
         category="LABOUR",

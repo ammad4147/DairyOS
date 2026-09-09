@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text, text
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -24,3 +24,18 @@ class FeedRation(Base):
     effective_date = Column(String, nullable=False)
     operator = Column(String, nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (
+        Index(
+            "uq_feed_ration_daily_materialized_date",
+            "animal_group",
+            "effective_date",
+            unique=True,
+            postgresql_where=text(
+                "animal_group = 'TMR_DAILY_MATERIALIZED'"
+            ),
+            sqlite_where=text(
+                "animal_group = 'TMR_DAILY_MATERIALIZED'"
+            ),
+        ),
+    )

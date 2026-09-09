@@ -19,6 +19,7 @@ from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import 
     BreedingAnalyticsService,
     BreedingCycleProjectionService,
 )
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"])
 
@@ -94,7 +95,9 @@ def _insemination_attempt_success(records):
         attempt = 0
         current_service = None
         for record in ordered:
-            if _is_calving(record):
+            if _is_calving(record) or _event_type(record) in {
+                "pregnancy_lost", "abortion", "stillbirth"
+            }:
                 attempt = 0
                 current_service = None
                 continue
@@ -134,8 +137,12 @@ def _insemination_attempt_success(records):
         },
     }
 
-def _management(records):
-    now = datetime.now(timezone.utc)
+def _management(records, *, as_of_date=None):
+    now = (
+        datetime.combine(as_of_date, datetime.max.time(), tzinfo=timezone.utc)
+        if as_of_date is not None
+        else datetime.now(timezone.utc)
+    )
     cutoff = now - timedelta(days=365)
 
     recent = [
@@ -186,7 +193,10 @@ def reproduction_overview(container=Depends(get_container)):
     factory, owns_factory = _fresh_factory(container)
     try:
         records = factory.breeding().get_all()
-        return _management(records)
+        operational_date = OperationalDateAuthority(
+            repository_factory=factory
+        ).current_date()
+        return _management(records, as_of_date=operational_date)
     finally:
         if owns_factory:
             factory.close()

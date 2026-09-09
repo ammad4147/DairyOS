@@ -80,7 +80,7 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
     def test_period_feed_cost_uses_daily_materialization_and_live_today(self):
         self.assertIn('basis = "LIVE_TMR"', self.tmr)
         self.assertIn('basis = "LOCKED_DAILY_AUTO_TMR"', self.tmr)
-        self.assertIn('reconcile_tmr_feed_storage(factory, start_date=start', self.tmr)
+        self.assertNotIn('reconcile_tmr_feed_storage(', self.tmr)
         self.assertIn('basis = "HISTORICAL_TMR_AUTHORITY_MISSING"', self.tmr)
         self.assertIn('"missing_authority_days"', self.tmr)
         self.assertNotIn('"UNENDORSED_LIVE_TMR_FALLBACK"', self.tmr)

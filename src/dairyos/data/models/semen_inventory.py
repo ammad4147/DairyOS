@@ -35,7 +35,17 @@ class SemenStockMovement(Base):
     quantity = Column(Integer, nullable=False)
     signed_quantity = Column(Integer, nullable=False)
     source_financial_transaction_id = Column(Integer, ForeignKey("financial_transactions.id", ondelete="RESTRICT"), nullable=True, index=True)
-    breeding_record_id = Column(String, nullable=True, unique=True, index=True)
+    breeding_record_id = Column(
+        String,
+        ForeignKey(
+            "breeding_records.record_id",
+            ondelete="RESTRICT",
+            name="fk_semen_stock_movements_breeding_record",
+        ),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
     notes = Column(Text, nullable=True)
     recorded_by = Column(String, nullable=True)
     recorded_at = Column(DateTime, nullable=False, default=utcnow)
