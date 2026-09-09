@@ -97,23 +97,24 @@ LEGACY_STORAGE_DIR = Path("data") / "storage"
 def resolve_storage_file(filename: str) -> Path:
     """Where a JSON repository should read and write ``filename``.
 
-    Existing farms keep their data. If the managed location has no such file
-    but the old working-directory-relative ``data/storage/`` one does, that
-    path is returned unchanged, so upgrading DairyOS never orphans records a
-    farm already has. Nothing is copied or moved: a silent migration that goes
-    wrong is worse than an explicit one that is deferred.
-
-    A fresh installation, having neither, gets the managed location.
+    Explicit data roots are authoritative regardless of the launch directory.
+    Without an override, legacy-only storage blocks startup with the exact
+    source and destination paths for a verified migration. No file is moved,
+    copied, replaced, or silently selected by the working directory.
     """
 
     managed = storage_dir(create=False) / filename
 
-    if managed.exists():
+    if managed.exists() or os.environ.get(DATA_DIR_ENV_VAR):
         return managed
 
     legacy = LEGACY_STORAGE_DIR / filename
     if legacy.exists():
-        return legacy
+        raise RuntimeError(
+            f"Legacy farm storage requires an explicit migration: {legacy.resolve()}. "
+            f"Managed destination: {managed.resolve()}. Preserve and verify the legacy file "
+            "before configuring DAIRYOS_DATA_DIR; no file has been moved or overwritten."
+        )
 
     return storage_path(filename)
 

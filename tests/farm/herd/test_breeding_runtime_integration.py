@@ -8,7 +8,12 @@ from dairyos.farm.herd.repository.animal_operational_state_repository import (
 
 
 def test_record_breeding_updates_animal_operational_state(tmp_path):
-
+    from dairyos.data.database.session import SessionLocal
+    from dairyos.data.models.animal import Animal
+    with SessionLocal() as session:
+        if session.query(Animal).filter_by(animal_id="COW-001").first() is None:
+            session.add(Animal(animal_id="COW-001", animal_type="COW"))
+            session.commit()
     runtime = ApplicationRuntime(
         animal_operational_state_repository=(
             AnimalOperationalStateRepository(

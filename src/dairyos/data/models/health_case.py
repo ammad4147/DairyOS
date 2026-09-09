@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from datetime import datetime
 
 from ..database.base import Base
@@ -43,7 +43,7 @@ class HealthCase(Base):
 
     case_id = Column(String, nullable=False, unique=True)
 
-    animal_id = Column(String, nullable=False, index=True)
+    animal_id = Column(String, ForeignKey("animal.animal_id", ondelete="RESTRICT", name="fk_health_cases_animal"), nullable=False, index=True)
 
     severity = Column(String, nullable=False)
 

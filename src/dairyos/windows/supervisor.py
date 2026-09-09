@@ -289,6 +289,7 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     selected_port = port or config.port or choose_port(config.host)
     command = backend_command(config.host, selected_port)
     env = os.environ.copy()
+    env["DAIRYOS_DESKTOP_SESSION_TOKEN"] = _desktop_session_token()
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
     # Privileged database access is migration-only and must never reach the
@@ -409,6 +410,22 @@ def show_startup_error(title: str, message: str) -> None:
         LOG.error("%s: %s", title, message)
 
 
+_SESSION_TOKEN = None
+
+
+def _desktop_session_token() -> str:
+    global _SESSION_TOKEN
+    if _SESSION_TOKEN is None:
+        import secrets
+        _SESSION_TOKEN = secrets.token_urlsafe(32)
+    return _SESSION_TOKEN
+
+
+def _desktop_url(url: str) -> str:
+    # Fragments never enter HTTP requests or backend access logs.
+    return url.rstrip("/") + "/#desktop-session=" + _desktop_session_token()
+
+
 def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     try:
         import webview
@@ -417,7 +434,7 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
 
     window = webview.create_window(
         "DairyOS",
-        url,
+        _desktop_url(url),
         width=1440,
         height=900,
         min_size=(1024, 700),
@@ -426,7 +443,7 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
 
     def reload_url(new_url: str) -> None:
         try:
-            window.load_url(new_url)
+            window.load_url(_desktop_url(new_url))
         except Exception:
             LOG.exception("Failed to reload the DairyOS WebView after backend recovery")
 

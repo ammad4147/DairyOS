@@ -122,6 +122,7 @@ def authoritative_feed_inventory(
             {
                 "id": catalog.id,
                 "item": catalog.item,
+                "display_name": catalog.display_name or catalog.item,
                 "category": catalog.category,
                 "unit": catalog.unit,
                 "location": catalog.location,

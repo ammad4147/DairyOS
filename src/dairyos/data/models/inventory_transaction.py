@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index, CheckConstraint
+from sqlalchemy.orm import validates
+from dairyos.core.inventory_units import convert_quantity
 from datetime import datetime
 
 from ..database.base import Base
@@ -87,6 +89,8 @@ class InventoryTransaction(Base):
     )
 
     __table_args__ = (
+        CheckConstraint("quantity >= -1.7976931348623157e308 AND quantity <= 1.7976931348623157e308", name="ck_inventory_quantity_finite"),
+        CheckConstraint("signed_quantity >= -1.7976931348623157e308 AND signed_quantity <= 1.7976931348623157e308", name="ck_inventory_signed_quantity_finite"),
         Index(
             "uq_inventory_transaction_source",
             "source_type",
@@ -94,3 +98,8 @@ class InventoryTransaction(Base):
             unique=True,
         ),
     )
+
+    @validates("quantity", "signed_quantity")
+    def validate_quantity(self, key, value):
+        convert_quantity(value, None, None)
+        return value

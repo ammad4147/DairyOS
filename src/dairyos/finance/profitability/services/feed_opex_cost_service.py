@@ -52,7 +52,7 @@ class FeedOpexCostService:
                 timestamp = CostOfProductionService._as_utc(
                     getattr(row, "transaction_date", None)
                 )
-                if timestamp is not None and timestamp >= cutoff:
+                if timestamp is not None and cutoff <= timestamp <= now_dt:
                     feed_cost += amount
                 continue
 

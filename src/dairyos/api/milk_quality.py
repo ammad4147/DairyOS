@@ -32,6 +32,7 @@ def _quality_dict(row):
         "status": row.status,
         "recorded_at": row.recorded_at.isoformat(),
         "updated_at": row.updated_at.isoformat(),
+        "revision_history": row.revision_history or [],
     }
 
 

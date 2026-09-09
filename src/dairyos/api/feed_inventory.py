@@ -5,28 +5,47 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from dairyos.api.dependencies import get_container
+from types import SimpleNamespace
+from sqlalchemy import text
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.finance.classification.transaction_classifier import is_active
+from dairyos.core.inventory_units import convert_quantity
 
 router = APIRouter(prefix="/farm/feed-inventory", tags=["feed-inventory"])
 
 
+def get_container():
+    """Inventory requests own their session, including rollback on rejection."""
+    factory = RepositoryFactory.create()
+    try:
+        yield SimpleNamespace(repository_factory=factory)
+    finally:
+        factory.close()
+
+
+def _lock_stock(factory):
+    session = getattr(factory, "session", None)
+    if session is not None:
+        session.execute(text("SELECT pg_advisory_xact_lock(882343001)"))
+
+
 class FeedInventoryItemEntry(BaseModel):
     item: str = Field(min_length=1)
+    display_name: str | None = Field(default=None, min_length=1)
     category: str = "FEED"
     unit: str = Field(default="kg", min_length=1)
     location: str | None = None
-    reorder_level: float = Field(default=0, ge=0)
+    reorder_level: float = Field(default=0, ge=0, allow_inf_nan=False)
     active: bool = True
     notes: str | None = None
 
 
 class FeedInventoryMovement(BaseModel):
     item: str = Field(min_length=1)
-    quantity: float
+    quantity: float = Field(allow_inf_nan=False)
     movement_type: str
     unit: str | None = None
     location: str | None = None
@@ -40,6 +59,7 @@ def _catalog_row(row: FeedInventoryItem) -> dict:
     return {
         "id": row.id,
         "item": row.item,
+        "display_name": row.display_name or row.item,
         "category": row.category,
         "unit": row.unit,
         "location": row.location,
@@ -152,13 +172,11 @@ def _finance_purchased_quantity(factory, item: str, unit: str | None = None) -> 
     total = 0.0
     for row in _finance_purchase_rows(factory, item):
         row_unit = str(row.unit or unit or "").strip()
-        if unit and row_unit != unit:
-            continue
-        total += float(row.quantity or 0)
+        total += float(convert_quantity(row.quantity, row_unit, unit or row_unit))
     return total
 
 
-def _operational_balance(factory, item: str) -> float:
+def _operational_balance(factory, item: str, unit: str | None = None) -> float:
     rows = factory.inventory().get_all()
     balance = 0.0
     for row in rows:
@@ -168,13 +186,13 @@ def _operational_balance(factory, item: str) -> float:
         notes = str(row.notes or "")
         if movement_type in {"PURCHASE", "RECEIPT"} and notes.startswith("Finance transaction #"):
             continue
-        balance += float(row.signed_quantity or 0)
-    return balance
+        balance += float(convert_quantity(row.signed_quantity, row.unit, unit if unit is not None else row.unit))
+    return float(convert_quantity(balance, unit, unit))
 
 
 def _feed_raw_balance(factory, item: str, unit: str | None = None) -> float:
     purchased = _finance_purchased_quantity(factory, item, unit)
-    operational = _operational_balance(factory, item)
+    operational = _operational_balance(factory, item, unit)
     return purchased + operational
 
 
@@ -201,11 +219,15 @@ def list_feed_inventory_items(active_only: bool = True, container=Depends(get_co
 @router.post("/items")
 def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depends(get_container)):
     item = payload.item.strip()
+    if not item or not payload.unit.strip():
+        raise HTTPException(status_code=422, detail="Item name and unit must not be blank.")
     factory = _factory(container)
+    _lock_stock(factory)
     if factory.feed_inventory_items().get_by_item(item) is not None:
         raise HTTPException(status_code=409, detail=f"Inventory item '{item}' already exists.")
     row = FeedInventoryItem(
         item=item,
+        display_name=(payload.display_name or item).strip(),
         category=payload.category.strip().upper() or "FEED",
         unit=payload.unit.strip(),
         location=payload.location,
@@ -219,6 +241,7 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depend
 @router.patch("/items/{item_id}")
 def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, container=Depends(get_container)):
     factory = _factory(container)
+    _lock_stock(factory)
     repository = factory.feed_inventory_items()
     row = repository.get_by_id(item_id)
     if row is None:
@@ -226,7 +249,19 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, cont
     existing = repository.get_by_item(payload.item.strip())
     if existing is not None and existing.id != item_id:
         raise HTTPException(status_code=409, detail=f"Inventory item '{payload.item.strip()}' already exists.")
-    row.item = payload.item.strip()
+    if not payload.item.strip() or not payload.unit.strip():
+        raise HTTPException(status_code=422, detail="Item name and unit must not be blank.")
+    if payload.unit.strip() != row.unit:
+        if any(m.item == row.item for m in factory.inventory().get_all()) or _finance_purchase_rows(factory, row.item):
+            raise HTTPException(status_code=409, detail="This item has stock history. Its unit cannot be relabelled; an audited conversion is required.")
+    if payload.display_name is not None:
+        if not payload.display_name.strip():
+            raise HTTPException(status_code=422, detail="Display name must not be blank.")
+        row.display_name = payload.display_name.strip()
+    elif payload.item.strip() != row.item:
+        # Compatibility for older callers that submitted the name in `item`.
+        # Subsequent edits using the stable key must preserve the display name.
+        row.display_name = payload.item.strip()
     row.category = payload.category.strip().upper() or "FEED"
     row.unit = payload.unit.strip()
     row.location = payload.location
@@ -269,6 +304,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         raise HTTPException(status_code=422, detail="movement_type must be one of: " + ", ".join(sorted(allowed)))
 
     factory = _factory(container)
+    _lock_stock(factory)
     catalog = factory.feed_inventory_items().get_by_item(payload.item.strip())
     if catalog is None or not catalog.active:
         raise HTTPException(status_code=422, detail="Select an active Feed Inventory Item from the catalog.")
@@ -384,7 +420,7 @@ FEED_STORAGE_OVERRIDE_MARKER = "FEED_STORAGE_MANUAL_OVERRIDE"
 
 class FeedStorageManualOverride(BaseModel):
     item: str
-    quantity_delta: float
+    quantity_delta: float = Field(allow_inf_nan=False)
     notes: str | None = None
     recorded_by: str = "WEB"
 
@@ -594,6 +630,7 @@ def reconcile_tmr_feed_storage(factory):
     from datetime import date, timedelta
     from dairyos.api.tmr import build_live_tmr_summary
 
+    _lock_stock(factory)
     live_summary = build_live_tmr_summary(
         factory,
         include_weekly_review=False,
@@ -730,13 +767,10 @@ def reconcile_tmr_feed_storage(factory):
             target_consumption = float(
                 requirement.get(item, 0.0)
             )
-            target_signed = -target_consumption
+            target_signed = -float(convert_quantity(target_consumption, "kg", catalog.unit))
 
             existing_signed = sum(
-                float(
-                    getattr(row, "signed_quantity", 0.0)
-                    or 0.0
-                )
+                float(convert_quantity(row.signed_quantity, row.unit, catalog.unit))
                 for row in existing_for_day
                 if str(getattr(row, "item", "") or "") == item
             )
@@ -829,6 +863,7 @@ def manual_feed_storage_override(
             detail="quantity_delta must be nonzero.",
         )
 
+    _lock_stock(factory)
     catalog = factory.feed_inventory_items().get_by_item(item)
 
     if catalog is None or not catalog.active:

@@ -34,6 +34,9 @@ def test_breeding_repository_can_persist_event():
     session = SessionLocal()
 
     try:
+        from dairyos.data.models.animal import Animal
+        session.add(Animal(animal_id="TEST-ANIMAL-001", animal_type="COW"))
+        session.flush()
         factory = RepositoryFactory.create(
             session=session,
         )

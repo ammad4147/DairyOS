@@ -2,10 +2,11 @@
 
 Quality is a bulk/daily milk characteristic and is deliberately separate
 from the individual-animal production ledger. One recorded sample per
-operational date is supported; updating the same date is an idempotent edit.
+operational date is supported; corrections preserve previous values and actors
+in revision_history within the same atomic database transaction.
 """
 
-from sqlalchemy import Column, DateTime, Float, Index, Integer, String, func
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String, func, JSON
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -24,6 +25,7 @@ class MilkQualitySample(Base):
     status = Column(String, nullable=False, default="RECORDED")
     recorded_at = Column(DateTime, nullable=False, default=utcnow)
     updated_at = Column(DateTime, nullable=False, default=utcnow)
+    revision_history = Column(JSON, nullable=False, default=list)
 
     __table_args__ = (
         Index(

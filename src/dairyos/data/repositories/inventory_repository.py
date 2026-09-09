@@ -1,4 +1,8 @@
 from collections import defaultdict
+from decimal import Decimal
+from sqlalchemy import text
+
+from dairyos.core.inventory_units import convert_quantity
 
 from ..models.inventory_transaction import InventoryTransaction
 
@@ -11,7 +15,13 @@ class InventoryRepository:
         self.records = []
 
     def add(self, transaction):
-
+        convert_quantity(transaction.quantity, transaction.unit, transaction.unit)
+        convert_quantity(transaction.signed_quantity, transaction.unit, transaction.unit)
+        if self.session:
+            self.session.execute(text("SELECT pg_advisory_xact_lock(882343001)"))
+        for previous in self.get_all():
+            if previous.item == transaction.item:
+                convert_quantity(transaction.quantity, transaction.unit, previous.unit)
         if self.session:
             self.session.add(transaction)
             self.session.commit()
@@ -27,7 +37,7 @@ class InventoryRepository:
             return (
                 self.session.query(
                     InventoryTransaction
-                ).all()
+                ).order_by(InventoryTransaction.id).all()
             )
 
         return self.records
@@ -72,22 +82,20 @@ class InventoryRepository:
 
         Returns a dict keyed by item name: {"transaction_count": int,
         "balance": float, "unit": str | None, "last_movement_at": datetime |
-        None}. `unit` is taken from the most recent transaction that carried
-        one; a running balance with no unit recorded anywhere is reported
-        with `unit: None` rather than guessing.
+        None}. Quantities are converted into the first movement's unit.
+        Missing or incompatible units are never inferred from another row.
         """
 
-        totals: dict[str, float] = defaultdict(float)
+        totals: dict[str, Decimal] = defaultdict(Decimal)
         counts: dict[str, int] = defaultdict(int)
         units: dict[str, str | None] = {}
         last_seen: dict[str, object] = {}
 
         for row in self.get_all():
-            totals[row.item] += float(row.signed_quantity or 0.0)
-            counts[row.item] += 1
-
-            if row.unit:
+            if row.item not in units:
                 units[row.item] = row.unit
+            totals[row.item] += convert_quantity(row.signed_quantity, row.unit, units[row.item])
+            counts[row.item] += 1
 
             recorded_at = getattr(row, "recorded_at", None)
             if recorded_at is not None and (
@@ -99,7 +107,7 @@ class InventoryRepository:
         return {
             item: {
                 "transaction_count": counts[item],
-                "balance": round(total, 3),
+                "balance": float(round(convert_quantity(total, units.get(item), units.get(item)), 3)),
                 "unit": units.get(item),
                 "last_movement_at": (
                     last_seen[item].isoformat()

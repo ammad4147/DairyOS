@@ -12,6 +12,8 @@ class FeedInventoryItem(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     item = Column(String, nullable=False, unique=True)
+    # Stable item remains the historical join key. Renames affect presentation only.
+    display_name = Column(String, nullable=True)
     category = Column(String, nullable=False, default="FEED")
     unit = Column(String, nullable=False, default="kg")
     location = Column(String, nullable=True)

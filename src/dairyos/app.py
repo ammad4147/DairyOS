@@ -53,6 +53,14 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="DairyOS API", lifespan=lifespan)
+
+from dairyos.core.inventory_units import InventoryIntegrityError
+
+
+@app.exception_handler(InventoryIntegrityError)
+async def inventory_integrity_error(request: Request, exc: InventoryIntegrityError):
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
+
 app.add_middleware(PayloadNormalizationMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -99,6 +107,11 @@ async def enforce_animal_identity(request: Request, call_next):
             logging.exception("Milk post-write monitoring failed after a successful milk write.")
 
     return response
+
+from dairyos.middleware.desktop_session import enforce_desktop_session
+
+# Register after identity middleware so authentication runs before any farm reads.
+app.middleware("http")(enforce_desktop_session)
 
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router

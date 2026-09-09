@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Integer, String, ForeignKey
 
 from dairyos.core.time_utils import utcnow
 from ..database.base import Base
@@ -10,7 +10,7 @@ class FeedRecord(Base):
     __tablename__ = "feed_record"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    animal_id = Column(String, nullable=True)
+    animal_id = Column(String, ForeignKey("animal.animal_id", ondelete="RESTRICT", name="fk_feed_record_animal"), nullable=True)
     group_or_pen = Column(String, nullable=True)
     feed_type = Column(String, nullable=False)
     quantity_kg = Column(Float, default=0.0, nullable=False)

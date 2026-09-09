@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from dairyos.finance.classification.transaction_classifier import is_active
 
 
 class MOFCService:
@@ -43,10 +44,12 @@ class MOFCService:
         feed_qty_by_subject: dict[str, float] = defaultdict(float)
         unpriced_qty_by_subject: dict[str, float] = defaultdict(float)
         unpriced_records_by_subject: dict[str, int] = defaultdict(int)
+        milk_dates_by_subject = defaultdict(set)
+        feed_dates_by_subject = defaultdict(set)
 
         for row in milk_records:
             timestamp = self._as_utc(getattr(row, "production_date", None))
-            if timestamp is None or timestamp < cutoff:
+            if timestamp is None or not cutoff <= timestamp <= now_dt:
                 continue
             status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
             if status not in {"RECORDED", "SOLD", "DISPOSED", "WASTAGE"}:
@@ -54,17 +57,21 @@ class MOFCService:
             subject_id = str(getattr(row, "animal_id", "") or "").strip()
             if not subject_id:
                 continue
+            milk_dates_by_subject[subject_id].add(timestamp.date())
             milk_by_subject[subject_id] += max(0.0, float(getattr(row, "total_yield", 0.0) or 0.0))
 
         for row in feed_records:
+            if not is_active(row):
+                continue
             timestamp = self._as_utc(getattr(row, "feeding_date", None))
-            if timestamp is None or timestamp < cutoff:
+            if timestamp is None or not cutoff <= timestamp <= now_dt:
                 continue
             quantity = max(0.0, float(getattr(row, "quantity_kg", 0.0) or 0.0))
             subject_id = str(getattr(row, "animal_id", "") or "").strip()
             if not subject_id:
                 subject_id = f"GROUP:{str(getattr(row, 'group_or_pen', 'UNSPECIFIED') or 'UNSPECIFIED').strip()}"
             feed_qty_by_subject[subject_id] += quantity
+            feed_dates_by_subject[subject_id].add(timestamp.date())
             total_cost = getattr(row, "total_feed_cost", None)
             if total_cost is None:
                 unpriced_qty_by_subject[subject_id] += quantity
@@ -81,7 +88,11 @@ class MOFCService:
             unpriced_qty = unpriced_qty_by_subject.get(subject_id, 0.0)
             revenue = milk_litres * float(milk_price_per_litre)
             mofc = revenue - feed_cost
-            fully_priced = unpriced_qty <= 0.000001
+            fully_priced = (
+                subject_id in feed_qty_by_subject
+                and unpriced_records_by_subject.get(subject_id, 0) == 0
+                and milk_dates_by_subject[subject_id] <= feed_dates_by_subject[subject_id]
+            )
             rows.append({
                 "subject_id": subject_id,
                 "milk_litres": round(milk_litres, 3),

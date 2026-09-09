@@ -96,7 +96,7 @@ def test_platform_defaults_live_outside_the_installation(
 # The legacy fallback — an upgrade must not orphan existing records
 # ----------------------------------------------------------------------
 
-def test_existing_farm_data_is_still_found_after_upgrade(tmp_path, monkeypatch):
+def test_explicit_data_root_is_authoritative_over_launch_directory(tmp_path, monkeypatch):
     monkeypatch.setenv(paths.DATA_DIR_ENV_VAR, str(tmp_path / "managed"))
     monkeypatch.chdir(tmp_path)
 
@@ -106,7 +106,19 @@ def test_existing_farm_data_is_still_found_after_upgrade(tmp_path, monkeypatch):
 
     resolved = paths.resolve_storage_file("operational_inputs.json")
 
-    assert resolved == paths.LEGACY_STORAGE_DIR / "operational_inputs.json"
+    assert resolved == tmp_path / "managed" / "storage" / "operational_inputs.json"
+    assert (legacy / "operational_inputs.json").read_text(encoding="utf-8") == "[]"
+
+
+def test_legacy_only_storage_requires_explicit_migration(tmp_path, monkeypatch):
+    monkeypatch.delenv(paths.DATA_DIR_ENV_VAR, raising=False)
+    monkeypatch.setattr(paths, "_platform_data_root", lambda: tmp_path / "managed")
+    monkeypatch.chdir(tmp_path)
+    legacy = tmp_path / "data" / "storage"
+    legacy.mkdir(parents=True)
+    (legacy / "operational_inputs.json").write_text("[]", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="explicit migration"):
+        paths.resolve_storage_file("operational_inputs.json")
 
 
 def test_a_fresh_installation_uses_the_managed_location(tmp_path, monkeypatch):

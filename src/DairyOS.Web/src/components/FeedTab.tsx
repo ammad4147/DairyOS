@@ -22,6 +22,7 @@ const API_BASE =
 type FeedStorageItem = {
   id: number;
   item: string;
+  display_name?: string;
   unit: string;
   purchased_from_finance: number;
   auto_consumed_from_tmr: number;
@@ -231,6 +232,7 @@ export default function FeedTab() {
           (row: any) => ({
             id: Number(row.id),
             item: String(row.item),
+            display_name: String(row.display_name || row.item),
             unit: String(row.unit || 'kg'),
             purchased_from_finance:
               Number(
@@ -725,7 +727,7 @@ export default function FeedTab() {
                         fontWeight: 800,
                       }}
                     >
-                      {item.item}
+                      {item.display_name || item.item}
 
                       {item.latest_finance_transaction_id != null && (
                         <div
@@ -943,7 +945,7 @@ export default function FeedTab() {
                         item.id,
                       )}
                     >
-                      {item.item}
+                      {item.display_name || item.item}
                     </option>
                   ),
                 )}

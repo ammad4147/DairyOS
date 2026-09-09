@@ -19,6 +19,7 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
+    ForeignKey,
 )
 
 from datetime import datetime
@@ -39,6 +40,7 @@ class TreatmentRecord(Base):
 
     animal_id = Column(
         String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT", name="fk_treatment_record_animal"),
         nullable=False,
         index=True,
     )

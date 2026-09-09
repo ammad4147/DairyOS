@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.milk_quality_sample import MilkQualitySample
@@ -28,6 +28,9 @@ class MilkQualityRepository:
 
     def upsert(self, *, quality_date: date, fat_pct: float, snf_pct: float,
                sample_type: str, notes: str | None, recorded_by: str):
+        if self.session:
+            # Serializes first insert and corrections for the same date.
+            self.session.execute(text("SELECT pg_advisory_xact_lock(882342, :day)"), {"day": quality_date.toordinal()})
         row = self.get_by_date(quality_date)
         when = datetime(quality_date.year, quality_date.month, quality_date.day)
         if row is None:
@@ -47,6 +50,14 @@ class MilkQualityRepository:
             else:
                 self.records.append(row)
         else:
+            previous = {
+                "fat_pct": row.fat_pct, "snf_pct": row.snf_pct,
+                "sample_type": row.sample_type, "notes": row.notes,
+                "recorded_by": row.recorded_by,
+                "recorded_at": row.recorded_at.isoformat(),
+                "updated_at": row.updated_at.isoformat(),
+            }
+            row.revision_history = [*(row.revision_history or []), previous]
             row.fat_pct = fat_pct
             row.snf_pct = snf_pct
             row.sample_type = sample_type

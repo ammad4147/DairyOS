@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
+from dairyos.core.inventory_units import InventoryIntegrityError
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
@@ -223,7 +224,7 @@ class WorkforceEntryRequest(BaseEntryRequest):
 
 class InventoryEntryRequest(BaseEntryRequest):
     item: str
-    quantity: float
+    quantity: float = Field(allow_inf_nan=False)
     movement_type: str | None = None
     unit: str | None = None
     location: str | None = None
@@ -645,7 +646,7 @@ def _record(
         except Exception:
             pass
         raise HTTPException(
-            status_code=500,
+            status_code=409 if isinstance(exc, InventoryIntegrityError) else 500,
             detail=(
                 "Operational input persistence failed: "
                 f"{type(exc).__name__}: {exc}"

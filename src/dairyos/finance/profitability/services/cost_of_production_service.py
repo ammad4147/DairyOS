@@ -107,7 +107,7 @@ class CostOfProductionService:
                     )
                 )
             ) is not None
-            and timestamp >= cutoff
+            and cutoff <= timestamp <= now
         ]
 
         finance = [
@@ -122,7 +122,7 @@ class CostOfProductionService:
                     )
                 )
             ) is not None
-            and timestamp >= cutoff
+            and cutoff <= timestamp <= now
         ]
 
         production_litres = sum(

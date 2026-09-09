@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    ForeignKey,
 )
 
 from dairyos.data.database.base import Base
@@ -41,6 +42,7 @@ class BreedingRecordModel(Base):
 
     animal_id = Column(
         String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT", name="fk_breeding_records_animal"),
         nullable=False,
         index=True,
     )

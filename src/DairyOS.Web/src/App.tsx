@@ -13,6 +13,7 @@ import AnimalTab from './components/AnimalTab';
 import AnimalPassportModal from './components/AnimalPassportModal';
 import PayrollWindow from './components/PayrollWindow';
 import { API_BASE_URL } from './config/api';
+import { desktopWindowUrl } from './config/desktopSession';
 import { NAVIGATION_TABS, normalizeHiddenNavigationTabs } from './navigation';
 import type { NavigationTabId } from './navigation';
 import { useAlertAudit } from './context/AlertAuditContext';
@@ -39,7 +40,7 @@ export default function MainAppShell(){
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
  const handleRegisterAnimal=()=>{void refreshAnimals()};
  const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location)};
- const openPayroll=()=>window.open(`${window.location.origin}${window.location.pathname}?window=payroll`,'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
+ const openPayroll=()=>window.open(desktopWindowUrl(`${window.location.origin}${window.location.pathname}?window=payroll`),'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
 
  const herdMasterList=animals.filter(animal=>animal.active!==false).map(toUiAnimal);
