@@ -178,15 +178,21 @@ def test_owner_withdrawal_does_not_inflate_cost_per_litre(client, registered_ani
     assert body["non_operating_outflow_total"] == 9000.0
 
 
-def test_unrecognised_transaction_type_is_surfaced_not_swallowed(client):
-    """An unknown type must never vanish into a total that looks complete."""
-    _record_financial(client, transaction_type="SOMETHING_NEW", amount=123.0)
+def test_unrecognised_transaction_type_is_rejected_before_persistence(client):
+    """An unknown type must never enter the ledger and disappear from governed totals."""
+    response = client.post(
+        "/farm/financial",
+        json={
+            "transaction_type": "SOMETHING_NEW",
+            "amount": 123.0,
+            "category": "FEED",
+            "operator": "Farm Manager",
+        },
+    )
 
-    body = client.get("/farm/finance/reconciliation?period=yearly").json()
-    assert body["income"] == 0.0
-    assert body["expenses"] == 0.0
-    assert body["unclassified_transaction_count"] == 1
-    assert body["unclassified_transaction_types"] == ["SOMETHING_NEW"]
+    assert response.status_code == 422, response.text
+    assert "transaction_type must be one of:" in response.json()["detail"]
+    assert _ledger_rows() == []
 
 
 # ---------------------------------------------------------------------------

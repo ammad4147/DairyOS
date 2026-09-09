@@ -77,10 +77,12 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn('"status": "ENDORSED" if latest else "DUE"', self.tmr)
         self.assertIn("Vet review due:", self.tmr)
 
-    def test_period_feed_cost_uses_weekly_snapshot_and_live_today(self):
+    def test_period_feed_cost_uses_weekly_snapshot_live_today_and_fails_closed_for_history(self):
         self.assertIn('basis = "LIVE_TMR"', self.tmr)
         self.assertIn('basis = "WEEKLY_VET_ENDORSED_TMR"', self.tmr)
-        self.assertIn('"UNENDORSED_LIVE_TMR_FALLBACK"', self.tmr)
+        self.assertIn('basis = "HISTORICAL_TMR_AUTHORITY_MISSING"', self.tmr)
+        self.assertIn('"missing_authority_days"', self.tmr)
+        self.assertNotIn('"UNENDORSED_LIVE_TMR_FALLBACK"', self.tmr)
 
     def test_coml_feed_branch_comes_from_tmr(self):
         integrated = self.coml[self.coml.index('@router.get("/integrated")'):]
