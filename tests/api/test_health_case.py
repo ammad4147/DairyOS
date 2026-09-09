@@ -42,6 +42,25 @@ def test_opening_a_case_generates_a_governed_id(client, registered_animal):
     assert body["resolved_at"] is None
 
 
+
+
+
+def test_health_case_id_uses_operational_date(client, registered_animal, monkeypatch):
+    from datetime import date
+    from dairyos.farm.settings.services.operational_date_authority import (
+        OperationalDateAuthority,
+    )
+
+    monkeypatch.setattr(
+        OperationalDateAuthority,
+        "current_date",
+        lambda self: date(2026, 9, 10),
+    )
+
+    response = _open_case(client, registered_animal)
+    assert response.status_code == 200, response.text
+    assert response.json()["case_id"].startswith("HL-260910-")
+
 def test_sequential_case_ids_on_the_same_day_increment(client, registered_animal):
     first = _open_case(client, registered_animal).json()
     second = _open_case(client, registered_animal).json()

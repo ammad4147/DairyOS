@@ -37,6 +37,9 @@ from dairyos.milk.services.milk_recording_intelligence_service import (
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
@@ -1871,8 +1874,8 @@ def list_financial_entries(
 # ---------------------------------------------------------------------------
 
 
-def _generate_health_case_id(case_repo) -> str:
-    date_prefix = f"HL-{datetime.now(timezone.utc).strftime('%y%m%d')}"
+def _generate_health_case_id(case_repo, *, operational_date: date) -> str:
+    date_prefix = f"HL-{operational_date.strftime('%y%m%d')}"
     sequence = case_repo.count_opened_on(date_prefix) + 1
     candidate = f"{date_prefix}-{sequence:03d}"
     # Defends against a concurrent open landing the same sequence number
@@ -1970,7 +1973,12 @@ def open_health_case(
                 )
 
         case = HealthCase(
-            case_id=_generate_health_case_id(case_repo),
+            case_id=_generate_health_case_id(
+                case_repo,
+                operational_date=OperationalDateAuthority(
+                    repository_factory=rf,
+                ).current_date(),
+            ),
             animal_id=entry.animal_id,
             severity=entry.severity,
             diagnosis=entry.diagnosis,
