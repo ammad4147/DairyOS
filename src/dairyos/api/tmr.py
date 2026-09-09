@@ -23,6 +23,7 @@ router = APIRouter(prefix="/farm/tmr", tags=["tmr"])
 TMR_CATALOG_MARKER = "TMR_CATALOG_JSON="
 STAGE_GROUP_PREFIX = "TMR_STAGE:"
 ENDORSEMENT_GROUP = "TMR_WEEKLY_ENDORSEMENT"
+DAILY_COST_SNAPSHOT_GROUP = "TMR_DAILY_COST_SNAPSHOT"
 
 DEFAULT_INGREDIENTS = [
     {
@@ -694,7 +695,152 @@ def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> di
     return payload
 
 
+def _daily_cost_snapshots(factory) -> list[dict]:
+    """Return immutable daily whole-herd TMR cost snapshots."""
+    snapshots: list[dict] = []
+
+    for row in factory.feed_rations().get_active_for_group(
+        DAILY_COST_SNAPSHOT_GROUP
+    ):
+        try:
+            payload = json.loads(row.ingredients_json)
+        except (TypeError, json.JSONDecodeError):
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        operational_date = str(
+            payload.get("operational_date") or ""
+        ).strip()
+
+        if not operational_date:
+            continue
+
+        snapshots.append(
+            {
+                **payload,
+                "record_id": getattr(row, "id", None),
+                "recorded_at": (
+                    row.created_at.isoformat()
+                    if getattr(row, "created_at", None)
+                    else None
+                ),
+            }
+        )
+
+    return snapshots
+
+
+def _daily_cost_snapshot_for_date(factory, operational_date: date) -> dict | None:
+    key = operational_date.isoformat()
+
+    for snapshot in _daily_cost_snapshots(factory):
+        if str(snapshot.get("operational_date") or "") == key:
+            return snapshot
+
+    return None
+
+
+def lock_daily_tmr_cost_snapshot(
+    factory,
+    *,
+    operational_date: date | None = None,
+) -> dict:
+    """
+    Materialise the authoritative whole-herd TMR cost once per farm day.
+
+    The snapshot freezes the governed TMR formulation, ingredient prices,
+    DairyOS herd-category population and resulting category/whole-herd cost
+    at the time of the noon lock.
+
+    Repeated calls for the same operational date are idempotent and return
+    the original snapshot. Vet endorsement is deliberately unrelated to
+    this calculation authority.
+    """
+    authority = OperationalDateAuthority(
+        repository_factory=factory,
+    )
+
+    selected_date = (
+        operational_date
+        or authority.current_date()
+    )
+
+    existing = _daily_cost_snapshot_for_date(
+        factory,
+        selected_date,
+    )
+
+    if existing is not None:
+        return {
+            **existing,
+            "created": False,
+            "locked": True,
+        }
+
+    live = build_live_tmr_summary(
+        factory,
+        include_weekly_review=False,
+    )
+
+    snapshot = {
+        "kind": "TMR_DAILY_COST_SNAPSHOT",
+        "operational_date": selected_date.isoformat(),
+        "locked_at": authority.current_datetime().isoformat(),
+        "basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_NOON",
+        "herd_counts": live["herd_counts"],
+        "categories": live["categories"],
+        "stages": live["stages"],
+        "total_herd_feed_cost_per_day": round(
+            float(live["total_herd_feed_cost_per_day"]),
+            4,
+        ),
+    }
+
+    record = FeedRation(
+        name=f"TMR Daily Herd Cost {selected_date.isoformat()}",
+        animal_group=DAILY_COST_SNAPSHOT_GROUP,
+        ingredients_json=json.dumps(
+            snapshot,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        target_dmi_kg=None,
+        dry_matter_pct=None,
+        crude_protein_pct=None,
+        ndf_pct=None,
+        energy_mcal_kg=None,
+        cost_per_kg=None,
+        effective_date=selected_date.isoformat(),
+        operator="TMR_DAILY_NOON_LOCK",
+    )
+
+    factory.feed_rations().add(record)
+
+    return {
+        **snapshot,
+        "record_id": record.id,
+        "recorded_at": (
+            record.created_at.isoformat()
+            if getattr(record, "created_at", None)
+            else None
+        ),
+        "created": True,
+        "locked": True,
+    }
+
+
 def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
+    """
+    Return persisted daily TMR feed cost for the requested operational period.
+
+    Calculation authority is the immutable daily noon snapshot only.
+    Weekly veterinary endorsement is review/advisory metadata and never
+    contributes to COP.
+
+    Historical days are never reconstructed using today's TMR.
+    """
     if end < start:
         raise ValueError("end must be on or after start")
 
@@ -704,15 +850,14 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         repository_factory=factory,
     ).current_date()
 
-    # Auto TMR cost is operational fact, not a forecast.
-    # A future-only request therefore has no authoritative feed cost.
     if start > today:
         return {
             "total_feed_cost": 0.0,
             "daily": [],
-            "endorsed_days": 0,
-            "fallback_days": 0,
-            "source": "TMR_HERD_COST",
+            "locked_days": 0,
+            "complete": True,
+            "missing_authority_days": [],
+            "source": "TMR_DAILY_NOON_SNAPSHOT",
             "requested_period": {
                 "start": start.isoformat(),
                 "end": requested_end.isoformat(),
@@ -727,72 +872,68 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         today,
     )
 
-    live = build_live_tmr_summary(factory, include_weekly_review=False)
-    live_daily = float(live["total_herd_feed_cost_per_day"])
-    endorsements = _endorsement_snapshots(factory)
-
-    by_week: dict[str, dict] = {}
-    for snapshot in reversed(endorsements):
-        week_start = str(snapshot.get("week_start") or "")
-        if week_start:
-            by_week[week_start] = snapshot
+    by_date = {
+        str(snapshot.get("operational_date") or ""): snapshot
+        for snapshot in _daily_cost_snapshots(factory)
+        if str(snapshot.get("operational_date") or "")
+    }
 
     day = start
     total = 0.0
-    daily_rows = []
-    endorsed_days = 0
-    fallback_days = 0
-    missing_authority_days = []
+    daily_rows: list[dict] = []
+    locked_days = 0
+    missing_authority_days: list[str] = []
 
     while day <= effective_end:
-        week_start, _ = _week_bounds(day)
-        snapshot = by_week.get(week_start.isoformat())
+        key = day.isoformat()
+        snapshot = by_date.get(key)
 
-        if day == today:
-            amount = live_daily
-            basis = "LIVE_TMR"
-        elif snapshot is not None:
+        if snapshot is not None:
             amount = float(
-                snapshot.get("total_herd_feed_cost_per_day") or 0.0
+                snapshot.get("total_herd_feed_cost_per_day")
+                or 0.0
             )
-            basis = "WEEKLY_VET_ENDORSED_TMR"
-            endorsed_days += 1
-        else:
-            # Historical fact must never be reconstructed from today's ration,
-            # price or herd state. Preserve the gap explicitly.
-            amount = None
-            basis = "HISTORICAL_TMR_AUTHORITY_MISSING"
-            fallback_days += 1
-            missing_authority_days.append(day.isoformat())
-
-        if amount is not None:
             total += amount
+            locked_days += 1
+            basis = "LOCKED_DAILY_TMR"
+            record_id = snapshot.get("record_id")
+            locked_at = snapshot.get("locked_at")
+        else:
+            amount = None
+            basis = "DAILY_TMR_SNAPSHOT_MISSING"
+            record_id = None
+            locked_at = None
+            missing_authority_days.append(key)
+
         daily_rows.append(
             {
-                "date": day.isoformat(),
+                "date": key,
                 "feed_cost": (
                     round(amount, 4)
                     if amount is not None
                     else None
                 ),
                 "basis": basis,
-                "week_start": week_start.isoformat(),
+                "record_id": record_id,
+                "locked_at": locked_at,
             }
         )
+
         day += timedelta(days=1)
+
+    complete = not missing_authority_days
 
     return {
         "total_feed_cost": (
             round(total, 4)
-            if not missing_authority_days
+            if complete
             else None
         ),
         "daily": daily_rows,
-        "endorsed_days": endorsed_days,
-        "fallback_days": fallback_days,
-        "complete": not missing_authority_days,
+        "locked_days": locked_days,
+        "complete": complete,
         "missing_authority_days": missing_authority_days,
-        "source": "TMR_HERD_COST",
+        "source": "TMR_DAILY_NOON_SNAPSHOT",
         "requested_period": {
             "start": start.isoformat(),
             "end": requested_end.isoformat(),

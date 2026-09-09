@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from dairyos.farm.settings.services.farm_settings_service import (
     FarmSettingsService,
@@ -39,6 +39,29 @@ class OperationalDateAuthority:
             return FarmSettingsService(
                 factory.app_settings()
             ).get_operational_date()
+        finally:
+            factory.close()
+
+    def current_datetime(self) -> datetime:
+        """Return timezone-aware current datetime in the configured farm timezone."""
+        if self._settings_service is not None:
+            return self._settings_service.get_operational_datetime()
+
+        if self._repository_factory is not None:
+            return FarmSettingsService(
+                self._repository_factory.app_settings()
+            ).get_operational_datetime()
+
+        from dairyos.data.repositories.repository_factory import (
+            RepositoryFactory,
+        )
+
+        factory = RepositoryFactory.create()
+
+        try:
+            return FarmSettingsService(
+                factory.app_settings()
+            ).get_operational_datetime()
         finally:
             factory.close()
 

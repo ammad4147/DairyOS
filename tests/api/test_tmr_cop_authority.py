@@ -77,12 +77,56 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn('"status": "ENDORSED" if latest else "DUE"', self.tmr)
         self.assertIn("Vet review due:", self.tmr)
 
-    def test_period_feed_cost_uses_weekly_snapshot_live_today_and_fails_closed_for_history(self):
-        self.assertIn('basis = "LIVE_TMR"', self.tmr)
-        self.assertIn('basis = "WEEKLY_VET_ENDORSED_TMR"', self.tmr)
-        self.assertIn('basis = "HISTORICAL_TMR_AUTHORITY_MISSING"', self.tmr)
+    def test_period_feed_cost_uses_locked_daily_tmr_snapshots_only(self):
+        self.assertIn(
+            'DAILY_COST_SNAPSHOT_GROUP = "TMR_DAILY_COST_SNAPSHOT"',
+            self.tmr,
+        )
+        self.assertIn('basis = "LOCKED_DAILY_TMR"', self.tmr)
+        self.assertIn(
+            'basis = "DAILY_TMR_SNAPSHOT_MISSING"',
+            self.tmr,
+        )
         self.assertIn('"missing_authority_days"', self.tmr)
-        self.assertNotIn('"UNENDORSED_LIVE_TMR_FALLBACK"', self.tmr)
+        period_block = self.tmr[
+            self.tmr.index("def tmr_feed_cost_for_period("):
+            self.tmr.index('@router.get("")')
+        ]
+        self.assertNotIn("WEEKLY_VET_ENDORSED_TMR", period_block)
+        self.assertNotIn('basis = "LIVE_TMR"', period_block)
+
+    def test_daily_tmr_snapshot_is_once_per_operational_day(self):
+        self.assertIn(
+            "def lock_daily_tmr_cost_snapshot(",
+            self.tmr,
+        )
+        self.assertIn(
+            "_daily_cost_snapshot_for_date(",
+            self.tmr,
+        )
+        self.assertIn(
+            '"basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_NOON"',
+            self.tmr,
+        )
+        self.assertIn(
+            'operator="TMR_DAILY_NOON_LOCK"',
+            self.tmr,
+        )
+
+    def test_vet_endorsement_remains_advisory_only(self):
+        self.assertIn(
+            'ENDORSEMENT_GROUP = "TMR_WEEKLY_ENDORSEMENT"',
+            self.tmr,
+        )
+        self.assertIn(
+            '"status": "ENDORSED" if latest else "DUE"',
+            self.tmr,
+        )
+        period_block = self.tmr[
+            self.tmr.index("def tmr_feed_cost_for_period("):
+            self.tmr.index('@router.get("")')
+        ]
+        self.assertNotIn("_endorsement_snapshots(", period_block)
 
     def test_coml_feed_branch_comes_from_tmr(self):
         integrated = self.coml[self.coml.index('@router.get("/integrated")'):]

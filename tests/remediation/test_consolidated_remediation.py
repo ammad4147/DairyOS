@@ -53,5 +53,17 @@ def test_fail_closed_and_historical_authority_contracts():
     tmr = (ROOT/'src/dairyos/api/tmr.py').read_text(encoding='utf-8')
     feed = (ROOT/'src/dairyos/data/repositories/feed_record_repository.py').read_text(encoding='utf-8')
     assert 'FINANCE_OPEX_ATTRIBUTION_FAILED' in coml and 'status_code=503' in coml
-    assert 'HISTORICAL_TMR_AUTHORITY_MISSING' in tmr and 'UNENDORSED_LIVE_TMR_FALLBACK' not in tmr
+    assert 'DAILY_COST_SNAPSHOT_GROUP = "TMR_DAILY_COST_SNAPSHOT"' in tmr
+    assert 'basis = "LOCKED_DAILY_TMR"' in tmr
+    assert 'basis = "DAILY_TMR_SNAPSHOT_MISSING"' in tmr
+
+    period_block = tmr[
+        tmr.index("def tmr_feed_cost_for_period("):
+        tmr.index('@router.get("")')
+    ]
+
+    assert "WEEKLY_VET_ENDORSED_TMR" not in period_block
+    assert "_endorsement_snapshots(" not in period_block
+    assert 'basis = "LIVE_TMR"' not in period_block
+    assert "UNENDORSED_LIVE_TMR_FALLBACK" not in period_block
     assert 'Feed operational date authority is unavailable' in feed

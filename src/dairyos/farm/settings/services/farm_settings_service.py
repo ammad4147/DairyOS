@@ -8,7 +8,7 @@ and dashboard defaults. They never replace domain facts.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
@@ -133,18 +133,15 @@ class FarmSettingsService:
 
         return convention
 
-    def get_operational_date(self):
-        """Return the current farm operational date.
-
-        The system's configured farm timezone determines the calendar date.
-        This is deliberately date-only; no UI-relative 'today/yesterday'
-        marker is persisted or returned.
-        """
+    def get_operational_datetime(self):
+        """Return timezone-aware current datetime in the configured farm timezone."""
         return datetime.now(
-            timezone.utc
-        ).astimezone(
             self.get_timezone_info()
-        ).date()
+        )
+
+    def get_operational_date(self):
+        """Return the current DairyOS farm operational date."""
+        return self.get_operational_datetime().date()
 
     # ------------------------------------------------------------------
     # Dashboard / UI preferences

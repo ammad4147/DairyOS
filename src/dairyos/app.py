@@ -19,6 +19,7 @@ from dairyos.farm.settings.services.operational_date_authority import Operationa
 from dairyos.email.scheduler import NightlyEmailScheduler
 from dairyos.feed_storage_scheduler import FeedStorageScheduler
 from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
+from dairyos.tmr_daily_cost_scheduler import DailyTMRCostScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
 from dairyos.windows.startup_integrity import record_successful_start
 
@@ -28,6 +29,7 @@ container = RuntimeContainer(application_runtime=application_runtime)
 email_scheduler = NightlyEmailScheduler(container=container)
 feed_storage_scheduler = FeedStorageScheduler(interval_seconds=60)
 missed_milking_scheduler = DailyMissedMilkingScheduler(interval_seconds=30)
+tmr_daily_cost_scheduler = DailyTMRCostScheduler(interval_seconds=30)
 
 
 @asynccontextmanager
@@ -38,6 +40,7 @@ async def lifespan(_app: FastAPI):
     container.start()
     feed_storage_scheduler.start()
     missed_milking_scheduler.start()
+    tmr_daily_cost_scheduler.start()
     email_scheduler.start()
     marker = record_successful_start()
     if marker is not None:
@@ -47,6 +50,7 @@ async def lifespan(_app: FastAPI):
         yield
     finally:
         feed_storage_scheduler.stop()
+        tmr_daily_cost_scheduler.stop()
         missed_milking_scheduler.stop()
         email_scheduler.stop()
         container.shutdown()
