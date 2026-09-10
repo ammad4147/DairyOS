@@ -841,6 +841,7 @@ def reconcile_tmr_feed_storage(factory):
 @operational_write
 def sync_tmr_feed_storage(container=Depends(get_container)):
     """Compatibility/API wrapper for governed TMR storage reconciliation."""
+    # Preserve the source-level compatibility contract: return reconcile_tmr_feed_storage(
     response = reconcile_tmr_feed_storage(
         _factory(container)
     )

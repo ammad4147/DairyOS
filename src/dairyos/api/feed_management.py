@@ -92,7 +92,7 @@ def create_ration(payload: RationEntry, container=Depends(get_container)):
         if gateway is not None:
             gateway.record(
                 input_type="feed_ration",
-                payload={"ration_id": saved.id, "name": saved.name, "animal_group": saved.animal_group, "effective_date": saved.effective_date},
+                payload={"ration_id": saved.id, "name": saved.name, "animal_group": saved.animal_group, "ingredients": json.loads(saved.ingredients_json), "effective_date": saved.effective_date},
                 actor=payload.operator,
             )
         return response
