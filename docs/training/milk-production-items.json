@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "domain": "milk-production",
+  "status": "DRAFT",
+  "items": [
+    {
+      "id": "milk.record.session",
+      "capability": "record-milk",
+      "question": "How do I record milk for an animal and session?",
+      "alternatives": ["enter today's milk", "log a milking", "record litres"],
+      "answer": "Open Milk, select the animal's effective milking session, enter measured litres and operator attribution, verify the production date, and save once.",
+      "scenario": {"given": "A milking session has physically occurred and the measured volume is available.", "steps": ["Confirm the animal identity and effective 2-session or 3-session plan.", "Select the actual session and production date.", "Enter the measured litres and operator.", "Save and confirm the persisted result."], "expected": "One attributable production fact is persisted for the animal, session, and production date.", "next": "Review the daily total and completeness; reconcile the day's milk to dispositions when all expected sessions are accounted for."},
+      "effects": ["milk production ledger", "daily and period analytics", "milk completeness", "reconciliation eligibility", "downstream revenue only after disposition/sale"],
+      "exceptions": [{"symptom": "The animal or session is unavailable", "response": "Check active lifecycle and effective milking-frequency history; do not create a substitute session."}, {"symptom": "The save returns an error", "response": "Preserve the exact error and do not blindly duplicate-submit."}],
+      "safety": "A missing session is not zero; record only what actually occurred.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["POST /farm/milk"], "services": ["src/dairyos/farm/production/milk/services/milk_recording_service.py"], "tests": ["tests/milk/test_milk_entry.py", "tests/milk/test_milk_service.py"]},
+      "related": ["milk.session-plan", "milk.missed-session", "milk.daily-total", "milk.reconciliation"]
+    },
+    {
+      "id": "milk.session-plan",
+      "capability": "session-plan",
+      "question": "Which milking sessions should I enter?",
+      "alternatives": ["is this animal twice or three times daily", "why is a session expected"],
+      "answer": "Use the animal's effective milking-frequency schedule; the schedule, not a frontend guess, determines expected sessions.",
+      "scenario": {"given": "An animal is active and has one or more dated schedule records.", "steps": ["Open the animal passport or Milk entry flow.", "Check the effective schedule for the production date.", "Enter only sessions expected by that schedule."], "expected": "Completeness is evaluated against the effective historical schedule for that date.", "next": "Investigate any missing expected session before final reconciliation."},
+      "effects": ["expected-session population", "missing-session alerts", "milk completeness"],
+      "exceptions": [{"symptom": "A schedule changed during the period", "response": "Use the date-effective schedule rather than the current schedule."}],
+      "safety": "Do not rewrite history by applying today's schedule to an earlier date.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx", "src/DairyOS.Web/src/components/AnimalTab.tsx"], "routes": ["GET /farm/animals/{animal_id}/milking-frequency/history"], "services": ["src/dairyos/farm/herd/services/animal_milking_schedule_service.py"], "tests": ["tests/milk/test_animal_milking_schedule_service.py", "tests/milk/test_animal_session_authority_remediation.py"]},
+      "related": ["milk.record.session", "milk.missed-session", "animals.milking-frequency"]
+    },
+    {
+      "id": "milk.missed-session",
+      "capability": "missed-session",
+      "question": "What should I do when a milking session was missed?",
+      "alternatives": ["should I enter zero", "missing milking", "animal was not milked"],
+      "answer": "Leave the production fact absent and use the missed-session workflow with the actual reason; never enter zero merely to make the day complete.",
+      "scenario": {"given": "An expected session did not occur or was not recorded at the time.", "steps": ["Check whether a valid production record already exists.", "Open missed-session reconciliation.", "Select the affected animal/session/date and record the actual reason.", "Review the resulting completeness status."], "expected": "The absence remains distinguishable from a measured zero, with an attributable operational explanation.", "next": "Reconcile the day only after all actual production and missed-session explanations are reviewed."},
+      "effects": ["missing-session register", "completeness analytics", "alerts", "reconciliation state"],
+      "exceptions": [{"symptom": "The milk was entered later", "response": "Use a late historical entry/amendment with the original production date, then recheck the day's reconciliation."}],
+      "safety": "Do not manufacture litres or overwrite an actual entry to suppress an alert.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["GET /farm/milk/missed-sessions", "POST /farm/milk/missed-sessions/reconcile"], "services": ["src/dairyos/farm/production/services/missed_milking_control_service.py"], "tests": ["tests/milk/test_milking_cycle.py", "tests/milk/test_animal_session_authority_remediation.py"]},
+      "related": ["milk.record.session", "milk.late-entry", "milk.reconciliation"]
+    },
+    {
+      "id": "milk.late-entry",
+      "capability": "late-entry",
+      "question": "How do I enter milk that was missed and recorded later?",
+      "alternatives": ["backdate milk", "late milk entry", "forgot yesterday's milk"],
+      "answer": "Enter the fact against the actual production date and session, preserve operator attribution, and then re-run completeness and reconciliation for that historical date.",
+      "scenario": {"given": "A valid measured volume becomes available after its production day.", "steps": ["Confirm the original production date and session.", "Check for duplicates or a prior missed-session disposition.", "Submit the historical record through the supported amendment/entry route.", "Verify the daily total, completeness, and disposition balance changed as expected."], "expected": "The original production date is corrected without shifting the fact to the entry date.", "next": "Review affected sales/revenue facts if dispositions or sales were already recorded."},
+      "effects": ["historical milk ledger", "period totals", "reconciliation", "possibly disposition and sale calculations"],
+      "exceptions": [{"symptom": "A sale already references the old volume", "response": "Use the governed amendment path; never edit database rows directly."}],
+      "safety": "A late entry is a correction to the original operational date, not a new current-day production event.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["POST /farm/milk", "PATCH /farm/milk/production/{record_id}"], "services": ["src/dairyos/farm/production/milk/services/milk_recording_service.py", "src/dairyos/farm/production/services/milk_reconciliation_service.py"], "tests": ["tests/api/test_milk_reconciliation_crud.py", "tests/api/test_milk_sale_amendment_atomicity.py"]},
+      "related": ["milk.record.session", "milk.amendment", "milk.reconciliation", "revenue.sale-amendment"]
+    },
+    {
+      "id": "milk.amendment",
+      "capability": "amendment",
+      "question": "How do I correct an incorrect milk record?",
+      "alternatives": ["edit milk", "wrong litres", "correct production entry"],
+      "answer": "Use the governed amendment route, state the correction, and verify the synchronized production, reconciliation, disposition, sale, and audit facts.",
+      "scenario": {"given": "A persisted milk record contains an incorrect value or attribution.", "steps": ["Locate the exact persisted record.", "Review dependent disposition/sale facts.", "Submit the amendment with the reason and operator identity.", "Verify the updated record and its audit history.", "Reconcile the affected date and commercial facts."], "expected": "The correction is atomic across the facts that depend on the milk record, or the operation fails without a partial update.", "next": "Check revenue, receivable, and inventory consequences where applicable."},
+      "effects": ["milk ledger", "audit trail", "reconciliation", "disposition", "sale/revenue facts"],
+      "exceptions": [{"symptom": "A dependent sale cannot be synchronized", "response": "Treat the operation as failed and inspect the returned error; do not manually patch one side."}],
+      "safety": "Do not silently delete history or change a record outside the governed API.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["PATCH /farm/milk/production/{record_id}"], "services": ["src/dairyos/farm/production/services/milk_reconciliation_service.py"], "tests": ["tests/api/test_milk_sale_amendment_atomicity.py", "tests/api/test_milk_reconciliation_crud.py"]},
+      "related": ["milk.late-entry", "milk.void", "revenue.sale-amendment", "persistence.audit-trail"]
+    },
+    {
+      "id": "milk.void",
+      "capability": "void",
+      "question": "When should a milk record or disposition be voided?",
+      "alternatives": ["cancel milk entry", "remove incorrect sale", "void disposition"],
+      "answer": "Void a record only when it is invalid or must no longer participate in active calculations; retain the original fact and reason in the audit history.",
+      "scenario": {"given": "A duplicate or invalid persisted fact has been identified.", "steps": ["Confirm the record identity and reason.", "Use the dedicated void action.", "Verify active totals exclude it while history retains it.", "Recheck reconciliation and dependent commercial facts."], "expected": "The record is auditable and excluded according to active-status rules without destructive deletion.", "next": "Enter the correct replacement fact if one exists, then re-run the affected period checks."},
+      "effects": ["active milk totals", "disposition balance", "sale/revenue linkage", "audit history"],
+      "exceptions": [{"symptom": "Voiding would overdraw a sale or disposition", "response": "Resolve the dependency through the governed amendment workflow."}],
+      "safety": "Void is not physical deletion and must not be used to hide a data-quality problem.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["POST /farm/milk/production/{record_id}/void", "POST /farm/milk/dispositions/{disposition_id}/void"], "services": ["src/dairyos/farm/production/services/milk_reconciliation_service.py"], "tests": ["tests/api/test_milk_reconciliation_crud.py", "tests/lifecycle/test_milk_operational_lifecycle.py"]},
+      "related": ["milk.amendment", "revenue.void", "persistence.audit-trail"]
+    },
+    {
+      "id": "milk.daily-total",
+      "capability": "daily-total",
+      "question": "How does DairyOS calculate milk in a day?",
+      "alternatives": ["daily milk total", "why today's litres changed", "milk production total"],
+      "answer": "The daily total is derived from active persisted production records for the selected production date; it is not a manually stored dashboard number.",
+      "scenario": {"given": "One or more session records exist for a production date.", "steps": ["Choose the production date.", "Review recorded and missing expected sessions.", "Compare the displayed total with the persisted ledger and any late corrections."], "expected": "The total changes only when valid source records or their active status change.", "next": "Use the total as the production authority for reconciliation and period analytics."},
+      "effects": ["milk analytics", "reconciliation denominator", "COP/L denominator", "sales availability"],
+      "exceptions": [{"symptom": "The total is lower than expected", "response": "Check completeness, date, session, and void status before assuming a calculation error."}],
+      "safety": "Absence and zero remain distinct states.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["GET /farm/milk/production-summary", "GET /farm/milk/ledger"], "services": ["src/dairyos/farm/production/milk/services/milk_recording_service.py"], "tests": ["tests/milk/test_milk_os.py", "tests/milk/test_milk_intelligence.py"]},
+      "related": ["milk.record.session", "milk.reconciliation", "feed.feed-cost-per-litre"]
+    },
+    {
+      "id": "milk.reconciliation",
+      "capability": "reconciliation",
+      "question": "How do I reconcile produced milk to sold and non-sale milk?",
+      "alternatives": ["balance milk", "why is milk unreconciled", "disposition litres"],
+      "answer": "Select an explicit production date, confirm complete produced litres, then allocate litres to governed sold and non-sale dispositions without exceeding production.",
+      "scenario": {"given": "The day's production facts are recorded or their omissions are explained.", "steps": ["Open Milk Reconciliation for the exact date.", "Review produced, sold, non-sale, and unaccounted litres.", "Create or amend dispositions within the produced balance.", "Save and verify the reconciliation status and audit record."], "expected": "Sold plus non-sale active dispositions do not exceed produced litres, and the day's balance is explicit.", "next": "Create or amend the associated milk sale only from the governed sold disposition."},
+      "effects": ["milk disposition ledger", "sale eligibility", "revenue", "receivable/cash facts", "audit trail"],
+      "exceptions": [{"symptom": "Disposition exceeds production", "response": "The API must reject it; correct the source entries or disposition quantities."}, {"symptom": "A later milk entry changes the day", "response": "Reopen and reconcile the historical date, then review dependent sales."}],
+      "safety": "Never balance a discrepancy by inventing or silently discarding litres.",
+      "anchors": {"components": ["src/DairyOS.Web/src/components/MilkTab.tsx"], "routes": ["GET /farm/milk/reconciliation", "POST /farm/milk/dispositions", "PATCH /farm/milk/dispositions/{disposition_id}"], "services": ["src/dairyos/farm/production/services/milk_reconciliation_service.py"], "tests": ["tests/api/test_milk_reconciliation_crud.py", "tests/lifecycle/test_milk_operational_lifecycle.py", "tests/lifecycle/test_milk_surface_certification.py"]},
+      "related": ["milk.daily-total", "milk.late-entry", "revenue.sale", "revenue.disposition"]
+    }
+  ]
+}
