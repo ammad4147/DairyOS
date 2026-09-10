@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.payroll import PayrollRecord
@@ -83,12 +84,21 @@ def list_payroll(container=Depends(get_container)):
 
 
 @router.post("", status_code=201)
+@operational_write
 def create_payroll(request: PayrollCreateRequest, container=Depends(get_container)):
     if request.period_end < request.period_start:
         raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
     record = PayrollRecord(**request.model_dump())
     created = _repo(container).add(record)
-    return _serialize(created)
+    response = _serialize(created)
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(
+            input_type="financial",
+            payload={"payroll_id": created.id, "net_pay": str(created.net_pay), "period_start": created.period_start.isoformat(), "period_end": created.period_end.isoformat()},
+            actor="PAYROLL_API",
+        )
+    return response
 
 
 @router.post("/{record_id}/pay")

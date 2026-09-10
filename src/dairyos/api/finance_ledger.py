@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.api.tmr import (
     is_tmr_catalog_row,
@@ -981,6 +982,7 @@ def list_finance_ledger(
 
 
 @router.post("")
+@operational_write
 def create_finance_ledger_entry(
     entry: FinanceLedgerEntry,
     container=Depends(get_container),
@@ -1240,12 +1242,28 @@ def create_finance_ledger_entry(
             transaction_type=transaction_type,
             status=status,
         )
-        session.commit()
+        if not session.info.get("operational_write_managed", False):
+            session.commit()
     except Exception:
         session.rollback()
         raise
 
     session.refresh(transaction)
+
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(
+            input_type="financial",
+            payload={
+                "transaction_id": transaction.id,
+                "transaction_type": transaction.transaction_type,
+                "category": transaction.category,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "transaction_date": transaction.transaction_date.isoformat() if transaction.transaction_date else None,
+            },
+            actor="FINANCE_API",
+        )
 
     return _row_dict(transaction)
 

@@ -15,8 +15,9 @@ class FeedRationRepository:
             self.records.append(record)
             return record
         self.session.add(record)
-        self.session.commit()
-        self.session.refresh(record)
+        if not self.session.info.get("operational_write_managed", False):
+            self.session.commit()
+            self.session.refresh(record)
         return record
 
     def get_all(self):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -11,6 +11,8 @@ from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.core.time_utils import utcnow
+from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
@@ -50,8 +52,9 @@ class FeedEntry(BaseModel):
 
 
 @router.post("/rations")
-def create_ration(payload: RationEntry):
-    factory = RepositoryFactory.create()
+@operational_write
+def create_ration(payload: RationEntry, container=Depends(get_container)):
+    factory = container.repository_factory
     try:
         if not payload.animal_group.strip():
             raise HTTPException(status_code=400, detail="animal_group is required")
@@ -69,7 +72,7 @@ def create_ration(payload: RationEntry):
             operator=payload.operator.strip(),
         )
         saved = factory.feed_rations().add(record)
-        return {
+        response = {
             "id": saved.id,
             "name": saved.name,
             "animal_group": saved.animal_group,
@@ -84,8 +87,17 @@ def create_ration(payload: RationEntry):
             "operator": saved.operator,
             "data_status": "LIVE_PERSISTED_DATA",
         }
+        gateway = getattr(container, "input_gateway", None)
+        if gateway is not None:
+            gateway.record(
+                input_type="feed_ration",
+                payload={"ration_id": saved.id, "name": saved.name, "animal_group": saved.animal_group, "effective_date": saved.effective_date},
+                actor=payload.operator,
+            )
+        return response
     finally:
-        factory.close()
+        if not getattr(container, "_operational_write_active", False):
+            factory.close()
 
 
 @router.get("/rations")
@@ -179,10 +191,11 @@ def _historical_feed_cost(factory, feed_type: str, feeding_date: datetime):
 
 
 @router.post("/records")
-def record_feed(payload: FeedEntry):
+@operational_write
+def record_feed(payload: FeedEntry, container=Depends(get_container)):
     if not payload.animal_id and not payload.group_or_pen:
         raise HTTPException(status_code=400, detail="animal_id or group_or_pen is required")
-    factory = RepositoryFactory.create()
+    factory = container.repository_factory
     try:
         if payload.animal_id and not factory.animal().exists(payload.animal_id):
             raise HTTPException(status_code=422, detail="Unknown Animal ID")
@@ -208,10 +221,19 @@ def record_feed(payload: FeedEntry):
         session.flush()
         if _existing_feed_consumption(factory, record.id) is None:
             session.add(InventoryTransaction(item=record.feed_type, movement_type="CONSUMPTION", quantity=quantity, signed_quantity=-quantity, unit="kg", notes=f"Auto-deducted from feeding record #{record.id}. {record.notes or ''}".strip(), recorded_by="FEED_API", source_type="FEED_RECORD", source_id=str(record.id), recorded_at=feeding_date))
-        session.commit()
+        if not session.info.get("operational_write_managed", False):
+            session.commit()
         session.refresh(record)
         inventory_balance = _inventory_balance(factory, record.feed_type)
-        return {"id": record.id, "animal_id": record.animal_id, "group_or_pen": record.group_or_pen, "feed_type": record.feed_type, "quantity_kg": record.quantity_kg, "feeding_date": record.feeding_date, "status": record.status, "unit_cost_per_kg": record.unit_cost_per_kg, "total_feed_cost": record.total_feed_cost, "cost_basis": record.cost_basis, "cost_source_financial_transaction_id": record.cost_source_financial_transaction_id, "inventory_balance_kg": inventory_balance, "inventory_status": "NEGATIVE_STOCK_EXCEPTION" if inventory_balance < 0 else "BALANCED", "data_status": "LIVE_PERSISTED_DATA"}
+        response = {"id": record.id, "animal_id": record.animal_id, "group_or_pen": record.group_or_pen, "feed_type": record.feed_type, "quantity_kg": record.quantity_kg, "feeding_date": record.feeding_date, "status": record.status, "unit_cost_per_kg": record.unit_cost_per_kg, "total_feed_cost": record.total_feed_cost, "cost_basis": record.cost_basis, "cost_source_financial_transaction_id": record.cost_source_financial_transaction_id, "inventory_balance_kg": inventory_balance, "inventory_status": "NEGATIVE_STOCK_EXCEPTION" if inventory_balance < 0 else "BALANCED", "data_status": "LIVE_PERSISTED_DATA"}
+        gateway = getattr(container, "input_gateway", None)
+        if gateway is not None:
+            gateway.record(
+                input_type="feeding",
+                payload={"feed_record_id": record.id, "feed_type": record.feed_type, "quantity_kg": record.quantity_kg, "feeding_date": record.feeding_date.isoformat() if record.feeding_date else None},
+                actor="FEED_API",
+            )
+        return response
     except HTTPException:
         factory.rollback()
         raise
@@ -219,7 +241,8 @@ def record_feed(payload: FeedEntry):
         factory.rollback()
         raise
     finally:
-        factory.close()
+        if not getattr(container, "_operational_write_active", False):
+            factory.close()
 
 
 @router.get("/records")

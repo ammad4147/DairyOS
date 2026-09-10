@@ -34,8 +34,9 @@ class FeedRecordRepository:
         self._apply_operational_date(record)
         if self.session:
             self.session.add(record)
-            self.session.commit()
-            self.session.refresh(record)
+            if not self.session.info.get("operational_write_managed", False):
+                self.session.commit()
+                self.session.refresh(record)
             return record
         self.records.append(record)
         return record
