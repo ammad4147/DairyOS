@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = ROOT / "capability_catalog.json"
-CONTENT = sorted(ROOT.glob("*-items.json")) + [ROOT / "disease-reference-catalog.json"]
+CONTENT = sorted(ROOT.glob("*-items.json")) + sorted(ROOT.glob("*-catalog.json")) + [ROOT / "cross-link-aliases.json"]
 
 
 def main() -> int:
@@ -42,6 +42,8 @@ def main() -> int:
         for related in item.get("related", []):
             if related not in ids:
                 errors.append(f"{path.name}:{item_id}: missing related id {related}")
+        if item.get("redirect_to") and item["redirect_to"] not in ids:
+            errors.append(f"{path.name}:{item_id}: missing redirect target {item['redirect_to']}")
         anchors = item.get("anchors", {})
         for key in ("components", "services", "models", "tests"):
             for anchor in anchors.get(key, []):
