@@ -993,8 +993,12 @@ def get_tmr_history(
 ):
     """Read-only daily TMR calculation and consumed-feed audit log."""
     factory = container.repository_factory
-    end = OperationalDateAuthority(repository_factory=factory).current_date()
-    start = end - timedelta(days=days - 1)
+    operational_date = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_date()
+    requested_end = operational_date
+    effective_end = min(requested_end, operational_date)
+    start = effective_end - timedelta(days=days - 1)
     snapshots = {
         str(row.get("operational_date")): row
         for row in _daily_cost_snapshots(factory)
@@ -1003,7 +1007,7 @@ def get_tmr_history(
     for row in factory.feed().get_all() or []:
         value = getattr(row, "feeding_date", None)
         row_date = value.date() if hasattr(value, "date") else value
-        if row_date is None or not (start <= row_date <= end):
+        if row_date is None or not (start <= row_date <= effective_end):
             continue
         bucket = consumed[row_date.isoformat()]
         bucket["quantity_kg"] += float(getattr(row, "quantity_kg", 0.0) or 0.0)
@@ -1011,7 +1015,7 @@ def get_tmr_history(
         bucket["records"] += 1
     rows = []
     day = start
-    while day <= end:
+    while day <= effective_end:
         key = day.isoformat()
         snapshot = snapshots.get(key)
         rows.append({
