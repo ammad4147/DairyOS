@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import inspect, text
 
 from dairyos.api.dependencies import get_container
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(tags=["Health"])
 
