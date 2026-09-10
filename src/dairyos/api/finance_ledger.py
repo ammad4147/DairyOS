@@ -1420,6 +1420,7 @@ def feed_opex_profitability(
 
 
 @router.patch("/{transaction_id}")
+@operational_write
 def edit_finance_ledger_entry(
     transaction_id: int,
     payload: FinanceLedgerEdit,
@@ -1433,6 +1434,15 @@ def edit_finance_ledger_entry(
             payload,
             runtime_factory,
         )
+
+    if getattr(container, "_operational_write_active", False):
+        response = _edit_finance_ledger_entry(transaction_id, payload, runtime_factory)
+        container.input_gateway.record(
+            input_type="financial",
+            payload={"transaction_id": transaction_id, "action": "EDIT", "status": response.get("status")},
+            actor="FINANCE_API",
+        )
+        return response
 
     # Cross-module Finance/Milk amendments require an isolated application
     # transaction. RepositoryFactory.create() is the governed persistence
@@ -1777,12 +1787,22 @@ def delete_finance_ledger_entry(
 
 
 @router.post("/{transaction_id}/status")
+@operational_write
 def update_finance_ledger_status(
     transaction_id: int,
     payload: FinanceStatusUpdate,
     container=Depends(get_container),
 ):
     runtime_factory = _factory(container)
+
+    if getattr(container, "_operational_write_active", False):
+        response = _update_finance_ledger_status(transaction_id, payload, runtime_factory)
+        container.input_gateway.record(
+            input_type="financial",
+            payload={"transaction_id": transaction_id, "action": "STATUS", "status": response.get("status")},
+            actor="FINANCE_API",
+        )
+        return response
 
     if getattr(runtime_factory, "session", None) is None:
         return _update_finance_ledger_status(
