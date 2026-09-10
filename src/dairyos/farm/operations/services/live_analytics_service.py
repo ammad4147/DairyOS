@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
+from dairyos.api.tmr import tmr_feed_cost_for_period
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
@@ -27,7 +28,6 @@ class LiveAnalyticsService:
         operational_date = OperationalDateAuthority().current_date()
         start_date = operational_date - timedelta(days=days - 1)
         end_date_exclusive = operational_date + timedelta(days=1)
-        start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
         end_dt = datetime.combine(end_date_exclusive, datetime.min.time(), tzinfo=timezone.utc)
 
         rf = RepositoryFactory.create()
@@ -85,6 +85,28 @@ class LiveAnalyticsService:
                 days=days,
                 now=end_dt,
             )
+            # Feed Cost/L is governed by the TMR Preparation Tool's
+            # whole-herd daily cost, not by whether an operator separately
+            # entered a Finance FEED transaction.  The period authority uses
+            # immutable daily TMR snapshots and therefore responds to the
+            # selected timeframe while preserving herd/formula changes.
+            tmr_cost = tmr_feed_cost_for_period(
+                rf,
+                start_date,
+                operational_date,
+            )
+            tmr_litres = sum(
+                max(0.0, float(getattr(row, "total_yield", 0.0) or 0.0))
+                for row in milk_records
+                if str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+                in {"RECORDED", "SOLD", "DISPOSED", "WASTAGE", "WITHDRAWAL"}
+            )
+            tmr_feed_total = tmr_cost.get("total_feed_cost")
+            tmr_feed_per_litre = (
+                round(float(tmr_feed_total) / tmr_litres, 4)
+                if tmr_feed_total is not None and tmr_litres > 0.001
+                else None
+            )
 
             lifecycle_counts = defaultdict(int)
             for animal in animals:
@@ -106,10 +128,13 @@ class LiveAnalyticsService:
                 "health": health_series,
                 "breeding": breeding_series,
                 "financial": {
-                    "feed_cost_per_litre": cost["feed_cost_per_litre"],
+                    "feed_cost_per_litre": tmr_feed_per_litre,
                     "opex_cost_per_litre": cost["opex_cost_per_litre"],
                     "cost_of_milk_production_per_litre": cost["cmpl"],
-                    "feed_cost": cost["feed_cost"],
+                    "feed_cost": tmr_feed_total,
+                    "feed_cost_basis": tmr_cost["source"],
+                    "feed_cost_complete": tmr_cost["complete"],
+                    "feed_cost_missing_authority_days": tmr_cost["missing_authority_days"],
                     "opex": cost["opex"],
                     "data_status": "LIVE_PERSISTED_DATA" if finance or milk_records else "NO_DATA",
                 },

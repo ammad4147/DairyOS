@@ -7,16 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
-from dairyos.finance.classification.transaction_classifier import is_active
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.feed_ration import FeedRation
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
-)
 from dairyos.farm.reproduction.services.post_calving_return_service import (
     reconcile_due_post_calving_returns,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
+from dairyos.finance.classification.transaction_classifier import is_active
 
 router = APIRouter(prefix="/farm/tmr", tags=["tmr"])
 
@@ -649,8 +649,13 @@ def governed_tmr_catalog_names(factory) -> list[str]:
     )
 
 
-def build_live_tmr_summary(factory, *, include_weekly_review: bool = True) -> dict:
-    operational_date = OperationalDateAuthority(
+def build_live_tmr_summary(
+    factory,
+    *,
+    include_weekly_review: bool = True,
+    operational_date: date | None = None,
+) -> dict:
+    operational_date = operational_date or OperationalDateAuthority(
         repository_factory=factory,
     ).current_date()
     price_authority = _finance_price_authority(factory)
@@ -782,6 +787,7 @@ def lock_daily_tmr_cost_snapshot(
     live = build_live_tmr_summary(
         factory,
         include_weekly_review=False,
+        operational_date=selected_date,
     )
 
     snapshot = {
