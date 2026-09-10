@@ -15,7 +15,8 @@
     {"id":"animals.passport","capability":"passport","redirect_to":"animals.identity-and-passport"},
     {"id":"installation.data-preservation","capability":"data-preservation","redirect_to":"installation.upgrade-and-backup"},
     {"id":"dashboard.findings","capability":"findings","redirect_to":"dashboard.decisions"},
-    {"id":"health.treatment","capability":"treatment","redirect_to":"health.treatment-withdrawal"}
+    {"id":"health.treatment","capability":"treatment","redirect_to":"health.treatment-withdrawal"},
+    {"id":"health.withdrawal","capability":"withdrawal","redirect_to":"health.treatment-withdrawal"}
   ],
   "review": {"implementation_anchor_validation":"NOT_APPLICABLE_ALIAS_ONLY","domain_review":"REQUIRED","coverage_review":"PENDING"}
 }
