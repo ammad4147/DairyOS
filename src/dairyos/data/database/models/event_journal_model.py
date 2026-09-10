@@ -25,6 +25,7 @@ from sqlalchemy import (
     JSON,
     String,
 )
+from sqlalchemy.orm import relationship
 
 from dairyos.data.database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -36,6 +37,12 @@ class EventJournalModel(Base):
     """
 
     __tablename__ = "event_journal"
+
+    projection_outbox = relationship(
+        "OperationalProjectionOutbox",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     id = Column(
         Integer,

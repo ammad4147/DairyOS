@@ -1439,7 +1439,7 @@ def edit_finance_ledger_entry(
         response = _edit_finance_ledger_entry(transaction_id, payload, runtime_factory)
         container.input_gateway.record(
             input_type="financial",
-            payload={"transaction_id": transaction_id, "action": "EDIT", "status": response.get("status")},
+            payload={"transaction_id": transaction_id, "action": "EDIT", "transaction_type": response.get("transaction_type", "EXPENSE"), "amount": str(response.get("amount", 0)), "status": response.get("status")},
             actor="FINANCE_API",
         )
         return response
@@ -1799,7 +1799,7 @@ def update_finance_ledger_status(
         response = _update_finance_ledger_status(transaction_id, payload, runtime_factory)
         container.input_gateway.record(
             input_type="financial",
-            payload={"transaction_id": transaction_id, "action": "STATUS", "status": response.get("status")},
+            payload={"transaction_id": transaction_id, "action": "STATUS", "transaction_type": response.get("transaction_type", "EXPENSE"), "amount": str(response.get("amount", 0)), "status": response.get("status")},
             actor="FINANCE_API",
         )
         return response

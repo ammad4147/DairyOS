@@ -232,7 +232,7 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depend
     factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "CREATE"}, actor="FEED_INVENTORY_API")
+        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "CREATE", "feed_type": saved.item, "quantity_kg": 0}, actor="FEED_INVENTORY_API")
     return _catalog_row(saved)
 
 
@@ -271,7 +271,7 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, cont
     factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "EDIT"}, actor="FEED_INVENTORY_API")
+        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "EDIT", "feed_type": saved.item, "quantity_kg": 0}, actor="FEED_INVENTORY_API")
     return _catalog_row(saved)
 
 
@@ -363,7 +363,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
     factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": saved.movement_type, "signed_quantity": saved.signed_quantity}, actor=payload.recorded_by or "FEED_INVENTORY_API")
+        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": saved.movement_type, "signed_quantity": saved.signed_quantity, "feed_type": saved.item, "quantity_kg": abs(saved.signed_quantity)}, actor=payload.recorded_by or "FEED_INVENTORY_API")
     return _movement_row(saved)
 
 
@@ -846,7 +846,7 @@ def sync_tmr_feed_storage(container=Depends(get_container)):
     )
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(input_type="feeding", payload={"action": "TMR_STORAGE_RECONCILIATION", "cutover_date": response.get("cutover_date"), "created_rows": response.get("created_rows"), "reconciled_rows": response.get("reconciled_rows")}, actor="SYSTEM_TMR")
+        gateway.record(input_type="feeding", payload={"action": "TMR_STORAGE_RECONCILIATION", "cutover_date": response.get("cutover_date"), "created_rows": response.get("created_rows"), "reconciled_rows": response.get("reconciled_rows"), "feed_type": "TMR_STORAGE_RECONCILIATION", "quantity_kg": 0}, actor="SYSTEM_TMR")
     return response
 
 
@@ -932,7 +932,7 @@ def manual_feed_storage_override(
 
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": "ADJUSTMENT", "signed_quantity": saved.signed_quantity, "manual_override": True}, actor=payload.recorded_by or "FEED_INVENTORY_API")
+        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": "ADJUSTMENT", "signed_quantity": saved.signed_quantity, "manual_override": True, "feed_type": saved.item, "quantity_kg": abs(saved.signed_quantity)}, actor=payload.recorded_by or "FEED_INVENTORY_API")
 
     return {
         "data_status": "LIVE_PERSISTED_DATA",

@@ -23,7 +23,7 @@ class OperationalProjectionOutbox(Base):
         String(160), ForeignKey("operational_write.request_id"), nullable=False, index=True
     )
     journal_id = Column(
-        Integer, ForeignKey("event_journal.id"), nullable=False, unique=True
+        Integer, ForeignKey("event_journal.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     status = Column(String(16), nullable=False, default="PENDING", index=True)
     attempts = Column(Integer, nullable=False, default=0)
