@@ -481,7 +481,7 @@ export default function SettingsTab({
             <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>{(systemHealth.checks || []).map(check => <div key={check.name} style={{ borderTop: '1px solid #1f2937', paddingTop: 6, fontSize: 10 }}><strong style={{ color: check.status === 'PASS' ? '#86efac' : check.status === 'WARNING' ? '#fde68a' : '#fca5a5' }}>{check.status}</strong> · {check.name}<div style={{ color: '#94a3b8', marginTop: 2 }}>{check.detail}</div></div>)}</div>
           </div>}
         </section><section style={{ ...card, borderColor: '#7f1d1d' }}>
-          <strong style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: '#fca5a5' }}><AlertTriangle size={14} />Reset to Deployment-Zero State</strong>
+          <strong style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: '#fca5a5' }}><AlertTriangle size={14} />Reset to Zero State</strong>
           <div style={{ color: '#fecaca', fontSize: 10, margin: '7px 0 10px' }}>This permanently removes operational farm records from the database. DairyOS creates and verifies a recovery snapshot first. The reset is queued and applied only after the backend is safely stopped; existing data is not changed by this request.</div>
           <input type="password" value={resetPassword} onChange={event => setResetPassword(event.target.value)} placeholder="Administrator password" style={field} />
           <input value={resetConfirm} onChange={event => setResetConfirm(event.target.value)} placeholder="Type: RESET DAIRYOS TO ZERO STATE" style={field} />
