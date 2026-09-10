@@ -9,7 +9,6 @@ import MilkTab from './components/MilkTab';
 import HealthTab from './components/HealthTab';
 import VaccinationTab from './components/VaccinationTab';
 import BreedingTab from './components/BreedingTab';
-import TrainingSimulator from './components/TrainingSimulator';
 import AnimalTab from './components/AnimalTab';
 import AnimalPassportModal from './components/AnimalPassportModal';
 import PayrollWindow from './components/PayrollWindow';
@@ -65,12 +64,11 @@ export default function MainAppShell(){
      {currentView==='feed'&&<FeedTab/>}
      {currentView==='cop'&&<COML/>}
      {currentView==='audit'&&<AuditTab/>}
-     {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs} onOpenTraining={()=>setCurrentView('training')}/>}
+     {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs}/>}
      {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} onOpenAnimalPassport={openLinkedPassport} onOperationalChanged={async()=>{setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
      {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
-     {currentView==='training'&&<TrainingSimulator/>}
     </main>
 
     {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}

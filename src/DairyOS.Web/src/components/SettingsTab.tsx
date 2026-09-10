@@ -3,10 +3,11 @@ import { Activity, AlertTriangle, BookOpenCheck, Building, DatabaseBackup, Mail,
 import { API_BASE_URL } from '../config/api';
 import type { NavigationTabId } from '../navigation';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
+import TrainingSimulator from './TrainingSimulator';
+import DairyOSAssistant from './DairyOSAssistant';
 
 interface SettingsTabProps {
   onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
-  onOpenTraining?: () => void;
   hiddenNavigationTabs?: NavigationTabId[];
   onHiddenNavigationTabsChange?: (hiddenTabs: NavigationTabId[]) => void;
 }
@@ -72,11 +73,10 @@ function displayBackupTime(value?: string | null) {
 
 export default function SettingsTab({
   onFarmProfileUpdate,
-  onOpenTraining,
   hiddenNavigationTabs = [],
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
-  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL'>('FARM');
+  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'TRAINING' | 'ASSISTANT'>('FARM');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
@@ -366,7 +366,8 @@ export default function SettingsTab({
         <button onClick={() => setActiveTab('FARM')} style={tab(activeTab === 'FARM')}><Building size={13} />Farm & System</button>
         <button onClick={() => setActiveTab('SYSTEM')} style={tab(activeTab === 'SYSTEM')}><Activity size={13} />System Health</button>
         <button onClick={() => setActiveTab('EMAIL')} style={tab(activeTab === 'EMAIL')}><Mail size={13} />Email & Notifications</button>
-        <button type="button" onClick={onOpenTraining} style={{ ...tab(false), background: '#115e59', borderColor: '#2dd4bf' }}><BookOpenCheck size={13} />Training Simulator</button>
+        <button type="button" onClick={() => setActiveTab('TRAINING')} style={{ ...tab(activeTab === 'TRAINING'), background: '#115e59', borderColor: '#2dd4bf' }}><BookOpenCheck size={13} />Training Simulator</button>
+        <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><BookOpenCheck size={13} />DairyOS Assistant</button>
       </div>
       {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{error}</div>}
       {message && <div style={{ background: '#064e3b', border: '1px solid #065f46', color: '#a7f3d0', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{message}</div>}
@@ -491,6 +492,8 @@ export default function SettingsTab({
           <button type="button" onClick={() => void requestSystemReset()} disabled={resetLoading || !resetPassword || !resetConfirm} style={{ ...button, background: '#991b1b', opacity: resetLoading || !resetPassword || !resetConfirm ? 0.6 : 1 }}>{resetLoading ? 'Queueing reset…' : 'Queue Reset for Next Start'}</button>
         </section></div>
       )}
+      {activeTab === 'TRAINING' && <TrainingSimulator />}
+      {activeTab === 'ASSISTANT' && <DairyOSAssistant />}
     </div>
   );
 }
