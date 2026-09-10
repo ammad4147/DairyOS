@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import secrets
 import json
+import secrets
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -17,14 +18,17 @@ from dairyos.api.auth import (
     _find_persisted_user,
     _hash_password,
     _legacy_admin_password_override,
+    _verify_legacy_admin_password,
     _verify_password,
     require_permission,
 )
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.email.service import EmailService
 from dairyos.email.digest import DashboardDigestService
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.email.service import EmailService
+from dairyos.farm.settings.services.deployment_control_service import (
+    DeploymentControlService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -32,6 +36,8 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 _NAVIGATION_RECOVERY_HASH_KEY = "navigation_admin_recovery_hash"
 _NAVIGATION_RECOVERY_SALT_KEY = "navigation_admin_recovery_salt"
 _MIN_ADMIN_PASSWORD_LENGTH = 12
+RESET_CONFIRMATION = "RESET DAIRYOS TO ZERO STATE"
+RESET_REQUEST_FILENAME = "pending-system-reset.json"
 
 
 def _service() -> tuple[FarmSettingsService, RepositoryFactory]:
@@ -175,6 +181,12 @@ class NavigationCredentialRecoveryRequest(BaseModel):
 class ResetTestDataRequest(BaseModel):
     confirm: str
     updated_by: str = Field(default="UI Operator")
+
+
+class SystemResetRequest(BaseModel):
+    password: str = Field(min_length=1)
+    confirm: str
+    updated_by: str = Field(default="DairyOS Administrator")
 
 
 class DeployRequest(BaseModel):
@@ -414,6 +426,44 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
             "destructive lifecycle reset operations."
         ),
     )
+
+
+@router.post("/system-reset")
+def request_system_reset(
+    payload: SystemResetRequest,
+    admin=Depends(require_permission("settings.navigation")),
+):
+    """Queue a password-confirmed reset for the desktop maintenance boundary.
+
+    The backend never performs destructive work in this request. The desktop
+    supervisor consumes the one-time request before starting the backend.
+    """
+    if payload.confirm != RESET_CONFIRMATION:
+        raise HTTPException(
+            status_code=422,
+            detail=f'confirm must be the literal string "{RESET_CONFIRMATION}"',
+        )
+    if not _verify_legacy_admin_password(payload.password):
+        raise HTTPException(status_code=401, detail="Invalid administrator password.")
+
+    from dairyos.platform.paths import data_root
+
+    request_path = data_root(create=True) / RESET_REQUEST_FILENAME
+    request_path.write_text(
+        json.dumps(
+            {
+                "confirm": payload.confirm,
+                "requested_by": str(admin.get("sub") or payload.updated_by),
+                "requested_at": datetime.now(UTC).isoformat(),
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "status": "QUEUED_FOR_MAINTENANCE",
+        "message": "DairyOS will apply the verified reset before the next backend start. Close DairyOS now and reopen it to complete the reset.",
+    }
 
 
 class EmailSettingsRequest(BaseModel):

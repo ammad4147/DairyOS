@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import argparse
 import ctypes
-from ctypes import wintypes
-from dataclasses import dataclass
+import json
 import logging
 import os
-from pathlib import Path
 import socket
 import subprocess
 import sys
 import threading
 import time
+from ctypes import wintypes
+from dataclasses import dataclass
+from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -27,8 +28,11 @@ from dairyos.windows.appliance_database import (
     prepare_database,
 )
 from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
+from dairyos.windows.postgres_service import (
+    PostgreSQLServiceError,
+    ensure_postgresql_running,
+)
 from dairyos.windows.private_postgres import stop as stop_private_postgres
-from dairyos.windows.postgres_service import PostgreSQLServiceError, ensure_postgresql_running
 from dairyos.windows.system_postgres_admin import (
     SystemPostgresAdminCredentialError,
     SystemPostgresRuntimeCredentialError,
@@ -37,6 +41,39 @@ from dairyos.windows.system_postgres_admin import (
 )
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
+RESET_REQUEST_FILENAME = "pending-system-reset.json"
+
+
+def process_pending_system_reset() -> None:
+    """Apply one queued Settings reset before the backend is started."""
+    from dairyos.platform.paths import data_root
+
+    request_path = data_root(create=False) / RESET_REQUEST_FILENAME
+    if not request_path.is_file():
+        return
+    try:
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        if request.get("confirm") != "RESET DAIRYOS TO ZERO STATE":
+            raise RuntimeError("Queued reset confirmation is invalid.")
+        from dairyos.admin.database import acquire_admin_database
+        from dairyos.admin.service import AdminService
+
+        lease = acquire_admin_database(
+            Path(sys.executable).resolve().parent,
+            data_root=data_root(create=False),
+        )
+        try:
+            result = AdminService(lease.manager).reset(
+                "RESET DAIRYOS DATA",
+                backup_before_reset=True,
+            )
+            LOG.info("Queued system reset completed: %s", result.message)
+        finally:
+            lease.close()
+        request_path.unlink()
+    except Exception:
+        LOG.exception("Queued system reset failed; request retained for safe retry")
+        raise
 
 
 @dataclass(frozen=True)
@@ -666,6 +703,16 @@ def run(config: SupervisorConfig) -> int:
                 "No application window was started. Existing farm data was not intentionally deleted.",
             )
             return 3
+
+        try:
+            process_pending_system_reset()
+        except Exception as exc:
+            show_startup_error(
+                "DairyOS reset could not be completed",
+                "The requested zero-state reset was not applied and the request was retained.\n\n"
+                f"{exc}\n\nExisting farm data was not intentionally deleted.",
+            )
+            return 5
 
         attempts = config.restart_attempts + 1
         for attempt in range(attempts):
