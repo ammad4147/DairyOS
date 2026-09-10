@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "status": "DRAFT",
+  "purpose": "Expanded vaccination and reproduction training content cross-linked to DairyOS workflows.",
+  "clinical_safety": "Use veterinarian-approved programmes and authorised clinical evidence. DairyOS records and reports events; it does not prescribe schedules, diagnose pregnancy, or replace veterinary or official authority.",
+  "items": [
+    {
+      "id": "vaccination.programme-design",
+      "capability": "vaccination",
+      "question": "How should a herd vaccination programme be designed?",
+      "answer": "Start with the veterinarian's region- and risk-specific programme. Define target groups, product authority, timing, handling, boosters, exclusions, adverse-reaction escalation, and coverage review before recording administration.",
+      "scenario": {"given": "A manager wants to improve herd protection.", "steps": ["Review disease history, herd classes, movement and reproductive risk with the veterinarian.", "Define the approved schedule and eligible population.", "Record each completed event with product, date, animal or group, administrator and next due date.", "Review overdue and missed animals."], "expected": "The programme remains an approved plan while actual administrations remain attributable historical facts.", "next": "Investigate missed or adverse events with the veterinarian."},
+      "effects": ["vaccination history", "due views", "herd-health planning", "audit"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/VaccinationTab.tsx", "src/DairyOS.Web/src/components/HealthTab.tsx"], "routes": ["GET /farm/vaccination/summary"], "services": ["src/dairyos/api/health.py"], "tests": ["tests/remediation/test_health_vaccination_split_20260901.py", "tests/api/test_health_api.py"]},
+      "related": ["vaccination.event", "health.withdrawal", "disease.fmd"]
+    },
+    {
+      "id": "vaccination.event",
+      "capability": "vaccination",
+      "question": "What must be recorded after a vaccine is given?",
+      "answer": "Record the animal or group, administered date, vaccine/product, batch or lot where available, administrator or veterinarian, next due date, route or site when required by the approved programme, and any reaction or note.",
+      "scenario": {"given": "An authorised vaccination has been completed.", "steps": ["Confirm identity and eligibility.", "Enter the actual administration date.", "Capture product and responsible person details.", "Save and verify the event in the animal history or vaccination view."], "expected": "The event is an auditable preventive record and is not confused with a treatment or health case.", "next": "Schedule follow-up or booster according to the approved programme."},
+      "effects": ["animal passport", "vaccination summary", "due tracking", "audit"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/VaccinationTab.tsx", "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"], "routes": ["GET /farm/animals/{animal_id}/vaccinations", "GET /farm/vaccination/summary"], "tests": ["tests/remediation/test_health_vaccination_split_20260901.py"]},
+      "related": ["vaccination.programme-design", "health.observation-triage"]
+    },
+    {
+      "id": "vaccination.missed-or-reaction",
+      "capability": "vaccination",
+      "question": "What should happen when a vaccination is missed or a reaction occurs?",
+      "answer": "Do not invent a replacement date or repeat a dose from chatbot advice. Mark the operational concern, preserve the facts already known, and obtain veterinarian direction; record the resulting action and follow-up.",
+      "scenario": {"given": "A due vaccination is missed or an animal reacts.", "steps": ["Identify the animal or affected cohort.", "Record an observation or follow-up need with the actual date and facts.", "Escalate promptly to the veterinarian for the next action.", "Record the authorised outcome and next due date."], "expected": "The system retains an evidence trail without turning a reminder into a completed vaccination.", "next": "Review programme coverage and adverse-event patterns."},
+      "effects": ["health observation", "vaccination history", "follow-up", "audit"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/HealthTab.tsx", "src/DairyOS.Web/src/components/VaccinationTab.tsx"], "routes": ["GET /farm/vaccination/summary"], "tests": ["tests/api/test_health_case.py", "tests/remediation/test_health_vaccination_split_20260901.py"]},
+      "related": ["vaccination.event", "health.treatment-withdrawal"]
+    },
+    {
+      "id": "breeding.event",
+      "capability": "breeding-event",
+      "question": "How do I record insemination or another reproductive event?",
+      "answer": "Record only an event that actually occurred, with animal identity, event date, event type, operator or technician, sire or semen details where applicable, and result information when known.",
+      "scenario": {"given": "A service or insemination has occurred.", "steps": ["Confirm the animal identity.", "Select the supported event type.", "Enter the actual date and responsible person.", "Save and verify the persisted reproductive timeline."], "expected": "The historical fact remains linked to the permanent animal record and current state is derived from chronology.", "next": "Record pregnancy diagnosis, negative result, calving, abortion, or subsequent service when it occurs."},
+      "effects": ["breeding history", "reproductive state", "alerts", "passport"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"], "routes": ["POST /farm/breeding"], "services": ["src/dairyos/farm/reproduction/services/reproduction_management_service.py"], "tests": ["tests/api/test_breeding_entered_data_persistence.py", "tests/api/test_breeding_manual_authority_contract.py"]},
+      "related": ["breeding.pregnancy", "breeding.calving", "animals.passport"]
+    },
+    {
+      "id": "breeding.pregnancy",
+      "capability": "pregnancy",
+      "question": "How should pregnancy status be recorded?",
+      "answer": "Record the actual authorised diagnostic event and result. Keep confirmed evidence distinct from expected dates, reminders, or calculated reproductive state.",
+      "scenario": {"given": "A veterinarian or authorised professional performs a pregnancy check.", "steps": ["Select the animal.", "Record date, method or result, and professional attribution.", "Save and review the reproductive timeline.", "Check the resulting state and follow-up alerts."], "expected": "Confirmed results remain historically traceable and later events can supersede current state without erasing history.", "next": "Record recheck, return to service, abortion, or calving when observed."},
+      "effects": ["reproductive state", "breeding analytics", "calving planning", "passport"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/BreedingTab.tsx", "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"], "routes": ["GET /farm/reproduction/animals/{animal_id}", "POST /farm/breeding"], "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"], "tests": ["tests/farm/reproduction/test_reproductive_state_service.py", "tests/api/test_reproduction_management_v3.py"]},
+      "related": ["breeding.event", "breeding.calving", "disease.metritis-endometritis"]
+    },
+    {
+      "id": "breeding.calving",
+      "capability": "calving",
+      "question": "What is the correct calving workflow?",
+      "answer": "Record the actual calving event promptly, preserve dam and offspring linkage, and allow the reproductive authority to derive the post-calving state. Add health or treatment records separately when needed.",
+      "scenario": {"given": "A cow has calved.", "steps": ["Confirm dam identity and actual calving date.", "Record the calving event and offspring details available at the time.", "Review reproductive state and expected operational changes.", "Record post-calving health observations separately."], "expected": "Calving is a persisted reproductive fact, not merely a changed status label; downstream state and passport remain linked.", "next": "Monitor fresh-cow health, milk entry, breeding readiness, and any treatment or withdrawal."},
+      "effects": ["reproductive chronology", "post-calving state", "lineage", "milk and health context"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/BreedingTab.tsx", "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"], "routes": ["POST /farm/breeding"], "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"], "tests": ["tests/api/test_breeding_propagation_outbox.py", "tests/farm/reproduction/test_reproductive_state_service.py"]},
+      "related": ["breeding.pregnancy", "health.observation-triage", "milk.entry"]
+    },
+    {
+      "id": "breeding.abortion-or-loss",
+      "capability": "abortion",
+      "question": "How should reproductive loss be handled?",
+      "answer": "Record the observed event and date without guessing a cause. Escalate clusters or suspected regulated disease immediately and keep clinical investigation, treatment, and reproductive history linked but distinct.",
+      "scenario": {"given": "An abortion or reproductive loss is observed.", "steps": ["Secure animal identity and event date.", "Record the event and factual observations.", "Notify the veterinarian and authority when required.", "Record tests, treatment, or follow-up as separate authorised events."], "expected": "The loss remains auditable and does not silently disappear into a generic status change.", "next": "Review cohort patterns, vaccination, disease, nutrition, and breeding records with the veterinarian."},
+      "effects": ["breeding chronology", "health investigation", "alerts", "audit"],
+      "anchors": {"components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"], "routes": ["POST /farm/breeding"], "tests": ["tests/remediation/test_breeding_modernization_20260901.py", "tests/api/test_breeding_entered_data_persistence.py"]},
+      "related": ["disease.brucellosis", "disease.bvd", "vaccination.programme-design"]
+    }
+  ],
+  "review": {"implementation_anchor_validation": "PENDING_AUTOMATION", "clinical_review": "REQUIRED", "last_validated_commit": "1945c914bf08ecd5106bc42be65276a6f9470de2"}
+}
