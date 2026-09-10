@@ -72,6 +72,7 @@ def create_ration(payload: RationEntry, container=Depends(get_container)):
             operator=payload.operator.strip(),
         )
         saved = factory.feed_rations().add(record)
+        factory.session.flush()
         response = {
             "id": saved.id,
             "name": saved.name,

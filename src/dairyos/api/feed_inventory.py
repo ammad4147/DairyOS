@@ -229,6 +229,7 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depend
         notes=payload.notes,
     )
     saved = factory.feed_inventory_items().add(row)
+    factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
         gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "CREATE"}, actor="FEED_INVENTORY_API")
@@ -267,6 +268,7 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, cont
     row.active = payload.active
     row.notes = payload.notes
     saved = repository.add(row)
+    factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
         gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "EDIT"}, actor="FEED_INVENTORY_API")
@@ -358,6 +360,7 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         recorded_by=payload.recorded_by or "WEB",
     )
     saved = factory.inventory().add(transaction)
+    factory.session.flush()
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
         gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": saved.movement_type, "signed_quantity": saved.signed_quantity}, actor=payload.recorded_by or "FEED_INVENTORY_API")
@@ -925,6 +928,7 @@ def manual_feed_storage_override(
     )
 
     saved = factory.inventory().add(transaction)
+    factory.session.flush()
 
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
