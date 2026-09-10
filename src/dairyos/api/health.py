@@ -107,6 +107,8 @@ def get_system_health(container=Depends(get_container)):
     factory = container.repository_factory
     checks: list[dict[str, str]] = []
     session = getattr(factory, "session", None)
+    tables: set[str] = set()
+    inspector = None
     try:
         if session is None:
             checks.append(_health_check("database", "WARNING", "Database session is not available."))
@@ -118,8 +120,18 @@ def get_system_health(container=Depends(get_container)):
                 checks.append(_health_check("database", "FAIL", f"Database query failed: {exc}"))
 
             try:
-                tables = set(inspect(session.bind).get_table_names())
-                required = {"app_settings", "event_journal", "milk_production", "financial_transaction", "feed_record"}
+                inspector = inspect(session.bind)
+                tables = set(inspector.get_table_names())
+                # FinancialTransaction.__tablename__ is plural.  Keep this
+                # diagnostic aligned with the ORM and migration authority so
+                # a healthy deployed ledger is not reported as missing.
+                required = {
+                    "app_settings",
+                    "event_journal",
+                    "milk_production",
+                    "financial_transactions",
+                    "feed_record",
+                }
                 missing = sorted(required - tables)
                 checks.append(
                     _health_check(
@@ -131,8 +143,12 @@ def get_system_health(container=Depends(get_container)):
             except Exception as exc:
                 checks.append(_health_check("schema", "FAIL", f"Schema inspection failed: {exc}"))
 
-            for name, table in (("milk persistence", "milk_production"), ("feed persistence", "feed_record"), ("finance persistence", "financial_transaction")):
-                if table not in locals().get("tables", set()):
+            for name, table in (
+                ("milk persistence", "milk_production"),
+                ("feed persistence", "feed_record"),
+                ("finance persistence", "financial_transactions"),
+            ):
+                if table not in tables:
                     continue
                 try:
                     count = int(session.execute(text(f'SELECT count(*) FROM "{table}"')).scalar_one())
@@ -140,13 +156,44 @@ def get_system_health(container=Depends(get_container)):
                 except Exception as exc:
                     checks.append(_health_check(name, "FAIL", f"Read failed: {exc}"))
 
-            if {"event_journal", "operational_projection_outbox"}.issubset(locals().get("tables", set())):
+            if (
+                inspector is not None
+                and {"event_journal", "operational_projection_outbox"}.issubset(tables)
+            ):
                 try:
-                    orphaned = int(session.execute(text(
-                        'SELECT count(*) FROM "operational_projection_outbox" o '
-                        'LEFT JOIN "event_journal" e ON e.id = o.event_id WHERE e.id IS NULL'
-                    )).scalar_one())
-                    checks.append(_health_check("event projections", "FAIL" if orphaned else "PASS", f"{orphaned} orphaned projection event(s)."))
+                    journal_columns = {
+                        column["name"]
+                        for column in inspector.get_columns("event_journal")
+                    }
+                    outbox_columns = {
+                        column["name"]
+                        for column in inspector.get_columns(
+                            "operational_projection_outbox"
+                        )
+                    }
+                    if "id" not in journal_columns or "journal_id" not in outbox_columns:
+                        missing_columns = []
+                        if "id" not in journal_columns:
+                            missing_columns.append("event_journal.id")
+                        if "journal_id" not in outbox_columns:
+                            missing_columns.append(
+                                "operational_projection_outbox.journal_id"
+                            )
+                        checks.append(
+                            _health_check(
+                                "event projections",
+                                "WARNING",
+                                "Orphan check unavailable: canonical linkage column(s) "
+                                + ", ".join(missing_columns)
+                                + " not present.",
+                            )
+                        )
+                    else:
+                        orphaned = int(session.execute(text(
+                            'SELECT count(*) FROM "operational_projection_outbox" o '
+                            'LEFT JOIN "event_journal" e ON e.id = o.journal_id WHERE e.id IS NULL'
+                        )).scalar_one())
+                        checks.append(_health_check("event projections", "FAIL" if orphaned else "PASS", f"{orphaned} orphaned projection event(s)."))
                 except Exception as exc:
                     checks.append(_health_check("event projections", "WARNING", f"Orphan check unavailable: {exc}"))
     finally:
