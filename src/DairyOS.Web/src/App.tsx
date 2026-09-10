@@ -19,7 +19,7 @@ import { NAVIGATION_TABS, normalizeHiddenNavigationTabs } from './navigation';
 import type { NavigationTabId } from './navigation';
 import { useAlertAudit } from './context/AlertAuditContext';
 import { AnimalContextProvider } from './context/AnimalContext';
-import { LayoutDashboard, Calculator, DollarSign, Milk, HeartPulse, ShieldCheck, Activity, Settings, Bell, Wheat, Users, WalletCards, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Calculator, DollarSign, Milk, HeartPulse, ShieldCheck, Activity, Settings, Bell, Wheat, Users, WalletCards } from 'lucide-react';
 import './App.css';
 
 interface HerdAnimal { id:string; breed:string; category:string; age:string; status:string; frequency:string; earTag:string; gender?:string; stage?:string }
@@ -45,7 +45,7 @@ export default function MainAppShell(){
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
 
  const herdMasterList=animals.filter(animal=>animal.active!==false).map(toUiAnimal);
- const navigationIcons:Record<NavigationTabId,React.ReactNode>={dashboard:<LayoutDashboard size={14}/>,animals:<Users size={14}/>,milk:<Milk size={14}/>,feed:<Wheat size={14}/>,finance:<DollarSign size={14}/>,breeding:<Activity size={14}/>,health:<HeartPulse size={14}/>,vaccination:<ShieldCheck size={14}/>,cop:<Calculator size={14}/>,training:<GraduationCap size={14}/>};
+ const navigationIcons:Record<NavigationTabId,React.ReactNode>={dashboard:<LayoutDashboard size={14}/>,animals:<Users size={14}/>,milk:<Milk size={14}/>,feed:<Wheat size={14}/>,finance:<DollarSign size={14}/>,breeding:<Activity size={14}/>,health:<HeartPulse size={14}/>,vaccination:<ShieldCheck size={14}/>,cop:<Calculator size={14}/>};
  const navItems=NAVIGATION_TABS.map(tab=>({...tab,icon:navigationIcons[tab.id]}));
  const visibleNavItems=navItems.filter(tab=>!hiddenNavigationTabs.includes(tab.id));
  const canSettings=true;const canAudit=true;
@@ -65,7 +65,7 @@ export default function MainAppShell(){
      {currentView==='feed'&&<FeedTab/>}
      {currentView==='cop'&&<COML/>}
      {currentView==='audit'&&<AuditTab/>}
-     {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs}/>}
+     {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs} onOpenTraining={()=>setCurrentView('training')}/>}
      {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} onOpenAnimalPassport={openLinkedPassport} onOperationalChanged={async()=>{setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
      {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}

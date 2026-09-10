@@ -8,7 +8,6 @@ export const NAVIGATION_TABS = [
   { id: 'health', label: 'Health' },
   { id: 'vaccination', label: 'Vaccination' },
   { id: 'cop', label: 'COP' },
-  { id: 'training', label: 'Training' },
 ] as const;
 
 export type NavigationTabId = (typeof NAVIGATION_TABS)[number]['id'];
