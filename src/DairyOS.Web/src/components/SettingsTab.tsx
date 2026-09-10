@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
+import { Activity, Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import type { NavigationTabId } from '../navigation';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
@@ -32,6 +32,7 @@ type BackupHealth = {
   archive_verified?: boolean;
   monthly_primary?: string | null;
 };
+type SystemHealth = { overall?: string; read_only?: boolean; checks?: { name: string; status: string; detail: string }[] };
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 const SMTP_PRESETS: Record<string, { host: string; port: number; tls: boolean }> = {
@@ -73,7 +74,7 @@ export default function SettingsTab({
   hiddenNavigationTabs = [],
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
-  const [activeTab, setActiveTab] = useState<'FARM' | 'EMAIL'>('FARM');
+  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL'>('FARM');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
@@ -90,6 +91,8 @@ export default function SettingsTab({
   const [clock, setClock] = useState(new Date());
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [backupHealth, setBackupHealth] = useState<BackupHealth>({
     status: 'NEVER_RUN', last_successful_backup: null, physically_redundant: false,
   });
@@ -318,6 +321,18 @@ export default function SettingsTab({
     }
   };
 
+  const runSystemHealth = async () => {
+    setError(''); setMessage(''); setHealthLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/farm/system-health`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.detail || `System health check failed (HTTP ${response.status}).`);
+      setSystemHealth(data);
+    } catch (healthError) {
+      setError(healthError instanceof Error ? healthError.message : 'System health check failed.');
+    } finally { setHealthLoading(false); }
+  };
+
   const protectionStatus = String(backupHealth.status || 'NEVER_RUN').toUpperCase();
   const protectionColor = protectionStatus === 'HEALTHY'
     ? '#86efac'
@@ -328,6 +343,7 @@ export default function SettingsTab({
       <h2 style={{ color: '#38bdf8', margin: '0 0 12px' }}>System Settings</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button onClick={() => setActiveTab('FARM')} style={tab(activeTab === 'FARM')}><Building size={13} />Farm & System</button>
+        <button onClick={() => setActiveTab('SYSTEM')} style={tab(activeTab === 'SYSTEM')}><Activity size={13} />System Health</button>
         <button onClick={() => setActiveTab('EMAIL')} style={tab(activeTab === 'EMAIL')}><Mail size={13} />Email & Notifications</button>
       </div>
       {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{error}</div>}
@@ -435,6 +451,17 @@ export default function SettingsTab({
             </div>
           </div>
         </div>
+      )}
+      {activeTab === 'SYSTEM' && (
+        <section style={card}>
+          <strong style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14} />Read-only System Health</strong>
+          <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Checks database, schema, persistence, and projection integrity without changing operational data, backups, settings, or the database.</div>
+          <button type="button" onClick={() => void runSystemHealth()} disabled={healthLoading} style={{ ...button, opacity: healthLoading ? 0.6 : 1 }}>{healthLoading ? 'Checking…' : 'Run System Health Check'}</button>
+          {systemHealth && <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 900, color: systemHealth.overall === 'PASS' ? '#86efac' : systemHealth.overall === 'WARNING' ? '#fde68a' : '#fca5a5' }}>Overall: {systemHealth.overall} · READ ONLY: {systemHealth.read_only ? 'YES' : 'NO'}</div>
+            <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>{(systemHealth.checks || []).map(check => <div key={check.name} style={{ borderTop: '1px solid #1f2937', paddingTop: 6, fontSize: 10 }}><strong style={{ color: check.status === 'PASS' ? '#86efac' : check.status === 'WARNING' ? '#fde68a' : '#fca5a5' }}>{check.status}</strong> · {check.name}<div style={{ color: '#94a3b8', marginTop: 2 }}>{check.detail}</div></div>)}</div>
+          </div>}
+        </section>
       )}
     </div>
   );

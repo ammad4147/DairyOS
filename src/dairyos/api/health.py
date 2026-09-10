@@ -1,11 +1,16 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import inspect, text
 
 from dairyos.api.dependencies import get_container
 from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 router = APIRouter(tags=["Health"])
+
+
+def _health_check(name: str, status: str, detail: str) -> dict[str, str]:
+    return {"name": name, "status": status, "detail": detail}
 
 
 def _as_date(value):
@@ -86,6 +91,72 @@ def get_health_summary(container=Depends(get_container)):
         "withdrawalAnimals": len(withdrawal_animals),
         "followupsDue": followups_due,
         "data_status": "LIVE_PERSISTED_DATA",
+    }
+
+
+@router.get("/farm/system-health")
+def get_system_health(container=Depends(get_container)):
+    """Run a strictly read-only DairyOS integrity and readiness check.
+
+    This endpoint performs no writes, migrations, backup operations, resets,
+    or runtime control.  Every database operation is a SELECT and the
+    application session is explicitly rolled back before returning.
+    """
+    factory = container.repository_factory
+    checks: list[dict[str, str]] = []
+    session = getattr(factory, "session", None)
+    try:
+        if session is None:
+            checks.append(_health_check("database", "WARNING", "Database session is not available."))
+        else:
+            try:
+                session.execute(text("SELECT 1"))
+                checks.append(_health_check("database", "PASS", "Database connection is responsive."))
+            except Exception as exc:
+                checks.append(_health_check("database", "FAIL", f"Database query failed: {exc}"))
+
+            try:
+                tables = set(inspect(session.bind).get_table_names())
+                required = {"app_settings", "event_journal", "milk_production", "financial_transaction", "feed_record"}
+                missing = sorted(required - tables)
+                checks.append(
+                    _health_check(
+                        "schema",
+                        "FAIL" if missing else "PASS",
+                        "Missing required tables: " + ", ".join(missing) if missing else "Required operational tables are present.",
+                    )
+                )
+            except Exception as exc:
+                checks.append(_health_check("schema", "FAIL", f"Schema inspection failed: {exc}"))
+
+            for name, table in (("milk persistence", "milk_production"), ("feed persistence", "feed_record"), ("finance persistence", "financial_transaction")):
+                if table not in locals().get("tables", set()):
+                    continue
+                try:
+                    count = int(session.execute(text(f'SELECT count(*) FROM "{table}"')).scalar_one())
+                    checks.append(_health_check(name, "PASS", f"{count} persisted row(s) found; no mutation performed."))
+                except Exception as exc:
+                    checks.append(_health_check(name, "FAIL", f"Read failed: {exc}"))
+
+            if {"event_journal", "operational_projection_outbox"}.issubset(locals().get("tables", set())):
+                try:
+                    orphaned = int(session.execute(text(
+                        'SELECT count(*) FROM "operational_projection_outbox" o '
+                        'LEFT JOIN "event_journal" e ON e.id = o.event_id WHERE e.id IS NULL'
+                    )).scalar_one())
+                    checks.append(_health_check("event projections", "FAIL" if orphaned else "PASS", f"{orphaned} orphaned projection event(s)."))
+                except Exception as exc:
+                    checks.append(_health_check("event projections", "WARNING", f"Orphan check unavailable: {exc}"))
+    finally:
+        if session is not None:
+            session.rollback()
+
+    overall = "FAIL" if any(item["status"] == "FAIL" for item in checks) else "WARNING" if any(item["status"] == "WARNING" for item in checks) else "PASS"
+    return {
+        "overall": overall,
+        "read_only": True,
+        "data_status": "LIVE_PERSISTED_DATA_READ_ONLY",
+        "checks": checks,
     }
 
 
