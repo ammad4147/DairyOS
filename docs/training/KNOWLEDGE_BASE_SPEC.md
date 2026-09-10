@@ -1,8 +1,7 @@
-# DairyOS Training and Assistant Knowledge Base
+# DairyOS Assistant Knowledge Base
 
-This directory is the source of truth for the future Training Simulator and
-DairyOS Assistant. Neither UI may be built from unreviewed or invented
-content.
+This directory is the source of truth for the DairyOS Assistant. The assistant
+must not be built from unreviewed or invented content.
 
 ## Content contract
 
@@ -37,8 +36,8 @@ Every knowledge item must include:
 4. A live-data answer must identify its data date and source authority.
 5. If implementation and documentation disagree, the item is blocked from
    `APPROVED` status until the discrepancy is resolved.
-6. Simulator scenarios use isolated training data and must never target the
-   live DairyOS data root or database.
+6. Assistant answers must remain grounded in approved knowledge and must never
+   infer write permission or silently act on live DairyOS data.
 
 ## Required answer perspectives
 
@@ -49,7 +48,7 @@ silently omitted.
 
 ## Completion gate
 
-The simulator and assistant UI may begin only when the capability catalog is
-complete, every item is cross-linked, all implementation anchors have been
-validated against the current repository, domain review is complete, and the
-coverage checks pass.
+The assistant UI may begin only when the capability catalog is complete, every
+item is cross-linked, all implementation anchors have been validated against
+the current repository, domain review is complete, and the coverage checks
+pass.
