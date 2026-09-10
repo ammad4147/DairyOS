@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from calendar import month_name
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -232,6 +232,16 @@ def get_integrated_coml(
         period_end
         or today
     )
+
+    latest_completed_date = today - timedelta(days=1)
+    if requested_end > latest_completed_date:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Today's Feed Cost/L is unavailable until the operational "
+                "day is complete. Select the latest completed date or earlier."
+            ),
+        )
 
     if requested_end < start:
         raise HTTPException(

@@ -116,6 +116,7 @@ const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
 });
 
 const todayIso = () => pakistanDateFormatter.format(new Date());
+const latestCompletedIso = () => dateShift(todayIso(), -1);
 
 const dateShift = (iso: string, days: number) => {
   const [year, month, day] = iso.split('-').map(Number);
@@ -129,7 +130,7 @@ const calendarEnd = (iso: string) => {
 };
 
 const boundsForPreset = (preset: Preset) => {
-  const today = todayIso();
+  const today = latestCompletedIso();
   if (preset === 'LAST_30_DAYS') {
     return { start: dateShift(today, -29), end: today };
   }
@@ -339,6 +340,7 @@ export default function COML() {
   const isCurrentMonthToDate =
     periodStart === `${todayIso().slice(0, 7)}-01`
     && periodEnd === todayIso();
+  const latestCompletedDate = latestCompletedIso();
 
   return (
     <section
@@ -416,6 +418,7 @@ export default function COML() {
             From
             <input
               type="date"
+              max={latestCompletedDate}
               value={periodStart}
               onChange={event => {
                 setPreset('CUSTOM');
@@ -428,6 +431,7 @@ export default function COML() {
             To
             <input
               type="date"
+              max={latestCompletedDate}
               value={periodEnd}
               onChange={event => {
                 setPreset('CUSTOM');
@@ -439,7 +443,7 @@ export default function COML() {
         </div>
         <div style={{ marginTop: 7, color: '#64748b', fontSize: 9 }}>
           Production and costs below are for this range only.
-          {isCurrentMonthToDate ? ' · live month-to-date' : ''}
+          {periodEnd >= todayIso() ? ' · Today’s Feed Cost/L is unavailable until the operational day is complete.' : ''}
           {' · '}auto-refresh every 60 seconds
           {mode === 'MANUAL' ? ' · Operator-Assessed draft was restored from your last session when available.' : ''}
         </div>
