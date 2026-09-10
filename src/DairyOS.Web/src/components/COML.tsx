@@ -443,7 +443,7 @@ export default function COML() {
         </div>
         <div style={{ marginTop: 7, color: '#64748b', fontSize: 9 }}>
           Production and costs below are for this range only.
-          {periodEnd >= todayIso() ? ' · Today’s Feed Cost/L is unavailable until the operational day is complete.' : ''}
+          {periodEnd >= todayIso() ? ' · Today’s Feed Cost/L is unavailable; live month-to-date calculation is unavailable until the operational day is complete.' : ''}
           {' · '}auto-refresh every 60 seconds
           {mode === 'MANUAL' ? ' · Operator-Assessed draft was restored from your last session when available.' : ''}
         </div>
