@@ -13,8 +13,9 @@ class FeedInventoryItemRepository:
         item.updated_at = utcnow()
         if self.session:
             self.session.add(item)
-            self.session.commit()
-            self.session.refresh(item)
+            if not self.session.info.get("operational_write_managed", False):
+                self.session.commit()
+                self.session.refresh(item)
             return item
         if getattr(item, "id", None) is None:
             item.id = len(self.records) + 1

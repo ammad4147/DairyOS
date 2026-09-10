@@ -5,8 +5,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from types import SimpleNamespace
 from sqlalchemy import text
+from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
@@ -15,15 +16,6 @@ from dairyos.finance.classification.transaction_classifier import is_active
 from dairyos.core.inventory_units import convert_quantity
 
 router = APIRouter(prefix="/farm/feed-inventory", tags=["feed-inventory"])
-
-
-def get_container():
-    """Inventory requests own their session, including rollback on rejection."""
-    factory = RepositoryFactory.create()
-    try:
-        yield SimpleNamespace(repository_factory=factory)
-    finally:
-        factory.close()
 
 
 def _lock_stock(factory):
@@ -217,6 +209,7 @@ def list_feed_inventory_items(active_only: bool = True, container=Depends(get_co
 
 
 @router.post("/items")
+@operational_write
 def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depends(get_container)):
     item = payload.item.strip()
     if not item or not payload.unit.strip():
@@ -235,10 +228,15 @@ def create_feed_inventory_item(payload: FeedInventoryItemEntry, container=Depend
         active=payload.active,
         notes=payload.notes,
     )
-    return _catalog_row(factory.feed_inventory_items().add(row))
+    saved = factory.feed_inventory_items().add(row)
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "CREATE"}, actor="FEED_INVENTORY_API")
+    return _catalog_row(saved)
 
 
 @router.patch("/items/{item_id}")
+@operational_write
 def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, container=Depends(get_container)):
     factory = _factory(container)
     _lock_stock(factory)
@@ -268,7 +266,11 @@ def edit_feed_inventory_item(item_id: int, payload: FeedInventoryItemEntry, cont
     row.reorder_level = payload.reorder_level
     row.active = payload.active
     row.notes = payload.notes
-    return _catalog_row(repository.add(row))
+    saved = repository.add(row)
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(input_type="feeding", payload={"inventory_item_id": saved.id, "item": saved.item, "action": "EDIT"}, actor="FEED_INVENTORY_API")
+    return _catalog_row(saved)
 
 
 @router.get("/movements")
@@ -286,6 +288,7 @@ def list_feed_inventory_movements(
 
 
 @router.post("/movements")
+@operational_write
 def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Depends(get_container)):
     movement_type = payload.movement_type.strip().upper()
 
@@ -354,7 +357,11 @@ def create_feed_inventory_movement(payload: FeedInventoryMovement, container=Dep
         notes=((f"Finance transaction #{payload.source_financial_transaction_id}. {payload.notes or ''}").strip() if payload.source_financial_transaction_id is not None else payload.notes),
         recorded_by=payload.recorded_by or "WEB",
     )
-    return _movement_row(factory.inventory().add(transaction))
+    saved = factory.inventory().add(transaction)
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": saved.movement_type, "signed_quantity": saved.signed_quantity}, actor=payload.recorded_by or "FEED_INVENTORY_API")
+    return _movement_row(saved)
 
 
 @router.get("/dashboard")
@@ -813,7 +820,8 @@ def reconcile_tmr_feed_storage(factory):
 
         day += timedelta(days=1)
 
-    factory.session.commit()
+    if not factory.session.info.get("operational_write_managed", False):
+        factory.session.commit()
 
     return {
         "data_status": "LIVE_PERSISTED_DATA",
@@ -827,14 +835,20 @@ def reconcile_tmr_feed_storage(factory):
 
 
 @router.post("/automatic-consumption/sync")
+@operational_write
 def sync_tmr_feed_storage(container=Depends(get_container)):
     """Compatibility/API wrapper for governed TMR storage reconciliation."""
-    return reconcile_tmr_feed_storage(
+    response = reconcile_tmr_feed_storage(
         _factory(container)
     )
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(input_type="feeding", payload={"action": "TMR_STORAGE_RECONCILIATION", "cutover_date": response.get("cutover_date"), "created_rows": response.get("created_rows"), "reconciled_rows": response.get("reconciled_rows")}, actor="SYSTEM_TMR")
+    return response
 
 
 @router.post("/manual-override")
+@operational_write
 def manual_feed_storage_override(
     payload: FeedStorageManualOverride,
     container=Depends(get_container),
@@ -911,6 +925,10 @@ def manual_feed_storage_override(
     )
 
     saved = factory.inventory().add(transaction)
+
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(input_type="feeding", payload={"inventory_transaction_id": saved.id, "item": saved.item, "movement_type": "ADJUSTMENT", "signed_quantity": saved.signed_quantity, "manual_override": True}, actor=payload.recorded_by or "FEED_INVENTORY_API")
 
     return {
         "data_status": "LIVE_PERSISTED_DATA",

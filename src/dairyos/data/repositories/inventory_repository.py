@@ -24,8 +24,9 @@ class InventoryRepository:
                 convert_quantity(transaction.quantity, transaction.unit, previous.unit)
         if self.session:
             self.session.add(transaction)
-            self.session.commit()
-            self.session.refresh(transaction)
+            if not self.session.info.get("operational_write_managed", False):
+                self.session.commit()
+                self.session.refresh(transaction)
             return transaction
 
         self.records.append(transaction)
