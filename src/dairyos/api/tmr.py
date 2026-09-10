@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
@@ -984,6 +984,44 @@ def get_tmr(container=Depends(get_container)):
     factory = container.repository_factory
     reconcile_due_post_calving_returns(factory, container.event_journal)
     return build_live_tmr_summary(factory)
+
+
+@router.get("/history")
+def get_tmr_history(
+    days: int = Query(default=7, ge=1, le=365),
+    container=Depends(get_container),
+):
+    """Read-only daily TMR calculation and consumed-feed audit log."""
+    factory = container.repository_factory
+    end = OperationalDateAuthority(repository_factory=factory).current_date()
+    start = end - timedelta(days=days - 1)
+    snapshots = {
+        str(row.get("operational_date")): row
+        for row in _daily_cost_snapshots(factory)
+    }
+    consumed = defaultdict(lambda: {"quantity_kg": 0.0, "feed_cost": 0.0, "records": 0})
+    for row in factory.feed().get_all() or []:
+        value = getattr(row, "feeding_date", None)
+        row_date = value.date() if hasattr(value, "date") else value
+        if row_date is None or not (start <= row_date <= end):
+            continue
+        bucket = consumed[row_date.isoformat()]
+        bucket["quantity_kg"] += float(getattr(row, "quantity_kg", 0.0) or 0.0)
+        bucket["feed_cost"] += float(getattr(row, "total_feed_cost", 0.0) or 0.0)
+        bucket["records"] += 1
+    rows = []
+    day = start
+    while day <= end:
+        key = day.isoformat()
+        snapshot = snapshots.get(key)
+        rows.append({
+            "date": key,
+            "calculation": snapshot,
+            "feed_consumed": consumed[key],
+            "status": "CALCULATED" if snapshot else "MISSING_TMR_CALCULATION",
+        })
+        day += timedelta(days=1)
+    return {"data_status": "LIVE_PERSISTED_DATA", "days": days, "records": rows}
 
 
 @router.post("/stages")

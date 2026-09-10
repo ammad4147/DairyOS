@@ -160,6 +160,24 @@ export default function COML() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [showPeriodLog, setShowPeriodLog] = useState(false);
+  const [periodLogDays, setPeriodLogDays] = useState(7);
+  const [periodLog, setPeriodLog] = useState<any[]>([]);
+  const [periodLogLoading, setPeriodLogLoading] = useState(false);
+
+  const loadPeriodLog = async () => {
+    setPeriodLogLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/farm/coml/period-history?days=${periodLogDays}`);
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail || 'Unable to load COP history.');
+      setPeriodLog(body?.records || []);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : 'Unable to load COP history.');
+    } finally {
+      setPeriodLogLoading(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -448,6 +466,27 @@ export default function COML() {
           {mode === 'MANUAL' ? ' · Operator-Assessed draft was restored from your last session when available.' : ''}
         </div>
       </div>
+
+      <div style={{ marginTop: 10 }}>
+        <button type="button" onClick={() => { setShowPeriodLog(value => !value); if (!showPeriodLog) void loadPeriodLog(); }} style={button('#0f766e')}>
+          {showPeriodLog ? 'Hide COP Log' : 'View COP Log'}
+        </button>
+      </div>
+      {showPeriodLog && (
+        <div style={{ marginTop: 10, padding: 10, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 7, overflowX: 'auto' }}>
+          <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+            <strong>Daily COP Log</strong>
+            <select value={periodLogDays} onChange={event => setPeriodLogDays(Number(event.target.value))} style={inputStyle}>
+              <option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option>
+            </select>
+            <button type="button" onClick={() => void loadPeriodLog()} style={button('#0369a1')}>{periodLogLoading ? 'Loading…' : 'Load'}</button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: 9 }}>
+            <thead><tr><th>Date</th><th>Milk (L)</th><th>Feed Cost/L</th><th>Estimated OPEX/L</th><th>Estimated COP/L</th><th>Status</th></tr></thead>
+            <tbody>{periodLog.map(row => <tr key={row.date}><td>{row.date}</td><td>{Number(row.milk_litres || 0).toFixed(2)}</td><td>{money(row.feed_cost_per_liter)}</td><td>{money(row.estimated_opex_per_liter)}</td><td>{money(row.estimated_cop_per_liter)}</td><td>{row.status}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
 
       {error && <div style={{ marginTop: 10, color: '#fecaca', fontSize: 10 }}>{error}</div>}
       {message && <div style={{ marginTop: 10, color: '#bbf7d0', fontSize: 10 }}>{message}</div>}

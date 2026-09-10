@@ -159,6 +159,34 @@ def get_coml_history(container=Depends(get_container)):
     return {"data_status": "LIVE_PERSISTED_DATA", "records": [_serialize(row) for row in factory.coml().get_all()]}
 
 
+@router.get("/period-history")
+def get_coml_period_history(
+    days: int = 7,
+    container=Depends(get_container),
+):
+    """Read-only daily COP calculation log for completed operational days."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=422, detail="days must be between 1 and 365")
+    today = OperationalDateAuthority(repository_factory=container.repository_factory).current_date()
+    end = today - timedelta(days=1)
+    start = end - timedelta(days=days - 1)
+    records = []
+    for offset in range(days):
+        day = start + timedelta(days=offset)
+        result = get_integrated_coml(period_start=day, period_end=day, container=container)
+        records.append({
+            "date": day.isoformat(),
+            "milk_litres": result["production"]["totalLiters"],
+            "feed_cost_per_liter": result["costs"]["feed_cost_per_liter"],
+            "estimated_opex_per_liter": result["costs"]["opex_cost_per_liter"],
+            "estimated_cop_per_liter": result["costs"]["total_coml_per_liter"],
+            "feed_total": result["costs"]["feed_total"],
+            "opex_total": result["costs"]["opex_total"],
+            "status": "CALCULATED" if result["costs"]["feed_cost_per_liter"] is not None else "MISSING_TMR_CALCULATION",
+        })
+    return {"data_status": "LIVE_PERSISTED_DATA", "days": days, "records": records}
+
+
 @router.post("/lock")
 def lock_coml(payload: COMLLockRequest, current_user=Depends(get_optional_current_user), container=Depends(get_container)):
     selected = _month_start(payload.month_start)
