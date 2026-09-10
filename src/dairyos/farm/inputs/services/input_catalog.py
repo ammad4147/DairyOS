@@ -18,6 +18,37 @@ class InputCatalog:
                 analytics_enabled=True, notification_enabled=True, governance_required=True, normalization_enabled=True,
             ),
             OperationalInputDefinition(
+                input_type=OperationalInputType.MILK_DISPOSITION.value,
+                name="Milk Disposition Entry",
+                description="Daily milk destination records linked to persisted production.",
+                required_fields=["production_date", "disposition_type", "quantity_litres"],
+                optional_fields=["sale_id", "counterparty", "selling_price_per_litre", "notes", "recorded_by"],
+                analytics_enabled=True, governance_required=True,
+            ),
+            OperationalInputDefinition(
+                input_type=OperationalInputType.MILK_DISPOSITION_AMENDMENT.value,
+                name="Milk Disposition Amendment",
+                description="Governed correction to a persisted milk destination record.",
+                required_fields=["disposition_id"],
+                optional_fields=["production_date", "quantity_litres", "counterparty", "selling_price_per_litre", "notes"],
+                analytics_enabled=True, governance_required=True,
+            ),
+            OperationalInputDefinition(
+                input_type=OperationalInputType.MILK_DISPOSITION_VOID.value,
+                name="Milk Disposition Void",
+                description="Governed voiding of a persisted milk destination record.",
+                required_fields=["disposition_id", "reason"],
+                governance_required=True,
+            ),
+            OperationalInputDefinition(
+                input_type=OperationalInputType.MILK_SALE_RECEIPT.value,
+                name="Milk Sale Receipt",
+                description="Receipt against a persisted milk sale receivable.",
+                required_fields=["sale_id", "amount"],
+                optional_fields=["received_on", "payment_method", "counterparty", "notes"],
+                analytics_enabled=True, governance_required=True,
+            ),
+            OperationalInputDefinition(
                 input_type=OperationalInputType.MILKING_SESSION_NOT_MILKED.value,
                 name="Milking Session Not Milked",
                 description=(

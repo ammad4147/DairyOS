@@ -451,7 +451,7 @@ def update_milk_disposition(
     factory = container.repository_factory
 
     try:
-        with factory.session.begin():
+        with factory.session.begin_nested():
             session = factory.session
 
             item = (
@@ -612,7 +612,7 @@ def void_milk_disposition(
     factory = container.repository_factory
 
     try:
-        with factory.session.begin():
+        with factory.session.begin_nested():
             session = factory.session
 
             item = (
