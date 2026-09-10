@@ -17,6 +17,9 @@ from dairyos.farm.operations.state.farm_operational_state_service import (
 from dairyos.farm.operations.services.operational_state_query_service import (
     OperationalStateQueryService,
 )
+from dairyos.farm.operations.state.farm_operational_state import (
+    FarmOperationalState,
+)
 
 
 def _build_runtime():
@@ -133,3 +136,22 @@ def test_operational_query_exposes_live_milk_projection():
         read_model.milk_status["Morning"]["litres"]
         == 25
     )
+
+
+def test_milk_projection_replaces_same_business_key_on_amendment():
+    state = FarmOperationalState(
+        farm_id="farm",
+        operational_date="2026-09-10",
+    )
+
+    state.record_milk_activity(
+        "MORNING", 10, animal_id="A-1", entry_key="A-1:2026-09-10:MORNING",
+        production_date="2026-09-10",
+    )
+    state.record_milk_activity(
+        "MORNING", 14, animal_id="A-1", entry_key="A-1:2026-09-10:MORNING",
+        production_date="2026-09-10",
+    )
+
+    assert state.milk_production_summary["total_litres_today"] == 14
+    assert state.milk_production_summary["milking_events_count"] == 1

@@ -11,8 +11,9 @@ class MilkDispositionRepository:
     def add(self, disposition):
         if self.session:
             self.session.add(disposition)
-            self.session.commit()
-            self.session.refresh(disposition)
+            if not self.session.info.get("operational_write_managed"):
+                self.session.commit()
+                self.session.refresh(disposition)
             return disposition
         self.records.append(disposition)
         return disposition

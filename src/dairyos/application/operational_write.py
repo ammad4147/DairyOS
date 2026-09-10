@@ -82,6 +82,7 @@ class OperationalWriteService:
                     bind=connection, join_transaction_mode="rollback_only",
                     expire_on_commit=False,
                 ) as session:
+                    session.info["operational_write_managed"] = True
                     receipt = session.get(OperationalWrite, request_id)
                     if receipt is not None:
                         if receipt.request_hash != request_hash:

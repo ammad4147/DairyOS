@@ -79,6 +79,9 @@ class FarmOperationalState:
     active_operations: dict = field(default_factory=dict)
     animals: dict = field(default_factory=dict)
     milk_status: dict = field(default_factory=dict)
+    # Authoritative projection keys prevent amendments/replays from adding
+    # the same milk business fact twice.
+    milk_entries: dict = field(default_factory=dict)
     feeding_status: dict = field(default_factory=dict)
     health_state: dict = field(default_factory=dict)
     health_alerts: list = field(default_factory=list)
@@ -109,6 +112,8 @@ class FarmOperationalState:
 
         self.active_operations = _normalise_mapping(self.active_operations, "GENERAL")
         self.milk_status = _normalise_mapping(self.milk_status, "GENERAL")
+        if not isinstance(self.milk_entries, dict):
+            self.milk_entries = {}
         self.feeding_status = _normalise_mapping(self.feeding_status, "GENERAL")
         self.workforce_status = _normalise_mapping(self.workforce_status, "GENERAL")
         self.inventory_status = _normalise_mapping(self.inventory_status, "inventory")
@@ -166,7 +171,7 @@ class FarmOperationalState:
             "source": source,
         }
 
-    def record_milk_activity(self, shift, litres, operator=None, animal_id=None, timestamp=None):
+    def record_milk_activity(self, shift, litres, operator=None, animal_id=None, timestamp=None, entry_key=None, production_date=None):
         shift = _normalise_key(shift, "GENERAL")
         entry = self.milk_status.setdefault(shift, {
             "status": "completed",
@@ -176,7 +181,20 @@ class FarmOperationalState:
             "operators": [],
             "last_timestamp": None,
         })
-        entry["litres"] = float(entry.get("litres") or 0.0) + float(litres or 0.0)
+        if entry_key:
+            self.milk_entries[str(entry_key)] = {
+                "shift": shift,
+                "litres": float(litres or 0.0),
+                "animal_id": animal_id,
+                "production_date": production_date or self.operational_date,
+            }
+            current_day_entries = [
+                row for row in self.milk_entries.values()
+                if str(row.get("production_date")) == str(self.operational_date)
+            ]
+            entry["litres"] = sum(float(row.get("litres") or 0.0) for row in current_day_entries if row.get("shift") == shift)
+        else:
+            entry["litres"] = float(entry.get("litres") or 0.0) + float(litres or 0.0)
         if not isinstance(entry.get("unique_animal_ids"), list):
             entry["unique_animal_ids"] = []
         if animal_id:
@@ -190,8 +208,16 @@ class FarmOperationalState:
             entry["operators"].append(operator)
         entry["last_timestamp"] = timestamp or datetime.now(timezone.utc)
         entry["status"] = "completed"
-        self.milk_production_summary["total_litres_today"] = float(self.milk_production_summary.get("total_litres_today") or 0.0) + float(litres or 0.0)
-        self.milk_production_summary["milking_events_count"] += 1
+        if entry_key:
+            today_entries = [
+                row for row in self.milk_entries.values()
+                if str(row.get("production_date")) == str(self.operational_date)
+            ]
+            self.milk_production_summary["total_litres_today"] = sum(float(row.get("litres") or 0.0) for row in today_entries)
+            self.milk_production_summary["milking_events_count"] = len(today_entries)
+        else:
+            self.milk_production_summary["total_litres_today"] = float(self.milk_production_summary.get("total_litres_today") or 0.0) + float(litres or 0.0)
+            self.milk_production_summary["milking_events_count"] += 1
         self.milk_production_summary["last_milking_time"] = entry["last_timestamp"]
         self.milk_production_summary["last_operator"] = operator
         self.milk_production_summary["last_shift"] = shift
@@ -326,6 +352,16 @@ class FarmOperationalState:
                 event_payload.get("operator") or event_operator,
                 animal_id,
                 event_payload.get("timestamp") or event_timestamp,
+                entry_key=(
+                    event_payload.get("milk_entry_key")
+                    or (
+                        f"{animal_id}:{event_payload.get('production_date') or self.operational_date}:"
+                        f"{event_payload.get('milking_session') or event_payload.get('session') or event_payload.get('shift') or 'GENERAL'}"
+                        if animal_id else None
+                    )
+                    or event_id
+                ),
+                production_date=event_payload.get("production_date"),
             )
         elif event_type in {"feed_recorded", "feed_distributed"}:
             self.record_feed_activity(event_payload.get("feed_type"), event_payload.get("quantity_kg", 0))

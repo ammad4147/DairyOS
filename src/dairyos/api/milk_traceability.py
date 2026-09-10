@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
@@ -408,6 +409,7 @@ def void_milk_production(
 
 
 @router.post("/dispositions")
+@operational_write
 def create_milk_disposition(
     entry: DispositionCreate,
     container=Depends(get_container),
@@ -429,10 +431,16 @@ def create_milk_disposition(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    container.input_gateway.record(
+        "milk_disposition",
+        entry.model_dump(mode="json"),
+        _operator(current_user),
+    )
     return _disposition_payload(item)
 
 
 @router.patch("/dispositions/{disposition_id}")
+@operational_write
 def update_milk_disposition(
     disposition_id: int,
     patch: DispositionPatch,
@@ -440,7 +448,7 @@ def update_milk_disposition(
 ):
     # Milk and Finance are two persisted projections of one linked commercial
     # sale. A linked amendment must either update both or neither.
-    factory = RepositoryFactory.create()
+    factory = container.repository_factory
 
     try:
         with factory.session.begin():
@@ -584,19 +592,24 @@ def update_milk_disposition(
 
             result = _disposition_payload(item)
 
+        container.input_gateway.record(
+            "milk_disposition_amendment",
+            {"disposition_id": disposition_id, **patch.model_dump(mode="json")},
+            "API",
+        )
         return result
-
-    finally:
-        factory.close()
+    except Exception:
+        raise
 
 
 @router.post("/dispositions/{disposition_id}/void")
+@operational_write
 def void_milk_disposition(
     disposition_id: int,
     request: VoidRequest,
     container=Depends(get_container),
 ):
-    factory = RepositoryFactory.create()
+    factory = container.repository_factory
 
     try:
         with factory.session.begin():
@@ -672,7 +685,11 @@ def void_milk_disposition(
 
             result = _disposition_payload(item)
 
+        container.input_gateway.record(
+            "milk_disposition_void",
+            {"disposition_id": disposition_id, **request.model_dump(mode="json")},
+            "API",
+        )
         return result
-
-    finally:
-        factory.close()
+    except Exception:
+        raise

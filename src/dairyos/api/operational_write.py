@@ -28,12 +28,33 @@ def operational_write(function):
             key: value for key, value in arguments.arguments.items()
             if key not in {"container", "current_user"}
         }
-        body = request.get("entry", request.get("payload", {})) or {}
+        body = request.get("entry", request.get("payload"))
+        if body is None:
+            body = next(
+                (
+                    value
+                    for key, value in request.items()
+                    if key not in {"container", "current_user"}
+                    and hasattr(value, "model_dump")
+                ),
+                {},
+            )
+        body = body or {}
         if hasattr(body, "model_dump"):
             body = body.model_dump(mode="json")
         client_id = body.get("request_id") or str(uuid4())
-        if "entry" in request or "payload" in request:
-            request["entry" if "entry" in request else "payload"] = {
+        body_key = "entry" if "entry" in request else "payload"
+        if body_key not in request:
+            body_key = next(
+                (
+                    key for key, value in request.items()
+                    if key not in {"container", "current_user"}
+                    and hasattr(value, "model_dump")
+                ),
+                None,
+            )
+        if body_key is not None:
+            request[body_key] = {
                 key: value for key, value in body.items() if key != "request_id"
             }
         if not isinstance(client_id, str) or not 1 <= len(client_id) <= 128:

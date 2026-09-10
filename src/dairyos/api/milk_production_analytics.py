@@ -3,18 +3,20 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
+    SUPPORTED_PERIOD_DAYS,
+    MilkProductionTrendIntelligenceService,
+)
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
     VALID_DISPOSITIONS,
-)
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
-    MilkProductionTrendIntelligenceService,
-    SUPPORTED_PERIOD_DAYS,
 )
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -303,11 +305,15 @@ def list_milk_dispositions(production_date: date | None = None):
 
 
 @router.post("/dispositions")
-def record_milk_disposition(payload: MilkDispositionRequest):
+@operational_write
+def record_milk_disposition(payload: MilkDispositionRequest, container=Depends(get_container)):  # noqa: B008
     if payload.disposition_type.strip().upper() not in VALID_DISPOSITIONS:
         raise HTTPException(status_code=422, detail="Unknown milk disposition type.")
     try:
-        row = MilkReconciliationService().record_disposition(
+        row = MilkReconciliationService(
+            disposition_repository=container.repository_factory.milk_dispositions(),
+            production_repository=container.repository_factory.milk(),
+        ).record_disposition(
             production_date=payload.production_date,
             disposition_type=payload.disposition_type,
             quantity_litres=payload.quantity_litres,
@@ -316,6 +322,11 @@ def record_milk_disposition(payload: MilkDispositionRequest):
             selling_price_per_litre=payload.selling_price_per_litre,
             notes=payload.notes,
             recorded_by=payload.recorded_by,
+        )
+        container.input_gateway.record(
+            "milk_disposition",
+            payload.model_dump(mode="json"),
+            payload.recorded_by or "API",
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -333,44 +344,34 @@ def record_milk_disposition(payload: MilkDispositionRequest):
 
 
 @router.post("/sales/{sale_id}/receipt")
-def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest):
-    rf = RepositoryFactory.create()
-    try:
-        disposition = rf.milk_dispositions().get_by_sale_id(sale_id)
-        if disposition is None:
-            raise HTTPException(status_code=404, detail=f"Unknown milk sale {sale_id}.")
-        if str(disposition.disposition_type).upper() != "SOLD":
-            raise HTTPException(status_code=422, detail="Only SOLD milk dispositions can receive payment.")
+@operational_write
+def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest, container=Depends(get_container)):  # noqa: B008
+    rf = container.repository_factory
+    disposition = rf.milk_dispositions().get_by_sale_id(sale_id)
+    if disposition is None:
+        raise HTTPException(status_code=404, detail=f"Unknown milk sale {sale_id}.")
+    if str(disposition.disposition_type).upper() != "SOLD":
+        raise HTTPException(status_code=422, detail="Only SOLD milk dispositions can receive payment.")
 
-        outstanding = Decimal(disposition.receivable_outstanding)
-        tolerance = Decimal("0.01")
+    outstanding = Decimal(disposition.receivable_outstanding)
+    tolerance = Decimal("0.01")
 
-        if payload.amount > outstanding + tolerance:
-            excess = (
-                payload.amount - outstanding
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "Receipt exceeds outstanding receivable by "
-                    f"{excess:.2f}."
-                ),
-            )
-
-        disposition.amount_received = (
-            Decimal(disposition.amount_received or 0)
-            + payload.amount
-        ).quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP,
+    if payload.amount > outstanding + tolerance:
+        excess = (payload.amount - outstanding).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP,
         )
-        from dairyos.core.time_utils import utcnow
-        disposition.updated_at = utcnow()
+        raise HTTPException(
+            status_code=422,
+            detail=f"Receipt exceeds outstanding receivable by {excess:.2f}.",
+        )
 
-        transaction = FinancialTransaction(
+    disposition.amount_received = (
+        Decimal(disposition.amount_received or 0) + payload.amount
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    from dairyos.core.time_utils import utcnow
+    disposition.updated_at = utcnow()
+
+    transaction = FinancialTransaction(
             transaction_type="RECEIPT",
             category="MILK_SALES",
             amount=payload.amount,
@@ -382,20 +383,23 @@ def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest):
             currency="PKR",
             milk_sale_id=sale_id,
         )
-        if payload.received_on is not None:
-            transaction.transaction_date = datetime.combine(payload.received_on, time.min)
+    if payload.received_on is not None:
+        transaction.transaction_date = datetime.combine(payload.received_on, time.min)
 
-        rf.session.add(transaction)
-        rf.session.commit()
-        rf.session.refresh(disposition)
-        rf.session.refresh(transaction)
+    rf.session.add(transaction)
+    rf.session.flush()
+    container.input_gateway.record(
+        "milk_sale_receipt",
+        {"sale_id": sale_id, **payload.model_dump(mode="json")},
+        payload.counterparty or "API",
+    )
+    rf.session.refresh(disposition)
+    rf.session.refresh(transaction)
 
-        return {
-            "sale_id": sale_id,
-            "receipt_amount": payload.amount,
-            "amount_received": disposition.amount_received,
-            "receivable_outstanding": disposition.receivable_outstanding,
-            "financial_transaction_id": transaction.id,
-        }
-    finally:
-        rf.close()
+    return {
+        "sale_id": sale_id,
+        "receipt_amount": payload.amount,
+        "amount_received": disposition.amount_received,
+        "receivable_outstanding": disposition.receivable_outstanding,
+        "financial_transaction_id": transaction.id,
+    }
