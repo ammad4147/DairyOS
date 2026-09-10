@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 import json
-from zoneinfo import ZoneInfo
 
 from dairyos.auth.permissions import permissions_from_json
 from dairyos.core.time_utils import utcnow
@@ -22,15 +21,15 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationService,
     AnimalClassificationError,
 )
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 
-LOCAL_ZONE = ZoneInfo("Asia/Karachi")
 _SNAPSHOT_AUDIT_KEY = "email_snapshot_delivery_audit"
 _SNAPSHOT_AUDIT_LIMIT = 500
 
 
 def _local_now() -> datetime:
-    return utcnow().replace(tzinfo=ZoneInfo("UTC")).astimezone(LOCAL_ZONE)
+    return datetime.now().astimezone()
 
 
 def expected_digest_date(now: datetime | None = None) -> date:
@@ -50,6 +49,31 @@ class DashboardDigestService:
     def __init__(self, *, container):
         self.container = container
         self.mail = EmailService()
+
+    def _farm_timezone(self, fallback=None):
+        repository_factory = getattr(self.container, "repository_factory", None)
+        if repository_factory is not None:
+            try:
+                return FarmSettingsService(
+                    repository_factory.app_settings()
+                ).get_timezone_info()
+            except (AttributeError, TypeError, ValueError):
+                pass
+        return fallback or datetime.now().astimezone().tzinfo or timezone.utc
+
+    def _farm_timezone_label(self, fallback=None) -> str:
+        repository_factory = getattr(self.container, "repository_factory", None)
+        if repository_factory is not None:
+            try:
+                configured = FarmSettingsService(
+                    repository_factory.app_settings()
+                ).get_timezone()
+                return "Windows local time" if configured == "SYSTEM" else configured
+            except (AttributeError, TypeError, ValueError):
+                pass
+        if fallback is not None:
+            return str(getattr(fallback, "key", None) or fallback)
+        return "Windows local time"
 
     def _dashboard(self) -> dict:
         service = DashboardProjectionService()
@@ -320,17 +344,18 @@ class DashboardDigestService:
             digest_date=snapshot_date,
             user_permissions=user_permissions,
         )
-        generated_local = generated_at.astimezone(LOCAL_ZONE)
+        generated_local = generated_at.astimezone(self._farm_timezone(generated_at.tzinfo))
+        timezone_label = self._farm_timezone_label(generated_at.tzinfo)
         subject = (
             "DairyOS Snapshot — "
-            f"{generated_local.strftime('%Y-%m-%d %H:%M')} PKT"
+            f"{generated_local.strftime('%Y-%m-%d %H:%M')} ({timezone_label})"
         )
         lines = body.splitlines()
         if lines:
             lines[0] = "DairyOS Snapshot"
         snapshot_line = (
             "Snapshot Generated: "
-            f"{generated_local.strftime('%Y-%m-%d %H:%M:%S')} PKT"
+            f"{generated_local.strftime('%Y-%m-%d %H:%M:%S')} ({timezone_label})"
         )
         if len(lines) >= 2 and lines[1].startswith("Operational Date:"):
             lines.insert(2, snapshot_line)
@@ -387,11 +412,9 @@ class DashboardDigestService:
         generated_at: datetime | None = None,
     ) -> dict:
         """Send a manual live snapshot to selected configured recipients."""
-        now = generated_at or utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        now = generated_at or utcnow().replace(tzinfo=timezone.utc)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=ZoneInfo("UTC"))
-        generated_local = now.astimezone(LOCAL_ZONE)
-        snapshot_date = generated_local.date()
+            now = now.replace(tzinfo=timezone.utc)
         selected_ids = {
             str(recipient_id).strip()
             for recipient_id in recipient_ids
@@ -402,6 +425,9 @@ class DashboardDigestService:
 
         factory = RepositoryFactory.create()
         try:
+            zone = FarmSettingsService(factory.app_settings()).get_timezone_info()
+            generated_local = now.astimezone(zone)
+            snapshot_date = generated_local.date()
             configured = self._configured_snapshot_recipients(factory)
             by_id = {
                 str(item.get("id") or "").strip(): item

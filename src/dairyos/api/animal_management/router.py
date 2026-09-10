@@ -9,6 +9,7 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter()
 
@@ -19,6 +20,16 @@ EXIT_STATUSES = {"SOLD", "DECEASED"}
 
 def animal_repository(container):
     return container.animal_repository
+
+
+def _farm_operational_date(container):
+    """Resolve a default date from Settings, falling back to Windows local time."""
+    try:
+        return FarmSettingsService(
+            container.repository_factory.app_settings()
+        ).get_operational_date()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return datetime.now().astimezone().date()
 
 
 def serialize_animal(animal):
@@ -282,7 +293,7 @@ def record_animal_disposition(animal_id: str, payload: dict, container=Depends(g
     if disposition not in EXIT_STATUSES:
         raise HTTPException(status_code=422, detail="Disposition must be SOLD or DECEASED")
 
-    effective_date = str(payload.get("effective_date") or datetime.now(timezone.utc).date().isoformat())
+    effective_date = str(payload.get("effective_date") or _farm_operational_date(container).isoformat())
     try:
         datetime.fromisoformat(effective_date)
     except ValueError as exc:
@@ -403,7 +414,7 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
     vaccine = str(payload.get("vaccine") or payload.get("vaccination") or "").strip()
     if not vaccine:
         raise HTTPException(status_code=422, detail="vaccine required")
-    administered = payload.get("administered_date") or datetime.now(timezone.utc).date().isoformat()
+    administered = payload.get("administered_date") or _farm_operational_date(container).isoformat()
     record = {"animal_id": animal_id, "vaccine": vaccine, "dose": payload.get("dose"), "administered_date": administered, "next_due_date": payload.get("next_due_date"), "batch_number": payload.get("batch_number"), "veterinarian": payload.get("veterinarian"), "notes": payload.get("notes"), "status": "COMPLETED"}
     _record_operational_event(container, "vaccination", record, str(payload.get("operator") or "API"))
     return record

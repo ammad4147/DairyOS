@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {CalendarClock,CheckCircle2,Plus,Search,ShieldCheck,X} from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import {apiUrl} from '../config/api';
+import {farmToday, formatFarmDate, shiftFarmDate} from '../utils/farmDate';
 interface HerdAnimal{id:string;breed:string;category:string;status:string}
 type Vax={id:string;animalId:string;date:string;vaccine:string;dose:string;vet:string;batch:string;nextDue:string;category:string}
 interface Props{onOpenPassport?:(id:string)=>void;herdMasterList?:HerdAnimal[];onChanged?:()=>void}
@@ -11,8 +12,8 @@ const card:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',
 const th:React.CSSProperties={padding:'9px 10px',textAlign:'left',color:'#cbd5e1',fontSize:10,whiteSpace:'nowrap'};
 const td:React.CSSProperties={padding:'9px 10px',borderTop:'1px solid #1f2937',verticalAlign:'top'};
 const btn=(bg:string):React.CSSProperties=>({background:bg,color:'#fff',border:0,padding:'8px 11px',borderRadius:6,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,fontSize:11});
-function d(v:unknown){if(!v)return'';const x=new Date(String(v));return Number.isNaN(x.getTime())?String(v).slice(0,10):x.toISOString().slice(0,10)}
-function today(){const x=new Date(),o=x.getTimezoneOffset();return new Date(x.getTime()-o*60000).toISOString().slice(0,10)}
+function d(v:unknown){if(!v)return'';const raw=String(v);if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;const x=new Date(raw);return Number.isNaN(x.getTime())?raw.slice(0,10):formatFarmDate(x)}
+function today(){return farmToday()}
 function rank(v:Vax){if(!v.nextDue)return Number.MAX_SAFE_INTEGER;return new Date(v.nextDue+'T00:00:00').getTime()}
 async function get<T>(p:string):Promise<T>{const r=await fetch(apiUrl(p));if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json() as Promise<T>}
 async function post<T>(p:string,x:unknown):Promise<T>{const r=await fetch(apiUrl(p),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json() as Promise<T>}
@@ -24,7 +25,7 @@ export default function VaccinationTab({onOpenPassport,herdMasterList=[],onChang
  const open=(id:string)=>onOpenPassport?onOpenPassport(id):setPassport(id);
  const load=async()=>{setLoading(true);setError('');try{const lists=await Promise.all(herdMasterList.map(async a=>{try{return {a,items:await get<any[]>(`/farm/animals/${encodeURIComponent(a.id)}/vaccinations`)}}catch{return {a,items:[]}}}));setRows(lists.flatMap(({a,items})=>items.map((x,i)=>({id:`VAX-${a.id}-${x.administered_date||i}`,animalId:String(x.animal_id||a.id),date:d(x.administered_date),vaccine:String(x.vaccine||x.vaccination||'Vaccination'),dose:String(x.dose||'-'),vet:String(x.veterinarian||x.operator||'API'),batch:String(x.batch_number||x.batch||'-'),nextDue:d(x.next_due_date),category:a.category}))).sort((a,b)=>rank(a)-rank(b)||b.date.localeCompare(a.date)))}catch(e){setError(e instanceof Error?e.message:'Unable to load Vaccination register.')}finally{setLoading(false)}};
  useEffect(()=>{void load()},[herdMasterList]);
- const t=today(),overdue=useMemo(()=>rows.filter(r=>r.nextDue&&r.nextDue<t).length,[rows,t]),due30=useMemo(()=>{const x=new Date();x.setDate(x.getDate()+30);const end=x.toISOString().slice(0,10);return rows.filter(r=>r.nextDue&&r.nextDue>=t&&r.nextDue<=end).length},[rows,t]),thisMonth=useMemo(()=>rows.filter(r=>r.date.startsWith(t.slice(0,7))).length,[rows,t]),recorded=new Set(rows.map(r=>r.animalId)),noHistory=herdMasterList.filter(a=>!recorded.has(a.id)).length;
+ const t=today(),overdue=useMemo(()=>rows.filter(r=>r.nextDue&&r.nextDue<t).length,[rows,t]),due30=useMemo(()=>{const end=shiftFarmDate(t,30);return rows.filter(r=>r.nextDue&&r.nextDue>=t&&r.nextDue<=end).length},[rows,t]),thisMonth=useMemo(()=>rows.filter(r=>r.date.startsWith(t.slice(0,7))).length,[rows,t]),recorded=new Set(rows.map(r=>r.animalId)),noHistory=herdMasterList.filter(a=>!recorded.has(a.id)).length;
  const filtered=useMemo(()=>{const q=search.toLowerCase().trim();return q?rows.filter(r=>`${r.animalId} ${r.vaccine} ${r.batch} ${r.vet} ${r.category}`.toLowerCase().includes(q)):rows},[rows,search]);
  const vaxStats=useMemo(()=>counts(rows,r=>r.vaccine),[rows]),catStats=useMemo(()=>counts(rows,r=>r.category),[rows]);
  const save=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);try{await post(`/farm/animals/${encodeURIComponent(animal)}/vaccinations`,{vaccine:vaccine||purpose,dose,route:route||null,administered_date:today(),veterinarian:vet||null,notes:purpose,operator:vet||'Operator UI',batch_number:batch||null,next_due_date:nextDue||null});setShow(false);setPurpose('');setVaccine('');setDose('');setRoute('');setBatch('');setNextDue('');setMessage('Vaccination marked GIVEN and permanent next-due schedule updated.');await load();onChanged?.()}catch(e){setError(e instanceof Error?e.message:'Unable to save vaccination.')}finally{setSaving(false)}};

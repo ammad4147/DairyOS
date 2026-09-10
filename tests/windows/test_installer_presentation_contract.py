@@ -18,8 +18,9 @@ def test_installer_uses_large_dpi_aware_data_choice_page():
     assert "No existing DairyOS farm data was detected on this computer." in source
     assert "Use existing DairyOS data" in source
     assert "Start a new DairyOS farm" in source
-    assert "Restore from a verified DairyOS backup" in source
+    assert "Restore from a verified DairyOS backup" not in source
     assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
+    assert "A protected zero-state reset is available from Settings after the application starts." in source
     assert "WizardForm.Font.Name" not in source
     assert "WizardForm.Font.Size" not in source
 
@@ -31,14 +32,15 @@ def test_install_data_choice_does_not_use_small_followup_message_boxes():
     block = source[start:end]
 
     assert "MsgBox(" not in block
-    assert "RestoreRequested" in block
+    assert "RestoreRequested" not in block
 
-def test_uninstall_prompt_has_three_clear_actions_without_changing_safety_model():
+def test_uninstall_prompt_keeps_data_without_standalone_admin():
     source = _source()
     assert "YES - KEEP DATA AND UNINSTALL" in source
-    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
-    assert "CANCEL - DO NOT UNINSTALL" in source
-    assert "Permanent data deletion is available only through authenticated DairyOS Administration." in source
+    assert "NO - CANCEL AND KEEP THE APPLICATION" in source
+    assert "CANCEL - DO NOT UNINSTALL" not in source
+    assert "DairyOS Administration" not in source
+    assert "DairyOS-Admin.exe" not in source
     assert "StopInstalledDairyOSForUninstall" in source
 
 
@@ -48,5 +50,4 @@ def test_installer_user_facing_text_avoids_garbled_unicode_punctuation():
     assert "•" not in source
     assert "—" not in source
     assert "YES - KEEP DATA AND UNINSTALL" in source
-    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
-    assert "CANCEL - DO NOT UNINSTALL" in source
+    assert "NO - CANCEL AND KEEP THE APPLICATION" in source

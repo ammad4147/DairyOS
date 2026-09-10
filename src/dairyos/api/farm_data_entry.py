@@ -275,6 +275,20 @@ def _today() -> date:
         ).get_operational_date()
     finally:
         factory.close()
+
+
+def _today_for_factory(factory) -> date:
+    """Resolve an input default from the same farm clock as the active write."""
+    try:
+        from dairyos.farm.settings.services.farm_settings_service import (
+            FarmSettingsService,
+        )
+
+        return FarmSettingsService(
+            factory.app_settings()
+        ).get_operational_date()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return datetime.now().astimezone().date()
 def _optional_float(value) -> float | None:
     """Preserve the difference between "not entered" and "entered zero"."""
 
@@ -460,6 +474,8 @@ def _record(
         owns_factory = True
 
     try:
+        operational_date = _today_for_factory(rf)
+
         if input_type == "milk_production":
             milk_repo = rf.milk()
             production = MilkProduction(
@@ -475,8 +491,10 @@ def _record(
             )
 
             produced_at = _production_datetime(payload)
-            if produced_at is not None:
-                production.production_date = produced_at
+            production.production_date = produced_at or datetime.combine(
+                operational_date,
+                datetime.min.time(),
+            )
 
             declared_total = _optional_float(
                 payload.get(
@@ -517,6 +535,10 @@ def _record(
                 group_or_pen=payload.get("group_or_pen"),
                 feed_type=payload.get("feed_type", "DEFAULT"),
                 quantity_kg=float(payload.get("quantity_kg", 0.0)),
+                feeding_date=datetime.combine(
+                    _as_date(payload.get("feeding_date")) or operational_date,
+                    datetime.min.time(),
+                ),
                 notes=payload.get("notes"),
                 status=payload.get("status", "RECORDED"),
             )
@@ -583,12 +605,15 @@ def _record(
                 currency=payload.get("currency", "PKR"),
             )
 
-            # The date the money actually moved, when the operator supplied
-            # one. Left unset, the model default stamps "now" -- the only
-            # behaviour available before this field existed.
-            moved_on = _transaction_datetime(payload)
-            if moved_on is not None:
-                transaction.transaction_date = moved_on
+            # The date the money actually moved, when supplied; otherwise use
+            # the configured farm operational date rather than a UTC default.
+            transaction.transaction_date = (
+                _transaction_datetime(payload)
+                or datetime.combine(
+                    operational_date,
+                    datetime.min.time(),
+                )
+            )
             if hasattr(finance_repo, "save"):
                 finance_repo.save(transaction)
             else:
@@ -1871,8 +1896,11 @@ def list_financial_entries(
 # ---------------------------------------------------------------------------
 
 
-def _generate_health_case_id(case_repo) -> str:
-    date_prefix = f"HL-{datetime.now(timezone.utc).strftime('%y%m%d')}"
+def _generate_health_case_id(
+    case_repo,
+    opened_on: date | None = None,
+) -> str:
+    date_prefix = f"HL-{(opened_on or datetime.now().astimezone().date()).strftime('%y%m%d')}"
     sequence = case_repo.count_opened_on(date_prefix) + 1
     candidate = f"{date_prefix}-{sequence:03d}"
     # Defends against a concurrent open landing the same sequence number
@@ -1970,7 +1998,10 @@ def open_health_case(
                 )
 
         case = HealthCase(
-            case_id=_generate_health_case_id(case_repo),
+            case_id=_generate_health_case_id(
+                case_repo,
+                _today_for_factory(rf),
+            ),
             animal_id=entry.animal_id,
             severity=entry.severity,
             diagnosis=entry.diagnosis,

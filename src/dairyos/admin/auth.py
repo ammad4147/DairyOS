@@ -1,4 +1,4 @@
-"""Credential lifecycle for the standalone DairyOS Admin Tool."""
+"""Credential lifecycle for protected DairyOS Settings actions."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ RECOVERY_BYTES = 18
 
 
 class AdminAuthenticationError(RuntimeError):
-    """Raised when Admin Tool authentication or recovery fails."""
+    """Raised when protected Settings authentication or recovery fails."""
 
 
 def auth_state_path() -> Path:

@@ -186,7 +186,7 @@ class ResetTestDataRequest(BaseModel):
 class SystemResetRequest(BaseModel):
     password: str = Field(min_length=1)
     confirm: str
-    updated_by: str = Field(default="DairyOS Administrator")
+    updated_by: str = Field(default="Settings Operator")
 
 
 class DeployRequest(BaseModel):
@@ -421,9 +421,8 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
     raise HTTPException(
         status_code=410,
         detail=(
-            "Application reset has moved to the standalone DairyOS "
-            "Administration Tool. The operational application cannot perform "
-            "destructive lifecycle reset operations."
+            "Use the protected Settings reset flow. The operational application "
+            "does not accept the legacy unprotected reset request."
         ),
     )
 
@@ -448,13 +447,32 @@ def request_system_reset(
 
     from dairyos.platform.paths import data_root
 
+    service, rf = _service()
+    try:
+        farm_name = service.get_farm_name()
+    finally:
+        rf.close()
+
+    requested_at_utc = datetime.now(UTC).isoformat()
+    # The selected farm timezone is the operator-facing time authority. The
+    # UTC value remains alongside it so recovery evidence is sortable and
+    # unambiguous across machines.
+    service, rf = _service()
+    try:
+        requested_at_local = service.get_operational_datetime().isoformat()
+    finally:
+        rf.close()
     request_path = data_root(create=True) / RESET_REQUEST_FILENAME
     request_path.write_text(
         json.dumps(
             {
                 "confirm": payload.confirm,
                 "requested_by": str(admin.get("sub") or payload.updated_by),
-                "requested_at": datetime.now(UTC).isoformat(),
+                "requested_at": requested_at_utc,
+                "requested_at_utc": requested_at_utc,
+                "requested_at_local": requested_at_local,
+                "farm_name": farm_name,
+                "reset_operation": "ZERO_STATE_RESET",
             },
             sort_keys=True,
         ),
@@ -462,7 +480,7 @@ def request_system_reset(
     )
     return {
         "status": "QUEUED_FOR_MAINTENANCE",
-        "message": "DairyOS will apply the verified reset before the next backend start. Close DairyOS now and reopen it to complete the reset.",
+        "message": "DairyOS will save a complete recovery snapshot labelled with the farm name, reset reason, requester, UTC date/time, and selected local date/time before applying the verified reset at the next backend start. Close DairyOS now and reopen it to complete the reset.",
     }
 
 

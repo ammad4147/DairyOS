@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { farmToday, formatFarmDate } from '../utils/farmDate';
 import { useFarmDateField } from '../utils/farmDate';
 
 const API_BASE =
@@ -188,18 +189,7 @@ const smallButton: React.CSSProperties = {
   gap: 4,
 };
 
-const pakistanDateFormatter = new Intl.DateTimeFormat(
-  'en-CA',
-  {
-    timeZone: 'Asia/Karachi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  },
-);
-
-const today = () =>
-  pakistanDateFormatter.format(new Date());
+const today = () => farmToday();
 
 const currentMonth = () =>
   today().slice(0, 7);
@@ -271,8 +261,8 @@ const monthBounds = (
   );
 
   return {
-    start: pakistanDateFormatter.format(start),
-    end: pakistanDateFormatter.format(end),
+    start: formatFarmDate(start),
+    end: formatFarmDate(end),
     label: start.toLocaleDateString(
       'en-PK',
       {
@@ -298,7 +288,7 @@ const datesBetween = (
 
   while (cursor <= last) {
     output.push(
-      pakistanDateFormatter.format(cursor),
+      formatFarmDate(cursor),
     );
     cursor.setDate(
       cursor.getDate() + 1,

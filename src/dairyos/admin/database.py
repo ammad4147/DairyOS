@@ -1,4 +1,4 @@
-"""Canonical private-database ownership for the standalone DairyOS Admin Tool."""
+"""Canonical private-database ownership for protected DairyOS lifecycle work."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def acquire_admin_database(
     *,
     data_root: str | Path | None = None,
 ) -> AdminDatabaseLease:
-    """Resolve Admin to the same database authority as packaged DairyOS."""
+    """Resolve the protected lifecycle service to packaged DairyOS authority."""
 
     if not bool(getattr(sys, "frozen", False)):
         manager = LifecycleManager(
@@ -51,8 +51,7 @@ def acquire_admin_database(
 
     if database.private_postgres is None or not database.migration_database_url:
         raise LifecycleError(
-            "DairyOS Administration could not resolve the private PostgreSQL "
-            "administrative database authority."
+            "DairyOS could not resolve the private PostgreSQL database authority."
         )
 
     manager = LifecycleManager(

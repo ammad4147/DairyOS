@@ -39,6 +39,7 @@ from dairyos.windows.system_postgres_admin import (
     stage_migration_database_url,
     stage_runtime_database_url,
 )
+from dairyos.lifecycle.manager import LifecycleManager
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
@@ -66,6 +67,14 @@ def process_pending_system_reset() -> None:
             result = AdminService(lease.manager).reset(
                 "RESET DAIRYOS DATA",
                 backup_before_reset=True,
+                reset_context={
+                    "farm_name": str(request.get("farm_name") or "").strip(),
+                    "requested_by": str(request.get("requested_by") or "Settings Operator"),
+                    "requested_at": str(request.get("requested_at") or ""),
+                    "requested_at_utc": str(request.get("requested_at_utc") or ""),
+                    "requested_at_local": str(request.get("requested_at_local") or ""),
+                    "request_confirmation": str(request.get("confirm") or ""),
+                },
             )
             LOG.info("Queued system reset completed: %s", result.message)
         finally:
@@ -763,6 +772,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--restart-attempts", type=int, default=2)
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
     parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--installation-root", default="")
+    parser.add_argument("--data-root", default="")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
     return parser
 
@@ -778,6 +790,15 @@ def main(argv: list[str] | None = None) -> int:
         return server_main(backend_argv)
 
     args = build_parser().parse_args(argv)
+    if args.lifecycle_install:
+        installation_root = args.installation_root or str(Path(sys.executable).resolve().parent)
+        data_root_override = args.data_root or None
+        LifecycleManager(
+            installation_root,
+            data_root=data_root_override,
+            database_url=None,
+        ).install(application_version="packaged")
+        return 0
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",

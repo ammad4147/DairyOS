@@ -41,11 +41,11 @@ def test_manual_snapshot_renderer_has_live_identity_and_generation_timestamp(mon
         user_permissions={"dashboard.view", "dashboard.view_finance"},
     )
 
-    assert subject == "DairyOS Snapshot — 2026-09-06 14:35 PKT"
+    assert subject == "DairyOS Snapshot — 2026-09-06 14:35 (Asia/Karachi)"
     assert body.startswith(
         "DairyOS Snapshot\n"
         "Operational Date: 2026-09-06\n"
-        "Snapshot Generated: 2026-09-06 14:35:07 PKT"
+        "Snapshot Generated: 2026-09-06 14:35:07 (Asia/Karachi)"
     )
     assert "This snapshot reflects governed DairyOS records available at the generation time shown." in body
 

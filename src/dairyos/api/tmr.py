@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
-from dairyos.core.time_utils import utcnow
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.farm.reproduction.services.post_calving_return_service import (
@@ -1086,6 +1085,9 @@ def save_tmr_stage(
         )
 
     factory = container.repository_factory
+    effective_at = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_datetime().isoformat()
     record = FeedRation(
         name=f"TMR {STAGE_LABELS[stage]}",
         animal_group=f"{STAGE_GROUP_PREFIX}{stage}",
@@ -1100,7 +1102,7 @@ def save_tmr_stage(
         ndf_pct=None,
         energy_mcal_kg=None,
         cost_per_kg=None,
-        effective_date=utcnow().isoformat(),
+        effective_date=effective_at,
         operator=payload.operator.strip(),
     )
     factory.feed_rations().add(record)
@@ -1175,9 +1177,10 @@ def endorse_weekly_tmr(
     container=Depends(get_container),
 ):
     factory = container.repository_factory
-    today = OperationalDateAuthority(
+    authority = OperationalDateAuthority(
         repository_factory=factory,
-    ).current_date()
+    )
+    today = authority.current_date()
     week_start, week_end = _week_bounds(today)
     summary = build_live_tmr_summary(
         factory,
@@ -1190,7 +1193,7 @@ def endorse_weekly_tmr(
         "week_start": week_start.isoformat(),
         "week_end": week_end.isoformat(),
         "reviewed_on": today.isoformat(),
-        "reviewed_at": utcnow().isoformat(),
+        "reviewed_at": authority.current_datetime().isoformat(),
         "reviewer": payload.reviewer.strip(),
         "notes": payload.notes,
         "categories": summary["categories"],
@@ -1221,7 +1224,7 @@ def endorse_weekly_tmr(
         ndf_pct=None,
         energy_mcal_kg=None,
         cost_per_kg=None,
-        effective_date=utcnow().isoformat(),
+        effective_date=authority.current_datetime().isoformat(),
         operator=payload.reviewer.strip(),
     )
     factory.feed_rations().add(record)

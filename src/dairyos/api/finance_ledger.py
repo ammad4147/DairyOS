@@ -545,7 +545,7 @@ def _age_bucket(
     if due_date is None:
         return "NO_DUE_DATE"
 
-    today = as_of or date.today()
+    today = as_of or _farm_today()
     days_overdue = (today - due_date).days
 
     if days_overdue <= 0:
@@ -562,8 +562,9 @@ def _age_bucket(
 
 def _ageing_payload(
     rows: list[FinancialTransaction],
+    as_of: date | None = None,
 ) -> dict:
-    as_of = date.today()
+    as_of = as_of or _farm_today()
 
     outstanding = [
         row
@@ -641,6 +642,18 @@ def _ageing_payload(
             )
         ],
     }
+
+
+def _farm_today(factory=None) -> date:
+    """Return the configured farm date, falling back to Windows local time."""
+    if factory is not None:
+        try:
+            return OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date()
+        except (AttributeError, ImportError, TypeError, ValueError):
+            pass
+    return datetime.now().astimezone().date()
 
 
 def _factory(container):
@@ -817,10 +830,7 @@ def _sync_milk_sale(
             detail="Milk Sales requires a positive quantity in litres.",
         )
 
-    production_date = (
-        entry.transaction_date
-        or date.today()
-    )
+    production_date = entry.transaction_date or _farm_today(factory)
 
     existing = _linked_milk_sale(
         factory,
@@ -1176,7 +1186,7 @@ def create_finance_ledger_entry(
         cop_coverage_start=cop_coverage_start,
         cop_coverage_end=cop_coverage_end,
         settled_date=(
-            date.today()
+            _farm_today(factory)
             if status in SETTLED_STATUSES
             else None
         ),
@@ -1206,7 +1216,7 @@ def create_finance_ledger_entry(
             supplier=str(entry.counterparty).strip(),
             batch_number=str(entry.semen_batch_number).strip(),
             purchase_transaction_id=transaction.id,
-            purchase_date=entry.transaction_date or date.today(),
+            purchase_date=entry.transaction_date or _farm_today(factory),
             expiry_date=entry.semen_expiry_date,
             storage_location=(str(entry.semen_storage_location).strip() if entry.semen_storage_location else None),
             country_source=(str(entry.semen_country_source).strip() if entry.semen_country_source else None),
@@ -1382,7 +1392,7 @@ def finance_ledger_ageing(
     factory = _factory(container)
     rows = factory.finance().get_all()
 
-    return _ageing_payload(rows)
+    return _ageing_payload(rows, _farm_today(factory))
 
 
 @router.get("/profitability/feed-opex")
@@ -1736,7 +1746,7 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
         status in SETTLED_STATUSES
         and row.settled_date is None
     ):
-        row.settled_date = date.today()
+        row.settled_date = _farm_today(factory)
 
     if status not in SETTLED_STATUSES:
         row.settled_date = None
@@ -1891,7 +1901,7 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
     )
     row.status = status
     if status in SETTLED_STATUSES:
-        row.settled_date = row.settled_date or date.today()
+        row.settled_date = row.settled_date or _farm_today(factory)
     elif not (
         status == "VOID"
         and current_status in SETTLED_STATUSES

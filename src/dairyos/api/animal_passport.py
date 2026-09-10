@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -16,11 +16,24 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductiveStateError,
     ReproductiveStateService,
 )
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 router = APIRouter(
     prefix="/farm/animals",
     tags=["Animal Passport"],
 )
+
+
+def _farm_operational_date(factory) -> date:
+    try:
+        app_settings = getattr(factory, "app_settings", None)
+        if callable(app_settings):
+            return FarmSettingsService(
+                app_settings()
+            ).get_operational_date()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        pass
+    return datetime.now().astimezone().date()
 
 
 @router.get("/{animal_id}/passport")
@@ -31,9 +44,10 @@ def get_lifetime_passport(
 ):
     """Return the authoritative date-aware Animal Passport read model."""
     factory = container.repository_factory
+    operational_date = _farm_operational_date(factory)
     passport = DatabaseAwareLifetimeAnimalPassportService(factory).build(
         animal_id,
-        as_of_date=as_of_date,
+        as_of_date=as_of_date or operational_date,
     )
     if passport is None:
         raise HTTPException(status_code=404, detail="Animal not found")
@@ -48,6 +62,7 @@ def get_reproductive_state(
 ):
     """Return the authoritative reproductive state for one registered animal."""
     factory = container.repository_factory
+    operational_date = _farm_operational_date(factory)
     try:
         records = factory.breeding().get_all()
         target_events = [
@@ -64,7 +79,7 @@ def get_reproductive_state(
         resolved = ReproductiveStateService(policy).resolve(
             animal_id,
             target_events,
-            as_of_date=as_of_date or date.today(),
+            as_of_date=as_of_date or operational_date,
             allow_unlinked_confirmation=True,
         )
 

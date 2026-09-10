@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, time
-from zoneinfo import ZoneInfo
+from datetime import datetime, time, timezone, tzinfo
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -25,7 +24,7 @@ class NightlyEmailScheduler:
         self._thread: threading.Thread | None = None
         self._last_attempted_slot: str | None = None
 
-    def _settings(self) -> tuple[ZoneInfo, bool]:
+    def _settings(self) -> tuple[tzinfo, bool]:
         factory = RepositoryFactory.create()
         try:
             settings = FarmSettingsService(factory.app_settings())
@@ -33,7 +32,7 @@ class NightlyEmailScheduler:
         finally:
             factory.close()
 
-    def _zone(self) -> ZoneInfo:
+    def _zone(self) -> tzinfo:
         zone, _ = self._settings()
         return zone
 
@@ -80,7 +79,7 @@ class NightlyEmailScheduler:
             return None
         try:
             parsed = datetime.fromisoformat(str(value))
-            return parsed.replace(tzinfo=ZoneInfo("UTC")) if parsed.tzinfo is None else parsed
+            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
         except ValueError:
             return None
 

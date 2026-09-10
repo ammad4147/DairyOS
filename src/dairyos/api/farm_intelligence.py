@@ -5,15 +5,18 @@ reported explicitly instead of being fabricated.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dairyos.core.time_utils import utcnow
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.core.time_utils import utcnow
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.finance.classification.transaction_classifier import is_expense, is_income
 
 router = APIRouter(prefix="/farm", tags=["farm-intelligence"])
@@ -67,6 +70,30 @@ def _factory() -> RepositoryFactory:
     return RepositoryFactory.create()
 
 
+def _operational_date(factory):
+    try:
+        return OperationalDateAuthority(repository_factory=factory).current_date()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return datetime.now().astimezone().date()
+
+
+def _operational_now(factory):
+    try:
+        return OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return datetime.now().astimezone()
+
+
+def _utc_naive(value):
+    if value is None:
+        return None
+    if getattr(value, "tzinfo", None) is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
+
+
 @router.get("/animals/{animal_id}/passport")
 def animal_passport(animal_id: str):
     factory = _factory()
@@ -99,7 +126,7 @@ def animal_passport(animal_id: str):
 def youngstock():
     factory = _factory()
     try:
-        today = utcnow().date()
+        today = _operational_date(factory)
         result = []
         for animal in factory.animal().get_all():
             if animal.lifecycle_status not in {"CALF", "HEIFER"}:
@@ -122,18 +149,20 @@ def youngstock():
 
 @router.get("/kpis")
 def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
-    cutoff = utcnow() - timedelta(days=days)
     factory = _factory()
     try:
+        operational_now = _operational_now(factory)
+        now = _utc_naive(operational_now.astimezone(UTC))
+        cutoff = now - timedelta(days=days)
         animals = factory.animal().get_all()
         active = [x for x in animals if x.active]
         milking = [x for x in active if x.is_currently_milking or x.lifecycle_status == "LACTATING"]
-        milk = [x for x in factory.milk().get_all() if x.production_date >= cutoff]
-        feed = [x for x in factory.feed().get_all() if x.feeding_date >= cutoff]
-        finance = [x for x in factory.finance().get_all() if x.transaction_date >= cutoff]
+        milk = [x for x in factory.milk().get_all() if _utc_naive(x.production_date) >= cutoff]
+        feed = [x for x in factory.feed().get_all() if _utc_naive(x.feeding_date) >= cutoff]
+        finance = [x for x in factory.finance().get_all() if _utc_naive(x.transaction_date) >= cutoff]
         breeding = factory.breeding().get_all()
-        health = [x for x in factory.health().get_all() if x.observed_at >= cutoff]
-        treatments = [x for x in factory.treatment().get_all() if x.treated_at >= cutoff]
+        health = [x for x in factory.health().get_all() if _utc_naive(x.observed_at) >= cutoff]
+        treatments = [x for x in factory.treatment().get_all() if _utc_naive(x.treated_at) >= cutoff]
         litres = sum(float(x.total_yield or 0) for x in milk)
         expenses = sum(float(x.amount or 0) for x in finance if is_expense(x))
         income = sum(float(x.amount or 0) for x in finance if is_income(x))
@@ -142,7 +171,7 @@ def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
         return {
             "period_days": days,
             "from": cutoff.isoformat(),
-            "to": utcnow().isoformat(),
+            "to": operational_now.isoformat(),
             "data_status": "LIVE_PERSISTED",
             "values": {
                 "herd_size": len(active),
@@ -179,11 +208,11 @@ def record_heat_stress(observation: HeatStressObservation):
     try:
         model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == observation.farm_id).first()
         if model is None:
-            model = OperationalStateModel(farm_id=observation.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
+            model = OperationalStateModel(farm_id=observation.farm_id, operational_date=_operational_date(factory), state_payload={}, created_at=utcnow())
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         history = list(payload.get("heat_stress_observations", []))
-        item = {"observed_at": (observation.observed_at or datetime.now(timezone.utc)).isoformat(), "temperature_c": observation.temperature_c, "humidity_pct": observation.humidity_pct, "thi": round(thi, 2), "risk": risk, "recorded_by": observation.recorded_by}
+        item = {"observed_at": (observation.observed_at or datetime.now(UTC)).isoformat(), "temperature_c": observation.temperature_c, "humidity_pct": observation.humidity_pct, "thi": round(thi, 2), "risk": risk, "recorded_by": observation.recorded_by}
         history.append(item)
         payload["heat_stress_observations"] = history[-500:]
         model.state_payload = payload
@@ -207,14 +236,17 @@ def heat_stress_status(farm_id: str = "DEFAULT"):
 
 @router.get("/welfare/kpis")
 def welfare_kpis(days: int = Query(default=30, ge=1, le=366)):
-    cutoff = utcnow() - timedelta(days=days)
     factory = _factory()
     try:
+        operational_now = _operational_now(factory)
+        cutoff = _utc_naive(
+            operational_now.astimezone(UTC)
+        ) - timedelta(days=days)
         animals = factory.animal().get_all()
         total = len(animals)
         active = [x for x in animals if x.active]
-        health = [x for x in factory.health().get_all() if x.observed_at >= cutoff]
-        treatments = [x for x in factory.treatment().get_all() if x.treated_at >= cutoff]
+        health = [x for x in factory.health().get_all() if _utc_naive(x.observed_at) >= cutoff]
+        treatments = [x for x in factory.treatment().get_all() if _utc_naive(x.treated_at) >= cutoff]
         morbidity_events = [x for x in health if str(x.severity or "NORMAL").upper() not in {"NORMAL", "NONE"}]
         deceased = [x for x in animals if str(x.lifecycle_status or "").upper() == "DECEASED" or (not x.active and str(x.status).upper() == "DECEASED")]
         return {"period_days": days, "data_status": "LIVE_PERSISTED", "values": {"herd_size": total, "active_animals": len(active), "mortality_rate": round(len(deceased) / total, 4) if total else None, "morbidity_events": len(morbidity_events), "morbidity_rate": round(len(morbidity_events) / len(active), 4) if active else None, "treatment_events": len(treatments), "treatment_rate": round(len(treatments) / len(active), 4) if active else None}, "definitions": {"morbidity_rate": "non-NORMAL persisted health observations divided by active animals", "mortality_rate": "persisted DECEASED animals divided by all persisted animals"}}
@@ -239,7 +271,7 @@ def upsert_sop(protocol: SOPProtocol):
     try:
         model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == protocol.farm_id).first()
         if model is None:
-            model = OperationalStateModel(farm_id=protocol.farm_id, operational_date=utcnow().date(), state_payload={}, created_at=utcnow())
+            model = OperationalStateModel(farm_id=protocol.farm_id, operational_date=_operational_date(factory), state_payload={}, created_at=utcnow())
             factory.session.add(model)
         payload = dict(model.state_payload or {})
         protocols = [p for p in payload.get("sop_protocols", []) if p.get("protocol_id") != protocol.protocol_id]

@@ -25,7 +25,7 @@ _POLICY = ReproductivePolicy(
 
 
 def _as_of_date(factory) -> object:
-    """Use the farm operational date when available, with a UTC fallback."""
+    """Use the farm operational date when available, with a Windows-local fallback."""
     try:
         from dairyos.farm.settings.services.farm_settings_service import (
             FarmSettingsService,
@@ -33,7 +33,7 @@ def _as_of_date(factory) -> object:
 
         return FarmSettingsService(factory.app_settings()).get_operational_date()
     except (AttributeError, ImportError, TypeError, ValueError):
-        return datetime.now(timezone.utc).date()
+        return datetime.now().astimezone().date()
 
 
 @router.get("/animals/{animal_id}/reproduction")

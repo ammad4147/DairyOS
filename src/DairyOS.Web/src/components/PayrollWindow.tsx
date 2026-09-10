@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Calculator, CheckCircle2, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { farmToday } from '../utils/farmDate';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '8px', borderRadius: 5, fontSize: 11 };
 const button: React.CSSProperties = { background: '#38bdf8', color: '#082f49', border: 0, borderRadius: 5, padding: '8px 12px', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 };
 const money = (value: string | number) => `PKR ${Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => farmToday();
 
 type PayrollRow = { id: number; employee_name: string; employee_role: string; period_start: string; period_end: string; worked_days: string; base_pay: string; overtime_hours: string; overtime_rate: string; overtime_pay: string; allowances: string; advances: string; deductions: string; gross_pay: string; net_pay: string; status: string; payment_date?: string | null };
 

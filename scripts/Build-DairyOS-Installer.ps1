@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Bundle = "dist\DairyOS-Release\DairyOS",
-    [string]$Output = "dist\DairyOS-Installer\DairyOS-Windows-Installer.exe"
+    [string]$Output = "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,22 +11,17 @@ Set-Location $repo
 $bundlePath = [IO.Path]::GetFullPath((Join-Path $repo $Bundle))
 $outputPath = [IO.Path]::GetFullPath((Join-Path $repo $Output))
 $iss = Join-Path $repo "tools\windows-desktop\DairyOS-Installer.iss"
+$bundleParentPath = [IO.Path]::GetFullPath((Split-Path -Parent $bundlePath))
+$outputParentPath = [IO.Path]::GetFullPath((Split-Path -Parent $outputPath))
+
+if (-not [string]::Equals($bundleParentPath, $outputParentPath, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Installer layout must place the setup executable beside the DairyOS application folder. Bundle parent=$bundleParentPath; installer parent=$outputParentPath"
+}
 
 if (-not (Test-Path (Join-Path $bundlePath "DairyOS.exe") -PathType Leaf)) { throw "Certified desktop bundle is missing DairyOS.exe: $bundlePath" }
 if (-not (Test-Path (Join-Path $bundlePath "DairyOSBackup.exe") -PathType Leaf)) { throw "Certified desktop bundle is missing DairyOSBackup.exe: $bundlePath" }
 
-Write-Host "=== BUILD STANDALONE ADMIN TOOL ===" -ForegroundColor Cyan
-& (Join-Path $repo "scripts\Build-DairyOS-Admin.ps1")
-if ($LASTEXITCODE -ne 0) { throw "DairyOS Admin Tool build failed." }
-$adminExe = Join-Path $repo "dist\DairyOS-Admin\DairyOS-Admin.exe"
-if (-not (Test-Path $adminExe -PathType Leaf)) { throw "DairyOS-Admin.exe was not produced: $adminExe" }
-Copy-Item $adminExe (Join-Path $bundlePath "DairyOS-Admin.exe") -Force
-
-$manualSource = Join-Path $repo "docs\operator\DairyOS-Operator-Manual.html"
-if (-not (Test-Path $manualSource -PathType Leaf)) { throw "DairyOS Operator Manual is missing: $manualSource" }
-$manualDir = Join-Path $bundlePath "Documentation"
-New-Item -ItemType Directory -Force -Path $manualDir | Out-Null
-Copy-Item $manualSource (Join-Path $manualDir "DairyOS-Operator-Manual.html") -Force
+Write-Host "Protected Settings controls and the embedded Assistant are the supported operator guidance surfaces." -ForegroundColor DarkGray
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
 $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
@@ -43,8 +38,10 @@ if (-not $iscc) {
 }
 if (-not $iscc) { throw "Inno Setup ISCC.exe was not found. Install Inno Setup 6 or 7." }
 
+Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
+
 Write-Host "=== BUILD WINDOWS INSTALLER ===" -ForegroundColor Cyan
-& $iscc $iss
+& $iscc ("/O" + (Split-Path -Parent $outputPath)) $iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup build failed with exit code $LASTEXITCODE." }
 if (-not (Test-Path $outputPath -PathType Leaf)) { throw "Installer was not produced: $outputPath" }
 

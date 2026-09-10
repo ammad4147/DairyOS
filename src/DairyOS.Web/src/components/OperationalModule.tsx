@@ -4,6 +4,7 @@ import OperationalEntryPanel, {
     type OperationalEntryConfig,
 } from "./OperationalEntryPanel";
 import { API_BASE_URL as API } from "../config/api";
+import { farmToday, formatFarmDate } from "../utils/farmDate";
 
 type Mode = "cards" | "entries" | "decisions" | "state";
 
@@ -81,7 +82,7 @@ function recordDate(r: Row): string | null {
 
     return Number.isNaN(parsed.getTime())
         ? null
-        : parsed.toISOString().slice(0, 10);
+        : formatFarmDate(parsed);
 }
 
 function shiftDate(
@@ -119,7 +120,7 @@ function periodStart(
 ): number {
     const anchor =
         operationalDate ??
-        new Date().toISOString().slice(0, 10);
+        farmToday();
 
     let start = anchor;
 

@@ -213,7 +213,9 @@ def save_ration(plan: RationPlan):
         if model is None:
             model = OperationalStateModel(
                 farm_id=plan.farm_id,
-                operational_date=utcnow().date(),
+                operational_date=OperationalDateAuthority(
+                    repository_factory=factory,
+                ).current_date(),
                 state_payload={},
                 created_at=utcnow(),
             )

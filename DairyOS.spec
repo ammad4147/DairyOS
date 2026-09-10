@@ -14,18 +14,15 @@ ROOT = Path(SPECPATH).resolve()
 datas = [
     (str(ROOT / "alembic.ini"), "."),
     (str(ROOT / "db_migrations"), "db_migrations"),
+    (str(ROOT / "docs" / "training"), "docs/training"),
     (str(ROOT / "src" / "DairyOS.Web" / "dist"), "src/DairyOS.Web/dist"),
 ]
 binaries = []
 hiddenimports = []
-# The normal farm runtime must not carry the destructive Admin Tool simply
-# because it lives under the same Python package.  Admin/reset functionality is
-# built and distributed separately under DairyOS-Admin.
-hiddenimports += [
-    module
-    for module in collect_submodules("dairyos")
-    if module != "dairyos.admin" and not module.startswith("dairyos.admin.")
-]
+# The normal farm runtime carries the protected lifecycle and recovery
+# services used by Settings. There is no standalone operator Admin module to
+# package.
+hiddenimports += collect_submodules("dairyos")
 hiddenimports += collect_submodules("alembic")
 hiddenimports += collect_submodules("sqlalchemy")
 tmp_ret = collect_all("webview")
@@ -43,7 +40,6 @@ hiddenimports += tmp_ret[2]
 
 
 PRODUCTION_EXCLUDES = [
-    "dairyos.admin",
     "pytest",
     "tests",
 ]
@@ -82,11 +78,9 @@ exe = EXE(
     entitlements_file=None,
 )
 
-# Automatic backups run outside the normal application process.  Shipping a
+# Automatic backups run outside the normal application process. Shipping a
 # dedicated worker keeps the Task Scheduler entry simple and prevents the farm
-# owner from needing Python, a repository checkout, or developer tooling.  It
-# uses the same production exclusions as DairyOS.exe and therefore also cannot
-# import the destructive Admin Tool.
+# owner from needing Python, a repository checkout, or developer tooling.
 backup_a = Analysis(
     [str(ROOT / "src" / "dairyos" / "windows" / "backup_task.py")],
     pathex=[str(ROOT / "src")],

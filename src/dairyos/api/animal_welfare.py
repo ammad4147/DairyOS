@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 router = APIRouter(prefix="/farm", tags=["animal-welfare"])
 
@@ -30,7 +31,9 @@ def _model(factory, farm_id: str) -> OperationalStateModel:
     if model is None:
         model = OperationalStateModel(
             farm_id=farm_id,
-            operational_date=datetime.now(timezone.utc).date(),
+            operational_date=OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date(),
             state_payload={},
             created_at=datetime.now(timezone.utc),
         )

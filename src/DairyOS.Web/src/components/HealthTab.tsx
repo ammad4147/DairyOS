@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,HeartPulse,Plus,Search,X} from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import {apiUrl} from '../config/api';
+import {farmToday, formatFarmDate} from '../utils/farmDate';
 
 interface HerdAnimal{id:string;breed:string;category:string;status:string}
 type CaseRow={id?:number|string;case_id?:number|string;animal_id?:string;status?:string;severity?:string;diagnosis?:string;notes?:string;follow_up_due_at?:string|null;opened_at?:string|null;resolved_at?:string|null;resolution?:string|null};
@@ -18,7 +19,7 @@ const th:React.CSSProperties={padding:'9px 10px',textAlign:'left',color:'#cbd5e1
 const td:React.CSSProperties={padding:'9px 10px',borderTop:'1px solid #1f2937',verticalAlign:'top'};
 const btn=(bg:string):React.CSSProperties=>({background:bg,color:'#fff',border:0,padding:'8px 11px',borderRadius:6,fontWeight:800,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,fontSize:11});
 
-function d(v:unknown){if(!v)return'';const x=new Date(String(v));return Number.isNaN(x.getTime())?String(v).slice(0,10):x.toISOString().slice(0,10)}
+function d(v:unknown){if(!v)return'';const raw=String(v);if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;const x=new Date(raw);return Number.isNaN(x.getTime())?raw.slice(0,10):formatFarmDate(x)}
 function ts(v:unknown){if(!v)return 0;const x=new Date(String(v));return Number.isNaN(x.getTime())?0:x.getTime()}
 async function get<T>(p:string):Promise<T>{const r=await fetch(apiUrl(p));if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json() as Promise<T>}
 async function post<T>(p:string,x:unknown):Promise<T>{const r=await fetch(apiUrl(p),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});if(!r.ok){let m=`Request failed: ${r.status}`;try{const b=await r.json() as {detail?:unknown};if(typeof b.detail==='string')m=b.detail}catch{}throw new Error(m)}return r.json() as Promise<T>}
@@ -60,8 +61,8 @@ export default function HealthTab({onOpenPassport,herdMasterList=[],onChanged}:P
  },[cases,observations,treatments]);
 
  const withdrawals=useMemo(()=>new Set(clinicalRows.filter(r=>r.active&&r.withdrawalDays>0).map(r=>r.animalId)).size,[clinicalRows]);
- const overdueFollow=useMemo(()=>active.filter(c=>{const x=d(c.follow_up_due_at);return x&&x<=new Date().toISOString().slice(0,10)}).length,[active]);
- const recent=useMemo(()=>{const cut=new Date();cut.setDate(cut.getDate()-7);return clinicalRows.filter(r=>r.date&&new Date(r.date)>=cut).length},[clinicalRows]);
+ const overdueFollow=useMemo(()=>active.filter(c=>{const x=d(c.follow_up_due_at);return x&&x<=farmToday()}).length,[active]);
+ const recent=useMemo(()=>{const cut=Date.now()-7*86400000;return clinicalRows.filter(r=>r.date&&new Date(`${r.date}T12:00:00`).getTime()>=cut).length},[clinicalRows]);
  const filtered=useMemo(()=>{const q=search.toLowerCase().trim();return q?clinicalRows.filter(r=>`${r.animalId} ${r.diagnosis} ${r.symptoms} ${r.treatment}`.toLowerCase().includes(q)):clinicalRows},[clinicalRows,search]);
  const illness=useMemo(()=>counts(clinicalRows,r=>r.diagnosis),[clinicalRows]);
  const meds=useMemo(()=>counts(clinicalRows.filter(r=>r.treatment!=='—'),r=>r.treatment.split(' · ')[0]),[clinicalRows]);

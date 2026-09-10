@@ -19,6 +19,17 @@ class FakeSettings:
         return default
 
 
+def test_default_operational_datetime_follows_windows_local_timezone():
+    service = FarmSettingsService(FakeSettings(None))
+
+    value = service.get_operational_datetime()
+    host_value = datetime.now().astimezone()
+
+    assert service.get_timezone() == "SYSTEM"
+    assert value.tzinfo is not None
+    assert value.utcoffset() == host_value.utcoffset()
+
+
 def test_operational_datetime_is_timezone_aware():
     service = FarmSettingsService(
         FakeSettings("Asia/Karachi")

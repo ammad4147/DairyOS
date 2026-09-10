@@ -84,7 +84,12 @@ class AdminService:
             str(Path(backup).resolve()),
         )
 
-    def reset(self, confirmation: str, backup_before_reset: bool = True) -> AdminResult:
+    def reset(
+        self,
+        confirmation: str,
+        backup_before_reset: bool = True,
+        reset_context: dict[str, object] | None = None,
+    ) -> AdminResult:
         """Reset operational state through a verified external recovery point."""
         if confirmation != RESET_CONFIRMATION:
             raise LifecycleError(
@@ -96,6 +101,7 @@ class AdminService:
         _admin_stage("reset: lifecycle validation")
         self.manager.validate(require_database=True)
 
+        context = _reset_context(self.manager, reset_context, confirmation)
         _admin_stage("reset: pre-reset backup")
         artifact = (
             self.manager.backup(label="pre-reset", require_database=True)
@@ -108,6 +114,11 @@ class AdminService:
         _admin_stage(f"reset: backup complete: {artifact}")
         _admin_stage("reset: recording database checksum")
         _record_database_checksum(artifact)
+        _write_reset_manifest(artifact, context)
+        _write_runtime_reset_audit(
+            getattr(self.manager, "data_root", None),
+            {"event": "reset-intent", **context, "artifact": str(artifact)},
+        )
 
         _admin_stage("reset: runtime stopped check")
         _assert_runtime_stopped()
@@ -117,7 +128,7 @@ class AdminService:
         _admin_stage("reset: verifying recovery artifact")
         _verify_backup_directory(recovery_artifact)
         _admin_stage("reset: recording reset intent")
-        _write_audit_event(recovery_artifact, "reset-intent", {"artifact": str(recovery_artifact)})
+        _write_audit_event(recovery_artifact, "reset-intent", context)
         try:
             _admin_stage("reset: destructive SQL transaction starting")
             execution = reset_operational_data(
@@ -137,7 +148,24 @@ class AdminService:
             _write_audit_event(
                 recovery_artifact,
                 "reset-result",
-                {"status": "success", "tables_cleared": list(execution.tables_cleared)},
+                {
+                    **context,
+                    "status": "success",
+                    "completed_at": _utc_now(),
+                    "completed_at_local": _local_now(),
+                    "tables_cleared": list(execution.tables_cleared),
+                },
+            )
+            _write_runtime_reset_audit(
+                getattr(self.manager, "data_root", None),
+                {
+                    "event": "reset-result",
+                    **context,
+                    "status": "success",
+                    "completed_at": _utc_now(),
+                    "completed_at_local": _local_now(),
+                    "tables_cleared": list(execution.tables_cleared),
+                },
             )
             _admin_stage("reset: successful")
             return AdminResult(
@@ -151,7 +179,24 @@ class AdminService:
             _write_audit_event(
                 recovery_artifact,
                 "reset-result",
-                {"status": "failed", "error": str(exc)},
+                {
+                    **context,
+                    "status": "failed",
+                    "completed_at": _utc_now(),
+                    "completed_at_local": _local_now(),
+                    "error": str(exc),
+                },
+            )
+            _write_runtime_reset_audit(
+                getattr(self.manager, "data_root", None),
+                {
+                    "event": "reset-result",
+                    **context,
+                    "status": "failed",
+                    "completed_at": _utc_now(),
+                    "completed_at_local": _local_now(),
+                    "error": str(exc),
+                },
             )
             try:
                 _admin_stage("reset: automatic rollback starting")
@@ -181,6 +226,124 @@ class AdminService:
 
 def _admin_stage(message: str) -> None:
     print(f"[ADMIN-RESET] {message}", file=sys.stderr, flush=True)
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _local_now() -> str:
+    """Return the Windows host local timestamp for operator-readable audit data."""
+    return datetime.now().astimezone().isoformat()
+
+
+def _reset_context(
+    manager: LifecycleManager,
+    supplied: dict[str, object] | None,
+    confirmation: str,
+) -> dict[str, object]:
+    supplied_was_omitted = supplied is None
+    supplied = supplied or {}
+    farm_name = str(supplied.get("farm_name") or "").strip()
+    if not farm_name:
+        if supplied_was_omitted:
+            # The in-application Settings path always supplies the
+            # authoritative farm name captured before the reset request is
+            # queued.  Keep the internal compatibility facade usable by
+            # isolated lifecycle callers without making a hidden database
+            # connection in their unit tests.
+            farm_name = str(getattr(manager, "farm_name", "DairyOS farm")).strip()
+        else:
+            farm_name = _read_farm_name(manager)
+    if not farm_name:
+        raise LifecycleError(
+            "Reset cannot proceed because the complete farm name could not be recorded."
+        )
+    requested_at_utc = str(
+        supplied.get("requested_at_utc")
+        or supplied.get("requested_at")
+        or _utc_now()
+    )
+    requested_at_local = str(
+        supplied.get("requested_at_local")
+        or _local_now()
+    )
+    requested_by = str(supplied.get("requested_by") or "Settings Operator")
+    execution_started_at_utc = _utc_now()
+    execution_started_at_local = _local_now()
+    context = {
+        "reset_operation": "ZERO_STATE_RESET",
+        "farm_name": farm_name,
+        "requested_by": requested_by,
+        # Keep requested_at/execution_started_at as UTC compatibility fields;
+        # the explicit suffixes make the audit representation unambiguous.
+        "requested_at": requested_at_utc,
+        "requested_at_utc": requested_at_utc,
+        "requested_at_local": requested_at_local,
+        "execution_started_at": execution_started_at_utc,
+        "execution_started_at_utc": execution_started_at_utc,
+        "execution_started_at_local": execution_started_at_local,
+        "confirmation": confirmation,
+    }
+    request_confirmation = str(supplied.get("request_confirmation") or "").strip()
+    if request_confirmation:
+        context["request_confirmation"] = request_confirmation
+    return context
+
+
+def _read_farm_name(manager: LifecycleManager) -> str:
+    database_url = getattr(manager, "database_url", None)
+    if not database_url:
+        return ""
+    try:
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                value = connection.execute(
+                    text("SELECT value FROM app_settings WHERE key = 'farm_name'")
+                ).scalar()
+        finally:
+            engine.dispose()
+        return str(value or "").strip()
+    except Exception as exc:
+        raise LifecycleError(
+            "Reset cannot read the farm name from the authoritative settings record."
+        ) from exc
+
+
+def _write_reset_manifest(artifact: str | Path, context: dict[str, object]) -> None:
+    manifest_path = Path(artifact).resolve() / "backup.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            raise ValueError("backup manifest is not an object")
+        manifest["reset"] = {**context, "status": "REQUESTED"}
+        temporary = manifest_path.with_name(f".{manifest_path.name}.reset-tmp")
+        temporary.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, manifest_path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise LifecycleError(
+            "Reset cannot save the farm name and reset date/time into the verified recovery manifest."
+        ) from exc
+
+
+def _write_runtime_reset_audit(
+    data_root: str | Path | None,
+    record: dict[str, object],
+) -> None:
+    if data_root is None:
+        return
+    root = Path(data_root).expanduser().resolve()
+    log_dir = root / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    path = log_dir / "system-reset-audit.jsonl"
+    with path.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def _assert_runtime_stopped() -> None:

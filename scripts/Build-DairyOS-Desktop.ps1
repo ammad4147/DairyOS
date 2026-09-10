@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$DistRoot = "dist\\DairyOS-Release",
-    [string]$BuildRoot = "build\\DairyOS-Release"
+    [string]$DistRoot = "dist\DairyOS-Release",
+    [string]$BuildRoot = "build\DairyOS-Release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +15,12 @@ $webIndex = Join-Path $webDist "index.html"
 $spec = Join-Path $repo "DairyOS.spec"
 $runtimeSource = Join-Path $repo "runtime\\PostgreSQL"
 $versionSource = Join-Path $repo "runtime\\postgresql.version"
+$distRootPath = [IO.Path]::GetFullPath((Join-Path $repo $DistRoot))
+$releaseParentPath = [IO.Path]::GetFullPath((Split-Path -Parent $distRootPath))
+$legacyOutputRoots = @(
+    (Join-Path $releaseParentPath "DairyOS-Admin"),
+    (Join-Path $releaseParentPath "DairyOS-Installer")
+)
 
 if (-not (Test-Path $spec -PathType Leaf)) { throw "DairyOS PyInstaller specification is missing: $spec" }
 if (-not (Test-Path $runtimeSource -PathType Container)) { throw "Bundled PostgreSQL runtime is missing: $runtimeSource" }
@@ -41,14 +47,19 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
 
-Remove-Item $DistRoot -Recurse -Force -ErrorAction SilentlyContinue
+foreach ($legacyOutputRoot in $legacyOutputRoots) {
+    if (Test-Path $legacyOutputRoot) {
+        Remove-Item $legacyOutputRoot -Recurse -Force
+    }
+}
+Remove-Item $distRootPath -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
 
 $pyinstallerArgs = @("--noconfirm", "--clean", "--distpath", $DistRoot, "--workpath", $BuildRoot, $spec)
 python -m PyInstaller @pyinstallerArgs
 if ($LASTEXITCODE -ne 0) { throw "DairyOS desktop PyInstaller build failed." }
 
-$bundle = Join-Path $DistRoot "DairyOS"
+$bundle = Join-Path $distRootPath "DairyOS"
 $exe = Join-Path $bundle "DairyOS.exe"
 $backupExe = Join-Path $bundle "DairyOSBackup.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "Frozen DairyOS.exe was not produced: $exe" }

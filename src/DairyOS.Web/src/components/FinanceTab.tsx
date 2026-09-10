@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Ban, Edit3, Printer, Search, WalletCards } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { farmToday } from '../utils/farmDate';
 import { useFarmDateField } from '../utils/farmDate';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
@@ -194,14 +195,7 @@ const revenueCell: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Karachi',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-const today = () => pakistanDateFormatter.format(new Date());
+const today = () => farmToday();
 const monthStartFor = (iso: string) => `${iso.slice(0, 7)}-01`;
 const monthEndFor = (iso: string) => {
   const [year, month] = iso.slice(0, 7).split('-').map(Number);
@@ -1400,4 +1394,3 @@ export default function FinanceTab({
     </div>
   );
 }
-

@@ -162,10 +162,10 @@ def test_animal_ids_increment_sequentially(client):
     assert second_seq == first_seq + 1
 
 
-def test_legacy_reset_requires_migration_to_admin_tool(client):
+def test_legacy_reset_requires_protected_settings_flow(client):
     response = client.post("/settings/reset", json={"confirm": "RESET"})
     assert response.status_code == 410, response.text
-    assert "Administration Tool" in response.json()["detail"]
+    assert "protected Settings reset flow" in response.json()["detail"]
 
 
 def test_legacy_reset_does_not_wipe_operational_data(client, registered_animal):

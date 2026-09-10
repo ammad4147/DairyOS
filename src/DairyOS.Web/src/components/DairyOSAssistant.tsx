@@ -1,50 +1,282 @@
-import { useMemo, useState } from 'react';
-import { Bot, Search, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Loader2,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
-type KnowledgeAnswer = {
-  topic: string;
-  keywords: string[];
-  answer: string;
-  steps: string[];
-  next: string;
-  safety: string;
-  source: string;
-};
+const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
-const knowledge: KnowledgeAnswer[] = [
-  { topic: 'Milk late entry', keywords: ['milk', 'missed', 'late', 'entry', 'production'], answer: 'Enter the measured milk against the actual operational date and session. A late entry should remain a historical fact for that date, not become a value for today.', steps: ['Confirm permanent Animal ID and session.', 'Use the actual event date.', 'Save once and verify milk history and passport.', 'Review period totals and dependent COP/revenue views.'], next: 'Use the supported amendment path if the saved value is wrong; do not blind-retry.', safety: 'This assistant cannot create or amend a milk record.', source: 'Milk production knowledge base: milk.late-entry, milk.period-total' },
-  { topic: 'Feed Cost / L', keywords: ['feed', 'cost', 'litre', 'liter', 'tmr', 'cost/l'], answer: 'Feed Cost/L is the selected-period governed daily TMR cost total divided by valid milk litres for the same period. Historical formula changes must not rewrite prior daily authority.', steps: ['Confirm the inclusive analysis dates.', 'Review the daily TMR calculation log.', 'Check feed status and consumed quantity.', 'Reconcile the milk denominator and missing dates.'], next: 'Investigate unavailable or partial days before using the value for COP decisions.', safety: 'The assistant does not substitute current TMR cost multiplied by days.', source: 'Feed/TMR and analytics knowledge base: feed.feed-cost-per-litre, analytics.period-and-cop' },
-  { topic: 'Treatment and withdrawal', keywords: ['treatment', 'medicine', 'withdrawal', 'withheld', 'milk'], answer: 'Record veterinarian-authorised treatment and the approved withdrawal instruction. Milk during withdrawal must remain out of the sale stream through the governed disposition workflow.', steps: ['Confirm animal identity and treatment authority.', 'Record the actual treatment facts.', 'Verify the active withdrawal interval.', 'Record withheld milk as non-sale and schedule follow-up.'], next: 'Do not release milk until the authorised withdrawal condition is complete.', safety: 'No diagnosis, medicine selection, dosage, or withdrawal override is provided.', source: 'Veterinary knowledge base: health.treatment-withdrawal, disease-reference-catalog' },
-  { topic: 'Vaccination', keywords: ['vaccine', 'vaccination', 'booster', 'due', 'immunization'], answer: 'Use a veterinarian-approved, region-specific programme. DairyOS records actual administrations and due information; a reminder is not proof that a vaccine was given.', steps: ['Confirm eligible animal or group.', 'Check approved product, storage, expiry, and instructions.', 'Record actual date, product, administrator, and next due date.', 'Review coverage and missed events.'], next: 'Escalate adverse reactions or missed programme decisions to the veterinarian.', safety: 'The assistant does not prescribe a universal schedule or dose.', source: 'Veterinary knowledge base: vaccination.programme-design, vaccination.event' },
-  { topic: 'Breeding and pregnancy', keywords: ['breeding', 'insemination', 'pregnancy', 'reproductive', 'service'], answer: 'Record actual reproductive events and authorised diagnostic results. Current reproductive state is derived from persisted chronology; predictions and reminders are not confirmed events.', steps: ['Confirm permanent Animal ID.', 'Record the actual event date and responsible person.', 'Enter the result when known.', 'Review chronology, current state, and passport.'], next: 'Record pregnancy recheck, calving, loss, or subsequent service when actually observed.', safety: 'The assistant does not diagnose pregnancy or infer an event from a reminder.', source: 'Veterinary knowledge base: breeding.event, breeding.pregnancy, breeding.chronology' },
-  { topic: 'Calving', keywords: ['calving', 'birth', 'calf', 'post-calving', 'fresh cow'], answer: 'Record the actual calving event and available offspring details. DairyOS then derives the post-calving reproductive state; milk, health, treatment, and follow-up remain separate records.', steps: ['Confirm dam identity and actual date.', 'Record calving and offspring facts.', 'Refresh reproductive state and passport.', 'Record fresh-cow milk and health observations separately.'], next: 'Follow the approved post-calving health and breeding-readiness plan.', safety: 'An expected calving date is not an actual calving event.', source: 'Veterinary knowledge base: breeding.calving, breeding.post-calving-return' },
-  { topic: 'System health', keywords: ['health check', 'system health', 'database', 'readiness', 'startup'], answer: 'System Health is a read-only readiness check. It should report service, database, configuration, and projection status without changing operational records, backups, or settings.', steps: ['Open Settings and choose System Health.', 'Run the read-only check.', 'Review each component and timestamp.', 'Escalate failures with the displayed evidence.'], next: 'Do not use reset or manual database editing as a troubleshooting shortcut.', safety: 'The assistant cannot run health checks or repair the database.', source: 'Operations knowledge base: settings.system-health, startup.readiness' },
-  { topic: 'Reset safety', keywords: ['reset', 'zero state', 'delete', 'deployment', 'clear data'], answer: 'Zero-state reset is an explicitly authorised pre-deployment action, not normal troubleshooting. It requires protected authentication, exact confirmation, recovery protection, and controlled processing.', steps: ['Confirm the target is not an active farm dataset.', 'Verify recovery protection.', 'Authenticate and use the exact confirmation.', 'Verify the resulting state after controlled restart.'], next: 'Retain recovery evidence and never use reset to fix a calculation or display issue.', safety: 'The assistant cannot request or execute a reset.', source: 'Operations knowledge base: settings.zero-state-reset' },
-  { topic: 'Missing or stale data', keywords: ['missing', 'stale', 'not showing', 'orphan', 'saved', 'disappear'], answer: 'Trace the permanent identity, operational date, authoritative record, projection, and refresh path before entering anything again. A visible value or HTTP success alone is not proof of complete propagation.', steps: ['Capture the source identifier and timestamp.', 'Refresh the source and destination views.', 'Compare authoritative history with projections and audit evidence.', 'Escalate mismatches without blind duplicate retries.'], next: 'Use a controlled replay or correction only after the cause is isolated and authorised.', safety: 'The assistant does not edit or replay live records.', source: 'Persistence knowledge base: persistence.authority-and-audit, troubleshooting.missing-data' },
-  { topic: 'Produced, sold, and non-sale milk', keywords: ['sold', 'sale', 'revenue', 'non-sale', 'receivable', 'disposition'], answer: 'Produced milk is not automatically sold. Reconcile valid production with sold, non-sale, withheld, and unallocated litres; revenue uses valid sold-litre sale facts.', steps: ['Confirm the period and production total.', 'Review dispositions by operational date.', 'Reconcile sold and non-sale quantities.', 'Check sale price, cash, receivable, amendments, and voids.'], next: 'Correct the source disposition or sale record rather than changing a report total.', safety: 'The assistant cannot create or amend revenue entries.', source: 'Revenue knowledge base: revenue.sold-litres, revenue.disposition, revenue.revenue' },
+const SUGGESTED_QUESTIONS = [
+  'How do I record a missed milk entry for the correct date?',
+  'Why is Feed Cost / L unavailable for a period?',
+  'What should I know about mastitis and when is it urgent?',
+  'Give me the complete checklist for recording a milk sale.',
+  'How do vaccination and breeding records affect the animal passport?',
+  'How can I run a read-only system health check safely?',
 ];
 
+const ROLES = [
+  'Operator',
+  'Supervisor',
+  'Finance',
+  'Veterinary / Health',
+  'Technical',
+] as const;
+
+type Role = (typeof ROLES)[number];
+
+type RelatedItem = {
+  id: string;
+  title: string;
+  domain: string;
+  capability: string;
+  question: string;
+  review_status: string;
+  anchor_validation: string;
+};
+
+type AssistantResponse = {
+  question: string;
+  answer_type: string;
+  scope: string;
+  title: string;
+  answer: string;
+  expanded_explanation: string;
+  role?: Role;
+  role_guidance?: Record<string, string>;
+  selected_role_guidance?: string;
+  preconditions: string[];
+  steps: string[];
+  expected_result: string;
+  next_actions: string[];
+  exceptions_recovery: string[];
+  effects: string[];
+  safety: string;
+  sources: string[];
+  related: RelatedItem[];
+  matched_items?: RelatedItem[];
+  review?: {
+    status: string;
+    note: string;
+    source_files: string[];
+    source_authority: string[];
+    implementation_anchors: Record<string, unknown>;
+    implementation_validation: { status: string; issues: string[] };
+  };
+  coverage?: {
+    items: number;
+    domains: string[];
+    read_only: boolean;
+  };
+};
+
+const field: CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: '#1e293b',
+  border: '1px solid #334155',
+  color: '#fff',
+  borderRadius: 6,
+  padding: '9px 10px',
+  fontSize: 11,
+  lineHeight: 1.45,
+};
+
+const smallButton = (active = false): CSSProperties => ({
+  background: active ? '#0c4a6e' : '#1e293b',
+  color: '#e2e8f0',
+  border: active ? '1px solid #38bdf8' : '1px solid #334155',
+  borderRadius: 6,
+  padding: '7px 9px',
+  cursor: 'pointer',
+  fontSize: 10,
+  fontWeight: 800,
+  textAlign: 'left',
+});
+
+const heading: CSSProperties = {
+  color: '#38bdf8',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: 0.8,
+  textTransform: 'uppercase',
+};
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ background: '#0f172a', border: '1px solid #1f2937', borderRadius: 7, padding: 11 }}>
+      <div style={heading}>{title}</div>
+      <div style={{ marginTop: 7 }}>{children}</div>
+    </section>
+  );
+}
+
+function StringList({ values, ordered = false }: { values: string[]; ordered?: boolean }) {
+  if (!values.length) return <div style={{ color: '#64748b', fontSize: 10 }}>None recorded in this guidance item.</div>;
+  const List = ordered ? 'ol' : 'ul';
+  return (
+    <List style={{ margin: ordered ? '0 0 0 18px' : '0 0 0 16px', padding: 0, color: '#cbd5e1', fontSize: 11, lineHeight: 1.55 }}>
+      {values.map((value, index) => <li key={`${value}-${index}`} style={{ marginBottom: 3 }}>{value}</li>)}
+    </List>
+  );
+}
+
 export default function DairyOSAssistant() {
-  const [query, setQuery] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState(knowledge[0].topic);
-  const selected = knowledge.find(item => item.topic === selectedTopic) ?? knowledge[0];
-  const matches = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return knowledge;
-    return knowledge.filter(item => `${item.topic} ${item.keywords.join(' ')} ${item.answer}`.toLowerCase().includes(normalized));
-  }, [query]);
+  const [question, setQuestion] = useState('');
+  const [role, setRole] = useState<Role>('Operator');
+  const [answer, setAnswer] = useState<AssistantResponse | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const ask = async (nextQuestion = question) => {
+    const trimmed = nextQuestion.trim();
+    if (trimmed.length < 2) {
+      setError('Enter a question with enough detail for a grounded answer.');
+      return;
+    }
+    setQuestion(trimmed);
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE}/assistant/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: trimmed, role }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.detail || `Assistant unavailable (HTTP ${response.status}).`);
+      }
+      setAnswer(payload as AssistantResponse);
+    } catch (requestError) {
+      setAnswer(null);
+      setError(requestError instanceof Error ? requestError.message : 'Assistant request failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clear = () => {
+    setQuestion('');
+    setAnswer(null);
+    setError('');
+  };
 
   return (
     <section style={{ background: '#0f172a', border: '1px solid #1f2937', borderRadius: 8, padding: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div><div style={{ color: '#38bdf8', fontSize: 9, fontWeight: 900, letterSpacing: 1 }}>DAIRYOS ASSISTANT</div><h3 style={{ margin: '4px 0', fontSize: 17 }}>Ask about DairyOS</h3><div style={{ color: '#94a3b8', fontSize: 10 }}>Offline, read-only guidance from the reviewed knowledge base. It cannot write farm records.</div></div>
-        <div style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#bbf7d0', fontSize: 9, fontWeight: 800 }}><ShieldCheck size={14} /> NO LIVE DATA ACCESS</div>
+        <div>
+          <div style={{ ...heading, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={14} />AI-grounded DairyOS Assistant</div>
+          <h3 style={{ margin: '4px 0', fontSize: 17 }}>Ask a question in your own words</h3>
+          <div style={{ color: '#94a3b8', fontSize: 10, maxWidth: 700 }}>
+            The Assistant matches your question to the versioned DairyOS knowledge base, then develops a complete answer with context, checklist, expected outcome, downstream effects, exceptions, and next action.
+          </div>
+        </div>
+        <div style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#bbf7d0', fontSize: 9, fontWeight: 800 }}><ShieldCheck size={14} />READ ONLY · NO LIVE RECORD ACCESS</div>
       </div>
-      <div style={{ display: 'flex', gap: 7, marginTop: 12 }}><div style={{ position: 'relative', flex: 1 }}><Search size={14} style={{ position: 'absolute', left: 9, top: 9, color: '#64748b' }} /><input aria-label="Ask DairyOS Assistant" value={query} onChange={event => setQuery(event.target.value)} placeholder="Ask about milk, TMR, health, breeding, finance or settings…" style={{ width: '100%', boxSizing: 'border-box', padding: '8px 9px 8px 29px', background: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }} /></div><button type="button" onClick={() => setQuery('')} style={{ background: '#334155', color: '#fff', border: 0, borderRadius: 6, padding: '8px 10px', cursor: 'pointer', fontSize: 10 }}>Clear</button></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px,.75fr) minmax(0,1.8fr)', gap: 10, marginTop: 12 }}>
-        <div style={{ display: 'grid', gap: 5, alignContent: 'start' }}>{matches.map(item => <button key={item.topic} type="button" onClick={() => setSelectedTopic(item.topic)} style={{ textAlign: 'left', background: selectedTopic === item.topic ? '#0c4a6e' : '#1e293b', color: '#f8fafc', border: selectedTopic === item.topic ? '1px solid #38bdf8' : '1px solid #334155', borderRadius: 6, padding: '8px 9px', cursor: 'pointer', fontSize: 10, fontWeight: 800 }}>{item.topic}</button>)}{matches.length === 0 && <div style={{ color: '#94a3b8', fontSize: 10, padding: 8 }}>No reviewed topic matched. Ask an authorised person or add the question to the knowledge-base review queue.</div>}</div>
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 7, padding: 12 }}>{matches.length > 0 ? <><div style={{ display: 'flex', gap: 7, alignItems: 'center', color: '#a78bfa', fontSize: 12, fontWeight: 900 }}><Bot size={16} />{selected.topic}</div><div style={{ marginTop: 9, fontSize: 12, lineHeight: 1.5, color: '#e2e8f0' }}>{selected.answer}</div><div style={{ marginTop: 12, color: '#38bdf8', fontSize: 9, fontWeight: 900, textTransform: 'uppercase' }}>Suggested steps</div><ol style={{ margin: '5px 0 0 18px', padding: 0, color: '#cbd5e1', fontSize: 11, lineHeight: 1.5 }}>{selected.steps.map(item => <li key={item}>{item}</li>)}</ol><div style={{ marginTop: 10, padding: 9, background: '#0f172a', borderRadius: 6, color: '#cbd5e1', fontSize: 10 }}><strong style={{ color: '#38bdf8' }}>What next:</strong> {selected.next}</div><div style={{ marginTop: 8, padding: 9, background: '#1c1917', border: '1px solid #78350f', borderRadius: 6, color: '#fde68a', fontSize: 10 }}><strong>Safety:</strong> {selected.safety}</div><div style={{ marginTop: 9, color: '#64748b', fontSize: 9 }}>Source: {selected.source}</div></> : <div style={{ color: '#94a3b8', fontSize: 11 }}>No answer available for this query.</div>}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 170px', gap: 8, marginTop: 13, alignItems: 'end' }}>
+        <label style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>
+          Your question
+          <div style={{ position: 'relative', marginTop: 4 }}>
+            <Search size={14} style={{ position: 'absolute', left: 9, top: 10, color: '#64748b' }} />
+            <textarea
+              aria-label="Ask DairyOS Assistant"
+              value={question}
+              onChange={event => setQuestion(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void ask();
+                }
+              }}
+              placeholder="Example: What happens after I enter a late milk record?"
+              rows={2}
+              style={{ ...field, paddingLeft: 29, resize: 'vertical' }}
+            />
+          </div>
+        </label>
+        <label style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>
+          Perspective
+          <select aria-label="Assistant perspective" value={role} onChange={event => setRole(event.target.value as Role)} style={{ ...field, marginTop: 4 }}>
+            {ROLES.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
       </div>
+      <div style={{ display: 'flex', gap: 7, marginTop: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => void ask()} disabled={busy} style={{ ...smallButton(true), background: '#0369a1', opacity: busy ? 0.65 : 1 }}>
+          {busy ? <Loader2 size={12} className="dairyos-spin" /> : <Bot size={12} />} {busy ? 'Developing answer…' : 'Ask Assistant'}
+        </button>
+        <button type="button" onClick={clear} style={smallButton()}>Clear</button>
+      </div>
+
+      {error && <div style={{ marginTop: 10, background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', borderRadius: 6, padding: 8, fontSize: 10 }}>{error}</div>}
+
+      {!answer && !busy && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>Try a question</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 6, marginTop: 7 }}>
+            {SUGGESTED_QUESTIONS.map(suggestion => (
+              <button key={suggestion} type="button" onClick={() => void ask(suggestion)} style={smallButton()}>{suggestion}<ArrowRight size={11} style={{ float: 'right', marginTop: 1, color: '#38bdf8' }} /></button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {answer && (
+        <div style={{ display: 'grid', gap: 9, marginTop: 14 }}>
+          <section style={{ background: '#111827', border: '1px solid #334155', borderRadius: 7, padding: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ color: '#a78bfa', fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={16} />{answer.title}</div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                <span style={{ background: '#312e81', color: '#ddd6fe', borderRadius: 4, padding: '4px 6px', fontSize: 8, fontWeight: 900 }}>{answer.answer_type}</span>
+                <span style={{ background: '#1e293b', color: '#cbd5e1', borderRadius: 4, padding: '4px 6px', fontSize: 8 }}>{answer.scope}</span>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.55, color: '#f8fafc' }}>{answer.answer}</div>
+            <div style={{ marginTop: 9, color: '#cbd5e1', fontSize: 11, lineHeight: 1.55 }}>{answer.expanded_explanation}</div>
+            {answer.selected_role_guidance && <div style={{ marginTop: 10, padding: 9, background: '#0c4a6e', border: '1px solid #075985', borderRadius: 6, color: '#e0f2fe', fontSize: 10 }}><strong>{answer.role || role} perspective:</strong> {answer.selected_role_guidance}</div>}
+          </section>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 9 }}>
+            <Section title="Before you begin"><StringList values={answer.preconditions} /></Section>
+            <Section title="Complete SOP / checklist"><StringList values={answer.steps} ordered /></Section>
+            <Section title="Expected outcome"><div style={{ color: '#e2e8f0', fontSize: 11, lineHeight: 1.55 }}>{answer.expected_result}</div></Section>
+            <Section title="What happens next"><StringList values={answer.next_actions} /></Section>
+            <Section title="Exceptions and recovery"><StringList values={answer.exceptions_recovery} /></Section>
+            <Section title="Where the fact goes"><StringList values={answer.effects} /></Section>
+          </div>
+
+          <section style={{ background: '#1c1917', border: '1px solid #78350f', borderRadius: 7, padding: 11, color: '#fde68a', fontSize: 10, lineHeight: 1.55 }}>
+            <div style={{ fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={13} />Safety boundary</div>
+            <div style={{ marginTop: 5 }}>{answer.safety}</div>
+          </section>
+
+          {answer.review && <Section title="Source and review status">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ color: '#e2e8f0', fontSize: 10 }}>Corpus status: <strong>{answer.review.status}</strong></span>
+              <span style={{ color: answer.review.implementation_validation.status === 'VALIDATED' ? '#86efac' : '#fde68a', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={11} />Anchors: {answer.review.implementation_validation.status}</span>
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: 9, lineHeight: 1.5 }}>{answer.review.note}</div>
+            <div style={{ marginTop: 6, color: '#64748b', fontSize: 9 }}>Sources: {answer.review.source_authority.join(' · ') || answer.review.source_files.join(' · ')}</div>
+          </Section>}
+
+          {!!answer.related.length && <Section title="Related questions">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {answer.related.map(item => <button key={item.id} type="button" onClick={() => void ask(item.question)} style={smallButton()}>{item.title}<ArrowRight size={11} style={{ marginLeft: 5, verticalAlign: -1, color: '#38bdf8' }} /></button>)}
+            </div>
+          </Section>}
+
+          {answer.coverage && <div style={{ color: '#64748b', fontSize: 9 }}>Grounded against {answer.coverage.items} normalized knowledge items across {answer.coverage.domains.length} domains. No live database or farm record was read.</div>}
+        </div>
+      )}
     </section>
   );
 }

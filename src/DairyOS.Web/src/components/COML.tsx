@@ -6,6 +6,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { farmToday } from '../utils/farmDate';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 const DRAFT_KEY = 'dairyos_cop_manual_per_litre_draft';
@@ -108,14 +109,7 @@ const money = (value: unknown) => {
     : 'N/A';
 };
 
-const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Karachi',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-const todayIso = () => pakistanDateFormatter.format(new Date());
+const todayIso = () => farmToday();
 const latestCompletedIso = () => dateShift(todayIso(), -1);
 
 const dateShift = (iso: string, days: number) => {

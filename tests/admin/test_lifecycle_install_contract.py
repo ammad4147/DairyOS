@@ -18,15 +18,11 @@ def test_install_creates_installation_root(tmp_path: Path) -> None:
 
 
 
-def test_admin_hidden_lifecycle_install_bootstraps_required_layout(
+def test_packaged_dairyos_lifecycle_install_bootstraps_required_layout(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from dairyos.admin import app as admin_app
-
-    # main() applies explicit CLI roots to its process environment. This
-    # in-process test must restore that environment for subsequent API tests.
-    monkeypatch.setattr(admin_app.os, "environ", admin_app.os.environ.copy())
+    from dairyos.windows import supervisor
 
     installation_root = tmp_path / "installed"
     data_root = tmp_path / "programdata"
@@ -34,7 +30,7 @@ def test_admin_hidden_lifecycle_install_bootstraps_required_layout(
     monkeypatch.setattr(
         "sys.argv",
         [
-            "DairyOS-Admin.exe",
+            "DairyOS.exe",
             "--lifecycle-install",
             "--installation-root",
             str(installation_root),
@@ -43,7 +39,7 @@ def test_admin_hidden_lifecycle_install_bootstraps_required_layout(
         ],
     )
 
-    admin_app.main()
+    assert supervisor.main() == 0
 
     assert installation_root.is_dir()
     assert (data_root / "storage").is_dir()

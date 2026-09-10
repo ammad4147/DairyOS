@@ -18,6 +18,7 @@ import { NAVIGATION_TABS, normalizeHiddenNavigationTabs } from './navigation';
 import type { NavigationTabId } from './navigation';
 import { useAlertAudit } from './context/AlertAuditContext';
 import { AnimalContextProvider } from './context/AnimalContext';
+import { setFarmTimezone } from './utils/farmDate';
 import { LayoutDashboard, Calculator, DollarSign, Milk, HeartPulse, ShieldCheck, Activity, Settings, Bell, Wheat, Users, WalletCards } from 'lucide-react';
 import './App.css';
 
@@ -35,7 +36,7 @@ export default function MainAppShell(){
 
  const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();const records = Array.isArray(payload) ? payload : Array.isArray(payload?.value) ? payload.value : [];setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
 
- useEffect(()=>{void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setFarmName(settings.farm_name);setFarmLocation(settings.location ?? '');setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs))}catch(error){console.error('DairyOS settings load failed:',error)}})()},[refreshAnimals]);
+ useEffect(()=>{void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setFarmName(settings.farm_name);setFarmLocation(settings.location ?? '');setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs));setFarmTimezone(settings?.timezone)}catch(error){console.error('DairyOS settings load failed:',error)}})()},[refreshAnimals]);
 
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
  const handleRegisterAnimal=()=>{void refreshAnimals()};

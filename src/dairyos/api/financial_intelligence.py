@@ -1,34 +1,53 @@
 """Financial intelligence derived from persisted farm transactions and milk."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time
 
 from fastapi import APIRouter, Query
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.finance.classification import transaction_classifier as classifier
-from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
-from dairyos.finance.profitability.services.mofc_service import MOFCService
-from dairyos.core.time_utils import utcnow
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.finance.classification import transaction_classifier as classifier
+from dairyos.finance.profitability.services.feed_opex_cost_service import (
+    FeedOpexCostService,
+)
+from dairyos.finance.profitability.services.mofc_service import MOFCService
 
 router = APIRouter(prefix="/farm/finance", tags=["financial-intelligence"])
+
+
+def _operational_period_end(factory) -> datetime:
+    """Return the configured farm day-end as a UTC-naive storage boundary."""
+    operational_now = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_datetime()
+    local_end = datetime.combine(
+        operational_now.date(),
+        time.max,
+        tzinfo=operational_now.tzinfo,
+    )
+    return local_end.astimezone(UTC).replace(tzinfo=None)
+
+
+def _record_operational_date(value, timezone_info) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.astimezone(timezone_info).date()
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
 
 
 @router.get("/cost-of-production")
 def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
     factory = RepositoryFactory.create()
     try:
-        operational_date = OperationalDateAuthority(
-            repository_factory=factory,
-        ).current_date()
-        period_end = datetime.combine(
-            operational_date,
-            time.max,
-            tzinfo=UTC,
-        )
+        period_end = _operational_period_end(factory)
         return FeedOpexCostService().evaluate(
             factory.milk().get_all(),
             factory.finance().get_all(),
@@ -53,11 +72,13 @@ def margin_over_feed_cost(
     """
     factory = RepositoryFactory.create()
     try:
+        period_end = _operational_period_end(factory)
         return MOFCService().evaluate(
             factory.milk().get_all(),
             factory.feed().get_all(),
             milk_price_per_litre=milk_price_per_litre,
             days=days,
+            now=period_end,
         )
     finally:
         factory.close()
@@ -65,18 +86,37 @@ def margin_over_feed_cost(
 
 @router.get("/reconciliation")
 def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|quarterly|yearly)$")):
-    now = utcnow()
-    if period == "monthly":
-        start = datetime(now.year, now.month, 1)
-    elif period == "quarterly":
-        month = ((now.month - 1) // 3) * 3 + 1
-        start = datetime(now.year, month, 1)
-    else:
-        start = datetime(now.year, 1, 1)
-
     factory = RepositoryFactory.create()
     try:
-        records = [x for x in factory.finance().get_all() if x.transaction_date >= start]
+        operational_now = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime()
+        if period == "monthly":
+            start_date = operational_now.date().replace(day=1)
+        elif period == "quarterly":
+            month = ((operational_now.month - 1) // 3) * 3 + 1
+            start_date = operational_now.date().replace(
+                month=month,
+                day=1,
+            )
+        else:
+            start_date = operational_now.date().replace(
+                month=1,
+                day=1,
+            )
+
+        records = [
+            x
+            for x in factory.finance().get_all()
+            if (
+                (record_date := _record_operational_date(
+                    x.transaction_date,
+                    operational_now.tzinfo,
+                ))
+                is not None
+                and start_date <= record_date <= operational_now.date()
+            )
+        ]
         active_records = [x for x in records if classifier.is_active(x)]
         income = sum(float(x.amount or 0) for x in active_records if classifier.is_income(x))
         expenses = sum(float(x.amount or 0) for x in active_records if classifier.is_expense(x))
@@ -86,8 +126,8 @@ def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|qua
         opex = sum(float(x.amount or 0) for x in active_records if classifier.is_expense(x) and str(getattr(x, "master_category", "") or "").upper() == "OPEX")
         return {
             "period": period,
-            "from": start.isoformat(),
-            "to": now.isoformat(),
+            "from": start_date.isoformat(),
+            "to": operational_now.isoformat(),
             "data_status": "LIVE_PERSISTED",
             "income": round(income, 2),
             "expenses": round(expenses, 2),

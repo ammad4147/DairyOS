@@ -14,7 +14,10 @@ AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 DefaultDirName={autopf}\DairyOS
 DefaultGroupName=DairyOS
-OutputDir=..\..\dist\DairyOS-Installer
+; Keep the one-click setup beside the staged DairyOS application folder:
+; dist\DairyOS-Release\DairyOS-Windows-Installer.exe
+; dist\DairyOS-Release\DairyOS\
+OutputDir=..\..\dist\DairyOS-Release
 OutputBaseFilename=DairyOS-Windows-Installer
 Compression=lzma2
 SolidCompression=yes
@@ -40,8 +43,6 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 
 [Icons]
 Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
-Name: "{autoprograms}\DairyOS Administration"; Filename: "{app}\DairyOS-Admin.exe"; WorkingDir: "{app}"
-Name: "{autoprograms}\DairyOS Operator Manual"; Filename: "{app}\Documentation\DairyOS-Operator-Manual.html"; WorkingDir: "{app}\Documentation"
 Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
 
 [Dirs]
@@ -49,7 +50,6 @@ Name: "{commonappdata}\DairyOS"
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
-Filename: "{app}\DairyOS-Admin.exe"; Parameters: "--restore-mode"; Description: "Choose a verified backup in DairyOS Administration"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchAdminAfterInstall
 
 [UninstallDelete]
 ; Deliberately empty. ProgramData contains farm data, the private PostgreSQL
@@ -60,10 +60,8 @@ Filename: "{app}\DairyOS-Admin.exe"; Parameters: "--restore-mode"; Description: 
 var
   DataChoicePage: TWizardPage;
   UseExistingRadio: TRadioButton;
-  RestoreRadio: TRadioButton;
   FreshRadio: TRadioButton;
   ExistingDataDetected: Boolean;
-  RestoreRequested: Boolean;
 
 function DairyOSDataRoot(): String;
 begin
@@ -73,13 +71,13 @@ end;
 
 procedure ProvisionLifecycleState();
 var
-  AdminExe: String;
+  DairyOSExe: String;
   Params: String;
   ResultCode: Integer;
 begin
-  AdminExe := ExpandConstant('{app}\DairyOS-Admin.exe');
-  if not FileExists(AdminExe) then
-    RaiseException('DairyOS-Admin.exe is missing; lifecycle state cannot be initialized.');
+  DairyOSExe := ExpandConstant('{app}\DairyOS.exe');
+  if not FileExists(DairyOSExe) then
+    RaiseException('DairyOS.exe is missing; lifecycle state cannot be initialized.');
 
   Params :=
     '--lifecycle-install ' +
@@ -87,7 +85,7 @@ begin
     '--data-root "' + DairyOSDataRoot() + '"';
 
   if (not Exec(
-    AdminExe,
+    DairyOSExe,
     Params,
     ExpandConstant('{app}'),
     SW_HIDE,
@@ -116,7 +114,7 @@ begin
     );
 
   { lifecycle.json is mutable application metadata. Setup creates it while
-    elevated, while normal DairyOS Administration operates without elevation.
+    elevated, while the normal DairyOS runtime operates without elevation.
     Grant Modify only on this file to the built-in Users SID. Do not grant
     recursive rights to ProgramData, PostgreSQL or security state. }
   IcaclsExe := ExpandConstant('{sys}\icacls.exe');
@@ -249,11 +247,9 @@ procedure InitializeWizard();
 var
   Intro: TNewStaticText;
   ExistingDetail: TNewStaticText;
-  RestoreDetail: TNewStaticText;
   Caution: TNewStaticText;
 begin
   ExistingDataDetected := DetectExistingDairyOSData();
-  RestoreRequested := False;
 
   DataChoicePage := CreateCustomPage(
     wpSelectDir,
@@ -305,31 +301,6 @@ begin
       'Existing farm data is retained.';
     ExistingDetail.AdjustHeight();
 
-    RestoreRadio := TRadioButton.Create(DataChoicePage);
-    RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := ScaleX(12);
-    RestoreRadio.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(22);
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
-    RestoreRadio.Height := ScaleY(24);
-    RestoreRadio.Font.Name := 'Segoe UI';
-    RestoreRadio.Font.Size := 11;
-    RestoreRadio.Font.Style := [fsBold];
-    RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
-
-    RestoreDetail := TNewStaticText.Create(DataChoicePage);
-    RestoreDetail.Parent := DataChoicePage.Surface;
-    RestoreDetail.Left := ScaleX(34);
-    RestoreDetail.Top := RestoreRadio.Top + RestoreRadio.Height + ScaleY(4);
-    RestoreDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
-    RestoreDetail.AutoSize := False;
-    RestoreDetail.WordWrap := True;
-    RestoreDetail.Font.Name := 'Segoe UI';
-    RestoreDetail.Font.Size := 10;
-    RestoreDetail.Caption :=
-      'Install DairyOS first, then open authenticated DairyOS Administration ' +
-      'to choose from automatically discovered verified backups, newest first. ' +
-      'Full farm snapshots and database-only backups are labelled separately.';
-    RestoreDetail.AdjustHeight();
   end
   else
   begin
@@ -361,36 +332,12 @@ begin
       'Create a new DairyOS farm database on this computer.';
     ExistingDetail.AdjustHeight();
 
-    RestoreRadio := TRadioButton.Create(DataChoicePage);
-    RestoreRadio.Parent := DataChoicePage.Surface;
-    RestoreRadio.Left := ScaleX(12);
-    RestoreRadio.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(22);
-    RestoreRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
-    RestoreRadio.Height := ScaleY(24);
-    RestoreRadio.Font.Name := 'Segoe UI';
-    RestoreRadio.Font.Size := 11;
-    RestoreRadio.Font.Style := [fsBold];
-    RestoreRadio.Caption := 'Restore from a verified DairyOS backup';
-
-    RestoreDetail := TNewStaticText.Create(DataChoicePage);
-    RestoreDetail.Parent := DataChoicePage.Surface;
-    RestoreDetail.Left := ScaleX(34);
-    RestoreDetail.Top := RestoreRadio.Top + RestoreRadio.Height + ScaleY(4);
-    RestoreDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
-    RestoreDetail.AutoSize := False;
-    RestoreDetail.WordWrap := True;
-    RestoreDetail.Font.Name := 'Segoe UI';
-    RestoreDetail.Font.Size := 10;
-    RestoreDetail.Caption :=
-      'After installation, Administration automatically lists verified backups. ' +
-      'Choose a full farm snapshot or a clearly labelled database-only backup.';
-    RestoreDetail.AdjustHeight();
   end;
 
   Caution := TNewStaticText.Create(DataChoicePage);
   Caution.Parent := DataChoicePage.Surface;
   Caution.Left := ScaleX(12);
-  Caution.Top := RestoreDetail.Top + RestoreDetail.Height + ScaleY(28);
+  Caution.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(28);
   Caution.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
   Caution.AutoSize := False;
   Caution.WordWrap := True;
@@ -400,25 +347,18 @@ begin
   Caution.Caption :=
     'IMPORTANT' + #13#10 +
     'The installer will not delete or overwrite an existing DairyOS farm database. ' +
-    'Permanent data deletion is available only through authenticated DairyOS Administration.';
+    'A protected zero-state reset is available from Settings after the application starts.';
   Caution.AdjustHeight();
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if (DataChoicePage <> nil) and (CurPageID = DataChoicePage.ID) then
-    RestoreRequested := (RestoreRadio <> nil) and RestoreRadio.Checked;
 end;
 
 function ShouldLaunchDairyOS(): Boolean;
 begin
-  Result := not RestoreRequested;
-end;
-
-function ShouldLaunchAdminAfterInstall(): Boolean;
-begin
-  Result := RestoreRequested;
+  Result := True;
 end;
 
 function IsSilentUninstall(): Boolean;
@@ -498,14 +438,6 @@ begin
   );
   Exec(
     ExpandConstant('{sys}\taskkill.exe'),
-    '/F /T /IM DairyOS-Admin.exe',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  );
-  Exec(
-    ExpandConstant('{sys}\taskkill.exe'),
     '/F /T /IM DairyOSBackup.exe',
     '',
     SW_HIDE,
@@ -531,8 +463,6 @@ end;
 function InitializeUninstall(): Boolean;
 var
   Choice: Integer;
-  AdminExe: String;
-  ResultCode: Integer;
 begin
   Result := True;
 
@@ -546,12 +476,10 @@ begin
     'Choose how to proceed with DairyOS uninstall:' + #13#10 + #13#10 +
     'YES - KEEP DATA AND UNINSTALL' + #13#10 +
     'Removes the DairyOS application but keeps the farm database and backups.' + #13#10 + #13#10 +
-    'NO - CREATE VERIFIED BACKUP FIRST' + #13#10 +
-    'Cancels uninstall and opens DairyOS Administration.' + #13#10 + #13#10 +
-    'CANCEL - DO NOT UNINSTALL' + #13#10 + #13#10 +
-    'Permanent data deletion is available only through authenticated DairyOS Administration.',
+    'NO - CANCEL AND KEEP THE APPLICATION' + #13#10 +
+    'No data or application files are removed.',
     mbConfirmation,
-    MB_YESNOCANCEL
+    MB_YESNO
   );
 
   if Choice = IDYES then
@@ -561,20 +489,4 @@ begin
   end;
 
   Result := False;
-
-  if Choice = IDNO then
-  begin
-    AdminExe := ExpandConstant('{app}\DairyOS-Admin.exe');
-    if FileExists(AdminExe) then
-    begin
-      if not Exec(AdminExe, '', ExpandConstant('{app}'), SW_SHOWNORMAL, ewNoWait, ResultCode) then
-        MsgBox('DairyOS Administration could not be opened. Uninstall has been cancelled.', mbError, MB_OK);
-    end
-    else
-      MsgBox(
-        'DairyOS Administration is not installed. Uninstall has been cancelled so data remains untouched.',
-        mbError,
-        MB_OK
-      );
-  end;
 end;

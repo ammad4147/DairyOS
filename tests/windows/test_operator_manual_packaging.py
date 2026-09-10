@@ -1,24 +1,23 @@
 from pathlib import Path
 
+
 ROOT = Path(__file__).resolve().parents[2]
 MANUAL = ROOT / "docs" / "operator" / "DairyOS-Operator-Manual.html"
+MARKDOWN_MANUAL = ROOT / "docs" / "manuals" / "OPERATOR_MANUAL.md"
+LEGACY_HELP = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "Documentation.tsx"
+LEGACY_HELP_DATA = ROOT / "src" / "DairyOS.Web" / "src" / "documentation" / "manualContent.ts"
 BUILD = ROOT / "scripts" / "Build-DairyOS-Installer.ps1"
 ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
 
-def test_operator_manual_covers_primary_entry_points_and_end_to_end_use():
-    text = MANUAL.read_text(encoding="utf-8")
-    for term in (
-        "Dashboard", "Animals", "Milk", "Feed", "Finance", "Breeding",
-        "Health", "Vaccination", "COP", "Record Revenue", "Record Expense",
-        "DairyOS Administration", "How to use DairyOS", "recovery key",
-        "receivable", "reconciliation", "Animal ID",
-    ):
-        assert term in text
 
-def test_operator_manual_is_packaged_and_has_start_menu_entry():
-    build = BUILD.read_text(encoding="utf-8")
-    iss = ISS.read_text(encoding="utf-8")
-    assert "DairyOS-Operator-Manual.html" in build
-    assert "Documentation" in build
-    assert "DairyOS Operator Manual" in iss
-    assert "DairyOS-Operator-Manual.html" in iss
+def test_operator_manual_is_not_shipped():
+    assert not MANUAL.exists()
+    assert not MARKDOWN_MANUAL.exists()
+    assert not LEGACY_HELP.exists()
+    assert not LEGACY_HELP_DATA.exists()
+
+    build = BUILD.read_text(encoding="utf-8-sig")
+    iss = ISS.read_text(encoding="utf-8-sig")
+    assert "DairyOS-Operator-Manual.html" not in build
+    assert "DairyOS-Operator-Manual.html" not in iss
+    assert "DairyOS Operator Manual" not in iss

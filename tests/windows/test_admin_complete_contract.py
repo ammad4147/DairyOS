@@ -1,68 +1,43 @@
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
-from dairyos.admin import app as admin_app
-
 
 ROOT = Path(__file__).resolve().parents[2]
-APP = ROOT / "src" / "dairyos" / "admin" / "app.py"
-CLI = ROOT / "src" / "dairyos" / "admin" / "cli.py"
 ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
+BUILD = ROOT / "scripts" / "Build-DairyOS-Installer.ps1"
+SETTINGS = ROOT / "src/DairyOS.Web/src/components/SettingsTab.tsx"
+SPEC = ROOT / "DairyOS.spec"
 
 
-def test_admin_gui_requires_auth_and_exposes_complete_recovery_surface():
-    source = APP.read_text(encoding="utf-8")
+def test_standalone_administration_product_surface_is_retired():
+    project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    for route in (
-        '"/setup"',
-        '"/login"',
-        '"/recover"',
-        '"/change-password"',
-        '"/restore"',
-        '"/rollback"',
-        '"/reset"',
-        '"/purge"',
-        '"/uninstall"',
-    ):
-        assert route in source
-    assert "auth.require_password" in source
-    assert "SESSION_TTL_SECONDS" in source
-    assert "loopback hosts" in source
-    assert '"--no-browser"' in source
-    assert "_open_browser_when_ready" in source
-    assert "webbrowser.open" in source
+    assert not (ROOT / "src/dairyos/admin/app.py").exists()
+    assert not (ROOT / "src/dairyos/admin/cli.py").exists()
+    assert not (ROOT / "scripts/Build-DairyOS-Admin.ps1").exists()
+    assert not (ROOT / "scripts/Start-DairyOS-Admin.ps1").exists()
+    assert not (ROOT / "packaging/dairyos_admin.spec").exists()
+    assert not (ROOT / ".github/workflows/admin-windows.yml").exists()
+    assert not (ROOT / ".github/workflows/admin-postgres.yml").exists()
+    assert "dairyos-admin =" not in project
+    assert "dairyos-admin-cli =" not in project
 
 
-def test_admin_cli_has_password_and_recovery_lifecycle():
-    source = CLI.read_text(encoding="utf-8")
-
-    for command in ("setup", "recover", "change-password", "restore", "rollback"):
-        assert f'sub.add_parser("{command}")' in source
-    assert "getpass" in source
-    assert "DAIRYOS_ADMIN_PASSWORD" in source
-
-
-def test_admin_windows_ci_certifies_real_frozen_http_runtime():
-    workflow = (ROOT / ".github" / "workflows" / "admin-windows.yml").read_text(
-        encoding="utf-8"
-    )
-
-    assert "Verify frozen Admin Tool serves the Administration page" in workflow
-    assert '"--no-browser","--host","127.0.0.1","--port","18082"' in workflow
-    assert "Invoke-WebRequest" in workflow
-    assert "http://127.0.0.1:18082/" in workflow
-    assert "DairyOS Administration" in workflow
+def test_protected_settings_replaces_the_operator_facing_admin_surface():
+    settings = SETTINGS.read_text(encoding="utf-8-sig")
+    assert "Read-only System Health" in settings
+    assert "/settings/system-reset" in settings
+    assert "DairyOS Assistant" in settings
+    assert "TrainingSimulator" not in settings
 
 
-def test_admin_app_really_constructs_and_serves_root(monkeypatch, tmp_path):
-    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setattr(admin_app.auth, "configured", lambda: False)
+def test_release_package_excludes_standalone_admin_and_manual():
+    iss = ISS.read_text(encoding="utf-8-sig")
+    build = BUILD.read_text(encoding="utf-8-sig")
+    spec = SPEC.read_text(encoding="utf-8-sig")
 
-    application = admin_app.create_app()
-    with TestClient(application) as client:
-        response = client.get("/")
-
-    assert response.status_code == 200
-    assert "DairyOS Administration" in response.text
-    assert "First-run Administrator Setup" in response.text
+    assert "DairyOS-Admin.exe" not in iss
+    assert "DairyOS Administration" not in iss
+    assert "DairyOS-Operator-Manual.html" not in iss
+    assert "DairyOS-Operator-Manual.html" not in build
+    assert "dairyos.admin.app" not in spec
+    assert "dairyos.admin.cli" not in spec

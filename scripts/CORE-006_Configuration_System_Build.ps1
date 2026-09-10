@@ -79,7 +79,9 @@ DEFAULT_SETTINGS = {
 
     "currency": "PKR",
 
-    "timezone": "Asia/Karachi",
+    # SYSTEM follows the Windows host clock; an explicit IANA timezone may be
+    # selected later through DairyOS Settings.
+    "timezone": "SYSTEM",
 
     "milk_unit": "litres",
 

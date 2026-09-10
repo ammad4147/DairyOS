@@ -12,6 +12,7 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
 )
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 
 
 router = APIRouter(
@@ -93,6 +94,15 @@ def _operator(
     if current_user is not None:
         return str(current_user["sub"])
     return str(payload.get("operator") or "API")
+
+
+def _farm_today(factory) -> date:
+    try:
+        return OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return datetime.now().astimezone().date()
 
 
 def _canonical_status(value: str | None) -> str:
@@ -207,7 +217,7 @@ def _raise_equipment_findings(
         if (
             equipment.next_service_due_at is not None
             and equipment.next_service_due_at.date()
-            < utcnow().date()
+            < _farm_today(factory)
             and equipment.active
         ):
             findings.raise_or_update(
@@ -355,7 +365,7 @@ def create_or_update_equipment(
                 equipment_id=entity.equipment_id,
                 event_date=(
                     entry.event_date
-                    or utcnow().date()
+                    or _farm_today(factory)
                 ),
                 event_type=entry.activity,
                 running_hours=entry.running_hours,
@@ -607,7 +617,7 @@ def record_equipment_service(
             equipment_id=equipment_id,
             event_date=(
                 entry.event_date
-                or utcnow().date()
+                or _farm_today(factory)
             ),
             event_type=entry.event_type,
             running_hours=entry.running_hours,

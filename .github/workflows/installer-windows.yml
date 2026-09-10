@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         timeout-minutes: 8
         run: |
-          $installer = Join-Path $PWD "dist\DairyOS-Installer\DairyOS-Windows-Installer.exe"
+          $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
           $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Cert"
           $dataRoot = Join-Path $env:ProgramData "DairyOS"
           $marker = Join-Path $dataRoot "installer-certification-marker.txt"
@@ -78,7 +78,7 @@ jobs:
           if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
 
           # lifecycle.json is created by elevated Setup but is intentionally
-          # mutable by the normal non-elevated DairyOS Admin Tool.
+          # mutable by the normal non-elevated DairyOS application runtime.
           $lifecyclePath = Join-Path $dataRoot "lifecycle.json"
           if (-not (Test-Path $lifecyclePath -PathType Leaf)) {
             throw "Installer did not provision lifecycle.json."
@@ -194,7 +194,6 @@ jobs:
           $required = @(
             (Join-Path $installRoot "DairyOS.exe"),
             (Join-Path $installRoot "DairyOSBackup.exe"),
-            (Join-Path $installRoot "DairyOS-Admin.exe"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\initdb.exe"),
@@ -206,9 +205,6 @@ jobs:
           foreach ($path in $required) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Installed DairyOS component is missing: $path" }
           }
-
-          $adminHelp = & (Join-Path $installRoot "DairyOS-Admin.exe") --help 2>&1
-          if ($LASTEXITCODE -ne 0) { throw "Installed DairyOS-Admin.exe --help failed with code $LASTEXITCODE." }
 
           $declaredVersion = (Get-Content (Join-Path $installRoot "runtime\postgresql.version") -Raw).Trim()
           $reportedVersionText = & (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe") --version 2>&1
@@ -385,5 +381,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DairyOS-Windows-Installer
-          path: dist/DairyOS-Installer/DairyOS-Windows-Installer.exe
+          path: dist/DairyOS-Release/DairyOS-Windows-Installer.exe
           if-no-files-found: error

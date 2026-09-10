@@ -8,13 +8,16 @@ and dashboard defaults. They never replace domain facts.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 DEFAULT_FARM_NAME = "Trident Dairies"
 DEFAULT_ANIMAL_ID_PREFIX = "TD"
-DEFAULT_TIMEZONE = "Asia/Karachi"
+# ``SYSTEM`` means the Windows computer's current local timezone.  A farm can
+# still opt into any valid IANA timezone through Settings, but a new install
+# must not silently inherit a developer or deployment machine timezone.
+DEFAULT_TIMEZONE = "SYSTEM"
 DEFAULT_OPERATIONAL_DATE_CONVENTION = "FARM_LOCAL_DATE"
 DEFAULT_DASHBOARD_TREND_PERIOD = "7d"
 DEFAULT_DASHBOARD_CARD_VISIBILITY = {
@@ -95,6 +98,11 @@ class FarmSettingsService:
     # Operational date authority
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _system_timezone_info():
+        """Return the timezone supplied by the host operating system."""
+        return datetime.now().astimezone().tzinfo or timezone.utc
+
     def get_timezone(self) -> str:
         timezone_name = str(
             self.repository.get(
@@ -103,6 +111,9 @@ class FarmSettingsService:
             )
             or DEFAULT_TIMEZONE
         ).strip()
+
+        if timezone_name.upper() in {"", "SYSTEM", "LOCAL", "WINDOWS"}:
+            return DEFAULT_TIMEZONE
 
         try:
             ZoneInfo(timezone_name)
@@ -115,9 +126,10 @@ class FarmSettingsService:
         return timezone_name
 
     def get_timezone_info(self):
-        return ZoneInfo(
-            self.get_timezone()
-        )
+        timezone_name = self.get_timezone()
+        if timezone_name == DEFAULT_TIMEZONE:
+            return self._system_timezone_info()
+        return ZoneInfo(timezone_name)
 
     def get_operational_date_convention(self) -> str:
         convention = str(
@@ -297,15 +309,18 @@ class FarmSettingsService:
         if timezone_name is not None:
             timezone_name = timezone_name.strip()
 
-            try:
-                ZoneInfo(timezone_name)
-            except (
-                ZoneInfoNotFoundError,
-                ValueError,
-            ) as exc:
-                raise ValueError(
-                    f"Unknown IANA timezone: {timezone_name}"
-                ) from exc
+            if timezone_name.upper() in {"", "SYSTEM", "LOCAL", "WINDOWS"}:
+                timezone_name = DEFAULT_TIMEZONE
+            else:
+                try:
+                    ZoneInfo(timezone_name)
+                except (
+                    ZoneInfoNotFoundError,
+                    ValueError,
+                ) as exc:
+                    raise ValueError(
+                        f"Unknown IANA timezone: {timezone_name}"
+                    ) from exc
 
             self.repository.set(
                 "timezone",

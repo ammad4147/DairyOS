@@ -1,4 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
+
+from sqlalchemy.exc import OperationalError
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.operational_finding import OperationalFinding
@@ -49,9 +51,33 @@ class OperationalFindingService:
     def history(self, finding_id: str):
         return self.repository.get_lifecycle_events(finding_id)
 
+    def _operational_date(self):
+        try:
+            session = getattr(self.repository, "session", None)
+            if session is not None:
+                from dairyos.data.repositories.app_setting_repository import (
+                    AppSettingRepository,
+                )
+                from dairyos.farm.settings.services.farm_settings_service import (
+                    FarmSettingsService,
+                )
+
+                return FarmSettingsService(
+                    AppSettingRepository(session=session)
+                ).get_operational_date()
+        except (
+            AttributeError,
+            ImportError,
+            OperationalError,
+            TypeError,
+            ValueError,
+        ):
+            pass
+        return datetime.now().astimezone().date()
+
     def _allocate_finding_id(self, module: str) -> str:
         prefix = FINDING_PREFIXES[module]
-        date_prefix = f"{prefix}-{datetime.now(timezone.utc).strftime('%y%m%d')}"
+        date_prefix = f"{prefix}-{self._operational_date().strftime('%y%m%d')}"
         sequence = self.repository.count_opened_on(date_prefix) + 1
         candidate = f"{date_prefix}-{sequence:03d}"
         while self.repository.get_by_finding_id(candidate) is not None:

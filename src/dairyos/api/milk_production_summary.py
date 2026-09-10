@@ -101,7 +101,7 @@ def _resolve_period(
     today = (
         anchor_date
         if anchor_date is not None
-        else datetime.now(timezone.utc).date()
+        else datetime.now().astimezone().date()
     )
 
     if period not in _PERIOD_LABELS:
@@ -778,5 +778,4 @@ def milk_production_summary(
 
     finally:
         factory.close()
-
 

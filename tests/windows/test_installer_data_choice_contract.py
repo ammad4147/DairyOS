@@ -9,25 +9,38 @@ def _source() -> str:
     return ISS.read_text(encoding="utf-8")
 
 
-def test_installer_exposes_existing_data_and_restore_choices():
+def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
+    build = (ROOT / "scripts" / "Build-DairyOS-Installer.ps1").read_text(
+        encoding="utf-8-sig"
+    )
+    source = _source()
+
+    assert '"dist\\DairyOS-Release\\DairyOS"' in build
+    assert '"dist\\DairyOS-Release\\DairyOS-Windows-Installer.exe"' in build
+    assert "dist\\DairyOS-Installer" not in build
+    assert "OutputDir=..\\..\\dist\\DairyOS-Release" in source
+    assert "Source: \"..\\..\\dist\\DairyOS-Release\\DairyOS\\*\"" in source
+
+
+def test_installer_exposes_existing_data_and_safe_start_choices():
     source = _source()
 
     assert "DetectExistingDairyOSData" in source
     assert "Use existing DairyOS data" in source
-    assert "Restore from a verified DairyOS backup" in source
     assert "Start a new DairyOS farm" in source
-    assert "ShouldLaunchAdminAfterInstall" in source
+    assert "ShouldLaunchDairyOS" in source
+    assert "Restore from a verified DairyOS backup" not in source
+    assert "DairyOS-Admin.exe" not in source
     assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
 
 
-def test_uninstaller_explicitly_keeps_data_and_routes_backup_to_admin_tool():
+def test_uninstaller_explicitly_keeps_data_without_standalone_admin():
     source = _source()
 
     assert "YES - KEEP DATA AND UNINSTALL" in source
     assert "Removes the DairyOS application but keeps the farm database and backups." in source
-    assert "NO - CREATE VERIFIED BACKUP FIRST" in source
-    assert "DairyOS-Admin.exe" in source
-    assert "Permanent data deletion is available only through" in source
+    assert "NO - CANCEL AND KEEP THE APPLICATION" in source
+    assert "DairyOS-Admin.exe" not in source
 
 
 def test_silent_uninstall_bypasses_interactive_data_prompt():
@@ -50,7 +63,6 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
     assert "postmaster.pid" in source
     assert "stop -m fast -w -t 30" in source
     assert "/F /T /IM DairyOS.exe" in source
-    assert "/F /T /IM DairyOS-Admin.exe" in source
     assert "/F /T /IM DairyOSBackup.exe" in source
     assert "taskkill.exe" in source
     assert "/IM postgres.exe" not in source

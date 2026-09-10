@@ -5,6 +5,7 @@ import { fetchCommandDashboardData, type CommandDashboardData } from '../api/com
 import { useAlertAudit } from '../context/AlertAuditContext';
 import AnimalPassportModal from './AnimalPassportModal';
 import YieldDropAlertModal from './YieldDropAlertModal';
+import { farmToday } from '../utils/farmDate';
 import './UnifiedDashboard.css';
 
 const CowIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
@@ -37,13 +38,6 @@ function monthLabel(month: string): string {
 
 import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
-const pakistanDateFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Karachi',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
 export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,7 +111,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
     const loadMilkCapacity = async () => {
       try {
-        const throughDate = pakistanDateFormatter.format(new Date());
+        const throughDate = farmToday();
         const response = await fetch(
           `${API_BASE}/farm/milk/capacity?through_date=${throughDate}`,
           { headers: { Accept: 'application/json' } },
@@ -401,7 +395,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     pregnant: reproSource?.pregnant ?? 0,
     pregnancyRatio: reproSource?.pregnancyRatio ?? 0,
   };
-  const currentComlMonth = comlOutput?.month || new Date().toISOString().slice(0, 7);
+  const currentComlMonth = comlOutput?.month || farmToday().slice(0, 7);
   const currentComlValue = Number(comlOutput?.costOfMilkProductionPerLiter || 0);
   const unreconciledMilkDisplay =
     unreconciledMilkLitres === null

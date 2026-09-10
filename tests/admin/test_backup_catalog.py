@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -130,58 +129,11 @@ def test_catalog_honors_configured_external_roots(tmp_path, monkeypatch):
     assert tmp_path / "recovery" in roots
 
 
-def test_admin_screen_populates_both_types_and_escapes_paths(
-    tmp_path, monkeypatch, archive_check
-):
-    from dairyos.admin import app
-
-    full = snapshot(tmp_path / "full")
-    archive = dump(tmp_path / "automatic", name="DairyOS-'audit.dump")
-    metadata = archive.with_suffix(".dump.json")
-    body = json.loads(metadata.read_text())
-    body["kind"] = "<audit>"
-    metadata.write_text(json.dumps(body))
-    rows = [
-        catalog.verify_restore_candidate(full),
-        catalog.verify_restore_candidate(archive),
-    ]
-    monkeypatch.setattr(app, "discover_verified_backups", lambda root: (rows, []))
-    monkeypatch.setattr(app.auth, "read_audit", lambda limit: [])
-    html = app._dashboard()
-    assert "Full farm snapshot" in html and "Database only" in html
-    assert "&lt;audit&gt;" in html and "<audit>" not in html
-    assert "&#x27;audit" in html
-    assert "Refresh verified backups" in html
-
-
-def test_restore_requires_auth_and_an_unambiguous_selection(monkeypatch):
-    from dairyos.admin import app
-
-    calls = []
-    monkeypatch.setattr(app, "_dashboard", lambda message="": message)
-    monkeypatch.setattr(app.auth, "require_password", lambda *a, **k: None)
-    monkeypatch.setattr(app.auth, "record_audit", lambda *a, **k: None)
-    monkeypatch.setattr(
-        app,
-        "_service",
-        lambda: SimpleNamespace(restore=lambda path: calls.append(path)),
-    )
-    client = TestClient(app.create_app())
-    assert client.post("/restore", data={"backup": "selected"}).status_code == 401
-    monkeypatch.setattr(app, "_require_session", lambda request: None)
-    response = client.post(
-        "/restore", data={"backup": "selected", "backup_path": "different"}
-    )
-    assert "not both" in response.text and not calls
-    response = client.post("/restore", data={})
-    assert "Choose a verified backup" in response.text and not calls
-
-
-def test_installer_recovery_opens_the_populated_admin_chooser():
+def test_installer_has_no_standalone_recovery_chooser():
     source = Path(__file__).parents[2] / "tools/windows-desktop/DairyOS-Installer.iss"
     text = source.read_text()
-    assert 'Parameters: "--restore-mode"' in text
-    assert "automatically lists verified backups" in text
+    assert 'Parameters: "--restore-mode"' not in text
+    assert "DairyOS-Admin.exe" not in text
 
 
 @pytest.mark.parametrize("inventory", [None, {}, "files", [None], ["file"], [123]])

@@ -172,7 +172,7 @@ def _pay_payroll(record_id, payment_date, factory):
     if existing is not None:
         record.finance_transaction_id = existing.id
         record.status = "PAID"
-        record.payment_date = payment_date or existing.settled_date or utcnow().date()
+        record.payment_date = payment_date or existing.settled_date or datetime.now().astimezone().date()
         if session is not None:
             try:
                 session.add(record)
@@ -185,7 +185,7 @@ def _pay_payroll(record_id, payment_date, factory):
             repo.save(record)
         return _serialize(record)
 
-    pay_date = payment_date or utcnow().date()
+    pay_date = payment_date or datetime.now().astimezone().date()
     quantity = float(record.worked_days or 0)
     net_pay = Decimal(record.net_pay)
     transaction = FinancialTransaction(

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import type { NavigationTabId } from '../navigation';
+import { formatFarmDateTime, setFarmTimezone, SYSTEM_TIMEZONE } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
 import DairyOSAssistant from './DairyOSAssistant';
 
@@ -49,6 +50,19 @@ const SMTP_PRESETS: Record<string, { host: string; port: number; tls: boolean }>
   'aol.com': { host: 'smtp.aol.com', port: 587, tls: true },
 };
 
+const TIMEZONE_SUGGESTIONS = [
+  SYSTEM_TIMEZONE,
+  'UTC',
+  'Asia/Karachi',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Australia/Sydney',
+];
+
 const field: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', background: '#1e293b', color: '#fff', padding: 8,
   marginBottom: 9, border: '1px solid #334155', borderRadius: 5,
@@ -80,6 +94,8 @@ export default function SettingsTab({
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
   const [farmSaving, setFarmSaving] = useState(false);
+  const [timezone, setTimezone] = useState(SYSTEM_TIMEZONE);
+  const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({ configured: false });
   const [emailPassword, setEmailPassword] = useState('');
   const [testRecipient, setTestRecipient] = useState('');
@@ -107,8 +123,8 @@ export default function SettingsTab({
   }, []);
 
   const localDateTime = useMemo(
-    () => new Intl.DateTimeFormat('en-PK', { dateStyle: 'full', timeStyle: 'medium' }).format(clock),
-    [clock],
+    () => formatFarmDateTime(clock),
+    [clock, timezone],
   );
 
   useEffect(() => {
@@ -119,6 +135,9 @@ export default function SettingsTab({
         const data = await response.json();
         setFarmName(data.farm_name);
         setLocation(data.location ?? '');
+        const savedTimezone = data.timezone || SYSTEM_TIMEZONE;
+        setTimezone(savedTimezone);
+        setFarmTimezone(savedTimezone);
         setFarmLoaded(true);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Unable to load farm profile.');
@@ -186,6 +205,34 @@ export default function SettingsTab({
       setError(saveError instanceof Error ? saveError.message : 'Unable to save farm profile.');
     } finally {
       setFarmSaving(false);
+    }
+  };
+
+  const saveOperationalClock = async () => {
+    setError('');
+    setMessage('');
+    setTimezoneSaving(true);
+    try {
+      const requestedTimezone = timezone.trim() || SYSTEM_TIMEZONE;
+      const response = await fetch(`${API_BASE}/settings/operational`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: requestedTimezone }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.detail || 'Unable to save the DairyOS clock setting.');
+      const savedTimezone = data.timezone || SYSTEM_TIMEZONE;
+      setTimezone(savedTimezone);
+      setFarmTimezone(savedTimezone);
+      setMessage(
+        savedTimezone === SYSTEM_TIMEZONE
+          ? 'DairyOS will follow the Windows system date and time.'
+          : `DairyOS operational date and time will use ${savedTimezone}.`,
+      );
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save the DairyOS clock setting.');
+    } finally {
+      setTimezoneSaving(false);
     }
   };
 
@@ -381,7 +428,23 @@ export default function SettingsTab({
             <section style={card}>
               <strong style={{ fontSize: 12 }}>System Date & Time</strong>
               <div style={{ color: '#e2e8f0', marginTop: 8, fontWeight: 800 }}>{localDateTime}</div>
-              <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 6 }}>DairyOS operator forms use the computer/browser clock as their default date and time. Forms may still select a different historical date where required.</div>
+              <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 6 }}>Default: Windows system local date and time. Historical dates remain available where the workflow permits them.</div>
+              <label style={{ ...label, marginTop: 11 }}>DairyOS operational timezone</label>
+              <input
+                list="dairyos-timezone-suggestions"
+                aria-label="DairyOS operational timezone"
+                value={timezone}
+                onChange={event => setTimezone(event.target.value)}
+                placeholder="SYSTEM or Area/City"
+                style={field}
+              />
+              <datalist id="dairyos-timezone-suggestions">
+                {TIMEZONE_SUGGESTIONS.map(option => <option key={option} value={option} />)}
+              </datalist>
+              <button type="button" onClick={() => void saveOperationalClock()} disabled={timezoneSaving} style={{ ...button, opacity: timezoneSaving ? 0.6 : 1 }}>
+                <Save size={13} />{timezoneSaving ? 'Saving…' : 'Save Clock Setting'}
+              </button>
+              <div style={{ color: '#64748b', fontSize: 9, marginTop: 6 }}>Use SYSTEM to follow Windows. You may enter any valid IANA timezone, such as Asia/Karachi or Europe/London.</div>
             </section>
             <section style={{ ...card, borderColor: protectionStatus === 'HEALTHY' ? '#166534' : protectionStatus === 'DEGRADED' ? '#854d0e' : '#7f1d1d' }}>
               <strong style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}><DatabaseBackup size={14} />Farm Data Protection</strong>

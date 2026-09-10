@@ -876,7 +876,7 @@ class LifetimeAnimalPassportService:
         projection_date = as_of_date or (
             OperationalDateAuthority(repository_factory=self.factory).current_date()
             if callable(settings_repository)
-            else utcnow().date()
+            else datetime.now().astimezone().date()
         )
         all_animals = self.factory.animal().get_all()
         lineage = self._lineage_projection(animal, all_animals)

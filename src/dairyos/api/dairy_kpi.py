@@ -3,21 +3,33 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dependencies import get_container
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
+from dairyos.finance.profitability.services.cost_of_production_service import (
+    CostOfProductionService,
+)
+from dairyos.herd.reproduction.services.reproduction_kpi_service import (
+    ReproductionKpiService,
+)
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving as _is_calving,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_confirmed_pregnancy as _is_confirmed_pregnancy,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_insemination as _is_insemination,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_pregnancy_check as _is_pregnancy_check,
 )
-from dairyos.herd.reproduction.services.reproduction_kpi_service import ReproductionKpiService
 
 router = APIRouter(prefix="/farm/kpis", tags=["Standard Dairy KPIs"])
 
@@ -35,10 +47,10 @@ def _as_datetime(value):
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
     if isinstance(value, date):
-        return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.combine(value, time.min, tzinfo=UTC)
     return None
 
 
@@ -125,7 +137,7 @@ def _interval_metrics(breeding):
     }
 
 
-def _overview(factory, start, end):
+def _overview(factory, start, end, *, display_start=None, display_end=None):
     animals = [a for a in factory.animal().get_all() if getattr(a, "active", True)]
     milk = [r for r in factory.milk().get_all() if _in_period(r, start, end, "production_date")]
     feed = [r for r in factory.feed().get_all() if _in_period(r, start, end, "feeding_date")]
@@ -136,7 +148,6 @@ def _overview(factory, start, end):
 
     inseminations = [r for r in breeding if _is_insemination(r)]
     pregnancy_checks = [r for r in breeding if _is_pregnancy_check(r)]
-    conception_outcomes = _conception_outcomes(inseminations, pregnancy_checks)
     confirmed_pregnancies = _confirmed_pregnancy_count(breeding, inseminations, pregnancy_checks)
 
     milk_total = sum(float(getattr(r, "total_yield", 0.0) or 0.0) for r in milk)
@@ -186,7 +197,11 @@ def _overview(factory, start, end):
     has_kpi_anchor_data = bool(milk)
 
     return {
-        "period": {"start": start.isoformat(), "end": end.isoformat(), "days": (end - start).days},
+        "period": {
+            "start": (display_start or start).isoformat(),
+            "end": (display_end or end).isoformat(),
+            "days": (end - start).days,
+        },
         "data_status": "LIVE_PERSISTED_DATA" if has_kpi_anchor_data else "NO_DATA",
         "record_counts": {"animals": len(animals), "milk": len(milk), "feed": len(feed), "health": len(health), "breeding": len(breeding), "treatments": len(treatments), "finance": len(finance)},
         "kpis": {
@@ -234,12 +249,28 @@ def _overview(factory, start, end):
 @router.get("/overview")
 @router.get("")
 def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), container=Depends(get_container)):
-    operational_date = OperationalDateAuthority().current_date()
-    end = datetime.combine(operational_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
-    start = end - timedelta(days=days)
     factory, owns_factory = _fresh_factory(container)
     try:
-        return _overview(factory, start, end)
+        operational_now = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime()
+        timezone_info = operational_now.tzinfo or UTC
+        operational_date = operational_now.date()
+        local_end = datetime.combine(
+            operational_date + timedelta(days=1),
+            time.min,
+            tzinfo=timezone_info,
+        )
+        local_start = local_end - timedelta(days=days)
+        start = local_start.astimezone(UTC)
+        end = local_end.astimezone(UTC)
+        return _overview(
+            factory,
+            start,
+            end,
+            display_start=local_start,
+            display_end=local_end,
+        )
     finally:
         if owns_factory:
             factory.close()
@@ -249,11 +280,29 @@ def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), co
 def standard_dairy_kpi_period(start_date: date, end_date: date, container=Depends(get_container)):
     if end_date <= start_date:
         raise HTTPException(status_code=400, detail="end_date must be after start_date")
-    start = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-    end = datetime.combine(end_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
     factory, owns_factory = _fresh_factory(container)
     try:
-        return _overview(factory, start, end)
+        operational_now = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime()
+        timezone_info = operational_now.tzinfo or UTC
+        local_start = datetime.combine(
+            start_date,
+            time.min,
+            tzinfo=timezone_info,
+        )
+        local_end = datetime.combine(
+            end_date + timedelta(days=1),
+            time.min,
+            tzinfo=timezone_info,
+        )
+        return _overview(
+            factory,
+            local_start.astimezone(UTC),
+            local_end.astimezone(UTC),
+            display_start=local_start,
+            display_end=local_end,
+        )
     finally:
         if owns_factory:
             factory.close()

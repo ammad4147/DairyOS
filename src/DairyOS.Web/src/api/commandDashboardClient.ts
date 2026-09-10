@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config/api";
-import { farmToday } from '../utils/farmDate';
+import { farmToday, shiftFarmDate } from '../utils/farmDate';
 
 export interface PerformerItem {
   id: string;
@@ -180,35 +180,9 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     API_BASE_URL ||
     "http://127.0.0.1:8000";
 
-  const pakistanDateFormatter = new Intl.DateTimeFormat(
-    "en-CA",
-    {
-      timeZone: "Asia/Karachi",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    },
-  );
-
-  const pakistanDate = (
-    value: Date,
-  ) => pakistanDateFormatter.format(value);
-
-  const today = pakistanDate(new Date());
-
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(
-    yesterdayDate.getDate() - 1,
-  );
-
-  const yesterday = pakistanDate(yesterdayDate);
-
-  const trendStartDate = new Date();
-  trendStartDate.setDate(
-    trendStartDate.getDate() - 29,
-  );
-
-  const trendStart = pakistanDate(trendStartDate);
+  const today = farmToday();
+  const yesterday = shiftFarmDate(today, -1);
+  const trendStart = shiftFarmDate(today, -29);
 
   const [
     dashboardResponse,
