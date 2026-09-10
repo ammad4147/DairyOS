@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
       - name: Provision disposable test database role
         run: |
           python - <<'PY'
@@ -87,7 +87,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2
       - name: Provision disposable test database role
         run: |
           python - <<'PY'
@@ -135,7 +135,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
       - name: Run production migration gate
         run: python -c "from dairyos.windows.migrations import migrate_if_needed; result = migrate_if_needed(); print(result)"
       - name: Verify production admin configuration gate
@@ -305,7 +305,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install project and test runner
-        run: python -m pip install --upgrade pip && pip install -e . pytest httpx PyYAML
+        run: python -m pip install --upgrade pip && pip install -e . pytest httpx2 PyYAML
       - name: Provision disposable test database role
         run: |
           python - <<'PY'
