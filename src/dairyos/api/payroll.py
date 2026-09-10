@@ -102,8 +102,18 @@ def create_payroll(request: PayrollCreateRequest, container=Depends(get_containe
 
 
 @router.post("/{record_id}/pay")
+@operational_write
 def pay_payroll(record_id: int, payment_date: date | None = None, container=Depends(get_container)):
     runtime_factory = container.repository_factory
+
+    if getattr(container, "_operational_write_active", False):
+        response = _pay_payroll(record_id, payment_date, runtime_factory)
+        container.input_gateway.record(
+            input_type="financial",
+            payload={"payroll_id": record_id, "action": "PAY", "finance_transaction_id": response.get("finance_transaction_id")},
+            actor="PAYROLL_API",
+        )
+        return response
 
     # Preserve non-persistent test/compatibility factories where applicable.
     if getattr(runtime_factory, "session", None) is None:
