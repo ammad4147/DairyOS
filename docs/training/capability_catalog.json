@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "product": "DairyOS",
+  "status": "INVENTORY",
+  "ui_allowed": false,
+  "domains": [
+    {
+      "id": "access-and-navigation",
+      "title": "Access, login, permissions, and navigation",
+      "capabilities": ["login", "roles", "permissions", "hidden-tabs", "lock-unlock", "help-navigation"]
+    },
+    {
+      "id": "startup-and-runtime",
+      "title": "Startup, runtime, readiness, and operational date",
+      "capabilities": ["startup", "database-readiness", "operational-date", "runtime-failure", "restart-behavior"]
+    },
+    {
+      "id": "dashboard-and-command-centre",
+      "title": "Dashboard, alerts, decisions, and operational command centre",
+      "capabilities": ["dashboard-cards", "alerts", "findings", "decisions", "acknowledge", "resolve", "trend-periods"]
+    },
+    {
+      "id": "animals-and-herd",
+      "title": "Animal identity, herd structure, lifecycle, and passport",
+      "capabilities": ["register-animal", "search-animal", "edit-identity", "lifecycle", "herd-groups", "passport", "milking-frequency"]
+    },
+    {
+      "id": "milk-production",
+      "title": "Milk entry, completeness, amendments, and production analytics",
+      "capabilities": ["record-milk", "session-plan", "missed-session", "late-entry", "amendment", "void", "daily-total", "period-total", "milk-history"]
+    },
+    {
+      "id": "milk-reconciliation-and-sales",
+      "title": "Milk disposition, reconciliation, sales, revenue, receipts, and receivables",
+      "capabilities": ["disposition", "sale", "sale-amendment", "reconciliation", "sold-litres", "non-sale-litres", "revenue", "cash", "receivable", "void"]
+    },
+    {
+      "id": "feed-and-tmr",
+      "title": "TMR formulation, feed consumption, inventory, and feed costing",
+      "capabilities": ["ingredients", "prices", "formula", "category-cost", "herd-cost", "daily-snapshot", "consumption", "feed-cost-per-litre", "tmr-log", "inventory-reconciliation"]
+    },
+    {
+      "id": "finance-and-expenses",
+      "title": "Finance ledger, categories, expenses, payments, payroll, and cost attribution",
+      "capabilities": ["financial-entry", "expense-category", "payment-status", "amendment", "void", "payroll", "opex", "attribution", "cost-of-production"]
+    },
+    {
+      "id": "health-and-veterinary",
+      "title": "Health observations, treatments, withdrawal, vaccination, and follow-up",
+      "capabilities": ["observation", "severity", "treatment", "withdrawal", "vaccination", "follow-up", "resolution", "health-summary"]
+    },
+    {
+      "id": "breeding-and-reproduction",
+      "title": "Heat, breeding, AI, pregnancy, calving, dry-off, and reproductive state",
+      "capabilities": ["breeding-event", "ai", "pregnancy", "calving", "dry-off", "abortion", "chronology", "current-state", "post-calving-return"]
+    },
+    {
+      "id": "settings-and-administration",
+      "title": "Farm settings, credentials, tab visibility, system health, and reset",
+      "capabilities": ["farm-profile", "timezone", "date-convention", "password", "recovery", "tab-visibility", "read-only-health", "zero-state-reset"]
+    },
+    {
+      "id": "analytics-and-reports",
+      "title": "Analytics, KPI views, COP, profitability, exports, and email snapshots",
+      "capabilities": ["analytics-catalog", "kpis", "cop-period", "profitability", "heat-stress", "exports", "email-test", "snapshot-sharing"]
+    },
+    {
+      "id": "persistence-and-audit",
+      "title": "Persistence authority, event journal, projections, audit, and recovery evidence",
+      "capabilities": ["authoritative-record", "event-journal", "projection-outbox", "audit-trail", "orphan-detection", "replay", "amendment-history"]
+    },
+    {
+      "id": "installation-and-recovery",
+      "title": "Installation, private PostgreSQL, backup protection, recovery, and release behavior",
+      "capabilities": ["install", "upgrade", "data-preservation", "automatic-backup", "verified-recovery", "uninstall-keep-data", "runtime-package"]
+    },
+    {
+      "id": "troubleshooting-and-support",
+      "title": "Evidence-first troubleshooting and escalation",
+      "capabilities": ["http-errors", "save-failure", "missing-data", "wrong-calculation", "stale-view", "database-failure", "health-failure", "support-package"]
+    }
+  ],
+  "perspectives": [
+    "operator",
+    "supervisor",
+    "finance",
+    "veterinary-health",
+    "technical",
+    "training",
+    "troubleshooting"
+  ],
+  "review": {
+    "implementation": "NOT_STARTED",
+    "domain": "NOT_STARTED",
+    "coverage": "NOT_STARTED"
+  }
+}
