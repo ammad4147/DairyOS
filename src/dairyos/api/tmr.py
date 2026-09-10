@@ -1006,7 +1006,18 @@ def get_tmr_history(
     consumed = defaultdict(lambda: {"quantity_kg": 0.0, "feed_cost": 0.0, "records": 0})
     for row in factory.feed().get_all() or []:
         value = getattr(row, "feeding_date", None)
-        row_date = value.date() if hasattr(value, "date") else value
+        if isinstance(value, datetime):
+            row_date = value.date()
+        elif isinstance(value, date):
+            row_date = value
+        elif value:
+            try:
+                row_date = date.fromisoformat(str(value)[:10])
+            except (TypeError, ValueError):
+                # A malformed legacy row must not take down the complete log.
+                continue
+        else:
+            continue
         if row_date is None or not (start <= row_date <= effective_end):
             continue
         bucket = consumed[row_date.isoformat()]
