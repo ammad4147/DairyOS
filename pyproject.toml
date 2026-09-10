@@ -45,3 +45,6 @@ line-length=88
 [tool.pytest.ini_options]
 addopts="--basetemp=.pytest_tmp -p no:cacheprovider"
 testpaths=["tests"]
+filterwarnings = [
+  "ignore:The anyio\\.abc\\.BlockingPortal alias is deprecated, use anyio\\.from_thread\\.BlockingPortal instead:DeprecationWarning:starlette\\.testclient",
+]
