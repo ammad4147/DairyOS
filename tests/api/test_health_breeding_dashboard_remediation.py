@@ -1,6 +1,13 @@
 from datetime import UTC, datetime, timedelta
 
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from tests.helpers.breeding import post_breeding
+
+
+def _operational_today():
+    return OperationalDateAuthority().current_date()
 
 
 def _animal(client, ear_tag):
@@ -85,7 +92,7 @@ def test_insemination_is_live_on_dashboard(client):
 
 def test_vaccination_is_live_on_dashboard(client):
     animal_id = _animal(client, "DASH-HEALTH-VAX-001")
-    today = datetime.now(UTC).date()
+    today = _operational_today()
     response = client.post(
         f"/farm/animals/{animal_id}/vaccinations",
         json={
@@ -119,7 +126,7 @@ def test_vaccination_is_live_on_dashboard(client):
 
 def test_dashboard_replaces_old_vaccination_schedule_after_new_record(client):
     animal_id = _animal(client, "DASH-HEALTH-VAX-LATEST-001")
-    today = datetime.now(UTC).date()
+    today = _operational_today()
     old_due = today.replace(day=1)
     if old_due >= today:
         old_due = today - timedelta(days=1)

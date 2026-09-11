@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from math import isfinite
 
 from dairyos.milk.models.milking_session import MilkingSession
 
@@ -29,9 +30,10 @@ class MilkEntry:
                 "Animal ID required"
             )
 
-        if self.litres < 0:
+        litres = float(self.litres)
+        if not isfinite(litres) or litres < 0:
             raise ValueError(
-                "Milk quantity cannot be negative"
+                "Milk quantity must be finite and cannot be negative"
             )
 
         if not self.operator:

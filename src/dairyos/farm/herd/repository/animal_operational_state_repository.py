@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 from dairyos.platform.paths import resolve_storage_file
 from pathlib import Path
 
@@ -88,29 +90,52 @@ class AnimalOperationalStateRepository:
             for state in self._states.values()
         ]
 
-        with open(
-            self.storage_path,
-            "w",
-            encoding="utf-8",
-        ) as file:
-            json.dump(
-                data,
-                file,
-                indent=2,
-            )
+        file_descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f"{self.storage_path.name}.",
+            suffix=".tmp",
+            dir=self.storage_path.parent,
+            text=True,
+        )
+        temporary_path = Path(temporary_name)
+        try:
+            with os.fdopen(
+                file_descriptor,
+                "w",
+                encoding="utf-8",
+                newline="\n",
+            ) as file:
+                json.dump(data, file, indent=2)
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary_path, self.storage_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
     def _load(self):
         if not self.storage_path.exists():
             return
 
-        with open(
-            self.storage_path,
-            "r",
-            encoding="utf-8",
-        ) as file:
-            data = json.load(file)
+        try:
+            with open(
+                self.storage_path,
+                "r",
+                encoding="utf-8",
+            ) as file:
+                data = json.load(file)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            # This is a rebuildable read model. The event journal remains the
+            # authority, so an unreadable projection must not block startup or
+            # recovery; the next replay will replace it atomically.
+            self._states = {}
+            return
 
-        for item in data:
-            state = AnimalOperationalState.from_dict(item)
+        try:
+            for item in data:
+                state = AnimalOperationalState.from_dict(item)
 
-            self._states[state.animal_id] = state
+                self._states[state.animal_id] = state
+        except (TypeError, ValueError, KeyError):
+            # Treat partially malformed projection content like a corrupt
+            # projection rather than exposing a mixed, unverifiable state.
+            self._states = {}

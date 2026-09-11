@@ -131,7 +131,7 @@ def test_restore_never_promotes_or_deletes_physical_postgres_trees(
     restored: list[Path] = []
     monkeypatch.setattr(
         "dairyos.lifecycle.restore.restore_backup",
-        lambda _url, path: restored.append(Path(path)),
+        lambda _url, path, **_kwargs: restored.append(Path(path)),
     )
 
     restore_snapshot(manager, target)
@@ -164,7 +164,9 @@ def test_partial_file_promotion_failure_restores_pre_restore_state(
     restored = []
     monkeypatch.setattr(restore, "verify_backup_archive", lambda path: {})
     monkeypatch.setattr(
-        restore, "restore_backup", lambda url, path: restored.append(path)
+        restore,
+        "restore_backup",
+        lambda url, path, **_kwargs: restored.append(path),
     )
     promote = restore._replace_non_database_files
     calls = 0

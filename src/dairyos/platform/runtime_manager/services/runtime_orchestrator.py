@@ -27,8 +27,9 @@ class RuntimeOrchestrator:
             services = self.registry.list_services()
 
             for service in services:
+                component = getattr(service, "instance", service)
                 self.runtime_manager.register_component(
-                    service
+                    component
                 )
 
         return self.runtime_manager.start()

@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from datetime import datetime, field
+from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass

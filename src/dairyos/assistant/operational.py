@@ -21,9 +21,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from uuid import UUID
 
 import sqlalchemy as sa
 
@@ -91,6 +93,7 @@ _SENSITIVE_WORDS = (
     "connection_string",
     "dsn",
 )
+_INACTIVE_OPERATIONAL_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
 _MAX_LIMIT = 100
 _TABLE_ROW_MAX = 100
 _FILE_LOG_MAX_BYTES = 256_000
@@ -293,6 +296,8 @@ def _resolve_window(
     explicit_start = _parse_date(start_date, "start_date")
     explicit_end = _parse_date(end_date, "end_date")
     cleaned = str(question or "").lower()
+    question_year_match = re.search(r"\b(20\d{2})\b", cleaned)
+    question_year = int(question_year_match.group(1)) if question_year_match else None
     iso_dates = [
         _as_date(value) for value in re.findall(r"\b20\d{2}-\d{2}-\d{2}\b", cleaned)
     ]
@@ -367,10 +372,18 @@ def _resolve_window(
             break
 
     if start is None and end is None and selected_month is not None:
-        selected_year = int(year) if year not in (None, "") else operational_date.year
+        selected_year = (
+            int(year)
+            if year not in (None, "")
+            else question_year or operational_date.year
+        )
         start, end = _month_window(selected_year, selected_month)
     elif start is None and end is None:
-        selected_year = int(year) if year not in (None, "") else operational_date.year
+        selected_year = (
+            int(year)
+            if year not in (None, "")
+            else question_year or operational_date.year
+        )
         if "last month" in cleaned:
             anchor = operational_date.replace(day=1) - timedelta(days=1)
             start, end = _month_window(anchor.year, anchor.month)
@@ -422,24 +435,54 @@ def _record_date(row: Any, *fields: str) -> date | None:
     return None
 
 
+def _sensitive_context_key(context_key: str) -> bool:
+    normalized = str(context_key or "").lower().replace("-", "_")
+    if any(word in normalized for word in _SENSITIVE_WORDS):
+        return True
+    return ("database" in normalized or "connection" in normalized) and "url" in normalized
+
+
+def _redact_text(value: str) -> str:
+    redacted = re.sub(
+        r"(?i)\b(?:postgres(?:ql)?|mysql|redis|amqp)://[^\s\"']+",
+        "[REDACTED_URI]",
+        value,
+    )
+    return re.sub(
+        r'''(?i)([\"']?(?:password|secret|token|api[_-]?key|credential|database[_-]?url|connection[_-]?string|dsn)[\"']?\s*[:=]\s*[\"']?)([^\"'\s,;}]+)''',
+        r"\1[REDACTED]",
+        redacted,
+    )
+
+
 def _json_safe(value: Any, *, context_key: str = "") -> Any:
-    key = context_key.lower()
-    if any(word in key for word in _SENSITIVE_WORDS):
+    if _sensitive_context_key(context_key):
         return "[REDACTED]"
+    if isinstance(value, str):
+        return _redact_text(value)
     if isinstance(value, dict):
         context = str(value.get("key", "")) if "key" in value else ""
-        return {
-            str(k): _json_safe(
-                v, context_key=(context if str(k) == "value" else str(k))
-            )
-            for k, v in value.items()
-        }
+        safe: dict[str, Any] = {}
+        for raw_key, item in value.items():
+            key = str(raw_key)
+            if key == "value" and context:
+                child_context = context
+            elif context_key:
+                child_context = f"{context_key}.{key}"
+            else:
+                child_context = key
+            safe[key] = _json_safe(item, context_key=child_context)
+        return safe
     if isinstance(value, (list, tuple)):
         return [_json_safe(item, context_key=context_key) for item in value]
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, Decimal):
         return str(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Enum):
+        return _json_safe(value.value, context_key=context_key)
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
@@ -539,6 +582,34 @@ def _health_history_requested(question: str) -> bool:
     )
 
 
+_TERMINAL_HEALTH_STATUSES = frozenset(
+    {"RESOLVED", "CLOSED", "VOID", "CANCELLED", "DELETED"}
+)
+
+
+def _is_active_health_status(value: Any) -> bool:
+    return (
+        str(value or "OPEN").strip().upper() not in _TERMINAL_HEALTH_STATUSES
+    )
+
+
+def _health_case_overlaps_window(
+    window: DateWindow,
+    opened_date: date | None,
+    resolved_date: date | None,
+) -> bool:
+    """Keep a case when its open interval intersects the requested period."""
+    if window.is_empty:
+        return False
+    if window.effective_start is None or window.effective_end is None:
+        return True
+    if opened_date is not None and opened_date > window.effective_end:
+        return False
+    if resolved_date is not None and resolved_date < window.effective_start:
+        return False
+    return opened_date is not None or resolved_date is not None
+
+
 def _milk_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str, Any]:
     rows = factory.milk().get_all() or []
     daily: Counter[str] = Counter()
@@ -548,7 +619,7 @@ def _milk_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str, A
     total = 0.0
     for row in rows:
         status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
-        if status in {"VOID", "NOT_MILKED"}:
+        if status in _INACTIVE_OPERATIONAL_STATUSES or status == "NOT_MILKED":
             continue
         row_date = _record_date(row, "production_date", "recorded_at")
         if not _period_filter(window, row_date):
@@ -680,6 +751,9 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
     income = 0.0
     expenses = 0.0
     for row in rows:
+        status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+        if status in _INACTIVE_OPERATIONAL_STATUSES:
+            continue
         row_date = _record_date(row, "transaction_date")
         if not _period_filter(window, row_date):
             continue
@@ -727,6 +801,9 @@ def _feed_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str, A
     quantity = 0.0
     cost = 0.0
     for row in rows:
+        status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+        if status in _INACTIVE_OPERATIONAL_STATUSES:
+            continue
         row_date = _record_date(row, "feeding_date")
         if not _period_filter(window, row_date):
             continue
@@ -756,7 +833,7 @@ def _feed_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str, A
         "quantity_kg": round(quantity, 4),
         "recorded_feed_cost": round(cost, 2),
         "feed_records": selected,
-        "basis": "persisted feed_record entries; governed historical COP uses daily TMR snapshots separately",
+        "basis": "persisted active feed_record entries; governed historical COP uses daily TMR snapshots separately",
         "source_tables": ["feed_record", "feed_ration"],
     }
 
@@ -823,6 +900,11 @@ def _mortality_summary(
             if isinstance(payload.get("payload"), dict)
             else payload
         )
+        status = str(
+            business.get("status") or payload.get("status") or "COMPLETED"
+        ).upper()
+        if status in _INACTIVE_OPERATIONAL_STATUSES:
+            continue
         if str(business.get("disposition") or "").upper() != "DECEASED":
             continue
         event_date = _as_date(business.get("effective_date")) or _as_date(row.timestamp)
@@ -936,8 +1018,9 @@ def _health_insight(
     for row in factory.health_cases().get_all() or []:
         if requested_animal and str(getattr(row, "animal_id", "")) != requested_animal:
             continue
-        row_date = _record_date(row, "opened_at", "resolved_at")
-        if not _period_filter(window, row_date):
+        opened_date = _as_date(getattr(row, "opened_at", None))
+        resolved_date = _as_date(getattr(row, "resolved_at", None))
+        if not _health_case_overlaps_window(window, opened_date, resolved_date):
             continue
         cases.append(
             _sanitised_model_row(
@@ -1004,6 +1087,18 @@ def _health_insight(
             "list",
         )
     )
+    sick_list_requested = any(
+        term in lowered
+        for term in (
+            "sick animal",
+            "sick animals",
+            "ill animal",
+            "ill animals",
+            "current sick",
+            "active sick",
+            "which animals",
+        )
+    )
     animal_ids_with_health_evidence = []
     if list_requested:
         identifiers = {
@@ -1012,11 +1107,30 @@ def _health_insight(
             if item.get("animal_id")
         }
         animal_ids_with_health_evidence = sorted(identifiers)
+    active_sick_animal_ids = sorted(
+        {
+            str(item.get("animal_id"))
+            for item in cases
+            if item.get("animal_id") and _is_active_health_status(item.get("status"))
+        }
+    )
+    open_health_observation_animal_ids = sorted(
+        {
+            str(item.get("animal_id"))
+            for item in observations
+            if item.get("animal_id")
+            and _is_active_health_status(item.get("status"))
+        }
+    )
     result = {
         "metric": "health_insight",
         "history_requested": history_requested,
         "list_requested": list_requested,
+        "sick_list_requested": sick_list_requested,
         "animal_ids_with_health_evidence": animal_ids_with_health_evidence,
+        "current_sick_animal_ids": active_sick_animal_ids,
+        "active_sick_animal_ids": active_sick_animal_ids,
+        "open_health_observation_animal_ids": open_health_observation_animal_ids,
         "probable_conditions": probable_conditions,
         "persisted_health_observations": observations,
         "matching_observation_count": len(observations),
@@ -1129,11 +1243,17 @@ def _table_rows(
         schema=schema,
         autoload_with=connection,
     )
+    order_columns = _table_order_columns(table)
     selected_page, selected_page_size = _page_settings(
         page, page_size if page_size is not None else limit
     )
+    row_statement = sa.select(table)
+    if order_columns:
+        row_statement = row_statement.order_by(
+            *(column.asc() for column in order_columns)
+        )
     rows = connection.execute(
-        sa.select(table)
+        row_statement
         .offset((selected_page - 1) * selected_page_size)
         .limit(min(selected_page_size, _TABLE_ROW_MAX))
     ).fetchall()
@@ -1141,6 +1261,8 @@ def _table_rows(
     selected["pagination"] = _pagination(
         int(selected.get("row_count") or 0), selected_page, selected_page_size
     )
+    selected["ordering_columns"] = [column.name for column in order_columns]
+    selected["pagination_deterministic"] = bool(order_columns)
     return selected, [_row_mapping(row) for row in rows]
 
 
@@ -1214,6 +1336,20 @@ def _table_date_column(table: sa.Table) -> sa.Column[Any] | None:
     return None
 
 
+def _table_order_columns(
+    table: sa.Table,
+    date_column: sa.Column[Any] | None = None,
+) -> list[sa.Column[Any]]:
+    """Build a stable order for offset-based evidence pagination."""
+    columns: list[sa.Column[Any]] = []
+    if date_column is not None:
+        columns.append(date_column)
+    for column in table.primary_key.columns:
+        if not any(existing is column for existing in columns):
+            columns.append(column)
+    return columns
+
+
 def _table_boundary(column: sa.Column[Any], value: date) -> Any:
     try:
         python_type = column.type.python_type
@@ -1282,8 +1418,11 @@ def _table_summary(
     row_statement = sa.select(table)
     if condition is not None:
         row_statement = row_statement.where(condition)
-    if date_column is not None:
-        row_statement = row_statement.order_by(date_column.asc())
+    order_columns = _table_order_columns(table, date_column)
+    if order_columns:
+        row_statement = row_statement.order_by(
+            *(column.asc() for column in order_columns)
+        )
     row_statement = row_statement.offset(
         (selected_page - 1) * selected_page_size
     ).limit(min(selected_page_size, _TABLE_ROW_MAX))
@@ -1296,6 +1435,8 @@ def _table_summary(
         "pagination": _pagination(record_count, selected_page, selected_page_size),
         "period_filter_column": date_column.name if date_column is not None else None,
         "period_filter_applied": condition is not None,
+        "ordering_columns": [column.name for column in order_columns],
+        "pagination_deterministic": bool(order_columns),
         "basis": "current persisted DairyOS table read under a transaction-scoped read-only guard",
         "source_tables": [selected["table"]],
     }
@@ -1351,10 +1492,10 @@ def _event_input_summary(
             if isinstance(payload.get("payload"), dict)
             else payload
         )
-        if (
-            str(business.get("status") or payload.get("status") or "COMPLETED").upper()
-            == "VOID"
-        ):
+        status = str(
+            business.get("status") or payload.get("status") or "COMPLETED"
+        ).upper()
+        if status in _INACTIVE_OPERATIONAL_STATUSES:
             continue
         event_date = next(
             (
@@ -1409,7 +1550,10 @@ def _milk_disposition_summary(
     amount_received = 0.0
     types: Counter[str] = Counter()
     for row in rows:
-        if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+        if (
+            str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+            in _INACTIVE_OPERATIONAL_STATUSES
+        ):
             continue
         row_date = _record_date(row, "production_date", "created_at")
         if not _period_filter(window, row_date):
@@ -1976,11 +2120,7 @@ def _tail_file(path: Path) -> dict[str, Any]:
     lines = content.splitlines()[-80:]
     redacted = []
     for line in lines:
-        safe = re.sub(
-            r'''(?i)(["']?(?:password|secret|token|api[_-]?key|credential|database[_-]?url|connection[_-]?string|dsn)["']?\s*[:=]\s*["']?)([^"'\s,;}]+)''',
-            r"\1[REDACTED]",
-            line,
-        )
+        safe = _redact_text(line)
         redacted.append(safe[:_FILE_LOG_LINE_MAX])
     return {
         "path": str(path),

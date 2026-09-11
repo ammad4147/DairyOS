@@ -22,6 +22,7 @@ from dairyos.data.database.models.breeding_record_model import BreedingRecordMod
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
@@ -140,6 +141,24 @@ def _seed_read_fixture(animal_id: str) -> None:
             status="RECORDED",
         )
     )
+    session.add(
+        FinancialTransaction(
+            transaction_type="EXPENSE",
+            category="Forensic voided expense",
+            amount=999.0,
+            transaction_date=datetime(2026, 9, 3),
+            status="VOID",
+        )
+    )
+    session.add(
+        FeedRecord(
+            feed_type="Forensic cancelled feed",
+            quantity_kg=999.0,
+            feeding_date=datetime(2026, 9, 3),
+            total_feed_cost=999.0,
+            status="CANCELLED",
+        )
+    )
     session.commit()
 
 
@@ -192,6 +211,22 @@ def test_ai_assistant_answers_live_metrics_and_health_from_persisted_rows(
     )
     assert dispositions["evidence"]["metric"] == "milk_dispositions"
     assert dispositions["evidence"]["quantity_litres"] == 120.0
+
+    finance = read_operational_data(
+        question="Show finance transactions and expenses in September 2026."
+    )
+    assert finance["evidence"]["transaction_count"] == 2
+    assert finance["evidence"]["expense_total"] == 30.0
+    assert all(
+        row.get("status") not in {"VOID", "CANCELLED", "DELETED"}
+        for row in finance["evidence"]["transactions"]
+    )
+
+    feed = read_operational_data(
+        question="Show feed records and feeding cost in September 2026."
+    )
+    assert feed["evidence"]["feed_record_count"] == 0
+    assert feed["evidence"]["recorded_feed_cost"] == 0.0
 
     future = read_operational_data(
         question="What was milk production?",
@@ -455,3 +490,24 @@ def test_ai_assistant_clinical_aliases_and_modal_may_are_unambiguous():
     )
     assert window.requested_start is None
     assert window.requested_end is None
+
+
+def test_ai_assistant_resolves_explicit_month_year_and_redacts_nested_credentials():
+    from dairyos.assistant.operational import _json_safe, _resolve_window
+
+    window = _resolve_window(
+        "What was milk production in September 2025?",
+        operational_date=date(2026, 9, 4),
+    )
+    assert window.requested_start == date(2025, 9, 1)
+    assert window.requested_end == date(2025, 9, 30)
+
+    safe = _json_safe(
+        {
+            "connection": {"url": "postgresql://dairyos:secret@127.0.0.1/db"},
+            "notes": "token=abc123 and password=hidden",
+        }
+    )
+    assert safe["connection"]["url"] == "[REDACTED]"
+    assert "secret" not in str(safe)
+    assert "hidden" not in str(safe)

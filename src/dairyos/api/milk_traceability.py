@@ -42,9 +42,9 @@ router = APIRouter(prefix="/farm/milk", tags=["Milk"])
 
 class ProductionPatch(BaseModel):
     production_date: date | None = None
-    morning_yield: float | None = Field(default=None, ge=0)
-    afternoon_yield: float | None = Field(default=None, ge=0)
-    evening_yield: float | None = Field(default=None, ge=0)
+    morning_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    afternoon_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    evening_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     notes: str | None = None
 
 

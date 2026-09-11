@@ -4,6 +4,8 @@ The three yield columns are nullable by design: NULL means no figure was
 entered, while 0.0 means an operator explicitly recorded zero production.
 """
 
+from math import isfinite
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -76,5 +78,13 @@ class MilkProduction(Base):
 
     def calculate_total(self):
         entered = self.entered_yields
-        self.total_yield = sum(entered) if entered else None
+        numeric_values = []
+        for value in entered:
+            numeric_value = float(value)
+            if not isfinite(numeric_value) or numeric_value < 0:
+                raise ValueError(
+                    "Milk yields must be finite, non-negative numbers."
+                )
+            numeric_values.append(numeric_value)
+        self.total_yield = sum(numeric_values) if numeric_values else None
         return self.total_yield

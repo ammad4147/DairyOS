@@ -9,6 +9,7 @@ checkout is available.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import math
@@ -437,19 +438,129 @@ def _source_files(root: Path) -> list[Path]:
 
 
 @lru_cache(maxsize=4)
-def _repository_source_text(repository_name: str) -> str:
-    """Read implementation text once for all anchor checks in a checkout."""
+def _repository_route_index(repository_name: str) -> tuple[tuple[str, str], ...]:
+    """Resolve statically declared FastAPI routes for anchor validation.
+
+    Route decorators usually contain only the suffix declared on an
+    ``APIRouter``.  Comparing an anchor such as ``GET /farm/coml/integrated``
+    with that suffix alone produces a false negative.  This small AST index
+    composes router prefixes and application ``include_router`` prefixes
+    without importing the application (which would eagerly initialise the
+    database in a source-only audit).
+    """
+
     source_root = Path(repository_name) / "src"
     if not source_root.is_dir():
-        return ""
+        return ()
 
-    source_text: list[str] = []
+    router_prefixes: dict[str, dict[str, str]] = {}
+    route_declarations: list[tuple[str, str, str, str]] = []
+    import_bindings: dict[str, list[tuple[str, str]]] = {}
+    include_prefixes: dict[str, list[str]] = {}
+
+    def literal_string(node: ast.AST | None) -> str | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return None
+
     for path in source_root.rglob("*.py"):
+        module_name = ".".join(
+            ("dairyos", *path.relative_to(source_root).with_suffix("").parts)
+        )
+        module_prefixes = router_prefixes.setdefault(module_name, {})
         try:
-            source_text.append(path.read_text(encoding="utf-8-sig", errors="replace"))
-        except OSError:
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        except (OSError, SyntaxError):
             continue
-    return "\n".join(source_text)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            if not (
+                isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == "APIRouter"
+            ):
+                continue
+            prefix = ""
+            for keyword in node.value.keywords:
+                if keyword.arg == "prefix":
+                    prefix = literal_string(keyword.value) or ""
+                    break
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    module_prefixes[target.id] = prefix
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or not node.module:
+                continue
+            for alias in node.names:
+                if alias.name != "router":
+                    continue
+                local_name = alias.asname or alias.name
+                import_bindings.setdefault(local_name, []).append(
+                    (node.module, alias.name)
+                )
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.attr == "include_router"
+                and node.args
+                and isinstance(node.args[0], ast.Name)
+            ):
+                prefix = ""
+                for keyword in node.keywords:
+                    if keyword.arg == "prefix":
+                        prefix = literal_string(keyword.value) or ""
+                        break
+                include_prefixes.setdefault(node.args[0].id, []).append(prefix)
+
+            if not (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.attr
+                in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
+            ):
+                continue
+            suffix = literal_string(node.args[0]) if node.args else ""
+            router_name = node.func.value.id
+            if router_name in module_prefixes and suffix is not None:
+                route_declarations.append(
+                    (node.func.attr.upper(), module_name, router_name, suffix)
+                )
+
+    def normalise(path: str) -> str:
+        parts = [part for part in path.split("/") if part]
+        return "/" + "/".join(parts)
+
+    resolved: set[tuple[str, str]] = set()
+    for method, module_name, router_name, suffix in route_declarations:
+        router_prefix = router_prefixes[module_name].get(router_name, "")
+        aliases = [
+            alias
+            for alias, bindings in import_bindings.items()
+            if any(
+                imported_module == module_name and imported_name == router_name
+                for imported_module, imported_name in bindings
+            )
+        ]
+        prefixes = [
+            prefix
+            for alias in aliases
+            for prefix in include_prefixes.get(alias, [])
+        ] or [""]
+        for include_prefix in prefixes:
+            resolved.add(
+                (
+                    method,
+                    normalise(f"{include_prefix}/{router_prefix}/{suffix}"),
+                )
+            )
+    return tuple(sorted(resolved))
 
 
 def _load_raw() -> tuple[dict[str, tuple[dict[str, Any], list[str], str]], int, Path]:
@@ -471,6 +582,16 @@ def _anchor_validation(anchors: Any, root: Path) -> dict[str, Any]:
         return {"status": "NOT_APPLICABLE", "issues": []}
 
     repository = root.parent.parent
+    source_root = repository / "src"
+    if not source_root.is_dir():
+        return {
+            "status": "UNAVAILABLE",
+            "issues": [
+                "implementation source is not included in this runtime; "
+                "anchor validation is available in the source checkout"
+            ],
+        }
+
     issues: list[str] = []
     for key in ("components", "services", "models", "tests"):
         for anchor in _as_list(anchors.get(key)):
@@ -478,14 +599,27 @@ def _anchor_validation(anchors: Any, root: Path) -> dict[str, Any]:
             if not target.is_file():
                 issues.append(f"missing {key} anchor: {anchor}")
 
-    joined_source = _repository_source_text(str(repository))
+    route_index = set(_repository_route_index(str(repository)))
     for route in _as_list(anchors.get("routes")):
         route_text = _text(route)
-        route_path = (
-            route_text.split(maxsplit=1)[-1] if " " in route_text else route_text
-        )
+        parts = route_text.split(maxsplit=1)
+        method = parts[0].upper() if len(parts) == 2 else ""
+        route_path = parts[-1] if parts else ""
+        route_path = "/" + "/".join(part for part in route_path.split("/") if part)
         route_marker = route_path.split("{", 1)[0].rstrip("/")
-        if route_marker and route_marker not in joined_source:
+        exact_match = (method, route_path) in route_index if method else any(
+            path == route_path for _route_method, path in route_index
+        )
+        templated_match = (
+            any(
+                (not method or route_method == method)
+                and (path.startswith(route_marker + "/") or path == route_marker)
+                for route_method, path in route_index
+            )
+            if "{" in route_path
+            else False
+        )
+        if route_marker and not exact_match and not templated_match:
             issues.append(f"route anchor not found in source: {route_text}")
 
     return {"status": "VALIDATED" if not issues else "BLOCKED", "issues": issues}

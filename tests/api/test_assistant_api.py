@@ -8,6 +8,7 @@ def test_assistant_exposes_broad_read_only_grounded_coverage():
     assert coverage["read_only"] is True
     assert coverage["items"] >= 100
     assert "VALIDATED" in coverage["implementation_anchor_statuses"]
+    assert coverage["implementation_anchor_statuses"].get("BLOCKED", 0) == 0
     assert "health-and-veterinary" in coverage["domains"]
 
 

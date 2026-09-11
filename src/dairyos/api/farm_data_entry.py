@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from math import isfinite
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -94,9 +95,21 @@ class MilkEntryRequest(BaseEntryRequest):
     """
 
     animal_id: str
-    morning_yield: float | None = None
-    afternoon_yield: float | None = None
-    evening_yield: float | None = None
+    morning_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
+    afternoon_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
+    evening_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
     milking_session: MilkingSession
     production_date: date | None = None
 
@@ -111,9 +124,21 @@ class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
     """
 
     animal_id: str
-    morning_yield: float | None = None
-    afternoon_yield: float | None = None
-    evening_yield: float | None = None
+    morning_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
+    afternoon_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
+    evening_yield: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+    )
     milking_session: MilkingSession | None = None
     production_date: date | None = None
 
@@ -295,7 +320,10 @@ def _optional_float(value) -> float | None:
     if value is None or value == "":
         return None
 
-    return float(value)
+    result = float(value)
+    if not isfinite(result):
+        raise ValueError("Milk yield must be a finite number.")
+    return result
 
 
 def _as_date(value) -> date | None:
@@ -502,7 +530,22 @@ def _record(
                     payload.get("litres"),
                 )
             )
-            if declared_total is not None:
+            entered_yields = production.entered_yields
+            if entered_yields:
+                calculated_total = float(sum(entered_yields))
+                if declared_total is not None and declared_total < 0:
+                    raise ValueError("Milk total_yield cannot be negative.")
+                if (
+                    declared_total is not None
+                    and abs(declared_total - calculated_total) > 1e-9
+                ):
+                    raise ValueError(
+                        "Milk total_yield must equal the sum of entered session yields."
+                    )
+                production.total_yield = calculated_total
+            elif declared_total is not None:
+                if declared_total < 0:
+                    raise ValueError("Milk total_yield cannot be negative.")
                 production.total_yield = declared_total
             else:
                 production.calculate_total()

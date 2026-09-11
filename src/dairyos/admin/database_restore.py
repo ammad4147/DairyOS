@@ -31,11 +31,10 @@ def rebuild_file_projections(manager) -> None:
         storage = manager.data_root / "storage"
         input_path = storage / "operational_inputs.json"
         animal_state_path = storage / "animal_operational_states.json"
-        # These files are rebuildable projections. Remove their prior state
-        # before constructing repositories so corrupt or future data cannot
-        # block replay of the restored authoritative journal.
-        input_path.unlink(missing_ok=True)
-        animal_state_path.unlink(missing_ok=True)
+        # These files are rebuildable projections. The rebuilder reads the
+        # journal into a staged pair and promotes only after replay succeeds;
+        # never delete the last known-good projections before that transaction
+        # has reached its promotion point.
         inputs = OperationalInputRepository(input_path)
         states = AnimalOperationalStateRepository(
             animal_state_path

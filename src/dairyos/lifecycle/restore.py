@@ -69,7 +69,11 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
         files_changed = False
         try:
             if dump_path is not None:
-                restore_backup(manager.database_url, dump_path)
+                restore_backup(
+                    manager.database_url,
+                    dump_path,
+                    allow_environment_password_override=False,
+                )
                 database_changed = True
             files_changed = True
             _replace_non_database_files(manager.data_root, staged_root)
@@ -79,7 +83,11 @@ def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
 
             if database_changed and rollback_dump is not None:
                 try:
-                    restore_backup(manager.database_url, rollback_dump)
+                    restore_backup(
+                        manager.database_url,
+                        rollback_dump,
+                        allow_environment_password_override=False,
+                    )
                 except Exception as rollback_exc:  # pragma: no cover - catastrophic path
                     rollback_errors.append(
                         f"database rollback failed: {rollback_exc}"

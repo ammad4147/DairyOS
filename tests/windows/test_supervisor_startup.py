@@ -197,6 +197,7 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     def popen(command, **kwargs):
         captured["command"] = command
         captured["env"] = kwargs["env"]
+        captured["log"] = kwargs["stdout"]
         return process
 
     monkeypatch.setenv(
@@ -224,6 +225,7 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     assert url == "http://127.0.0.1:8123"
     assert "DAIRYOS_MIGRATION_DATABASE_URL" not in captured["env"]
     assert captured["env"]["DAIRYOS_DATABASE_URL"] == "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos"
+    assert captured["log"].closed is True
 
 
 def test_backend_child_receives_private_auth_signing_secret(monkeypatch, tmp_path):

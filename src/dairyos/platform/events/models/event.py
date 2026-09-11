@@ -19,7 +19,7 @@ class PlatformEvent:
     name: str
     source: str
 
-    event_type: EventType = EventType.SYSTEM_EVENT
+    event_type: EventType = EventType.SYSTEM
     priority: EventPriority = EventPriority.NORMAL
 
     payload: dict[str, Any] = field(default_factory=dict)

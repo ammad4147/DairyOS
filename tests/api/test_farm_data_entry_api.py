@@ -1,3 +1,8 @@
+import pytest
+from pydantic import ValidationError
+
+from dairyos.api.farm_data_entry import LegacyCompatibleMilkEntryRequest
+from dairyos.api.milk_traceability import ProductionPatch
 from tests.helpers.breeding import post_breeding
 from dairyos.api.app import app
 
@@ -20,6 +25,21 @@ def test_record_milk_entry(client, registered_animal):
     assert body["total_yield"] == 22.0
     assert body["status"] == "RECORDED"
     assert body["operator"] == "Milking Operator"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [-1.0, float("nan"), float("inf"), float("-inf")],
+)
+def test_milk_entry_boundary_rejects_negative_and_nonfinite_yields(value):
+    with pytest.raises(ValidationError):
+        LegacyCompatibleMilkEntryRequest(
+            animal_id="TD-BOUNDARY",
+            morning_yield=value,
+        )
+
+    with pytest.raises(ValidationError):
+        ProductionPatch(morning_yield=value)
 
 
 def test_list_milk_entries(client, registered_animal):

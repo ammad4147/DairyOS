@@ -396,15 +396,40 @@ def aggregate_health(value: dict[str, Any]) -> ResponseDraft:
         "confirm the diagnosis, choose treatment, dose and withdrawal, and record the authorised plan."
     )
     if value.get("history_requested"):
-        animal_ids = [
+        evidence_animal_ids = [
             str(item)
             for item in value.get("animal_ids_with_health_evidence") or []
             if item
         ]
         animal_note = ""
-        if animal_ids:
-            shown = ", ".join(animal_ids[:20])
-            remaining = len(animal_ids) - len(animal_ids[:20])
+        requested_sick_list = bool(value.get("sick_list_requested"))
+        if requested_sick_list:
+            active_ids = [
+                str(item)
+                for item in value.get("current_sick_animal_ids")
+                or value.get("active_sick_animal_ids")
+                or []
+                if item
+            ]
+            observation_ids = [
+                str(item)
+                for item in value.get("open_health_observation_animal_ids") or []
+                if item
+            ]
+            animal_note = (
+                " Active sick animal IDs (open health cases): "
+                + (", ".join(active_ids[:20]) or "none")
+                + "."
+            )
+            if observation_ids:
+                animal_note += (
+                    " Open health-observation IDs requiring case review: "
+                    + ", ".join(observation_ids[:20])
+                    + "."
+                )
+        elif evidence_animal_ids:
+            shown = ", ".join(evidence_animal_ids[:20])
+            remaining = len(evidence_animal_ids) - len(evidence_animal_ids[:20])
             animal_note = f" Animals with persisted health evidence: {shown}."
             if remaining > 0:
                 animal_note += f" {remaining} additional animal ID(s) are in the evidence panel."

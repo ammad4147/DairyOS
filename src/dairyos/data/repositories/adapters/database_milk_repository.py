@@ -1,3 +1,5 @@
+from math import isfinite
+
 from dairyos.farm.operations.repositories.milk_repository import (
     MilkRepository,
 )
@@ -31,6 +33,11 @@ class DatabaseMilkRepository(
         self,
         record,
     ):
+        litres = float(record.litres)
+        if not isfinite(litres) or litres < 0:
+            raise ValueError(
+                "Milk quantity must be finite and cannot be negative"
+            )
 
         production = MilkProduction(
 
@@ -57,28 +64,28 @@ class DatabaseMilkRepository(
         if shift == "MORNING":
 
             production.morning_yield = (
-                record.litres
+                litres
             )
 
 
         elif shift == "AFTERNOON":
 
             production.afternoon_yield = (
-                record.litres
+                litres
             )
 
 
         elif shift == "EVENING":
 
             production.evening_yield = (
-                record.litres
+                litres
             )
 
 
         else:
 
             production.morning_yield = (
-                record.litres
+                litres
             )
 
 

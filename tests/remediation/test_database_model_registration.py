@@ -9,11 +9,14 @@ def test_fresh_schema_registers_health_case_and_finding_lifecycle(monkeypatch):
     monkeypatch.setattr(database, "engine", fresh_engine)
     monkeypatch.setenv("DAIRYOS_ENV", "test")
 
-    database.initialize_database()
+    try:
+        database.initialize_database()
 
-    tables = set(inspect(fresh_engine).get_table_names())
-    assert "health_cases" in tables
-    assert "operational_finding_lifecycle_events" in tables
+        tables = set(inspect(fresh_engine).get_table_names())
+        assert "health_cases" in tables
+        assert "operational_finding_lifecycle_events" in tables
+    finally:
+        fresh_engine.dispose()
 
 
 
@@ -23,10 +26,13 @@ def test_fresh_schema_registers_farm_model(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "test")
     monkeypatch.delattr(__import__("sys"), "frozen", raising=False)
 
-    database.initialize_database()
+    try:
+        database.initialize_database()
 
-    tables = set(inspect(fresh_engine).get_table_names())
-    assert "farms" in tables
+        tables = set(inspect(fresh_engine).get_table_names())
+        assert "farms" in tables
+    finally:
+        fresh_engine.dispose()
 
 
 def test_frozen_runtime_never_runs_development_create_all(monkeypatch):

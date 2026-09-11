@@ -368,14 +368,20 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     env["DAIRYOS_BACKEND_LOG"] = str(backend_log_path)
 
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    process = subprocess.Popen(
-        command,
-        env=env,
-        creationflags=creationflags,
-        stdout=backend_log,
-        stderr=backend_log,
-    )
-    job.assign(process)
+    try:
+        process = subprocess.Popen(
+            command,
+            env=env,
+            creationflags=creationflags,
+            stdout=backend_log,
+            stderr=backend_log,
+        )
+        job.assign(process)
+    finally:
+        # Popen has duplicated/inherited the standard handles for the child;
+        # the supervisor must close its own descriptor or every watchdog
+        # restart leaks another handle to the backend log.
+        backend_log.close()
 
     LOG.info("DairyOS backend child log: %s", backend_log_path)
     return process, f"http://{config.host}:{selected_port}"

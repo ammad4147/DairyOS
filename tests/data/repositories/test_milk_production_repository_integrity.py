@@ -71,3 +71,42 @@ def test_repository_accepts_valid_active_animal_and_nonnegative_yield():
 
     assert saved is production
     assert repository.count() == 1
+    assert production.total_yield == 10.0
+
+
+def test_repository_derives_total_and_rejects_mismatched_total():
+    repository = MilkProductionRepository(
+        animal_repository=FakeAnimalRepository(_animal())
+    )
+    derived = MilkProduction(
+        animal_id="TD-INTEGRITY-01",
+        milking_session="MORNING",
+        morning_yield=10.0,
+        afternoon_yield=5.0,
+    )
+    repository.add(derived)
+    assert derived.total_yield == 15.0
+
+    mismatched = MilkProduction(
+        animal_id="TD-INTEGRITY-01",
+        milking_session="MORNING",
+        morning_yield=10.0,
+        total_yield=999.0,
+    )
+    with pytest.raises(ValueError, match="total_yield"):
+        repository.add(mismatched)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_repository_rejects_nonfinite_milk_yield(value):
+    repository = MilkProductionRepository(
+        animal_repository=FakeAnimalRepository(_animal())
+    )
+    production = MilkProduction(
+        animal_id="TD-INTEGRITY-01",
+        milking_session="MORNING",
+        morning_yield=value,
+    )
+
+    with pytest.raises(ValueError, match="finite"):
+        repository.add(production)

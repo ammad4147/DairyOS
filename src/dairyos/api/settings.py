@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import secrets
+import tempfile
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -38,6 +40,41 @@ _NAVIGATION_RECOVERY_SALT_KEY = "navigation_admin_recovery_salt"
 _MIN_ADMIN_PASSWORD_LENGTH = 12
 RESET_CONFIRMATION = "RESET DAIRYOS TO ZERO STATE"
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
+
+
+def _write_reset_request_atomically(path, payload: dict[str, object]) -> None:
+    """Persist the queued reset without ever exposing partial JSON.
+
+    The supervisor consumes this file at the next startup.  A direct
+    ``write_text`` could leave a truncated request after an interrupted write
+    and turn a recoverable reset into an opaque startup failure.  Write,
+    flush, and replace in the same directory so the consumer sees either the
+    previous complete request or the new complete request.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary = temporary_name
+    try:
+        with os.fdopen(
+            file_descriptor,
+            "w",
+            encoding="utf-8",
+            newline="\n",
+        ) as stream:
+            json.dump(payload, stream, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
 
 
 def _service() -> tuple[FarmSettingsService, RepositoryFactory]:
@@ -463,20 +500,17 @@ def request_system_reset(
     finally:
         rf.close()
     request_path = data_root(create=True) / RESET_REQUEST_FILENAME
-    request_path.write_text(
-        json.dumps(
-            {
-                "confirm": payload.confirm,
-                "requested_by": str(admin.get("sub") or payload.updated_by),
-                "requested_at": requested_at_utc,
-                "requested_at_utc": requested_at_utc,
-                "requested_at_local": requested_at_local,
-                "farm_name": farm_name,
-                "reset_operation": "ZERO_STATE_RESET",
-            },
-            sort_keys=True,
-        ),
-        encoding="utf-8",
+    _write_reset_request_atomically(
+        request_path,
+        {
+            "confirm": payload.confirm,
+            "requested_by": str(admin.get("sub") or payload.updated_by),
+            "requested_at": requested_at_utc,
+            "requested_at_utc": requested_at_utc,
+            "requested_at_local": requested_at_local,
+            "farm_name": farm_name,
+            "reset_operation": "ZERO_STATE_RESET",
+        },
     )
     return {
         "status": "QUEUED_FOR_MAINTENANCE",

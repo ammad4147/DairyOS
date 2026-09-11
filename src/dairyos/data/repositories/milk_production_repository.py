@@ -1,4 +1,5 @@
 from datetime import date as date_type, datetime as datetime_type
+from math import isclose, isfinite
 
 from sqlalchemy import func
 
@@ -72,10 +73,35 @@ class MilkProductionRepository:
         try:
             for field in MILK_YIELD_FIELDS:
                 value = getattr(production, field, None)
-                if value is not None and float(value) < 0:
+                if value is not None and (
+                    not isfinite(float(value)) or float(value) < 0
+                ):
                     raise ValueError(
-                        f"Milk production rejected: {field} must be greater than or equal to zero."
+                        f"Milk production rejected: {field} must be finite and greater than or equal to zero."
                     )
+            total = getattr(production, "total_yield", None)
+            if total is not None and (
+                not isfinite(float(total)) or float(total) < 0
+            ):
+                raise ValueError(
+                    "Milk production rejected: total_yield must be finite and greater than or equal to zero."
+                )
+            if any(
+                getattr(production, field, None) is not None
+                for field in MILK_YIELD_FIELDS
+            ):
+                calculated_total = float(
+                    sum(
+                        float(getattr(production, field))
+                        for field in MILK_YIELD_FIELDS
+                        if getattr(production, field, None) is not None
+                    )
+                )
+                if total is not None and not isclose(float(total), calculated_total):
+                    raise ValueError(
+                        "Milk production rejected: total_yield must equal the sum of entered session yields."
+                    )
+                production.total_yield = calculated_total
             self._ensure_animal_exists(production.animal_id)
         finally:
             self._pending_production = None

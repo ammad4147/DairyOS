@@ -18,11 +18,17 @@ def test_live_data_plan_bypasses_knowledge_retrieval_by_default():
 
 def test_guidance_and_clinical_plans_request_reference_only_when_needed():
     guidance = classify_request("How do I record a missed milk entry?")
+    date_guidance = classify_request(
+        "How do I record a milk entry for the correct date?"
+    )
     clinical = classify_request("A cow has fever and reduced appetite.")
 
     assert guidance.live_data_required is False
     assert guidance.documentation_required is True
     assert guidance.tools == ("read_safety_policy", "search_knowledge_base")
+    assert date_guidance.live_data_required is False
+    assert date_guidance.documentation_required is True
+    assert date_guidance.tools == ("read_safety_policy", "search_knowledge_base")
     assert clinical.live_data_required is True
     assert clinical.documentation_required is True
     assert "read_health_insight" in clinical.tools

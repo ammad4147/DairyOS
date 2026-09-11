@@ -274,9 +274,7 @@ _LIVE_QUESTION_MARKERS = (
     "records",
     "current",
     "actual",
-    "in ",
     "during ",
-    "for ",
 )
 _DOCUMENTATION_MARKERS = (
     "how do i",

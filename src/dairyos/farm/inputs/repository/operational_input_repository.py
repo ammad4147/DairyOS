@@ -159,21 +159,32 @@ class OperationalInputRepository:
             self._records = []
             return
 
-        for item in data:
-            timestamp = item.get("timestamp")
-            if isinstance(timestamp, str) and timestamp:
-                timestamp = datetime.fromisoformat(timestamp)
-            if timestamp is None:
-                from datetime import timezone
-                timestamp = datetime.now(timezone.utc)
+        try:
+            loaded_records = []
+            for item in data:
+                if not isinstance(item, dict):
+                    raise TypeError("operational input projection row must be an object")
+                timestamp = item.get("timestamp")
+                if isinstance(timestamp, str) and timestamp:
+                    timestamp = datetime.fromisoformat(timestamp)
+                if timestamp is None:
+                    from datetime import timezone
 
-            self._records.append(
-                OperationalInputReceived(
-                    input_type=item["input_type"],
-                    payload=dict(item.get("payload") or {}),
-                    source=item.get("source", ""),
-                    actor=item.get("actor", ""),
-                    event_id=item.get("event_id") or str(uuid4()),
-                    timestamp=timestamp,
+                    timestamp = datetime.now(timezone.utc)
+
+                loaded_records.append(
+                    OperationalInputReceived(
+                        input_type=item["input_type"],
+                        payload=dict(item.get("payload") or {}),
+                        source=item.get("source", ""),
+                        actor=item.get("actor", ""),
+                        event_id=item.get("event_id") or str(uuid4()),
+                        timestamp=timestamp,
+                    )
                 )
-            )
+            self._records = loaded_records
+        except (AttributeError, KeyError, TypeError, ValueError):
+            # This is a rebuildable read model. The event journal remains the
+            # authoritative history, so partially malformed content must not
+            # be exposed as a mixed projection or block recovery.
+            self._records = []

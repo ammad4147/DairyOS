@@ -65,17 +65,20 @@ def test_fresh_schema_contains_active_tables(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "test")
     monkeypatch.delattr(sys, "frozen", raising=False)
 
-    database.initialize_database()
+    try:
+        database.initialize_database()
 
-    tables = set(inspect(fresh).get_table_names())
+        tables = set(inspect(fresh).get_table_names())
 
-    assert "farms" in tables
-    assert "equipment" in tables
-    assert "equipment_service_events" in tables
+        assert "farms" in tables
+        assert "equipment" in tables
+        assert "equipment_service_events" in tables
 
-    assert "animals" not in tables
-    assert "milk_production_orm" not in tables
-    assert "audit_events" not in tables
+        assert "animals" not in tables
+        assert "milk_production_orm" not in tables
+        assert "audit_events" not in tables
+    finally:
+        fresh.dispose()
 
 
 def test_frozen_runtime_never_calls_create_all(monkeypatch):
