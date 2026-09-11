@@ -9,7 +9,7 @@ def test_training_simulator_is_removed_from_the_operator_surface():
     settings = (WEB / "components" / "SettingsTab.tsx").read_text(
         encoding="utf-8-sig"
     )
-    assistant = (WEB / "components" / "DairyOSAssistant.tsx").read_text(
+    assistant = (WEB / "components" / "AIAssistant.tsx").read_text(
         encoding="utf-8-sig"
     )
 

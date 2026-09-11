@@ -1,4 +1,4 @@
-"""Load and search the source-backed DairyOS Assistant knowledge corpus.
+"""Load and search the source-backed AI Assistant knowledge corpus.
 
 The Assistant is deliberately local and read-only.  It does not call an
 external model, read the operational database, or infer permission to write a
@@ -9,7 +9,9 @@ checkout is available.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -51,6 +53,8 @@ _TOKEN_ALIASES = {
     "cost/l": "feed cost liter",
     "cop/l": "cop liter",
 }
+
+_VECTOR_DIMENSIONS = 384
 
 _STOP_WORDS = {
     "a",
@@ -108,7 +112,7 @@ def knowledge_root() -> Path:
         if candidate.is_dir():
             return candidate.resolve()
     raise FileNotFoundError(
-        "DairyOS Assistant knowledge corpus was not found. "
+        "AI Assistant knowledge corpus was not found. "
         "Expected docs/training in the packaged application or source checkout."
     )
 
@@ -494,11 +498,93 @@ def _record_text(record: KnowledgeRecord) -> str:
     ).lower()
 
 
+def _vector(value: str, dimensions: int) -> tuple[tuple[float, ...], float]:
+    """Return a deterministic feature-hashed embedding and its norm.
+
+    The Assistant must work without a cloud model, a native vector database,
+    or a user-supplied API key. Feature hashing gives the packaged corpus a
+    stable local vector representation while keeping the index small and
+    reproducible across restarts and machines.
+    """
+    values = [0.0] * dimensions
+    for token in _tokens(value):
+        digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
+        position = int.from_bytes(digest, byteorder="big") % dimensions
+        values[position] += 1.0
+    norm = math.sqrt(sum(value * value for value in values))
+    return tuple(values), norm
+
+
+@dataclass(frozen=True)
+class VectorMatch:
+    record: KnowledgeRecord
+    similarity: float
+    overlap_count: int
+
+
+class LocalVectorIndex:
+    """Embeddable in-memory vector index over the packaged knowledge corpus."""
+
+    def __init__(
+        self,
+        records: Iterable[KnowledgeRecord],
+        dimensions: int = _VECTOR_DIMENSIONS,
+    ) -> None:
+        if dimensions < 32:
+            raise ValueError("LocalVectorIndex requires at least 32 dimensions.")
+        self.dimensions = dimensions
+        self._entries = tuple(
+            (
+                record,
+                set(_tokens(_record_text(record))),
+                *_vector(_record_text(record), dimensions),
+            )
+            for record in records
+            if record.review_status != "DEPRECATED"
+        )
+
+    def search(self, question: str, limit: int = 6) -> list[VectorMatch]:
+        query_tokens = set(_tokens(question.strip()))
+        query_vector, query_norm = _vector(question, self.dimensions)
+        if not query_tokens or query_norm == 0.0:
+            return []
+
+        ranked: list[VectorMatch] = []
+        for record, record_tokens, record_vector, record_norm in self._entries:
+            overlap_count = len(query_tokens & record_tokens)
+            if not overlap_count:
+                continue
+            if (
+                len(query_tokens) >= 2
+                and overlap_count < 2
+                and question.lower() not in record.question.lower()
+                and question.lower() not in record.title.lower()
+            ):
+                continue
+            similarity = sum(
+                left * right for left, right in zip(query_vector, record_vector)
+            ) / (query_norm * record_norm)
+            if similarity <= 0.0:
+                continue
+            ranked.append(VectorMatch(record, similarity, overlap_count))
+
+        ranked.sort(
+            key=lambda match: (
+                -match.similarity,
+                -match.overlap_count,
+                match.record.title.lower(),
+                match.record.id,
+            )
+        )
+        return ranked[:limit]
+
+
 class GroundedAssistant:
     """Question-first local Assistant over the normalized source corpus."""
 
     def __init__(self) -> None:
         self._items, self._duplicate_count, self._root = _records()
+        self._index = LocalVectorIndex(self._items.values())
 
     @property
     def records(self) -> dict[str, KnowledgeRecord]:
@@ -510,22 +596,9 @@ class GroundedAssistant:
         if not query_tokens:
             return []
         ranked: list[tuple[float, KnowledgeRecord]] = []
-        for record in self._items.values():
-            if record.review_status == "DEPRECATED":
-                continue
-            text = _record_text(record)
-            record_tokens = set(_tokens(text))
-            overlap = query_tokens & record_tokens
-            score = float(len(overlap))
-            if not overlap:
-                continue
-            if (
-                len(query_tokens) >= 2
-                and len(overlap) < 2
-                and query.lower() not in record.question.lower()
-                and query.lower() not in record.title.lower()
-            ):
-                continue
+        for match in self._index.search(query, limit=max(limit * 8, 64)):
+            record = match.record
+            score = float(match.overlap_count) + match.similarity
             if query.lower() in record.question.lower():
                 score += 12
             if query.lower() in record.title.lower():
@@ -577,14 +650,14 @@ class GroundedAssistant:
                     "exceptions_recovery": ["If the capability is not yet covered, the Assistant will say so and identify the missing context."],
                     "effects": ["Answers are grounded in the local DairyOS knowledge corpus; no live farm records are read."],
                     "safety": "Do not use the read-only Assistant to authorise destructive actions, clinical decisions, financial commitments, or operational writes.",
-                    "sources": ["DairyOS capability catalog", "DairyOS Assistant knowledge corpus"],
+                    "sources": ["DairyOS capability catalog", "AI Assistant knowledge corpus"],
                     "related": [],
                     "coverage": self.coverage(),
                 }
             return {
                 "question": cleaned,
                 "answer_type": "INSUFFICIENT_COVERAGE",
-                "scope": "DairyOS Assistant",
+                "scope": "AI Assistant",
                 "title": "No grounded answer found",
                 "answer": "I could not find a sufficiently grounded DairyOS knowledge item for that question.",
                 "expanded_explanation": "Rephrase the question with the DairyOS area, record type, symptom, date, or calculation name. The Assistant does not invent an answer or act on live records.",
@@ -674,6 +747,11 @@ class GroundedAssistant:
             "review_statuses": statuses,
             "implementation_anchor_statuses": anchor_statuses,
             "knowledge_root": self._root.name,
+            "retrieval": {
+                "index": "LocalVectorIndex",
+                "dimensions": self._index.dimensions,
+                "similarity": "cosine",
+            },
             "read_only": True,
         }
 

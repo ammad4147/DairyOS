@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../config/api';
 import type { NavigationTabId } from '../navigation';
 import { formatFarmDateTime, setFarmTimezone, SYSTEM_TIMEZONE } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
-import DairyOSAssistant from './DairyOSAssistant';
+import AIAssistant from './AIAssistant';
 
 interface SettingsTabProps {
   onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
@@ -412,7 +412,7 @@ export default function SettingsTab({
         <button onClick={() => setActiveTab('FARM')} style={tab(activeTab === 'FARM')}><Building size={13} />Farm & System</button>
         <button onClick={() => setActiveTab('SYSTEM')} style={tab(activeTab === 'SYSTEM')}><Activity size={13} />System Health</button>
         <button onClick={() => setActiveTab('EMAIL')} style={tab(activeTab === 'EMAIL')}><Mail size={13} />Email & Notifications</button>
-        <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><Bot size={13} />DairyOS Assistant</button>
+        <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><Bot size={13} />AI Assistant</button>
       </div>
       {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{error}</div>}
       {message && <div style={{ background: '#064e3b', border: '1px solid #065f46', color: '#a7f3d0', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{message}</div>}
@@ -553,7 +553,7 @@ export default function SettingsTab({
           </div>}
         </section></div>
       )}
-      {activeTab === 'ASSISTANT' && <DairyOSAssistant />}
+      {activeTab === 'ASSISTANT' && <AIAssistant />}
     </div>
   );
 }

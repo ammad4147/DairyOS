@@ -15,6 +15,7 @@ datas = [
     (str(ROOT / "alembic.ini"), "."),
     (str(ROOT / "db_migrations"), "db_migrations"),
     (str(ROOT / "docs" / "training"), "docs/training"),
+    (str(ROOT / "src" / "dairyos" / "assistant"), "dairyos/assistant"),
     (str(ROOT / "src" / "DairyOS.Web" / "dist"), "src/DairyOS.Web/dist"),
 ]
 binaries = []

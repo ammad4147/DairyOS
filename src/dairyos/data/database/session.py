@@ -2,10 +2,13 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 
 from dairyos.data.database.base import Base
+
+__all__ = ["DATABASE_URL", "Base", "SessionLocal", "engine", "get_session"]
 
 # ------------------------------------------------------------------
 # Database connection configuration
@@ -23,12 +26,36 @@ from dairyos.data.database.base import Base
 load_dotenv()
 
 
+def _validate_explicit_database_url(explicit_url: str, environment: str) -> None:
+    """Reject passwordless non-local production URLs without exposing secrets."""
+    if environment not in {"production", "staging", "preprod"}:
+        return
+
+    try:
+        parsed = make_url(explicit_url)
+    except ArgumentError as exc:
+        raise RuntimeError("DAIRYOS_DATABASE_URL is not a valid database URL.") from exc
+
+    local_loopback = parsed.host in {"localhost", "127.0.0.1", "::1"}
+    local_passwordless = (
+        not parsed.password
+        and parsed.username == "dairyos"
+        and local_loopback
+        and (parsed.database == "dairyos" or "test" in (parsed.database or "").lower())
+    )
+    if not parsed.password and not local_passwordless:
+        raise RuntimeError(
+            "DAIRYOS_DATABASE_URL must include credentials for non-local "
+            "production database access."
+        )
+
+
 def _build_database_url() -> str:
+    environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
     explicit_url = os.getenv("DAIRYOS_DATABASE_URL")
     if explicit_url:
+        _validate_explicit_database_url(explicit_url, environment)
         return explicit_url
-
-    environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
 
     host = os.getenv("DAIRYOS_DB_HOST", "localhost")
     port = os.getenv("DAIRYOS_DB_PORT", "5432")
@@ -36,26 +63,32 @@ def _build_database_url() -> str:
     user = os.getenv("DAIRYOS_DB_USER", "dairyos")
     password = os.getenv("DAIRYOS_DB_PASSWORD")
 
+    local_loopback = user == "dairyos" and host in {"localhost", "127.0.0.1", "::1"}
+    # The bundled Windows appliance stages its protected runtime URL before
+    # importing this module.  Passwordless local access is also valid for
+    # explicitly disposable test databases, so the test suite never needs a
+    # secret merely to prove its database isolation guard.
+    disposable_test_database = "test" in name.lower()
     local_passwordless = (
         not password
-        and user == "dairyos"
-        and host in {"localhost", "127.0.0.1", "::1"}
-        and name == "dairyos"
+        and local_loopback
+        and (name == "dairyos" or disposable_test_database)
     )
 
-    if password is None and not local_passwordless:
-        if environment in {"production", "staging", "preprod"}:
-            raise RuntimeError(
-                "DAIRYOS_DB_PASSWORD (or DAIRYOS_DATABASE_URL) must be "
-                "configured for non-local production database access."
-            )
+    if (
+        password is None
+        and not local_passwordless
+        and environment in {"production", "staging", "preprod"}
+    ):
+        raise RuntimeError(
+            "DAIRYOS_DB_PASSWORD (or DAIRYOS_DATABASE_URL) must be "
+            "configured for non-local production database access."
+        )
 
     try:
         port_number = int(port)
     except ValueError as exc:
-        raise RuntimeError(
-            f"DAIRYOS_DB_PORT must be an integer, got {port!r}"
-        ) from exc
+        raise RuntimeError(f"DAIRYOS_DB_PORT must be an integer, got {port!r}") from exc
 
     url = URL.create(
         drivername="postgresql+psycopg",

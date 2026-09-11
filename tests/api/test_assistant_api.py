@@ -1,4 +1,4 @@
-from dairyos.assistant.knowledge import GroundedAssistant
+from dairyos.assistant.knowledge import GroundedAssistant, LocalVectorIndex
 
 
 def test_assistant_exposes_broad_read_only_grounded_coverage():
@@ -9,6 +9,17 @@ def test_assistant_exposes_broad_read_only_grounded_coverage():
     assert coverage["items"] >= 100
     assert "VALIDATED" in coverage["implementation_anchor_statuses"]
     assert "health-and-veterinary" in coverage["domains"]
+
+
+def test_local_vector_index_retrieves_packaged_guidance():
+    assistant = GroundedAssistant()
+    matches = LocalVectorIndex(assistant.records.values()).search(
+        "How do I record a missed milk entry?"
+    )
+
+    assert matches
+    assert matches[0].similarity > 0
+    assert any("milk" in match.record.title.lower() for match in matches)
 
 
 def test_assistant_answers_dairyos_workflow_with_sop_shape():

@@ -128,7 +128,7 @@ function StringList({ values, ordered = false }: { values: string[]; ordered?: b
   );
 }
 
-export default function DairyOSAssistant() {
+export default function AIAssistant() {
   const [question, setQuestion] = useState('');
   const [role, setRole] = useState<Role>('Operator');
   const [answer, setAnswer] = useState<AssistantResponse | null>(null);
@@ -145,19 +145,19 @@ export default function DairyOSAssistant() {
     setBusy(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/assistant/ask`, {
+      const response = await fetch(`${API_BASE}/ai-assistant/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: trimmed, role }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.detail || `Assistant unavailable (HTTP ${response.status}).`);
+        throw new Error(payload?.detail || `AI Assistant unavailable (HTTP ${response.status}).`);
       }
       setAnswer(payload as AssistantResponse);
     } catch (requestError) {
       setAnswer(null);
-      setError(requestError instanceof Error ? requestError.message : 'Assistant request failed.');
+      setError(requestError instanceof Error ? requestError.message : 'AI Assistant request failed.');
     } finally {
       setBusy(false);
     }
@@ -173,7 +173,7 @@ export default function DairyOSAssistant() {
     <section style={{ background: '#0f172a', border: '1px solid #1f2937', borderRadius: 8, padding: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ ...heading, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={14} />AI-grounded DairyOS Assistant</div>
+          <div style={{ ...heading, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={14} />AI Assistant</div>
           <h3 style={{ margin: '4px 0', fontSize: 17 }}>Ask a question in your own words</h3>
           <div style={{ color: '#94a3b8', fontSize: 10, maxWidth: 700 }}>
             The Assistant matches your question to the versioned DairyOS knowledge base, then develops a complete answer with context, checklist, expected outcome, downstream effects, exceptions, and next action.
@@ -188,7 +188,7 @@ export default function DairyOSAssistant() {
           <div style={{ position: 'relative', marginTop: 4 }}>
             <Search size={14} style={{ position: 'absolute', left: 9, top: 10, color: '#64748b' }} />
             <textarea
-              aria-label="Ask DairyOS Assistant"
+              aria-label="Ask AI Assistant"
               value={question}
               onChange={event => setQuestion(event.target.value)}
               onKeyDown={event => {
