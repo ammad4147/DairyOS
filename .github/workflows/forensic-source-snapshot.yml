@@ -1,0 +1,45 @@
+name: Forensic source snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/forensic-source-snapshot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archive-audit-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify and archive audited SHA
+        shell: bash
+        env:
+          AUDIT_SHA: 2303cee97bd3cf4276c43358061e32e7f2620761
+        run: |
+          set -euo pipefail
+          git cat-file -e "${AUDIT_SHA}^{commit}"
+          actual_tree="$(git show -s --format=%T "${AUDIT_SHA}")"
+          expected_tree="1b25aa72e0dd07f3025617ec4559c331a202a3e2"
+          test "${actual_tree}" = "${expected_tree}"
+          git archive --format=zip --output="DairyOS-${AUDIT_SHA}.zip" "${AUDIT_SHA}"
+          sha256sum "DairyOS-${AUDIT_SHA}.zip" > "DairyOS-${AUDIT_SHA}.zip.sha256"
+          printf '%s\n' "commit=${AUDIT_SHA}" "tree=${actual_tree}" > forensic-source-provenance.txt
+
+      - name: Upload exact source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: DairyOS-forensic-source-2303cee
+          path: |
+            DairyOS-2303cee97bd3cf4276c43358061e32e7f2620761.zip
+            DairyOS-2303cee97bd3cf4276c43358061e32e7f2620761.zip.sha256
+            forensic-source-provenance.txt
+          if-no-files-found: error
+          retention-days: 7
