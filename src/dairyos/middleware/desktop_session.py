@@ -14,7 +14,15 @@ async def enforce_desktop_session(request, call_next):
     production = bool(getattr(sys, "frozen", False)) or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
     path = request.url.path
     public_read = request.method in {"GET", "HEAD"} and (
-        path in {"/", "/index.html", "/health", "/readiness", "/favicon.ico"}
+        path
+        in {
+            "/",
+            "/index.html",
+            "/health",
+            "/readiness",
+            "/favicon.ico",
+            "/serviceWorker.js",
+        }
         or path.startswith("/assets/")
     )
     if public_read or (not token and not production):
