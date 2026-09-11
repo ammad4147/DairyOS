@@ -54,6 +54,51 @@ def test_empty_installer_storage_does_not_block_first_database_bootstrap(
     assert facts.recovery_required is False
 
 
+def test_private_database_metadata_does_not_block_first_database_bootstrap(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "security.json").write_text("{}\n", encoding="utf-8")
+    (root / "runtime.json").write_text("{}\n", encoding="utf-8")
+    (root / "backups").mkdir()
+    (root / "logs").mkdir()
+    (root / "postgres").mkdir()
+
+    facts = startup_integrity.inspect_startup_integrity(
+        application_tables=0,
+        enforce=True,
+    )
+
+    assert facts.persistent_data is False
+    assert facts.recovery_required is False
+
+
+def test_private_database_metadata_does_not_hide_persistent_farm_data(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "security.json").write_text("{}\n", encoding="utf-8")
+    (root / "runtime.json").write_text("{}\n", encoding="utf-8")
+    (root / "postgres").mkdir()
+    (root / "storage").mkdir()
+    (root / "storage" / "animal_operational_states.json").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        startup_integrity.StartupIntegrityError,
+        match="Data recovery is required",
+    ):
+        startup_integrity.inspect_startup_integrity(
+            application_tables=0,
+            enforce=True,
+        )
+
 def test_existing_persistent_data_blocks_empty_database(monkeypatch, tmp_path):
     root = _set_data_root(monkeypatch, tmp_path)
     (root / "storage").mkdir(parents=True)

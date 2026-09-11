@@ -143,6 +143,12 @@ def inspect_startup_integrity(
             "postgres",
             "installation_state.json",
             "lifecycle.json",
+            # These files are private-PostgreSQL control metadata created
+            # before the first application migration.  They do not represent
+            # farm records and must not turn a genuinely new cluster into an
+            # "established installation" during the first-run gate.
+            "runtime.json",
+            "security.json",
         }
         for item in root.iterdir():
             if item.name in ignored:
