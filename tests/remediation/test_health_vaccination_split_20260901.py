@@ -80,9 +80,25 @@ def test_backend_exposes_separate_summary_surfaces():
     assert '"animalsWithNoVaccinationHistory"' in s
 
 
-def test_dashboard_backend_preserves_compatibility_and_separate_vaccination_projection():
+def test_dashboard_backend_preserves_compatibility_and_vaccination_projection():
     s = text("src/dairyos/api/dashboard.py")
     assert 'payload["health"]' in s
     assert 'payload["vaccination"]' in s
+    assert '"sick_animals"' in s
+    assert '"due_animals"' in s
     assert '"completed_vaccinations"' in s
     assert '"due_vaccinations"' in s
+
+
+def test_dashboard_cards_show_current_attention_lists_not_lifetime_totals():
+    s = text("src/DairyOS.Web/src/components/UnifiedDashboard.tsx")
+    client = text("src/DairyOS.Web/src/api/commandDashboardClient.ts")
+    assert "sickAnimals" in client
+    assert "dueAnimals" in client
+    assert "No active sick animals" in s
+    assert "No vaccination due dates recorded" in s
+    assert "onNavigate?.('health')" in s
+    assert "onNavigate?.('vaccination')" in s
+    assert "healthData.completedVax" not in s
+    assert "healthData.dueVax" not in s
+    assert "role=\"button\"" in s

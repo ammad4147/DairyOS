@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from sqlalchemy import inspect, text
 
+from dairyos.api.dashboard_attention import project_vaccination_schedule
 from dairyos.api.dependencies import get_container
 from dairyos.assistant.knowledge import GroundedAssistant
 from dairyos.data.database.automatic_backups import read_backup_health
@@ -631,38 +632,22 @@ def get_system_health(container=Depends(get_container)):  # noqa: B008
 def get_vaccination_summary(container=Depends(get_container)):  # noqa: B008
     factory = container.repository_factory
     today = OperationalDateAuthority(repository_factory=factory).current_date()
-    next_30 = today + timedelta(days=30)
 
-    rows = _vaccination_events(container)
-    completed = len(rows)
-    overdue = 0
-    due_next_30 = 0
-    upcoming = []
+    projection = project_vaccination_schedule(
+        container.event_journal.all_events(),
+        today,
+    )
+    completed = int(projection["completed"])
+    schedules = list(projection["schedules"])
+    overdue = int(projection["overdue"])
+    due_next_30 = int(projection["due_next_30_days"])
+    upcoming = schedules
     animals_with_history = set()
 
-    for payload in rows:
+    for payload in _vaccination_events(container):
         animal_id = str(payload.get("animal_id") or "")
         if animal_id:
             animals_with_history.add(animal_id)
-
-        next_due = _as_date(payload.get("next_due_date"))
-        if next_due is None:
-            continue
-        if next_due < today:
-            overdue += 1
-        elif today <= next_due <= next_30:
-            due_next_30 += 1
-
-        upcoming.append({
-            "animal_id": payload.get("animal_id"),
-            "vaccine": payload.get("vaccine") or payload.get("vaccination"),
-            "administered_date": str(payload.get("administered_date") or "")[:10],
-            "next_due_date": next_due.isoformat(),
-            "batch_number": payload.get("batch_number") or payload.get("batch"),
-            "veterinarian": payload.get("veterinarian") or payload.get("operator"),
-        })
-
-    upcoming.sort(key=lambda item: item["next_due_date"])
 
     animal_repo = getattr(container, "animal_repository", None)
     active_animals = []

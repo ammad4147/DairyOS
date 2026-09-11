@@ -2,23 +2,24 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 
+from dairyos.api.dashboard_attention import project_vaccination_schedule
 from dairyos.api.dependencies import get_container
+from dairyos.api.farm_planning import (
+    _current_state_api_value,
+    _resolve_current_reproductive_state,
+)
 from dairyos.api.milk_production_analytics import (
     _production_extremes,
     _yield_drop_watchlist,
 )
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (  # noqa: E501
     MilkProductionTrendIntelligenceService,
-)
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
 )
 from dairyos.farm.reproduction.services.post_calving_return_service import (
     reconcile_due_post_calving_returns,
 )
-from dairyos.api.farm_planning import (
-    _current_state_api_value,
-    _resolve_current_reproductive_state,
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 router = APIRouter(tags=["Dashboard"])
@@ -43,7 +44,7 @@ def _record_day(value) -> date | None:
     if not text:
         return None
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+        return datetime.fromisoformat(text).date()
     except ValueError:
         try:
             return date.fromisoformat(text[:10])
@@ -51,23 +52,99 @@ def _record_day(value) -> date | None:
             return None
 
 
-def _vaccination_dashboard_counts(container, operational_date: date) -> tuple[int, int]:
-    """Project completed and currently-due vaccination records from the journal."""
-    completed = 0
-    due = 0
-    for event in container.event_journal.all_events():
-        if event.name != "OperationalInputReceived":
+def _vaccination_dashboard_projection(
+    container,
+    operational_date: date,
+    active_animal_ids: set[str] | None = None,
+):
+    """Project current vaccination schedules from the durable event journal."""
+    return project_vaccination_schedule(
+        container.event_journal.all_events(),
+        operational_date,
+        active_animal_ids=active_animal_ids,
+    )
+
+
+def _vaccination_dashboard_counts(
+    container,
+    operational_date: date,
+    active_animal_ids: set[str] | None = None,
+) -> tuple[int, int]:
+    """Keep the legacy counts while deriving due work from current schedules."""
+    projection = _vaccination_dashboard_projection(
+        container,
+        operational_date,
+        active_animal_ids=active_animal_ids,
+    )
+    return int(projection["completed"]), len(projection["due"])
+
+
+_HEALTH_SEVERITY_RANK = {
+    "CRITICAL": 5,
+    "SEVERE": 4,
+    "HIGH": 4,
+    "MODERATE": 3,
+    "MEDIUM": 3,
+    "LOW": 2,
+    "NORMAL": 1,
+}
+
+
+def _health_dashboard_animals(
+    cases,
+    operational_date: date,
+    active_animal_ids: set[str] | None = None,
+) -> list[dict]:
+    """Return one current open-case row per active animal for the dashboard."""
+    latest: dict[str, tuple[tuple, dict]] = {}
+    for position, case in enumerate(cases):
+        if str(getattr(case, "status", "") or "").upper() == "RESOLVED":
             continue
-        event_payload = dict(event.payload or {})
-        if str(event_payload.get("input_type") or "").lower() != "vaccination":
+        animal_id = str(getattr(case, "animal_id", "") or "").strip()
+        if not animal_id:
             continue
-        if str(event_payload.get("status") or "COMPLETED").upper() == "VOID":
+        if active_animal_ids is not None and animal_id not in active_animal_ids:
             continue
-        completed += 1
-        next_due_date = _record_day(event_payload.get("next_due_date"))
-        if next_due_date is not None and next_due_date <= operational_date:
-            due += 1
-    return completed, due
+
+        severity = str(getattr(case, "severity", "") or "NORMAL").upper()
+        opened_at = getattr(case, "opened_at", None)
+        opened_day = _record_day(opened_at) or date.min
+        follow_up = getattr(case, "follow_up_due_at", None)
+        follow_up_day = _record_day(follow_up)
+        row = {
+            "animal_id": animal_id,
+            "diagnosis": str(getattr(case, "diagnosis", "") or "Unspecified"),
+            "severity": severity,
+            "opened_at": (
+                opened_at.isoformat()
+                if isinstance(opened_at, datetime)
+                else str(opened_at or "")
+            ),
+            "follow_up_due_at": (
+                follow_up.isoformat()
+                if isinstance(follow_up, datetime)
+                else str(follow_up or "")
+            ),
+        }
+        rank = (
+            _HEALTH_SEVERITY_RANK.get(severity, 1),
+            1 if follow_up_day is not None and follow_up_day <= operational_date else 0,
+            opened_day,
+            position,
+        )
+        previous = latest.get(animal_id)
+        if previous is None or rank > previous[0]:
+            latest[animal_id] = (rank, row)
+
+    rows = [row for _, row in latest.values()]
+    rows.sort(
+        key=lambda item: (
+            -_HEALTH_SEVERITY_RANK.get(str(item["severity"]).upper(), 1),
+            item["follow_up_due_at"] or "9999-12-31",
+            item["animal_id"],
+        )
+    )
+    return rows
 
 
 @router.get("/dashboard")
@@ -85,6 +162,11 @@ def get_dashboard(container=Depends(get_container)):
         else container.repository_factory.finance()
     )
     active_animals = animal_repository.active_animals()
+    active_animal_ids = {
+        str(getattr(animal, "animal_id", "") or "").strip()
+        for animal in active_animals
+        if getattr(animal, "animal_id", None)
+    }
     finance_rows = finance_repository.get_all()
     receivable_rows = [
         row for row in finance_rows
@@ -95,9 +177,13 @@ def get_dashboard(container=Depends(get_container)):
     operational_date = OperationalDateAuthority(
         repository_factory=container.repository_factory,
     ).current_date()
-    completed_vaccinations, due_vaccinations = _vaccination_dashboard_counts(
-        container, operational_date
+    vaccination_projection = _vaccination_dashboard_projection(
+        container,
+        operational_date,
+        active_animal_ids=active_animal_ids,
     )
+    completed_vaccinations = int(vaccination_projection["completed"])
+    due_vaccinations = len(vaccination_projection["due"])
 
     health_cases = container.repository_factory.health_cases().get_all()
     open_health_cases = [
@@ -123,6 +209,11 @@ def get_dashboard(container=Depends(get_container)):
             or 0.0
         ) >= 39.5
     }
+    health_dashboard_animals = _health_dashboard_animals(
+        open_health_cases,
+        operational_date,
+        active_animal_ids=active_animal_ids,
+    )
 
     breeding_records = container.repository_factory.breeding().get_all()
     records_by_animal = {}
@@ -294,6 +385,7 @@ def get_dashboard(container=Depends(get_container)):
     payload["finance"] = dashboard["finance"]
     payload["health"] = {
         "sick": len(open_health_animals),
+        "sick_animals": health_dashboard_animals,
         "mastitis": len(mastitis_animals),
         "highTemp": len(high_temperature_animals),
         "completedVax": completed_vaccinations,
@@ -309,6 +401,7 @@ def get_dashboard(container=Depends(get_container)):
     payload["vaccination"] = {
         "completed": completed_vaccinations,
         "due": due_vaccinations,
+        "due_animals": list(vaccination_projection["schedules"]),
         "completed_vaccinations": completed_vaccinations,
         "due_vaccinations": due_vaccinations,
         "data_status": "LIVE_PERSISTED_DATA",

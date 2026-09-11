@@ -12,6 +12,22 @@ export interface HerdCategory {
   color?: string;
 }
 
+export interface DashboardSickAnimal {
+  animalId: string;
+  diagnosis: string;
+  severity: string;
+  openedAt: string;
+  followUpDueAt: string;
+}
+
+export interface DashboardVaccinationDue {
+  animalId: string;
+  vaccine: string;
+  administeredDate: string;
+  nextDueDate: string;
+  dueState: 'OVERDUE' | 'DUE_TODAY' | 'SCHEDULED' | string;
+}
+
 export interface CommandDashboardData {
   todayLiters: number;
   yesterdayLiters: number;
@@ -45,6 +61,10 @@ export interface CommandDashboardData {
     highTemp: number;
     completedVax: number;
     dueVax: number;
+    sickAnimals: DashboardSickAnimal[];
+  };
+  vaccination: {
+    dueAnimals: DashboardVaccinationDue[];
   };
   reproduction: {
     inseminated: number;
@@ -95,6 +115,10 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
     highTemp: 0,
     completedVax: 0,
     dueVax: 0,
+    sickAnimals: [],
+  },
+  vaccination: {
+    dueAnimals: [],
   },
   reproduction: {
     inseminated: 0,
@@ -247,6 +271,9 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
 
   const rawHealth =
     raw?.health || dashboard.health || {};
+
+  const rawVaccination =
+    raw?.vaccination || dashboard.vaccination || {};
 
   const rawReproduction =
     raw?.reproduction || dashboard.reproduction || {};
@@ -507,6 +534,30 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
           rawHealth.dueVax ??
           0,
         ),
+
+      sickAnimals:
+        Array.isArray(rawHealth.sick_animals)
+          ? rawHealth.sick_animals.map((item: any) => ({
+              animalId: String(item?.animal_id || ''),
+              diagnosis: String(item?.diagnosis || 'Unspecified'),
+              severity: String(item?.severity || 'NORMAL'),
+              openedAt: String(item?.opened_at || ''),
+              followUpDueAt: String(item?.follow_up_due_at || ''),
+            }))
+          : [],
+    },
+
+    vaccination: {
+      dueAnimals:
+        Array.isArray(rawVaccination.due_animals)
+          ? rawVaccination.due_animals.map((item: any) => ({
+              animalId: String(item?.animal_id || ''),
+              vaccine: String(item?.vaccine || 'Vaccination'),
+              administeredDate: String(item?.administered_date || ''),
+              nextDueDate: String(item?.next_due_date || ''),
+              dueState: String(item?.due_state || 'SCHEDULED'),
+            }))
+          : [],
     },
 
     reproduction: {

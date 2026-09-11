@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import UTC, datetime, timedelta
+
 from tests.helpers.breeding import post_breeding
 
 
@@ -48,6 +49,12 @@ def test_open_health_case_is_live_on_dashboard(client):
     assert health["sick"] >= 1
     assert health["mastitis"] >= 1
     assert health["openCases"] >= 1
+    sick_animals = [
+        row for row in health["sick_animals"]
+        if row["animal_id"] == animal_id
+    ]
+    assert len(sick_animals) == 1
+    assert sick_animals[0]["diagnosis"] == "Mastitis"
     assert health["data_status"] == "LIVE_PERSISTED_DATA"
 
 
@@ -59,7 +66,7 @@ def test_insemination_is_live_on_dashboard(client):
         "insemination",
         "COMPLETED",
         technician="AUDIT-TECH",
-        timestamp=date.today().isoformat(),
+        timestamp=datetime.now(UTC).date().isoformat(),
         operator="AUDIT-TECH",
     )
     assert response.status_code == 200, response.text
@@ -78,13 +85,14 @@ def test_insemination_is_live_on_dashboard(client):
 
 def test_vaccination_is_live_on_dashboard(client):
     animal_id = _animal(client, "DASH-HEALTH-VAX-001")
+    today = datetime.now(UTC).date()
     response = client.post(
         f"/farm/animals/{animal_id}/vaccinations",
         json={
             "vaccine": "FMD",
             "dose": "2 ml",
-            "administered_date": date.today().isoformat(),
-            "next_due_date": date.today().isoformat(),
+            "administered_date": today.isoformat(),
+            "next_due_date": today.isoformat(),
             "batch_number": "FMD-AUDIT-001",
             "veterinarian": "AUDIT-VET",
             "operator": "AUDIT-VET",
@@ -99,4 +107,51 @@ def test_vaccination_is_live_on_dashboard(client):
     assert health["completed_vaccinations"] == health["completedVax"]
     assert health["dueVax"] >= 1
     assert health["due_vaccinations"] == health["dueVax"]
+    due_animals = [
+        row for row in dashboard.json()["vaccination"]["due_animals"]
+        if row["animal_id"] == animal_id
+    ]
+    assert len(due_animals) == 1
+    assert due_animals[0]["next_due_date"] == today.isoformat()
+    assert due_animals[0]["due_state"] == "DUE_TODAY"
     assert health["data_status"] == "LIVE_PERSISTED_DATA"
+
+
+def test_dashboard_replaces_old_vaccination_schedule_after_new_record(client):
+    animal_id = _animal(client, "DASH-HEALTH-VAX-LATEST-001")
+    today = datetime.now(UTC).date()
+    old_due = today.replace(day=1)
+    if old_due >= today:
+        old_due = today - timedelta(days=1)
+    first = client.post(
+        f"/farm/animals/{animal_id}/vaccinations",
+        json={
+            "vaccine": "FMD",
+            "administered_date": (today - timedelta(days=180)).isoformat(),
+            "next_due_date": old_due.isoformat(),
+            "operator": "AUDIT-VET",
+        },
+    )
+    assert first.status_code == 200, first.text
+    new_due = today + timedelta(days=30)
+    second = client.post(
+        f"/farm/animals/{animal_id}/vaccinations",
+        json={
+            "vaccine": "FMD",
+            "administered_date": today.isoformat(),
+            "next_due_date": new_due.isoformat(),
+            "operator": "AUDIT-VET",
+        },
+    )
+    assert second.status_code == 200, second.text
+
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200, dashboard.text
+    rows = [
+        row for row in dashboard.json()["vaccination"]["due_animals"]
+        if row["animal_id"] == animal_id
+    ]
+    assert len(rows) == 1
+    assert rows[0]["animal_id"] == animal_id
+    assert rows[0]["next_due_date"] == new_due.isoformat()
+    assert rows[0]["due_state"] == "SCHEDULED"

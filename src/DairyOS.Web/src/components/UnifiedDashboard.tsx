@@ -388,7 +388,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           a => a.id === selectedDropAlertId
         ) || null
       : null;
-  const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0 };
+  const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0, sickAnimals:[] };
+  const sickAnimals = healthData.sickAnimals || [];
+  const vaccinationData = data?.vaccination || { dueAnimals:[] };
+  const dueVaccinations = vaccinationData.dueAnimals || [];
   const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; } | undefined;
   const reproData = {
     inseminated: reproSource?.inseminated ?? 0,
@@ -980,7 +983,48 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   disabled={maximumExtremePopulation === 0}
   style={selectStyle}
 >{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
-          <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}><div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#ef4444',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('health')}><HeartPulse size={15}/> Clinical Health</div><div style={healthBox}><span style={{fontWeight:800,color:'#fca5a5',fontSize:10}}><b style={{background:'#ef4444',color:'#fff',padding:'2px 4px',borderRadius:4,fontSize:8,marginRight:5}}>SICK</b>{healthData.sick} ANIMALS</span><span style={{fontSize:10,color:'#f87171'}}>Mastitis: {healthData.mastitis} | Temp: {healthData.highTemp}</span></div></div><div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('vaccination')}><ShieldCheck size={15}/> Vaccination Operations</div><div style={{...healthBox,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}><span style={{fontWeight:800,color:'#86efac',fontSize:10}}>PREVENTIVE</span><span style={{fontSize:10,color:'#cbd5e1'}}>Given: <b>{healthData.completedVax}</b> | Due: <b style={{color:'#fcd34d'}}>{healthData.dueVax}</b></span></div></div></div>
+          <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
+            <div
+              className="cmd-card"
+              role="button"
+              tabIndex={0}
+              aria-label="Open Clinical Health"
+              onClick={()=>onNavigate?.('health')}
+              onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('health')}}}
+              style={{...cardBase,minWidth:0,cursor:'pointer'}}
+            >
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#ef4444',fontWeight:800,fontSize:12,marginBottom:6}}>
+                <span style={{display:'flex',alignItems:'center',gap:6}}><HeartPulse size={15}/> Clinical Health</span>
+                <span style={{fontSize:9,color:'#fca5a5'}}>{sickAnimals.length} active</span>
+              </div>
+              <div style={attentionList}>
+                {sickAnimals.length===0
+                  ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No active sick animals</div>
+                  : sickAnimals.slice(0,8).map(item=><div key={item.animalId} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#fca5a5',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.diagnosis}</span><span style={{color:'#f87171',fontSize:8,fontWeight:800}}>{item.severity}</span></div>)}
+                {sickAnimals.length>8&&<div style={attentionMore}>+{sickAnimals.length-8} more · Open Clinical Health</div>}
+              </div>
+            </div>
+            <div
+              className="cmd-card"
+              role="button"
+              tabIndex={0}
+              aria-label="Open Vaccination"
+              onClick={()=>onNavigate?.('vaccination')}
+              onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('vaccination')}}}
+              style={{...cardBase,minWidth:0,cursor:'pointer'}}
+            >
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6}}>
+                <span style={{display:'flex',alignItems:'center',gap:6}}><ShieldCheck size={15}/> Vaccination Operations</span>
+                <span style={{fontSize:9,color:'#86efac'}}>{dueVaccinations.length} scheduled</span>
+              </div>
+              <div style={{...attentionList,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}>
+                {dueVaccinations.length===0
+                  ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No vaccination due dates recorded</div>
+                  : dueVaccinations.slice(0,8).map(item=><div key={`${item.animalId}-${item.vaccine}-${item.nextDueDate}`} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#cbd5e1',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.vaccine}</span><span style={{color:item.dueState==='OVERDUE'?'#f87171':item.dueState==='DUE_TODAY'?'#fcd34d':'#86efac',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>{item.nextDueDate}</span></div>)}
+                {dueVaccinations.length>8&&<div style={attentionMore}>+{dueVaccinations.length-8} more · Open Vaccination</div>}
+              </div>
+            </div>
+          </div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
             <div className="cmd-card" style={{...cardBase,minWidth:0}}>
               <div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div>
@@ -1008,4 +1052,6 @@ const panel:React.CSSProperties={background:'#0b1120',border:'1px solid #1e293b'
 const graphTitle:React.CSSProperties={fontSize:10,color:'#94a3b8',fontWeight:800,display:'flex',alignItems:'center',gap:4};
 const selectStyle:React.CSSProperties={background:'#161f30',color:'#cbd5e1',border:'1px solid #374151',borderRadius:4,fontSize:9,padding:'1px 4px'};
 const cardBase:React.CSSProperties={background:'#111827',border:'1px solid #1f2937',borderRadius:8,padding:10,minHeight:0,minWidth:0,overflow:'hidden'};
-const healthBox:React.CSSProperties={display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,background:'rgba(239,68,68,.10)',border:'1px solid rgba(239,68,68,.3)',padding:'6px 8px',borderRadius:6};
+const attentionList:React.CSSProperties={display:'flex',flexDirection:'column',gap:3,background:'rgba(239,68,68,.10)',border:'1px solid rgba(239,68,68,.3)',padding:'5px 6px',borderRadius:6,minHeight:0,overflowY:'auto'};
+const attentionRow:React.CSSProperties={display:'grid',gridTemplateColumns:'minmax(66px,.8fr) minmax(0,1.25fr) auto',alignItems:'center',gap:4,background:'#161f30',padding:'3px 4px',borderRadius:3,minWidth:0};
+const attentionMore:React.CSSProperties={fontSize:8,color:'#94a3b8',textAlign:'center',paddingTop:2};

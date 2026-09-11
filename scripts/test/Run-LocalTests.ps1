@@ -118,7 +118,17 @@ foreach ($name in @(
     "DAIRYOS_DB_PORT",
     "DAIRYOS_DB_NAME",
     "DAIRYOS_DB_USER",
-    "DAIRYOS_DB_PASSWORD"
+    "DAIRYOS_DB_PASSWORD",
+    "DAIRYOS_DATA_DIR",
+    "DAIRYOS_INSTALL_ROOT",
+    "DAIRYOS_INSTALLATION_STATE",
+    "DAIRYOS_RUNTIME_LOG_DIR",
+    "DAIRYOS_BACKEND_LOG",
+    "DAIRYOS_BACKUP_MIRROR_ROOT",
+    "DAIRYOS_RECOVERY_ROOT",
+    "DAIRYOS_BACKUP_SEARCH_ROOTS",
+    "DAIRYOS_PREFLIGHT_REPORT",
+    "DAIRYOS_PRIVATE_POSTGRES_DATA"
 )) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
@@ -171,8 +181,21 @@ try {
     }
 
     # The application reads these values during module import, so they must be
-    # set before pytest imports dairyos.app through tests/conftest.py.
+    # set before pytest imports dairyos.app through tests/conftest.py. Every
+    # mutable DairyOS filesystem path is redirected into this disposable test
+    # root. In particular, never inherit an installed production
+    # DAIRYOS_DATA_DIR or DAIRYOS_INSTALL_ROOT into a local test process.
     $env:DAIRYOS_ENV = "development"
+    $env:DAIRYOS_DATA_DIR = Join-Path $testRoot "DairyOS-data"
+    $env:DAIRYOS_INSTALL_ROOT = Join-Path $testRoot "DairyOS-install"
+    $env:DAIRYOS_INSTALLATION_STATE = Join-Path $testRoot "installation_state.json"
+    $env:DAIRYOS_RUNTIME_LOG_DIR = Join-Path $testRoot "logs"
+    $env:DAIRYOS_BACKEND_LOG = Join-Path $testRoot "logs\backend.log"
+    $env:DAIRYOS_BACKUP_MIRROR_ROOT = Join-Path $testRoot "backup-mirror"
+    $env:DAIRYOS_RECOVERY_ROOT = Join-Path $testRoot "recovery"
+    $env:DAIRYOS_BACKUP_SEARCH_ROOTS = Join-Path $testRoot "backup-search"
+    $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $testRoot "preflight.json"
+    $env:DAIRYOS_PRIVATE_POSTGRES_DATA = Join-Path $testRoot "private-postgres"
     $env:DAIRYOS_DB_HOST = "127.0.0.1"
     $env:DAIRYOS_DB_PORT = "$port"
     $env:DAIRYOS_DB_NAME = "dairyos_test"
