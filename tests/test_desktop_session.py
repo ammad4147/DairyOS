@@ -10,11 +10,12 @@ from dairyos.middleware.desktop_session import enforce_desktop_session
 
 
 @pytest.mark.anyio
-async def test_service_worker_is_public_static_asset_in_production(monkeypatch):
+@pytest.mark.parametrize("path", ["/serviceWorker.js", "/manifest.json", "/dairyos-cow.svg"])
+async def test_public_pwa_static_assets_are_available_in_production(monkeypatch, path):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     request = SimpleNamespace(
         method="GET",
-        url=SimpleNamespace(path="/serviceWorker.js"),
+        url=SimpleNamespace(path=path),
         headers={},
         base_url="http://127.0.0.1:8123/",
     )

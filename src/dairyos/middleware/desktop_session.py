@@ -21,6 +21,8 @@ async def enforce_desktop_session(request, call_next):
             "/health",
             "/readiness",
             "/favicon.ico",
+            "/manifest.json",
+            "/dairyos-cow.svg",
             "/serviceWorker.js",
         }
         or path.startswith("/assets/")
