@@ -232,6 +232,7 @@ def set_coml_settings(payload: COMLReminderSettings, current_user=Depends(get_op
 def get_integrated_coml(
     period_start: date | None = None,
     period_end: date | None = None,
+    allow_current_period: bool = False,
     container=Depends(get_container),
 ):
     """
@@ -262,7 +263,7 @@ def get_integrated_coml(
     )
 
     latest_completed_date = today - timedelta(days=1)
-    if requested_end > latest_completed_date:
+    if requested_end > latest_completed_date and not allow_current_period:
         raise HTTPException(
             status_code=422,
             detail=(

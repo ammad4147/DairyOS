@@ -48,6 +48,16 @@ def _service():
         "revenue_received": 14000.0,
         "expenses": 5000.0,
     }
+    service._cop_snapshot = lambda digest_date: {
+        "status": "COMPLETE",
+        "feed_total": 24000.0,
+        "feed_cost_per_liter": 266.6667,
+        "opex_total": 5000.0,
+        "opex_cost_per_liter": 55.5556,
+        "total_cop_per_liter": 322.2223,
+        "feed_complete": True,
+        "missing_days": [],
+    }
     service._active_warnings = lambda: ["Milk reconciliation exception"]
     return service
 
@@ -79,6 +89,11 @@ def test_daily_summary_contains_approved_operational_sections():
     assert "Male Calves: 2" in body
     assert "Bulls: 1" in body
     assert "Active health Alerts: 2" in body
+    assert "COST OF PRODUCTION" in body
+    assert "Feed Cost: PKR 24,000.00" in body
+    assert "Feed Cost/L: PKR 266.67" in body
+    assert "Total COP/L: PKR 322.22" in body
+    assert "COP data status: COMPLETE" in body
     assert "Any Mortalities? Yes" in body
     assert "Animal ID: AN-099" in body
     assert "FINANCIAL SNAPSHOT" in body

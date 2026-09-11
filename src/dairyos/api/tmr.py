@@ -757,7 +757,7 @@ def lock_daily_tmr_cost_snapshot(
 
     The snapshot freezes the governed TMR formulation, ingredient prices,
     DairyOS herd-category population and resulting category/whole-herd cost
-    at the time of the noon lock.
+    at the pre-summary lock.
 
     Repeated calls for the same operational date are idempotent and return
     the original snapshot. Vet endorsement is deliberately unrelated to
@@ -794,7 +794,7 @@ def lock_daily_tmr_cost_snapshot(
         "kind": "TMR_DAILY_COST_SNAPSHOT",
         "operational_date": selected_date.isoformat(),
         "locked_at": authority.current_datetime().isoformat(),
-        "basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_NOON",
+        "basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_23_00",
         "herd_counts": live["herd_counts"],
         "categories": live["categories"],
         "stages": live["stages"],
@@ -819,7 +819,7 @@ def lock_daily_tmr_cost_snapshot(
         energy_mcal_kg=None,
         cost_per_kg=None,
         effective_date=selected_date.isoformat(),
-        operator="TMR_DAILY_NOON_LOCK",
+        operator="TMR_DAILY_23_00_LOCK",
     )
 
     factory.feed_rations().add(record)
@@ -841,7 +841,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
     """
     Return persisted daily TMR feed cost for the requested operational period.
 
-    Calculation authority is the immutable daily noon snapshot only.
+    Calculation authority is the immutable daily pre-summary snapshot only.
     Weekly veterinary endorsement is review/advisory metadata and never
     contributes to COP.
 
@@ -863,7 +863,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
             "locked_days": 0,
             "complete": True,
             "missing_authority_days": [],
-            "source": "TMR_DAILY_NOON_SNAPSHOT",
+            "source": "TMR_DAILY_23_00_SNAPSHOT",
             "requested_period": {
                 "start": start.isoformat(),
                 "end": requested_end.isoformat(),
@@ -885,7 +885,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
     }
 
     # Today's governed TMR remains the live calculation authority until
-    # the noon snapshot is persisted. Once today's snapshot exists, that
+    # the pre-summary snapshot is persisted. Once today's snapshot exists, that
     # immutable record replaces the provisional live value automatically.
     live_today = None
     if start <= today <= effective_end and today.isoformat() not in by_date:
@@ -923,7 +923,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
             )
             total += amount
             provisional_days += 1
-            basis = "LIVE_TMR_PENDING_NOON_LOCK"
+            basis = "LIVE_TMR_PENDING_23_00_LOCK"
             record_id = None
             locked_at = None
 
@@ -963,7 +963,7 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         "provisional_days": provisional_days,
         "complete": complete,
         "missing_authority_days": missing_authority_days,
-        "source": "TMR_DAILY_NOON_SNAPSHOT",
+        "source": "TMR_DAILY_23_00_SNAPSHOT",
         "requested_period": {
             "start": start.isoformat(),
             "end": requested_end.isoformat(),

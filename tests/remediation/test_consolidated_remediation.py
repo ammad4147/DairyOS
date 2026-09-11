@@ -64,6 +64,6 @@ def test_fail_closed_and_historical_authority_contracts():
 
     assert "WEEKLY_VET_ENDORSED_TMR" not in period_block
     assert "_endorsement_snapshots(" not in period_block
-    assert 'basis = "LIVE_TMR_PENDING_NOON_LOCK"' in period_block
+    assert 'basis = "LIVE_TMR_PENDING_23_00_LOCK"' in period_block
     assert "UNENDORSED_LIVE_TMR_FALLBACK" not in period_block
     assert 'Feed operational date authority is unavailable' in feed

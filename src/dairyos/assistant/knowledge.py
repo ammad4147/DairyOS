@@ -558,6 +558,29 @@ class GroundedAssistant:
         cleaned = question.strip()
         matches = self.search(cleaned)
         if not matches:
+            lowered = cleaned.lower()
+            if any(phrase in lowered for phrase in ("what does dairyos do", "what is dairyos", "what can dairyos do", "what can i do in dairyos")):
+                return {
+                    "question": cleaned,
+                    "answer_type": "INFORMATION",
+                    "scope": "DairyOS operational guidance",
+                    "title": "DairyOS capability overview",
+                    "answer": "DairyOS records and connects farm operations: animals, milk production, feed and TMR, health, breeding, inventory, equipment, workforce, Finance, COP, dashboards, backups, and recovery.",
+                    "expanded_explanation": "Each operational entry is persisted through its governed authority and may propagate to related dashboards, ledgers, animal passports, alerts, reports, or calculations. DairyOS can explain procedures, calculation rules, data destinations, safety boundaries, and troubleshooting steps, but this read-only Assistant does not perform farm writes.",
+                    "role": role if role in _ROLES else "Operator",
+                    "role_guidance": {r: "Ask about the DairyOS module, record, calculation, or problem you need to understand." for r in _ROLES},
+                    "selected_role_guidance": "Ask for a module, record type, calculation, or symptom and I will explain the governed path.",
+                    "preconditions": ["Name the farm area or record you want to understand."],
+                    "steps": ["Ask the question in plain language.", "Include a date or visible error when troubleshooting.", "Follow the displayed governed procedure and verify the expected result."],
+                    "expected_result": "A capability-aware answer with the relevant data authority, downstream effects, and safety boundary.",
+                    "next_actions": ["Ask about a specific module or calculation."],
+                    "exceptions_recovery": ["If the capability is not yet covered, the Assistant will say so and identify the missing context."],
+                    "effects": ["Answers are grounded in the local DairyOS knowledge corpus; no live farm records are read."],
+                    "safety": "Do not use the read-only Assistant to authorise destructive actions, clinical decisions, financial commitments, or operational writes.",
+                    "sources": ["DairyOS capability catalog", "DairyOS Assistant knowledge corpus"],
+                    "related": [],
+                    "coverage": self.coverage(),
+                }
             return {
                 "question": cleaned,
                 "answer_type": "INSUFFICIENT_COVERAGE",

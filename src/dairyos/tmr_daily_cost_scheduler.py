@@ -1,11 +1,11 @@
-"""Farm-local daily noon whole-herd TMR cost lock."""
+"""Farm-local daily pre-summary whole-herd TMR cost lock."""
 
 from __future__ import annotations
 
 import logging
 import threading
 from collections.abc import Callable
-from datetime import time
+from datetime import timedelta, time
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
@@ -16,7 +16,10 @@ from dairyos.farm.settings.services.operational_date_authority import (
 
 log = logging.getLogger(__name__)
 
-RUN_AFTER_LOCAL_TIME = time(12, 0)
+# The nightly operational summary is finalized at 23:00 farm-local time.
+# Lock the completed day's TMR cost shortly before that report slot so the
+# summary consumes a stable, end-of-day authority.
+RUN_AFTER_LOCAL_TIME = time(22, 55)
 
 
 class DailyTMRCostScheduler:
@@ -42,7 +45,7 @@ class DailyTMRCostScheduler:
 
         self._stop.clear()
 
-        # Catch up if DairyOS starts after farm-local noon.
+        # Catch up if DairyOS starts after the previous farm-local summary slot.
         self._run_if_due()
 
         self._thread = threading.Thread(
@@ -89,19 +92,20 @@ class DailyTMRCostScheduler:
 
             now = authority.current_datetime()
 
-            if (
-                now.time().replace(tzinfo=None)
-                < self.run_after_local_time
-            ):
-                return False
-
             from dairyos.api.tmr import (
                 lock_daily_tmr_cost_snapshot,
             )
 
+            operational_date = authority.current_date()
+            # Before tonight's 22:55 lock window, a startup belongs to the
+            # catch-up path for yesterday. Once the window opens, finalize
+            # today's completed operational record for the 23:00 summary.
+            if now.time().replace(tzinfo=None) < self.run_after_local_time:
+                operational_date -= timedelta(days=1)
+
             result = lock_daily_tmr_cost_snapshot(
                 factory,
-                operational_date=authority.current_date(),
+                operational_date=operational_date,
             )
 
             if result.get("created"):

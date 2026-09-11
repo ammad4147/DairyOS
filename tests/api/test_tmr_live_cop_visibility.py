@@ -16,7 +16,7 @@ def test_today_uses_live_tmr_until_daily_lock_exists():
     ]
 
     assert "live_today = build_live_tmr_summary(" in block
-    assert 'basis = "LIVE_TMR_PENDING_NOON_LOCK"' in block
+    assert 'basis = "LIVE_TMR_PENDING_23_00_LOCK"' in block
     assert 'basis = "LOCKED_DAILY_TMR"' in block
     assert 'basis = "DAILY_TMR_SNAPSHOT_MISSING"' in block
 

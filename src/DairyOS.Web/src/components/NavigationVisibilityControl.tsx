@@ -9,6 +9,12 @@ interface NavigationVisibilityControlProps {
   onHiddenNavigationTabsChange?: (hiddenTabs: NavigationTabId[]) => void;
   onError: (message: string) => void;
   onMessage: (message: string) => void;
+  resetPassword: string;
+  resetConfirm: string;
+  resetLoading: boolean;
+  onResetPasswordChange: (value: string) => void;
+  onResetConfirmChange: (value: string) => void;
+  onRequestSystemReset: () => void;
 }
 
 type CredentialStatus = {
@@ -61,6 +67,12 @@ export default function NavigationVisibilityControl({
   onHiddenNavigationTabsChange,
   onError,
   onMessage,
+  resetPassword,
+  resetConfirm,
+  resetLoading,
+  onResetPasswordChange,
+  onResetConfirmChange,
+  onRequestSystemReset,
 }: NavigationVisibilityControlProps) {
   const [navigationToken, setNavigationToken] = useState(
     () => sessionStorage.getItem(NAV_AUTH_KEY) || '',
@@ -398,6 +410,14 @@ export default function NavigationVisibilityControl({
                 {credentialStatus.recovery_configured ? 'Rotate Recovery Code' : 'Generate Recovery Code'}
               </button>
             </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #334155', marginTop: 12, paddingTop: 10 }}>
+            <strong style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: '#fca5a5' }}><span aria-hidden="true">⚠</span>Reset to Zero State</strong>
+            <div style={{ color: '#fecaca', fontSize: 10, margin: '7px 0 10px' }}>This permanently removes operational farm records. A verified recovery snapshot is created first. This control is available only while Navigation Visibility is unlocked.</div>
+            <input type="password" value={resetPassword} onChange={event => onResetPasswordChange(event.target.value)} placeholder="Administrator password" style={field} />
+            <input value={resetConfirm} onChange={event => onResetConfirmChange(event.target.value)} placeholder="Type: RESET DAIRYOS TO ZERO STATE" style={field} />
+            <button type="button" onClick={onRequestSystemReset} disabled={resetLoading || !resetPassword || !resetConfirm} style={{ ...button, background: '#991b1b', opacity: resetLoading || !resetPassword || !resetConfirm ? 0.6 : 1 }}>{resetLoading ? 'Queueing reset…' : 'Queue Reset for Next Start'}</button>
           </div>
         </div>
       )}

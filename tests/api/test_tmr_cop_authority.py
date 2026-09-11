@@ -7,6 +7,7 @@ TMR = ROOT / "src/dairyos/api/tmr.py"
 COML = ROOT / "src/dairyos/api/coml.py"
 FINANCE = ROOT / "src/dairyos/api/finance_ledger.py"
 APP = ROOT / "src/dairyos/app.py"
+SCHEDULER = ROOT / "src/dairyos/tmr_daily_cost_scheduler.py"
 
 
 class TmrCopAuthorityContractTest(unittest.TestCase):
@@ -16,6 +17,14 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         cls.coml = COML.read_text(encoding="utf-8")
         cls.finance = FINANCE.read_text(encoding="utf-8")
         cls.app = APP.read_text(encoding="utf-8")
+        cls.scheduler = SCHEDULER.read_text(encoding="utf-8")
+
+    def test_daily_lock_is_before_the_2300_summary_and_catches_up_after_restart(self):
+        self.assertIn("RUN_AFTER_LOCAL_TIME = time(22, 55)", self.scheduler)
+        self.assertIn("operational_date -= timedelta(days=1)", self.scheduler)
+        # The scheduler must evaluate the prior date after startup before the
+        # lock window; it must not silently return and lose the missed slot.
+        self.assertNotIn("if (\n                now.time().replace(tzinfo=None)\n                < self.run_after_local_time\n            ):\n                return False", self.scheduler)
 
     def test_six_dairyos_categories_are_mapped(self):
         for value in (
@@ -105,11 +114,11 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
             self.tmr,
         )
         self.assertIn(
-            '"basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_NOON"',
+            '"basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_23_00"',
             self.tmr,
         )
         self.assertIn(
-            'operator="TMR_DAILY_NOON_LOCK"',
+            'operator="TMR_DAILY_23_00_LOCK"',
             self.tmr,
         )
 

@@ -11,6 +11,7 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.email.service import EmailService
 from dairyos.api.milk_production_analytics import _yield_drop_watchlist
+from dairyos.api.coml import get_integrated_coml
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
 )
@@ -220,6 +221,39 @@ class DashboardDigestService:
         finally:
             factory.close()
 
+    def _cop_snapshot(self, digest_date: date) -> dict:
+        """Return the governed COP/TMR snapshot for the report date."""
+        try:
+            result = get_integrated_coml(
+                period_start=digest_date,
+                period_end=digest_date,
+                allow_current_period=True,
+                container=self.container,
+            )
+            costs = result.get("costs", {})
+            return {
+                "status": result.get("data_status", "UNKNOWN"),
+                "feed_total": costs.get("feed_total"),
+                "feed_cost_per_liter": costs.get("feed_cost_per_liter"),
+                "opex_total": costs.get("opex_total"),
+                "opex_cost_per_liter": costs.get("opex_cost_per_liter"),
+                "total_cop_per_liter": costs.get("total_coml_per_liter"),
+                "feed_complete": costs.get("feed_source", {}).get("complete"),
+                "missing_days": costs.get("feed_source", {}).get("missing_authority_days", []),
+            }
+        except Exception as exc:
+            return {
+                "status": "UNAVAILABLE",
+                "error": type(exc).__name__,
+                "feed_total": None,
+                "feed_cost_per_liter": None,
+                "opex_total": None,
+                "opex_cost_per_liter": None,
+                "total_cop_per_liter": None,
+                "feed_complete": False,
+                "missing_days": [],
+            }
+
     def _active_warnings(self) -> list[str]:
         factory = RepositoryFactory.create()
         try:
@@ -280,6 +314,7 @@ class DashboardDigestService:
                 )
 
         counts = herd["counts"]
+        cop = self._cop_snapshot(digest_date)
         lines += [
             "",
             "HERD STATUS",
@@ -292,7 +327,17 @@ class DashboardDigestService:
             f"Bulls: {counts['Bull']}",
             "",
             f"Active health Alerts: {health.get('active_exceptions', 0)}",
+            "",
+            "COST OF PRODUCTION",
+            f"Feed Cost: {_money(cop['feed_total']) if cop['feed_total'] is not None else 'Unavailable'}",
+            f"Feed Cost/L: {_money(cop['feed_cost_per_liter']) if cop['feed_cost_per_liter'] is not None else 'Unavailable'}",
+            f"OPEX: {_money(cop['opex_total']) if cop['opex_total'] is not None else 'Unavailable'}",
+            f"OPEX/L: {_money(cop['opex_cost_per_liter']) if cop['opex_cost_per_liter'] is not None else 'Unavailable'}",
+            f"Total COP/L: {_money(cop['total_cop_per_liter']) if cop['total_cop_per_liter'] is not None else 'Unavailable'}",
+            f"COP data status: {cop['status']}",
         ]
+        if cop.get("missing_days"):
+            lines.append("Missing TMR authority days: " + ", ".join(cop["missing_days"]))
 
         mortalities = herd.get("mortalities") or []
         lines.append(f"Any Mortalities? {'Yes' if mortalities else 'No'}")
