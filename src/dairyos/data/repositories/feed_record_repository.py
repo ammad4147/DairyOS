@@ -1,6 +1,5 @@
-from datetime import datetime, time
-
 from ..models.feed_record import FeedRecord
+from dairyos.core.time_utils import utcnow
 
 
 class FeedRecordRepository:
@@ -16,19 +15,11 @@ class FeedRecordRepository:
         if self.session is None:
             return
 
-        try:
-            from dairyos.data.repositories.app_setting_repository import AppSettingRepository
-            from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-
-            operational_date = FarmSettingsService(
-                AppSettingRepository(session=self.session)
-            ).get_operational_date()
-            record.feeding_date = datetime.combine(operational_date, time.min)
-        except Exception as exc:
-            raise RuntimeError(
-                "Feed operational date authority is unavailable; the record was not "
-                "assigned a fallback system date."
-            ) from exc
+        # A compatibility write without an operator timestamp is still a
+        # timestamped receipt event. Never manufacture a historical
+        # operational-day midnight, which falsely implies when feeding took
+        # place and defeats daily event governance.
+        record.feeding_date = utcnow()
 
     def add(self, record):
         self._apply_operational_date(record)

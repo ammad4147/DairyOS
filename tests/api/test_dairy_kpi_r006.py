@@ -3,8 +3,8 @@ def test_r006_kpi_engine_reports_standard_coverage_and_peak_milk(client, registe
         "/farm/milk",
         json={
             "animal_id": registered_animal,
+            "milking_session": "MORNING",
             "morning_yield": 8.0,
-            "afternoon_yield": 7.0,
             "operator": "KPI Operator",
         },
     )
@@ -14,12 +14,23 @@ def test_r006_kpi_engine_reports_standard_coverage_and_peak_milk(client, registe
         "/farm/milk",
         json={
             "animal_id": registered_animal,
-            "morning_yield": 6.0,
-            "afternoon_yield": 5.0,
+            "milking_session": "AFTERNOON",
+            "afternoon_yield": 7.0,
             "operator": "KPI Operator",
         },
     )
     assert second.status_code == 200, second.text
+
+    third = client.post(
+        "/farm/milk",
+        json={
+            "animal_id": registered_animal,
+            "milking_session": "EVENING",
+            "evening_yield": 11.0,
+            "operator": "KPI Operator",
+        },
+    )
+    assert third.status_code == 200, third.text
 
     response = client.get("/farm/kpis/overview?days=30")
     assert response.status_code == 200, response.text

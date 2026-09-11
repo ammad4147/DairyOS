@@ -79,6 +79,7 @@ from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
+from dairyos.data.models.milk_production_correction import MilkProductionCorrection
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
 from dairyos.data.models.operational_finding import OperationalFinding
 from dairyos.data.models.operational_finding_lifecycle_event import (
@@ -91,6 +92,7 @@ from dairyos.data.models.operational_write import (
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.models.treatment_record import TreatmentRecord
+from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.data.models.user import User
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
@@ -151,6 +153,14 @@ def _reset_test_persistence() -> None:
     session.rollback()
 
     try:
+        # Self-referential parentage is intentionally RESTRICT on the
+        # application schema. Break those links first in the disposable
+        # harness so individual parent/child rows can then be removed safely.
+        for animal in session.query(Animal).all():
+            animal.dam_id = None
+            animal.sire_id = None
+        session.flush()
+
         # Dependency order: child/ledger tables first, then primary
         # domain registers and operational projections.
         for model in (
@@ -162,11 +172,14 @@ def _reset_test_persistence() -> None:
             SemenStockMovement,
             BreedingRecordModel,
             SemenLot,
+            VaccinationRecord,
             FinancialTransaction,
             PayrollRecord,
             MilkDisposition,
+            MilkProductionCorrection,
             MilkProduction,
             FeedRecord,
+            TreatmentRecord,
             HealthObservation,
             HealthCase,
             OperationalFindingLifecycleEvent,
@@ -175,7 +188,6 @@ def _reset_test_persistence() -> None:
             User,
             MilkingSessionRecord,
             AppSetting,
-            TreatmentRecord,
             AnimalMilkingScheduleHistory,
             Animal,
             OperationalEventModel,

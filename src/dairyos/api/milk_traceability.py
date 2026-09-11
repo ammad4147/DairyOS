@@ -15,6 +15,9 @@ from dairyos.api.operational_write import operational_write
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
+from dairyos.data.models.milk_production_correction import (
+    MilkProductionCorrection,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
@@ -41,11 +44,14 @@ router = APIRouter(prefix="/farm/milk", tags=["Milk"])
 
 
 class ProductionPatch(BaseModel):
+    request_id: str | None = Field(default=None, min_length=1, max_length=128)
     production_date: date | None = None
     morning_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     afternoon_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     evening_yield: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     notes: str | None = None
+    correction_reason: str | None = Field(default=None, max_length=500)
+    operator: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class DispositionCreate(BaseModel):
@@ -67,11 +73,94 @@ class DispositionPatch(BaseModel):
 
 
 class VoidRequest(BaseModel):
+    request_id: str | None = Field(default=None, min_length=1, max_length=128)
     reason: str = Field(min_length=1, max_length=500)
+    operator: str | None = Field(default=None, min_length=1, max_length=128)
 
 
-def _operator(current_user: dict[str, Any] | None) -> str:
-    return str(current_user["sub"]) if current_user else "API"
+def _operator(
+    current_user: dict[str, Any] | None,
+    fallback: str | None = None,
+) -> str:
+    return str(current_user["sub"]) if current_user else str(fallback or "API")
+
+
+def _meaningful_correction_reason(
+    supplied: str | None,
+    notes: str | None = None,
+) -> str:
+    for value in (supplied, notes):
+        text_value = str(value or "").strip()
+        if text_value:
+            return text_value
+    raise HTTPException(
+        status_code=422,
+        detail="A meaningful correction reason is required.",
+    )
+
+
+def _correction_payload(
+    *,
+    production_id: int,
+    action: str,
+    reason: str,
+    operator: str,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    source_request_id: str | None,
+) -> dict[str, Any]:
+    return {
+        "production_id": production_id,
+        "action": action,
+        "reason": reason,
+        "operator": operator,
+        "before": before,
+        "after": after,
+        "source_request_id": source_request_id,
+    }
+
+
+def _record_milk_correction(
+    *,
+    container,
+    production_id: int,
+    action: str,
+    reason: str,
+    operator: str,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    source_request_id: str | None,
+) -> MilkProductionCorrection:
+    factory = container.repository_factory
+    correction = MilkProductionCorrection(
+        production_id=production_id,
+        action=action,
+        reason=reason,
+        operator=operator,
+        before_json=before,
+        after_json=after,
+        source_request_id=source_request_id,
+    )
+    factory.session.add(correction)
+    factory.session.flush()
+
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(
+            input_type="milk_production_correction",
+            payload=_correction_payload(
+                production_id=production_id,
+                action=action,
+                reason=reason,
+                operator=operator,
+                before=before,
+                after=after,
+                source_request_id=source_request_id,
+            ),
+            actor=operator,
+        )
+
+    return correction
 
 
 def _iso(value):
@@ -321,20 +410,47 @@ def milk_capacity(
 
 
 @router.patch("/production/{record_id}")
+@operational_write
 def update_milk_production(
     record_id: int,
     patch: ProductionPatch,
     container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
 ):
     factory = container.repository_factory
     session = factory.session
-    record = session.get(MilkProduction, record_id)
+    record = (
+        session.query(MilkProduction)
+        .filter(MilkProduction.id == record_id)
+        .with_for_update()
+        .first()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="Milk production record not found")
     if str(record.status).upper() == "VOID":
         raise HTTPException(status_code=409, detail="VOID milk production cannot be edited")
 
-    new_date = patch.production_date or record.production_date.date()
+    reason = _meaningful_correction_reason(
+        patch.correction_reason,
+    )
+    operator = _operator(current_user, patch.operator)
+    original_date = (
+        record.production_date.date()
+        if hasattr(record.production_date, "date")
+        else record.production_date
+    )
+    new_date = patch.production_date or original_date
+    today = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_date()
+    if new_date > today:
+        raise HTTPException(
+            status_code=422,
+            detail="Milk production cannot be corrected to a future date.",
+        )
+
+    before = _production_payload(record)
+
     if record.session_ledger:
         animal = factory.animal().get_by_animal_id(record.animal_id)
         if animal is None:
@@ -374,26 +490,51 @@ def update_milk_production(
     record.notes = patch.notes if patch.notes is not None else record.notes
     record.recorded_at = utcnow()
     record.calculate_total()
-    session.commit()
+    session.add(record)
+    session.flush()
+    after = _production_payload(record)
+    correction = _record_milk_correction(
+        container=container,
+        production_id=record.id,
+        action="UPDATE",
+        reason=reason,
+        operator=operator,
+        before=before,
+        after=after,
+        source_request_id=patch.request_id,
+    )
+    if not session.info.get("operational_write_managed", False):
+        session.commit()
     session.refresh(record)
-    return _production_payload(record)
+    result = _production_payload(record)
+    result["correction_id"] = correction.id
+    return result
 
 
 @router.post("/production/{record_id}/void")
+@operational_write
 def void_milk_production(
     record_id: int,
     request: VoidRequest,
     container=Depends(get_container),
+    current_user: dict[str, Any] | None = Depends(get_optional_current_user),
 ):
     session = container.repository_factory.session
-    record = session.get(MilkProduction, record_id)
+    record = (
+        session.query(MilkProduction)
+        .filter(MilkProduction.id == record_id)
+        .with_for_update()
+        .first()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="Milk production record not found")
     if str(record.status).upper() == "VOID":
         return _production_payload(record)
 
+    reason = _meaningful_correction_reason(request.reason)
+    operator = _operator(current_user, request.operator)
     snapshot = _production_payload(record)
-    record.notes = _append_void_note(record.notes, request.reason, snapshot)
+    record.notes = _append_void_note(record.notes, reason, snapshot)
     # Keep the VOID row permanently visible as audit history while releasing
     # the unique governed-day slot for a future replacement row.
     record.session_ledger = False
@@ -403,9 +544,55 @@ def void_milk_production(
     record.total_yield = None
     record.status = "VOID"
     record.recorded_at = utcnow()
-    session.commit()
+    session.add(record)
+    session.flush()
+    after = _production_payload(record)
+    correction = _record_milk_correction(
+        container=container,
+        production_id=record.id,
+        action="VOID",
+        reason=reason,
+        operator=operator,
+        before=snapshot,
+        after=after,
+        source_request_id=request.request_id,
+    )
+    if not session.info.get("operational_write_managed", False):
+        session.commit()
     session.refresh(record)
-    return _production_payload(record)
+    result = _production_payload(record)
+    result["correction_id"] = correction.id
+    return result
+
+
+@router.get("/production/{record_id}/corrections")
+def milk_production_corrections(
+    record_id: int,
+    container=Depends(get_container),
+):
+    factory = container.repository_factory
+    record = factory.session.get(MilkProduction, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Milk production record not found")
+
+    rows = factory.milk_corrections().get_for_production(record_id)
+    return {
+        "data_status": "LIVE_PERSISTED",
+        "production_id": record_id,
+        "corrections": [
+            {
+                "id": row.id,
+                "action": row.action,
+                "reason": row.reason,
+                "operator": row.operator,
+                "before": row.before_json,
+                "after": row.after_json,
+                "source_request_id": row.source_request_id,
+                "corrected_at": _iso(row.corrected_at),
+            }
+            for row in rows
+        ],
+    }
 
 
 @router.post("/dispositions")

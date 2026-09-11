@@ -6,6 +6,12 @@
 #define AppVersion "0.1.0"
 #define AppPublisher "DairyOS"
 #define AppExeName "DairyOS.exe"
+#ifndef SourceCommit
+  #define SourceCommit "unknown"
+#endif
+#ifndef SourceTree
+  #define SourceTree "unknown"
+#endif
 
 [Setup]
 AppId={{D7F1A4D7-5F15-4CC5-B0D0-DA1A05000001}
@@ -32,6 +38,7 @@ DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
+VersionInfoComments=Source commit {#SourceCommit}; source tree {#SourceTree}
 
 [Files]
 Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -60,9 +67,10 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait po
 [Code]
 var
   DataChoicePage: TWizardPage;
-  UseExistingRadio: TRadioButton;
-  FreshRadio: TRadioButton;
   ExistingDataDetected: Boolean;
+  PreservationDestination: String;
+
+function CreatePreservationPackage(): Boolean; forward;
 
 function DairyOSDataRoot(): String;
 begin
@@ -169,6 +177,38 @@ begin
     );
 end;
 
+procedure ProvisionStorageTreeAcl();
+var
+  StoragePath: String;
+  IcaclsExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  StoragePath := DairyOSDataRoot() + '\storage';
+
+  if not DirExists(StoragePath) then
+    ForceDirectories(StoragePath);
+
+  { Operational JSON projections are mutable state written by the ordinary
+    DairyOS runtime. Scope Modify to this dedicated storage tree; PostgreSQL,
+    credentials and the rest of ProgramData remain protected. }
+  IcaclsExe := ExpandConstant('{sys}\icacls.exe');
+  Params := '"' + StoragePath + '" /grant:r *S-1-5-32-545:(OI)(CI)(M) /T /C';
+
+  if (not Exec(
+    IcaclsExe,
+    Params,
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS operational storage permissions could not be provisioned. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
 procedure ProvisionAutomaticBackupTask();
 var
   BackupExe: String;
@@ -224,6 +264,7 @@ begin
   begin
     ProvisionLifecycleState();
     ProvisionLifecycleManifestAcl();
+    ProvisionStorageTreeAcl();
     ProvisionBackupTreeAcl();
     ProvisionAutomaticBackupTask();
   end;
@@ -255,7 +296,7 @@ begin
   DataChoicePage := CreateCustomPage(
     wpSelectDir,
     'DairyOS Farm Data',
-    'Choose how DairyOS should use farm data on this computer.'
+    'Review how this installation will use farm data on this computer.'
   );
 
   Intro := TNewStaticText.Create(DataChoicePage);
@@ -276,30 +317,18 @@ begin
     Intro.Caption := 'Existing DairyOS farm data was detected on this computer.';
     Intro.AdjustHeight();
 
-    UseExistingRadio := TRadioButton.Create(DataChoicePage);
-    UseExistingRadio.Parent := DataChoicePage.Surface;
-    UseExistingRadio.Left := ScaleX(12);
-    UseExistingRadio.Top := Intro.Top + Intro.Height + ScaleY(20);
-    UseExistingRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
-    UseExistingRadio.Height := ScaleY(24);
-    UseExistingRadio.Font.Name := 'Segoe UI';
-    UseExistingRadio.Font.Size := 11;
-    UseExistingRadio.Font.Style := [fsBold];
-    UseExistingRadio.Caption := 'Use existing DairyOS data';
-    UseExistingRadio.Checked := True;
-
     ExistingDetail := TNewStaticText.Create(DataChoicePage);
     ExistingDetail.Parent := DataChoicePage.Surface;
-    ExistingDetail.Left := ScaleX(34);
-    ExistingDetail.Top := UseExistingRadio.Top + UseExistingRadio.Height + ScaleY(4);
+    ExistingDetail.Left := ScaleX(12);
+    ExistingDetail.Top := Intro.Top + Intro.Height + ScaleY(20);
     ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
     ExistingDetail.AutoSize := False;
     ExistingDetail.WordWrap := True;
     ExistingDetail.Font.Name := 'Segoe UI';
     ExistingDetail.Font.Size := 10;
     ExistingDetail.Caption :=
-      'Reinstall the DairyOS application and reconnect to the existing farm database. ' +
-      'Existing farm data is retained.';
+      'INSTALLER STATUS: the existing farm database and ProgramData records will be retained. ' +
+      'Setup does not provide a data-selection or reset command.';
     ExistingDetail.AdjustHeight();
 
   end
@@ -308,29 +337,18 @@ begin
     Intro.Caption := 'No existing DairyOS farm data was detected on this computer.';
     Intro.AdjustHeight();
 
-    FreshRadio := TRadioButton.Create(DataChoicePage);
-    FreshRadio.Parent := DataChoicePage.Surface;
-    FreshRadio.Left := ScaleX(12);
-    FreshRadio.Top := Intro.Top + Intro.Height + ScaleY(20);
-    FreshRadio.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
-    FreshRadio.Height := ScaleY(24);
-    FreshRadio.Font.Name := 'Segoe UI';
-    FreshRadio.Font.Size := 11;
-    FreshRadio.Font.Style := [fsBold];
-    FreshRadio.Caption := 'Start a new DairyOS farm';
-    FreshRadio.Checked := True;
-
     ExistingDetail := TNewStaticText.Create(DataChoicePage);
     ExistingDetail.Parent := DataChoicePage.Surface;
-    ExistingDetail.Left := ScaleX(34);
-    ExistingDetail.Top := FreshRadio.Top + FreshRadio.Height + ScaleY(4);
+    ExistingDetail.Left := ScaleX(12);
+    ExistingDetail.Top := Intro.Top + Intro.Height + ScaleY(20);
     ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
     ExistingDetail.AutoSize := False;
     ExistingDetail.WordWrap := True;
     ExistingDetail.Font.Name := 'Segoe UI';
     ExistingDetail.Font.Size := 10;
     ExistingDetail.Caption :=
-      'Create a new DairyOS farm database on this computer.';
+      'INSTALLER STATUS: no existing farm data was detected. Setup will initialize the ' +
+      'new DairyOS installation; it does not copy or restore farm data.';
     ExistingDetail.AdjustHeight();
 
   end;
@@ -347,6 +365,7 @@ begin
   Caution.Font.Style := [fsBold];
   Caution.Caption :=
     'IMPORTANT' + #13#10 +
+    'This page is informational, not a data-choice control. ' +
     'The installer will not delete or overwrite an existing DairyOS farm database. ' +
     'A protected zero-state reset is available from Settings after the application starts.';
   Caution.AdjustHeight();
@@ -377,6 +396,37 @@ begin
       exit;
     end;
   end;
+end;
+
+function StopInstalledProcessByPath(const ExecutablePath: String): Boolean;
+var
+  PowerShellExe: String;
+  PowerShellCommand: String;
+  Params: String;
+  SafePath: String;
+  ResultCode: Integer;
+begin
+  SafePath := ExecutablePath;
+  StringChangeEx(SafePath, '''', '''''', True);
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  PowerShellCommand :=
+    '$ErrorActionPreference = ''Stop''; ' +
+    '$target = [IO.Path]::GetFullPath(''' + SafePath + '''); ' +
+    'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and ' +
+      '[IO.Path]::GetFullPath($_.ExecutablePath) -ieq $target } | ' +
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }';
+  Params :=
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+    PowerShellCommand + '"';
+
+  Result := Exec(
+    PowerShellExe,
+    Params,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = 0);
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean;
@@ -427,24 +477,29 @@ begin
     end;
   end;
 
-  { Stop only DairyOS-owned executable images after PostgreSQL has shut down.
-    This releases the frozen runtime files before Inno Setup begins deletion. }
-  Exec(
-    ExpandConstant('{sys}\taskkill.exe'),
-    '/F /T /IM DairyOS.exe',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  );
-  Exec(
-    ExpandConstant('{sys}\taskkill.exe'),
-    '/F /T /IM DairyOSBackup.exe',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  );
+  { Stop only processes whose executable path is inside the installed
+    DairyOS directory. Image-name matching could terminate an unrelated
+    process that happens to use the same filename. }
+  if not StopInstalledProcessByPath(ExpandConstant('{app}\DairyOS.exe')) then
+  begin
+    MsgBox(
+      'DairyOS application processes could not be stopped by installed path. ' +
+      'Uninstall is blocked so unrelated processes are not affected.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+  if not StopInstalledProcessByPath(ExpandConstant('{app}\DairyOSBackup.exe')) then
+  begin
+    MsgBox(
+      'DairyOS backup processes could not be stopped by installed path. ' +
+      'Uninstall is blocked so unrelated processes are not affected.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
 
   { Remove the scheduled task whose executable is about to be removed.
     Backup data itself remains under ProgramData. }
@@ -457,7 +512,95 @@ begin
     ResultCode
   );
 
+  if not CreatePreservationPackage() then
+    exit;
+
   Sleep(1000);
+  Result := True;
+end;
+
+function CreatePreservationPackage(): Boolean;
+var
+  PowerShellExe: String;
+  PowerShellCommand: String;
+  Params: String;
+  ArchivePath: String;
+  SafeDataRoot: String;
+  SafeArchivePath: String;
+  ResultCode: Integer;
+begin
+  Result := False;
+
+  if PreservationDestination = '' then
+  begin
+    Result := True;
+    exit;
+  end;
+
+  if not DirExists(DairyOSDataRoot()) then
+  begin
+    MsgBox(
+      'The DairyOS farm-data directory does not exist, so a preservation package could not be created.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+
+  ForceDirectories(PreservationDestination);
+  ArchivePath :=
+    AddBackslash(PreservationDestination) +
+    'DairyOS-Farm-Preservation-' +
+    GetDateTimeString('yyyymmdd-hhnnss', True, True) +
+    '.zip';
+
+  SafeDataRoot := DairyOSDataRoot();
+  StringChangeEx(SafeDataRoot, '''', '''''', True);
+  SafeArchivePath := ArchivePath;
+  StringChangeEx(SafeArchivePath, '''', '''''', True);
+
+  { PostgreSQL is stopped before this function is called. Package the entire
+    ProgramData farm root, then reopen the archive and verify that it contains
+    entries before uninstall is allowed to continue. }
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  PowerShellCommand :=
+    '$ErrorActionPreference = ''Stop''; ' +
+    '$source = ''' + SafeDataRoot + '''; ' +
+    '$archive = ''' + SafeArchivePath + '''; ' +
+    '$items = @(Get-ChildItem -LiteralPath $source -Force | ForEach-Object { $_.FullName }); ' +
+    'if ($items.Count -eq 0) { throw ''DairyOS farm data root is empty.'' }; ' +
+    'Compress-Archive -Path $items -DestinationPath $archive -CompressionLevel Optimal -Force; ' +
+    '$zip = [System.IO.Compression.ZipFile]::OpenRead($archive); ' +
+    'try { if ($zip.Entries.Count -eq 0) { throw ''The preservation package is empty.'' } } ' +
+    'finally { $zip.Dispose() }';
+  Params :=
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+    PowerShellCommand + '"';
+
+  if (not Exec(
+    PowerShellExe,
+    Params,
+    PreservationDestination,
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) or (not FileExists(ArchivePath)) then
+  begin
+    MsgBox(
+      'DairyOS could not create and verify the farm-data preservation package. ' +
+      'Uninstall is blocked and the application remains installed.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+
+  MsgBox(
+    'Verified DairyOS farm-data preservation package saved at:' + #13#10 +
+    ArchivePath,
+    mbInformation,
+    MB_OK
+  );
   Result := True;
 end;
 
@@ -475,8 +618,8 @@ begin
 
   Choice := MsgBox(
     'Choose how to proceed with DairyOS uninstall:' + #13#10 + #13#10 +
-    'YES - KEEP DATA AND UNINSTALL' + #13#10 +
-    'Removes the DairyOS application but keeps the farm database and backups.' + #13#10 + #13#10 +
+    'YES - PRESERVE FARM DATA AND UNINSTALL' + #13#10 +
+    'Choose a destination for a verified farm-data package, then remove the DairyOS application.' + #13#10 + #13#10 +
     'NO - CANCEL AND KEEP THE APPLICATION' + #13#10 +
     'No data or application files are removed.',
     mbConfirmation,
@@ -485,6 +628,15 @@ begin
 
   if Choice = IDYES then
   begin
+    if not SelectDirectory(
+      'Select a destination folder for the verified DairyOS farm-data preservation package:',
+      '',
+      PreservationDestination
+    ) then
+    begin
+      Result := False;
+      exit;
+    end;
     Result := StopInstalledDairyOSForUninstall();
     exit;
   end;

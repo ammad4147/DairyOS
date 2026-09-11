@@ -66,4 +66,5 @@ def test_fail_closed_and_historical_authority_contracts():
     assert "_endorsement_snapshots(" not in period_block
     assert 'basis = "LIVE_TMR_PENDING_23_00_LOCK"' in period_block
     assert "UNENDORSED_LIVE_TMR_FALLBACK" not in period_block
-    assert 'Feed operational date authority is unavailable' in feed
+    assert 'record.feeding_date = utcnow()' in feed
+    assert 'datetime.combine(operational_date, time.min)' not in feed

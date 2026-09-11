@@ -10,9 +10,6 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
-from dairyos.farm.reproduction.services.post_calving_return_service import (
-    reconcile_due_post_calving_returns,
-)
 
 router = APIRouter(prefix="/farm/animals", tags=["animals"])
 
@@ -150,11 +147,6 @@ def _persist(repository: Any, payload: dict[str, Any]) -> Any:
 @router.get("")
 def list_animals() -> list[dict[str, Any]]:
     runtime = _runtime()
-    if runtime is not None:
-        reconcile_due_post_calving_returns(
-            runtime.repository_factory,
-            runtime.event_journal,
-        )
     repository = _repository(runtime)
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")
@@ -202,11 +194,6 @@ def create_animal(request: AnimalCreateRequest) -> dict[str, Any]:
 @router.get("/{animal_id}")
 def get_animal(animal_id: str) -> dict[str, Any]:
     runtime = _runtime()
-    if runtime is not None:
-        reconcile_due_post_calving_returns(
-            runtime.repository_factory,
-            runtime.event_journal,
-        )
     repository = _repository(runtime)
     if repository is None:
         raise HTTPException(status_code=503, detail="Authoritative animal repository is not available")

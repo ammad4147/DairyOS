@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, time
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.feed_record import FeedRecord
-from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.core.time_utils import utcnow
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
@@ -49,6 +48,18 @@ class FeedEntry(BaseModel):
     quantity_kg: float = Field(gt=0)
     feeding_date: datetime | None = None
     notes: str | None = None
+
+    @field_validator("feeding_date", mode="before")
+    @classmethod
+    def require_event_timestamp(cls, value):
+        if value is None or isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            raise ValueError("feeding_date must include a time, not only a date.")
+        text_value = str(value).strip()
+        if text_value and "T" not in text_value and " " not in text_value:
+            raise ValueError("feeding_date must include a time, not only a date.")
+        return value
 
 
 @router.post("/rations")
@@ -133,20 +144,76 @@ def _inventory_balance(factory, item: str) -> float:
     return round(sum(float(row.signed_quantity or 0.0) for row in factory.inventory().get_all() if str(row.item).strip() == item), 3)
 
 
-def _existing_feed_consumption(factory, feed_record_id: int):
-    for row in factory.inventory().get_all():
-        if str(getattr(row, "source_type", "") or "").upper() == "FEED_RECORD" and str(getattr(row, "source_id", "") or "") == str(feed_record_id):
-            return row
-    return None
-
-
 def _feeding_day(value: datetime | None, factory) -> datetime:
     if value is not None:
+        return value.replace(tzinfo=None)
+    # A compatibility caller that omits a timestamp is stamped at receipt in
+    # the farm's configured timezone. It must not be rewritten to an invented
+    # operational-day midnight.
+    try:
+        return OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime().replace(tzinfo=None)
+    except Exception:
+        # The UTC receipt is still an honest event timestamp if the settings
+        # authority is temporarily unavailable; it is never a fabricated
+        # midnight.
+        return utcnow()
+
+
+def _as_date(value) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
         return value
-    operational_date = OperationalDateAuthority(
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except (TypeError, ValueError):
+        return None
+
+
+MIN_DAILY_FEEDING_EVENTS = 5
+
+
+def daily_feeding_status(factory, operational_date: date | None = None) -> dict:
+    """Return the governed five-event completion state for one farm day."""
+    target = operational_date or OperationalDateAuthority(
         repository_factory=factory,
     ).current_date()
-    return datetime.combine(operational_date, time.min)
+    target = _as_date(target)
+    if target is None:
+        raise ValueError("operational_date must be a valid date.")
+    rows = [
+        row
+        for row in factory.feed().get_all() or []
+        if str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
+        not in INACTIVE_OPERATIONAL_STATUSES
+        and _as_date(getattr(row, "feeding_date", None)) == target
+        and getattr(row, "feeding_date", None) is not None
+    ]
+    count = len(rows)
+    latest = max(
+        (
+            getattr(row, "feeding_date", None)
+            for row in rows
+            if getattr(row, "feeding_date", None) is not None
+        ),
+        default=None,
+    )
+    return {
+        "operational_date": target.isoformat(),
+        "feeding_event_count": count,
+        "minimum_required_events": MIN_DAILY_FEEDING_EVENTS,
+        "remaining_events": max(0, MIN_DAILY_FEEDING_EVENTS - count),
+        "complete": count >= MIN_DAILY_FEEDING_EVENTS,
+        "completion_status": (
+            "COMPLETE" if count >= MIN_DAILY_FEEDING_EVENTS else "INCOMPLETE"
+        ),
+        "last_event_at": latest,
+        "data_status": "LIVE_PERSISTED_DATA",
+    }
 
 
 def _historical_feed_cost(factory, feed_type: str, feeding_date: datetime):
@@ -220,13 +287,11 @@ def record_feed(payload: FeedEntry, container=Depends(get_container)):
         session = factory.session
         session.add(record)
         session.flush()
-        if _existing_feed_consumption(factory, record.id) is None:
-            session.add(InventoryTransaction(item=record.feed_type, movement_type="CONSUMPTION", quantity=quantity, signed_quantity=-quantity, unit="kg", notes=f"Auto-deducted from feeding record #{record.id}. {record.notes or ''}".strip(), recorded_by="FEED_API", source_type="FEED_RECORD", source_id=str(record.id), recorded_at=feeding_date))
         if not session.info.get("operational_write_managed", False):
             session.commit()
         session.refresh(record)
         inventory_balance = _inventory_balance(factory, record.feed_type)
-        response = {"id": record.id, "animal_id": record.animal_id, "group_or_pen": record.group_or_pen, "feed_type": record.feed_type, "quantity_kg": record.quantity_kg, "feeding_date": record.feeding_date, "status": record.status, "unit_cost_per_kg": record.unit_cost_per_kg, "total_feed_cost": record.total_feed_cost, "cost_basis": record.cost_basis, "cost_source_financial_transaction_id": record.cost_source_financial_transaction_id, "inventory_balance_kg": inventory_balance, "inventory_status": "NEGATIVE_STOCK_EXCEPTION" if inventory_balance < 0 else "BALANCED", "data_status": "LIVE_PERSISTED_DATA"}
+        response = {"id": record.id, "animal_id": record.animal_id, "group_or_pen": record.group_or_pen, "feed_type": record.feed_type, "quantity_kg": record.quantity_kg, "feeding_date": record.feeding_date, "status": record.status, "unit_cost_per_kg": record.unit_cost_per_kg, "total_feed_cost": record.total_feed_cost, "cost_basis": record.cost_basis, "cost_source_financial_transaction_id": record.cost_source_financial_transaction_id, "inventory_balance_kg": inventory_balance, "inventory_status": "NEGATIVE_STOCK_EXCEPTION" if inventory_balance < 0 else "BALANCED", "daily_feeding_status": daily_feeding_status(factory, feeding_date.date()), "data_status": "LIVE_PERSISTED_DATA"}
         gateway = getattr(container, "input_gateway", None)
         if gateway is not None:
             gateway.record(
@@ -268,6 +333,7 @@ def feed_overview():
         ]
         rations = factory.feed_rations().get_all()
         priced = [r for r in active_records if getattr(r, "total_feed_cost", None) is not None]
+        daily_status = daily_feeding_status(factory)
         return {
             "data_status": "LIVE_PERSISTED_DATA",
             "feeding_records": len(active_records),
@@ -277,6 +343,7 @@ def feed_overview():
             "priced_feed_kg": sum(float(r.quantity_kg or 0) for r in priced),
             "priced_feed_cost": round(sum(float(r.total_feed_cost or 0) for r in priced), 2),
             "unpriced_feed_records": len(active_records) - len(priced),
+            "daily_feeding_status": daily_status,
             "nutrition_metrics": {
                 "dry_matter_intake_kg": None,
                 "crude_protein_pct": None,
@@ -287,3 +354,9 @@ def feed_overview():
         }
     finally:
         factory.close()
+
+
+@router.get("/daily-status")
+def feed_daily_status(container=Depends(get_container)):
+    """Expose the five timestamped feeding-event completion authority."""
+    return daily_feeding_status(container.repository_factory)

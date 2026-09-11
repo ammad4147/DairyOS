@@ -1,4 +1,5 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+import math
 
 from fastapi import APIRouter, Depends
 
@@ -12,11 +13,13 @@ from dairyos.api.milk_production_analytics import (
     _production_extremes,
     _yield_drop_watchlist,
 )
+from dairyos.api.tmr import (
+    CATEGORY_STAGE_MAP,
+    _normalize_herd_category,
+    milk_litres_for_period,
+)
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (  # noqa: E501
     MilkProductionTrendIntelligenceService,
-)
-from dairyos.farm.reproduction.services.post_calving_return_service import (
-    reconcile_due_post_calving_returns,
 )
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -62,6 +65,7 @@ def _vaccination_dashboard_projection(
         container.event_journal.all_events(),
         operational_date,
         active_animal_ids=active_animal_ids,
+        relational_records=container.repository_factory.vaccinations().get_all(),
     )
 
 
@@ -88,6 +92,135 @@ _HEALTH_SEVERITY_RANK = {
     "LOW": 2,
     "NORMAL": 1,
 }
+
+_TERMINAL_ANIMAL_STATES = {
+    "SOLD",
+    "DECEASED",
+    "DEAD",
+    "DISPOSED",
+    "CULLED",
+    "INACTIVE",
+    "VOID",
+}
+
+_HERD_CATEGORY_COLORS = {
+    "Milking": "#38bdf8",
+    "Dry": "#94a3b8",
+    "Heifer": "#f59e0b",
+    "Female Calf": "#ec4899",
+    "Male Calf": "#3b82f6",
+    "Bull": "#a855f7",
+}
+
+
+def _is_governed_active_animal(animal) -> bool:
+    """Apply the same active/terminal boundary to Dashboard projections."""
+    if not bool(getattr(animal, "active", False)):
+        return False
+    status = str(getattr(animal, "status", "") or "").strip().upper()
+    lifecycle = str(
+        getattr(animal, "lifecycle_status", "") or ""
+    ).strip().upper()
+    return status not in _TERMINAL_ANIMAL_STATES and lifecycle not in _TERMINAL_ANIMAL_STATES
+
+
+def _herd_composition(active_animals) -> list[dict]:
+    """Return the canonical six-category herd snapshot for the UI."""
+    counts = {category: 0 for category in CATEGORY_STAGE_MAP}
+    for animal in active_animals:
+        category = _normalize_herd_category(animal)
+        if category in counts:
+            counts[category] += 1
+
+    return [
+        {
+            "name": category,
+            "value": counts[category],
+            "color": _HERD_CATEGORY_COLORS.get(category, "#94a3b8"),
+        }
+        for category in CATEGORY_STAGE_MAP
+    ]
+
+
+def _herd_metrics(herd_composition: list[dict]) -> dict[str, float | None]:
+    """Expose governed herd ratios so the UI does not recreate business math."""
+    counts = {
+        str(item.get("name")): int(item.get("value") or 0)
+        for item in herd_composition
+    }
+    milking = counts.get("Milking", 0)
+    dry = counts.get("Dry", 0)
+    total_adults = milking + dry
+    total_herd = sum(counts.values())
+    return {
+        "wet_average_yield_percentage": (
+            round((milking / total_adults) * 100.0, 2)
+            if total_adults
+            else None
+        ),
+        "dry_average_yield_percentage": (
+            round((milking / total_herd) * 100.0, 2)
+            if total_herd
+            else None
+        ),
+    }
+
+
+def _observation_datetime(value) -> datetime:
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    if isinstance(value, date):
+        return datetime.combine(value, time.min, tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _latest_high_temperature_animals(
+    observations,
+    operational_date: date,
+    active_animal_ids: set[str],
+    threshold: float = 39.5,
+) -> set[str]:
+    """Count only each active animal's latest persisted temperature state."""
+    latest: dict[str, tuple[datetime, int, float | None]] = {}
+    for position, observation in enumerate(observations):
+        animal_id = str(getattr(observation, "animal_id", "") or "").strip()
+        if not animal_id or animal_id not in active_animal_ids:
+            continue
+        observed_at = getattr(observation, "observed_at", None)
+        observed_day = _record_day(observed_at)
+        if observed_day is not None and observed_day > operational_date:
+            continue
+        raw_temperature = getattr(observation, "temperature_c", None)
+        if raw_temperature is None:
+            raw_temperature = getattr(observation, "temperature", None)
+        try:
+            temperature = (
+                float(raw_temperature)
+                if raw_temperature is not None
+                else None
+            )
+        except (TypeError, ValueError):
+            temperature = None
+        if temperature is not None and not math.isfinite(temperature):
+            temperature = None
+        key = (_observation_datetime(observed_at), position)
+        previous = latest.get(animal_id)
+        if previous is None or key > (previous[0], previous[1]):
+            latest[animal_id] = (key[0], key[1], temperature)
+
+    return {
+        animal_id
+        for animal_id, (_, _, temperature) in latest.items()
+        if temperature is not None and temperature >= threshold
+    }
 
 
 def _health_dashboard_animals(
@@ -150,10 +283,6 @@ def _health_dashboard_animals(
 @router.get("/dashboard")
 def get_dashboard(container=Depends(get_container)):
     """Return the established Dashboard contract from persisted runtime data."""
-    reconcile_due_post_calving_returns(
-        container.repository_factory,
-        container.event_journal,
-    )
     payload = container.dashboard_projection_service.project_api_contract(container)
     animal_repository = container.animal_repository
     finance_repository = (
@@ -161,7 +290,11 @@ def get_dashboard(container=Depends(get_container)):
         if hasattr(container, "finance_repository")
         else container.repository_factory.finance()
     )
-    active_animals = animal_repository.active_animals()
+    active_animals = [
+        animal
+        for animal in animal_repository.active_animals()
+        if _is_governed_active_animal(animal)
+    ]
     active_animal_ids = {
         str(getattr(animal, "animal_id", "") or "").strip()
         for animal in active_animals
@@ -193,22 +326,31 @@ def get_dashboard(container=Depends(get_container)):
     health_observations = container.repository_factory.health().get_all()
     open_health_animals = {
         str(getattr(case, "animal_id", ""))
-        for case in open_health_cases if getattr(case, "animal_id", None)
+        for case in open_health_cases
+        if getattr(case, "animal_id", None)
+        and str(getattr(case, "animal_id", "")) in active_animal_ids
     }
     mastitis_animals = {
         str(getattr(case, "animal_id", ""))
         for case in open_health_cases
-        if "MASTITIS" in str(getattr(case, "diagnosis", "") or "").upper()
+        if str(getattr(case, "animal_id", "")) in active_animal_ids
+        and "MASTITIS" in str(getattr(case, "diagnosis", "") or "").upper()
     }
-    high_temperature_animals = {
-        str(getattr(observation, "animal_id", ""))
-        for observation in health_observations
-        if float(
-            getattr(observation, "temperature_c", None)
-            or getattr(observation, "temperature", None)
-            or 0.0
-        ) >= 39.5
+    critical_health_animals = {
+        str(getattr(case, "animal_id", ""))
+        for case in open_health_cases
+        if str(getattr(case, "animal_id", "")) in active_animal_ids
+        and str(getattr(case, "severity", "") or "").strip().upper()
+        == "CRITICAL"
     }
+    high_temperature_animals = _latest_high_temperature_animals(
+        health_observations,
+        operational_date,
+        active_animal_ids,
+        threshold=39.5,
+    )
+    herd_composition = _herd_composition(active_animals)
+    herd_metrics = _herd_metrics(herd_composition)
     health_dashboard_animals = _health_dashboard_animals(
         open_health_cases,
         operational_date,
@@ -344,43 +486,37 @@ def get_dashboard(container=Depends(get_container)):
     }
 
     month_start = operational_date.replace(day=1)
-    current_month_production = 0.0
-    for record in milk_records:
-        status = str(getattr(record, "status", "RECORDED") or "RECORDED").upper()
-        if status == "VOID":
-            continue
-        record_day = _record_day(getattr(record, "production_date", None))
-        if record_day is None:
-            record_day = _record_day(getattr(record, "recorded_at", None))
-        if record_day is None:
-            continue
-        if month_start <= record_day <= operational_date:
-            total_yield = getattr(record, "total_yield", None)
-            if total_yield is not None:
-                current_month_production += float(total_yield)
-            else:
-                current_month_production += sum(
-                    float(value or 0.0)
-                    for value in (
-                        getattr(record, "morning_yield", None),
-                        getattr(record, "afternoon_yield", None),
-                        getattr(record, "evening_yield", None),
-                    )
-                )
-    current_month_production = round(current_month_production, 3)
+    # Use the same governed session-ledger denominator as COML. This keeps
+    # Dashboard month totals from including legacy/sessionless rows that are
+    # deliberately excluded from authoritative Milk reporting.
+    current_month_production = milk_litres_for_period(
+        container.repository_factory,
+        month_start,
+        operational_date,
+    )
 
     dashboard = payload.setdefault("dashboard", {})
     dashboard["finance"] = {
         "receivables": receivables,
         "receivable_count": len(receivable_rows),
     }
+    dashboard["health"] = {
+        **dashboard.get("health", {}),
+        "active_exceptions": len(open_health_animals),
+        "critical_cases": len(critical_health_animals),
+        "high_temperature": len(high_temperature_animals),
+    }
     dashboard["animals"] = {
         **dashboard.get("animals", {}),
         "total": len(active_animals),
+        "composition": herd_composition,
+        "herd_metrics": herd_metrics,
     }
     payload["animals"] = {
         **payload.get("animals", {}),
         "total": len(active_animals),
+        "composition": herd_composition,
+        "herd_metrics": herd_metrics,
     }
     payload["finance"] = dashboard["finance"]
     payload["health"] = {
@@ -391,7 +527,7 @@ def get_dashboard(container=Depends(get_container)):
         "completedVax": completed_vaccinations,
         "dueVax": due_vaccinations,
         "active_exceptions": len(open_health_animals),
-        "critical_cases": len(mastitis_animals),
+        "critical_cases": len(critical_health_animals),
         "high_temperature": len(high_temperature_animals),
         "completed_vaccinations": completed_vaccinations,
         "due_vaccinations": due_vaccinations,

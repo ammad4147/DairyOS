@@ -355,6 +355,13 @@ class DashboardProjectionService:
             3,
         )
 
+        from dairyos.api.feed_management import daily_feeding_status
+
+        daily_status = daily_feeding_status(
+            repository_factory,
+            operational_date,
+        )
+
         latest = max(
             matching,
             key=lambda record: str(
@@ -371,6 +378,7 @@ class DashboardProjectionService:
         return {
             "today_kg": total_kg,
             "events": len(matching),
+            "daily_feeding_status": daily_status,
             "last_feed_type": (
                 str(
                     getattr(

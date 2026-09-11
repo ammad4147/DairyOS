@@ -45,6 +45,7 @@ def test_api_projection_failure_keeps_one_milk_and_one_journal_after_retry(clien
 
 def test_late_session_failure_rolls_back_milk_journal_and_outbox(client, registered_animal, monkeypatch):
     before_journal = _rows(EventJournalModel)
+    before_outbox = _rows(OperationalProjectionOutbox)
 
     def fail(*args, **kwargs):
         raise RuntimeError("session settlement failed")
@@ -54,7 +55,10 @@ def test_late_session_failure_rolls_back_milk_journal_and_outbox(client, registe
         client.post("/farm/milk", json=_milk(registered_animal, milking_session="MORNING"))
     assert _rows(MilkProduction) == 0
     assert _rows(MilkingSessionRecord) == 0
-    assert _rows(OperationalProjectionOutbox) == 0
+    # The registered-animal fixture is itself an operational write and leaves
+    # its delivered receipt behind. The failed Milk command must not add a
+    # second receipt or journal entry.
+    assert _rows(OperationalProjectionOutbox) == before_outbox
     assert _rows(EventJournalModel) == before_journal
 
 

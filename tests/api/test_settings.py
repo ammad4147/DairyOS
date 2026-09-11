@@ -23,6 +23,7 @@ def test_default_settings(client):
     assert body["navigation"]["available_tabs"] == [
         "dashboard", "animals", "milk", "feed", "finance",
         "breeding", "health", "vaccination", "cop",
+        "analytics",
     ]
 
 

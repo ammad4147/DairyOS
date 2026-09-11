@@ -5,6 +5,10 @@ from datetime import date, timedelta
 import pytest
 
 from tests.helpers.breeding import post_breeding
+from dairyos.app import container as app_container
+from dairyos.farm.reproduction.services.post_calving_return_service import (
+    reconcile_due_post_calving_returns,
+)
 
 
 def _record(client, animal_id: str, event_type: str, result: str, **extra):
@@ -298,8 +302,16 @@ def test_due_planned_return_to_milking_is_applied_automatically_and_once(
     )
     assert calving.status_code == 200, calving.text
 
-    # Calving itself closes pregnancy and places the mother Dry. The next
-    # authoritative herd read applies a due operator-entered return date.
+    # Calving itself closes pregnancy and places the mother Dry. The runtime
+    # lifecycle worker, not a read endpoint, applies the due operator-entered
+    # return date. This call emulates the worker's next startup pass.
+    applied = reconcile_due_post_calving_returns(
+        app_container.repository_factory,
+        app_container.event_journal,
+        as_of_date=date.today(),
+    )
+    assert registered_animal in applied
+
     dashboard = client.get("/dashboard")
     assert dashboard.status_code == 200, dashboard.text
 
@@ -321,8 +333,14 @@ def test_due_planned_return_to_milking_is_applied_automatically_and_once(
         ]
         assert len(applied) == 1
 
-    # Repeated reads are idempotent and cannot create another transition.
+    # Repeated reads are side-effect free, and a repeated worker pass is
+    # idempotent because the persisted frequency history is the marker.
     assert client.get("/dashboard").status_code == 200
+    assert reconcile_due_post_calving_returns(
+        app_container.repository_factory,
+        app_container.event_journal,
+        as_of_date=date.today(),
+    ) == []
     mother_again = client.get(f"/farm/animals/{registered_animal}")
     assert mother_again.status_code == 200
     assert mother_again.json()["lifecycle_status"] == "LACTATING"

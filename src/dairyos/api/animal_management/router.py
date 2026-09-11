@@ -5,9 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
+from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
+)
+from dairyos.farm.herd.services.animal_parentage_service import (
+    AnimalParentageError,
+    validate_parentage,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
@@ -16,6 +21,7 @@ router = APIRouter()
 ALLOWED_LIFECYCLE_STATUSES = set(GOVERNED["lifecycle_statuses"])
 ALLOWED_MILKING_FREQUENCIES = set(GOVERNED["milking_frequencies"])
 EXIT_STATUSES = {"SOLD", "DECEASED"}
+TERMINAL_LIFECYCLE_STATUSES = {"SOLD", "CULLED", "DECEASED"}
 
 
 def animal_repository(container):
@@ -78,11 +84,12 @@ def get_animal_record(container, animal_id):
 def _record_operational_event(container, input_type, payload, actor):
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
-        gateway.record(
+        return gateway.record(
             input_type=input_type,
             payload={**payload, "timestamp": datetime.now(timezone.utc).isoformat(), "operator": actor},
             actor=actor,
         )
+    return None
 
 
 def _event_payloads_for_animal(container, input_type, animal_id):
@@ -95,6 +102,29 @@ def _event_payloads_for_animal(container, input_type, animal_id):
         ):
             records.append(event.payload)
     return records
+
+
+def _serialize_vaccination_record(record):
+    return {
+        "id": record.id,
+        "animal_id": record.animal_id,
+        "vaccine": record.vaccine,
+        "dose": record.dose,
+        "administered_date": record.administered_date.isoformat(),
+        "next_due_date": (
+            record.next_due_date.isoformat() if record.next_due_date else None
+        ),
+        "schedule_status": record.schedule_status,
+        "batch_number": record.batch_number,
+        "veterinarian": record.veterinarian,
+        "notes": record.notes,
+        "operator": record.operator,
+        "status": record.status,
+        "source_event_id": record.source_event_id,
+        "created_at": (
+            record.created_at.isoformat() if record.created_at else None
+        ),
+    }
 
 
 def _apply_classification_payload(animal, payload):
@@ -148,6 +178,25 @@ def _validate_milking_frequency(animal, frequency):
             status_code=422,
             detail="Invalid milking frequency. Allowed: " + ", ".join(sorted(ALLOWED_MILKING_FREQUENCIES)),
         )
+
+
+def _validate_parentage_payload(repository, animal, payload):
+    if not ({"dam_id", "sire_id", "date_of_birth"} & set(payload)):
+        return
+    try:
+        validate_parentage(
+            repository,
+            child_id=animal.animal_id,
+            dam_id=payload.get("dam_id", getattr(animal, "dam_id", None)),
+            sire_id=payload.get("sire_id", getattr(animal, "sire_id", None)),
+            child_date_of_birth=(
+                _parse_date(payload.get("date_of_birth"), "date_of_birth")
+                if "date_of_birth" in payload
+                else getattr(animal, "date_of_birth", None)
+            ),
+        )
+    except AnimalParentageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/animals")
@@ -213,8 +262,43 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
 
+    if "status" in payload:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Animal status is governed by the lifecycle or disposition "
+                "workflow; use the dedicated endpoint."
+            ),
+        )
+
+    requested_lifecycle = payload.get("lifecycle_status")
+    if requested_lifecycle is not None:
+        requested_lifecycle = str(requested_lifecycle).strip().upper()
+        current_lifecycle = str(
+            getattr(animal, "lifecycle_status", "") or ""
+        ).upper()
+        if (
+            current_lifecycle in TERMINAL_LIFECYCLE_STATUSES
+            and requested_lifecycle not in TERMINAL_LIFECYCLE_STATUSES
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Terminal animals cannot be returned to an active "
+                    "lifecycle through a profile update."
+                ),
+            )
+
+    _validate_parentage_payload(repository, animal, payload)
+
     if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
         _apply_classification_payload(animal, payload)
+
+    if str(getattr(animal, "lifecycle_status", "") or "").upper() in TERMINAL_LIFECYCLE_STATUSES:
+        animal.active = False
+        animal.status = str(animal.lifecycle_status).upper()
+        animal.is_currently_milking = False
+        animal.milking_frequency = None
 
     if "milking_frequency" in payload:
         frequency = payload.get("milking_frequency")
@@ -267,10 +351,6 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
             setattr(animal, field, value)
             changed[field] = value
 
-    if "status" in payload and payload.get("status"):
-        animal.status = str(payload["status"]).upper()
-        changed["status"] = animal.status
-
     animal.updated_at = datetime.now(timezone.utc)
     updated = repository.save(animal)
     if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
@@ -293,11 +373,19 @@ def record_animal_disposition(animal_id: str, payload: dict, container=Depends(g
     if disposition not in EXIT_STATUSES:
         raise HTTPException(status_code=422, detail="Disposition must be SOLD or DECEASED")
 
-    effective_date = str(payload.get("effective_date") or _farm_operational_date(container).isoformat())
-    try:
-        datetime.fromisoformat(effective_date)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="effective_date must be an ISO date") from exc
+    operational_date = _farm_operational_date(container)
+    effective_date_value = _parse_date(
+        payload.get("effective_date") or operational_date,
+        "effective_date",
+    )
+    if effective_date_value is None:
+        raise HTTPException(status_code=422, detail="effective_date must be an ISO date")
+    if effective_date_value > operational_date:
+        raise HTTPException(
+            status_code=422,
+            detail="effective_date cannot be in the future of the farm operational date",
+        )
+    effective_date = effective_date_value.isoformat()
 
     animal.lifecycle_status = disposition
     animal.status = disposition
@@ -339,6 +427,16 @@ def activate_animal(animal_id: str, payload: dict | None = None, container=Depen
     animal = repository.get_by_animal_id(animal_id)
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
+    if (
+        str(getattr(animal, "lifecycle_status", "") or "").upper()
+        in TERMINAL_LIFECYCLE_STATUSES
+        or str(getattr(animal, "status", "") or "").upper()
+        in TERMINAL_LIFECYCLE_STATUSES
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Sold, culled, or deceased animals cannot be activated.",
+        )
     animal.activate()
     updated = repository.save(animal)
     _record_operational_event(container, "animal_activated", {"animal_id": animal_id, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
@@ -356,13 +454,24 @@ def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_contai
     if lifecycle not in ALLOWED_LIFECYCLE_STATUSES:
         raise HTTPException(status_code=422, detail="Invalid lifecycle status. Allowed: " + ", ".join(sorted(ALLOWED_LIFECYCLE_STATUSES)))
     previous = animal.lifecycle_status
+    previous_terminal = str(previous or "").upper() in TERMINAL_LIFECYCLE_STATUSES
+    if previous_terminal and lifecycle not in TERMINAL_LIFECYCLE_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Terminal animals cannot be returned to a live lifecycle.",
+        )
     try:
         classification = AnimalClassificationService.classify(lifecycle, animal.sex)
     except AnimalClassificationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     animal.lifecycle_status = classification.lifecycle_status
     animal.sex = classification.sex
-    animal.status = payload.get("status", classification.lifecycle_status)
+    if lifecycle in TERMINAL_LIFECYCLE_STATUSES:
+        animal.status = lifecycle
+        animal.active = False
+    else:
+        animal.status = "ACTIVE"
+        animal.active = True
     animal.production_group = payload.get("production_group", getattr(animal, "production_group", None))
     animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
     if not animal.is_currently_milking:
@@ -411,13 +520,122 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
     animal = get_animal_record(container, animal_id)
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
+    if getattr(animal, "active", True) is False:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccinations cannot be recorded for inactive or exited animals.",
+        )
+    supplied_animal_id = str(payload.get("animal_id") or "").strip()
+    if supplied_animal_id and supplied_animal_id != animal_id:
+        raise HTTPException(
+            status_code=422,
+            detail="payload animal_id must match the path animal_id",
+        )
     vaccine = str(payload.get("vaccine") or payload.get("vaccination") or "").strip()
     if not vaccine:
         raise HTTPException(status_code=422, detail="vaccine required")
-    administered = payload.get("administered_date") or _farm_operational_date(container).isoformat()
-    record = {"animal_id": animal_id, "vaccine": vaccine, "dose": payload.get("dose"), "administered_date": administered, "next_due_date": payload.get("next_due_date"), "batch_number": payload.get("batch_number"), "veterinarian": payload.get("veterinarian"), "notes": payload.get("notes"), "status": "COMPLETED"}
-    _record_operational_event(container, "vaccination", record, str(payload.get("operator") or "API"))
-    return record
+    operational_date = _farm_operational_date(container)
+    administered = _parse_date(
+        payload.get("administered_date") or operational_date,
+        "administered_date",
+    )
+    if administered is None:
+        raise HTTPException(status_code=422, detail="administered_date must be an ISO date")
+    if administered > operational_date:
+        raise HTTPException(
+            status_code=422,
+            detail="administered_date cannot be in the future of the farm operational date",
+        )
+    next_due = _parse_date(payload.get("next_due_date"), "next_due_date")
+    if next_due is not None and next_due < administered:
+        raise HTTPException(
+            status_code=422,
+            detail="next_due_date cannot precede administered_date",
+        )
+
+    schedule_status = str(
+        payload.get("schedule_status")
+        or ("NEXT_DUE_DATE" if next_due is not None else "UNKNOWN_NEXT_DUE")
+    ).strip().upper()
+    allowed_schedule_statuses = {
+        "NEXT_DUE_DATE",
+        "NO_REPEAT_REQUIRED",
+        "UNKNOWN_NEXT_DUE",
+    }
+    if schedule_status not in allowed_schedule_statuses:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "schedule_status must be NEXT_DUE_DATE, NO_REPEAT_REQUIRED, "
+                "or UNKNOWN_NEXT_DUE"
+            ),
+        )
+    if schedule_status == "NEXT_DUE_DATE" and next_due is None:
+        raise HTTPException(
+            status_code=422,
+            detail="next_due_date is required when schedule_status is NEXT_DUE_DATE",
+        )
+    if schedule_status == "NO_REPEAT_REQUIRED" and next_due is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="next_due_date must be empty when no repeat is required",
+        )
+
+    operator = str(payload.get("operator") or "API").strip() or "API"
+    record = VaccinationRecord(
+        animal_id=animal_id,
+        vaccine=vaccine,
+        dose=(str(payload.get("dose")).strip() if payload.get("dose") else None),
+        administered_date=administered,
+        next_due_date=next_due,
+        schedule_status=schedule_status,
+        batch_number=(
+            str(payload.get("batch_number")).strip()
+            if payload.get("batch_number")
+            else None
+        ),
+        veterinarian=(
+            str(payload.get("veterinarian")).strip()
+            if payload.get("veterinarian")
+            else None
+        ),
+        notes=(
+            str(payload.get("notes")).strip()
+            if payload.get("notes")
+            else None
+        ),
+        operator=operator,
+        status="COMPLETED",
+    )
+    vaccination_repository = container.repository_factory.vaccinations()
+    vaccination_repository.add(record, commit=False)
+    event_payload = {
+        "animal_id": animal_id,
+        "vaccine": vaccine,
+        "dose": record.dose,
+        "administered_date": administered.isoformat(),
+        "next_due_date": next_due.isoformat() if next_due else None,
+        "schedule_status": schedule_status,
+        "batch_number": record.batch_number,
+        "veterinarian": record.veterinarian,
+        "notes": record.notes,
+        "status": "COMPLETED",
+    }
+    event = _record_operational_event(
+        container,
+        "vaccination",
+        event_payload,
+        operator,
+    )
+    if event is not None:
+        record.source_event_id = event.event_id
+    container.repository_factory.session.flush()
+    if not container.repository_factory.session.info.get(
+        "operational_write_managed", False
+    ):
+        container.repository_factory.session.commit()
+        container.repository_factory.session.refresh(record)
+    return _serialize_vaccination_record(record)
 
 
 @router.get("/animals/{animal_id}/vaccinations")
@@ -425,4 +643,21 @@ def list_vaccinations(animal_id: str, container=Depends(get_container)):
     animal = get_animal_record(container, animal_id)
     if not animal:
         raise HTTPException(status_code=404, detail="Animal not found")
+    relational = container.repository_factory.vaccinations().get_for_animal(animal_id)
+    if relational:
+        linked_event_ids = {
+            row.source_event_id for row in relational if row.source_event_id
+        }
+        legacy = []
+        for event in container.event_journal.all_events():
+            if getattr(event, "name", None) != "OperationalInputReceived":
+                continue
+            payload = dict(event.payload or {})
+            if (
+                str(payload.get("input_type") or "").lower() == "vaccination"
+                and str(payload.get("animal_id") or "") == animal_id
+                and getattr(event, "event_id", None) not in linked_event_ids
+            ):
+                legacy.append(payload)
+        return [_serialize_vaccination_record(row) for row in relational] + legacy
     return _event_payloads_for_animal(container, "vaccination", animal_id)

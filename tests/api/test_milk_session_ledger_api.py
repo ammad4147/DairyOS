@@ -150,7 +150,9 @@ def test_declaring_the_skip_unblocks_the_rest_of_the_day(
     assert response.status_code == 200, response.text
 
 
-def test_an_entry_with_no_session_is_not_sequenced(client, registered_animal):
+def test_legacy_entry_without_session_is_promoted_to_governed_session(
+    client, registered_animal
+):
     client.post(
         "/farm/milk/not-milked",
         json={
@@ -160,16 +162,17 @@ def test_an_entry_with_no_session_is_not_sequenced(client, registered_animal):
         },
     )
 
-    # A legacy caller that never named a session has nothing to be out of
-    # sequence with, and must not be pushed back into guessing one.
+    # Legacy callers are accepted for compatibility, but a successful write
+    # must still enter the governed ledger rather than disappearing from
+    # production reporting.
     response = client.post(
         "/farm/milk",
         json={"animal_id": registered_animal, "morning_yield": 5.0},
     )
 
     assert response.status_code == 200, response.text
-    assert len(_ledger_rows()) == 1
-    assert _milk_rows(registered_animal)[0].session_ledger is False
+    assert len(_ledger_rows()) == 2
+    assert _milk_rows(registered_animal)[0].session_ledger is True
 
 
 # ----------------------------------------------------------------------

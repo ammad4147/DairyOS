@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -14,6 +14,9 @@ from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.finance.classification.transaction_classifier import is_active
 from dairyos.core.inventory_units import convert_quantity
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(prefix="/farm/feed-inventory", tags=["feed-inventory"])
 
@@ -101,11 +104,43 @@ def _finance_feed_item_name(row):
     return sub
 
 def _finance_purchase_rows(factory, item: str):
+    settings_factory = getattr(factory, "app_settings", None)
+    operational_date = (
+        OperationalDateAuthority(repository_factory=factory).current_date()
+        if callable(settings_factory)
+        else None
+    )
+
+    def is_not_future(row) -> bool:
+        if operational_date is None:
+            # Lightweight repository doubles used by read-only callers do not
+            # expose farm settings. They cannot establish a farm-local date,
+            # so preserve their existing behavior rather than making the
+            # inventory helper require the full application factory.
+            return True
+        raw_date = getattr(row, "transaction_date", None)
+        if raw_date is None:
+            return True
+        if isinstance(raw_date, datetime):
+            purchase_date = raw_date.date()
+        elif isinstance(raw_date, date):
+            purchase_date = raw_date
+        else:
+            try:
+                purchase_date = date.fromisoformat(str(raw_date)[:10])
+            except (TypeError, ValueError):
+                # An unparseable date cannot establish a valid stock day.
+                # Keep it out of the operational inventory projection rather
+                # than allowing an unknown future purchase into stock.
+                return False
+        return purchase_date <= operational_date
+
     rows = factory.finance().get_all()
     return [
         row
         for row in rows
         if is_active(row)
+        and is_not_future(row)
         and str(row.transaction_type or "").upper() in {"EXPENSE", "PAYMENT", "PURCHASE"}
         and str(row.master_category or "").upper() == "FEED"
         and _finance_feed_item_name(row) == item
@@ -612,21 +647,21 @@ def _storage_summary_for_day(factory, day, today, live_summary: dict):
     """
     Historical priority:
     1. Existing daily auto movement is never rewritten after that day closes.
-    2. For an unsynchronised past day, use weekly Vet-endorsed TMR when present.
-    3. Otherwise use the live TMR as an explicit fallback.
+    2. For an unsynchronised past day, use only that day's immutable TMR
+       cost snapshot.
+    3. If the snapshot is absent, fail closed rather than applying today's
+       live ration to historical inventory.
     """
     if day == today:
         return live_summary, "LIVE_TMR"
 
-    from dairyos.api.tmr import _endorsement_snapshots, _week_bounds
+    from dairyos.api.tmr import _daily_cost_snapshot_for_date
 
-    week_start, _ = _week_bounds(day)
+    snapshot = _daily_cost_snapshot_for_date(factory, day)
+    if snapshot is None:
+        return None, "DAILY_TMR_SNAPSHOT_MISSING"
 
-    for snapshot in _endorsement_snapshots(factory):
-        if str(snapshot.get("week_start") or "") == week_start.isoformat():
-            return snapshot, "WEEKLY_VET_ENDORSED_TMR"
-
-    return live_summary, "UNENDORSED_LIVE_TMR_FALLBACK"
+    return snapshot, "LOCKED_DAILY_TMR"
 
 
 def reconcile_tmr_feed_storage(factory):
@@ -706,6 +741,17 @@ def reconcile_tmr_feed_storage(factory):
             today,
             live_summary,
         )
+
+        if summary is None:
+            day_rows.append(
+                {
+                    "date": day_iso,
+                    "basis": basis,
+                    "status": "MISSING_HISTORICAL_TMR",
+                }
+            )
+            day += timedelta(days=1)
+            continue
 
         requirement = _tmr_ingredient_requirement(summary)
 

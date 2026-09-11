@@ -1,4 +1,11 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from datetime import datetime
 
 from ..database.base import Base
@@ -38,6 +45,17 @@ class HealthCase(Base):
     """
 
     __tablename__ = "health_cases"
+
+    # The composite target is used by linked observation/treatment rows to
+    # make the domain invariant (case and animal must agree) enforceable by
+    # the database as well as by the API.
+    __table_args__ = (
+        UniqueConstraint(
+            "id",
+            "animal_id",
+            name="uq_health_cases_id_animal",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
+from pathlib import Path
+import tempfile
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.pool import NullPool
 
 from dairyos.lifecycle.manager import LifecycleError
+from dairyos.platform import paths
 
 PRESERVED_TABLES = frozenset(
     {
@@ -23,6 +28,10 @@ PRESERVED_TABLES = frozenset(
 DEPLOYMENT_ACTIVE_KEY = "deployment_activated"
 RESET_LOCK_TIMEOUT = "10s"
 RESET_STATEMENT_TIMEOUT = "60s"
+FILE_PROJECTION_FILENAMES = (
+    "operational_inputs.json",
+    "animal_operational_states.json",
+)
 
 
 @dataclass(frozen=True)
@@ -30,8 +39,13 @@ class ResetExecution:
     tables_cleared: tuple[str, ...]
 
 
-def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecution:
-    """Atomically deactivate deployment and clear all non-preserved tables.
+def reset_operational_data(
+    database_url: str,
+    *,
+    updated_by: str,
+    data_root: str | Path | None = None,
+) -> ResetExecution:
+    """Deactivate deployment and clear every operational authority.
 
     This is deliberately a lifecycle primitive rather than an application API.
     The caller is responsible for creating and verifying the external recovery
@@ -42,7 +56,10 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
     ``NullPool`` so no connection is retained after the lifecycle operation.
     The destructive statement targets only the explicitly non-preserved tables;
     it deliberately does not use ``CASCADE`` because preserved tables must
-    never be deleted implicitly by Reset.
+    never be deleted implicitly by Reset. The two event-owned JSON files are
+    also reset to empty projections after the database transaction commits.
+    They are not independent operational authorities and must not retain
+    records from before the reset.
     """
     engine = create_engine(database_url, poolclass=NullPool)
     try:
@@ -87,7 +104,15 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
                 )
                 connection.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY"))
 
+        # The database is authoritative, but these two files are durable read
+        # models which can otherwise make a fresh database appear populated on
+        # the next process start. Clear them as part of the same lifecycle
+        # operation; a caller with a verified pre-reset backup can roll back if
+        # the filesystem boundary fails.
+        clear_file_projections(data_root)
+
         remaining = verify_zero_state(database_url)
+        remaining.update(verify_file_projection_zero_state(data_root))
         if remaining:
             raise LifecycleError(
                 "Reset zero-state verification failed: "
@@ -122,3 +147,62 @@ def verify_zero_state(database_url: str) -> dict[str, int]:
         return remaining
     finally:
         engine.dispose()
+
+
+def _projection_paths(data_root: str | Path | None) -> tuple[Path, ...]:
+    root = (
+        Path(data_root).expanduser().resolve()
+        if data_root is not None
+        else paths.data_root(create=False).resolve()
+    )
+    storage = root / "storage"
+    return tuple(storage / filename for filename in FILE_PROJECTION_FILENAMES)
+
+
+def _write_empty_projection(path: Path) -> None:
+    """Atomically replace one event-owned projection with an empty list."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".reset-tmp",
+        dir=path.parent,
+        text=True,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump([], stream)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def clear_file_projections(data_root: str | Path | None = None) -> tuple[str, ...]:
+    """Remove pre-reset operational records from rebuildable JSON projections."""
+    paths_cleared: list[str] = []
+    for path in _projection_paths(data_root):
+        _write_empty_projection(path)
+        paths_cleared.append(str(path))
+    return tuple(paths_cleared)
+
+
+def verify_file_projection_zero_state(
+    data_root: str | Path | None = None,
+) -> dict[str, int]:
+    """Return non-empty or malformed event-owned projections."""
+    remaining: dict[str, int] = {}
+    for path in _projection_paths(data_root):
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            remaining[path.name] = 1
+            continue
+        count = len(payload) if isinstance(payload, list) else 1
+        if count:
+            remaining[path.name] = count
+    return remaining

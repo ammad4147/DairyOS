@@ -280,11 +280,11 @@ class MilkProductionTrendIntelligenceService:
                     getattr(
                         record,
                         "status",
-                        "",
+                        "RECORDED",
                     )
                     or ""
                 ).upper()
-                == "NOT_MILKED"
+                in {"VOID", "NOT_MILKED"}
             ):
                 continue
 

@@ -15,7 +15,11 @@ from pathlib import Path
 from dairyos.data.database.backup import verify_backup_artifact
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
 from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
-from dairyos.lifecycle.reset import reset_operational_data, verify_zero_state
+from dairyos.lifecycle.reset import (
+    reset_operational_data,
+    verify_file_projection_zero_state,
+    verify_zero_state,
+)
 from dairyos.lifecycle.restore import restore_snapshot
 
 RESET_CONFIRMATION = "RESET DAIRYOS DATA"
@@ -134,9 +138,13 @@ class AdminService:
             execution = reset_operational_data(
                 self.manager.database_url,
                 updated_by="DairyOS Admin Tool",
+                data_root=getattr(self.manager, "data_root", None),
             )
             _admin_stage("reset: destructive SQL transaction complete")
             remaining = verify_zero_state(self.manager.database_url)
+            data_root = getattr(self.manager, "data_root", None)
+            if data_root is not None:
+                remaining.update(verify_file_projection_zero_state(data_root))
             if remaining:
                 raise LifecycleError(
                     "Reset completed but zero-state verification failed: "

@@ -9,6 +9,19 @@ $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repo
 
+$sourceRevision = (& git rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceRevision -notmatch '^[0-9a-f]{40}$') {
+    throw "Unable to resolve the source Git commit for the release manifest."
+}
+$sourceTree = (& git rev-parse "$sourceRevision^{tree}").Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceTree -notmatch '^[0-9a-f]{40}$') {
+    throw "Unable to resolve the source Git tree for the release manifest."
+}
+$dirtySource = (& git status --porcelain).Trim()
+if ($dirtySource) {
+    throw "DairyOS release builds require a clean worktree so binary provenance can bind to one exact source commit."
+}
+
 $webRoot = Join-Path $repo "src\\DairyOS.Web"
 $webDist = Join-Path $webRoot "dist"
 $webIndex = Join-Path $webDist "index.html"
@@ -120,6 +133,28 @@ if (-not $versionMatch.Success) { throw "Unable to parse bundled PostgreSQL vers
 $reportedVersion = $versionMatch.Groups[1].Value
 if ($reportedVersion -ne $declaredVersion) {
     throw "Bundled PostgreSQL version mismatch: binary=$reportedVersion declared=$declaredVersion"
+}
+
+$frontendIndexPath = Join-Path $bundle "_internal\src\DairyOS.Web\dist\index.html"
+$frontendIndexHash = (Get-FileHash $frontendIndexPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$desktopHash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+$backupHash = (Get-FileHash $backupExe -Algorithm SHA256).Hash.ToLowerInvariant()
+$schemaMigrations = @(Get-ChildItem (Join-Path $repo "db_migrations\versions") -Filter "*.py" -File | Sort-Object Name | ForEach-Object Name)
+$releaseManifest = [ordered]@{
+    manifest_version = 1
+    source_commit = $sourceRevision
+    source_tree = $sourceTree
+    desktop_exe_sha256 = $desktopHash
+    backup_exe_sha256 = $backupHash
+    postgresql_version = $declaredVersion
+    frontend_index_sha256 = $frontendIndexHash
+    schema_migration_files = $schemaMigrations
+    build_timestamp_utc = (Get-Date).ToUniversalTime().ToString("o")
+}
+$releaseManifestPath = Join-Path $bundle "release-manifest.json"
+$releaseManifest | ConvertTo-Json -Depth 5 | Set-Content -Path $releaseManifestPath -Encoding utf8
+if (-not (Test-Path $releaseManifestPath -PathType Leaf)) {
+    throw "Desktop release manifest was not created: $releaseManifestPath"
 }
 
 Write-Host "=== VERIFY FROZEN ENTRY POINT ===" -ForegroundColor Cyan

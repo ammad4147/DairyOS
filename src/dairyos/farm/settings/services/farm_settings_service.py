@@ -38,6 +38,7 @@ NAVIGATION_TAB_IDS = (
     "health",
     "vaccination",
     "cop",
+    "analytics",
 )
 
 

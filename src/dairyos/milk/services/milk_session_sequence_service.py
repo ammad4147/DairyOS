@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from datetime import date as date_type, datetime as datetime_type
+from hashlib import sha256
+
+from sqlalchemy import text
 
 from dairyos.milk.models.milking_session import MilkingSession
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
@@ -45,6 +48,31 @@ class SequenceViolation(Exception):
         return self.outstanding[0] if self.outstanding else None
 
     def as_operator_guidance(self) -> dict:
+        if self.reason == "SESSION_ALREADY_NOT_MILKED":
+            return {
+                "error": "MILKING_SESSION_ALREADY_NOT_MILKED",
+                "message": (
+                    f"{self.attempted_session} was declared NOT_MILKED for "
+                    f"{_isoformat(self.operational_date)} and cannot also "
+                    "contain animal production."
+                ),
+                "operational_date": _isoformat(self.operational_date),
+                "attempted_session": self.attempted_session,
+                "outstanding_sessions": [],
+                "next_session": None,
+                "resolutions": [
+                    {
+                        "action": "VOID_NOT_MILKED_DECLARATION",
+                        "description": (
+                            "Correct the whole-farm declaration through an "
+                            "audited administrative correction before "
+                            "recording production."
+                        ),
+                        "endpoint": "POST /farm/milk/not-milked",
+                    }
+                ],
+            }
+
         if self.reason == "SESSION_ALREADY_SETTLED":
             return {
                 "error": "MILKING_SESSION_ALREADY_RECORDED",
@@ -241,6 +269,59 @@ class MilkSessionSequenceService:
 
         return settled
 
+    def lock_session(self, operational_date, milking_session: str) -> None:
+        """Serialize production and NOT_MILKED decisions for one occurrence."""
+        session = getattr(self.ledger, "session", None)
+        if session is None:
+            return
+
+        bind = session.get_bind()
+        if getattr(getattr(bind, "dialect", None), "name", None) != "postgresql":
+            return
+
+        operational_date = _as_date(operational_date)
+        key = int.from_bytes(
+            sha256(
+                f"milk-session:{operational_date.isoformat()}:{str(milking_session).upper()}".encode()
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        session.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"),
+            {"key": key},
+        )
+
+    def any_animal_recorded(
+        self,
+        operational_date,
+        milking_session: str,
+    ) -> bool:
+        """Whether any governed animal row already records this occurrence."""
+        if self.milk_repository is None:
+            return False
+
+        operational_date = _as_date(operational_date)
+        session_value = str(milking_session).upper()
+        field_by_session = {
+            MilkingSession.MORNING.value: "morning_yield",
+            MilkingSession.AFTERNOON.value: "afternoon_yield",
+            MilkingSession.EVENING.value: "evening_yield",
+        }
+        field = field_by_session.get(session_value)
+        if field is None:
+            return False
+
+        for row in self.milk_repository.get_all() or []:
+            if str(getattr(row, "status", "RECORDED") or "RECORDED").upper() == "VOID":
+                continue
+            if _as_date(getattr(row, "production_date", None)) != operational_date:
+                continue
+            if getattr(row, field, None) is not None:
+                return True
+
+        return False
+
     def settled_sessions_on(
         self,
         operational_date,
@@ -265,6 +346,7 @@ class MilkSessionSequenceService:
         milking_session: str,
         *,
         animal=None,
+        pending_sessions=None,
     ) -> list[str]:
         operational_date = _as_date(operational_date)
         milking_session = str(milking_session).upper()
@@ -272,6 +354,9 @@ class MilkSessionSequenceService:
         settled = self._animal_settled_sessions(
             operational_date,
             animal,
+        )
+        settled.update(
+            str(item).upper() for item in (pending_sessions or [])
         )
 
         if self.schedule_service is not None and animal is not None:
@@ -366,6 +451,7 @@ class MilkSessionSequenceService:
         milking_session: str,
         *,
         animal=None,
+        pending_sessions=None,
     ) -> None:
         operational_date = _as_date(
             operational_date
@@ -373,6 +459,27 @@ class MilkSessionSequenceService:
         milking_session = str(
             milking_session
         ).upper()
+        pending = {
+            str(item).upper() for item in (pending_sessions or [])
+        }
+
+        get_session = getattr(self.ledger, "get_for", None)
+        existing_session = (
+            get_session(operational_date, milking_session)
+            if callable(get_session)
+            else None
+        )
+        if (
+            existing_session is not None
+            and str(getattr(existing_session, "status", "") or "").upper()
+            == "NOT_MILKED"
+        ):
+            raise SequenceViolation(
+                operational_date=operational_date,
+                attempted_session=milking_session,
+                outstanding=[],
+                reason="SESSION_ALREADY_NOT_MILKED",
+            )
 
         if (
             self.schedule_service is not None
@@ -404,7 +511,7 @@ class MilkSessionSequenceService:
             animal,
         )
 
-        if milking_session in animal_recorded:
+        if milking_session in animal_recorded or milking_session in pending:
             raise SequenceViolation(
                 operational_date=operational_date,
                 attempted_session=milking_session,
@@ -416,6 +523,7 @@ class MilkSessionSequenceService:
             operational_date,
             milking_session,
             animal=animal,
+            pending_sessions=pending,
         )
 
         if outstanding:

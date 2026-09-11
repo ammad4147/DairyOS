@@ -43,6 +43,9 @@ def _seed_read_fixture(animal_id: str) -> None:
                 animal_id=animal_id,
                 production_date=datetime.combine(day, datetime.min.time()),
                 recorded_at=datetime.combine(day, datetime.min.time()),
+                milking_session="MORNING",
+                session_ledger=True,
+                morning_yield=litres,
                 total_yield=litres,
                 status="RECORDED",
             )

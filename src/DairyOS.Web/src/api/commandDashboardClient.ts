@@ -12,6 +12,11 @@ export interface HerdCategory {
   color?: string;
 }
 
+export interface HerdMetrics {
+  wetAverageYieldPercentage: number | null;
+  dryAverageYieldPercentage: number | null;
+}
+
 export interface DashboardSickAnimal {
   animalId: string;
   diagnosis: string;
@@ -37,10 +42,11 @@ export interface CommandDashboardData {
   adultAnimals: number;
   milkingPercentage: number;
   averageYieldPerCow: number | null;
+  herdComposition: HerdCategory[];
+  herdMetrics: HerdMetrics;
   topPerformers: PerformerItem[];
   bottomPerformers: PerformerItem[];
   yieldTrend: Array<{ day: string; yield: number | null }>;
-  herdComposition: HerdCategory[];
   productionExtremes: {
     highest: PerformerItem[];
     lowest: PerformerItem[];
@@ -99,10 +105,14 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   adultAnimals: 0,
   milkingPercentage: 0,
   averageYieldPerCow: 0,
+  herdComposition: [],
+  herdMetrics: {
+    wetAverageYieldPercentage: null,
+    dryAverageYieldPercentage: null,
+  },
   topPerformers: [],
   bottomPerformers: [],
   yieldTrend: [],
-  herdComposition: [],
   productionExtremes: {
     highest: [],
     lowest: [],
@@ -377,6 +387,11 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
       ? dashboard.animals.composition
       : [];
 
+  const rawHerdMetrics =
+    rawAnimals.herd_metrics ??
+    dashboard.animals?.herd_metrics ??
+    {};
+
   return {
     ...data,
 
@@ -459,7 +474,22 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     yieldTrend:
       trend,
 
-    herdComposition,
+    herdComposition: herdComposition.map((item: any) => ({
+      name: String(item?.name || item?.category || 'Unclassified'),
+      value: Number(item?.value ?? item?.count ?? 0),
+      color: item?.color ? String(item.color) : undefined,
+    })),
+
+    herdMetrics: {
+      wetAverageYieldPercentage:
+        rawHerdMetrics.wet_average_yield_percentage == null
+          ? null
+          : Number(rawHerdMetrics.wet_average_yield_percentage),
+      dryAverageYieldPercentage:
+        rawHerdMetrics.dry_average_yield_percentage == null
+          ? null
+          : Number(rawHerdMetrics.dry_average_yield_percentage),
+    },
 
     productionExtremes: {
       highest:

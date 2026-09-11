@@ -81,6 +81,17 @@ class InputCatalog:
                 normalization_enabled=True,
             ),
             OperationalInputDefinition(
+                input_type=OperationalInputType.MILK_PRODUCTION_CORRECTION.value,
+                name="Milk Production Correction",
+                description=(
+                    "Immutable before/after audit record for a governed "
+                    "Milk production update or void."
+                ),
+                required_fields=["production_id", "action", "reason", "before", "after"],
+                optional_fields=["operator", "source_request_id"],
+                governance_required=True,
+            ),
+            OperationalInputDefinition(
                 input_type=OperationalInputType.ANIMAL_HEALTH.value,
                 name="Animal Health Entry",
                 description="Animal health observations and treatments.",
@@ -120,6 +131,22 @@ class InputCatalog:
                 description="Governed changes to animal profile and identifier metadata.",
                 required_fields=["animal_id"],
                 optional_fields=["changed_fields", "operator"],
+                governance_required=True,
+                normalization_enabled=True,
+            ),
+            OperationalInputDefinition(
+                input_type=OperationalInputType.ANIMAL_REGISTRATION.value,
+                name="Animal Registration",
+                description=(
+                    "Authoritative creation of a permanent DairyOS animal "
+                    "identity and biological profile."
+                ),
+                required_fields=["animal_id", "animal_type", "lifecycle_status", "sex"],
+                optional_fields=[
+                    "dam_id", "sire_id", "ear_tag", "rfid", "breed",
+                    "date_of_birth", "date_of_acquisition", "operator",
+                ],
+                analytics_enabled=True,
                 governance_required=True,
                 normalization_enabled=True,
             ),

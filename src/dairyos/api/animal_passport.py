@@ -12,7 +12,7 @@ from dairyos.application.database_aware_animal_passport import (
     DatabaseAwareLifetimeAnimalPassportService,
 )
 from dairyos.farm.reproduction.services.reproductive_state_service import (
-    ReproductivePolicy,
+    DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateError,
     ReproductiveStateService,
 )
@@ -71,11 +71,7 @@ def get_reproductive_state(
             if str(getattr(record, "animal_id", "")) == animal_id
         ]
 
-        policy = ReproductivePolicy(
-            voluntary_waiting_period_days=60,
-            gestation_days=280,
-            dry_off_days_before_calving=60,
-        )
+        policy = DEFAULT_REPRODUCTIVE_POLICY
         resolved = ReproductiveStateService(policy).resolve(
             animal_id,
             target_events,

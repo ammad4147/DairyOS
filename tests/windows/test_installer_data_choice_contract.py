@@ -22,12 +22,14 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert "Source: \"..\\..\\dist\\DairyOS-Release\\DairyOS\\*\"" in source
 
 
-def test_installer_exposes_existing_data_and_safe_start_choices():
+def test_installer_exposes_data_status_without_a_fake_destructive_choice():
     source = _source()
 
     assert "DetectExistingDairyOSData" in source
-    assert "Use existing DairyOS data" in source
-    assert "Start a new DairyOS farm" in source
+    assert "INSTALLER STATUS: the existing farm database and ProgramData records will be retained." in source
+    assert "INSTALLER STATUS: no existing farm data was detected." in source
+    assert "This page is informational, not a data-choice control." in source
+    assert "TRadioButton" not in source
     assert "ShouldLaunchDairyOS" in source
     assert "Restore from a verified DairyOS backup" not in source
     assert "DairyOS-Admin.exe" not in source
@@ -37,8 +39,8 @@ def test_installer_exposes_existing_data_and_safe_start_choices():
 def test_uninstaller_explicitly_keeps_data_without_standalone_admin():
     source = _source()
 
-    assert "YES - KEEP DATA AND UNINSTALL" in source
-    assert "Removes the DairyOS application but keeps the farm database and backups." in source
+    assert "YES - PRESERVE FARM DATA AND UNINSTALL" in source
+    assert "Choose a destination for a verified farm-data package" in source
     assert "NO - CANCEL AND KEEP THE APPLICATION" in source
     assert "DairyOS-Admin.exe" not in source
 
@@ -62,9 +64,10 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
     assert "DairyOSDataRoot() + '\\postgres\\data'" in source
     assert "postmaster.pid" in source
     assert "stop -m fast -w -t 30" in source
-    assert "/F /T /IM DairyOS.exe" in source
-    assert "/F /T /IM DairyOSBackup.exe" in source
-    assert "taskkill.exe" in source
+    assert "Get-CimInstance Win32_Process" in source
+    assert "StopInstalledProcessByPath(ExpandConstant('{app}\\DairyOS.exe'))" in source
+    assert "StopInstalledProcessByPath(ExpandConstant('{app}\\DairyOSBackup.exe'))" in source
+    assert "taskkill.exe" not in source
     assert "/IM postgres.exe" not in source
     assert 'DairyOS-Automatic-Backup' in source
     assert "Result := StopInstalledDairyOSForUninstall();" in source

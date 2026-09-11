@@ -95,10 +95,16 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
     called = []
     monkeypatch.setattr(
         "dairyos.admin.service.reset_operational_data",
-        lambda url, updated_by: (called.append((url, updated_by)) or Execution()),
+        lambda url, updated_by, **kwargs: (called.append((url, updated_by, kwargs)) or Execution()),
     )
     monkeypatch.setattr("dairyos.admin.service.verify_zero_state", lambda url: {})
     result = AdminService(manager).reset(RESET_CONFIRMATION)
     assert result.success is True
-    assert called == [("postgresql+psycopg://example", "DairyOS Admin Tool")]
+    assert called == [
+        (
+            "postgresql+psycopg://example",
+            "DairyOS Admin Tool",
+            {"data_root": None},
+        )
+    ]
     assert manager.calls == [("validate", True), ("backup", "pre-reset", True)]

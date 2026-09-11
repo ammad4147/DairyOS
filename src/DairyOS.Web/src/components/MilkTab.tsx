@@ -1253,7 +1253,9 @@ export default function MilkTab({
         }
 
         if (
-          !(litres > 0) ||
+          productionLitres.trim() === '' ||
+          !Number.isFinite(litres) ||
+          litres < 0 ||
           !productionAnimal ||
           !session
         ) {
@@ -1619,9 +1621,13 @@ export default function MilkTab({
       const litres =
         Number(lateEntryLitres);
 
-      if (!(litres > 0)) {
+      if (
+        lateEntryLitres.trim() === '' ||
+        !Number.isFinite(litres) ||
+        litres < 0
+      ) {
         setError(
-          'Historical milk litres must be greater than zero.',
+          'Historical milk litres must be zero or greater.',
         );
         return;
       }
@@ -3032,7 +3038,7 @@ export default function MilkTab({
                             <input
                               autoFocus
                               type="number"
-                              min="0.001"
+                              min="0"
                               step="0.001"
                               value={
                                 lateEntryLitres
@@ -3902,7 +3908,7 @@ export default function MilkTab({
                             <input
                               autoFocus
                               type="number"
-                              min="0.001"
+                              min="0"
                               step="0.001"
                               value={
                                 productionLitres

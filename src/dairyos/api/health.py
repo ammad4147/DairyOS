@@ -32,6 +32,8 @@ _REQUIRED_TABLES = frozenset(
         "health_cases",
         "health_observation",
         "milk_production",
+        "milk_production_corrections",
+        "vaccinations",
         "operational_events",
         "operational_projection_outbox",
         "operational_states",
@@ -43,6 +45,8 @@ _REQUIRED_TABLES = frozenset(
 _PERSISTENCE_TABLES = (
     ("animal persistence", "animal"),
     ("milk persistence", "milk_production"),
+    ("milk correction history persistence", "milk_production_corrections"),
+    ("vaccination persistence", "vaccinations"),
     ("feed persistence", "feed_record"),
     ("finance persistence", "financial_transactions"),
     ("health observation persistence", "health_observation"),
@@ -321,6 +325,17 @@ def get_system_health(container=Depends(get_container)):  # noqa: B008
                 "health_observation": {"id", "animal_id", "observed_at", "health_case_id"},
                 "health_cases": {"id", "case_id", "animal_id", "status"},
                 "treatment_record": {"id", "animal_id", "treated_at", "health_case_id"},
+                "milk_production_corrections": {
+                    "id",
+                    "production_id",
+                    "action",
+                    "reason",
+                    "operator",
+                    "before_json",
+                    "after_json",
+                    "source_request_id",
+                    "corrected_at",
+                },
             }
             missing_columns: list[str] = []
             try:
@@ -636,6 +651,12 @@ def get_vaccination_summary(container=Depends(get_container)):  # noqa: B008
     projection = project_vaccination_schedule(
         container.event_journal.all_events(),
         today,
+        active_animal_ids={
+            str(getattr(animal, "animal_id", ""))
+            for animal in container.animal_repository.active_animals()
+            if getattr(animal, "animal_id", None)
+        },
+        relational_records=factory.vaccinations().get_all(),
     )
     completed = int(projection["completed"])
     schedules = list(projection["schedules"])
@@ -648,18 +669,18 @@ def get_vaccination_summary(container=Depends(get_container)):  # noqa: B008
         animal_id = str(payload.get("animal_id") or "")
         if animal_id:
             animals_with_history.add(animal_id)
+    for record in factory.vaccinations().get_all():
+        if str(getattr(record, "status", "COMPLETED") or "").upper() != "VOID":
+            animal_id = str(getattr(record, "animal_id", "") or "").strip()
+            if animal_id:
+                animals_with_history.add(animal_id)
 
     animal_repo = getattr(container, "animal_repository", None)
-    active_animals = []
-    if animal_repo is not None and hasattr(animal_repo, "active_animals"):
-        active_animals = list(animal_repo.active_animals())
-    else:
-        repo = factory.animal()
-        all_animals = list(repo.get_all()) if hasattr(repo, "get_all") else []
-        active_animals = [
-            animal for animal in all_animals
-            if getattr(animal, "active", True) is not False
-        ]
+    active_animals = (
+        list(animal_repo.active_animals())
+        if animal_repo is not None and hasattr(animal_repo, "active_animals")
+        else []
+    )
 
     active_ids = {
         str(getattr(animal, "animal_id", ""))

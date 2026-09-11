@@ -22,6 +22,7 @@ class ReproductivePolicy:
     voluntary_waiting_period_days: int
     gestation_days: int
     dry_off_days_before_calving: int
+    pd_due_days: int = 35
 
     def __post_init__(self) -> None:
         if self.voluntary_waiting_period_days < 0:
@@ -30,6 +31,16 @@ class ReproductivePolicy:
             raise ValueError("gestation_days must be greater than zero")
         if self.dry_off_days_before_calving < 0:
             raise ValueError("dry_off_days_before_calving must be non-negative")
+        if self.pd_due_days <= 0:
+            raise ValueError("pd_due_days must be greater than zero")
+
+
+DEFAULT_REPRODUCTIVE_POLICY = ReproductivePolicy(
+    voluntary_waiting_period_days=60,
+    gestation_days=283,
+    dry_off_days_before_calving=60,
+    pd_due_days=35,
+)
 
 
 @dataclass(frozen=True)
@@ -47,6 +58,8 @@ class ReproductiveState:
     pregnancy_confirmed_date: date | None
     expected_calving_date: date | None
     days_open: int | None
+    pd_due_date: date | None
+    days_pregnant: int | None
     expected_dry_off_date: date | None
     dry_period_status: str
 
@@ -391,6 +404,18 @@ class ReproductiveStateService:
             if successful_service is not None:
                 days_open = (successful_service - last_calving_date).days
 
+        pd_due_date = (
+            last_insemination_date + timedelta(days=self.policy.pd_due_days)
+            if last_insemination_date is not None
+            else None
+        )
+        days_pregnant = (
+            max((as_of_date - pregnancy_confirmed_date).days, 0)
+            if pregnancy_status == "PREGNANT"
+            and pregnancy_confirmed_date is not None
+            else None
+        )
+
         expected_dry_off_date = (
             expected_calving_date - timedelta(days=self.policy.dry_off_days_before_calving)
             if expected_calving_date is not None
@@ -442,6 +467,8 @@ class ReproductiveStateService:
             pregnancy_confirmed_date=pregnancy_confirmed_date,
             expected_calving_date=expected_calving_date,
             days_open=days_open,
+            pd_due_date=pd_due_date,
+            days_pregnant=days_pregnant,
             expected_dry_off_date=expected_dry_off_date,
             dry_period_status=dry_period_status,
         )

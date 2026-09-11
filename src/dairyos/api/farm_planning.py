@@ -14,7 +14,7 @@ from dairyos.core.time_utils import utcnow
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.reproduction.services.reproductive_state_service import (
-    ReproductivePolicy,
+    DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateService,
 )
 
@@ -34,11 +34,7 @@ class RationPlan(BaseModel):
     farm_id: str = "DEFAULT"
 
 
-_REPRODUCTIVE_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
-    gestation_days=283,
-    dry_off_days_before_calving=60,
-)
+_REPRODUCTIVE_POLICY = DEFAULT_REPRODUCTIVE_POLICY
 
 
 def _breeding_record_to_resolver_event(record):

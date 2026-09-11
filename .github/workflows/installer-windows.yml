@@ -60,6 +60,28 @@ jobs:
         shell: pwsh
         run: ./scripts/Build-DairyOS-Installer.ps1
 
+      - name: Verify exact source and release manifest binding
+        shell: pwsh
+        run: |
+          $head = (& git rev-parse HEAD).Trim()
+          $tree = (& git rev-parse "HEAD^{tree}").Trim()
+          $bundleManifestPath = Join-Path $PWD "dist\DairyOS-Release\DairyOS\release-manifest.json"
+          $artifactManifestPath = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.release.json"
+          foreach ($path in @($bundleManifestPath, $artifactManifestPath)) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Release manifest missing: $path" }
+          }
+          $bundleManifest = Get-Content $bundleManifestPath -Raw | ConvertFrom-Json
+          $artifactManifest = Get-Content $artifactManifestPath -Raw | ConvertFrom-Json
+          if ($bundleManifest.source_commit -ne $head -or $artifactManifest.source_commit -ne $head) { throw "Release manifest source commit does not equal HEAD." }
+          if ($bundleManifest.source_tree -ne $tree -or $artifactManifest.source_tree -ne $tree) { throw "Release manifest source tree does not equal HEAD tree." }
+          $desktopHash = (Get-FileHash (Join-Path $PWD "dist\DairyOS-Release\DairyOS\DairyOS.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+          $backupHash = (Get-FileHash (Join-Path $PWD "dist\DairyOS-Release\DairyOS\DairyOSBackup.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+          $installerHash = (Get-FileHash (Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($bundleManifest.desktop_exe_sha256 -ne $desktopHash -or $artifactManifest.desktop_exe_sha256 -ne $desktopHash) { throw "DairyOS.exe hash is not bound consistently." }
+          if ($bundleManifest.backup_exe_sha256 -ne $backupHash -or $artifactManifest.backup_exe_sha256 -ne $backupHash) { throw "DairyOSBackup.exe hash is not bound consistently." }
+          if ($artifactManifest.installer_sha256 -ne $installerHash) { throw "Installer hash is not bound consistently." }
+          Write-Host "EXACT SOURCE / BINARY / INSTALLER MANIFEST: PASS"
+
       - name: Certify silent install and keep-data uninstall
         shell: pwsh
         timeout-minutes: 8
@@ -114,6 +136,61 @@ jobs:
           }
 
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
+
+
+          # Operational projections are written by the ordinary runtime. The
+          # storage tree must remain writable after elevated Setup creates it,
+          # including files that already existed before a later non-elevated
+          # atomic replacement.
+          $storageRoot = Join-Path $dataRoot "storage"
+          $operationalInputs = Join-Path $storageRoot "operational_inputs.json"
+          if (-not (Test-Path $storageRoot -PathType Container)) {
+            throw "Installer did not provision DairyOS operational storage root."
+          }
+          if (-not (Test-Path $operationalInputs -PathType Leaf)) {
+            '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $operationalInputs -Encoding utf8
+          }
+          $storageAcl = Get-Acl $storageRoot
+          $storageAllowsModify = $false
+          foreach ($rule in $storageAcl.Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+            } catch {
+              continue
+            }
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $storageAllowsModify = $true
+              break
+            }
+          }
+          if (-not $storageAllowsModify) {
+            throw "Installed operational storage tree is not modifiable by the built-in Users group."
+          }
+          $storageFileAcl = Get-Acl $operationalInputs
+          $storageFileAllowsModify = $false
+          foreach ($rule in $storageFileAcl.Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+            } catch {
+              continue
+            }
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $storageFileAllowsModify = $true
+              break
+            }
+          }
+          if (-not $storageFileAllowsModify) {
+            throw "Existing operational_inputs.json is not modifiable by the built-in Users group."
+          }
+          Write-Host "OPERATIONAL STORAGE ACL CERTIFICATION: PASS"
 
 
           # Automatic backup runs with a limited user token. Certify that the
@@ -194,6 +271,7 @@ jobs:
           $required = @(
             (Join-Path $installRoot "DairyOS.exe"),
             (Join-Path $installRoot "DairyOSBackup.exe"),
+            (Join-Path $installRoot "release-manifest.json"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"),
             (Join-Path $installRoot "runtime\PostgreSQL\bin\initdb.exe"),
@@ -205,6 +283,12 @@ jobs:
           foreach ($path in $required) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Installed DairyOS component is missing: $path" }
           }
+
+          $installedManifest = Get-Content (Join-Path $installRoot "release-manifest.json") -Raw | ConvertFrom-Json
+          $expectedHead = (& git rev-parse HEAD).Trim()
+          if ($installedManifest.source_commit -ne $expectedHead) { throw "Installed release manifest source commit does not equal the certified checkout." }
+          $installedDesktopHash = (Get-FileHash (Join-Path $installRoot "DairyOS.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($installedManifest.desktop_exe_sha256 -ne $installedDesktopHash) { throw "Installed DairyOS.exe does not match its embedded release manifest." }
 
           $declaredVersion = (Get-Content (Join-Path $installRoot "runtime\postgresql.version") -Raw).Trim()
           $reportedVersionText = & (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe") --version 2>&1
@@ -381,5 +465,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DairyOS-Windows-Installer
-          path: dist/DairyOS-Release/DairyOS-Windows-Installer.exe
+          path: |
+            dist/DairyOS-Release/DairyOS-Windows-Installer.exe
+            dist/DairyOS-Release/DairyOS-Windows-Installer.release.json
           if-no-files-found: error

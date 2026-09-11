@@ -30,6 +30,7 @@ APPROVED_NAVIGATION = (
     "Health",
     "Vaccination",
     "COP",
+    "Analytics",
 )
 
 
@@ -68,7 +69,7 @@ def test_active_operator_shell_contains_exact_approved_navigation():
     assert labels == APPROVED_NAVIGATION
     assert "NAVIGATION_TABS.map" in shell_source
 
-    for retired in ("Inventory", "Analytics", "Workforce", "Equipment"):
+    for retired in ("Inventory", "Workforce", "Equipment"):
         assert retired not in navigation_source
 
 
@@ -84,6 +85,7 @@ def test_active_shell_routes_to_current_operational_components():
         "HealthTab",
         "VaccinationTab",
         "COML",
+        "AnalyticsTab",
     ):
         assert component in source
     assert "COPOfficializationPanel" not in source

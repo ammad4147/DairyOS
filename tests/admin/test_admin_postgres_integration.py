@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import shutil
 import subprocess
 import sys
@@ -172,6 +173,16 @@ def test_admin_reset_backup_reset_and_restore(
 
     _stage("2/9 installing lifecycle manifest")
     manager.install(application_version="integration-test")
+    storage = manager.data_root / "storage"
+    storage.mkdir(parents=True, exist_ok=True)
+    (storage / "operational_inputs.json").write_text(
+        json.dumps([{"input_type": "milk_production", "litres": 42}]),
+        encoding="utf-8",
+    )
+    (storage / "animal_operational_states.json").write_text(
+        json.dumps([{"animal_id": "OLD-RESET-001"}]),
+        encoding="utf-8",
+    )
 
     animal_id = f"ADMIN-RESET-{uuid.uuid4().hex[:8].upper()}"
     restore_name = None
@@ -200,6 +211,41 @@ def test_admin_reset_backup_reset_and_restore(
                     "ON CONFLICT (key) DO UPDATE SET value='true', updated_at=NOW(), updated_by='integration-test'"
                 )
             )
+            connection.execute(
+                text(
+                    "INSERT INTO milk_production "
+                    "(animal_id, production_date, recorded_at, milking_session, "
+                    "session_ledger, morning_yield, total_yield, status) "
+                    "VALUES (:animal_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
+                    "'MORNING', true, 12.0, 12.0, 'RECORDED')"
+                ),
+                {"animal_id": animal_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO feed_record "
+                    "(animal_id, feed_type, quantity_kg, feeding_date, status) "
+                    "VALUES (:animal_id, 'SILAGE', 5.0, CURRENT_TIMESTAMP, 'RECORDED')"
+                ),
+                {"animal_id": animal_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO financial_transactions "
+                    "(transaction_type, category, amount, transaction_date, currency, "
+                    "master_category, sub_category, status) "
+                    "VALUES ('EXPENSE', 'FEED', 500.00, CURRENT_TIMESTAMP, 'PKR', "
+                    "'FEED', 'Silage', 'RECORDED')"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO feed_ration "
+                    "(name, animal_group, ingredients_json, effective_date, operator, created_at) "
+                    "VALUES ('Reset audit ration', 'TMR_DAILY_COST_SNAPSHOT', '{}', "
+                    "'2026-09-12', 'integration-test', CURRENT_TIMESTAMP)"
+                )
+            )
 
         engine.dispose()
         monkeypatch.setattr(
@@ -219,6 +265,12 @@ def test_admin_reset_backup_reset_and_restore(
         _stage(f"4/9 Reset completed; recovery artifact={recovery}")
 
         _stage("5/9 verifying zero-state and deployment deactivation")
+        assert json.loads(
+            (storage / "operational_inputs.json").read_text(encoding="utf-8")
+        ) == []
+        assert json.loads(
+            (storage / "animal_operational_states.json").read_text(encoding="utf-8")
+        ) == []
         verify_engine = create_engine(database_url)
         try:
             with verify_engine.connect() as connection:
@@ -229,6 +281,15 @@ def test_admin_reset_backup_reset_and_restore(
                     ).scalar_one()
                     == 0
                 )
+                for table in (
+                    "milk_production",
+                    "feed_record",
+                    "financial_transactions",
+                    "feed_ration",
+                ):
+                    assert connection.execute(
+                        text(f"SELECT count(*) FROM {table}")
+                    ).scalar_one() == 0
                 deployment = connection.execute(
                     text(
                         "SELECT value FROM app_settings WHERE key='deployment_activated'"
@@ -262,6 +323,12 @@ def test_admin_reset_backup_reset_and_restore(
                     {"id": animal_id},
                 ).scalar_one()
                 assert count == 1
+                assert connection.execute(
+                    text("SELECT count(*) FROM milk_production")
+                ).scalar_one() == 1
+                assert connection.execute(
+                    text("SELECT count(*) FROM feed_record")
+                ).scalar_one() == 1
         finally:
             restored_engine.dispose()
 

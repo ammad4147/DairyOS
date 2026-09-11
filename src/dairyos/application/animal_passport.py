@@ -18,7 +18,7 @@ from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
 from dairyos.farm.reproduction.services.reproductive_state_service import (
-    ReproductivePolicy,
+    DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateService,
 )
 from dairyos.farm.settings.services.operational_date_authority import (
@@ -26,11 +26,7 @@ from dairyos.farm.settings.services.operational_date_authority import (
 )
 
 
-_REPRODUCTIVE_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
-    gestation_days=283,
-    dry_off_days_before_calving=60,
-)
+_REPRODUCTIVE_POLICY = DEFAULT_REPRODUCTIVE_POLICY
 
 
 class LifetimeAnimalPassportService:

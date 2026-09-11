@@ -65,6 +65,10 @@ from dairyos.data.models.milk_production import (
     MilkProduction,
 )
 
+from dairyos.data.models.milk_production_correction import (
+    MilkProductionCorrection,
+)
+
 from dairyos.data.models.operational_finding import (
     OperationalFinding,
 )
@@ -108,6 +112,7 @@ from dairyos.data.models.semen_inventory import (
     SemenLot,
     SemenStockMovement,
 )
+from dairyos.data.models.vaccination_record import VaccinationRecord
 
 from dairyos.data.models.user import (
     User,

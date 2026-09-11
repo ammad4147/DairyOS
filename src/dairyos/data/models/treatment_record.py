@@ -17,6 +17,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKeyConstraint,
     Integer,
     String,
     ForeignKey,
@@ -31,6 +32,15 @@ from dairyos.core.time_utils import utcnow
 class TreatmentRecord(Base):
 
     __tablename__ = "treatment_record"
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["health_case_id", "animal_id"],
+            ["health_cases.id", "health_cases.animal_id"],
+            name="fk_treatment_record_case_same_animal",
+            ondelete="RESTRICT",
+        ),
+    )
 
     id = Column(
         Integer,

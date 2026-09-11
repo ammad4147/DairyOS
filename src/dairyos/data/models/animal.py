@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
@@ -16,6 +25,9 @@ class Animal(Base):
     """
 
     __tablename__ = "animal"
+    __table_args__ = (
+        UniqueConstraint("animal_id", name="uq_animal_animal_id"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -32,8 +44,18 @@ class Animal(Base):
     sex = Column(String, nullable=True)
     date_of_birth = Column(Date, nullable=True)
     date_of_acquisition = Column(Date, nullable=True)
-    dam_id = Column(String, nullable=True)
-    sire_id = Column(String, nullable=True)
+    dam_id = Column(
+        String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    sire_id = Column(
+        String,
+        ForeignKey("animal.animal_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     lifecycle_status = Column(String, nullable=True)
     status = Column(String, default="ACTIVE", nullable=False)
     is_currently_milking = Column(Boolean, default=False, nullable=False)

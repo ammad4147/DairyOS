@@ -6,6 +6,9 @@ from dairyos.data.repositories.animal_repository import AnimalRepository
 from dairyos.data.repositories.coml_repository import COMLRepository
 from dairyos.data.repositories.farm_repository import FarmRepository
 from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
+from dairyos.data.repositories.milk_production_correction_repository import (
+    MilkProductionCorrectionRepository,
+)
 from dairyos.data.repositories.milk_quality_repository import MilkQualityRepository
 from dairyos.data.repositories.milk_disposition_repository import MilkDispositionRepository
 from dairyos.data.repositories.milking_session_record_repository import (
@@ -28,6 +31,7 @@ from dairyos.data.repositories.database_operational_state_repository import Data
 from dairyos.data.repositories.treatment_repository import TreatmentRepository
 from dairyos.data.repositories.drug_withdrawal_reference_repository import DrugWithdrawalReferenceRepository
 from dairyos.data.repositories.equipment_repository import EquipmentRepository
+from dairyos.data.repositories.vaccination_repository import VaccinationRepository
 from dairyos.data.database.session import create_application_session
 
 
@@ -61,6 +65,12 @@ class RepositoryFactory:
 
     def milk(self):
         return MilkProductionRepository(session=self._session, animal_repository=self.animal())
+
+    def milk_corrections(self):
+        return MilkProductionCorrectionRepository(session=self._session)
+
+    def vaccinations(self):
+        return VaccinationRepository(session=self._session)
 
     def milk_quality(self):
         return MilkQualityRepository(session=self._session)

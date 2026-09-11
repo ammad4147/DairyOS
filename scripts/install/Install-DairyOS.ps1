@@ -28,6 +28,15 @@ function Invoke-DairyOsLifecycle([string[]]$Arguments) {
     }
 }
 
+function Provision-DairyOsMutableAcl([string]$Path) {
+    if ($env:OS -ne "Windows_NT") { return }
+    New-Item -ItemType Directory -Force -Path $Path | Out-Null
+    & icacls.exe $Path /grant:r '*S-1-5-32-545:(OI)(CI)(M)' /T /C | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to provision ordinary-runtime Modify permission for DairyOS mutable storage: $Path"
+    }
+}
+
 $SourceRoot = (Resolve-Path $SourceRoot).Path
 $InstallRoot = [IO.Path]::GetFullPath($InstallRoot)
 $DataRoot = [IO.Path]::GetFullPath($DataRoot)
@@ -119,6 +128,7 @@ try {
 
     $installArgs = $validateArgs + @("install")
     Invoke-DairyOsLifecycle $installArgs
+    Provision-DairyOsMutableAcl (Join-Path $DataRoot "storage")
 
     $validateCommandArgs = $validateArgs + @("validate")
     Invoke-DairyOsLifecycle $validateCommandArgs

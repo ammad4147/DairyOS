@@ -374,7 +374,14 @@ def _validate_expense_payload(
 def _validate_dates(
     transaction_date: date | None,
     due_date: date | None,
+    *,
+    as_of: date | None = None,
 ) -> None:
+    if transaction_date and as_of and transaction_date > as_of:
+        raise HTTPException(
+            status_code=422,
+            detail="transaction_date cannot be in the future of the farm operational date.",
+        )
     if transaction_date and due_date and due_date < transaction_date:
         raise HTTPException(
             status_code=422,
@@ -566,10 +573,73 @@ def _ageing_payload(
 ) -> dict:
     as_of = as_of or _farm_today()
 
+    def side_payload(status: str) -> dict:
+        outstanding = [
+            row
+            for row in rows
+            if str(row.status or "").upper() == status
+        ]
+
+        total = sum(float(row.amount or 0) for row in outstanding)
+        overdue = sum(
+            float(row.amount or 0)
+            for row in outstanding
+            if row.due_date and row.due_date < as_of
+        )
+        buckets = {
+            "CURRENT": 0.0,
+            "1_30": 0.0,
+            "31_60": 0.0,
+            "61_90": 0.0,
+            "90_PLUS": 0.0,
+            "NO_DUE_DATE": 0.0,
+        }
+        suppliers: dict[str, float] = {}
+        for row in outstanding:
+            amount = float(row.amount or 0)
+            buckets[_age_bucket(row.due_date, as_of)] += amount
+            supplier = row.counterparty or "Unspecified Supplier"
+            suppliers[supplier] = suppliers.get(supplier, 0.0) + amount
+
+        return {
+            "status": status,
+            "outstanding_total": total,
+            "overdue_total": overdue,
+            "count": len(outstanding),
+            "ageing_buckets": buckets,
+            "supplier_rollup": [
+                {"supplier": supplier, "outstanding": amount}
+                for supplier, amount in sorted(
+                    suppliers.items(), key=lambda item: item[1], reverse=True
+                )
+            ],
+            "transactions": [
+                {
+                    **_row_dict(row),
+                    "direction": status,
+                    "days_overdue": (
+                        max(0, (as_of - row.due_date).days)
+                        if row.due_date
+                        else None
+                    ),
+                    "age_bucket": _age_bucket(row.due_date, as_of),
+                }
+                for row in sorted(
+                    outstanding,
+                    key=lambda item: (
+                        item.due_date or date.max,
+                        item.transaction_date or datetime.min,
+                    ),
+                )
+            ],
+        }
+
+    payables = side_payload("PAYABLE")
+    receivables = side_payload("RECEIVABLE")
     outstanding = [
         row
         for row in rows
-        if row.status == "PAYABLE"
+        if str(row.status or "").upper() in {"PAYABLE", "RECEIVABLE"}
     ]
 
     total = sum(
@@ -620,9 +690,16 @@ def _ageing_payload(
                 reverse=True,
             )
         ],
+        "payables": payables,
+        "receivables": receivables,
+        "payable_total": payables["outstanding_total"],
+        "receivable_total": receivables["outstanding_total"],
+        "payable_count": payables["count"],
+        "receivable_count": receivables["count"],
         "transactions": [
             {
                 **_row_dict(row),
+                "direction": str(row.status or "").upper(),
                 "days_overdue": (
                     max(0, (as_of - row.due_date).days)
                     if row.due_date
@@ -971,6 +1048,121 @@ def _sync_existing_milk_sale_status(
     factory.session.add(disposition)
 
 
+def _linked_semen_purchase(
+    factory,
+    finance_id: int,
+    *,
+    lock: bool = False,
+) -> tuple[SemenLot | None, SemenStockMovement | None]:
+    """Load the one semen lot and its immutable purchase movement for Finance."""
+
+    query = (
+        factory.session.query(SemenLot)
+        .filter(SemenLot.purchase_transaction_id == finance_id)
+    )
+    if lock:
+        query = query.with_for_update()
+    lot = query.first()
+    if lot is None:
+        return None, None
+
+    movement_query = (
+        factory.session.query(SemenStockMovement)
+        .filter(
+            SemenStockMovement.semen_lot_id == lot.id,
+            SemenStockMovement.source_financial_transaction_id == finance_id,
+            SemenStockMovement.movement_type == "PURCHASE",
+        )
+    )
+    if lock:
+        movement_query = movement_query.with_for_update()
+    return lot, movement_query.first()
+
+
+def _sync_existing_semen_purchase(
+    *,
+    factory,
+    transaction: FinancialTransaction,
+) -> None:
+    """Keep an unsettled Finance semen purchase and stock authority identical."""
+
+    lot, purchase_movement = _linked_semen_purchase(
+        factory,
+        transaction.id,
+        lock=True,
+    )
+    if lot is None:
+        return
+
+    status = str(transaction.status or "RECORDED").upper()
+    if status == "VOID":
+        # Keep the purchase movement as historical evidence, but remove the
+        # lot from the selectable inventory authority.
+        lot.active = False
+        factory.session.add(lot)
+        return
+
+    if transaction.quantity is None or transaction.unit_rate is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Semen purchase quantity and unit_rate are required.",
+        )
+    quantity = float(transaction.quantity)
+    if quantity <= 0 or int(quantity) != quantity:
+        raise HTTPException(
+            status_code=422,
+            detail="Semen purchase quantity must be a positive whole number.",
+        )
+    quantity = int(quantity)
+    unit = str(transaction.unit or "").strip().lower()
+    if unit not in {"straw", "straws"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Semen purchase unit must be straw.",
+        )
+    rate = _rate(transaction.unit_rate)
+    if rate <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Semen purchase rate must be positive.",
+        )
+
+    consumed = int(
+        -sum(
+            int(row.signed_quantity or 0)
+            for row in factory.session.query(SemenStockMovement)
+            .filter(SemenStockMovement.semen_lot_id == lot.id)
+            .all()
+            if int(row.signed_quantity or 0) < 0
+        )
+    )
+    if quantity < consumed:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Semen purchase quantity cannot be lower than straws already "
+                f"consumed from lot {lot.lot_code} ({consumed})."
+            ),
+        )
+    if purchase_movement is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Semen purchase history is incomplete; correction is required before editing.",
+        )
+
+    lot.purchased_quantity = quantity
+    lot.unit_cost = rate
+    lot.purchase_date = transaction.transaction_date.date()
+    if transaction.counterparty:
+        lot.supplier = str(transaction.counterparty).strip()
+    lot.notes = transaction.notes
+    lot.active = True
+    purchase_movement.quantity = quantity
+    purchase_movement.signed_quantity = quantity
+    factory.session.add(lot)
+    factory.session.add(purchase_movement)
+
+
 @router.get("")
 def list_finance_ledger(
     container=Depends(get_container),
@@ -1074,11 +1266,6 @@ def create_finance_ledger_entry(
             ),
         )
 
-    _validate_dates(
-        entry.transaction_date,
-        entry.due_date,
-    )
-
     if (
         status in {"PAYABLE", "RECEIVABLE"}
         and entry.due_date is None
@@ -1145,6 +1332,11 @@ def create_finance_ledger_entry(
 
     factory = _factory(container)
     session = factory.session
+    _validate_dates(
+        entry.transaction_date,
+        entry.due_date,
+        as_of=_farm_today(factory),
+    )
 
     transaction = FinancialTransaction(
         transaction_type=transaction_type,
@@ -1669,6 +1861,7 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
     _validate_dates(
         transaction_date,
         due_date,
+        as_of=_farm_today(factory),
     )
 
     status = _validate_transition(
@@ -1761,6 +1954,10 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
 
     factory.session.add(row)
     _sync_existing_milk_sale_status(
+        factory=factory,
+        transaction=row,
+    )
+    _sync_existing_semen_purchase(
         factory=factory,
         transaction=row,
     )
@@ -1877,6 +2074,7 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
         _validate_dates(
             transaction_date,
             payload.due_date,
+            as_of=_farm_today(factory),
         )
 
         row.due_date = payload.due_date
@@ -1911,6 +2109,10 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
     factory.session.add(row)
 
     _sync_existing_milk_sale_status(
+        factory=factory,
+        transaction=row,
+    )
+    _sync_existing_semen_purchase(
         factory=factory,
         transaction=row,
     )

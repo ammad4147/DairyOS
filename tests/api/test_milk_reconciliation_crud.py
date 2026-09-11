@@ -112,6 +112,7 @@ def test_production_edit_changes_total_and_preserves_animal_identity(client, reg
             "morning_yield": 12.0,
             "afternoon_yield": 8.0,
             "evening_yield": 7.0,
+            "correction_reason": "Corrected morning reading",
             "notes": "Corrected morning reading",
         },
     )

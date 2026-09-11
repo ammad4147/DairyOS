@@ -111,7 +111,8 @@ class MilkReconciliationService:
         return [
             row
             for row in rows
-            if str(
+            if getattr(row, "session_ledger", True) is not False
+            and str(
                 getattr(
                     row,
                     "status",
@@ -119,7 +120,7 @@ class MilkReconciliationService:
                 )
                 or "RECORDED"
             ).upper()
-            != "VOID"
+            not in {"VOID", "NOT_MILKED"}
         ]
 
     @classmethod

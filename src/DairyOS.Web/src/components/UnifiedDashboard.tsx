@@ -104,7 +104,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dashboardRefreshVersion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,28 +217,12 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
-  const dynamicMilkingCount = herdMasterList.filter(
-    a => a.category.includes('Milking')
-  ).length;
-
-  const milkingCount =
-    dynamicMilkingCount > 0
-      ? dynamicMilkingCount
-      : Number(data?.milkingAnimals || 0);
-
+  // Herd membership and milking eligibility are backend authorities. The
+  // dashboard must not replace them with a second frontend animal snapshot.
   const todayYield =
     currentTrendYield !== null
       ? currentTrendYield
       : Number(data?.todayLiters || 0);
-
-  const avgYieldPerAnimal = Number(
-    data?.averageYieldPerCow ??
-      (
-        todayYield > 0 && milkingCount > 0
-          ? todayYield / milkingCount
-          : 0
-      )
-  );
 
   const yesterdayLiters =
     priorTrendYield !== null
@@ -246,29 +230,49 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       : Number(data?.yesterdayLiters || 0);
 
   const yieldDropPercent =
-    yesterdayLiters > 0 && todayYield > 0
+    yesterdayLiters > 0 && currentTrendYield !== null
       ? ((yesterdayLiters - todayYield) / yesterdayLiters) * 100
-      : 0;
-  const todayYieldColor = yieldDropPercent >= 20 ? '#ef4444' : yieldDropPercent >= 15 ? '#facc15' : '#34d399';
+      : null;
+  const todayYieldColor =
+    yieldDropPercent === null
+      ? '#94a3b8'
+      : yieldDropPercent >= 20
+        ? '#ef4444'
+        : yieldDropPercent >= 15
+          ? '#facc15'
+          : '#34d399';
 
-  const countCategory = (keywords: string[]) => herdMasterList.filter(a => keywords.some(k => a.category.includes(k))).length;
-  const canonicalHerd = [
-    { name:'Milking Cows', value:countCategory(['Milking']), color:'#38bdf8' },
-    { name:'Dry Cows', value:countCategory(['Dry']), color:'#94a3b8' },
-    { name:'Heifers', value:countCategory(['Heifer']), color:'#f59e0b' },
-    { name:'Female Calves', value:countCategory(['Female Calf']), color:'#ec4899' },
-    { name:'Male Calves', value:countCategory(['Male Calf']), color:'#3b82f6' },
-    { name:'Bulls', value:countCategory(['Bull','Sire']), color:'#a855f7' },
-  ];
+  const canonicalHerd = (data?.herdComposition || []).map(item => ({
+    name:
+      item.name === 'Milking'
+        ? 'Milking Cows'
+        : item.name === 'Dry'
+          ? 'Dry Cows'
+          : item.name === 'Heifer'
+            ? 'Heifers'
+            : item.name === 'Female Calf'
+              ? 'Female Calves'
+              : item.name === 'Male Calf'
+                ? 'Male Calves'
+                : item.name === 'Bull'
+                  ? 'Bulls'
+                  : item.name,
+    value: Number(item.value || 0),
+    color: item.color || '#94a3b8',
+  }));
   const herdCol1 = canonicalHerd.slice(0,3), herdCol2 = canonicalHerd.slice(3,6);
   const totalHerdCount = canonicalHerd.reduce((sum,c) => sum + c.value, 0);
   const milkingAdultCount = canonicalHerd[0].value;
   const dryAdultCount = canonicalHerd[1].value;
   const totalAdultCount = milkingAdultCount + dryAdultCount;
-  const milkingPercentage =
-    totalAdultCount > 0
-      ? `${Math.round((milkingAdultCount / totalAdultCount) * 100)}%`
-      : '0%';
+  const wetAverageYield =
+    data?.herdMetrics?.wetAverageYieldPercentage == null
+      ? 'N/A'
+      : `${Number(data.herdMetrics.wetAverageYieldPercentage).toFixed(2)}%`;
+  const dryAverageYield =
+    data?.herdMetrics?.dryAverageYieldPercentage == null
+      ? 'N/A'
+      : `${Number(data.herdMetrics.dryAverageYieldPercentage).toFixed(2)}%`;
   const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
   const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
 
@@ -880,15 +884,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{ flex:'1.6 1 0', display:'flex', flexDirection:'column', background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:10, minHeight:0, minWidth:0, overflow:'hidden' }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate?.('milk')} style={{ display:'flex', alignItems:'center', gap:6, color:'#38bdf8', fontWeight:'bold', fontSize:12, cursor:'pointer', marginBottom:8 }}> <Milk size={16} /> <span>Milk Production & Farm Yield</span></div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
-              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Milking %" value={milkingPercentage} color="#34d399" /><SmallStat
-                label="Avg Yield/Cow"
-                value={
-                  todayYield > 0 && milkingCount > 0
-                    ? `${avgYieldPerAnimal.toFixed(2)} L`
-                    : 'No milk entered'
-                }
-                color="#38bdf8"
-              /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
+              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Wet Average Yield" value={wetAverageYield} color="#34d399" /><SmallStat label="Dry Average Yield" value={dryAverageYield} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={`PKR ${currentComlValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}>
               <WideStat

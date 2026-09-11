@@ -1,9 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 from math import isfinite
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import text
 from dairyos.core.inventory_units import InventoryIntegrityError
 
 from dairyos.api.auth import get_optional_current_user
@@ -114,6 +116,59 @@ class MilkEntryRequest(BaseEntryRequest):
     production_date: date | None = None
 
 
+_MILK_SESSION_FIELDS = {
+    MilkingSession.MORNING.value: "morning_yield",
+    MilkingSession.AFTERNOON.value: "afternoon_yield",
+    MilkingSession.EVENING.value: "evening_yield",
+}
+_MILK_SESSION_ORDER = tuple(_MILK_SESSION_FIELDS)
+
+
+def _milk_sessions_for_entry(entry) -> list[str]:
+    """Return the session fields represented by one accepted request.
+
+    A named session is intentionally narrow: it may carry exactly one yield
+    and that yield must belong to the named session. Sessionless legacy calls
+    are promoted only when their non-null fields map unambiguously to the
+    governed morning/afternoon/evening sequence.
+    """
+    values = {
+        field: getattr(entry, field, None)
+        for field in _MILK_SESSION_FIELDS.values()
+    }
+    provided = [
+        session
+        for session, field in _MILK_SESSION_FIELDS.items()
+        if values[field] is not None
+    ]
+
+    named = getattr(entry, "milking_session", None)
+    if named is not None:
+        named_value = named.value if isinstance(named, MilkingSession) else str(named)
+        expected_field = _MILK_SESSION_FIELDS.get(named_value)
+        if expected_field is None:
+            raise ValueError(f"Unknown milking session: {named_value}.")
+        if values[expected_field] is None:
+            raise ValueError(
+                f"{expected_field} is required when milking_session is "
+                f"{named_value}."
+            )
+        if len(provided) != 1:
+            raise ValueError(
+                "A named milking session may carry only its matching yield "
+                "field."
+            )
+        return [named_value]
+
+    if not provided:
+        raise ValueError(
+            "At least one milk yield is required; missing is not an entered "
+            "zero."
+        )
+
+    return provided
+
+
 class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
     """
     HTTP compatibility boundary for historical /farm/milk callers.
@@ -144,20 +199,17 @@ class LegacyCompatibleMilkEntryRequest(BaseEntryRequest):
 
     @property
     def session_attributed(self) -> bool:
-        """Whether the caller actually named a milking session.
+        """Whether this compatibility request contains governed yield data."""
 
-        An entry that never named one carries no position in the day, so
-        there is nothing to sequence it against. Blocking such callers would
-        only push them back into guessing a session -- which is the failure
-        this work exists to remove.
-        """
-
-        return self.milking_session is not None
+        return any(
+            getattr(self, field, None) is not None
+            for field in _MILK_SESSION_FIELDS.values()
+        )
 
     def to_governed_request(self) -> MilkEntryRequest:
         payload = self.model_dump()
         if payload.get("milking_session") is None:
-            payload["milking_session"] = MilkingSession.MORNING
+            payload["milking_session"] = _milk_sessions_for_entry(self)[-1]
 
         return MilkEntryRequest.model_validate(payload)
 
@@ -176,6 +228,19 @@ class FeedEntryRequest(BaseEntryRequest):
     quantity_kg: float = Field(gt=0, allow_inf_nan=False)
     group_or_pen: str | None = None
     animal_id: str | None = None
+    feeding_date: datetime | None = None
+
+    @field_validator("feeding_date", mode="before")
+    @classmethod
+    def require_event_timestamp(cls, value):
+        if value is None or isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            raise ValueError("feeding_date must include a time, not only a date.")
+        text_value = str(value).strip()
+        if text_value and "T" not in text_value and " " not in text_value:
+            raise ValueError("feeding_date must include a time, not only a date.")
+        return value
 
 
 class HealthEntryRequest(BaseEntryRequest):
@@ -304,6 +369,8 @@ def _today() -> date:
 
 def _today_for_factory(factory) -> date:
     """Resolve an input default from the same farm clock as the active write."""
+    if factory is None:
+        return _today()
     try:
         from dairyos.farm.settings.services.farm_settings_service import (
             FarmSettingsService,
@@ -348,6 +415,36 @@ def _production_datetime(payload: dict[str, Any]) -> datetime | None:
         return None
 
     return datetime(produced_on.year, produced_on.month, produced_on.day)
+
+
+def _feeding_datetime(payload: dict[str, Any], factory=None) -> datetime:
+    """Return a real timestamp for a feeding event.
+
+    Legacy callers may omit the timestamp, but they must never be converted
+    into a fabricated operational-day midnight. The receipt timestamp is the
+    only honest timestamp available in that compatibility case.
+    """
+    value = payload.get("feeding_date")
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    if value:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            return parsed.replace(tzinfo=None)
+        except (TypeError, ValueError):
+            raise ValueError("feeding_date must be a valid timestamp.")
+    try:
+        from dairyos.farm.settings.services.operational_date_authority import (
+            OperationalDateAuthority,
+        )
+
+        return OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_datetime().replace(tzinfo=None)
+    except Exception:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _transaction_datetime(payload: dict[str, Any]) -> datetime | None:
@@ -578,10 +675,7 @@ def _record(
                 group_or_pen=payload.get("group_or_pen"),
                 feed_type=payload.get("feed_type", "DEFAULT"),
                 quantity_kg=float(payload.get("quantity_kg", 0.0)),
-                feeding_date=datetime.combine(
-                    _as_date(payload.get("feeding_date")) or operational_date,
-                    datetime.min.time(),
-                ),
+                feeding_date=_feeding_datetime(payload, rf),
                 notes=payload.get("notes"),
                 status=payload.get("status", "RECORDED"),
             )
@@ -589,6 +683,15 @@ def _record(
                 feed_repo.save(record)
             else:
                 feed_repo.add(record)
+
+            # Surface the governed five-event completion state on the same
+            # canonical response/event consumed by the operator entry path.
+            from dairyos.api.feed_management import daily_feeding_status
+
+            canonical_payload["daily_feeding_status"] = daily_feeding_status(
+                rf,
+                _as_date(record.feeding_date),
+            )
 
         elif input_type == "animal_health":
             health_repo = rf.health()
@@ -598,7 +701,8 @@ def _record(
                 symptom=payload.get("symptom"),
                 temperature=(
                     payload.get("temperature_c")
-                    or payload.get("temperature")
+                    if payload.get("temperature_c") is not None
+                    else payload.get("temperature")
                 ),
                 temperature_c=payload.get("temperature_c"),
                 reported_by=operator,
@@ -784,33 +888,56 @@ def record_milk_entry(
         get_optional_current_user
     ),
 ):
-    governed_entry = entry.to_governed_request()
+    try:
+        sessions_to_record = _milk_sessions_for_entry(entry)
+        governed_entry = entry.to_governed_request()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # An entry that never named a session has no position in the day, so it
-    # is neither sequenced nor admitted to the ledger.
-    sequenced = entry.session_attributed
-    operational_date = governed_entry.production_date or _today()
+    # Compatibility calls are promoted into the same governed daily ledger as
+    # explicit calls. There is no longer a successful write that is persisted
+    # but silently excluded from production reporting.
+    sequenced = True
+    factory = getattr(container, "repository_factory", None)
+    operational_date = governed_entry.production_date or _today_for_factory(factory)
+    current_operational_date = _today_for_factory(factory)
 
-    if sequenced:
-        sequence = _sequence_service(container)
+    if operational_date > current_operational_date:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Milk production cannot be recorded for a future operational "
+                "date."
+            ),
+        )
 
-        if sequence is not None:
-            factory = getattr(container, "repository_factory", None)
-            animal_accessor = getattr(factory, "animal", None)
+    sequence = _sequence_service(container)
 
-            animal = (
-                animal_accessor().get_by_animal_id(
-                    str(governed_entry.animal_id)
-                )
-                if animal_accessor is not None
-                else None
+    if sequence is not None:
+        animal_accessor = getattr(factory, "animal", None)
+
+        animal = (
+            animal_accessor().get_by_animal_id(
+                str(governed_entry.animal_id)
             )
+            if animal_accessor is not None
+            else None
+        )
 
+        # Acquire all session locks in canonical order before validating any
+        # of the batch's fields. This prevents a production write and a
+        # whole-farm NOT_MILKED declaration from passing their checks at the
+        # same time.
+        for session_name in _MILK_SESSION_ORDER:
+            sequence.lock_session(operational_date, session_name)
+
+        for index, session_name in enumerate(sessions_to_record):
             try:
                 sequence.assert_can_record(
                     operational_date,
-                    governed_entry.milking_session.value,
+                    session_name,
                     animal=animal,
+                    pending_sessions=sessions_to_record[:index],
                 )
             except SequenceViolation as violation:
                 raise HTTPException(
@@ -869,31 +996,52 @@ def record_milk_entry(
     )
 
     if withdrawal_warning and total is not None and float(total) > 0:
-        wastage = ensure_withdrawal_wastage(
-            repository_factory=container.repository_factory,
-            withdrawal_service=withdrawal_svc,
-            animal_id=str(governed_entry.animal_id),
-            production_date=operational_date,
-            milking_session=governed_entry.milking_session.value,
-            quantity_litres=float(total),
-            recorded_by=_operator(payload, current_user),
-        )
+        wastage_rows = []
+        for session_name in sessions_to_record:
+            field = _MILK_SESSION_FIELDS[session_name]
+            session_quantity = getattr(governed_entry, field, None)
+            if session_quantity is None or float(session_quantity) <= 0:
+                continue
+            wastage_rows.append(
+                ensure_withdrawal_wastage(
+                    repository_factory=container.repository_factory,
+                    withdrawal_service=withdrawal_svc,
+                    animal_id=str(governed_entry.animal_id),
+                    production_date=operational_date,
+                    milking_session=session_name,
+                    quantity_litres=float(session_quantity),
+                    recorded_by=_operator(payload, current_user),
+                )
+            )
         result["withdrawal_warning"] = True
         result["withdrawal_wastage_litres"] = float(total)
         result["safety_message"] = safety_message
-        if wastage is not None:
-            result["withdrawal_wastage_id"] = getattr(wastage, "id", None)
+        wastage_ids = [
+            getattr(row, "id", None)
+            for row in wastage_rows
+            if row is not None
+        ]
+        if wastage_ids:
+            result["withdrawal_wastage_id"] = wastage_ids[-1]
+            result["withdrawal_wastage_ids"] = wastage_ids
 
     if sequenced:
-        settled = _settle_session(
-            container,
-            operational_date=operational_date,
-            milking_session=governed_entry.milking_session.value,
-            status=MilkingSessionStatus.RECORDED.value,
-            recorded_by=_operator(payload, current_user),
-        )
-        if settled is not None:
-            result["session_record_id"] = settled.session_record_id
+        settled_rows = []
+        for session_name in sessions_to_record:
+            settled = _settle_session(
+                container,
+                operational_date=operational_date,
+                milking_session=session_name,
+                status=MilkingSessionStatus.RECORDED.value,
+                recorded_by=_operator(payload, current_user),
+            )
+            if settled is not None:
+                settled_rows.append(settled)
+        if settled_rows:
+            result["session_record_id"] = settled_rows[-1].session_record_id
+            result["session_record_ids"] = [
+                row.session_record_id for row in settled_rows
+            ]
 
     return result
 
@@ -927,11 +1075,19 @@ def declare_session_not_milked(
             ),
         )
 
-    operational_date = entry.operational_date or _today()
+    factory = getattr(container, "repository_factory", None)
+    operational_date = entry.operational_date or _today_for_factory(factory)
+    if operational_date > _today_for_factory(factory):
+        raise HTTPException(
+            status_code=422,
+            detail="A future milking session cannot be declared NOT_MILKED.",
+        )
     session_value = entry.milking_session.value
 
     sequence = _sequence_service(container)
     if sequence is not None:
+        for session_name in _MILK_SESSION_ORDER:
+            sequence.lock_session(operational_date, session_name)
         existing = sequence.ledger.get_for(operational_date, session_value)
         if existing is not None:
             raise HTTPException(
@@ -948,6 +1104,18 @@ def declare_session_not_milked(
                     "status": existing.status,
                     "session_record_id": existing.session_record_id,
                 },
+            )
+
+        if sequence.any_animal_recorded(
+            operational_date,
+            session_value,
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"The {session_value} session already has animal "
+                    "production and cannot be declared NOT_MILKED."
+                ),
             )
 
         try:
@@ -1955,6 +2123,31 @@ def _generate_health_case_id(
     return candidate
 
 
+def _lock_health_case_id_sequence(factory, opened_on: date) -> None:
+    """Serialize case-number allocation for one farm operational date."""
+    session = getattr(factory, "session", None)
+    if session is None:
+        return
+
+    bind = session.get_bind()
+    if getattr(getattr(bind, "dialect", None), "name", None) != "postgresql":
+        return
+
+    # Advisory locks are transaction-scoped. The operational-write boundary
+    # keeps this lock held through the case and optional observation link.
+    key = int.from_bytes(
+        sha256(
+            f"health-case-id:{opened_on.isoformat()}".encode()
+        ).digest()[:8],
+        "big",
+        signed=True,
+    )
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"),
+        {"key": key},
+    )
+
+
 def _health_case_dict(case) -> dict[str, Any]:
     return {
         "id": case.id,
@@ -2008,6 +2201,7 @@ def _treatment_dict(treatment) -> dict[str, Any]:
 
 
 @router.post("/health-cases")
+@operational_write
 def open_health_case(
     entry: HealthCaseOpenRequest,
     container=Depends(get_container),
@@ -2030,6 +2224,7 @@ def open_health_case(
 
     try:
         case_repo = rf.health_cases()
+        opened_on = _today_for_factory(rf)
 
         linked_observation = None
         if entry.observation_id is not None:
@@ -2039,11 +2234,21 @@ def open_health_case(
                     status_code=404,
                     detail=f"observation_id {entry.observation_id} does not exist.",
                 )
+            if str(linked_observation.animal_id) != str(entry.animal_id):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "The linked HealthObservation belongs to a different "
+                        "animal and cannot be attached to this HealthCase."
+                    ),
+                )
+
+        _lock_health_case_id_sequence(rf, opened_on)
 
         case = HealthCase(
             case_id=_generate_health_case_id(
                 case_repo,
-                _today_for_factory(rf),
+                opened_on,
             ),
             animal_id=entry.animal_id,
             severity=entry.severity,
@@ -2058,11 +2263,25 @@ def open_health_case(
                 else None
             ),
         )
-        case_repo.add(case)
 
-        if linked_observation is not None:
-            linked_observation.health_case_id = case.id
-            rf.health().add(linked_observation)
+        session = getattr(rf, "session", None)
+        if session is None:
+            # Lightweight repositories remain useful for isolated service
+            # tests, but real sessions must flush both rows before committing.
+            case_repo.add(case)
+            if linked_observation is not None:
+                linked_observation.health_case_id = case.id
+                rf.health().add(linked_observation)
+        else:
+            session.add(case)
+            session.flush()
+            if linked_observation is not None:
+                linked_observation.health_case_id = case.id
+                session.add(linked_observation)
+                session.flush()
+            if not session.info.get("operational_write_managed", False):
+                session.commit()
+            session.refresh(case)
 
         # Not routed through container.input_gateway: that path validates
         # input_type against InputCatalog.definitions(), a shared registry
@@ -2073,6 +2292,13 @@ def open_health_case(
         # readable at all). HealthCase's own opened_at/opened_by/
         # resolved_at/resolved_by columns are the audit trail.
         return _health_case_dict(case)
+    except Exception:
+        session = getattr(rf, "session", None)
+        if session is not None and not session.info.get(
+            "operational_write_managed", False
+        ):
+            session.rollback()
+        raise
     finally:
         if owns_factory:
             rf.close()
@@ -2145,6 +2371,7 @@ def get_health_case(
 
 
 @router.post("/health-cases/{case_id}/resolve")
+@operational_write
 def resolve_health_case(
     case_id: str,
     entry: HealthCaseResolveRequest,
@@ -2152,6 +2379,12 @@ def resolve_health_case(
     current_user: dict[str, Any] | None = Depends(get_optional_current_user),
 ):
     operator = _operator(entry.model_dump(), current_user)
+    resolution = str(entry.resolution or "").strip()
+    if not resolution:
+        raise HTTPException(
+            status_code=422,
+            detail="resolution must contain meaningful text.",
+        )
 
     rf = getattr(container, "repository_factory", None)
     owns_factory = False
@@ -2171,12 +2404,28 @@ def resolve_health_case(
             )
 
         case.status = "RESOLVED"
-        case.resolution = entry.resolution
+        case.resolution = resolution
         case.resolved_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        case.resolved_by = entry.resolved_by or operator
-        case_repo.add(case)
+        case.resolved_by = (entry.resolved_by or operator).strip()
+
+        session = getattr(rf, "session", None)
+        if session is None:
+            case_repo.add(case)
+        else:
+            session.add(case)
+            session.flush()
+            if not session.info.get("operational_write_managed", False):
+                session.commit()
+            session.refresh(case)
 
         return _health_case_dict(case)
+    except Exception:
+        session = getattr(rf, "session", None)
+        if session is not None and not session.info.get(
+            "operational_write_managed", False
+        ):
+            session.rollback()
+        raise
     finally:
         if owns_factory:
             rf.close()

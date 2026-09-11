@@ -25,6 +25,7 @@ from typing import Callable
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
     create_backup,
+    database_semantic_fingerprint,
     restore_backup,
     verify_backup_archive,
 )
@@ -209,9 +210,11 @@ class LifecycleManager:
                 )
 
             database_backup: str | None = None
+            database_fingerprint: dict[str, object] | None = None
             if self.database_url:
                 try:
                     db_path = staging / "database.dump"
+                    database_fingerprint = database_semantic_fingerprint(self.database_url)
                     create_backup(self.database_url, db_path)
                     verify_backup_archive(db_path)
                     database_backup = db_path.name
@@ -239,6 +242,7 @@ class LifecycleManager:
                 "database_backup_size_bytes": (
                     (staging / database_backup).stat().st_size if database_backup else None
                 ),
+                "database_semantic_fingerprint": database_fingerprint,
             }
             _write_json_atomic(staging / "backup.json", backup_manifest)
             destination.parent.mkdir(parents=True, exist_ok=True)

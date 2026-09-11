@@ -8,6 +8,8 @@ class OperationalInputType(str, Enum):
 
     MILK_PRODUCTION = "milk_production"
 
+    MILK_PRODUCTION_CORRECTION = "milk_production_correction"
+
     MILK_DISPOSITION = "milk_disposition"
 
     MILK_DISPOSITION_AMENDMENT = "milk_disposition_amendment"
@@ -31,6 +33,8 @@ class OperationalInputType(str, Enum):
     ANIMAL_DISPOSITION = "animal_disposition"
 
     ANIMAL_PROFILE_UPDATE = "animal_profile_update"
+
+    ANIMAL_REGISTRATION = "animal_registration"
 
     YOUNGSTOCK_GROWTH = "youngstock_growth"
 

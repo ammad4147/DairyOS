@@ -1,17 +1,28 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from sqlalchemy.engine import make_url
+from sqlalchemy import text
+from sqlalchemy.engine import create_engine, make_url
 
 
 COMMAND_TIMEOUT_SECONDS = 120
 LOCK_WAIT_TIMEOUT = "15s"
+
+_SEMANTIC_FINGERPRINT_COLUMNS = {
+    "animal": "animal_id",
+    "milk_production": "id",
+    "financial_transactions": "id",
+    "breeding_records": "record_id",
+    "health_cases": "id",
+    "vaccinations": "id",
+}
 
 
 class PostgreSQLBackupError(RuntimeError):
@@ -88,6 +99,47 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def database_semantic_fingerprint(database_url: str) -> dict[str, object]:
+    """Capture a small, deterministic content control for restore proof.
+
+    The fingerprint is deliberately limited to stable authority tables and
+    contains counts plus a latest-key control. It is not a data export; it is
+    a reconciliation guard that detects a structurally valid but incomplete
+    restore.
+    """
+    engine = create_engine(database_url, pool_pre_ping=True)
+    tables: dict[str, dict[str, object]] = {}
+    try:
+        with engine.connect() as connection:
+            for table, key_column in _SEMANTIC_FINGERPRINT_COLUMNS.items():
+                exists = connection.execute(
+                    text("SELECT to_regclass(:qualified_name)"),
+                    {"qualified_name": f"public.{table}"},
+                ).scalar_one_or_none()
+                if exists is None:
+                    continue
+                count = int(
+                    connection.execute(
+                        text(f'SELECT count(*) FROM "{table}"')
+                    ).scalar_one()
+                )
+                latest = connection.execute(
+                    text(f'SELECT max("{key_column}") FROM "{table}"')
+                ).scalar_one_or_none()
+                tables[table] = {
+                    "count": count,
+                    "latest_key": str(latest) if latest is not None else None,
+                }
+    finally:
+        engine.dispose()
+
+    canonical = json.dumps(tables, sort_keys=True, separators=(",", ":"))
+    return {
+        "tables": tables,
+        "sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+    }
 
 
 def _run_postgresql_command(

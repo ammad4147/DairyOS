@@ -167,6 +167,16 @@ class RuntimeContainer:
         self.operations = self.runtime.farm_operations_runtime
         self.dashboard = self
         self.restore_state()
+        # Planned post-calving returns are applied by the runtime lifecycle
+        # worker, never as a side effect of a read endpoint.
+        from dairyos.farm.reproduction.services.post_calving_return_service import (
+            reconcile_due_post_calving_returns,
+        )
+
+        reconcile_due_post_calving_returns(
+            self.repository_factory,
+            self.event_journal,
+        )
         from dairyos.application.operational_write import OperationalWriteService
 
         self.projection_delivery_status = OperationalWriteService(

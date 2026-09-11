@@ -7,21 +7,14 @@ from fastapi import Depends, HTTPException
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.reproduction.services.reproductive_state_service import (
-    ReproductivePolicy,
+    DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateService,
-)
-from dairyos.farm.reproduction.services.post_calving_return_service import (
-    reconcile_due_post_calving_returns,
 )
 
 from .router import router
 
 
-_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=50,
-    gestation_days=283,
-    dry_off_days_before_calving=60,
-)
+_POLICY = DEFAULT_REPRODUCTIVE_POLICY
 
 
 def _as_of_date(factory) -> object:
@@ -49,11 +42,6 @@ def animal_reproduction_status(
     available in the same projection; the state service remains the single
     authority for all resulting status fields.
     """
-    reconcile_due_post_calving_returns(
-        container.repository_factory,
-        container.event_journal,
-    )
-
     factory = getattr(container, "repository_factory", None)
     owns_factory = False
     if factory is None:
@@ -110,6 +98,10 @@ def animal_reproduction_status(
                 else None
             ),
             "days_open": state.days_open,
+            "pd_due_date": (
+                state.pd_due_date.isoformat() if state.pd_due_date else None
+            ),
+            "days_pregnant": state.days_pregnant,
             "expected_dry_off": (
                 state.expected_dry_off_date.isoformat()
                 if state.expected_dry_off_date

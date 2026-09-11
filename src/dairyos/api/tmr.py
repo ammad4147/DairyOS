@@ -3,16 +3,15 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from hashlib import sha256
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 
 from dairyos.api.dependencies import get_container
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.feed_ration import FeedRation
-from dairyos.farm.reproduction.services.post_calving_return_service import (
-    reconcile_due_post_calving_returns,
-)
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
@@ -24,6 +23,7 @@ TMR_CATALOG_MARKER = "TMR_CATALOG_JSON="
 STAGE_GROUP_PREFIX = "TMR_STAGE:"
 ENDORSEMENT_GROUP = "TMR_WEEKLY_ENDORSEMENT"
 DAILY_COST_SNAPSHOT_GROUP = "TMR_DAILY_COST_SNAPSHOT"
+AUTO_CONNECTED_HERD_CATEGORIES = ("Milking",)
 
 DEFAULT_INGREDIENTS = [
     {
@@ -505,7 +505,10 @@ def _active_herd_counts(factory) -> dict[str, int]:
         if status in inactive_statuses:
             continue
         category = _normalize_herd_category(animal)
-        if category in counts:
+        # The governing farm requirement connects only the Milking category
+        # automatically to the Animal Register. Other ration categories keep
+        # their formulation authority but require explicit population input.
+        if category in AUTO_CONNECTED_HERD_CATEGORIES:
             counts[category] += 1
     return counts
 
@@ -531,7 +534,9 @@ def milk_litres_for_period(factory, start: date, end: date) -> float:
         status = str(
             getattr(item, "status", "RECORDED") or "RECORDED"
         ).upper()
-        if status in {"VOID", "NOT_MILKED"}:
+        if status in {"VOID", "NOT_MILKED"} or not bool(
+            getattr(item, "session_ledger", False)
+        ):
             continue
         raw_date = (
             getattr(item, "production_date", None)
@@ -621,6 +626,11 @@ def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
                 "category": category,
                 "stage_keys": stage_keys,
                 "animal_count": count,
+                "population_authority": (
+                    "ACTIVE_MILKING_HERD_REGISTER"
+                    if category in AUTO_CONNECTED_HERD_CATEGORIES
+                    else "MANUAL_GROUP_SIZE_REQUIRED"
+                ),
                 "cost_per_head_day": round(head_cost, 4),
                 "category_cost_per_day": round(head_cost * count, 4),
             }
@@ -772,6 +782,26 @@ def lock_daily_tmr_cost_snapshot(
         or authority.current_date()
     )
 
+    session = getattr(factory, "session", None)
+    if session is not None:
+        bind = session.get_bind()
+        if getattr(getattr(bind, "dialect", None), "name", None) == "postgresql":
+            # Hold the date lock until the insert commits. The database
+            # uniqueness index below is the final guard; this lock makes the
+            # normal concurrent path return the already-created authority.
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(:key)"),
+                {
+                    "key": int.from_bytes(
+                        sha256(
+                            f"tmr-daily-snapshot:{selected_date.isoformat()}".encode()
+                        ).digest()[:8],
+                        "big",
+                        signed=True,
+                    )
+                },
+            )
+
     existing = _daily_cost_snapshot_for_date(
         factory,
         selected_date,
@@ -823,6 +853,7 @@ def lock_daily_tmr_cost_snapshot(
     )
 
     factory.feed_rations().add(record)
+    factory.session.flush()
 
     return {
         **snapshot,
@@ -982,7 +1013,6 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
 @router.get("")
 def get_tmr(container=Depends(get_container)):
     factory = container.repository_factory
-    reconcile_due_post_calving_returns(factory, container.event_journal)
     return build_live_tmr_summary(factory)
 
 

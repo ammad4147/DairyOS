@@ -12,23 +12,24 @@ DIGITAL_TWIN_API = ROOT / "src" / "dairyos" / "api" / "digital_twin"
 DIGITAL_TWIN_PLATFORM = ROOT / "src" / "dairyos" / "platform" / "digital_twin"
 
 
-def test_operator_shell_has_exactly_nine_navigation_tabs_and_one_dashboard_surface():
+def test_operator_shell_has_the_approved_navigation_tabs_and_one_dashboard_surface():
     text = APP.read_text(encoding="utf-8-sig")
     navigation = NAVIGATION.read_text(encoding="utf-8-sig")
-    labels = ["Dashboard", "Animals", "Milk", "Feed", "Finance", "Breeding", "Health", "Vaccination", "COP"]
-    assert len(labels) == 9
+    labels = ["Dashboard", "Animals", "Milk", "Feed", "Finance", "Breeding", "Health", "Vaccination", "COP", "Analytics"]
+    assert len(labels) == 10
     assert re.findall(r"label:\s*'([^']+)'", navigation) == labels
     assert "label: 'COML'" not in navigation
-    assert "label: 'Analytics'" not in navigation
+    assert "label: 'Analytics'" in navigation
     assert "NAVIGATION_TABS.map" in text
     assert "UnifiedDashboard" in text
     assert "MainDashboard" not in text
 
 
-def test_analytics_surface_is_retired_from_operator_shell():
+def test_analytics_surface_is_the_authoritative_read_only_operator_surface():
     text = APP.read_text(encoding="utf-8-sig")
-    assert "./components/Analytics" not in text
-    assert "currentView==='analytics'" not in text
+    assert "from './components/Analytics';" not in text
+    assert "./components/AnalyticsTab" in text
+    assert "currentView==='analytics'" in text
     assert not ANALYTICS.exists()
     assert not DIGITAL_TWIN_PANEL.exists()
     assert not DIGITAL_TWIN_API.exists()

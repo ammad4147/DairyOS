@@ -27,6 +27,7 @@ from typing import Iterable
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
     create_backup,
+    database_semantic_fingerprint,
     verify_backup_archive,
     verify_backup_checksum,
 )
@@ -284,6 +285,12 @@ def run_automatic_backup(
             source="live-database",
         )
 
+        # Capture the content control only after the archive itself has been
+        # created and structurally verified. A pg_dump failure should remain
+        # the reported failure; a dump without a semantic fingerprint must
+        # never be recorded as a healthy content-certified backup.
+        semantic_fingerprint = database_semantic_fingerprint(database_url)
+
         mirror = mirror_root / primary.name
         _copy_and_verify(primary, mirror, sha256)
         _write_backup_metadata(
@@ -345,6 +352,7 @@ def run_automatic_backup(
                 "degraded_reason": destination.degraded_reason,
                 "rolling_retention": ROLLING_KEEP,
                 "monthly_retention": MONTHLY_KEEP,
+                "semantic_fingerprint": semantic_fingerprint,
             },
         )
 

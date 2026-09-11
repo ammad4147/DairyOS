@@ -35,6 +35,11 @@ def _fake_backup_tooling(monkeypatch):
     monkeypatch.setattr(backups, "create_backup", create_backup)
     monkeypatch.setattr(backups, "verify_backup_archive", verify_archive)
     monkeypatch.setattr(backups, "verify_backup_checksum", verify_checksum)
+    monkeypatch.setattr(
+        backups,
+        "database_semantic_fingerprint",
+        lambda _database_url: {"tables": {}, "sha256": "fingerprint"},
+    )
 
 
 def test_automatic_backup_creates_primary_mirror_and_monthly_archive(monkeypatch, tmp_path):

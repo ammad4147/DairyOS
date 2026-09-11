@@ -23,7 +23,7 @@ from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.farm.reproduction.services.reproductive_state_service import (
-    ReproductivePolicy,
+    DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateError,
     ReproductiveStateService,
 )
@@ -39,11 +39,7 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
 
 router = APIRouter(tags=["Breeding Biology"])
 
-_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
-    gestation_days=283,
-    dry_off_days_before_calving=60,
-)
+_POLICY = DEFAULT_REPRODUCTIVE_POLICY
 _MATURE_FEMALE_LIFECYCLES = {"HEIFER", "CLOSE_UP", "LACTATING", "DRY"}
 _AI_LIFECYCLES = {"HEIFER", "LACTATING", "DRY"}
 # Build retired vocabulary without reintroducing retired model tokens into

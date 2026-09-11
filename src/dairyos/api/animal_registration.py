@@ -11,16 +11,22 @@ overwritten when they contradict the selected category.
 
 import re
 from datetime import datetime, timezone
+from hashlib import sha256
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.domain.commands import Command
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
+)
+from dairyos.farm.herd.services.animal_parentage_service import (
+    AnimalParentageError,
+    validate_parentage,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
@@ -41,6 +47,23 @@ def _animal_id_prefix(container) -> str:
     finally:
         if owns:
             rf.close()
+
+
+def _lock_animal_id_sequence(repository, prefix: str) -> None:
+    """Serialize ID allocation for concurrent registrations on one farm."""
+
+    session = getattr(repository, "session", None)
+    if session is None:
+        return
+    key = int.from_bytes(
+        sha256(f"dairyos-animal-id:{prefix}".encode()).digest()[:8],
+        "big",
+        signed=True,
+    )
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"),
+        {"key": key},
+    )
 
 
 def _new_animal_id(repository, prefix: str) -> str:
@@ -182,6 +205,7 @@ def _serialize(animal):
 
 
 @router.post("")
+@operational_write
 def register_animal(payload: dict, container=Depends(get_container)):
     """Create an animal; the permanent Animal ID is always server-generated."""
 
@@ -265,19 +289,7 @@ def register_animal(payload: dict, container=Depends(get_container)):
                 detail="Mother / Dam ID is required when registering a calf.",
             )
 
-        dam = repository.get_by_animal_id(dam_id)
-        if dam is None:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Mother / Dam ID '{dam_id}' does not exist in the Animal Register.",
-            )
-
-        if str(getattr(dam, "sex", "") or "").upper() != "FEMALE":
-            raise HTTPException(
-                status_code=422,
-                detail=f"Mother / Dam ID '{dam_id}' is not a female animal.",
-            )
-
+    _lock_animal_id_sequence(repository, _animal_id_prefix(container))
     animal_id = _new_animal_id(
         repository,
         _animal_id_prefix(container),
@@ -302,7 +314,22 @@ def register_animal(payload: dict, container=Depends(get_container)):
     animal_payload["date_of_acquisition"] = _normalise_date(
         animal_payload.get("date_of_acquisition")
     )
-    animal_payload["active"] = True
+    try:
+        dam_id, sire_id = validate_parentage(
+            repository,
+            child_id=animal_id,
+            dam_id=animal_payload.get("dam_id"),
+            sire_id=animal_payload.get("sire_id"),
+            child_date_of_birth=animal_payload.get("date_of_birth"),
+        )
+    except AnimalParentageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    animal_payload["dam_id"] = dam_id
+    animal_payload["sire_id"] = sire_id
+    is_terminal = lifecycle_status in {"SOLD", "CULLED", "DECEASED"}
+    animal_payload["status"] = lifecycle_status if is_terminal else "ACTIVE"
+    animal_payload["active"] = not is_terminal
+    animal_payload["is_currently_milking"] = is_milking and not is_terminal
 
     legacy_id = animal_payload.get("legacy_animal_id")
 
@@ -338,26 +365,24 @@ def register_animal(payload: dict, container=Depends(get_container)):
             )
 
         session.flush()
-        session.commit()
+
+        gateway = getattr(container, "input_gateway", None)
+        if gateway is not None:
+            gateway.record(
+                input_type="animal_registration",
+                payload={
+                    **animal_payload,
+                    "system_generated_animal_id": True,
+                },
+                actor=str(payload.get("operator") or "API"),
+            )
+
+        if not session.info.get("operational_write_managed", False):
+            session.commit()
         session.refresh(animal)
 
     except Exception:
         session.rollback()
         raise
-
-    try:
-        container.operations.handle_command(
-            Command(
-                name="CreateAnimal",
-                payload={
-                    **animal_payload,
-                    "active": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "system_generated_animal_id": True,
-                },
-            )
-        )
-    except Exception:
-        pass
 
     return _serialize(animal)

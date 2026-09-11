@@ -12,7 +12,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from dairyos.data.database.automatic_backups import backup_health_path, read_backup_health
-from dairyos.data.database.backup import PostgreSQLBackupError, restore_backup, verify_backup_archive
+from dairyos.data.database.backup import (
+    PostgreSQLBackupError,
+    database_semantic_fingerprint,
+    restore_backup,
+    verify_backup_archive,
+)
 from dairyos.platform import paths
 
 
@@ -113,6 +118,8 @@ def verify_latest_backup_restore(
         pool_pre_ping=True,
     )
     scratch_engine = None
+    restored_fingerprint: dict[str, object] | None = None
+    fingerprint_match: bool | None = None
 
     try:
         with maintenance_engine.connect() as connection:
@@ -159,12 +166,39 @@ def verify_latest_backup_restore(
                 ).scalar_one()
             )
 
+        restored_fingerprint = database_semantic_fingerprint(scratch_database_url)
+        expected_fingerprint = health.get("semantic_fingerprint")
+        expected_sha = (
+            expected_fingerprint.get("sha256")
+            if isinstance(expected_fingerprint, dict)
+            else None
+        )
+        if expected_sha:
+            fingerprint_match = restored_fingerprint.get("sha256") == expected_sha
+            if not fingerprint_match:
+                raise RestoreVerificationError(
+                    "Restored DairyOS database content fingerprint does not match "
+                    "the backup source control."
+                )
+        else:
+            # Backups created before semantic controls were introduced remain
+            # structurally verifiable, but must be marked as legacy rather
+            # than being represented as content-certified restores.
+            fingerprint_match = False
+
         completed = timestamp.isoformat().replace("+00:00", "Z")
         health["last_restore_verification"] = completed
         health["restore_verified"] = True
         health["restore_verified_backup"] = str(backup)
         health["restore_verified_application_tables"] = application_tables
         health["restore_verified_alembic_table_present"] = bool(alembic_rows)
+        health["restore_verified_semantic_fingerprint_match"] = fingerprint_match
+        health["restore_verified_semantic_fingerprint"] = restored_fingerprint
+        health["restore_verification_content_status"] = (
+            "VERIFIED"
+            if fingerprint_match
+            else "LEGACY_BACKUP_NO_SOURCE_FINGERPRINT"
+        )
         health.pop("restore_verification_error", None)
         _write_health(health_path, health)
         return {
@@ -172,6 +206,8 @@ def verify_latest_backup_restore(
             "backup": str(backup),
             "application_tables": application_tables,
             "alembic_table_present": bool(alembic_rows),
+            "semantic_fingerprint_match": fingerprint_match,
+            "semantic_fingerprint": restored_fingerprint,
         }
     except Exception as exc:
         health["restore_verified"] = False

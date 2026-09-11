@@ -5,6 +5,7 @@ from sqlalchemy import (
     Float,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
 )
 
 from datetime import datetime
@@ -16,6 +17,15 @@ from dairyos.core.time_utils import utcnow
 class HealthObservation(Base):
 
     __tablename__ = "health_observation"
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["health_case_id", "animal_id"],
+            ["health_cases.id", "health_cases.animal_id"],
+            name="fk_health_observation_case_same_animal",
+            ondelete="RESTRICT",
+        ),
+    )
 
     id = Column(
         Integer,
