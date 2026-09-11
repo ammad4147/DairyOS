@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { readApiPayload } from '../api/response';
+import { getNavigationAccessToken } from '../auth';
 import type { NavigationTabId } from '../navigation';
 import { formatFarmDateTime, setFarmTimezone, SYSTEM_TIMEZONE } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
@@ -398,8 +399,14 @@ export default function SettingsTab({
   const requestSystemReset = async () => {
     setError(''); setMessage(''); setResetLoading(true);
     try {
+      const navigationToken = getNavigationAccessToken();
+      if (!navigationToken) {
+        throw new Error('Unlock Navigation Visibility before requesting a reset.');
+      }
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      headers.set('Authorization', `Bearer ${navigationToken}`);
       const response = await fetch(`${API_BASE}/settings/system-reset`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers,
         body: JSON.stringify({ password: resetPassword, confirm: resetConfirm }),
       });
       const data = await readApiPayload<{ message?: unknown }>(response, 'Reset request failed.');

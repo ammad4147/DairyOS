@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { KeyRound, Save } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { readApiPayload } from '../api/response';
+import { NAVIGATION_ACCESS_TOKEN_KEY } from '../auth';
 import { NAVIGATION_TABS, normalizeHiddenNavigationTabs } from '../navigation';
 import type { NavigationTabId } from '../navigation';
 
@@ -27,7 +28,6 @@ type CredentialStatus = {
 type CredentialMode = 'LOGIN' | 'SETUP' | 'RECOVER';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
-const NAV_AUTH_KEY = 'dairyos_navigation_access_token';
 const field: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
@@ -76,7 +76,7 @@ export default function NavigationVisibilityControl({
   onRequestSystemReset,
 }: NavigationVisibilityControlProps) {
   const [navigationToken, setNavigationToken] = useState(
-    () => sessionStorage.getItem(NAV_AUTH_KEY) || '',
+    () => sessionStorage.getItem(NAVIGATION_ACCESS_TOKEN_KEY) || '',
   );
   const [navigationDraft, setNavigationDraft] = useState<NavigationTabId[]>(
     normalizeHiddenNavigationTabs(hiddenNavigationTabs),
@@ -154,7 +154,7 @@ export default function NavigationVisibilityControl({
       ) {
         throw new Error('This account cannot change navigation visibility.');
       }
-      sessionStorage.setItem(NAV_AUTH_KEY, token);
+      sessionStorage.setItem(NAVIGATION_ACCESS_TOKEN_KEY, token);
       setNavigationToken(token);
       setCurrentPassword(adminPassword);
       setAdminPassword('');
@@ -223,19 +223,19 @@ export default function NavigationVisibilityControl({
   };
 
   const lockNavigation = () => {
-    sessionStorage.removeItem(NAV_AUTH_KEY);
+    sessionStorage.removeItem(NAVIGATION_ACCESS_TOKEN_KEY);
     setNavigationToken('');
     clearPasswordFields();
     onMessage('Navigation visibility controls locked.');
   };
 
   const navigationFetch = async (url: string, init: RequestInit = {}) => {
-    const token = navigationToken || sessionStorage.getItem(NAV_AUTH_KEY) || '';
+    const token = navigationToken || sessionStorage.getItem(NAVIGATION_ACCESS_TOKEN_KEY) || '';
     const headers = new Headers(init.headers || {});
     if (token) headers.set('Authorization', `Bearer ${token}`);
     const response = await fetch(url, { ...init, headers });
     if (response.status === 401 || response.status === 403) {
-      sessionStorage.removeItem(NAV_AUTH_KEY);
+      sessionStorage.removeItem(NAVIGATION_ACCESS_TOKEN_KEY);
       setNavigationToken('');
       throw new Error('Administrator authentication is required to change navigation visibility.');
     }

@@ -7,6 +7,18 @@ export type AuthUser = {
   permissions: string[];
 };
 
+export const NAVIGATION_ACCESS_TOKEN_KEY = 'dairyos_navigation_access_token';
+
+export function getNavigationAccessToken(): string | null {
+  try {
+    return typeof sessionStorage === 'undefined'
+      ? null
+      : sessionStorage.getItem(NAVIGATION_ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function getStoredUser(): AuthUser | null {
   try {
     const raw = localStorage.getItem('dairyos_user');
