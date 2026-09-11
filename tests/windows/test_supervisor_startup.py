@@ -224,3 +224,29 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     assert url == "http://127.0.0.1:8123"
     assert "DAIRYOS_MIGRATION_DATABASE_URL" not in captured["env"]
     assert captured["env"]["DAIRYOS_DATABASE_URL"] == "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos"
+
+
+def test_frozen_backend_child_receives_backend_mode(monkeypatch, tmp_path):
+    captured = {}
+    process = _FakeProcess()
+
+    class _AssigningJob:
+        def assign(self, received):
+            assert received is process
+
+    def popen(command, **kwargs):
+        captured["env"] = kwargs["env"]
+        return process
+
+    monkeypatch.setattr(supervisor.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("DAIRYOS_RUNTIME_LOG_DIR", str(tmp_path))
+    monkeypatch.setattr(supervisor.subprocess, "Popen", popen)
+
+    result, url = supervisor.start_backend(
+        supervisor.SupervisorConfig(host="127.0.0.1", port=8124),
+        _AssigningJob(),
+    )
+
+    assert result is process
+    assert url == "http://127.0.0.1:8124"
+    assert captured["env"]["DAIRYOS_BACKEND_MODE"] == "1"

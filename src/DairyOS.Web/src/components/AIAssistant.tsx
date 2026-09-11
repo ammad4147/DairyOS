@@ -15,6 +15,10 @@ const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 
 const SUGGESTED_QUESTIONS = [
   'How do I record a missed milk entry for the correct date?',
+  'What was milk production in July?',
+  'What was the average and maximum COP/L in September?',
+  'How many calves have been delivered and how many mortalities were recorded?',
+  'A cow has fever and reduced appetite. What conditions should the veterinarian assess?',
   'Why is Feed Cost / L unavailable for a period?',
   'What should I know about mastitis and when is it urgent?',
   'Give me the complete checklist for recording a milk sale.',
@@ -75,6 +79,8 @@ type AssistantResponse = {
     domains: string[];
     read_only: boolean;
   };
+  conversation_id?: string;
+  tool_results?: Record<string, Record<string, unknown>>;
 };
 
 const field: CSSProperties = {
@@ -128,10 +134,45 @@ function StringList({ values, ordered = false }: { values: string[]; ordered?: b
   );
 }
 
+function LiveEvidence({ results }: { results: Record<string, Record<string, unknown>> }) {
+  const entries = Object.entries(results).filter(([name, value]) => name !== 'read_safety_policy' && value && value.read_only === true);
+  if (!entries.length) return null;
+  return (
+    <Section title="Read-only live evidence">
+      <div style={{ display: 'grid', gap: 7 }}>
+        {entries.map(([name, value]) => {
+          const evidence = (value.evidence || value) as Record<string, unknown>;
+          const metric = String(evidence.metric || name);
+          const headline = metric === 'milk_production'
+            ? `Milk production: ${evidence.total_litres ?? 'unavailable'} litres`
+            : metric === 'reproduction_and_calf_lifecycle'
+              ? `Calving events: ${evidence.actual_calving_events ?? 0}; calf records: ${evidence.calf_animal_records ?? 0}`
+              : metric === 'mortality'
+                ? `Mortality events: ${evidence.mortality_events ?? 0}; current deceased records: ${evidence.currently_deceased_animals ?? 0}`
+                : metric === 'health_insight'
+                  ? `Possible health conditions returned: ${Array.isArray(evidence.probable_conditions) ? evidence.probable_conditions.length : 0}`
+                  : name.replaceAll('_', ' ');
+          return (
+            <div key={name} style={{ background: '#111827', border: '1px solid #334155', borderRadius: 6, padding: 8 }}>
+              <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 800, textTransform: 'capitalize' }}>{headline}</div>
+              <div style={{ color: '#86efac', fontSize: 9, marginTop: 3 }}>Database read-only guard: active</div>
+              <details style={{ marginTop: 5, color: '#94a3b8', fontSize: 9 }}>
+                <summary>Inspect supporting evidence</summary>
+                <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 260, overflow: 'auto', margin: '6px 0 0', color: '#cbd5e1' }}>{JSON.stringify(value, null, 2).slice(0, 12000)}</pre>
+              </details>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 export default function AIAssistant() {
   const [question, setQuestion] = useState('');
   const [role, setRole] = useState<Role>('Operator');
   const [answer, setAnswer] = useState<AssistantResponse | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -148,13 +189,15 @@ export default function AIAssistant() {
       const response = await fetch(`${API_BASE}/ai-assistant/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: trimmed, role }),
+        body: JSON.stringify({ question: trimmed, role, conversation_id: conversationId }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.detail || `AI Assistant unavailable (HTTP ${response.status}).`);
       }
-      setAnswer(payload as AssistantResponse);
+      const nextAnswer = payload as AssistantResponse;
+      setAnswer(nextAnswer);
+      if (nextAnswer.conversation_id) setConversationId(nextAnswer.conversation_id);
     } catch (requestError) {
       setAnswer(null);
       setError(requestError instanceof Error ? requestError.message : 'AI Assistant request failed.');
@@ -163,10 +206,15 @@ export default function AIAssistant() {
     }
   };
 
-  const clear = () => {
+  const clear = async () => {
+    const previousConversationId = conversationId;
     setQuestion('');
     setAnswer(null);
     setError('');
+    setConversationId(null);
+    if (previousConversationId) {
+      await fetch(`${API_BASE}/ai-assistant/conversations/${encodeURIComponent(previousConversationId)}`, { method: 'DELETE' }).catch(() => undefined);
+    }
   };
 
   return (
@@ -176,10 +224,10 @@ export default function AIAssistant() {
           <div style={{ ...heading, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={14} />AI Assistant</div>
           <h3 style={{ margin: '4px 0', fontSize: 17 }}>Ask a question in your own words</h3>
           <div style={{ color: '#94a3b8', fontSize: 10, maxWidth: 700 }}>
-            The Assistant matches your question to the versioned DairyOS knowledge base, then develops a complete answer with context, checklist, expected outcome, downstream effects, exceptions, and next action.
+            AI Assistant matches your question to the versioned DairyOS knowledge base, then develops a complete answer with context, checklist, expected outcome, downstream effects, exceptions, and next action.
           </div>
         </div>
-        <div style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#bbf7d0', fontSize: 9, fontWeight: 800 }}><ShieldCheck size={14} />READ ONLY · NO LIVE RECORD ACCESS</div>
+        <div style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#bbf7d0', fontSize: 9, fontWeight: 800 }}><ShieldCheck size={14} />READ ONLY · LIVE DATA ON REQUEST</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 170px', gap: 8, marginTop: 13, alignItems: 'end' }}>
@@ -205,16 +253,16 @@ export default function AIAssistant() {
         </label>
         <label style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>
           Perspective
-          <select aria-label="Assistant perspective" value={role} onChange={event => setRole(event.target.value as Role)} style={{ ...field, marginTop: 4 }}>
+          <select aria-label="AI Assistant perspective" value={role} onChange={event => setRole(event.target.value as Role)} style={{ ...field, marginTop: 4 }}>
             {ROLES.map(option => <option key={option} value={option}>{option}</option>)}
           </select>
         </label>
       </div>
       <div style={{ display: 'flex', gap: 7, marginTop: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={() => void ask()} disabled={busy} style={{ ...smallButton(true), background: '#0369a1', opacity: busy ? 0.65 : 1 }}>
-          {busy ? <Loader2 size={12} className="dairyos-spin" /> : <Bot size={12} />} {busy ? 'Developing answer…' : 'Ask Assistant'}
+          {busy ? <Loader2 size={12} className="dairyos-spin" /> : <Bot size={12} />} {busy ? 'AI Assistant is developing an answer…' : 'Ask AI Assistant'}
         </button>
-        <button type="button" onClick={clear} style={smallButton()}>Clear</button>
+        <button type="button" onClick={() => void clear()} style={smallButton()}>Clear</button>
       </div>
 
       {error && <div style={{ marginTop: 10, background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', borderRadius: 6, padding: 8, fontSize: 10 }}>{error}</div>}
@@ -231,7 +279,8 @@ export default function AIAssistant() {
       )}
 
       {answer && (
-        <div style={{ display: 'grid', gap: 9, marginTop: 14 }}>
+          <div style={{ display: 'grid', gap: 9, marginTop: 14 }}>
+          {answer.tool_results && <LiveEvidence results={answer.tool_results} />}
           <section style={{ background: '#111827', border: '1px solid #334155', borderRadius: 7, padding: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ color: '#a78bfa', fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={16} />{answer.title}</div>
@@ -274,7 +323,7 @@ export default function AIAssistant() {
             </div>
           </Section>}
 
-          {answer.coverage && <div style={{ color: '#64748b', fontSize: 9 }}>Grounded against {answer.coverage.items} normalized knowledge items across {answer.coverage.domains.length} domains. No live database or farm record was read.</div>}
+          {answer.coverage && <div style={{ color: '#64748b', fontSize: 9 }}>Grounded against {answer.coverage.items} normalized knowledge items across {answer.coverage.domains.length} domains. Live operational data and logs are read only when the question requires them; missing authority is shown as unavailable.</div>}
         </div>
       )}
     </section>

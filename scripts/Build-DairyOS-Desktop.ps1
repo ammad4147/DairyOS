@@ -73,6 +73,16 @@ $robocopyArgs = @($runtimeSource, $runtimeTarget, "/E", "/NFL", "/NDL", "/NJH", 
 & robocopy @robocopyArgs | Out-Null
 if ($LASTEXITCODE -gt 7) { throw "PostgreSQL runtime copy failed with exit code $LASTEXITCODE." }
 
+# Keep the server executables on an explicit copy path. Some Windows robocopy
+# environments create the directory tree for a root copy but omit executable
+# files under bin when exclusions are supplied. A release without these files
+# cannot start its private database and must fail before packaging.
+$runtimeBinSource = Join-Path $runtimeSource "bin"
+$runtimeBinTarget = Join-Path $runtimeTarget "bin"
+$binRobocopyArgs = @($runtimeBinSource, $runtimeBinTarget, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+& robocopy @binRobocopyArgs | Out-Null
+if ($LASTEXITCODE -gt 7) { throw "PostgreSQL executable copy failed with exit code $LASTEXITCODE." }
+
 $runtimeDir = Join-Path $bundle "runtime"
 New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
 Copy-Item $versionSource (Join-Path $runtimeDir "postgresql.version") -Force

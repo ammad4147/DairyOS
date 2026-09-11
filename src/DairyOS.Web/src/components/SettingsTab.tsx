@@ -34,7 +34,17 @@ type BackupHealth = {
   archive_verified?: boolean;
   monthly_primary?: string | null;
 };
-type SystemHealth = { overall?: string; read_only?: boolean; checks?: { name: string; status: string; detail: string }[] };
+type SystemHealthCheck = { name: string; status: string; detail: string };
+type SystemHealth = {
+  overall?: string;
+  read_only?: boolean;
+  data_status?: string;
+  health_schema_version?: number;
+  checked_at?: string | null;
+  summary?: { PASS?: number; WARNING?: number; FAIL?: number };
+  safety?: string;
+  checks?: SystemHealthCheck[];
+};
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
 const SMTP_PRESETS: Record<string, { host: string; port: number; tls: boolean }> = {
@@ -549,6 +559,8 @@ export default function SettingsTab({
           <button type="button" onClick={() => void runSystemHealth()} disabled={healthLoading} style={{ ...button, opacity: healthLoading ? 0.6 : 1 }}>{healthLoading ? 'Checking…' : 'Run System Health Check'}</button>
           {systemHealth && <div style={{ marginTop: 12 }}>
             <div style={{ fontWeight: 900, color: systemHealth.overall === 'PASS' ? '#86efac' : systemHealth.overall === 'WARNING' ? '#fde68a' : '#fca5a5' }}>Overall: {systemHealth.overall} · READ ONLY: {systemHealth.read_only ? 'YES' : 'NO'}</div>
+            <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 5 }}>Report v{systemHealth.health_schema_version ?? '—'} · Checked: {displayBackupTime(systemHealth.checked_at)} · PASS {systemHealth.summary?.PASS ?? 0} · WARNING {systemHealth.summary?.WARNING ?? 0} · FAIL {systemHealth.summary?.FAIL ?? 0}</div>
+            {systemHealth.safety && <div style={{ color: '#a7f3d0', fontSize: 10, marginTop: 5 }}>{systemHealth.safety}</div>}
             <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>{(systemHealth.checks || []).map(check => <div key={check.name} style={{ borderTop: '1px solid #1f2937', paddingTop: 6, fontSize: 10 }}><strong style={{ color: check.status === 'PASS' ? '#86efac' : check.status === 'WARNING' ? '#fde68a' : '#fca5a5' }}>{check.status}</strong> · {check.name}<div style={{ color: '#94a3b8', marginTop: 2 }}>{check.detail}</div></div>)}</div>
           </div>}
         </section></div>

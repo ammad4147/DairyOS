@@ -338,6 +338,12 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     env["DAIRYOS_DESKTOP_SESSION_TOKEN"] = _desktop_session_token()
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
+    # The frozen executable is both the desktop supervisor and the backend
+    # entry point.  Keep the child-mode marker explicit so the backend applies
+    # windowed-process stream handling and disables Uvicorn's console logging
+    # configuration before importing the application.
+    if getattr(sys, "frozen", False):
+        env["DAIRYOS_BACKEND_MODE"] = "1"
     # Privileged database access is migration-only and must never reach the
     # restricted backend child, even if an upstream cleanup regresses.
     env.pop("DAIRYOS_MIGRATION_DATABASE_URL", None)

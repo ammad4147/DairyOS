@@ -52,6 +52,13 @@ def assistant_tools():
     }
 
 
+@router.get("/data-sources")
+def assistant_data_sources():
+    from dairyos.assistant.operational import operational_capability_catalog
+
+    return operational_capability_catalog()
+
+
 @router.delete("/conversations/{conversation_id}")
 def reset_conversation(conversation_id: str):
     return {

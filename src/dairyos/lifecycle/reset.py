@@ -10,7 +10,6 @@ from sqlalchemy.pool import NullPool
 
 from dairyos.lifecycle.manager import LifecycleError
 
-
 PRESERVED_TABLES = frozenset(
     {
         "alembic_version",
@@ -59,6 +58,14 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
         with engine.begin() as connection:
             connection.execute(sa.text("SET LOCAL lock_timeout = '10s'"))
             connection.execute(sa.text("SET LOCAL statement_timeout = '60s'"))
+            if connection.dialect.name == "postgresql":
+                # The database trigger is an independent circuit breaker. The
+                # lifecycle path explicitly opts in only after the caller has
+                # resolved the protected administrative database identity;
+                # the trigger still rejects this setting for ordinary roles.
+                connection.execute(
+                    sa.text("SET LOCAL dairyos.allow_destructive_op = 'true'")
+                )
 
             connection.execute(
                 sa.text(
@@ -76,22 +83,16 @@ def reset_operational_data(database_url: str, *, updated_by: str) -> ResetExecut
 
             if tables:
                 quoted = ", ".join(
-                    '"' + table.replace('"', '""') + '"'
-                    for table in tables
+                    '"' + table.replace('"', '""') + '"' for table in tables
                 )
-                connection.execute(
-                    sa.text(
-                        f"TRUNCATE TABLE {quoted} RESTART IDENTITY"
-                    )
-                )
+                connection.execute(sa.text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY"))
 
         remaining = verify_zero_state(database_url)
         if remaining:
             raise LifecycleError(
                 "Reset zero-state verification failed: "
                 + ", ".join(
-                    f"{table}={count}"
-                    for table, count in sorted(remaining.items())
+                    f"{table}={count}" for table, count in sorted(remaining.items())
                 )
             )
 

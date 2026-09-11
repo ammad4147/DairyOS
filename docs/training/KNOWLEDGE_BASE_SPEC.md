@@ -1,6 +1,6 @@
-# DairyOS Assistant Knowledge Base
+# AI Assistant Knowledge Base
 
-This directory is the source of truth for the DairyOS Assistant. The assistant
+This directory is the source of truth for the DairyOS AI Assistant. The assistant
 must not be built from unreviewed or invented content.
 
 ## Content contract

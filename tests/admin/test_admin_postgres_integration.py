@@ -11,9 +11,8 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-from dairyos.admin.service import AdminService, RESET_CONFIRMATION
+from dairyos.admin.service import RESET_CONFIRMATION, AdminService
 from dairyos.lifecycle.manager import LifecycleManager
-
 
 pytestmark = pytest.mark.skipif(
     os.getenv("DAIRYOS_ADMIN_INTEGRATION") != "1",
@@ -99,10 +98,16 @@ def _run_database_utility(command: list[str], env: dict[str, str]) -> None:
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        raise AssertionError(f"PostgreSQL client command timed out: {' '.join(command)}") from exc
+        raise AssertionError(
+            f"PostgreSQL client command timed out: {' '.join(command)}"
+        ) from exc
 
     if completed.returncode != 0:
-        detail = completed.stderr.strip() or completed.stdout.strip() or "PostgreSQL client command failed"
+        detail = (
+            completed.stderr.strip()
+            or completed.stdout.strip()
+            or "PostgreSQL client command failed"
+        )
         raise AssertionError(f"{detail}: {' '.join(command)}")
 
 
@@ -110,13 +115,19 @@ def _create_database(database_url: str, database_name: str) -> None:
     """Create an isolated PostgreSQL database using the same PGPASSWORD path as CI pg_dump."""
     url, env = _postgres_client_environment(database_url)
     utility = shutil.which("createdb")
-    assert utility is not None, "createdb was not installed by the PostgreSQL client package"
+    assert utility is not None, (
+        "createdb was not installed by the PostgreSQL client package"
+    )
     command = [utility]
     if url.host:
         command += ["--host", url.host]
     if url.port:
         command += ["--port", str(url.port)]
-    command += ["--username", os.getenv("DAIRYOS_DB_USER", url.username or "postgres"), database_name]
+    command += [
+        "--username",
+        os.getenv("DAIRYOS_DB_USER", url.username or "postgres"),
+        database_name,
+    ]
     _run_database_utility(command, env)
 
 
@@ -124,13 +135,19 @@ def _drop_database(database_url: str, database_name: str) -> None:
     """Drop the isolated PostgreSQL restore database using explicit CI credentials."""
     url, env = _postgres_client_environment(database_url)
     utility = shutil.which("dropdb")
-    assert utility is not None, "dropdb was not installed by the PostgreSQL client package"
+    assert utility is not None, (
+        "dropdb was not installed by the PostgreSQL client package"
+    )
     command = [utility, "--if-exists"]
     if url.host:
         command += ["--host", url.host]
     if url.port:
         command += ["--port", str(url.port)]
-    command += ["--username", os.getenv("DAIRYOS_DB_USER", url.username or "postgres"), database_name]
+    command += [
+        "--username",
+        os.getenv("DAIRYOS_DB_USER", url.username or "postgres"),
+        database_name,
+    ]
     _run_database_utility(command, env)
 
 
@@ -143,11 +160,15 @@ def _restore_connection_kwargs(database_url: str) -> dict[str, object]:
     }
 
 
-def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_admin_reset_backup_reset_and_restore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     database_url = _database_url()
     _stage("1/9 creating SQLAlchemy engine")
     engine = create_engine(database_url)
-    manager = LifecycleManager(tmp_path / "install", data_root=tmp_path / "data", database_url=database_url)
+    manager = LifecycleManager(
+        tmp_path / "install", data_root=tmp_path / "data", database_url=database_url
+    )
 
     _stage("2/9 installing lifecycle manifest")
     manager.install(application_version="integration-test")
@@ -157,12 +178,12 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
     try:
         _stage("3/9 inserting certification record")
         with engine.begin() as connection:
-            assert connection.execute(
-                text(
-                    "SELECT to_regclass('public.breeding_propagation_outbox')"
-                )
-            ).scalar_one() == "breeding_propagation_outbox"
-            connection.execute(text("TRUNCATE TABLE animal RESTART IDENTITY CASCADE"))
+            assert (
+                connection.execute(
+                    text("SELECT to_regclass('public.breeding_propagation_outbox')")
+                ).scalar_one()
+                == "breeding_propagation_outbox"
+            )
             connection.execute(
                 text(
                     "INSERT INTO animal "
@@ -181,7 +202,9 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
             )
 
         engine.dispose()
-        monkeypatch.setattr("dairyos.admin.service._assert_runtime_stopped", lambda: None)
+        monkeypatch.setattr(
+            "dairyos.admin.service._assert_runtime_stopped", lambda: None
+        )
         _print_target_table_locks(database_url)
 
         _stage("4/9 executing administrative Reset")
@@ -199,12 +222,17 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         verify_engine = create_engine(database_url)
         try:
             with verify_engine.connect() as connection:
-                assert connection.execute(
-                    text("SELECT count(*) FROM animal WHERE animal_id=:id"),
-                    {"id": animal_id},
-                ).scalar_one() == 0
+                assert (
+                    connection.execute(
+                        text("SELECT count(*) FROM animal WHERE animal_id=:id"),
+                        {"id": animal_id},
+                    ).scalar_one()
+                    == 0
+                )
                 deployment = connection.execute(
-                    text("SELECT value FROM app_settings WHERE key='deployment_activated'")
+                    text(
+                        "SELECT value FROM app_settings WHERE key='deployment_activated'"
+                    )
                 ).scalar_one()
                 assert deployment == "false"
         finally:
@@ -224,7 +252,9 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         restore_backup(str(restore_url), dump_path)
 
         _stage("8/9 validating restored record")
-        restored_engine = create_engine(str(restore_url), **_restore_connection_kwargs(str(restore_url)))
+        restored_engine = create_engine(
+            str(restore_url), **_restore_connection_kwargs(str(restore_url))
+        )
         try:
             with restored_engine.connect() as connection:
                 count = connection.execute(
@@ -241,7 +271,12 @@ def test_admin_reset_backup_reset_and_restore(tmp_path: Path, monkeypatch: pytes
         if restore_name is not None:
             try:
                 _drop_database(database_url, restore_name)
-            except Exception as exc:
+            except (
+                AssertionError,
+                OSError,
+                RuntimeError,
+                subprocess.SubprocessError,
+            ) as exc:
                 _stage(f"restore database cleanup warning: {exc}")
         recovery_root = tmp_path / "recovery"
         if recovery_root.exists():
