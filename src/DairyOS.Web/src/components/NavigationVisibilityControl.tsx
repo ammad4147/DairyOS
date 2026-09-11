@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { KeyRound, Save } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { readApiPayload } from '../api/response';
 import { NAVIGATION_TABS, normalizeHiddenNavigationTabs } from '../navigation';
 import type { NavigationTabId } from '../navigation';
 
@@ -102,8 +103,7 @@ export default function NavigationVisibilityControl({
   const loadCredentialStatus = async () => {
     try {
       const response = await fetch(`${API_BASE}/settings/navigation-credentials`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to load administrator credential status.');
+      const payload = await readApiPayload<CredentialStatus>(response, 'Unable to load administrator credential status.');
       const next = payload as CredentialStatus;
       setCredentialStatus(next);
       setAdminUsername(next.username || 'admin');
@@ -141,16 +141,15 @@ export default function NavigationVisibilityControl({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: adminUsername, password: adminPassword }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.access_token) throw new Error(payload.detail || 'Authentication failed.');
+      const payload = await readApiPayload<{ access_token?: unknown; user?: { username?: unknown } }>(response, 'Authentication failed.');
+      if (!payload.access_token) throw new Error('Authentication failed.');
       const token = String(payload.access_token);
       const permissionsResponse = await fetch(`${API_BASE}/authz/permissions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const permissions = await permissionsResponse.json();
+      const permissions = await readApiPayload<{ permissions?: unknown[] }>(permissionsResponse, 'Unable to load account permissions.');
       if (
-        !permissionsResponse.ok
-        || !Array.isArray(permissions.permissions)
+        !Array.isArray(permissions.permissions)
         || !permissions.permissions.includes('settings.navigation')
       ) {
         throw new Error('This account cannot change navigation visibility.');
@@ -178,8 +177,7 @@ export default function NavigationVisibilityControl({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: adminUsername, new_password: newPassword }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to set the administrator password.');
+      const payload = await readApiPayload(response, 'Unable to set the administrator password.');
       setIssuedRecoveryCode(String(payload.recovery_code || ''));
       setCredentialMode('LOGIN');
       setAdminPassword(newPassword);
@@ -209,8 +207,7 @@ export default function NavigationVisibilityControl({
           new_password: newPassword,
         }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to recover the administrator password.');
+      const payload = await readApiPayload(response, 'Unable to recover the administrator password.');
       setIssuedRecoveryCode(String(payload.recovery_code || ''));
       setCredentialMode('LOGIN');
       setAdminPassword(newPassword);
@@ -262,8 +259,7 @@ export default function NavigationVisibilityControl({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hidden_tabs: navigationDraft }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to save navigation visibility.');
+      const payload = await readApiPayload<{ navigation?: { hidden_tabs?: unknown } }>(response, 'Unable to save navigation visibility.');
       const hidden = normalizeHiddenNavigationTabs(payload?.navigation?.hidden_tabs);
       setNavigationDraft(hidden);
       onHiddenNavigationTabsChange?.(hidden);
@@ -285,8 +281,7 @@ export default function NavigationVisibilityControl({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to change the administrator password.');
+      const payload = await readApiPayload(response, 'Unable to change the administrator password.');
       setCurrentPassword(newPassword);
       setNewPassword('');
       setConfirmPassword('');
@@ -306,8 +301,7 @@ export default function NavigationVisibilityControl({
       const response = await navigationFetch(`${API_BASE}/settings/navigation-credentials/recovery-code`, {
         method: 'POST',
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || 'Unable to generate a recovery code.');
+      const payload = await readApiPayload(response, 'Unable to generate a recovery code.');
       setIssuedRecoveryCode(String(payload.recovery_code || ''));
       setCredentialStatus(current => ({ ...current, recovery_configured: true }));
       onMessage('New administrator recovery code generated. Save it now; it is displayed only in this session.');

@@ -11,6 +11,7 @@ import ctypes
 import json
 import logging
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -43,6 +44,7 @@ from dairyos.lifecycle.manager import LifecycleManager
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
+_AUTH_SIGNING_SECRET: str | None = None
 
 
 def process_pending_system_reset() -> None:
@@ -336,6 +338,12 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     command = backend_command(config.host, selected_port)
     env = os.environ.copy()
     env["DAIRYOS_DESKTOP_SESSION_TOKEN"] = _desktop_session_token()
+    # Production authentication deliberately refuses an unsafe built-in
+    # signing secret.  The packaged desktop supervisor is the trusted local
+    # launch boundary, so create one per supervisor lifetime and pass it only
+    # to the hidden backend child.  It never enters the registry, UI URL,
+    # application logs, or the operator's normal workflow.
+    env["DAIRYOS_AUTH_SECRET"] = _auth_signing_secret()
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
     # The frozen executable is both the desktop supervisor and the backend
@@ -471,6 +479,26 @@ def _desktop_session_token() -> str:
         import secrets
         _SESSION_TOKEN = secrets.token_urlsafe(32)
     return _SESSION_TOKEN
+
+
+def _auth_signing_secret() -> str:
+    """Return the backend-only signing secret for this desktop lifetime.
+
+    An explicitly configured secret remains authoritative for managed/server
+    deployments.  Packaged Windows launches generate an ephemeral secret so
+    production authentication works without a plaintext registry value,
+    installer prompt, or database password dependency.  Keeping it in the
+    supervisor process also lets the backend watchdog restart without
+    invalidating the current desktop session's bearer tokens.
+    """
+    configured = os.environ.get("DAIRYOS_AUTH_SECRET", "").strip()
+    if configured:
+        return configured
+
+    global _AUTH_SIGNING_SECRET
+    if _AUTH_SIGNING_SECRET is None:
+        _AUTH_SIGNING_SECRET = secrets.token_urlsafe(48)
+    return _AUTH_SIGNING_SECRET
 
 
 def _desktop_url(url: str) -> str:

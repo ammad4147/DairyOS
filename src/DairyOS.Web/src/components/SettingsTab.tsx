@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { readApiPayload } from '../api/response';
 import type { NavigationTabId } from '../navigation';
 import { formatFarmDateTime, setFarmTimezone, SYSTEM_TIMEZONE } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
@@ -401,10 +402,9 @@ export default function SettingsTab({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: resetPassword, confirm: resetConfirm }),
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.detail || `Reset request failed (HTTP ${response.status}).`);
+      const data = await readApiPayload<{ message?: unknown }>(response, 'Reset request failed.');
       setResetPassword(''); setResetConfirm('');
-      setMessage(data.message || 'Reset queued for the next DairyOS start.');
+      setMessage(String(data.message || 'Reset queued for the next DairyOS start.'));
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : 'Reset request failed.');
     } finally { setResetLoading(false); }

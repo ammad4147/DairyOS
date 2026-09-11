@@ -226,6 +226,45 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     assert captured["env"]["DAIRYOS_DATABASE_URL"] == "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos"
 
 
+def test_backend_child_receives_private_auth_signing_secret(monkeypatch, tmp_path):
+    captured = {}
+    process = _FakeProcess()
+
+    class _AssigningJob:
+        def assign(self, received):
+            assert received is process
+
+    def popen(command, **kwargs):
+        captured["env"] = kwargs["env"]
+        return process
+
+    monkeypatch.delenv("DAIRYOS_AUTH_SECRET", raising=False)
+    monkeypatch.setattr(supervisor, "_AUTH_SIGNING_SECRET", None)
+    monkeypatch.setenv("DAIRYOS_RUNTIME_LOG_DIR", str(tmp_path))
+    monkeypatch.setattr(supervisor.subprocess, "Popen", popen)
+    monkeypatch.setattr(
+        supervisor,
+        "backend_command",
+        lambda host, port: ["backend", host, str(port)],
+    )
+
+    supervisor.start_backend(
+        supervisor.SupervisorConfig(host="127.0.0.1", port=8125),
+        _AssigningJob(),
+    )
+
+    secret = captured["env"]["DAIRYOS_AUTH_SECRET"]
+    assert len(secret) >= 48
+    assert secret != captured["env"]["DAIRYOS_DESKTOP_SESSION_TOKEN"]
+
+
+def test_explicit_auth_signing_secret_remains_authoritative(monkeypatch):
+    monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "managed-auth-secret")
+    monkeypatch.setattr(supervisor, "_AUTH_SIGNING_SECRET", None)
+
+    assert supervisor._auth_signing_secret() == "managed-auth-secret"
+
+
 def test_frozen_backend_child_receives_backend_mode(monkeypatch, tmp_path):
     captured = {}
     process = _FakeProcess()
