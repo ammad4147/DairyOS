@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="DairyOS cow">
+  <rect width="24" height="24" rx="4" fill="#0284c7"/>
+  <g fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 3 3 7v3l2 1v5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-5l2-1V7l-2-4-3 2H8L5 3Z"/>
+    <path d="M9 13v.01M15 13v.01M10 18a2 2 0 0 0 4 0"/>
+  </g>
+</svg>
