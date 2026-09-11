@@ -87,11 +87,95 @@ _SENSITIVE_WORDS = (
     "private_key",
     "api_key",
     "access_key",
+    "database_url",
+    "connection_string",
+    "dsn",
 )
 _MAX_LIMIT = 100
 _TABLE_ROW_MAX = 100
 _FILE_LOG_MAX_BYTES = 256_000
 _FILE_LOG_LINE_MAX = 4_000
+
+
+def _page_settings(
+    page: int = 1,
+    page_size: int = 50,
+    limit: int | None = None,
+) -> tuple[int, int]:
+    """Return bounded, compatible pagination settings for read-only results."""
+
+    selected_page = min(max(int(page), 1), 10_000)
+    selected_size = int(limit) if limit is not None else int(page_size)
+    selected_size = min(max(selected_size, 1), _MAX_LIMIT)
+    return selected_page, selected_size
+
+
+def _pagination(total: int, page: int, page_size: int) -> dict[str, Any]:
+    start = max((page - 1) * page_size, 0)
+    returned = max(min(total - start, page_size), 0)
+    has_next = start + returned < total
+    return {
+        "page": page,
+        "page_size": page_size,
+        "total_records": total,
+        "returned_records": returned,
+        "has_next": has_next,
+        "next_page": page + 1 if has_next else None,
+    }
+
+
+def _page_records(
+    records: list[dict[str, Any]], page: int, page_size: int
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    total = len(records)
+    start = (page - 1) * page_size
+    return records[start : start + page_size], _pagination(total, page, page_size)
+
+
+_PAGINATED_RECORD_FIELDS = (
+    "daily",
+    "calving_events",
+    "breeding_records",
+    "calf_animals",
+    "transactions",
+    "feed_records",
+    "animals",
+    "mortality_records",
+    "records",
+    "persisted_health_observations",
+    "persisted_treatments",
+    "persisted_health_cases",
+)
+
+
+def _paginate_evidence_records(
+    evidence: dict[str, Any], page: int, page_size: int
+) -> dict[str, Any]:
+    """Paginate record collections while leaving aggregate totals untouched."""
+
+    result = dict(evidence)
+    pagination = dict(result.get("pagination") or {})
+    for field in _PAGINATED_RECORD_FIELDS:
+        records = result.get(field)
+        if isinstance(records, list):
+            result[field], pagination[field] = _page_records(records, page, page_size)
+    if isinstance(result.get("evidence"), list):
+        result["evidence"] = [
+            _paginate_evidence_records(item, page, page_size)
+            if isinstance(item, dict)
+            else item
+            for item in result["evidence"]
+        ]
+    if isinstance(result.get("tables"), list):
+        result["tables"] = [
+            _paginate_evidence_records(item, page, page_size)
+            if isinstance(item, dict)
+            else item
+            for item in result["tables"]
+        ]
+    if pagination:
+        result["pagination"] = pagination
+    return result
 _DOMAIN_MODELS = {
     "animals": Animal,
     "milk_production": MilkProduction,
@@ -422,18 +506,36 @@ def _health_history_requested(question: str) -> bool:
     lowered = str(question or "").lower()
     explicit_history = (
         "health case",
+        "health cases",
         "health observation",
+        "health observations",
         "health history",
         "treatment history",
+        "treatment record",
+        "treatment records",
         "treatments recorded",
         "observations recorded",
         "cases recorded",
+        "sick animal",
+        "sick animals",
+        "ill animal",
+        "ill animals",
+        "current health",
+        "health status",
+        "open health",
+        "active health",
     )
     if any(term in lowered for term in explicit_history):
         return True
-    return any(term in lowered for term in ("how many", "count", "number of")) and any(
-        term in lowered
-        for term in ("health", "observation", "treatment", "case")
+    return (
+        any(
+            term in lowered
+            for term in ("how many", "count", "number of", "list", "show", "which animals")
+        )
+        and any(
+            term in lowered
+            for term in ("health", "observation", "treatment", "case", "sick", "ill")
+        )
     )
 
 
@@ -563,7 +665,7 @@ def _reproductive_summary(
         "calving_events": calvings,
         "breeding_event_count": len(selected_records),
         "breeding_event_counts": dict(sorted(event_counts.items())),
-        "breeding_records": selected_records[:_MAX_LIMIT],
+        "breeding_records": selected_records,
         "calf_animal_records": len(calf_rows),
         "calf_animals": calf_rows,
         "undated_calving_records": undated,
@@ -613,7 +715,7 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
         "income_total": round(income, 2),
         "expense_total": round(expenses, 2),
         "net_cash_flow": round(income - expenses, 2),
-        "transactions": selected[:_MAX_LIMIT],
+        "transactions": selected,
         "basis": "persisted financial_transactions; VOID/CANCELLED/DELETED excluded by classifier",
         "source_tables": ["financial_transactions"],
     }
@@ -653,7 +755,7 @@ def _feed_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str, A
         "feed_record_count": len(selected),
         "quantity_kg": round(quantity, 4),
         "recorded_feed_cost": round(cost, 2),
-        "feed_records": selected[:_MAX_LIMIT],
+        "feed_records": selected,
         "basis": "persisted feed_record entries; governed historical COP uses daily TMR snapshots separately",
         "source_tables": ["feed_record", "feed_ration"],
     }
@@ -700,7 +802,7 @@ def _animal_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str,
         "animal_count": len(selected),
         "status_counts": dict(sorted(status_counts.items())),
         "lifecycle_counts": dict(sorted(lifecycle_counts.items())),
-        "animals": selected[:_MAX_LIMIT],
+        "animals": selected,
         "basis": "persisted animal master records; no animal is deleted to answer a query",
         "source_tables": ["animal"],
     }
@@ -757,7 +859,11 @@ def _health_insight(
     question: str,
     window: DateWindow,
     animal_id: str | None = None,
+    *,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict[str, Any]:
+    selected_page, selected_page_size = _page_settings(page, page_size)
     observations = []
     lowered = str(question or "").lower()
     history_requested = _health_history_requested(question)
@@ -857,9 +963,16 @@ def _health_insight(
 
     from dairyos.assistant.knowledge import GroundedAssistant
 
-    disease_candidates = [
-        record for record in GroundedAssistant().search_health(question, limit=5)
-    ]
+    # A pure live-history/list request must not perform an irrelevant
+    # knowledge lookup. Clinical symptom questions do need the vetted local
+    # disease reference to produce a bounded differential.
+    disease_candidates = (
+        []
+        if history_requested
+        else [
+            record for record in GroundedAssistant().search_health(question, limit=5)
+        ]
+    )
     probable_conditions = [
         {
             "condition": record.title,
@@ -880,15 +993,36 @@ def _health_insight(
     urgent_signs = []
     for candidate in probable_conditions:
         urgent_signs.extend(candidate["urgent_signs"])
-    return {
+    list_requested = any(
+        term in lowered
+        for term in (
+            "sick animal",
+            "sick animals",
+            "ill animal",
+            "ill animals",
+            "which animals",
+            "list",
+        )
+    )
+    animal_ids_with_health_evidence = []
+    if list_requested:
+        identifiers = {
+            str(item.get("animal_id"))
+            for item in observations + cases
+            if item.get("animal_id")
+        }
+        animal_ids_with_health_evidence = sorted(identifiers)
+    result = {
         "metric": "health_insight",
         "history_requested": history_requested,
+        "list_requested": list_requested,
+        "animal_ids_with_health_evidence": animal_ids_with_health_evidence,
         "probable_conditions": probable_conditions,
-        "persisted_health_observations": observations[:_MAX_LIMIT],
+        "persisted_health_observations": observations,
         "matching_observation_count": len(observations),
-        "persisted_treatments": treatments[:_MAX_LIMIT],
+        "persisted_treatments": treatments,
         "treatment_count": len(treatments),
-        "persisted_health_cases": cases[:_MAX_LIMIT],
+        "persisted_health_cases": cases,
         "health_case_count": len(cases),
         "urgent_signs": list(dict.fromkeys(urgent_signs))[:20],
         "assessment_boundary": (
@@ -904,6 +1038,7 @@ def _health_insight(
         ],
         "read_only": True,
     }
+    return _paginate_evidence_records(result, selected_page, selected_page_size)
 
 
 def _domain_snapshot(factory: RepositoryFactory) -> dict[str, Any]:
@@ -969,7 +1104,12 @@ def _database_catalog(connection) -> list[dict[str, Any]]:
 
 
 def _table_rows(
-    connection, table_name: str, limit: int
+    connection,
+    table_name: str,
+    limit: int = 50,
+    *,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     catalog = _database_catalog(connection)
     selected = next(
@@ -989,10 +1129,55 @@ def _table_rows(
         schema=schema,
         autoload_with=connection,
     )
+    selected_page, selected_page_size = _page_settings(
+        page, page_size if page_size is not None else limit
+    )
     rows = connection.execute(
-        sa.select(table).limit(min(max(int(limit), 1), _TABLE_ROW_MAX))
+        sa.select(table)
+        .offset((selected_page - 1) * selected_page_size)
+        .limit(min(selected_page_size, _TABLE_ROW_MAX))
     ).fetchall()
+    selected = dict(selected)
+    selected["pagination"] = _pagination(
+        int(selected.get("row_count") or 0), selected_page, selected_page_size
+    )
     return selected, [_row_mapping(row) for row in rows]
+
+
+def _infer_table_name(question: str, catalog: list[dict[str, Any]]) -> str | None:
+    """Resolve a safe table alias from the operator's wording."""
+
+    lowered = str(question or "").lower()
+    aliases = {
+        "animal register": "animal",
+        "animal records": "animal",
+        "milk production": "milk_production",
+        "milk records": "milk_production",
+        "milk sessions": "milking_session_records",
+        "health observations": "health_observation",
+        "health cases": "health_cases",
+        "treatment records": "treatment_record",
+        "financial transactions": "financial_transactions",
+        "finance transactions": "financial_transactions",
+        "feed records": "feed_record",
+        "breeding records": "breeding_records",
+        "event journal": "event_journal",
+        "operational events": "operational_events",
+        "projection outbox": "operational_projection_outbox",
+    }
+    available = {
+        str(item.get("table", "")).lower(): str(item.get("table"))
+        for item in catalog
+    }
+    for alias, candidate in aliases.items():
+        if alias in lowered and candidate.lower() in available:
+            return available[candidate.lower()]
+    for candidate, resolved in available.items():
+        if re.search(
+            rf"(?<![a-z0-9_]){re.escape(candidate)}(?![a-z0-9_])", lowered
+        ):
+            return resolved
+    return None
 
 
 _TABLE_DATE_FIELDS = (
@@ -1046,6 +1231,9 @@ def _table_summary(
     table_name: str,
     window: DateWindow,
     limit: int,
+    *,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> dict[str, Any]:
     """Return a bounded, date-aware read of one current application table."""
     catalog = _database_catalog(connection)
@@ -1088,18 +1276,24 @@ def _table_summary(
         count_statement = count_statement.where(condition)
     record_count = int(connection.execute(count_statement).scalar_one())
 
+    selected_page, selected_page_size = _page_settings(
+        page, page_size if page_size is not None else limit
+    )
     row_statement = sa.select(table)
     if condition is not None:
         row_statement = row_statement.where(condition)
     if date_column is not None:
         row_statement = row_statement.order_by(date_column.asc())
-    row_statement = row_statement.limit(min(max(int(limit), 1), _TABLE_ROW_MAX))
+    row_statement = row_statement.offset(
+        (selected_page - 1) * selected_page_size
+    ).limit(min(selected_page_size, _TABLE_ROW_MAX))
     rows = connection.execute(row_statement).fetchall()
     return {
         "metric": "operational_table",
         "table": selected,
         "record_count": record_count,
         "rows": [_row_mapping(row) for row in rows],
+        "pagination": _pagination(record_count, selected_page, selected_page_size),
         "period_filter_column": date_column.name if date_column is not None else None,
         "period_filter_applied": condition is not None,
         "basis": "current persisted DairyOS table read under a transaction-scoped read-only guard",
@@ -1112,9 +1306,19 @@ def _multi_table_summary(
     table_names: tuple[str, ...],
     window: DateWindow,
     limit: int,
+    *,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> dict[str, Any]:
     summaries = [
-        _table_summary(connection, table_name, window, limit)
+        _table_summary(
+            connection,
+            table_name,
+            window,
+            limit,
+            page=page,
+            page_size=page_size,
+        )
         for table_name in table_names
     ]
     return {
@@ -1131,6 +1335,9 @@ def _event_input_summary(
     input_type: str,
     window: DateWindow,
     limit: int,
+    *,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> dict[str, Any]:
     records = []
     for row in _event_rows(factory):
@@ -1173,18 +1380,27 @@ def _event_input_summary(
                 "payload": _json_safe(payload),
             }
         )
-    return {
+    selected_page, selected_page_size = _page_settings(
+        page, page_size if page_size is not None else limit
+    )
+    result = {
         "metric": "operational_input_events",
         "input_type": input_type,
         "record_count": len(records),
-        "records": records[: min(max(int(limit), 1), _MAX_LIMIT)],
+        "records": records,
         "basis": "durable OperationalInputReceived events; VOID inputs excluded",
         "source_tables": ["event_journal"],
     }
+    return _paginate_evidence_records(result, selected_page, selected_page_size)
 
 
 def _milk_disposition_summary(
-    factory: RepositoryFactory, window: DateWindow, limit: int
+    factory: RepositoryFactory,
+    window: DateWindow,
+    limit: int,
+    *,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> dict[str, Any]:
     rows = factory.milk_dispositions().get_all() or []
     selected = []
@@ -1224,21 +1440,30 @@ def _milk_disposition_summary(
                 ),
             )
         )
-    return {
+    selected_page, selected_page_size = _page_settings(
+        page, page_size if page_size is not None else limit
+    )
+    result = {
         "metric": "milk_dispositions",
         "record_count": len(selected),
         "quantity_litres": round(quantity, 4),
         "amount_due": round(amount_due, 2),
         "amount_received": round(amount_received, 2),
         "disposition_type_counts": dict(sorted(types.items())),
-        "records": selected[: min(max(int(limit), 1), _MAX_LIMIT)],
+        "records": selected,
         "basis": "persisted milk disposition authority; VOID rows excluded",
         "source_tables": ["milk_dispositions"],
     }
+    return _paginate_evidence_records(result, selected_page, selected_page_size)
 
 
 def _read_database_schema(
-    table_name: str | None = None, limit: int = 50
+    table_name: str | None = None,
+    question: str | None = None,
+    limit: int | None = None,
+    *,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict[str, Any]:
     def read(factory: RepositoryFactory) -> dict[str, Any]:
         connection = factory.session.connection()
@@ -1253,10 +1478,19 @@ def _read_database_schema(
             "tables": catalog,
             "table_count": len(catalog),
         }
-        if table_name:
-            selected, rows = _table_rows(connection, table_name, limit)
+        selected_table_name = table_name or _infer_table_name(question or "", catalog)
+        if selected_table_name:
+            selected_page, selected_page_size = _page_settings(page, page_size, limit)
+            selected, rows = _table_rows(
+                connection,
+                selected_table_name,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
+            )
             result["selected_table"] = selected
             result["rows"] = rows
+            result["pagination"] = selected.get("pagination")
         return result
 
     return _with_read_only(read)
@@ -1270,7 +1504,9 @@ def _read_operational_data(
     month: str | int | None = None,
     year: str | int | None = None,
     table_name: str | None = None,
-    limit: int = 50,
+    limit: int | None = None,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict[str, Any]:
     def read(factory: RepositoryFactory) -> dict[str, Any]:
         today = OperationalDateAuthority(repository_factory=factory).current_date()
@@ -1282,6 +1518,7 @@ def _read_operational_data(
             month=month,
             year=year,
         )
+        selected_page, selected_page_size = _page_settings(page, page_size, limit)
         result: dict[str, Any] = {
             "data_status": "LIVE_PERSISTED_DATA",
             "assistant_name": "AI Assistant",
@@ -1300,13 +1537,19 @@ def _read_operational_data(
                         "message": "The requested period contains no completed operational date.",
                         "source_tables": [],
                         "read_only": True,
+                        "pagination": _pagination(0, selected_page, selected_page_size),
                     },
                 }
             )
             return result
         if table_name:
             summary = _table_summary(
-                factory.session.connection(), table_name, window, limit
+                factory.session.connection(),
+                table_name,
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
             result.update(
                 {
@@ -1314,6 +1557,7 @@ def _read_operational_data(
                     "table": summary["table"],
                     "rows": summary["rows"],
                     "record_count": summary["record_count"],
+                    "pagination": summary["pagination"],
                     "evidence": summary,
                 }
             )
@@ -1361,7 +1605,12 @@ def _read_operational_data(
             for term in ("animal sold", "livestock sold", "animal disposition")
         ):
             result["evidence"] = _event_input_summary(
-                factory, "animal_disposition", window, limit
+                factory,
+                "animal_disposition",
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1370,16 +1619,32 @@ def _read_operational_data(
             term in lowered
             for term in ("milk", "litre", "liter", "disposition", "wastage", "waste")
         ):
-            result["evidence"] = _milk_disposition_summary(factory, window, limit)
+            result["evidence"] = _milk_disposition_summary(
+                factory,
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
+            )
         elif any(
             term in lowered for term in ("milk quality", "fat", "snf", "quality sample")
         ):
             result["evidence"] = _table_summary(
-                factory.session.connection(), "milk_quality_samples", window, limit
+                factory.session.connection(),
+                "milk_quality_samples",
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(term in lowered for term in ("vaccin",)):
             result["evidence"] = _event_input_summary(
-                factory, "vaccination", window, limit
+                factory,
+                "vaccination",
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1395,7 +1660,9 @@ def _read_operational_data(
                 factory,
                 "youngstock_weaning" if "weaning" in lowered else "youngstock_growth",
                 window,
-                limit,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1416,7 +1683,13 @@ def _read_operational_data(
             term in lowered
             for term in ("health", "symptom", "treatment", "disease", "diagnos")
         ):
-            result["evidence"] = _health_insight(factory, question, window)
+            result["evidence"] = _health_insight(
+                factory,
+                question,
+                window,
+                page=selected_page,
+                page_size=selected_page_size,
+            )
         elif any(
             term in lowered
             for term in ("inventory", "feed inventory", "stock level", "reorder")
@@ -1425,7 +1698,9 @@ def _read_operational_data(
                 factory.session.connection(),
                 ("inventory_transactions", "feed_inventory_items"),
                 window,
-                limit,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1442,7 +1717,12 @@ def _read_operational_data(
             result["evidence"] = _animal_summary(factory, window)
         elif any(term in lowered for term in ("inventory", "stock level", "reorder")):
             result["evidence"] = _table_summary(
-                factory.session.connection(), "inventory_transactions", window, limit
+                factory.session.connection(),
+                "inventory_transactions",
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1452,18 +1732,27 @@ def _read_operational_data(
                 factory.session.connection(),
                 ("equipment", "equipment_service_events"),
                 window,
-                limit,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(term in lowered for term in ("payroll", "workforce", "employee")):
             result["evidence"] = _table_summary(
-                factory.session.connection(), "payroll_record", window, limit
+                factory.session.connection(),
+                "payroll_record",
+                window,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(term in lowered for term in ("semen", "bull", "semen lot")):
             result["evidence"] = _multi_table_summary(
                 factory.session.connection(),
                 ("semen_lots", "semen_stock_movements"),
                 window,
-                limit,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1478,7 +1767,9 @@ def _read_operational_data(
                 factory.session.connection(),
                 ("operational_findings", "operational_finding_lifecycle_events"),
                 window,
-                limit,
+                selected_page_size,
+                page=selected_page,
+                page_size=selected_page_size,
             )
         elif any(
             term in lowered
@@ -1488,6 +1779,12 @@ def _read_operational_data(
         else:
             result["evidence"] = _domain_snapshot(factory)
         snapshot = _domain_snapshot(factory)
+        if isinstance(result.get("evidence"), dict):
+            result["evidence"] = _paginate_evidence_records(
+                result["evidence"], selected_page, selected_page_size
+            )
+            if isinstance(result["evidence"].get("pagination"), dict):
+                result["pagination"] = result["evidence"]["pagination"]
         result["catalog"] = snapshot["domain_counts"]
         result["table_counts"] = snapshot["table_counts"]
         return result
@@ -1680,8 +1977,8 @@ def _tail_file(path: Path) -> dict[str, Any]:
     redacted = []
     for line in lines:
         safe = re.sub(
-            r"(?i)(password|secret|token|api[_-]?key|credential)(\s*[:=]\s*)[^\s,;]+",
-            r"\1\2[REDACTED]",
+            r'''(?i)(["']?(?:password|secret|token|api[_-]?key|credential|database[_-]?url|connection[_-]?string|dsn)["']?\s*[:=]\s*["']?)([^"'\s,;}]+)''',
+            r"\1[REDACTED]",
             line,
         )
         redacted.append(safe[:_FILE_LOG_LINE_MAX])
@@ -1698,7 +1995,9 @@ def _read_operational_logs(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
-    limit: int = 50,
+    limit: int | None = None,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict[str, Any]:
     def read(factory: RepositoryFactory) -> dict[str, Any]:
         today = OperationalDateAuthority(repository_factory=factory).current_date()
@@ -1708,18 +2007,34 @@ def _read_operational_logs(
             start_date=start_date,
             end_date=end_date,
         )
-        selected_limit = min(max(int(limit), 1), _MAX_LIMIT)
+        selected_page, selected_page_size = _page_settings(page, page_size, limit)
+
+        def apply_window(query, column):
+            if window.is_empty:
+                return query.filter(sa.false())
+            if (
+                column is not None
+                and window.effective_start is not None
+                and window.effective_end is not None
+            ):
+                start = datetime.combine(window.effective_start, datetime.min.time())
+                end = datetime.combine(
+                    window.effective_end + timedelta(days=1), datetime.min.time()
+                )
+                return query.filter(column >= start, column < end)
+            return query
+
+        journal_query = apply_window(
+            factory.session.query(EventJournalModel), EventJournalModel.timestamp
+        )
+        journal_total = int(journal_query.count())
         journal = []
         for row in (
-            factory.session.query(EventJournalModel)
-            .order_by(EventJournalModel.id.desc())
-            .limit(selected_limit * 2)
+            journal_query.order_by(EventJournalModel.id.desc())
+            .offset((selected_page - 1) * selected_page_size)
+            .limit(selected_page_size)
             .all()
         ):
-            if window.requested_start is not None and not window.contains(
-                _as_date(row.timestamp)
-            ):
-                continue
             journal.append(
                 {
                     "id": row.id,
@@ -1729,19 +2044,18 @@ def _read_operational_logs(
                     "payload": _json_safe(row.payload),
                 }
             )
-            if len(journal) >= selected_limit:
-                break
+        operational_query = apply_window(
+            factory.session.query(OperationalEventModel),
+            OperationalEventModel.created_at,
+        )
+        operational_total = int(operational_query.count())
         operational = []
         for row in (
-            factory.session.query(OperationalEventModel)
-            .order_by(OperationalEventModel.id.desc())
-            .limit(selected_limit * 2)
+            operational_query.order_by(OperationalEventModel.id.desc())
+            .offset((selected_page - 1) * selected_page_size)
+            .limit(selected_page_size)
             .all()
         ):
-            if window.requested_start is not None and not window.contains(
-                _as_date(row.created_at)
-            ):
-                continue
             operational.append(
                 {
                     "id": row.id,
@@ -1751,8 +2065,11 @@ def _read_operational_logs(
                     "created_at": _json_safe(row.created_at),
                 }
             )
-            if len(operational) >= selected_limit:
-                break
+        outbox_query = apply_window(
+            factory.session.query(OperationalProjectionOutbox),
+            OperationalProjectionOutbox.created_at,
+        )
+        outbox_total = int(outbox_query.count())
         outbox = [
             {
                 "id": row.id,
@@ -1765,9 +2082,9 @@ def _read_operational_logs(
                 "delivered_at": _json_safe(row.delivered_at),
             }
             for row in (
-                factory.session.query(OperationalProjectionOutbox)
-                .order_by(OperationalProjectionOutbox.id.desc())
-                .limit(selected_limit)
+                outbox_query.order_by(OperationalProjectionOutbox.id.desc())
+                .offset((selected_page - 1) * selected_page_size)
+                .limit(selected_page_size)
                 .all()
             )
         ]
@@ -1781,6 +2098,17 @@ def _read_operational_logs(
                 "projection_outbox": outbox,
             },
             "file_logs": [_tail_file(path) for path in _file_log_paths()],
+            "pagination": {
+                "event_journal": _pagination(
+                    journal_total, selected_page, selected_page_size
+                ),
+                "operational_events": _pagination(
+                    operational_total, selected_page, selected_page_size
+                ),
+                "projection_outbox": _pagination(
+                    outbox_total, selected_page, selected_page_size
+                ),
+            },
             "read_only": True,
             "database_read": True,
             "source_tables": [
@@ -1804,6 +2132,8 @@ def read_cop_metrics(**kwargs: Any) -> dict[str, Any]:
 def read_health_insight(**kwargs: Any) -> dict[str, Any]:
     question = str(kwargs.get("question") or "")
     animal_id = kwargs.get("animal_id")
+    page = int(kwargs.get("page") or 1)
+    page_size = int(kwargs.get("page_size") or 50)
 
     def read(factory: RepositoryFactory) -> dict[str, Any]:
         today = OperationalDateAuthority(repository_factory=factory).current_date()
@@ -1815,7 +2145,14 @@ def read_health_insight(**kwargs: Any) -> dict[str, Any]:
             month=kwargs.get("month"),
             year=kwargs.get("year"),
         )
-        result = _health_insight(factory, question, window, animal_id=animal_id)
+        result = _health_insight(
+            factory,
+            question,
+            window,
+            animal_id=animal_id,
+            page=page,
+            page_size=page_size,
+        )
         result["period"] = window.as_dict()
         result["question"] = question
         result["animal_id"] = animal_id
@@ -1848,6 +2185,8 @@ def operational_capability_catalog() -> dict[str, Any]:
             "milk quality, disposition/sales, inventory, equipment, payroll and breeding data",
             "database schema, all current table counts and bounded table rows",
             "persistent event journal, operational events, projection outbox and local log files",
+            "bounded page/page_size reads for operational records and persistent logs",
+            "durable recent AI Assistant question/answer transcript without tool payload storage",
         ],
         "safety": "All operational reads use a transaction-scoped database read-only guard; credentials and secrets are redacted.",
     }

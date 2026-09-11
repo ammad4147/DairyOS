@@ -3,8 +3,8 @@
 import os
 import re
 import sys
-from urllib.parse import unquote, urlsplit
 import uuid
+from urllib.parse import unquote, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -57,30 +57,41 @@ def _assert_disposable_test_database(database_url: str, source: str) -> None:
 _assert_disposable_test_database(_configured_database_url(), "configured")
 
 from dairyos.app import app, container
+from dairyos.data.database import session as _db_session
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.database.models.operational_event_model import OperationalEventModel
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
-from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
-from dairyos.data.models.operational_write import OperationalWrite, OperationalProjectionOutbox
-from dairyos.data.models.payroll import PayrollRecord
-from dairyos.data.models.feed_record import FeedRecord
-from dairyos.data.models.health_observation import HealthObservation
-from dairyos.data.models.health_case import HealthCase
-from dairyos.data.models.operational_finding import OperationalFinding
-from dairyos.data.models.operational_finding_lifecycle_event import OperationalFindingLifecycleEvent
-from dairyos.data.models.app_setting import AppSetting
+from dairyos.data.models.ai_assistant_conversation import (
+    AIAssistantConversationModel,
+    AIAssistantMessageModel,
+)
 from dairyos.data.models.animal import Animal
-from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
-from dairyos.data.models.treatment_record import TreatmentRecord
+from dairyos.data.models.animal_milking_schedule_history import (
+    AnimalMilkingScheduleHistory,
+)
+from dairyos.data.models.app_setting import AppSetting
+from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.health_case import HealthCase
+from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.inventory_transaction import InventoryTransaction
-from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
-from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milk_disposition import MilkDisposition
+from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
+from dairyos.data.models.operational_finding import OperationalFinding
+from dairyos.data.models.operational_finding_lifecycle_event import (
+    OperationalFindingLifecycleEvent,
+)
+from dairyos.data.models.operational_write import (
+    OperationalProjectionOutbox,
+    OperationalWrite,
+)
+from dairyos.data.models.payroll import PayrollRecord
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
+from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.user import User
-from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
 )
@@ -88,8 +99,7 @@ from dairyos.farm.herd.services.animal_event_projection import AnimalEventProjec
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
-from dairyos.data.database import session as _db_session
-
+from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 
 _assert_disposable_test_database(str(_db_session.engine.url), "resolved engine")
 
@@ -144,6 +154,8 @@ def _reset_test_persistence() -> None:
         # Dependency order: child/ledger tables first, then primary
         # domain registers and operational projections.
         for model in (
+            AIAssistantMessageModel,
+            AIAssistantConversationModel,
             BreedingPropagationOutbox,
             OperationalProjectionOutbox,
             OperationalWrite,

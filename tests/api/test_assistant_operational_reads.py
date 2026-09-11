@@ -237,18 +237,40 @@ def test_ai_assistant_answers_live_metrics_and_health_from_persisted_rows(
         "Hypocalcemia (milk fever)"
     ]
 
-    health_history = read_health_insight(
-        question="How many health cases were recorded in September 2026?"
-    )
+    from dairyos.assistant.knowledge import GroundedAssistant
+
+    def fail_irrelevant_reference_lookup(*args, **kwargs):
+        raise AssertionError("live health history must not query disease reference")
+
+    with monkeypatch.context() as history_patch:
+        history_patch.setattr(
+            GroundedAssistant,
+            "search_health",
+            fail_irrelevant_reference_lookup,
+        )
+        health_history = read_health_insight(
+            question="How many health cases were recorded in September 2026?"
+        )
     assert health_history["probable_conditions"] == []
     assert health_history["history_requested"] is True
     assert health_history["matching_observation_count"] == 1
+
+    sick_animals = read_health_insight(
+        question="Which sick animals have persisted health evidence?"
+    )
+    assert sick_animals["probable_conditions"] == []
+    assert registered_animal in sick_animals["animal_ids_with_health_evidence"]
 
     schema = read_database_schema(table_name="milk_production", limit=2)
     assert schema["read_only"] is True
     assert schema["metric"] == "database_schema"
     assert schema["selected_table"]["table"] == "milk_production"
     assert len(schema["rows"]) == 2
+
+    inferred_schema = read_database_schema(
+        question="Show the milk production table rows for this database."
+    )
+    assert inferred_schema["selected_table"]["table"] == "milk_production"
 
     schema_response = client.post(
         "/ai-assistant/ask",

@@ -8,12 +8,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.assistant.agentic import get_agentic_assistant
+from dairyos.assistant.contracts import AssistantResponse
 
 router = APIRouter(prefix="/ai-assistant", tags=["AI Assistant"])
 
 
 class AssistantQuestion(BaseModel):
-    question: str = Field(min_length=2, max_length=2000)
+    question: str = Field(min_length=2, max_length=4000)
     role: Literal[
         "Operator",
         "Supervisor",
@@ -21,10 +22,10 @@ class AssistantQuestion(BaseModel):
         "Veterinary / Health",
         "Technical",
     ] = "Operator"
-    conversation_id: str | None = Field(default=None, max_length=100)
+    conversation_id: str | None = Field(default=None, max_length=120)
 
 
-@router.post("/ask")
+@router.post("/ask", response_model=AssistantResponse)
 def ask_assistant(payload: AssistantQuestion):
     try:
         return get_agentic_assistant().ask(
