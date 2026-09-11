@@ -12,6 +12,6 @@ def _source() -> str:
 def test_clean_worktree_git_probes_are_null_safe_in_powershell():
     source = _source()
 
-    assert "([string](& git rev-parse HEAD)).Trim()" in source
-    assert '([string](& git rev-parse "$sourceRevision^{tree}")).Trim()' in source
-    assert "([string](& git status --porcelain)).Trim()" in source
+    assert '(@(& git rev-parse HEAD) -join "").Trim()' in source
+    assert '(@(& git rev-parse "$sourceRevision^{tree}") -join "").Trim()' in source
+    assert '(@(& git status --porcelain) -join "`n").Trim()' in source
