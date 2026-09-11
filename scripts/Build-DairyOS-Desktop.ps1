@@ -9,15 +9,15 @@ $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repo
 
-$sourceRevision = (& git rev-parse HEAD).Trim()
+$sourceRevision = ([string](& git rev-parse HEAD)).Trim()
 if ($LASTEXITCODE -ne 0 -or $sourceRevision -notmatch '^[0-9a-f]{40}$') {
     throw "Unable to resolve the source Git commit for the release manifest."
 }
-$sourceTree = (& git rev-parse "$sourceRevision^{tree}").Trim()
+$sourceTree = ([string](& git rev-parse "$sourceRevision^{tree}")).Trim()
 if ($LASTEXITCODE -ne 0 -or $sourceTree -notmatch '^[0-9a-f]{40}$') {
     throw "Unable to resolve the source Git tree for the release manifest."
 }
-$dirtySource = (& git status --porcelain).Trim()
+$dirtySource = ([string](& git status --porcelain)).Trim()
 if ($dirtySource) {
     throw "DairyOS release builds require a clean worktree so binary provenance can bind to one exact source commit."
 }
