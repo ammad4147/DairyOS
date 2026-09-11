@@ -15,6 +15,7 @@ $webIndex = Join-Path $webDist "index.html"
 $spec = Join-Path $repo "DairyOS.spec"
 $runtimeSource = Join-Path $repo "runtime\\PostgreSQL"
 $versionSource = Join-Path $repo "runtime\\postgresql.version"
+$iconSource = Join-Path $repo "assets\\dairyos-cow.ico"
 $distRootPath = [IO.Path]::GetFullPath((Join-Path $repo $DistRoot))
 $releaseParentPath = [IO.Path]::GetFullPath((Split-Path -Parent $distRootPath))
 $legacyOutputRoots = @(
@@ -25,6 +26,7 @@ $legacyOutputRoots = @(
 if (-not (Test-Path $spec -PathType Leaf)) { throw "DairyOS PyInstaller specification is missing: $spec" }
 if (-not (Test-Path $runtimeSource -PathType Container)) { throw "Bundled PostgreSQL runtime is missing: $runtimeSource" }
 if (-not (Test-Path $versionSource -PathType Leaf)) { throw "Bundled PostgreSQL version marker is missing: $versionSource" }
+if (-not (Test-Path $iconSource -PathType Leaf)) { throw "DairyOS launcher icon is missing: $iconSource" }
 
 Write-Host "=== BUILD FRONTEND ===" -ForegroundColor Cyan
 npm --prefix $webRoot run build
@@ -65,6 +67,10 @@ $backupExe = Join-Path $bundle "DairyOSBackup.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "Frozen DairyOS.exe was not produced: $exe" }
 if (-not (Test-Path $backupExe -PathType Leaf)) { throw "Frozen DairyOSBackup.exe was not produced: $backupExe" }
 
+Write-Host "=== COPY DAIRYOS LAUNCHER ICON ===" -ForegroundColor Cyan
+$iconTarget = Join-Path $bundle "dairyos-cow.ico"
+Copy-Item $iconSource $iconTarget -Force
+
 Write-Host "=== COPY PRIVATE POSTGRESQL RUNTIME ===" -ForegroundColor Cyan
 $runtimeTarget = Join-Path $bundle "runtime\\PostgreSQL"
 New-Item -ItemType Directory -Force -Path $runtimeTarget | Out-Null
@@ -96,6 +102,7 @@ $required = @(
     (Join-Path $runtimeTarget "bin\\createdb.exe"),
     (Join-Path $runtimeTarget "bin\\psql.exe"),
     (Join-Path $runtimeDir "postgresql.version"),
+    $iconTarget,
     (Join-Path $bundle "_internal\\src\\DairyOS.Web\\dist\\index.html"),
     (Join-Path $bundle "_internal\\alembic.ini")
 )

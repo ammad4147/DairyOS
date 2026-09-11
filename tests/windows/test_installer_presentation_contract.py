@@ -51,3 +51,11 @@ def test_installer_user_facing_text_avoids_garbled_unicode_punctuation():
     assert "—" not in source
     assert "YES - KEEP DATA AND UNINSTALL" in source
     assert "NO - CANCEL AND KEEP THE APPLICATION" in source
+
+
+def test_installer_and_shortcuts_use_the_dairyos_cow_icon():
+    source = _source()
+
+    assert "SetupIconFile=..\\..\\assets\\dairyos-cow.ico" in source
+    assert "UninstallDisplayIcon={app}\\dairyos-cow.ico" in source
+    assert source.count('IconFilename: "{app}\\dairyos-cow.ico"') == 2

@@ -9,6 +9,10 @@ from PyInstaller.utils.hooks import collect_submodules
 # developer/build machines. SPECPATH is provided by PyInstaller and points
 # at the directory containing this .spec file.
 ROOT = Path(SPECPATH).resolve()
+ICON = ROOT / "assets" / "dairyos-cow.ico"
+
+if not ICON.is_file():
+    raise FileNotFoundError(f"DairyOS launcher icon is missing: {ICON}")
 
 
 datas = [
@@ -67,6 +71,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="DairyOS",
+    icon=str(ICON),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -105,6 +110,7 @@ backup_exe = EXE(
     [],
     exclude_binaries=True,
     name="DairyOSBackup",
+    icon=str(ICON),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

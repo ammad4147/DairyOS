@@ -12,6 +12,7 @@ AppId={{D7F1A4D7-5F15-4CC5-B0D0-DA1A05000001}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
+SetupIconFile=..\..\assets\dairyos-cow.ico
 DefaultDirName={autopf}\DairyOS
 DefaultGroupName=DairyOS
 ; Keep the one-click setup beside the staged DairyOS application folder:
@@ -26,7 +27,7 @@ WizardSizePercent=140,135
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayIcon={app}\{#AppExeName}
+UninstallDisplayIcon={app}\dairyos-cow.ico
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
@@ -42,8 +43,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_INSTALL_ROOT"; ValueData: "{app}"; Flags: uninsdeletevalue
 
 [Icons]
-Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
+Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
 
 [Dirs]
 Name: "{commonappdata}\DairyOS"
