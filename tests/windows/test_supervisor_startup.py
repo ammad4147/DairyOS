@@ -1,3 +1,5 @@
+import os
+import sys
 from types import SimpleNamespace
 
 from dairyos.windows import supervisor
@@ -44,6 +46,28 @@ class _FakeWatchdog:
 
     def stop(self):
         self.stopped = True
+
+
+def test_direct_backend_dispatch_marks_windowed_backend_mode(monkeypatch):
+    captured = {}
+
+    def server_main(argv):
+        captured["argv"] = argv
+        captured["mode"] = os.environ.get("DAIRYOS_BACKEND_MODE")
+        return 17
+
+    monkeypatch.delenv("DAIRYOS_BACKEND_MODE", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "dairyos.server",
+        SimpleNamespace(main=server_main),
+    )
+
+    assert supervisor.main(["--dairyos-backend", "--port", "8126"]) == 17
+    assert captured == {
+        "argv": ["--port", "8126"],
+        "mode": "1",
+    }
 
 
 def test_successful_migration_continues_to_backend_startup(monkeypatch):

@@ -972,6 +972,11 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
 
     if "--dairyos-backend" in argv:
+        # Direct backend launches are used by diagnostics and packaged smoke
+        # tests as well as by the supervisor's child process. Mark the mode
+        # before delegating so a windowed PyInstaller process with no console
+        # streams never lets Uvicorn call isatty() on None.
+        os.environ["DAIRYOS_BACKEND_MODE"] = "1"
         backend_argv = [arg for arg in argv if arg != "--dairyos-backend"]
         from dairyos.server import main as server_main
 
