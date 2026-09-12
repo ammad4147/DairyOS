@@ -705,14 +705,22 @@ begin
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
     PowerShellCommand + '"';
 
-  Result := Exec(
+  if not Exec(
     PowerShellExe,
     Params,
     ExpandConstant('{app}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
-  ) and (ResultCode = 0);
+  ) then
+  begin
+    Log('DairyOS uninstall: could not start process-stop helper for ' + ExecutablePath);
+    Result := False;
+    exit;
+  end;
+  Log('DairyOS uninstall: process-stop helper for ' + ExecutablePath +
+    ' exited with code ' + IntToStr(ResultCode));
+  Result := ResultCode = 0;
 end;
 
 function UninstallDiagnosticPath(): String;
@@ -731,10 +739,12 @@ var
   ResultCode: Integer;
   QueryResultCode: Integer;
 begin
+  Result := False;
   { Treat an already-removed task as success, but fail closed if the task
     remains after deletion. This prevents the uninstaller from leaving a
     scheduled action pointing at an application that has been removed. }
   SchtasksExe := ExpandConstant('{sys}\schtasks.exe');
+  Log('DairyOS uninstall: removing automatic backup task with ' + SchtasksExe);
   ExecResult := Exec(
     SchtasksExe,
     '/Delete /F /TN "DairyOS-Automatic-Backup"',
@@ -744,7 +754,12 @@ begin
     ResultCode
   );
   if not ExecResult then
+  begin
+    Log('DairyOS uninstall: could not start scheduled-task delete helper.');
     exit;
+  end;
+  Log('DairyOS uninstall: scheduled-task delete helper exited with code ' +
+    IntToStr(ResultCode));
 
   { The delete command returns a nonzero code when the task is already
     absent. Querying afterward distinguishes that harmless case from a task
@@ -758,9 +773,18 @@ begin
     QueryResultCode
   );
   if not ExecResult then
+  begin
+    Log('DairyOS uninstall: could not start scheduled-task query helper.');
     exit;
+  end;
+  Log('DairyOS uninstall: scheduled-task query helper exited with code ' +
+    IntToStr(QueryResultCode));
 
   Result := QueryResultCode <> 0;
+  if Result then
+    Log('DairyOS uninstall: automatic backup task is absent.')
+  else
+    Log('DairyOS uninstall: automatic backup task remains; uninstall blocked.');
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean;
@@ -771,6 +795,7 @@ var
   ResultCode: Integer;
 begin
   Result := False;
+  Log('DairyOS uninstall: stopping private runtime and preparing farm-data preservation.');
 
   { Stop only the private DairyOS PostgreSQL cluster, identified by its
     persistent data directory. Never terminate arbitrary postgres.exe
@@ -801,6 +826,8 @@ begin
       ResultCode
     )) or (ResultCode <> 0) then
     begin
+      Log('DairyOS uninstall: private PostgreSQL stop failed with code ' +
+        IntToStr(ResultCode));
       MsgBox(
         'DairyOS private PostgreSQL could not be stopped cleanly. ' +
         'Uninstall is blocked so the database and application runtime remain intact.',
@@ -839,7 +866,10 @@ begin
     task. If archiving fails, uninstall remains blocked without leaving the
     installed runtime's automatic-backup protection removed. }
   if not CreatePreservationPackage() then
+  begin
+    Log('DairyOS uninstall: preservation package creation failed.');
     exit;
+  end;
 
   { Remove the scheduled task only after preservation succeeds. Backup data
     itself remains under ProgramData. }
@@ -851,10 +881,12 @@ begin
       mbError,
       MB_OK
     );
+    Log('DairyOS uninstall: scheduled-task removal failed.');
     exit;
   end;
 
   Sleep(1000);
+  Log('DairyOS uninstall: guarded pre-uninstall operations passed.');
   Result := True;
 end;
 
@@ -873,6 +905,7 @@ begin
 
   if PreservationDestination = '' then
   begin
+    Log('DairyOS uninstall: no preservation destination supplied.');
     Result := True;
     exit;
   end;
@@ -917,6 +950,7 @@ begin
     'DairyOS-Farm-Preservation-' +
     GetDateTimeString('yyyymmdd-hhnnss', '', '') +
     '.zip';
+  Log('DairyOS uninstall: creating preservation package at ' + ArchivePath);
 
   SafeDataRoot := DairyOSDataRoot();
   StringChangeEx(SafeDataRoot, '''', '''''', True);
@@ -964,6 +998,8 @@ begin
     ResultCode
   )) or (ResultCode <> 0) or (not FileExists(ArchivePath)) then
   begin
+    Log('DairyOS uninstall: preservation helper failed with code ' +
+      IntToStr(ResultCode));
     MsgBox(
       'DairyOS could not create and verify the farm-data preservation package. ' +
       'Uninstall is blocked and the application remains installed. ' +
@@ -980,6 +1016,7 @@ begin
     mbInformation,
     MB_OK
   );
+  Log('DairyOS uninstall: verified preservation package at ' + ArchivePath);
   Result := True;
 end;
 
@@ -993,6 +1030,9 @@ begin
     through BrowseForFolder. The same path validation and ZIP verification are
     used in both cases. }
   PreservationDestination := GetEnv('DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION');
+  Log('DairyOS uninstall: InitializeUninstall entered; silent=' +
+    IntToStr(Ord(IsSilentUninstall())) + '; preservation destination=' +
+    PreservationDestination);
 
   if IsSilentUninstall() then
   begin
