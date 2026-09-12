@@ -939,18 +939,6 @@ begin
     exit;
   end;
 
-  Log('DairyOS uninstall: validating preservation destination directory.');
-  if not DirExists(PreservationDestination) then
-  begin
-    MsgBox(
-      'The selected preservation folder does not exist. ' +
-      'Uninstall is blocked and the application remains installed.',
-      mbError,
-      MB_OK
-    );
-    exit;
-  end;
-
   ArchivePath :=
     AddBackslash(PreservationDestination) +
     'DairyOS-Farm-Preservation-' +
