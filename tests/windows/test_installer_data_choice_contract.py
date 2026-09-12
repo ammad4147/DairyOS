@@ -116,9 +116,8 @@ def test_uninstall_preserves_before_removing_automatic_backup_task():
 def test_unattended_uninstall_can_exercise_the_verified_preservation_path():
     source = _source()
 
-    assert "DAIRYOS_PRESERVATION_DESTINATION=" in source
-    assert "UninstallPreservationDestinationFromCommandLine" in source
-    assert "PreservationDestination := UninstallPreservationDestinationFromCommandLine();" in source
+    assert "DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION" in source
+    assert "PreservationDestination := GetEnv('DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION');" in source
     assert "BrowseForFolder(" in source
 
 

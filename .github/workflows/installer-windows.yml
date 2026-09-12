@@ -455,13 +455,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path $preservationRoot | Out-Null
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
-          $uninstallArgs = @(
-            "/VERYSILENT",
-            "/SUPPRESSMSGBOXES",
-            "/NORESTART",
-            "/DAIRYOS_PRESERVATION_DESTINATION=$preservationRoot"
-          )
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
+          $previousPreservationDestination = $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION
+          $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $preservationRoot
+          try {
+            $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART")
+            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
+          }
+          finally {
+            if ($null -eq $previousPreservationDestination) {
+              Remove-Item Env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION -ErrorAction SilentlyContinue
+            }
+            else {
+              $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $previousPreservationDestination
+            }
+          }
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
 
           if (Test-Path $installRoot) {

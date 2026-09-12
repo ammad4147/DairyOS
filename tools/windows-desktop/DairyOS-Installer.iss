@@ -684,32 +684,6 @@ begin
   end;
 end;
 
-function UninstallPreservationDestinationFromCommandLine(): String;
-var
-  I: Integer;
-  Param: String;
-  Prefix: String;
-begin
-  Result := '';
-  Prefix := '/DAIRYOS_PRESERVATION_DESTINATION=';
-  for I := 1 to ParamCount do
-  begin
-    Param := ParamStr(I);
-    if Uppercase(Copy(Param, 1, Length(Prefix))) = Prefix then
-    begin
-      Result := Copy(Param, Length(Prefix) + 1, Length(Param));
-      if (Length(Result) >= 2) and
-         (Result[1] = '"') and
-         (Result[Length(Result)] = '"') then
-      begin
-        Delete(Result, Length(Result), 1);
-        Delete(Result, 1, 1);
-      end;
-      exit;
-    end;
-  end;
-end;
-
 function StopInstalledProcessByPath(const ExecutablePath: String): Boolean;
 var
   PowerShellExe: String;
@@ -985,11 +959,11 @@ var
   Choice: Integer;
 begin
   Result := True;
-  { This explicit destination is intended for the unattended certification
-    path. Interactive uninstall still requires the operator to choose the
-    destination through BrowseForFolder. The same path validation and ZIP
-    verification are used in both cases. }
-  PreservationDestination := UninstallPreservationDestinationFromCommandLine();
+  { The environment value is used only by the unattended certification path.
+    Interactive uninstall still requires the operator to choose the destination
+    through BrowseForFolder. The same path validation and ZIP verification are
+    used in both cases. }
+  PreservationDestination := GetEnv('DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION');
 
   if IsSilentUninstall() then
   begin
