@@ -451,9 +451,16 @@ jobs:
             throw "Unable to create ProgramData preservation marker before uninstall."
           }
 
+          $preservationRoot = Join-Path $env:RUNNER_TEMP "dairyos-preservation"
+          New-Item -ItemType Directory -Force -Path $preservationRoot | Out-Null
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
-          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART")
+          $uninstallArgs = @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/DAIRYOS_PRESERVATION_DESTINATION=$preservationRoot"
+          )
           $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
 
@@ -469,9 +476,24 @@ jobs:
           if ($taskExit -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
           if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
           if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
+          $preservationPackages = @(Get-ChildItem $preservationRoot -Filter "DairyOS-Farm-Preservation-*.zip" -File)
+          if ($preservationPackages.Count -ne 1) {
+            throw "Expected exactly one verified DairyOS preservation package, found $($preservationPackages.Count)."
+          }
+          if ($preservationPackages[0].Length -le 0) {
+            throw "DairyOS preservation package is empty."
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($preservationPackages[0].FullName)
+          try {
+            if ($zip.Entries.Count -eq 0) { throw "DairyOS preservation package contains no entries." }
+          }
+          finally {
+            $zip.Dispose()
+          }
 
           Remove-Item $marker -Force
-          Write-Host "INSTALL / UNINSTALL DATA-PRESERVATION CERTIFICATION: PASS"
+          Write-Host "INSTALL / UNINSTALL VERIFIED-PRESERVATION CERTIFICATION: PASS"
           exit 0
 
       - name: Publish installer artifact

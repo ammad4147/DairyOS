@@ -99,6 +99,29 @@ def test_uninstall_preservation_archive_is_validated_outside_live_data_root():
     assert "Compress-Archive -Path $items" not in source
 
 
+def test_uninstall_preserves_before_removing_automatic_backup_task():
+    source = _source()
+    start = source.index("function StopInstalledDairyOSForUninstall")
+    end = source.index("function CreatePreservationPackage", start)
+    block = source[start:end]
+
+    assert "function RemoveInstalledBackupTask(): Boolean;" in source
+    assert "Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup''" in source
+    assert "Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup''" in source
+    assert block.index("if not CreatePreservationPackage() then") < block.index(
+        "if not RemoveInstalledBackupTask() then"
+    )
+
+
+def test_unattended_uninstall_can_exercise_the_verified_preservation_path():
+    source = _source()
+
+    assert "DAIRYOS_PRESERVATION_DESTINATION=" in source
+    assert "UninstallPreservationDestinationFromCommandLine" in source
+    assert "PreservationDestination := UninstallPreservationDestinationFromCommandLine();" in source
+    assert "BrowseForFolder(" in source
+
+
 def test_ci_does_not_create_preservation_sentinel_before_programdata_bootstrap():
     workflow = (
         ROOT / ".github" / "workflows" / "installer-windows.yml"

@@ -684,6 +684,32 @@ begin
   end;
 end;
 
+function UninstallPreservationDestinationFromCommandLine(): String;
+var
+  I: Integer;
+  Param: String;
+  Prefix: String;
+begin
+  Result := '';
+  Prefix := '/DAIRYOS_PRESERVATION_DESTINATION=';
+  for I := 1 to ParamCount do
+  begin
+    Param := ParamStr(I);
+    if Uppercase(Copy(Param, 1, Length(Prefix))) = Prefix then
+    begin
+      Result := Copy(Param, Length(Prefix) + 1, Length(Param));
+      if (Length(Result) >= 2) and
+         (Result[1] = '"') and
+         (Result[Length(Result)] = '"') then
+      begin
+        Delete(Result, Length(Result), 1);
+        Delete(Result, 1, 1);
+      end;
+      exit;
+    end;
+  end;
+end;
+
 function StopInstalledProcessByPath(const ExecutablePath: String): Boolean;
 var
   PowerShellExe: String;
@@ -701,6 +727,38 @@ begin
     'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and ' +
       '[IO.Path]::GetFullPath($_.ExecutablePath) -ieq $target } | ' +
     'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }';
+  Params :=
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+    PowerShellCommand + '"';
+
+  Result := Exec(
+    PowerShellExe,
+    Params,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = 0);
+end;
+
+function RemoveInstalledBackupTask(): Boolean;
+var
+  PowerShellExe: String;
+  PowerShellCommand: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  { Treat an already-removed task as success, but fail closed if the task
+    exists and cannot be removed. This prevents the uninstaller from leaving
+    a scheduled action pointing at an application that has been removed. }
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  PowerShellCommand :=
+    '$ErrorActionPreference = ''Stop''; ' +
+    '$task = Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
+      '-ErrorAction SilentlyContinue; ' +
+    'if ($null -ne $task) { ' +
+      'Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
+        '-Confirm:$false }';
   Params :=
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
     PowerShellCommand + '"';
@@ -787,19 +845,24 @@ begin
     exit;
   end;
 
-  { Remove the scheduled task whose executable is about to be removed.
-    Backup data itself remains under ProgramData. }
-  Exec(
-    ExpandConstant('{sys}\schtasks.exe'),
-    '/Delete /F /TN "DairyOS-Automatic-Backup"',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  );
-
+  { Verify and create the preservation package before changing the scheduled
+    task. If archiving fails, uninstall remains blocked without leaving the
+    installed runtime's automatic-backup protection removed. }
   if not CreatePreservationPackage() then
     exit;
+
+  { Remove the scheduled task only after preservation succeeds. Backup data
+    itself remains under ProgramData. }
+  if not RemoveInstalledBackupTask() then
+  begin
+    MsgBox(
+      'The farm-data preservation package was verified, but the DairyOS automatic-backup task ' +
+      'could not be removed. Uninstall is blocked and the application remains installed.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
 
   Sleep(1000);
   Result := True;
@@ -922,6 +985,11 @@ var
   Choice: Integer;
 begin
   Result := True;
+  { This explicit destination is intended for the unattended certification
+    path. Interactive uninstall still requires the operator to choose the
+    destination through BrowseForFolder. The same path validation and ZIP
+    verification are used in both cases. }
+  PreservationDestination := UninstallPreservationDestinationFromCommandLine();
 
   if IsSilentUninstall() then
   begin
