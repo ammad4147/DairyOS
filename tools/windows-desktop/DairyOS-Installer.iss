@@ -103,10 +103,10 @@ var
   RootPath: String;
 begin
   CandidatePath := Lowercase(
-    StripTrailingSeparators(ExpandFileName(Candidate))
+    StripTrailingSeparators(Candidate)
   );
   RootPath := Lowercase(
-    StripTrailingSeparators(ExpandFileName(Root))
+    StripTrailingSeparators(Root)
   );
 
   Result :=
