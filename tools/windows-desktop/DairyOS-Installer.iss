@@ -715,24 +715,43 @@ begin
   ) and (ResultCode = 0);
 end;
 
+function UninstallDiagnosticPath(): String;
+begin
+  if PreservationDestination <> '' then
+    Result := AddBackslash(PreservationDestination) +
+      'DairyOS-uninstall-diagnostic.txt'
+  else
+    Result := ExpandConstant('{tmp}\DairyOS-uninstall-diagnostic.txt');
+end;
+
 function RemoveInstalledBackupTask(): Boolean;
 var
   PowerShellExe: String;
   PowerShellCommand: String;
   Params: String;
+  SafeDiagnosticPath: String;
   ResultCode: Integer;
 begin
   { Treat an already-removed task as success, but fail closed if the task
     exists and cannot be removed. This prevents the uninstaller from leaving
     a scheduled action pointing at an application that has been removed. }
+  SafeDiagnosticPath := UninstallDiagnosticPath();
+  StringChangeEx(SafeDiagnosticPath, '''', '''''', True);
   PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
   PowerShellCommand :=
     '$ErrorActionPreference = ''Stop''; ' +
-    '$task = Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
-      '-ErrorAction SilentlyContinue; ' +
-    'if ($null -ne $task) { ' +
-      'Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
-        '-Confirm:$false }';
+    '$diagnostic = ''' + SafeDiagnosticPath + '''; ' +
+    'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue; ' +
+    'try { ' +
+      '$task = Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
+        '-ErrorAction SilentlyContinue; ' +
+      'if ($null -ne $task) { ' +
+        'Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
+          '-Confirm:$false } ' +
+    '} catch { ' +
+      '$_ | Out-File -LiteralPath $diagnostic -Encoding utf8; ' +
+      'exit 1 ' +
+    '}';
   Params :=
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
     PowerShellCommand + '"';
@@ -850,6 +869,7 @@ var
   ArchivePath: String;
   SafeDataRoot: String;
   SafeArchivePath: String;
+  SafeDiagnosticPath: String;
   ResultCode: Integer;
 begin
   Result := False;
@@ -905,6 +925,8 @@ begin
   StringChangeEx(SafeDataRoot, '''', '''''', True);
   SafeArchivePath := ArchivePath;
   StringChangeEx(SafeArchivePath, '''', '''''', True);
+  SafeDiagnosticPath := UninstallDiagnosticPath();
+  StringChangeEx(SafeDiagnosticPath, '''', '''''', True);
 
   { PostgreSQL is stopped before this function is called. Package the entire
     ProgramData farm root, then reopen the archive and verify that it contains
@@ -915,14 +937,23 @@ begin
     'Add-Type -AssemblyName System.IO.Compression.FileSystem; ' +
     '$source = ''' + SafeDataRoot + '''; ' +
     '$archive = ''' + SafeArchivePath + '''; ' +
-    'if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw ''DairyOS farm data root is unavailable.'' }; ' +
-    '$items = @(Get-ChildItem -LiteralPath $source -Force); ' +
-    'if ($items.Count -eq 0) { throw ''DairyOS farm data root is empty.'' }; ' +
-    '[System.IO.Compression.ZipFile]::CreateFromDirectory($source, $archive, [System.IO.Compression.CompressionLevel]::Optimal, $true); ' +
-    'if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw ''The preservation package was not created.'' }; ' +
-    '$zip = [System.IO.Compression.ZipFile]::OpenRead($archive); ' +
-    'try { if ($zip.Entries.Count -eq 0) { throw ''The preservation package is empty.'' } } ' +
-    'finally { $zip.Dispose() }';
+    '$diagnostic = ''' + SafeDiagnosticPath + '''; ' +
+    'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue; ' +
+    'try { ' +
+      'if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw ''DairyOS farm data root is unavailable.'' }; ' +
+      '$items = @(Get-ChildItem -LiteralPath $source -Force); ' +
+      'if ($items.Count -eq 0) { throw ''DairyOS farm data root is empty.'' }; ' +
+      '[System.IO.Compression.ZipFile]::CreateFromDirectory($source, $archive, [System.IO.Compression.CompressionLevel]::Optimal, $true); ' +
+      'if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw ''The preservation package was not created.'' }; ' +
+      '$zip = [System.IO.Compression.ZipFile]::OpenRead($archive); ' +
+      'try { if ($zip.Entries.Count -eq 0) { throw ''The preservation package is empty.'' } } ' +
+      'finally { $zip.Dispose() }; ' +
+      'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue ' +
+    '} catch { ' +
+      '$_ | Out-File -LiteralPath $diagnostic -Encoding utf8; ' +
+      'Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue; ' +
+      'exit 1 ' +
+    '}';
   Params :=
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
     PowerShellCommand + '"';
@@ -938,7 +969,8 @@ begin
   begin
     MsgBox(
       'DairyOS could not create and verify the farm-data preservation package. ' +
-      'Uninstall is blocked and the application remains installed.',
+      'Uninstall is blocked and the application remains installed. ' +
+      'A diagnostic file was written beside the selected destination when possible.',
       mbError,
       MB_OK
     );

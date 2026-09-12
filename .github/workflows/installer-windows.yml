@@ -469,7 +469,14 @@ jobs:
               $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $previousPreservationDestination
             }
           }
-          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
+          if ($uninstall.ExitCode -ne 0) {
+            $diagnostic = Join-Path $preservationRoot "DairyOS-uninstall-diagnostic.txt"
+            if (Test-Path $diagnostic -PathType Leaf) {
+              Write-Host "UNINSTALL DIAGNOSTIC:" -ForegroundColor Yellow
+              Get-Content $diagnostic
+            }
+            throw "Silent uninstaller exited with code $($uninstall.ExitCode)."
+          }
 
           if (Test-Path $installRoot) {
             $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
