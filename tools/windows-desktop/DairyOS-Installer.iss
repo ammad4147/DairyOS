@@ -553,7 +553,7 @@ begin
   ArchivePath :=
     AddBackslash(PreservationDestination) +
     'DairyOS-Farm-Preservation-' +
-    GetDateTimeString('yyyymmdd-hhnnss', True, True) +
+    GetDateTimeString('yyyymmdd-hhnnss', '', '') +
     '.zip';
 
   SafeDataRoot := DairyOSDataRoot();
@@ -630,10 +630,10 @@ begin
 
   if Choice = IDYES then
   begin
-    if not SelectDirectory(
+    if not BrowseForFolder(
       'Select a destination folder for the verified DairyOS farm-data preservation package:',
-      '',
-      PreservationDestination
+      PreservationDestination,
+      False
     ) then
     begin
       Result := False;

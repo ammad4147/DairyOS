@@ -20,12 +20,12 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert "dist\\DairyOS-Installer" not in build
     assert "OutputDir=..\\..\\dist\\DairyOS-Release" in source
     assert "Source: \"..\\..\\dist\\DairyOS-Release\\DairyOS\\*\"" in source
-    assert '"-o" + (Split-Path -Parent $outputPath)' in build
-    assert '"-dSourceCommit=$($releaseManifest.source_commit)"' in build
-    assert '"-dSourceTree=$($releaseManifest.source_tree)"' in build
-    assert '"/O"' not in build
-    assert '"/DSourceCommit=' not in build
-    assert '"/DSourceTree=' not in build
+    assert '("/O" + (Split-Path -Parent $outputPath))' in build
+    assert '("/DSourceCommit=$($releaseManifest.source_commit)")' in build
+    assert '("/DSourceTree=$($releaseManifest.source_tree)")' in build
+    assert '"-o" + (Split-Path -Parent $outputPath)' not in build
+    assert '"-dSourceCommit=' not in build
+    assert '"-dSourceTree=' not in build
 
 
 def test_installer_exposes_data_status_without_a_fake_destructive_choice():
@@ -48,6 +48,9 @@ def test_uninstaller_explicitly_keeps_data_without_standalone_admin():
     assert "YES - PRESERVE FARM DATA AND UNINSTALL" in source
     assert "Choose a destination for a verified farm-data package" in source
     assert "NO - CANCEL AND KEEP THE APPLICATION" in source
+    assert "GetDateTimeString('yyyymmdd-hhnnss', '', '')" in source
+    assert "BrowseForFolder(" in source
+    assert "SelectDirectory(" not in source
     assert "DairyOS-Admin.exe" not in source
 
 
