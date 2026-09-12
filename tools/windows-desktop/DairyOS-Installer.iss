@@ -734,7 +734,7 @@ begin
     remains after deletion. This prevents the uninstaller from leaving a
     scheduled action pointing at an application that has been removed. }
   SchtasksExe := ExpandConstant('{sys}\schtasks.exe');
-  if not Exec(
+  if (not Exec(
     SchtasksExe,
     '/Delete /F /TN "DairyOS-Automatic-Backup"',
     '',
@@ -742,13 +742,13 @@ begin
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
-  ) then
+  )) then
     exit;
 
   { The delete command returns a nonzero code when the task is already
     absent. Querying afterward distinguishes that harmless case from a task
     that still exists and could run an executable that Setup is removing. }
-  if not Exec(
+  if (not Exec(
     SchtasksExe,
     '/Query /TN "DairyOS-Automatic-Backup"',
     '',
@@ -756,7 +756,7 @@ begin
     SW_HIDE,
     ewWaitUntilTerminated,
     QueryResultCode
-  ) then
+  )) then
     exit;
 
   Result := QueryResultCode <> 0;
