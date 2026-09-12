@@ -138,6 +138,36 @@ jobs:
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
 
 
+          # Bootstrap the actual ProgramData private cluster before seeding any
+          # operational storage fixtures. A non-empty storage tree is rightly
+          # treated by the packaged startup-integrity gate as existing farm
+          # state; the first preflight must therefore see a genuinely fresh
+          # data root so it can create the application schema safely.
+          $installedExe = Join-Path $installRoot "DairyOS.exe"
+          $env:DAIRYOS_DATA_DIR = $dataRoot
+          $programDataInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-ProgramData-installation-state.json"
+          Remove-Item $programDataInstallationState -Force -ErrorAction SilentlyContinue
+          $env:DAIRYOS_INSTALLATION_STATE = $programDataInstallationState
+          $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-programdata-preflight.txt"
+          Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
+          $programDataPreflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
+          if (-not $programDataPreflight.WaitForExit(180000)) {
+            Stop-Process -Id $programDataPreflight.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
+              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
+            }
+            throw "ProgramData database preflight exceeded 180 seconds."
+          }
+          $programDataPreflight.Refresh()
+          if ($programDataPreflight.ExitCode -ne 0) {
+            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
+              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
+            }
+            throw "ProgramData database preflight failed with code $($programDataPreflight.ExitCode)."
+          }
+          Write-Host "PROGRAMDATA DATABASE PREFLIGHT: PASS"
+
+
           # Operational projections are written by the ordinary runtime. The
           # storage tree must remain writable after elevated Setup creates it,
           # including files that already existed before a later non-elevated
@@ -313,7 +343,6 @@ jobs:
           $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $env:RUNNER_TEMP "STALE-POSTGRES-RUNTIME"
           $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-installed-preflight.txt"
 
-          $installedExe = Join-Path $installRoot "DairyOS.exe"
           foreach ($cycle in 1..2) {
             Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
             $preflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
@@ -342,28 +371,6 @@ jobs:
             if (-not (Test-Path $path -PathType Leaf)) {
               throw "Installed DairyOS preflight did not persist required private database state: $path"
             }
-          }
-
-          # Initialize the actual ProgramData private cluster through the
-          # packaged DairyOS database path. Do not clone a PostgreSQL cluster
-          # by filesystem copy: runtime/config state is bound to its data root.
-          $env:DAIRYOS_DATA_DIR = $dataRoot
-          $programDataInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-ProgramData-installation-state.json"
-          Remove-Item $programDataInstallationState -Force -ErrorAction SilentlyContinue
-          $env:DAIRYOS_INSTALLATION_STATE = $programDataInstallationState
-          $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-programdata-preflight.txt"
-          Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
-          $programDataPreflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
-          if (-not $programDataPreflight.WaitForExit(180000)) {
-            Stop-Process -Id $programDataPreflight.Id -Force -ErrorAction SilentlyContinue
-            throw "ProgramData database preflight exceeded 180 seconds."
-          }
-          $programDataPreflight.Refresh()
-          if ($programDataPreflight.ExitCode -ne 0) {
-            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
-              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
-            }
-            throw "ProgramData database preflight failed with code $($programDataPreflight.ExitCode)."
           }
 
           $backupWorker = Join-Path $installRoot "DairyOSBackup.exe"
