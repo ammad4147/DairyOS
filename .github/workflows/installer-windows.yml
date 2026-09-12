@@ -40,13 +40,18 @@ jobs:
       - name: Ensure Inno Setup compiler
         shell: pwsh
         run: |
+          $programFiles = [Environment]::GetFolderPath("ProgramFiles")
           $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
-          $known = @(
-            (Join-Path $env:ProgramFiles "Inno Setup 7\ISCC.exe"),
-            (Join-Path $pf86 "Inno Setup 7\ISCC.exe"),
-            (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe"),
-            (Join-Path $pf86 "Inno Setup 6\ISCC.exe")
-          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+          $knownCandidates = @()
+          foreach ($programFilesRoot in @($programFiles, $pf86)) {
+            if ([string]::IsNullOrWhiteSpace($programFilesRoot)) {
+              continue
+            }
+            foreach ($innoVersion in @("7", "6")) {
+              $knownCandidates += Join-Path $programFilesRoot "Inno Setup $innoVersion\ISCC.exe"
+            }
+          }
+          $known = $knownCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $known) {
             choco install innosetup -y --no-progress
             if ($LASTEXITCODE -ne 0) { throw "Unable to install Inno Setup." }

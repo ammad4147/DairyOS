@@ -29,13 +29,17 @@ if ([string]$releaseManifest.source_tree -notmatch '^[0-9a-f]{40}$') { throw "De
 Write-Host "Protected Settings controls and the embedded Assistant are the supported operator guidance surfaces." -ForegroundColor DarkGray
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
+$programFiles = [Environment]::GetFolderPath("ProgramFiles")
 $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
-$candidates = @(
-    (Join-Path $env:ProgramFiles "Inno Setup 7\ISCC.exe"),
-    (Join-Path $pf86 "Inno Setup 7\ISCC.exe"),
-    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe"),
-    (Join-Path $pf86 "Inno Setup 6\ISCC.exe")
-)
+$candidates = @()
+foreach ($programFilesRoot in @($programFiles, $pf86)) {
+    if ([string]::IsNullOrWhiteSpace($programFilesRoot)) {
+        continue
+    }
+    foreach ($innoVersion in @("7", "6")) {
+        $candidates += Join-Path $programFilesRoot "Inno Setup $innoVersion\ISCC.exe"
+    }
+}
 $iscc = $candidates | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) } | Select-Object -First 1
 if (-not $iscc) {
     $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue

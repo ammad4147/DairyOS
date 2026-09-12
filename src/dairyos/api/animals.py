@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -12,6 +13,7 @@ from dairyos.farm.herd.services.animal_classification_service import (
 )
 
 router = APIRouter(prefix="/farm/animals", tags=["animals"])
+logger = logging.getLogger(__name__)
 
 
 class AnimalCreateRequest(BaseModel):
@@ -39,6 +41,7 @@ def _runtime() -> Any:
         from dairyos.application_runtime import get_application_runtime
         return get_application_runtime()
     except Exception:
+        logger.exception("Legacy animal API runtime discovery failed")
         return None
 
 
@@ -59,7 +62,11 @@ def _repository(runtime: Any) -> Any:
                     if repository is not None:
                         return repository
                 except Exception:
-                    pass
+                    logger.exception(
+                        "Legacy animal API repository adapter '%s' failed; "
+                        "trying the next compatibility adapter",
+                        name,
+                    )
     return None
 
 

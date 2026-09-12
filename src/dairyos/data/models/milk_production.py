@@ -8,6 +8,7 @@ from math import isfinite
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -20,6 +21,52 @@ from sqlalchemy import (
 
 from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+
+_MILK_FINITE_NONNEGATIVE = """
+(
+    (morning_yield IS NULL OR
+        (morning_yield >= 0 AND
+         morning_yield <= 1.7976931348623157e308))
+    AND (afternoon_yield IS NULL OR
+        (afternoon_yield >= 0 AND
+         afternoon_yield <= 1.7976931348623157e308))
+    AND (evening_yield IS NULL OR
+        (evening_yield >= 0 AND
+         evening_yield <= 1.7976931348623157e308))
+    AND (total_yield IS NULL OR
+        (total_yield >= 0 AND
+         total_yield <= 1.7976931348623157e308))
+)
+"""
+
+_MILK_GOVERNED_INTEGRITY = f"""
+(
+    (session_ledger = FALSE AND {_MILK_FINITE_NONNEGATIVE})
+    OR (
+        session_ledger = TRUE
+        AND {_MILK_FINITE_NONNEGATIVE}
+        AND (
+            (
+                morning_yield IS NULL
+                AND afternoon_yield IS NULL
+                AND evening_yield IS NULL
+                AND total_yield IS NULL
+            )
+            OR (
+                total_yield IS NOT NULL
+                AND ABS(
+                    total_yield - (
+                        COALESCE(morning_yield, 0.0)
+                        + COALESCE(afternoon_yield, 0.0)
+                        + COALESCE(evening_yield, 0.0)
+                    )
+                ) <= 0.000001
+            )
+        )
+    )
+)
+"""
 
 
 class MilkProduction(Base):
@@ -50,6 +97,15 @@ class MilkProduction(Base):
     notes = Column(String, nullable=True)
 
     __table_args__ = (
+        # Repository/API code recalculates the total, but the authoritative
+        # ledger must also reject malformed direct SQL/ORM writes. Governed
+        # rows require component/total integrity. Legacy non-governed rows
+        # may retain a historical total without session components, but still
+        # cannot contain non-finite or negative values.
+        CheckConstraint(
+            _MILK_GOVERNED_INTEGRITY,
+            name="ck_milk_production_yield_integrity",
+        ),
         Index(
             "uq_milk_production_ledger_animal_day",
             "animal_id",

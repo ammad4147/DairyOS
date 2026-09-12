@@ -117,3 +117,103 @@ def test_audit_remediation_migration_installs_new_integrity_authorities():
             }
         finally:
             transaction.rollback()
+
+
+def test_milk_yield_integrity_migration_rejects_stale_existing_rows():
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "db_migrations/versions/20260913_01_milk_yield_integrity.py"
+    )
+    spec = importlib.util.spec_from_file_location("milk_yield_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            schema = "milk_integrity_test_" + uuid.uuid4().hex
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            connection.execute(
+                text(
+                    "CREATE TABLE milk_production ("
+                    "id integer PRIMARY KEY, "
+                    "morning_yield float8, afternoon_yield float8, "
+                    "evening_yield float8, total_yield float8, "
+                    "session_ledger boolean NOT NULL)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO milk_production "
+                    "VALUES (1, 10, NULL, NULL, 9, TRUE)"
+                )
+            )
+
+            with Operations.context(MigrationContext.configure(connection)):
+                with pytest.raises(RuntimeError, match="Milk yield integrity"):
+                    migration.upgrade()
+
+            assert connection.execute(
+                text(
+                    "SELECT count(*) FROM information_schema.table_constraints "
+                    "WHERE table_schema=:schema AND constraint_name=:name"
+                ),
+                {"schema": schema, "name": migration.CONSTRAINT_NAME},
+            ).scalar_one() == 0
+        finally:
+            transaction.rollback()
+
+
+def test_milk_yield_integrity_migration_installs_constraint_for_valid_rows():
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "db_migrations/versions/20260913_01_milk_yield_integrity.py"
+    )
+    spec = importlib.util.spec_from_file_location("milk_yield_migration_valid", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            schema = "milk_integrity_valid_test_" + uuid.uuid4().hex
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            connection.execute(
+                text(
+                    "CREATE TABLE milk_production ("
+                    "id integer PRIMARY KEY, "
+                    "morning_yield float8, afternoon_yield float8, "
+                    "evening_yield float8, total_yield float8, "
+                    "session_ledger boolean NOT NULL)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO milk_production "
+                    "VALUES (1, 10, 8, 0, 18, TRUE), "
+                    "(2, NULL, NULL, NULL, NULL, TRUE), "
+                    "(3, NULL, NULL, NULL, 20, FALSE)"
+                )
+            )
+
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
+
+            assert connection.execute(
+                text(
+                    "SELECT count(*) FROM information_schema.table_constraints "
+                    "WHERE table_schema=:schema AND constraint_name=:name"
+                ),
+                {"schema": schema, "name": migration.CONSTRAINT_NAME},
+            ).scalar_one() == 1
+            with pytest.raises(Exception):
+                connection.execute(
+                    text(
+                        "INSERT INTO milk_production "
+                        "VALUES (4, 10, NULL, NULL, 9, TRUE)"
+                    )
+                )
+        finally:
+            transaction.rollback()
