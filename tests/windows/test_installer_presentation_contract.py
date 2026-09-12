@@ -6,35 +6,37 @@ ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
 def _source() -> str:
     return ISS.read_text(encoding="utf-8")
 
-def test_installer_uses_large_dpi_aware_data_choice_page():
+def test_installer_exposes_explicit_data_and_recovery_choices():
     source = _source()
 
     assert "VersionInfoComments=" not in source
     assert "WizardResizable=" not in source
     assert "WizardSizePercent=140,135" in source
-    assert "ScaleX(" in source
-    assert "ScaleY(" in source
-    assert ".AdjustHeight();" in source
-    assert "Existing DairyOS farm data was detected on this computer." in source
-    assert "No existing DairyOS farm data was detected on this computer." in source
-    assert "INSTALLER STATUS: the existing farm database and ProgramData records will be retained." in source
-    assert "INSTALLER STATUS: no existing farm data was detected." in source
-    assert "This page is informational, not a data-choice control." in source
-    assert "Restore from a verified DairyOS backup" not in source
-    assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
-    assert "A protected zero-state reset is available from Settings after the application starts." in source
+    assert "TInputOptionWizardPage" in source
+    assert "Keep existing farm data (recommended)" in source
+    assert "Restore from a verified backup" in source
+    assert "Start a clean farm" in source
+    assert "CLEAN INSTALL DAIRYOS DATA" in source
+    assert "Backup candidate (DairyOS verifies before restore)" in source
+    assert "No active DairyOS farm was detected, but recovery points are available." in source
+    assert "--choice-mode keep" in source
+    assert "StageInstallationChoice" in source
+    assert "The selected DairyOS installation action could not be recorded." in source
+    assert "This page is informational, not a data-choice control." not in source
     assert "WizardForm.Font.Name" not in source
     assert "WizardForm.Font.Size" not in source
 
 
-def test_install_data_choice_does_not_use_small_followup_message_boxes():
+def test_install_data_choice_requires_explicit_clean_confirmation_or_backup():
     source = _source()
     start = source.index("function NextButtonClick")
     end = source.index("function ShouldLaunchDairyOS", start)
     block = source[start:end]
 
-    assert "MsgBox(" not in block
-    assert "RestoreRequested" not in block
+    assert "InputQuery(" in block
+    assert "CLEAN INSTALL DAIRYOS DATA" in block
+    assert "SelectedBackupPath" in block
+    assert "MsgBox(" in block
 
 def test_uninstall_prompt_keeps_data_without_standalone_admin():
     source = _source()

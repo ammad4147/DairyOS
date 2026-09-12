@@ -477,7 +477,7 @@ export default function COML() {
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: 9 }}>
             <thead><tr><th>Date</th><th>Milk (L)</th><th>Feed Cost/L</th><th>Estimated OPEX/L</th><th>Estimated COP/L</th><th>Status</th></tr></thead>
-            <tbody>{periodLog.map(row => <tr key={row.date}><td>{row.date}</td><td>{Number(row.milk_litres || 0).toFixed(2)}</td><td>{money(row.feed_cost_per_liter)}</td><td>{money(row.estimated_opex_per_liter)}</td><td>{money(row.estimated_cop_per_liter)}</td><td>{row.status}</td></tr>)}</tbody>
+            <tbody>{periodLog.length ? periodLog.map(row => <tr key={row.date}><td>{row.date}</td><td>{Number(row.milk_litres || 0).toFixed(2)}</td><td>{money(row.feed_cost_per_liter)}</td><td>{money(row.estimated_opex_per_liter)}</td><td>{money(row.estimated_cop_per_liter)}</td><td>{row.status}</td></tr>) : <tr><td colSpan={6} style={{ padding: 12, textAlign: 'center', color: '#94a3b8' }}>No daily COP records yet.</td></tr>}</tbody>
           </table>
         </div>
       )}

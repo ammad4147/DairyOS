@@ -28,18 +28,23 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert '"-dSourceTree=' not in build
 
 
-def test_installer_exposes_data_status_without_a_fake_destructive_choice():
+def test_installer_exposes_explicit_clean_and_restore_choices():
     source = _source()
 
     assert "DetectExistingDairyOSData" in source
-    assert "INSTALLER STATUS: the existing farm database and ProgramData records will be retained." in source
-    assert "INSTALLER STATUS: no existing farm data was detected." in source
-    assert "This page is informational, not a data-choice control." in source
+    assert "CreateInputOptionPage" in source
+    assert "Keep existing farm data (recommended)" in source
+    assert "Restore from a verified backup" in source
+    assert "Start a clean farm" in source
+    assert "ScanKnownBackupRoots" in source
+    assert "StageInstallationChoice" in source
     assert "TRadioButton" not in source
     assert "ShouldLaunchDairyOS" in source
-    assert "Restore from a verified DairyOS backup" not in source
+    assert "--lifecycle-choice" in source
+    assert "--choice-mode restore" in source
+    assert "--choice-mode clean" in source
+    assert "--choice-mode keep" in source
     assert "DairyOS-Admin.exe" not in source
-    assert "The installer will not delete or overwrite an existing DairyOS farm database." in source
 
 
 def test_uninstaller_explicitly_keeps_data_without_standalone_admin():

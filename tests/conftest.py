@@ -73,6 +73,7 @@ from dairyos.data.models.animal_milking_schedule_history import (
 from dairyos.data.models.app_setting import AppSetting
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
 from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.feed_ration import FeedRation
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.health_observation import HealthObservation
@@ -179,6 +180,7 @@ def _reset_test_persistence() -> None:
             MilkProductionCorrection,
             MilkProduction,
             FeedRecord,
+            FeedRation,
             TreatmentRecord,
             HealthObservation,
             HealthCase,

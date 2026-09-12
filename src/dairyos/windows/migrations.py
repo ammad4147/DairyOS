@@ -28,6 +28,10 @@ from dairyos.windows.startup_integrity import (
     StartupIntegrityError,
     inspect_startup_integrity,
 )
+from dairyos.windows.installation_choice import (
+    InstallationChoiceError,
+    read_pending_installation_choice,
+)
 
 
 MIGRATION_LOCK_KEY = 746182934517
@@ -139,6 +143,17 @@ def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...
         )
 
 
+def _explicit_clean_install_requested() -> bool:
+    """Return whether the installer explicitly authorized empty bootstrap."""
+    try:
+        choice = read_pending_installation_choice(paths.data_root(create=False))
+    except InstallationChoiceError as exc:
+        raise MigrationGateError(
+            f"DairyOS installation choice is invalid; startup is blocked: {exc}"
+        ) from exc
+    return choice is not None and choice.mode == "clean"
+
+
 def migrate_if_needed() -> MigrationResult:
     """Safely prepare a DairyOS database for production startup.
 
@@ -170,8 +185,13 @@ def migrate_if_needed() -> MigrationResult:
             current = tuple(sorted(migration_context.get_current_heads()))
             target = tuple(sorted(script.get_heads()))
             application_tables = _public_application_table_count(connection)
+            explicit_clean_install = _explicit_clean_install_requested()
 
             if application_tables == 0:
+                if explicit_clean_install:
+                    _bootstrap_empty_database(connection, config, target)
+                    return MigrationResult(True, current, target, None)
+
                 try:
                     inspect_startup_integrity(application_tables=0)
                 except StartupIntegrityError as exc:

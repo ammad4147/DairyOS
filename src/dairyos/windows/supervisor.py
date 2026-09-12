@@ -41,10 +41,128 @@ from dairyos.windows.system_postgres_admin import (
     stage_runtime_database_url,
 )
 from dairyos.lifecycle.manager import LifecycleManager
+from dairyos.windows.installation_choice import (
+    InstallationChoiceError,
+    clear_pending_installation_choice,
+    read_pending_installation_choice,
+    write_pending_installation_choice,
+)
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
 _AUTH_SIGNING_SECRET: str | None = None
+
+
+def queue_installation_choice(
+    *,
+    data_root: str | Path,
+    mode: str,
+    backup_path: str | Path | None = None,
+) -> Path:
+    """Record an installer choice for the next protected startup boundary."""
+    normalized_mode = str(mode or "").strip().lower()
+    normalized_backup = backup_path
+    if normalized_mode == "restore":
+        if backup_path is None:
+            raise InstallationChoiceError(
+                "Restore installation choice requires an explicit backup path."
+            )
+        # Verify at queue time when PostgreSQL tooling is available, then
+        # re-verify immediately before restoration as well.  This prevents a
+        # stale/tampered candidate from being accepted merely because it was
+        # displayed by the installer.
+        from dairyos.admin.backup_catalog import verify_restore_candidate
+
+        normalized_backup = verify_restore_candidate(backup_path).path
+    return write_pending_installation_choice(
+        data_root,
+        mode=normalized_mode,
+        backup_path=normalized_backup,
+    )
+
+
+def process_pending_installation_choice(*, restore_only: bool = False) -> None:
+    """Apply one explicit installer choice before normal backend startup."""
+    from dairyos.platform.paths import data_root
+
+    root = data_root(create=False)
+    choice = read_pending_installation_choice(root)
+    if choice is None or (restore_only and choice.mode == "clean"):
+        return
+
+    from dairyos.admin.database import acquire_admin_database
+    from dairyos.admin.service import (
+        CLEAN_INSTALL_CONFIRMATION,
+        AdminService,
+    )
+
+    try:
+        if choice.mode == "keep":
+            # A Keep/New choice also clears an abandoned one-shot action from
+            # an earlier interrupted installer run. It must happen before the
+            # migration gate so an established empty farm still blocks safely.
+            LOG.info("Installer selected Keep existing DairyOS farm data")
+        elif choice.mode == "restore":
+            if choice.backup_path is None:
+                raise InstallationChoiceError(
+                    "Pending restore choice does not contain an explicit backup path."
+                )
+            from dairyos.admin.backup_catalog import verify_restore_candidate
+
+            candidate = verify_restore_candidate(choice.backup_path)
+            lease = acquire_admin_database(
+                Path(sys.executable).resolve().parent,
+                data_root=root,
+            )
+            try:
+                result = AdminService(lease.manager).restore(candidate.path)
+                LOG.info("Installer-selected DairyOS recovery completed: %s", result.message)
+            finally:
+                lease.close()
+        elif choice.mode == "clean":
+            lease = acquire_admin_database(
+                Path(sys.executable).resolve().parent,
+                data_root=root,
+            )
+            try:
+                result = AdminService(lease.manager).clean_install(
+                    CLEAN_INSTALL_CONFIRMATION,
+                    requested_at=choice.requested_at,
+                )
+                LOG.info("Installer-selected DairyOS clean installation completed: %s", result.message)
+            finally:
+                lease.close()
+        else:  # pragma: no cover - read helper rejects unsupported modes
+            raise InstallationChoiceError(
+                f"Unsupported pending DairyOS installation choice: {choice.mode}"
+            )
+    except Exception:
+        # Restore/clean can replace the active data tree, including this
+        # one-shot request. Re-stage it after a failed attempt so the operator
+        # can retry or choose Keep from the installer without losing intent.
+        try:
+            write_pending_installation_choice(
+                root,
+                mode=choice.mode,
+                backup_path=choice.backup_path,
+            )
+        except Exception:
+            LOG.exception("Unable to retain the failed installer choice request")
+        raise
+
+    clear_pending_installation_choice(root)
+
+
+def _installation_choice_data_root(override: str | None = None) -> Path:
+    """Resolve the installer command root without creating farm data."""
+    if override:
+        return Path(override).expanduser().resolve()
+    configured = os.environ.get("DAIRYOS_DATA_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    from dairyos.platform.paths import data_root
+
+    return data_root(create=False).resolve()
 
 
 def process_pending_system_reset() -> None:
@@ -734,6 +852,21 @@ def run(config: SupervisorConfig) -> int:
             )
             return 4
 
+        # A restore selected in the installer must repair the database before
+        # the normal migration/startup-integrity gates inspect it. The
+        # selected path is re-verified inside process_pending_installation_choice
+        # and the request is cleared only after a successful restore.
+        try:
+            process_pending_installation_choice(restore_only=True)
+        except Exception as exc:
+            LOG.exception("DairyOS installer-selected recovery could not be applied")
+            show_startup_error(
+                "DairyOS recovery could not be completed",
+                "The selected recovery point was not applied and the request was retained.\n\n"
+                f"{exc}\n\nChoose a different verified backup or retry the installation.",
+            )
+            return 5
+
         try:
             migration = migrate_if_needed()
             LOG.info(
@@ -752,6 +885,17 @@ def run(config: SupervisorConfig) -> int:
                 "No application window was started. Existing farm data was not intentionally deleted.",
             )
             return 3
+
+        try:
+            process_pending_installation_choice()
+        except Exception as exc:
+            LOG.exception("DairyOS installer-selected clean installation could not be applied")
+            show_startup_error(
+                "DairyOS clean installation could not be completed",
+                "The selected clean-install action was not applied and the request was retained.\n\n"
+                f"{exc}\n\nExisting farm data was not intentionally deleted.",
+            )
+            return 5
 
         try:
             process_pending_system_reset()
@@ -813,6 +957,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
     parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--lifecycle-choice", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--choice-mode",
+        choices=("clean", "restore", "keep"),
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument("--backup-path", default="", help=argparse.SUPPRESS)
     parser.add_argument("--installation-root", default="")
     parser.add_argument("--data-root", default="")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
@@ -838,6 +990,26 @@ def main(argv: list[str] | None = None) -> int:
             data_root=data_root_override,
             database_url=None,
         ).install(application_version="packaged")
+        return 0
+    if args.lifecycle_choice:
+        if not args.choice_mode:
+            raise SystemExit(
+                "--lifecycle-choice requires --choice-mode clean, restore or keep"
+            )
+        root = _installation_choice_data_root(args.data_root)
+        try:
+            queue_installation_choice(
+                data_root=root,
+                mode=args.choice_mode,
+                backup_path=args.backup_path or None,
+            )
+        except (InstallationChoiceError, OSError, RuntimeError) as exc:
+            LOG.exception("DairyOS installation choice could not be staged")
+            show_startup_error(
+                "DairyOS installation choice could not be saved",
+                f"{exc}\n\nNo farm data was intentionally deleted.",
+            )
+            return 5
         return 0
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),

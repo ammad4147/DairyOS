@@ -24,6 +24,7 @@ from dairyos.lifecycle.restore import restore_snapshot
 
 RESET_CONFIRMATION = "RESET DAIRYOS DATA"
 PURGE_CONFIRMATION = "PURGE DAIRYOS DATA"
+CLEAN_INSTALL_CONFIRMATION = "CLEAN INSTALL DAIRYOS DATA"
 
 
 @dataclass(frozen=True)
@@ -216,6 +217,162 @@ class AdminService:
                     f"Reset failed and automatic recovery also failed: {rollback_exc}"
                 ) from exc
             raise LifecycleError(f"Reset failed; pre-reset state was restored: {exc}") from exc
+
+    def clean_install(
+        self,
+        confirmation: str,
+        *,
+        requested_by: str = "DairyOS Installer",
+        requested_at: str | None = None,
+    ) -> AdminResult:
+        """Create a recovery copy, then leave the active farm completely empty.
+
+        A clean installation is intentionally different from an ordinary
+        operational reset.  The active ``storage``, ``logs`` and ``backups``
+        trees are emptied after the authoritative database reset, while a
+        verified recovery copy remains outside the active data root.  Private
+        PostgreSQL and local security/lifecycle metadata are retained because
+        they are runtime infrastructure, not farm records.
+        """
+        if confirmation != CLEAN_INSTALL_CONFIRMATION:
+            raise LifecycleError(
+                "Clean installation requires the exact confirmation token: "
+                f"{CLEAN_INSTALL_CONFIRMATION!r}"
+            )
+        if not self.manager.database_url:
+            raise LifecycleError(
+                "Clean installation requires the canonical PostgreSQL database authority."
+            )
+
+        _admin_stage("clean-install: lifecycle validation")
+        self.manager.validate(require_database=True)
+        context = {
+            "reset_operation": "CLEAN_INSTALL",
+            "requested_by": str(requested_by or "DairyOS Installer").strip(),
+            "requested_at": str(requested_at or _utc_now()),
+            "confirmation": confirmation,
+        }
+        artifact: Path | None = None
+        recovery_artifact: Path | None = None
+        try:
+            _admin_stage("clean-install: pre-clean backup")
+            artifact = self.manager.backup(
+                label="pre-clean-install",
+                require_database=True,
+            )
+            _record_database_checksum(artifact)
+            _write_reset_manifest(artifact, context)
+            recovery_artifact = _copy_external_recovery_artifact(artifact)
+            _verify_backup_directory(recovery_artifact, require_database=True)
+            _write_audit_event(recovery_artifact, "clean-install-intent", context)
+
+            _assert_runtime_stopped()
+            _admin_stage("clean-install: authoritative reset")
+            execution = reset_operational_data(
+                self.manager.database_url,
+                updated_by="DairyOS Installer",
+                data_root=getattr(self.manager, "data_root", None),
+            )
+            remaining = verify_zero_state(self.manager.database_url)
+            data_root = getattr(self.manager, "data_root", None)
+            if data_root is not None:
+                remaining.update(verify_file_projection_zero_state(data_root))
+            if remaining:
+                raise LifecycleError(
+                    "Clean installation reset did not reach zero state: "
+                    + ", ".join(
+                        f"{table}={count}" for table, count in sorted(remaining.items())
+                    )
+                )
+
+            if data_root is None:
+                raise LifecycleError("Clean installation has no managed data root.")
+            _clear_active_clean_state(data_root, protected_backup=artifact)
+            _clear_clean_lifecycle_backup_pointer(data_root)
+            residual = _verify_active_clean_state(
+                data_root,
+                allowed_backup=artifact,
+            )
+            if residual:
+                raise LifecycleError(
+                    "Clean installation left active farm material: "
+                    + ", ".join(residual)
+                )
+            _remove_path(artifact)
+            residual = _verify_active_clean_state(data_root)
+            if residual:
+                raise LifecycleError(
+                    "Clean installation could not clear its final recovery artifact: "
+                    + ", ".join(residual)
+                )
+
+            _write_audit_event(
+                recovery_artifact,
+                "clean-install-result",
+                {
+                    **context,
+                    "status": "success",
+                    "completed_at": _utc_now(),
+                    "tables_cleared": list(execution.tables_cleared),
+                    "active_logs_cleared": True,
+                    "active_backups_cleared": True,
+                },
+            )
+            _admin_stage("clean-install: successful")
+            return AdminResult(
+                "clean-install",
+                True,
+                "Clean installation completed; active farm data and visible logs are empty. "
+                "A verified recovery copy was retained outside the active data root.",
+                str(recovery_artifact),
+            )
+        except Exception as exc:
+            if recovery_artifact is not None:
+                try:
+                    _write_audit_event(
+                        recovery_artifact,
+                        "clean-install-result",
+                        {
+                            **context,
+                            "status": "failed",
+                            "completed_at": _utc_now(),
+                            "error": str(exc),
+                        },
+                    )
+                except Exception as audit_exc:  # pragma: no cover - filesystem-specific
+                    # A failed diagnostic write must never prevent recovery.
+                    _admin_stage(
+                        f"clean-install: failure audit could not be written: {audit_exc}"
+                    )
+
+            # The active artifact is removed only after the zero-state checks,
+            # but a late filesystem/audit failure can occur after that point.
+            # The verified external copy is therefore the durable fallback.
+            rollback_source = next(
+                (
+                    candidate
+                    for candidate in (recovery_artifact, artifact)
+                    if candidate is not None and candidate.exists()
+                ),
+                None,
+            )
+            if rollback_source is not None:
+                try:
+                    _admin_stage("clean-install: automatic rollback")
+                    self.manager.rollback(rollback_source)
+                except Exception as rollback_exc:
+                    raise LifecycleError(
+                        "Clean installation failed and automatic recovery also failed: "
+                        f"{rollback_exc}"
+                    ) from exc
+            else:
+                raise LifecycleError(
+                    "Clean installation failed and no verified recovery artifact remained: "
+                    f"{exc}"
+                ) from exc
+            raise LifecycleError(
+                f"Clean installation failed; pre-clean state was restored: {exc}"
+            ) from exc
 
     def purge(self, confirmation: str) -> AdminResult:
         if confirmation != PURGE_CONFIRMATION:
@@ -426,12 +583,124 @@ def _verify_backup_directory(
 def _copy_external_recovery_artifact(backup: Path) -> Path:
     configured = os.environ.get("DAIRYOS_RECOVERY_ROOT")
     root = Path(configured).expanduser().resolve() if configured else backup.parents[2] / "recovery"
+    active_root = backup.parent.parent.resolve()
+    try:
+        root.relative_to(active_root)
+    except ValueError:
+        pass
+    else:
+        raise LifecycleError(
+            "DairyOS recovery storage must be outside the active farm data root."
+        )
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"{backup.name}-external"
     if destination.exists():
         shutil.rmtree(destination)
     shutil.copytree(backup, destination)
     return destination
+
+
+def _remove_path(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    elif path.exists() or path.is_symlink():
+        path.unlink()
+
+
+def _clear_active_clean_state(
+    data_root: str | Path,
+    *,
+    protected_backup: str | Path,
+) -> None:
+    """Remove active farm files while preserving runtime infrastructure."""
+    root = Path(data_root).expanduser().resolve()
+    protected = Path(protected_backup).expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+
+    # The database has already been cleared transactionally.  Storage and logs
+    # are projections/diagnostics and must not make a clean install look like a
+    # continuation of the old farm.
+    for name in ("storage", "logs"):
+        directory = root / name
+        directory.mkdir(parents=True, exist_ok=True)
+        for child in list(directory.iterdir()):
+            _remove_path(child)
+
+    backup_root = root / "backups"
+    backup_root.mkdir(parents=True, exist_ok=True)
+    for child in list(backup_root.iterdir()):
+        if child.resolve() == protected:
+            continue
+        _remove_path(child)
+
+    # Remove unrecognized active-root files/directories.  The remaining items
+    # are installation/runtime infrastructure, not farm records.
+    preserved = {
+        "backups",
+        "logs",
+        "postgres",
+        "security",
+        "storage",
+        "lifecycle.json",
+        "installation_state.json",
+    }
+    for child in list(root.iterdir()):
+        if child.name in preserved:
+            continue
+        _remove_path(child)
+
+    # Keep the rollback artifact until every zero-state check has passed.  The
+    # caller removes it only after verifying storage, logs and old backups.
+
+
+def _clear_clean_lifecycle_backup_pointer(data_root: str | Path) -> None:
+    """Remove the manifest pointer to the recovery copy deleted from active data."""
+    path = Path(data_root).expanduser().resolve() / "lifecycle.json"
+    if not path.is_file():
+        return
+    temporary: Path | None = None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("lifecycle manifest is not an object")
+        payload["last_backup"] = None
+        payload["updated_at"] = _utc_now()
+        temporary = path.with_name(f".{path.name}.clean-tmp")
+        temporary.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise LifecycleError(
+            "Clean installation cannot clear the active lifecycle backup pointer."
+        ) from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _verify_active_clean_state(
+    data_root: str | Path,
+    *,
+    allowed_backup: str | Path | None = None,
+) -> list[str]:
+    root = Path(data_root).expanduser().resolve()
+    allowed = (
+        Path(allowed_backup).expanduser().resolve()
+        if allowed_backup is not None
+        else None
+    )
+    residual: list[str] = []
+    for name in ("storage", "logs", "backups"):
+        directory = root / name
+        if not directory.is_dir():
+            residual.append(f"{name}=missing")
+        elif any(
+            child.resolve() != allowed for child in directory.iterdir()
+        ):
+            residual.append(f"{name}=nonempty")
+    return residual
 
 
 def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -> None:

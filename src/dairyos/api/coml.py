@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from calendar import month_name
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
 from dairyos.api.tmr import (
+    _daily_cost_snapshots as _daily_tmr_history_snapshots,
     milk_litres_for_period,
     tmr_feed_cost_for_period,
 )
@@ -170,9 +171,42 @@ def get_coml_period_history(
     today = OperationalDateAuthority(repository_factory=container.repository_factory).current_date()
     end = today - timedelta(days=1)
     start = end - timedelta(days=days - 1)
+    factory = container.repository_factory
+
+    # A period history is a log of persisted daily authority.  Do not create
+    # synthetic zero-valued rows for dates on which DairyOS has no production,
+    # TMR, feed-consumption, or Finance record.  This is especially important
+    # after a clean reset: the Daily COP Log must visibly start empty.
+    authority_dates: set[date] = set()
+
+    def add_date(value: object) -> None:
+        if isinstance(value, datetime):
+            value = value.date()
+        elif not isinstance(value, date):
+            try:
+                value = date.fromisoformat(str(value)[:10])
+            except (TypeError, ValueError):
+                return
+        if start <= value <= end:
+            authority_dates.add(value)
+
+    for row in factory.milk().get_all() or []:
+        add_date(getattr(row, "production_date", None))
+    for row in factory.feed().get_all() or []:
+        add_date(getattr(row, "feeding_date", None))
+    for snapshot in _daily_tmr_history_snapshots(factory):
+        add_date(snapshot.get("operational_date"))
+    for row in factory.finance().get_all() or []:
+        # Transaction date is only a presence signal here.  The integrated
+        # calculation still applies the governed COP attribution policy and
+        # never treats transaction date as economic consumption date.
+        add_date(getattr(row, "transaction_date", None))
+
     records = []
     for offset in range(days):
         day = start + timedelta(days=offset)
+        if day not in authority_dates:
+            continue
         result = get_integrated_coml(period_start=day, period_end=day, container=container)
         records.append({
             "date": day.isoformat(),
@@ -184,7 +218,12 @@ def get_coml_period_history(
             "opex_total": result["costs"]["opex_total"],
             "status": "CALCULATED" if result["costs"]["feed_cost_per_liter"] is not None else "MISSING_TMR_CALCULATION",
         })
-    return {"data_status": "LIVE_PERSISTED_DATA", "days": days, "records": records}
+    return {
+        "data_status": "LIVE_PERSISTED_DATA",
+        "days": days,
+        "status": "HAS_DATA" if records else "NO_DATA",
+        "records": records,
+    }
 
 
 @router.post("/lock")

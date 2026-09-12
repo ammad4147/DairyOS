@@ -83,6 +83,34 @@ def test_empty_database_uses_explicit_bootstrap(monkeypatch):
     assert calls[0][2] == target
 
 
+def test_explicit_clean_install_allows_empty_database_bootstrap(
+    monkeypatch,
+    tmp_path,
+):
+    root = tmp_path / "DairyOS"
+    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(root))
+    from dairyos.windows.installation_choice import write_pending_installation_choice
+
+    write_pending_installation_choice(root, mode="clean")
+    target = ("20260826_01",)
+    config = _patch_migration_environment(monkeypatch, target, target, 0)
+    calls = []
+    monkeypatch.setattr(
+        migrations,
+        "_bootstrap_empty_database",
+        lambda connection, received_config, received_target: calls.append(
+            (connection, received_config, received_target)
+        ),
+    )
+
+    result = migrations.migrate_if_needed()
+
+    assert result.migrated is True
+    assert len(calls) == 1
+    assert calls[0][1] is config
+    assert calls[0][2] == target
+
+
 def test_non_empty_database_without_history_is_rejected(monkeypatch):
     _patch_migration_environment(monkeypatch, (), ("20260826_01",), 1)
 

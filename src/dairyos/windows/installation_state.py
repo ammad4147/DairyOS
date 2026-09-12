@@ -201,21 +201,17 @@ def validate_existing_installation(
 
 
 def choose_existing_backup(facts: InstallationFacts) -> Path:
+    """Reject implicit backup selection.
+
+    Recovery is a data-destructive boundary. Callers must present an
+    explicitly selected, checksum-verified candidate instead of choosing by
+    filesystem order or modification time.
+    """
     if facts.backup_count == 0:
         raise InstallationStateError(
             "No DairyOS backup is available for restoration."
         )
-
-    backups = facts.data_root / "backups"
-    candidates = sorted(
-        (item for item in backups.iterdir() if item.is_dir()),
-        key=lambda item: item.stat().st_mtime,
-        reverse=True,
+    raise InstallationStateError(
+        "DairyOS never selects a backup automatically. Choose an explicit "
+        "verified recovery point before restoring."
     )
-
-    if not candidates:
-        raise InstallationStateError(
-            "DairyOS backup count was non-zero but no backup directory was found."
-        )
-
-    return candidates[0]

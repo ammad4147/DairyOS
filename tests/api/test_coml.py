@@ -1,6 +1,18 @@
 from datetime import date
 
 
+def test_daily_tmr_and_cop_logs_are_empty_without_persisted_authority(client):
+    tmr = client.get("/farm/tmr/history?days=30")
+    assert tmr.status_code == 200, tmr.text
+    assert tmr.json()["status"] == "NO_DATA"
+    assert tmr.json()["records"] == []
+
+    cop = client.get("/farm/coml/period-history?days=30")
+    assert cop.status_code == 200, cop.text
+    assert cop.json()["status"] == "NO_DATA"
+    assert cop.json()["records"] == []
+
+
 def test_coml_month_lock_and_update(client):
     month = "2026-08-01"
     first = client.post(

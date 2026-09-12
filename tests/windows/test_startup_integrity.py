@@ -228,3 +228,55 @@ def test_marker_for_same_data_root_still_blocks_empty_database(
             application_tables=0,
             enforce=True,
         )
+
+
+def test_empty_database_error_does_not_claim_that_a_backup_was_selected(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    (root / "storage").mkdir(parents=True)
+    (root / "storage" / "old-record.json").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(startup_integrity.StartupIntegrityError) as error:
+        startup_integrity.inspect_startup_integrity(
+            application_tables=0,
+            enforce=True,
+        )
+
+    message = str(error.value)
+    assert "did not select a backup automatically" in message
+    assert "Verified backups are available under" not in message
+
+
+def test_startup_hint_reports_recorded_primary_without_selecting_it(
+    monkeypatch,
+    tmp_path,
+):
+    root = _set_data_root(monkeypatch, tmp_path)
+    (root / "storage").mkdir(parents=True)
+    (root / "storage" / "old-record.json").write_text("{}\n", encoding="utf-8")
+    backup = tmp_path / "recovery" / "primary.dump"
+    backup.parent.mkdir(parents=True)
+    backup.write_bytes(b"placeholder")
+    health = root / "backups"
+    health.mkdir(parents=True)
+    (health / "backup-health.json").write_text(
+        json.dumps(
+            {
+                "primary": str(backup),
+                "archive_verified": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(startup_integrity.StartupIntegrityError) as error:
+        startup_integrity.inspect_startup_integrity(
+            application_tables=0,
+            enforce=True,
+        )
+
+    message = str(error.value)
+    assert str(backup) in message
+    assert "will not select it automatically" in message

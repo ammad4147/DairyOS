@@ -129,11 +129,15 @@ def test_catalog_honors_configured_external_roots(tmp_path, monkeypatch):
     assert tmp_path / "recovery" in roots
 
 
-def test_installer_has_no_standalone_recovery_chooser():
+def test_installer_owns_explicit_recovery_choice_without_standalone_admin():
     source = Path(__file__).parents[2] / "tools/windows-desktop/DairyOS-Installer.iss"
     text = source.read_text()
     assert 'Parameters: "--restore-mode"' not in text
     assert "DairyOS-Admin.exe" not in text
+    assert "Restore from a verified backup" in text
+    assert "Start a clean farm" in text
+    assert "ScanKnownBackupRoots" in text
+    assert "StageInstallationChoice" in text
 
 
 @pytest.mark.parametrize("inventory", [None, {}, "files", [None], ["file"], [123]])

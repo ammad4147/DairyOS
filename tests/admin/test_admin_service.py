@@ -1,7 +1,12 @@
 from pathlib import Path
 import json
+from types import SimpleNamespace
 import pytest
-from dairyos.admin.service import AdminService, RESET_CONFIRMATION
+from dairyos.admin.service import (
+    CLEAN_INSTALL_CONFIRMATION,
+    AdminService,
+    RESET_CONFIRMATION,
+)
 from dairyos.lifecycle.manager import LifecycleError
 
 
@@ -108,3 +113,63 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
         )
     ]
     assert manager.calls == [("validate", True), ("backup", "pre-reset", True)]
+
+
+def test_clean_install_clears_active_logs_and_backup_catalogue(tmp_path, monkeypatch):
+    class CleanManager(FakeManager):
+        database_url = "postgresql+psycopg://example"
+
+        def __init__(self, root):
+            super().__init__(tmp_path)
+            self.data_root = root
+
+        def backup(self, label="pre-change", *, require_database=False):
+            self.calls.append(("backup", label, require_database))
+            path = self.data_root / "backups" / label
+            path.mkdir(parents=True, exist_ok=True)
+            (path / "backup.json").write_text(
+                json.dumps({"files": []}),
+                encoding="utf-8",
+            )
+            return path
+
+    root = tmp_path / "active"
+    (root / "logs").mkdir(parents=True)
+    (root / "logs" / "old.log").write_text("old", encoding="utf-8")
+    (root / "storage").mkdir(parents=True)
+    (root / "storage" / "old.json").write_text("{}", encoding="utf-8")
+    (root / "backups").mkdir(parents=True)
+    (root / "backups" / "old-backup").mkdir()
+    (root / "lifecycle.json").write_text(
+        json.dumps({"last_backup": "old-backup"}) + "\n",
+        encoding="utf-8",
+    )
+
+    external = tmp_path / "external" / "pre-clean-install-external"
+
+    def copy_external(path):
+        import shutil
+
+        external.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(path, external)
+        return external
+
+    monkeypatch.setattr("dairyos.admin.service._assert_runtime_stopped", lambda: None)
+    monkeypatch.setattr("dairyos.admin.service._copy_external_recovery_artifact", copy_external)
+    monkeypatch.setattr("dairyos.admin.service._verify_backup_directory", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dairyos.admin.service._write_audit_event", lambda *args, **kwargs: None)
+    monkeypatch.setattr("dairyos.admin.service._record_database_checksum", lambda path: None)
+    monkeypatch.setattr("dairyos.admin.service.reset_operational_data", lambda *args, **kwargs: SimpleNamespace(tables_cleared=("animal",)))
+    monkeypatch.setattr("dairyos.admin.service.verify_zero_state", lambda url: {})
+
+    manager = CleanManager(root)
+    result = AdminService(manager).clean_install(CLEAN_INSTALL_CONFIRMATION)
+
+    assert result.success is True
+    assert list((root / "storage").iterdir()) == []
+    assert list((root / "logs").iterdir()) == []
+    assert list((root / "backups").iterdir()) == []
+    assert external.is_dir()
+    assert json.loads((root / "lifecycle.json").read_text())[
+        "last_backup"
+    ] is None

@@ -114,30 +114,21 @@ def test_restore_requires_a_backup(monkeypatch, tmp_path):
         validate_existing_installation(facts, FarmLaunchMode.RESTORE)
 
 
-def test_restore_selects_newest_backup(monkeypatch, tmp_path):
+def test_restore_never_selects_a_backup_implicitly(monkeypatch, tmp_path):
     _patch_data_root(monkeypatch, tmp_path)
 
     root = paths.data_root(create=True)
     backups = root / "backups"
     backups.mkdir(parents=True, exist_ok=True)
 
-    older = backups / "20260826-old"
-    newer = backups / "20260827-new"
-
-    older.mkdir()
-    newer.mkdir()
-
-    older.touch()
-    newer.touch()
-
-    import os
-    os.utime(older, (1, 1))
-    os.utime(newer, (2, 2))
+    (backups / "20260826-old").mkdir()
+    (backups / "20260827-new").mkdir()
 
     facts = inspect_installation()
 
     assert facts.backup_count == 2
-    assert choose_existing_backup(facts) == newer
+    with pytest.raises(InstallationStateError, match="never selects a backup automatically"):
+        choose_existing_backup(facts)
 
 
 def test_installation_state_round_trips(monkeypatch, tmp_path):

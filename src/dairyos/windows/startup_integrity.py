@@ -91,6 +91,42 @@ def _marker_applies_to_data_root(marker: Path, root: Path) -> bool:
         return Path(recorded) == root
 
 
+def _recovery_hint(root: Path) -> str:
+    """Describe the recorded recovery point without selecting it.
+
+    Startup integrity is a safety gate, not a restore workflow.  In
+    particular, the presence of ``backups/`` is not evidence that any backup
+    is valid.  The automatic-backup health record identifies the latest
+    successful primary; the installer/recovery workflow must still present
+    choices and re-verify the selected artifact before restoring it.
+    """
+    health_path = root / "backups" / "backup-health.json"
+    try:
+        payload = json.loads(health_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = None
+
+    if isinstance(payload, dict):
+        primary = payload.get("primary")
+        if isinstance(primary, str) and primary.strip():
+            candidate = Path(primary).expanduser()
+            if payload.get("archive_verified") is True and candidate.is_file():
+                return (
+                    " The latest recorded automatic backup is: "
+                    f"{candidate}. DairyOS will not select it automatically; "
+                    "choose and re-verify a recovery point explicitly."
+                )
+            return (
+                " The recorded automatic backup is unavailable or not currently "
+                f"verified: {candidate}. No backup was selected automatically."
+            )
+
+    return (
+        " No verified automatic backup is currently recorded. DairyOS did not "
+        "select a backup automatically."
+    )
+
+
 def record_successful_start(*, data_root: Path | None = None) -> Path | None:
     """Record a healthy packaged start after backup protection is verified.
 
@@ -173,17 +209,13 @@ def inspect_startup_integrity(
         enforce = _is_packaged_windows()
 
     if enforce and facts.recovery_required:
-        backup_hint = (
-            f" Verified backups are available under: {root / 'backups'}."
-            if (root / "backups").is_dir()
-            else " No local backup directory was detected."
-        )
         raise StartupIntegrityError(
             "DairyOS startup is blocked: an established installation was detected "
             "but the application database is empty or unavailable. "
             "DairyOS will not create a new empty farm or hide the existing farm. "
-            "Data recovery is required before normal startup."
-            + backup_hint
+            "Data recovery is required before normal startup. "
+            "Re-run the DairyOS installer to choose an explicit recovery action."
+            + _recovery_hint(root)
         )
 
     return facts

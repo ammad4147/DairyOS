@@ -820,6 +820,24 @@ def lock_daily_tmr_cost_snapshot(
         operational_date=selected_date,
     )
 
+    # An empty/new farm must not acquire a synthetic daily TMR log entry just
+    # because the scheduler happened to start. A snapshot is an operational
+    # authority for an actual catered herd; with no automatically connected
+    # animals there is no completed TMR calculation to materialise. This also
+    # keeps clean-install state visibly empty after the first application
+    # start. Once a Milking animal exists, a zero-cost formulation remains a
+    # legitimate snapshot and is retained for the selected operational day.
+    if not any(int(value or 0) > 0 for value in live["herd_counts"].values()):
+        return {
+            "kind": "TMR_DAILY_COST_SNAPSHOT",
+            "operational_date": selected_date.isoformat(),
+            "created": False,
+            "locked": False,
+            "status": "NO_ACTIVE_HERD_AUTHORITY",
+            "herd_counts": live["herd_counts"],
+            "total_herd_feed_cost_per_day": 0.0,
+        }
+
     snapshot = {
         "kind": "TMR_DAILY_COST_SNAPSHOT",
         "operational_date": selected_date.isoformat(),
@@ -1059,14 +1077,29 @@ def get_tmr_history(
     while day <= effective_end:
         key = day.isoformat()
         snapshot = snapshots.get(key)
+        feed_consumed = consumed.get(
+            key,
+            {"quantity_kg": 0.0, "feed_cost": 0.0, "records": 0},
+        )
+        # This endpoint is a persisted audit log, not a calendar scaffold.
+        # An empty reset state must therefore return no historical records;
+        # callers can still distinguish that state through ``status``.
+        if snapshot is None and not feed_consumed["records"]:
+            day += timedelta(days=1)
+            continue
         rows.append({
             "date": key,
             "calculation": snapshot,
-            "feed_consumed": consumed[key],
+            "feed_consumed": feed_consumed,
             "status": "CALCULATED" if snapshot else "MISSING_TMR_CALCULATION",
         })
         day += timedelta(days=1)
-    return {"data_status": "LIVE_PERSISTED_DATA", "days": days, "records": rows}
+    return {
+        "data_status": "LIVE_PERSISTED_DATA",
+        "days": days,
+        "status": "HAS_DATA" if rows else "NO_DATA",
+        "records": rows,
+    }
 
 
 @router.post("/stages")

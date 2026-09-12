@@ -231,6 +231,19 @@ def test_non_milking_categories_are_not_auto_populated_from_herd_counts(client):
 
 
 def test_daily_tmr_snapshot_is_unique_and_sequentially_idempotent(client):
+    animal = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
+            "milking_frequency": "THRICE_DAILY",
+            "ear_tag": "AUDIT-SNAPSHOT-MILKING-001",
+        },
+    )
+    assert animal.status_code == 200, animal.text
+
     existing_dates = {
         row.effective_date
         for row in container.repository_factory.feed_rations().get_active_for_group(

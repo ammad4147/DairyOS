@@ -68,11 +68,18 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait po
 
 [Code]
 var
-  DataChoicePage: TWizardPage;
+  DataChoicePage: TInputOptionWizardPage;
+  BackupChoicePage: TInputOptionWizardPage;
   ExistingDataDetected: Boolean;
   PreservationDestination: String;
+  SelectedInstallMode: String;
+  SelectedBackupPath: String;
+  CleanConfirmationAccepted: Boolean;
+  RestoreChoiceIndex: Integer;
+  BackupCandidatePaths: array of String;
 
 function CreatePreservationPackage(): Boolean; forward;
+procedure StageInstallationChoice(); forward;
 
 function DairyOSDataRoot(): String;
 begin
@@ -260,6 +267,54 @@ begin
     );
 end;
 
+procedure StageInstallationChoice();
+var
+  DairyOSExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  if SelectedInstallMode = 'clean' then
+  begin
+    if not CleanConfirmationAccepted then
+      RaiseException('Clean installation was not explicitly confirmed.');
+    Params :=
+      '--lifecycle-choice ' +
+      '--choice-mode clean ' +
+      '--data-root "' + DairyOSDataRoot() + '"';
+  end
+  else if SelectedInstallMode = 'restore' then
+  begin
+    if SelectedBackupPath = '' then
+      RaiseException('Restore was selected but no backup candidate was chosen.');
+    Params :=
+      '--lifecycle-choice ' +
+      '--choice-mode restore ' +
+      '--backup-path "' + SelectedBackupPath + '" ' +
+      '--data-root "' + DairyOSDataRoot() + '"';
+  end
+  else if (SelectedInstallMode = 'keep') or (SelectedInstallMode = 'new') then
+    Params :=
+      '--lifecycle-choice ' +
+      '--choice-mode keep ' +
+      '--data-root "' + DairyOSDataRoot() + '"';
+  else
+    exit;
+
+  DairyOSExe := ExpandConstant('{app}\DairyOS.exe');
+  if (not Exec(
+    DairyOSExe,
+    Params,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'The selected DairyOS installation action could not be recorded. ' +
+      'No farm data was intentionally deleted.'
+    );
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
@@ -269,6 +324,115 @@ begin
     ProvisionStorageTreeAcl();
     ProvisionBackupTreeAcl();
     ProvisionAutomaticBackupTask();
+    StageInstallationChoice();
+  end;
+end;
+
+function DirectoryHasEntries(const Directory: String): Boolean;
+var
+  FindRec: TFindRec;
+begin
+  Result := False;
+  if not DirExists(Directory) then
+    exit;
+
+  if FindFirst(AddBackslash(Directory) + '*', FindRec) then
+  try
+    repeat
+      if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+      begin
+        Result := True;
+        exit;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+end;
+
+procedure AddBackupCandidate(const Candidate: String);
+var
+  I: Integer;
+  Normalized: String;
+begin
+  Normalized := Candidate;
+  while (Length(Normalized) > 3) and
+        (Normalized[Length(Normalized)] = '\') do
+    Delete(Normalized, Length(Normalized), 1);
+
+  if Normalized = '' then
+    exit;
+
+  for I := 0 to GetArrayLength(BackupCandidatePaths) - 1 do
+    if Lowercase(BackupCandidatePaths[I]) = Lowercase(Normalized) then
+      exit;
+
+  SetArrayLength(BackupCandidatePaths, GetArrayLength(BackupCandidatePaths) + 1);
+  BackupCandidatePaths[GetArrayLength(BackupCandidatePaths) - 1] := Normalized;
+end;
+
+procedure ScanBackupDirectory(const Directory: String; Depth: Integer);
+var
+  FindRec: TFindRec;
+  Candidate: String;
+begin
+  if (Depth > 4) or (not DirExists(Directory)) then
+    exit;
+
+  if FileExists(AddBackslash(Directory) + 'backup.json') then
+  begin
+    AddBackupCandidate(Directory);
+    exit;
+  end;
+
+  if not FindFirst(AddBackslash(Directory) + '*', FindRec) then
+    exit;
+  try
+    repeat
+      if (FindRec.Name <> '.') and (FindRec.Name <> '..') and
+         (FindRec.Name <> 'backup-health.json') and
+         (FindRec.Name[1] <> '.') then
+      begin
+        Candidate := AddBackslash(Directory) + FindRec.Name;
+        if DirExists(Candidate) then
+          ScanBackupDirectory(Candidate, Depth + 1)
+        else if (Lowercase(ExtractFileExt(Candidate)) = '.dump') and
+                FileExists(Candidate + '.json') then
+          AddBackupCandidate(Candidate);
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+end;
+
+procedure ScanKnownBackupRoots();
+var
+  Root: String;
+  ConfiguredRoot: String;
+  Drive: String;
+  I: Integer;
+begin
+  SetArrayLength(BackupCandidatePaths, 0);
+  Root := DairyOSDataRoot();
+
+  ScanBackupDirectory(AddBackslash(Root) + 'backups', 0);
+  ScanBackupDirectory(AddBackslash(ExtractFileDir(Root)) + 'recovery', 0);
+  ScanBackupDirectory(AddBackslash(ExtractFileDir(Root)) + 'DairyOS-PurgeBackups', 0);
+
+  ConfiguredRoot := GetEnv('DAIRYOS_BACKUP_MIRROR_ROOT');
+  if ConfiguredRoot <> '' then
+    ScanBackupDirectory(ConfiguredRoot, 0);
+  ConfiguredRoot := GetEnv('DAIRYOS_RECOVERY_ROOT');
+  if ConfiguredRoot <> '' then
+    ScanBackupDirectory(ConfiguredRoot, 0);
+
+  { Match the bounded, known removable/external backup roots used by the
+    recovery catalog without searching arbitrary user files. }
+  for I := Ord('C') to Ord('Z') do
+  begin
+    Drive := Chr(I) + ':\DairyOS-Backups';
+    ScanBackupDirectory(Drive, 0);
   end;
 end;
 
@@ -283,99 +447,169 @@ begin
     FileExists(Root + '\postgres\runtime.json') or
     FileExists(Root + '\postgres\security.json') or
     DirExists(Root + '\postgres\data') or
-    DirExists(Root + '\storage') or
-    DirExists(Root + '\backups');
+    DirectoryHasEntries(Root + '\storage') or
+    DirectoryHasEntries(Root + '\backups') or
+    FileExists(ExpandConstant('{localappdata}\DairyOS-installation-state.json'));
 end;
 
 procedure InitializeWizard();
 var
-  Intro: TNewStaticText;
-  ExistingDetail: TNewStaticText;
-  Caution: TNewStaticText;
+  I: Integer;
 begin
   ExistingDataDetected := DetectExistingDairyOSData();
-
-  DataChoicePage := CreateCustomPage(
-    wpSelectDir,
-    'DairyOS Farm Data',
-    'Review how this installation will use farm data on this computer.'
-  );
-
-  Intro := TNewStaticText.Create(DataChoicePage);
-  Intro.Parent := DataChoicePage.Surface;
-  Intro.Left := ScaleX(8);
-  Intro.Top := ScaleY(8);
-  Intro.Width := DataChoicePage.SurfaceWidth - ScaleX(16);
-  Intro.AutoSize := False;
-  Intro.WordWrap := True;
-  Intro.Font.Name := 'Segoe UI';
-  Intro.Font.Size := 12;
-  Intro.Font.Style := [fsBold];
-  Intro.Caption := '';
-  Intro.AdjustHeight();
+  ScanKnownBackupRoots();
+  SelectedBackupPath := '';
+  CleanConfirmationAccepted := False;
+  RestoreChoiceIndex := -1;
 
   if ExistingDataDetected then
   begin
-    Intro.Caption := 'Existing DairyOS farm data was detected on this computer.';
-    Intro.AdjustHeight();
-
-    ExistingDetail := TNewStaticText.Create(DataChoicePage);
-    ExistingDetail.Parent := DataChoicePage.Surface;
-    ExistingDetail.Left := ScaleX(12);
-    ExistingDetail.Top := Intro.Top + Intro.Height + ScaleY(20);
-    ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
-    ExistingDetail.AutoSize := False;
-    ExistingDetail.WordWrap := True;
-    ExistingDetail.Font.Name := 'Segoe UI';
-    ExistingDetail.Font.Size := 10;
-    ExistingDetail.Caption :=
-      'INSTALLER STATUS: the existing farm database and ProgramData records will be retained. ' +
-      'Setup does not provide a data-selection or reset command.';
-    ExistingDetail.AdjustHeight();
-
+    DataChoicePage := CreateInputOptionPage(
+      wpSelectDir,
+      'DairyOS Farm Data',
+      'Choose how this installation should use the existing farm data.',
+      'Keep the current farm, restore one selected recovery point, or start a clean active farm.',
+      True,
+      True
+    );
+    DataChoicePage.Add('Keep existing farm data (recommended)');
+    DataChoicePage.Add('Restore from a verified backup');
+    DataChoicePage.Add('Start a clean farm');
+    DataChoicePage.SelectedValueIndex := 0;
+    SelectedInstallMode := 'keep';
+    RestoreChoiceIndex := 1;
+  end
+  else if GetArrayLength(BackupCandidatePaths) > 0 then
+  begin
+    DataChoicePage := CreateInputOptionPage(
+      wpSelectDir,
+      'DairyOS Farm Data',
+      'No active DairyOS farm was detected, but recovery points are available.',
+      'Restore one selected recovery point or initialize a new empty active farm.',
+      True,
+      True
+    );
+    DataChoicePage.Add('Initialize a new empty farm');
+    DataChoicePage.Add('Restore from a verified backup');
+    DataChoicePage.SelectedValueIndex := 0;
+    SelectedInstallMode := 'new';
+    RestoreChoiceIndex := 1;
   end
   else
   begin
-    Intro.Caption := 'No existing DairyOS farm data was detected on this computer.';
-    Intro.AdjustHeight();
-
-    ExistingDetail := TNewStaticText.Create(DataChoicePage);
-    ExistingDetail.Parent := DataChoicePage.Surface;
-    ExistingDetail.Left := ScaleX(12);
-    ExistingDetail.Top := Intro.Top + Intro.Height + ScaleY(20);
-    ExistingDetail.Width := DataChoicePage.SurfaceWidth - ScaleX(48);
-    ExistingDetail.AutoSize := False;
-    ExistingDetail.WordWrap := True;
-    ExistingDetail.Font.Name := 'Segoe UI';
-    ExistingDetail.Font.Size := 10;
-    ExistingDetail.Caption :=
-      'INSTALLER STATUS: no existing farm data was detected. Setup will initialize the ' +
-      'new DairyOS installation; it does not copy or restore farm data.';
-    ExistingDetail.AdjustHeight();
-
+    DataChoicePage := CreateInputOptionPage(
+      wpSelectDir,
+      'DairyOS Farm Data',
+      'This is a new DairyOS installation.',
+      'DairyOS will initialize an empty active farm. No recovery data is copied.',
+      True,
+      True
+    );
+    DataChoicePage.Add('Initialize a new empty farm');
+    DataChoicePage.SelectedValueIndex := 0;
+    SelectedInstallMode := 'new';
   end;
 
-  Caution := TNewStaticText.Create(DataChoicePage);
-  Caution.Parent := DataChoicePage.Surface;
-  Caution.Left := ScaleX(12);
-  Caution.Top := ExistingDetail.Top + ExistingDetail.Height + ScaleY(28);
-  Caution.Width := DataChoicePage.SurfaceWidth - ScaleX(24);
-  Caution.AutoSize := False;
-  Caution.WordWrap := True;
-  Caution.Font.Name := 'Segoe UI';
-  Caution.Font.Size := 10;
-  Caution.Font.Style := [fsBold];
-  Caution.Caption :=
-    'IMPORTANT' + #13#10 +
-    'This page is informational, not a data-choice control. ' +
-    'The installer will not delete or overwrite an existing DairyOS farm database. ' +
-    'A protected zero-state reset is available from Settings after the application starts.';
-  Caution.AdjustHeight();
+  BackupChoicePage := CreateInputOptionPage(
+    DataChoicePage.ID,
+    'DairyOS Recovery Point',
+    'Choose one backup to restore.',
+    'Only the selected path will be re-verified by DairyOS immediately before restoration.',
+    True,
+    True
+  );
+  if GetArrayLength(BackupCandidatePaths) = 0 then
+    BackupChoicePage.Add('No backup candidates were found in the known DairyOS backup locations.')
+  else
+  begin
+    for I := 0 to GetArrayLength(BackupCandidatePaths) - 1 do
+      BackupChoicePage.Add(
+        'Backup candidate (DairyOS verifies before restore): ' + BackupCandidatePaths[I]
+      );
+    BackupChoicePage.SelectedValueIndex := 0;
+  end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Confirmation: String;
 begin
   Result := True;
+  if CurPageID = DataChoicePage.ID then
+  begin
+    CleanConfirmationAccepted := False;
+    if ExistingDataDetected then
+    begin
+      if DataChoicePage.SelectedValueIndex = 0 then
+      begin
+        SelectedInstallMode := 'keep';
+        exit;
+      end;
+
+      if DataChoicePage.SelectedValueIndex = 1 then
+      begin
+        SelectedInstallMode := 'restore';
+        exit;
+      end;
+
+      Confirmation := '';
+      if not InputQuery(
+        'Confirm clean DairyOS farm',
+        'Type CLEAN INSTALL DAIRYOS DATA to clear active farm data, logs and backup records:',
+        Confirmation
+      ) then
+      begin
+        Result := False;
+        exit;
+      end;
+      if Confirmation <> 'CLEAN INSTALL DAIRYOS DATA' then
+      begin
+        MsgBox(
+          'Clean installation was not confirmed. No active farm data was changed.',
+          mbError,
+          MB_OK
+        );
+        Result := False;
+        exit;
+      end;
+      CleanConfirmationAccepted := True;
+      SelectedInstallMode := 'clean';
+      exit;
+    end;
+    if (RestoreChoiceIndex >= 0) and
+       (DataChoicePage.SelectedValueIndex = RestoreChoiceIndex) then
+    begin
+      SelectedInstallMode := 'restore';
+      exit;
+    end;
+    SelectedInstallMode := 'new';
+    exit;
+  end;
+
+  if CurPageID = BackupChoicePage.ID then
+  begin
+    if (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex) or
+       (GetArrayLength(BackupCandidatePaths) = 0) then
+    begin
+      MsgBox(
+        'No verified DairyOS backup candidate is available to restore. Choose another action or place a valid recovery point in a known backup location.',
+        mbError,
+        MB_OK
+      );
+      Result := False;
+      exit;
+    end;
+    SelectedInstallMode := 'restore';
+    SelectedBackupPath := BackupCandidatePaths[BackupChoicePage.SelectedValueIndex];
+  end;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  if PageID = BackupChoicePage.ID then
+    Result := (RestoreChoiceIndex < 0) or
+      (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex);
 end;
 
 function ShouldLaunchDairyOS(): Boolean;

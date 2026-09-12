@@ -198,6 +198,15 @@ class LifecycleManager:
                     "postgresql",
                 }:
                     continue
+                # These are one-shot lifecycle commands, not farm state. A
+                # recovery copy must never resurrect the command that created
+                # it and repeat a clean/reset/restore operation on the next
+                # startup.
+                if relative.name in {
+                    "pending-system-reset.json",
+                    "pending-installation-choice.json",
+                }:
+                    continue
                 target = files_root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
