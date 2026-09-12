@@ -3,8 +3,14 @@ from __future__ import annotations
 
 INCOME_TYPES = frozenset({"INCOME", "RECEIPT"})
 EXPENSE_TYPES = frozenset({"EXPENSE", "PAYMENT"})
+CASH_INFLOW_ONLY_TYPES = frozenset({"OWNER_INVESTMENT"})
 CASH_MOVEMENT_ONLY_TYPES = frozenset({"OWNER_WITHDRAWAL", "LOAN_PAYMENT"})
-KNOWN_TYPES = INCOME_TYPES | EXPENSE_TYPES | CASH_MOVEMENT_ONLY_TYPES
+KNOWN_TYPES = (
+    INCOME_TYPES
+    | EXPENSE_TYPES
+    | CASH_INFLOW_ONLY_TYPES
+    | CASH_MOVEMENT_ONLY_TYPES
+)
 OUTFLOW_TYPES = EXPENSE_TYPES | CASH_MOVEMENT_ONLY_TYPES
 INACTIVE_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
 
@@ -28,6 +34,16 @@ def _type_of(record) -> str:
 
 def is_income(record) -> bool:
     return is_active(record) and _type_of(record) in INCOME_TYPES
+
+
+def is_cash_inflow_only(record) -> bool:
+    """Whether the row adds cash without being operating revenue.
+
+    Owner investment is a financing/capital contribution. It must be visible
+    in cash position reporting, but must never inflate farm revenue, profit or
+    COP.
+    """
+    return is_active(record) and _type_of(record) in CASH_INFLOW_ONLY_TYPES
 
 
 def is_expense(record) -> bool:

@@ -73,3 +73,33 @@ def test_farm_kpis_use_canonical_active_finance_classification(monkeypatch):
     assert result["values"]["income"] == 500.0
     assert result["values"]["net_cash_movement"] == 380.0
     assert factory.closed is True
+
+
+def test_farm_kpis_exclude_non_opex_animal_purchase_from_cost_per_litre(monkeypatch):
+    factory = _Factory(
+        [
+            _txn("EXPENSE", "PAID", 1500000),
+        ]
+    )
+    factory._milk = _Repo(
+        [
+            SimpleNamespace(
+                total_yield=100.0,
+                production_date=utcnow() - timedelta(days=1),
+                status="RECORDED",
+            )
+        ]
+    )
+    factory.milk = lambda: factory._milk
+    purchase = factory._finance._rows[0]
+    purchase.master_category = "OPEX"
+    purchase.sub_category = "Animal Purchase"
+    purchase.cop_classification = "NON_OPEX"
+
+    monkeypatch.setattr(farm_intelligence, "_factory", lambda: factory)
+
+    result = farm_intelligence.dairy_kpis(days=30)
+
+    assert result["values"]["expenses"] == 1500000.0
+    assert result["values"]["operating_expenses"] == 0.0
+    assert result["values"]["cost_per_litre"] == 0.0

@@ -33,7 +33,8 @@ def test_install_data_choice_requires_explicit_clean_confirmation_or_backup():
     end = source.index("function ShouldLaunchDairyOS", start)
     block = source[start:end]
 
-    assert "InputQuery(" in block
+    assert "CreateInputQueryPage(" in source
+    assert "CleanConfirmationPage.Values[0]" in block
     assert "CLEAN INSTALL DAIRYOS DATA" in block
     assert "SelectedBackupPath" in block
     assert "MsgBox(" in block

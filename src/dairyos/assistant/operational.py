@@ -56,7 +56,11 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.finance.classification.transaction_classifier import is_expense, is_income
+from dairyos.finance.classification.transaction_classifier import (
+    is_cash_inflow_only,
+    is_expense,
+    is_income,
+)
 from dairyos.herd.reproduction.services.reproductive_event_classifier import is_calving
 from dairyos.platform.paths import logs_dir
 
@@ -750,6 +754,7 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
     selected = []
     income = 0.0
     expenses = 0.0
+    capital_inflows = 0.0
     for row in rows:
         status = str(getattr(row, "status", "RECORDED") or "RECORDED").upper()
         if status in _INACTIVE_OPERATIONAL_STATUSES:
@@ -762,6 +767,8 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
             income += amount
         if is_expense(row):
             expenses += amount
+        if is_cash_inflow_only(row):
+            capital_inflows += amount
         selected.append(
             _sanitised_model_row(
                 row,
@@ -780,6 +787,8 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
                     "cop_service_date",
                     "cop_coverage_start",
                     "cop_coverage_end",
+                    "animal_category",
+                    "animal_id",
                 ),
             )
         )
@@ -788,7 +797,8 @@ def _finance_summary(factory: RepositoryFactory, window: DateWindow) -> dict[str
         "transaction_count": len(selected),
         "income_total": round(income, 2),
         "expense_total": round(expenses, 2),
-        "net_cash_flow": round(income - expenses, 2),
+        "capital_inflow_total": round(capital_inflows, 2),
+        "net_cash_flow": round(income + capital_inflows - expenses, 2),
         "transactions": selected,
         "basis": "persisted financial_transactions; VOID/CANCELLED/DELETED excluded by classifier",
         "source_tables": ["financial_transactions"],

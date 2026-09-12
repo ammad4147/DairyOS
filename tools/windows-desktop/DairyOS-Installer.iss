@@ -69,6 +69,7 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait po
 [Code]
 var
   DataChoicePage: TInputOptionWizardPage;
+  CleanConfirmationPage: TInputQueryWizardPage;
   BackupChoicePage: TInputOptionWizardPage;
   ExistingDataDetected: Boolean;
   PreservationDestination: String;
@@ -84,6 +85,33 @@ procedure StageInstallationChoice(); forward;
 function DairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
+end;
+
+
+function StripTrailingSeparators(const Value: String): String;
+begin
+  Result := Value;
+  while (Length(Result) > 3) and
+    ((Result[Length(Result)] = '\') or (Result[Length(Result)] = '/')) do
+    Delete(Result, Length(Result), 1);
+end;
+
+
+function IsPathWithinRoot(const Candidate, Root: String): Boolean;
+var
+  CandidatePath: String;
+  RootPath: String;
+begin
+  CandidatePath := Lowercase(
+    StripTrailingSeparators(ExpandFileName(Candidate))
+  );
+  RootPath := Lowercase(
+    StripTrailingSeparators(ExpandFileName(Root))
+  );
+
+  Result :=
+    (CandidatePath = RootPath) or
+    (Pos(AddBackslash(RootPath), AddBackslash(CandidatePath)) = 1);
 end;
 
 
@@ -293,10 +321,12 @@ begin
       '--data-root "' + DairyOSDataRoot() + '"';
   end
   else if (SelectedInstallMode = 'keep') or (SelectedInstallMode = 'new') then
+  begin
     Params :=
       '--lifecycle-choice ' +
       '--choice-mode keep ' +
       '--data-root "' + DairyOSDataRoot() + '"';
+  end
   else
     exit;
 
@@ -510,6 +540,17 @@ begin
     SelectedInstallMode := 'new';
   end;
 
+  CleanConfirmationPage := CreateInputQueryPage(
+    DataChoicePage.ID,
+    'Confirm clean DairyOS farm',
+    'This action clears the active farm history.',
+    'Type the exact phrase below to confirm that the new installation starts with no prior farm data or logs.'
+  );
+  CleanConfirmationPage.Add(
+    'Type CLEAN INSTALL DAIRYOS DATA to confirm:',
+    False
+  );
+
   BackupChoicePage := CreateInputOptionPage(
     DataChoicePage.ID,
     'DairyOS Recovery Point',
@@ -531,8 +572,6 @@ begin
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  Confirmation: String;
 begin
   Result := True;
   if CurPageID = DataChoicePage.ID then
@@ -552,27 +591,6 @@ begin
         exit;
       end;
 
-      Confirmation := '';
-      if not InputQuery(
-        'Confirm clean DairyOS farm',
-        'Type CLEAN INSTALL DAIRYOS DATA to clear active farm data, logs and backup records:',
-        Confirmation
-      ) then
-      begin
-        Result := False;
-        exit;
-      end;
-      if Confirmation <> 'CLEAN INSTALL DAIRYOS DATA' then
-      begin
-        MsgBox(
-          'Clean installation was not confirmed. No active farm data was changed.',
-          mbError,
-          MB_OK
-        );
-        Result := False;
-        exit;
-      end;
-      CleanConfirmationAccepted := True;
       SelectedInstallMode := 'clean';
       exit;
     end;
@@ -583,6 +601,23 @@ begin
       exit;
     end;
     SelectedInstallMode := 'new';
+    exit;
+  end;
+
+  if CurPageID = CleanConfirmationPage.ID then
+  begin
+    if CleanConfirmationPage.Values[0] <> 'CLEAN INSTALL DAIRYOS DATA' then
+    begin
+      MsgBox(
+        'Clean installation was not confirmed. No active farm data was changed.',
+        mbError,
+        MB_OK
+      );
+      Result := False;
+      exit;
+    end;
+    CleanConfirmationAccepted := True;
+    SelectedInstallMode := 'clean';
     exit;
   end;
 
@@ -607,6 +642,9 @@ end;
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
+  if PageID = CleanConfirmationPage.ID then
+    Result := (not ExistingDataDetected) or
+      (SelectedInstallMode <> 'clean');
   if PageID = BackupChoicePage.ID then
     Result := (RestoreChoiceIndex < 0) or
       (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex);
@@ -783,7 +821,31 @@ begin
     exit;
   end;
 
-  ForceDirectories(PreservationDestination);
+  { Never allow the destination to be inside the data being archived.  Apart
+    from producing a misleading backup, that would let the archive include
+    itself and can leave Compress-Archive with a locked/incomplete file. }
+  if IsPathWithinRoot(PreservationDestination, DairyOSDataRoot()) then
+  begin
+    MsgBox(
+      'Choose a preservation location outside the DairyOS farm-data directory. ' +
+      'The selected location would otherwise be included in its own archive.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+
+  if not ForceDirectories(PreservationDestination) then
+  begin
+    MsgBox(
+      'DairyOS could not create the selected preservation folder. ' +
+      'Uninstall is blocked and the application remains installed.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+
   ArchivePath :=
     AddBackslash(PreservationDestination) +
     'DairyOS-Farm-Preservation-' +
@@ -801,11 +863,14 @@ begin
   PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
   PowerShellCommand :=
     '$ErrorActionPreference = ''Stop''; ' +
+    'Add-Type -AssemblyName System.IO.Compression.FileSystem; ' +
     '$source = ''' + SafeDataRoot + '''; ' +
     '$archive = ''' + SafeArchivePath + '''; ' +
-    '$items = @(Get-ChildItem -LiteralPath $source -Force | ForEach-Object { $_.FullName }); ' +
+    'if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw ''DairyOS farm data root is unavailable.'' }; ' +
+    '$items = @(Get-ChildItem -LiteralPath $source -Force); ' +
     'if ($items.Count -eq 0) { throw ''DairyOS farm data root is empty.'' }; ' +
-    'Compress-Archive -Path $items -DestinationPath $archive -CompressionLevel Optimal -Force; ' +
+    '[System.IO.Compression.ZipFile]::CreateFromDirectory($source, $archive, [System.IO.Compression.CompressionLevel]::Optimal, $true); ' +
+    'if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw ''The preservation package was not created.'' }; ' +
     '$zip = [System.IO.Compression.ZipFile]::OpenRead($archive); ' +
     'try { if ($zip.Entries.Count -eq 0) { throw ''The preservation package is empty.'' } } ' +
     'finally { $zip.Dispose() }';

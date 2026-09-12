@@ -12,6 +12,7 @@ from dairyos.data.database.session import engine
 
 FINANCE_COLUMNS = {
     "master_category": "VARCHAR", "sub_category": "VARCHAR", "custom_specification": "VARCHAR",
+    "animal_category": "VARCHAR",
     "quantity": "DOUBLE PRECISION", "unit": "VARCHAR", "unit_rate": "DOUBLE PRECISION",
     "due_date": "DATE", "settled_date": "DATE", "payroll_record_id": "INTEGER",
 }

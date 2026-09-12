@@ -17,7 +17,12 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.finance.classification.transaction_classifier import is_expense, is_income
+from dairyos.finance.classification.transaction_classifier import (
+    is_cash_inflow_only,
+    is_expense,
+    is_income,
+)
+from dairyos.finance.opex_attribution import is_operating_expense
 
 router = APIRouter(prefix="/farm", tags=["farm-intelligence"])
 
@@ -61,7 +66,7 @@ def _record_dict(record: Any) -> dict[str, Any]:
         "reported_by", "temperature", "temperature_c", "event_type", "result",
         "technician", "timestamp", "treated_at", "drug_name", "withdrawal_end",
         "transaction_type", "category", "amount", "transaction_date", "reference",
-        "currency", "milk_sale_id", "feed_record_id",
+        "currency", "milk_sale_id", "feed_record_id", "animal_category",
     )
     return {field: _json(getattr(record, field)) for field in fields if hasattr(record, field)}
 
@@ -165,7 +170,17 @@ def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
         treatments = [x for x in factory.treatment().get_all() if _utc_naive(x.treated_at) >= cutoff]
         litres = sum(float(x.total_yield or 0) for x in milk)
         expenses = sum(float(x.amount or 0) for x in finance if is_expense(x))
+        operating_expenses = sum(
+            float(x.amount or 0)
+            for x in finance
+            if is_expense(x) and is_operating_expense(x)
+        )
         income = sum(float(x.amount or 0) for x in finance if is_income(x))
+        capital_inflows = sum(
+            float(x.amount or 0)
+            for x in finance
+            if is_cash_inflow_only(x)
+        )
         inseminations = [x for x in breeding if str(x.event_type).upper() in {"AI", "INSEMINATION", "ARTIFICIAL_INSEMINATION"}]
         pregnancies = [x for x in breeding if str(x.event_type).upper() in {"PREGNANCY_CONFIRMED", "PREGNANCY"} and str(x.result or "").upper() not in {"NEGATIVE", "NO"}]
         return {
@@ -180,9 +195,18 @@ def dairy_kpis(days: int = Query(default=30, ge=1, le=366)):
                 "milk_per_milking_animal": round(litres / len(milking), 3) if milking else None,
                 "feed_kg": round(sum(float(x.quantity_kg or 0) for x in feed), 3),
                 "expenses": round(expenses, 2),
+                "operating_expenses": round(operating_expenses, 2),
                 "income": round(income, 2),
-                "net_cash_movement": round(income - expenses, 2),
-                "cost_per_litre": round(expenses / litres, 4) if litres else None,
+                "capital_inflows": round(capital_inflows, 2),
+                "net_cash_movement": round(
+                    income + capital_inflows - expenses,
+                    2,
+                ),
+                "cost_per_litre": (
+                    round(operating_expenses / litres, 4)
+                    if litres
+                    else None
+                ),
                 "health_observations": len(health),
                 "treatments": len(treatments),
                 "inseminations": len(inseminations),

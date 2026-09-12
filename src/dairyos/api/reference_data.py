@@ -45,6 +45,7 @@ GOVERNED = {
     ],
     "financial_transaction_types": [
         "INCOME", "EXPENSE", "RECEIPT", "PAYMENT",
+        "OWNER_INVESTMENT",
         "OWNER_WITHDRAWAL", "LOAN_PAYMENT",
     ],
     "financial_categories": [

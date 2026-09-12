@@ -53,6 +53,10 @@ class FinancialTransaction(Base):
     master_category = Column(String, nullable=True)
     sub_category = Column(String, nullable=True)
     custom_specification = Column(String, nullable=True)
+    # Standard category selected for an Animal Purchase expense. This is
+    # retained independently of the later animal_id Passport linkage so an
+    # endorsed purchase remains auditable while registration is pending.
+    animal_category = Column(String, nullable=True)
     quantity = Column(Float, nullable=True)
     unit = Column(String, nullable=True)
     unit_rate = Column(Numeric(18, 6), nullable=True)

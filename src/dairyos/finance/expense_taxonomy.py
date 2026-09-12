@@ -135,6 +135,9 @@ OPEX_TAXONOMY = {
         "Land Preparation / Yard Maintenance",
         "Building / Yard Repairs",
     ],
+    "LIVESTOCK_CAPITAL": [
+        "Animal Purchase",
+    ],
     "CUSTOM": ["Other"],
 }
 
@@ -160,6 +163,7 @@ LEGACY_CATEGORY_BY_OPEX_GROUP = {
     "BEDDING_HOUSING_WASTE": "OTHER_OPERATING",
     "LOGISTICS_ADMIN_FINANCE": "OTHER_OPERATING",
     "LAND_RENT_CUSTOM_SERVICES": "OTHER_OPERATING",
+    "LIVESTOCK_CAPITAL": "ANIMAL_PURCHASE",
     "CUSTOM": "OTHER_OPERATING",
 }
 

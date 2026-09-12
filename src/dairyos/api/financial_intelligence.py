@@ -10,6 +10,7 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 from dairyos.finance.classification import transaction_classifier as classifier
+from dairyos.finance.opex_attribution import is_operating_expense
 from dairyos.finance.profitability.services.feed_opex_cost_service import (
     FeedOpexCostService,
 )
@@ -119,30 +120,52 @@ def reconciliation(period: str = Query(default="monthly", pattern="^(monthly|qua
         ]
         active_records = [x for x in records if classifier.is_active(x)]
         income = sum(float(x.amount or 0) for x in active_records if classifier.is_income(x))
+        capital_inflows = sum(
+            float(x.amount or 0)
+            for x in active_records
+            if classifier.is_cash_inflow_only(x)
+        )
         expenses = sum(float(x.amount or 0) for x in active_records if classifier.is_expense(x))
         non_operating = sum(float(x.amount or 0) for x in active_records if classifier.is_cash_movement_only(x))
         unclassified = [x for x in active_records if not classifier.is_known_type(x)]
         feed = sum(float(x.amount or 0) for x in active_records if classifier.is_expense(x) and str(getattr(x, "master_category", "") or "").upper() == "FEED")
-        opex = sum(float(x.amount or 0) for x in active_records if classifier.is_expense(x) and str(getattr(x, "master_category", "") or "").upper() == "OPEX")
+        opex = sum(
+            float(x.amount or 0)
+            for x in active_records
+            if (
+                classifier.is_expense(x)
+                and str(getattr(x, "master_category", "") or "").upper()
+                == "OPEX"
+                and is_operating_expense(x)
+            )
+        )
         return {
             "period": period,
             "from": start_date.isoformat(),
             "to": operational_now.isoformat(),
             "data_status": "LIVE_PERSISTED",
             "income": round(income, 2),
+            "capital_inflows": round(capital_inflows, 2),
             "expenses": round(expenses, 2),
             "feed_cost": round(feed, 2),
             "opex": round(opex, 2),
             "total_operating_cost": round(feed + opex, 2),
             "net_movement": round(income - expenses, 2),
             "non_operating_outflows": round(non_operating, 2),
-            "net_cash_movement": round(income - expenses - non_operating, 2),
+            "net_cash_movement": round(
+                income + capital_inflows - expenses - non_operating,
+                2,
+            ),
             "transaction_count": len(records),
             "active_transaction_count": len(active_records),
             "unclassified_transaction_count": len(unclassified),
             "unclassified_transaction_types": sorted({classifier.normalize_transaction_type(x.transaction_type) for x in unclassified}),
             "accounting_note": (
-                "net_movement is operating income less operating expenses. Owner withdrawals and loan repayments are real cash outflows but not farm costs; net_cash_movement includes them."
+                "net_movement is operating income less operating expenses. "
+                "Owner investment is a financing inflow, not revenue or farm "
+                "cost; owner withdrawals and loan repayments are real cash "
+                "outflows but not farm costs. net_cash_movement includes all "
+                "three cash-movement classes."
             ),
         }
     finally:

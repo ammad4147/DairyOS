@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import UnifiedDashboard from './components/UnifiedDashboard';
-import FinanceTab from './components/FinanceTab';
+import FinanceTab, { type AnimalPurchaseRegistrationRequest } from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
 import COML from './components/COML';
 import AnalyticsTab from './components/AnalyticsTab';
@@ -32,7 +32,7 @@ export default function MainAppShell(){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false);
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount,refresh:refreshAlerts}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
- const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0);
+ const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[animalRegistrationRequest,setAnimalRegistrationRequest]=useState<AnimalPurchaseRegistrationRequest|null>(null),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0);
  const [hiddenNavigationTabs,setHiddenNavigationTabs]=useState<NavigationTabId[]>([]);
 
  const refreshAnimals=useCallback(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/farm/animals?active_only=false`);if(!response.ok)throw new Error(`Unable to load herd (${response.status})`);const payload = await response.json();const records = Array.isArray(payload) ? payload : Array.isArray(payload?.value) ? payload.value : [];setAnimals(records as BackendAnimal[]);}catch(error){console.error('DairyOS herd register load failed:',error)}},[]);
@@ -40,7 +40,8 @@ export default function MainAppShell(){
  useEffect(()=>{void refreshAnimals();void(async()=>{try{const response=await fetch(`${API_BASE_URL||'http://127.0.0.1:8000'}/settings`);if(!response.ok)return;const settings=await response.json();setFarmName(settings.farm_name);setFarmLocation(settings.location ?? '');setHiddenNavigationTabs(normalizeHiddenNavigationTabs(settings?.navigation?.hidden_tabs));setFarmTimezone(settings?.timezone)}catch(error){console.error('DairyOS settings load failed:',error)}})()},[refreshAnimals]);
 
  const handleOpenYieldEntry=()=>{setAutoOpenYieldModal(true);setCurrentView('milk')};
- const handleRegisterAnimal=()=>{void refreshAnimals()};
+ const handleRegisterAnimal=()=>{void refreshAnimals();setDashboardRefreshVersion(prev=>prev+1)};
+ const openAnimalRegistration=(request?:AnimalPurchaseRegistrationRequest)=>{setAnimalRegistrationRequest(request||null);setShowAnimalModal(true);setCurrentView('animals')};
  const handleFarmProfileUpdate=(p:{farmName:string;location:string})=>{setFarmName(p.farmName);setFarmLocation(p.location)};
  const openPayroll=()=>window.open(desktopWindowUrl(`${window.location.origin}${window.location.pathname}?window=payroll`),'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
@@ -60,9 +61,9 @@ export default function MainAppShell(){
     </header>
 
     <main style={{flex:1,minHeight:0,minWidth:0,overflowY:'auto',overflowX:'hidden',background:'#0b0f19',position:'relative'}}>
-     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion}/>} 
-     {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>setShowAnimalModal(true)} onRefresh={refreshAnimals}/>}
-     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll}/>} 
+     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion}/>}
+     {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>openAnimalRegistration()} onRefresh={refreshAnimals}/>}
+     {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll} onOpenAnimalRegistration={openAnimalRegistration}/>}
      {currentView==='feed'&&<FeedTab/>}
      {currentView==='cop'&&<COML/>}
      {currentView==='analytics'&&<AnalyticsTab refreshVersion={dashboardRefreshVersion}/>}
@@ -75,7 +76,7 @@ export default function MainAppShell(){
     </main>
 
     {selectedPassportAnimalId&&<AnimalPassportModal animalId={selectedPassportAnimalId} onClose={()=>setSelectedPassportAnimalId(null)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
-    {showAnimalModal&&<AnimalPassportModal animalId="NEW-ANIMAL" onClose={()=>setShowAnimalModal(false)} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport}/>}
+    {showAnimalModal&&<AnimalPassportModal animalId="NEW-ANIMAL" onClose={()=>{setShowAnimalModal(false);setAnimalRegistrationRequest(null)}} onSave={handleRegisterAnimal} onOpenPassport={openLinkedPassport} purchaseTransactionId={animalRegistrationRequest?.purchaseTransactionId} purchaseCategory={animalRegistrationRequest?.category} purchaseAcquisitionDate={animalRegistrationRequest?.acquisitionDate}/>}
    </div>
  );
 

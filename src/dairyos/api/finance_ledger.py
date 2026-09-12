@@ -30,6 +30,11 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
 )
+from dairyos.farm.herd.services.animal_classification_service import (
+    AnimalClassificationError,
+    AnimalClassificationService,
+    STANDARD_ANIMAL_CATEGORY_OPTIONS,
+)
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import (
     MASTER_CATEGORIES,
@@ -98,6 +103,7 @@ class FinanceLedgerEntry(BaseModel):
     master_category: str | None = None
     sub_category: str | None = None
     custom_specification: str | None = None
+    animal_category: str | None = None
     quantity: float | None = Field(default=None, gt=0)
     unit: str | None = None
     unit_rate: Decimal | None = Field(default=None, gt=0)
@@ -130,6 +136,7 @@ class FinanceLedgerEdit(BaseModel):
     master_category: str | None = None
     sub_category: str | None = None
     custom_specification: str | None = None
+    animal_category: str | None = None
     quantity: float | None = Field(default=None, gt=0)
     unit: str | None = None
     unit_rate: Decimal | None = Field(default=None, gt=0)
@@ -153,6 +160,10 @@ class FinanceStatusUpdate(BaseModel):
     due_date: date | None = None
 
 
+class AnimalPurchaseLinkRequest(BaseModel):
+    animal_id: str = Field(min_length=1)
+
+
 def _row_dict(row: FinancialTransaction) -> dict:
     return {
         "id": row.id,
@@ -161,6 +172,8 @@ def _row_dict(row: FinancialTransaction) -> dict:
         "master_category": row.master_category,
         "sub_category": row.sub_category,
         "custom_specification": row.custom_specification,
+        "animal_category": getattr(row, "animal_category", None),
+        "animal_id": getattr(row, "animal_id", None),
         "amount": float(row.amount or 0),
         "quantity": row.quantity,
         "unit": row.unit,
@@ -223,13 +236,73 @@ def _is_governed_tmr_feed_item(item_name: str | None) -> bool:
         probe.close()
 
 EQUIPMENT_PURCHASE_ITEM = "Equipment Purchase"
+ANIMAL_PURCHASE_ITEM = "Animal Purchase"
 SEMEN_PURCHASE_ITEM = "Semen Straws (Sexed / Conventional)"
+
+
+def _canonical_animal_category(value: str | None) -> str | None:
+    """Resolve a standard purchase category to the individual category."""
+    candidate = str(value or "").strip()
+    if not candidate:
+        return None
+
+    try:
+        classification = AnimalClassificationService.from_category(candidate)
+    except AnimalClassificationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "animal_category must be one of the standard categories: "
+                + ", ".join(
+                    option["label"]
+                    for option in STANDARD_ANIMAL_CATEGORY_OPTIONS
+                )
+            ),
+        ) from exc
+
+    if classification.category.value == "Exited":
+        raise HTTPException(
+            status_code=422,
+            detail="Animal purchases cannot use an exited animal category.",
+        )
+
+    return classification.category.value
 
 
 def _validate_expense_payload(
     entry: FinanceLedgerEntry | FinanceLedgerEdit,
     transaction_type: str,
 ) -> tuple[Decimal, str | None]:
+    if transaction_type in classifier.CASH_INFLOW_ONLY_TYPES:
+        amount = _money(entry.amount) if entry.amount is not None else None
+        if amount is None or amount <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment amount must be greater than zero.",
+            )
+        if str(entry.category or "").strip().upper() != "OWNER_INVESTMENT":
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment entries must use category OWNER_INVESTMENT.",
+            )
+        if any(
+            value is not None
+            for value in (
+                entry.master_category,
+                entry.sub_category,
+                entry.custom_specification,
+                entry.animal_category,
+                entry.quantity,
+                entry.unit,
+                entry.unit_rate,
+            )
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment entries cannot carry expense details.",
+            )
+        return amount, "OWNER_INVESTMENT"
+
     if transaction_type not in classifier.EXPENSE_TYPES:
         if entry.amount is None:
             raise HTTPException(
@@ -277,6 +350,24 @@ def _validate_expense_payload(
             detail=(
                 "sub_category is not valid for "
                 "the selected master_category."
+            ),
+        )
+
+    animal_category = None
+    if entry.sub_category == ANIMAL_PURCHASE_ITEM:
+        animal_category = _canonical_animal_category(entry.animal_category)
+        if animal_category is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Animal Purchase requires a standard animal_category."
+                ),
+            )
+    elif entry.animal_category is not None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "animal_category is only allowed for Animal Purchase expenses."
             ),
         )
 
@@ -365,6 +456,9 @@ def _validate_expense_payload(
     ):
         return amount, "EQUIPMENT"
 
+    if entry.sub_category == ANIMAL_PURCHASE_ITEM:
+        return amount, "ANIMAL_PURCHASE"
+
     return amount, legacy_category(
         entry.master_category,
         entry.sub_category,
@@ -399,6 +493,15 @@ def _resolve_cop_metadata(
     master = str(entry.master_category or "").upper()
     if master != "OPEX":
         return None, None, None, None, None
+
+    if entry.sub_category == ANIMAL_PURCHASE_ITEM:
+        requested = str(entry.cop_classification or "").upper()
+        if requested not in {"", "NON_OPEX"}:
+            raise HTTPException(
+                status_code=422,
+                detail="Animal Purchase must remain classified as NON_OPEX.",
+            )
+        return "NON_OPEX", None, None, None, None
 
     classification = str(
         entry.cop_classification
@@ -1163,6 +1266,122 @@ def _sync_existing_semen_purchase(
     factory.session.add(purchase_movement)
 
 
+@router.post("/{transaction_id}/link-animal")
+@operational_write
+def link_animal_purchase(
+    transaction_id: int,
+    payload: AnimalPurchaseLinkRequest,
+    container=Depends(get_container),
+):
+    """Attach an endorsed Animal Purchase to its detailed Passport record.
+
+    The purchase remains a Finance authority while registration is pending.
+    Linking is a separate, idempotent metadata mutation so a failed Passport
+    submission never creates or loses an accounting row.
+    """
+    factory = _factory(container)
+    row = (
+        factory.session.query(FinancialTransaction)
+        .filter_by(id=transaction_id)
+        .with_for_update()
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Financial transaction not found.")
+
+    transaction_type = classifier.normalize_transaction_type(row.transaction_type)
+    if (
+        transaction_type not in classifier.EXPENSE_TYPES
+        or str(row.sub_category or "").strip() != ANIMAL_PURCHASE_ITEM
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Only an Animal Purchase expense can be linked to an animal.",
+        )
+
+    if str(row.status or "RECORDED").upper() == "VOID":
+        raise HTTPException(
+            status_code=409,
+            detail="VOID Animal Purchase expenses cannot be linked.",
+        )
+
+    animal_id = payload.animal_id.strip()
+    if getattr(row, "animal_id", None):
+        if str(row.animal_id) == animal_id:
+            return _row_dict(row)
+        raise HTTPException(
+            status_code=409,
+            detail="This Animal Purchase is already linked to another animal.",
+        )
+
+    expected_category = _canonical_animal_category(
+        getattr(row, "animal_category", None)
+    )
+    if expected_category is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Animal Purchase has no valid standard category and cannot "
+                "be linked until the Finance entry is corrected."
+            ),
+        )
+
+    animal = factory.animal().get_by_animal_id(animal_id)
+    if animal is None:
+        raise HTTPException(status_code=404, detail="Animal not found.")
+    if not bool(getattr(animal, "active", False)) or str(
+        getattr(animal, "status", "") or ""
+    ).upper() in {"INACTIVE", "SOLD", "CULLED", "DECEASED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="An Animal Purchase can only be linked to an active animal.",
+        )
+
+    try:
+        actual_category = AnimalClassificationService.classify(
+            getattr(animal, "lifecycle_status", None),
+            getattr(animal, "sex", None),
+        ).category.value
+    except AnimalClassificationError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="The registered animal has an invalid biological classification.",
+        ) from exc
+    if actual_category != expected_category:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Animal category does not match the endorsed purchase: "
+                f"expected {expected_category}, found {actual_category}."
+            ),
+        )
+
+    stamp = datetime.now(UTC).isoformat()
+    row.animal_id = animal_id
+    row.notes = (
+        f"{row.notes or ''}\n"
+        f"ANIMAL_PURCHASE_LINKED_AT={stamp} ANIMAL_ID={animal_id}"
+    ).strip()
+    factory.session.add(row)
+    factory.session.flush()
+
+    gateway = getattr(container, "input_gateway", None)
+    if gateway is not None:
+        gateway.record(
+            input_type="financial",
+            payload={
+                "transaction_id": transaction_id,
+                "action": "ANIMAL_PURCHASE_LINK",
+                "transaction_type": row.transaction_type,
+                "animal_id": animal_id,
+                "animal_category": expected_category,
+            },
+            actor="ANIMAL_PASSPORT_UI",
+        )
+
+    return _row_dict(row)
+
+
 @router.get("")
 def list_finance_ledger(
     container=Depends(get_container),
@@ -1251,6 +1470,18 @@ def create_finance_ledger_entry(
 
     status = entry.status.strip().upper()
 
+    if transaction_type in classifier.CASH_INFLOW_ONLY_TYPES:
+        if status != "RECEIVED":
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment must be recorded as RECEIVED cash.",
+            )
+        if str(entry.payment_method or "").strip().upper() == "CREDIT":
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment cannot be recorded as credit.",
+            )
+
     if status not in {
         "RECORDED",
         "PAYABLE",
@@ -1283,6 +1514,8 @@ def create_finance_ledger_entry(
             legacy_category_value
             or "OTHER_OPERATING"
         )
+    elif transaction_type in classifier.CASH_INFLOW_ONLY_TYPES:
+        category_value = "OWNER_INVESTMENT"
     else:
         category_value = (
             entry.category
@@ -1329,6 +1562,14 @@ def create_finance_ledger_entry(
         entry,
         transaction_type,
     )
+    animal_category_value = (
+        _canonical_animal_category(entry.animal_category)
+        if (
+            transaction_type in classifier.EXPENSE_TYPES
+            and entry.sub_category == ANIMAL_PURCHASE_ITEM
+        )
+        else None
+    )
 
     factory = _factory(container)
     session = factory.session
@@ -1368,6 +1609,7 @@ def create_finance_ledger_entry(
             if transaction_type in classifier.EXPENSE_TYPES
             else None
         ),
+        animal_category=animal_category_value,
         quantity=quantity_value,
         unit=unit_value,
         unit_rate=unit_rate_value,
@@ -1518,6 +1760,9 @@ def finance_taxonomy():
     opex_groups["EQUIPMENT"] = [
         EQUIPMENT_PURCHASE_ITEM
     ]
+    opex_groups["LIVESTOCK_CAPITAL"] = [
+        ANIMAL_PURCHASE_ITEM
+    ]
 
     taxonomies["OPEX"] = opex_groups
 
@@ -1539,6 +1784,10 @@ def finance_taxonomy():
             "FEED": feed_items,
             "OPEX": opex_items,
         },
+        "animal_purchase_categories": [
+            dict(option)
+            for option in STANDARD_ANIMAL_CATEGORY_OPTIONS
+        ],
         "cop_governance": {
             "classifications": sorted(COP_CLASSIFICATIONS),
             "attribution_methods": sorted(ATTRIBUTION_METHODS),
@@ -1744,6 +1993,11 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
                 "master_category": master,
                 "sub_category": sub,
                 "custom_specification": custom,
+                "animal_category": (
+                    payload.animal_category
+                    if payload.animal_category is not None
+                    else getattr(row, "animal_category", None)
+                ),
                 "cop_classification": (
                     payload.cop_classification
                     if payload.cop_classification is not None
@@ -1801,9 +2055,51 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
             )
         )
 
+        if getattr(row, "animal_id", None):
+            if sub != ANIMAL_PURCHASE_ITEM:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "A linked Animal Purchase cannot be changed to a "
+                        "different expense item."
+                    ),
+                )
+            linked_animal = factory.animal().get_by_animal_id(row.animal_id)
+            if linked_animal is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "The linked animal is unavailable; the purchase "
+                        "cannot be edited until the link is repaired."
+                    ),
+                )
+            try:
+                linked_category = AnimalClassificationService.classify(
+                    getattr(linked_animal, "lifecycle_status", None),
+                    getattr(linked_animal, "sex", None),
+                ).category.value
+            except AnimalClassificationError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="The linked animal has an invalid biological classification.",
+                ) from exc
+            if temp.animal_category != linked_category:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "The Animal Purchase category cannot differ from its "
+                        f"linked animal ({linked_category})."
+                    ),
+                )
+
         row.master_category = master
         row.sub_category = sub
         row.custom_specification = custom
+        row.animal_category = (
+            temp.animal_category
+            if sub == ANIMAL_PURCHASE_ITEM
+            else None
+        )
         row.quantity = temp.quantity
         row.unit = temp.unit
         row.unit_rate = temp.unit_rate

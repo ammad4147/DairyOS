@@ -5,6 +5,14 @@ import { farmToday } from '../utils/farmDate';
 import { useFarmDateField } from '../utils/farmDate';
 
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
+const DEFAULT_ANIMAL_PURCHASE_CATEGORIES = [
+  { value: 'Milking', label: 'Milking Cows' },
+  { value: 'Dry', label: 'Dry Cows' },
+  { value: 'Heifer', label: 'Heifers' },
+  { value: 'Female Calf', label: 'Female Calves' },
+  { value: 'Male Calf', label: 'Male Calves' },
+  { value: 'Bull', label: 'Bulls' },
+] as const;
 
 type MasterCategory = 'FEED' | 'OPEX';
 type LedgerFilter = 'ALL' | MasterCategory;
@@ -16,6 +24,7 @@ type TaxonomyResponse = {
   master_categories: MasterCategory[];
   taxonomies: Record<MasterCategory, Record<string, string[]>>;
   items: Record<MasterCategory, string[]>;
+  animal_purchase_categories?: Array<{ value: string; label: string }>;
   cop_governance?: {
     defaults?: Record<string, { classification?: string | null; attribution_method?: string | null }>;
   };
@@ -28,6 +37,8 @@ type Transaction = {
   master_category?: MasterCategory | null;
   sub_category?: string | null;
   custom_specification?: string | null;
+  animal_category?: string | null;
+  animal_id?: string | null;
   amount: number;
   quantity?: number | null;
   unit?: string | null;
@@ -60,6 +71,13 @@ type Props = {
   herdMasterList?: HerdAnimal[];
   onAnimalChanged?: () => void | Promise<void>;
   onOpenPayroll?: () => void;
+  onOpenAnimalRegistration?: (request: AnimalPurchaseRegistrationRequest) => void;
+};
+
+export type AnimalPurchaseRegistrationRequest = {
+  purchaseTransactionId: number;
+  category: string;
+  acquisitionDate: string;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -209,6 +227,9 @@ const inRange = (value: string | undefined | null, start: string, end: string) =
 
 const isRevenue = (t: Transaction) =>
   t.transaction_type === 'INCOME' || t.transaction_type === 'RECEIPT';
+const isCapitalInflow = (t: Transaction) =>
+  t.transaction_type === 'OWNER_INVESTMENT';
+const isRevenueSide = (t: Transaction) => isRevenue(t) || isCapitalInflow(t);
 const isExpense = (t: Transaction) =>
   t.transaction_type === 'EXPENSE' || t.transaction_type === 'PAYMENT';
 const activeAmount = (t: Transaction) =>
@@ -235,6 +256,7 @@ export default function FinanceTab({
   herdMasterList = [],
   onAnimalChanged,
   onOpenPayroll,
+  onOpenAnimalRegistration,
 }: Props = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
@@ -242,6 +264,7 @@ export default function FinanceTab({
   const [expenseGroup, setExpenseGroup] = useState('');
   const [subCategory, setSubCategory] = useState('');
   const [customSpecification, setCustomSpecification] = useState('');
+  const [animalPurchaseCategory, setAnimalPurchaseCategory] = useState('Milking');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('kg');
   const [unitRate, setUnitRate] = useState('');
@@ -360,10 +383,13 @@ export default function FinanceTab({
     () => expenseRows.filter(t => t.status !== 'VOID'),
     [expenseRows],
   );
-  const revenueRows = useMemo(() => transactions.filter(isRevenue), [transactions]);
+  const revenueSideRows = useMemo(
+    () => transactions.filter(isRevenueSide),
+    [transactions],
+  );
   const activeRevenueRows = useMemo(
-    () => revenueRows.filter(t => t.status !== 'VOID'),
-    [revenueRows],
+    () => revenueSideRows.filter(t => t.status !== 'VOID'),
+    [revenueSideRows],
   );
 
   const currentMonthStart = monthStartFor(today());
@@ -373,8 +399,8 @@ export default function FinanceTab({
     [expenseRows, currentMonthStart, currentMonthEnd],
   );
   const currentMonthRevenueRows = useMemo(
-    () => revenueRows.filter(t => inRange(t.date, currentMonthStart, currentMonthEnd)),
-    [revenueRows, currentMonthStart, currentMonthEnd],
+    () => revenueSideRows.filter(t => inRange(t.date, currentMonthStart, currentMonthEnd)),
+    [revenueSideRows, currentMonthStart, currentMonthEnd],
   );
 
   const filteredExpenses = useMemo(() => {
@@ -394,16 +420,22 @@ export default function FinanceTab({
   }, [currentMonthExpenseRows, ledgerFilter, search]);
 
   const cashRevenue = activeRevenueRows
+    .filter(isRevenue)
     .filter(t => ['RECEIVED', 'RECORDED', 'PAID'].includes(String(t.status)))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const receivables = activeRevenueRows
+    .filter(isRevenue)
     .filter(t => t.status === 'RECEIVABLE')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const capitalAdded = activeRevenueRows
+    .filter(isCapitalInflow)
+    .filter(t => ['RECEIVED', 'RECORDED', 'PAID'].includes(String(t.status)))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const totalExpenses = activeExpenseRows.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const payableTotal = activeExpenseRows
     .filter(t => t.status === 'PAYABLE')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  const netCash = cashRevenue - totalExpenses;
+  const netCash = cashRevenue + capitalAdded - totalExpenses;
 
 
   const exploreBounds = useMemo(
@@ -415,27 +447,31 @@ export default function FinanceTab({
 
   const exploredRows = useMemo(() => transactions.filter(t => {
     if (!inRange(t.date, exploreBounds.start, exploreBounds.end)) return false;
-    if (exploreView === 'REVENUE' && !isRevenue(t)) return false;
+    if (exploreView === 'REVENUE' && !isRevenueSide(t)) return false;
     if (exploreView === 'EXPENSES' && !isExpense(t)) return false;
     if (isExpense(t) && exploreExpenseFilter !== 'ALL' && t.master_category !== exploreExpenseFilter) return false;
-    return isRevenue(t) || isExpense(t);
+    return isRevenueSide(t) || isExpense(t);
   }).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.id - b.id), [transactions, exploreBounds, exploreView, exploreExpenseFilter]);
 
   const carriedForward = useMemo(
     () => transactions
       .filter(t => String(t.date || '').slice(0, 10) < exploreBounds.start)
-      .reduce((sum, t) => sum + (isRevenue(t) ? activeAmount(t) : isExpense(t) ? -activeAmount(t) : 0), 0),
+      .reduce((sum, t) => sum + (isRevenueSide(t) ? activeAmount(t) : isExpense(t) ? -activeAmount(t) : 0), 0),
     [transactions, exploreBounds.start],
   );
   const periodRevenue = useMemo(
     () => exploredRows.filter(isRevenue).reduce((sum, t) => sum + activeAmount(t), 0),
     [exploredRows],
   );
+  const periodCapitalInflow = useMemo(
+    () => exploredRows.filter(isCapitalInflow).reduce((sum, t) => sum + activeAmount(t), 0),
+    [exploredRows],
+  );
   const periodExpenses = useMemo(
     () => exploredRows.filter(isExpense).reduce((sum, t) => sum + activeAmount(t), 0),
     [exploredRows],
   );
-  const periodNet = periodRevenue - periodExpenses;
+  const periodNet = periodRevenue + periodCapitalInflow - periodExpenses;
   const closingBalance = carriedForward + periodNet;
 
   const statusBounds = useMemo(() => {
@@ -451,12 +487,16 @@ export default function FinanceTab({
     () => statusRows.filter(isRevenue).reduce((sum, t) => sum + activeAmount(t), 0),
     [statusRows],
   );
+  const statusCapitalInflow = useMemo(
+    () => statusRows.filter(isCapitalInflow).reduce((sum, t) => sum + activeAmount(t), 0),
+    [statusRows],
+  );
   const statusExpenses = useMemo(
     () => statusRows.filter(isExpense).reduce((sum, t) => sum + activeAmount(t), 0),
     [statusRows],
   );
-  const statusBalance = statusRevenue - statusExpenses;
-  const graphMax = Math.max(statusRevenue, statusExpenses, 1);
+  const statusBalance = statusRevenue + statusCapitalInflow - statusExpenses;
+  const graphMax = Math.max(statusRevenue + statusCapitalInflow, statusExpenses, 1);
 
   const calculatedAmount = quantity && unitRate
     ? Number(quantity) * Number(unitRate)
@@ -464,6 +504,19 @@ export default function FinanceTab({
 
   const requiresCustomSpecification=subCategory==='Other'||subCategory==='Equipment Purchase';
   const isSemenPurchase = masterCategory === 'OPEX' && subCategory === 'Semen Straws (Sexed / Conventional)';
+  const isAnimalPurchase = masterCategory === 'OPEX' && subCategory === 'Animal Purchase';
+  const animalPurchaseCategories = taxonomy?.animal_purchase_categories ?? DEFAULT_ANIMAL_PURCHASE_CATEGORIES;
+
+  useEffect(() => {
+    if (!isAnimalPurchase) return;
+    setQuantity('');
+    setUnitRate('');
+    setUnit('head');
+    setCustomSpecification('');
+    if (!animalPurchaseCategories.some(option => option.value === animalPurchaseCategory)) {
+      setAnimalPurchaseCategory(animalPurchaseCategories[0]?.value ?? 'Milking');
+    }
+  }, [isAnimalPurchase, animalPurchaseCategories, animalPurchaseCategory]);
 
   const ledgerParticulars = (t: Transaction) => t.sub_category || t.category || '—';
   const ledgerCounterparty = (t: Transaction) => t.counterparty || t.vendor_name || '—';
@@ -489,6 +542,7 @@ export default function FinanceTab({
     FEMALE_CALF_SALE: 'Female Calf Sale',
     MALE_CALF_SALE:'Male Calf Sale',
     BULL_SALE: 'Bull Sale',
+    OWNER_INVESTMENT: 'Owner Investment / Add Money',
     OTHER_REVENUE: 'Other Revenue',
   };
 
@@ -568,7 +622,7 @@ export default function FinanceTab({
     const header = ['Date', 'Type', 'Particulars', 'Master Category', 'Counterparty', 'Reference', 'Status', 'Amount'];
     const detailRows = rows.map(t => [
       String(t.date || '').slice(0, 10),
-      isRevenue(t) ? 'Revenue' : 'Expense',
+      isCapitalInflow(t) ? 'Capital Inflow' : isRevenue(t) ? 'Revenue' : 'Expense',
       ledgerParticulars(t),
       t.master_category || '',
       ledgerCounterparty(t),
@@ -615,6 +669,7 @@ export default function FinanceTab({
     saveLedgerCsv('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, {
       'Carried Forward': carriedForward,
       'Period Revenue': periodRevenue,
+      'Capital Added': periodCapitalInflow,
       'Period Expenses': periodExpenses,
       'Period Net': periodNet,
       'Closing Balance': closingBalance,
@@ -697,7 +752,7 @@ export default function FinanceTab({
       return `
         <tr class="${isVoid ? 'void' : ''}">
           <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
-          <td>${esc(isRevenue(t) ? 'Revenue' : 'Expense')}</td>
+          <td>${esc(isCapitalInflow(t) ? 'Capital Inflow' : isRevenue(t) ? 'Revenue' : 'Expense')}</td>
           <td>${esc(ledgerParticulars(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
           <td>${esc(t.master_category || '—')}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
@@ -733,10 +788,11 @@ export default function FinanceTab({
           master_category: masterCategory,
           sub_category: subCategory,
           custom_specification:requiresCustomSpecification?customSpecification:null,
-          quantity: quantity ? Number(quantity) : null,
-          unit: quantity ? (isSemenPurchase ? 'straw' : unit) : null,
-          unit_rate: quantity ? Number(unitRate) : null,
-          amount: calculatedAmount,
+          animal_category: isAnimalPurchase ? animalPurchaseCategory : null,
+          quantity: isAnimalPurchase ? null : (quantity ? Number(quantity) : null),
+          unit: isAnimalPurchase ? null : (quantity ? (isSemenPurchase ? 'straw' : unit) : null),
+          unit_rate: isAnimalPurchase ? null : (quantity ? Number(unitRate) : null),
+          amount: isAnimalPurchase ? Number(directAmount) : calculatedAmount,
           transaction_date: expenseDate,
           payment_method: paymentMethod,
           counterparty: vendor || null,
@@ -771,6 +827,13 @@ export default function FinanceTab({
       setDueDate('');
       resetExpenseDateToToday();
       await load();
+      if (isAnimalPurchase && onOpenAnimalRegistration && body.id) {
+        onOpenAnimalRegistration({
+          purchaseTransactionId: Number(body.id),
+          category: animalPurchaseCategory,
+          acquisitionDate: String(body.transaction_date || body.date || expenseDate).slice(0, 10),
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Expense save failed.');
     } finally {
@@ -786,6 +849,12 @@ export default function FinanceTab({
     'Male Calf Sale': 'MALE_CALF_SALE',
     'Bull Sale': 'BULL_SALE',
   };
+  const isOwnerInvestment = revCategory === 'Owner Investment / Add Money';
+
+  useEffect(() => {
+    if (isOwnerInvestment) setRevStatus('RECEIVED');
+  }, [isOwnerInvestment]);
+
   const isMilkSale = revCategory === 'Milk Sales';
   const calculatedMilkSaleAmount = isMilkSale && revQty && revRate
     ? Number(revQty) * Number(revRate)
@@ -828,6 +897,10 @@ export default function FinanceTab({
     const amount = isMilkSale
       ? calculatedMilkSaleAmount
       : Number(revAmount);
+    if (isOwnerInvestment && revStatus !== 'RECEIVED') {
+      setError('Owner investment must be recorded as cash received.');
+      return;
+    }
     if (isMilkSale && (!(Number(revQty) > 0) || !(Number(revRate) > 0))) {
       setError('Milk Sale requires a positive quantity and rate per litre.');
       return;
@@ -843,23 +916,26 @@ export default function FinanceTab({
       const categoryMap: Record<string, string> = {
         'Milk Sales': 'MILK_SALES',
         'Organic Manure / Dung': 'MANURE_SALES',
+        'Owner Investment / Add Money': 'OWNER_INVESTMENT',
         ...animalSaleCategories,
       };
       const response = await fetch(`${API_BASE}/farm/finance-ledger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transaction_type: revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
+          transaction_type: isOwnerInvestment
+            ? 'OWNER_INVESTMENT'
+            : revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
           amount: isMilkSale ? undefined : amount,
-          quantity: isAnimalSale ? 1 : (revQty ? Number(revQty) : null),
-          unit: isAnimalSale ? 'head' : (isMilkSale && revQty ? 'litres' : null),
-          unit_rate: isMilkSale ? Number(revRate) : null,
+          quantity: isOwnerInvestment ? null : isAnimalSale ? 1 : (revQty ? Number(revQty) : null),
+          unit: isOwnerInvestment ? null : isAnimalSale ? 'head' : (isMilkSale && revQty ? 'litres' : null),
+          unit_rate: isOwnerInvestment ? null : isMilkSale ? Number(revRate) : null,
           transaction_date: revDate,
-          payment_method: revStatus === 'RECEIVABLE' ? 'CREDIT' : 'CASH',
+          payment_method: isOwnerInvestment || revStatus === 'RECEIVED' ? 'CASH' : 'CREDIT',
           counterparty: revCounterparty || null,
-          status: revStatus,
-          due_date: revStatus === 'RECEIVABLE' ? revDueDate : null,
+          status: isOwnerInvestment ? 'RECEIVED' : revStatus,
+          due_date: isOwnerInvestment || revStatus !== 'RECEIVABLE' ? null : revDueDate,
           reference: revRef || null,
           notes: isAnimalSale
             ? `${revCategory} — Animal ${revAnimalId}${revNotes ? ` — ${revNotes}` : ''}`
@@ -984,6 +1060,7 @@ export default function FinanceTab({
 
   const financialCards: Array<[string, number, string]> = [
     ['Cash Revenue', cashRevenue, '#34d399'],
+    ['Capital Added', capitalAdded, '#2dd4bf'],
     ['Receivables', receivables, '#f59e0b'],
     ['Payables',payableTotal,'#fb7185'],
     ['Total Expenses', totalExpenses, '#f87171'],
@@ -1059,7 +1136,7 @@ export default function FinanceTab({
 
       {error && <div style={{ background: 'rgba(239,68,68,.12)', border: '1px solid #ef4444', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 10, fontSize: 10 }}>{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 7, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,minmax(0,1fr))', gap: 7, marginBottom: 10 }}>
         {financialCards.map(([cardLabel, value, color]) => (
           <div key={cardLabel} style={{ background: '#111827', border: '1px solid #1f2937', borderLeft: `4px solid ${color}`, borderRadius: 7, padding: '9px 10px', minWidth: 0 }}>
             <div style={{ fontSize: 8, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>{cardLabel}</div>
@@ -1077,7 +1154,7 @@ export default function FinanceTab({
             </div>
             <div style={{ display: 'flex', gap: 5 }}>
               <button type="button" onClick={saveExploredLedger} style={smallButton}>Save CSV</button>
-              <button type="button" onClick={() => printLedger('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, { 'Carried Forward': carriedForward, 'Period Revenue': periodRevenue, 'Period Expenses': periodExpenses, 'Period Net': periodNet, 'Closing Balance': closingBalance })} style={smallButton}><Printer size={11} /> Print</button>
+              <button type="button" onClick={() => printLedger('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, { 'Carried Forward': carriedForward, 'Period Revenue': periodRevenue, 'Capital Added': periodCapitalInflow, 'Period Expenses': periodExpenses, 'Period Net': periodNet, 'Closing Balance': closingBalance })} style={smallButton}><Printer size={11} /> Print</button>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -1110,6 +1187,7 @@ export default function FinanceTab({
             {[
               ['Carried Forward', carriedForward, '#94a3b8'],
               ['Period Revenue', periodRevenue, '#34d399'],
+              ['Capital Added', periodCapitalInflow, '#2dd4bf'],
               ['Period Expenses', periodExpenses, '#f87171'],
               ['Period Net', periodNet, periodNet >= 0 ? '#38bdf8' : '#f87171'],
               ['Closing Balance', closingBalance, closingBalance >= 0 ? '#a78bfa' : '#f87171'],
@@ -1128,10 +1206,10 @@ export default function FinanceTab({
               const isVoid = String(r.status || '').toUpperCase() === 'VOID';
               const reason = isVoid ? voidReasonFromNotes(r.notes) : '';
               return (
-                <div key={`${isRevenue(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
+                <div key={`${isRevenueSide(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
                   <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
                     <span style={{ width: 76, flex: '0 0 76px' }}>{String(r.date || '').slice(0, 10) || '—'}</span>
-                    <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenue(r) ? '#34d399' : '#f59e0b' }}>{isRevenue(r) ? 'REV' : 'EXP'}</span>
+                    <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenueSide(r) ? '#34d399' : '#f59e0b' }}>{isCapitalInflow(r) ? 'CAP' : isRevenue(r) ? 'REV' : 'EXP'}</span>
                     <span style={ledgerEllipsis}>{r.sub_category || r.category || '—'}</span>
                     <span style={{ ...ledgerEllipsis, flexBasis: 92 }}>{r.counterparty || r.vendor_name || '—'}</span>
                     <span style={{ width: 76, flex: '0 0 76px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
@@ -1144,7 +1222,7 @@ export default function FinanceTab({
             {exploredRows.length === 0 && <div style={empty}>No ledger entries in this period/view.</div>}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #1f2937', fontSize: 10 }}>
-            <strong>Period Aggregate: Revenue {money(periodRevenue)} · Expenses {money(periodExpenses)} · Net {money(periodNet)}</strong>
+            <strong>Period Aggregate: Revenue {money(periodRevenue)} · Capital {money(periodCapitalInflow)} · Expenses {money(periodExpenses)} · Net {money(periodNet)}</strong>
             <strong style={{ color: closingBalance >= 0 ? '#a78bfa' : '#f87171' }}>Closing: {money(closingBalance)}</strong>
           </div>
         </section>
@@ -1153,10 +1231,10 @@ export default function FinanceTab({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 10 }}>
           <form onSubmit={saveRevenue} style={card}>
-            <div style={sectionTitle}>Record Revenue</div>
+            <div style={sectionTitle}>{isOwnerInvestment ? 'Add Investment / Money' : 'Record Revenue'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 6 }}>
               <select value={revCategory} onChange={event => setRevCategory(event.target.value)} style={inputStyle}>
-                <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option>
+                <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option><option>Owner Investment / Add Money</option>
               </select>
               {isMilkSale
                 ? <input required type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity (Litres)" />
@@ -1165,9 +1243,12 @@ export default function FinanceTab({
                 ? <input required type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
                 : isAnimalSale
                   ? <input type="number" value="1" readOnly disabled style={inputStyle} aria-label="Animal sale quantity" title="A selected Animal ID represents one head." />
-                  : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
+                  : isOwnerInvestment
+                    ? <input value="Cash contribution" readOnly disabled style={inputStyle} aria-label="Investment type" />
+                    : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
             </div>
             {isMilkSale && <input readOnly value={calculatedMilkSaleAmount > 0 ? calculatedMilkSaleAmount.toFixed(2) : ''} style={{ ...inputStyle, marginTop: 6, color: '#34d399', fontWeight: 800 }} placeholder="Amount — auto calculated from Quantity × Rate" />}
+            {isOwnerInvestment && <div style={{ marginTop: 6, padding: 8, border: '1px solid #065f46', borderRadius: 6, background: '#052e2b', color: '#a7f3d0', fontSize: 9 }}>Owner Investment / Add Money is recorded as a financing cash inflow. It is visible in cash position and the ledger, but is excluded from operating revenue and COP.</div>}
             {isAnimalSale && (
               <div style={{ marginTop: 6 }}>
                 <select required value={revAnimalId} onChange={event => setRevAnimalId(event.target.value)} style={inputStyle}>
@@ -1179,17 +1260,19 @@ export default function FinanceTab({
             )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="date" value={revDate} onChange={event => setRevDate(event.target.value)} style={inputStyle} />
-              <select value={revStatus} onChange={event => setRevStatus(event.target.value as RevenueStatus)} style={inputStyle}>
-                <option value="RECEIVABLE">Credit / Receivable</option><option value="RECEIVED">Cash Received</option>
-              </select>
-              {revStatus === 'RECEIVABLE'
+              {isOwnerInvestment
+                ? <select value="RECEIVED" disabled style={{ ...inputStyle, opacity: .8 }} aria-label="Investment status"><option value="RECEIVED">Cash Received</option></select>
+                : <select value={revStatus} onChange={event => setRevStatus(event.target.value as RevenueStatus)} style={inputStyle}>
+                    <option value="RECEIVABLE">Credit / Receivable</option><option value="RECEIVED">Cash Received</option>
+                  </select>}
+              {!isOwnerInvestment && revStatus === 'RECEIVABLE'
                 ? <input required type="date" value={revDueDate} onChange={event => setRevDueDate(event.target.value)} style={inputStyle} />
                 : <input value={revRef} onChange={event => setRevRef(event.target.value)} style={inputStyle} placeholder="Reference" />}
             </div>
-            {revStatus === 'RECEIVABLE' && <input value={revRef} onChange={event => setRevRef(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
-            <input value={revCounterparty} onChange={event => setRevCounterparty(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Customer / Buyer" />
+            {!isOwnerInvestment && revStatus === 'RECEIVABLE' && <input value={revRef} onChange={event => setRevRef(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
+            <input value={revCounterparty} onChange={event => setRevCounterparty(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={isOwnerInvestment ? 'Investor / Source (optional)' : 'Customer / Buyer'} />
             <input value={revNotes} onChange={event => setRevNotes(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Notes" />
-            <button disabled={saving} type="submit" style={{ ...button('#059669'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : 'Save Revenue'}</button>
+            <button disabled={saving} type="submit" style={{ ...button('#059669'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : isOwnerInvestment ? 'Add Money to Finance' : 'Save Revenue'}</button>
           </form>
 
           <section style={card}>
@@ -1259,22 +1342,23 @@ export default function FinanceTab({
                 {expenseItems.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
             </div>
+            {isAnimalPurchase && <div style={{ marginTop: 6, padding: 8, border: '1px solid #92400e', borderRadius: 6, background: '#1c1917' }}><div style={{ fontSize: 10, fontWeight: 900, color: '#fbbf24', marginBottom: 5 }}>Animal Purchase — Standard Category</div><select required aria-label="Animal purchase standard category" value={animalPurchaseCategory} onChange={event => setAnimalPurchaseCategory(event.target.value)} style={inputStyle}>{animalPurchaseCategories.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><div style={{ fontSize: 8, color: '#d6d3d1', marginTop: 5 }}>After this expense is endorsed, DairyOS will open the detailed Register Animal / Passport form with this category preselected.</div></div>}
             {isSemenPurchase && <div style={{ marginTop:6, padding:8, border:'1px solid #7c2d12', borderRadius:6, background:'#1c1917' }}><div style={{fontSize:10,fontWeight:900,color:'#fbbf24',marginBottom:6}}>Semen Purchase Details</div><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:6}}><select required value={semenType} onChange={e=>setSemenType(e.target.value as typeof semenType)} style={inputStyle}><option value="">Semen type</option><option value="SEXED">Sexed</option><option value="CONVENTIONAL">Conventional</option></select><input required value={semenSireCode} onChange={e=>setSemenSireCode(e.target.value)} style={inputStyle} placeholder="Sire / Bull Code" /><input value={semenBullName} onChange={e=>setSemenBullName(e.target.value)} style={inputStyle} placeholder="Bull Name" /><input value={semenBreed} onChange={e=>setSemenBreed(e.target.value)} style={inputStyle} placeholder="Breed" /><input required value={semenBatch} onChange={e=>setSemenBatch(e.target.value)} style={inputStyle} placeholder="Batch / Lot Number" /><input type="date" value={semenExpiry} onChange={e=>setSemenExpiry(e.target.value)} style={inputStyle} title="Expiry date" /><input value={semenStorage} onChange={e=>setSemenStorage(e.target.value)} style={inputStyle} placeholder="Storage Tank / Location" /><input value={semenCountry} onChange={e=>setSemenCountry(e.target.value)} style={inputStyle} placeholder="Country / Source" /></div><div style={{fontSize:8,color:'#a8a29e',marginTop:5}}>Quantity below = straws purchased. Unit rate = cost per straw. Supplier is the Vendor / Supplier field.</div></div>}
             {requiresCustomSpecification && <input required value={customSpecification} onChange={event => setCustomSpecification(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={subCategory === 'Equipment Purchase' ? 'Equipment name' : 'Specification'} />}
             <input value={vendor} onChange={event => setVendor(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Vendor / Supplier" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
+            {isAnimalPurchase ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Purchase amount (PKR)" /> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="number" min="0" step="0.001" value={quantity} onChange={event => setQuantity(event.target.value)} style={inputStyle} placeholder="Quantity" />
               <select value={isSemenPurchase ? 'straw' : unit} onChange={event => setUnit(event.target.value)} disabled={isSemenPurchase} style={inputStyle}><option>straw</option><option>kg</option><option>bag</option><option>ton</option><option>litre</option><option>service</option><option>head</option><option>unit</option></select>
               <input type="number" min="0" step="0.01" value={unitRate} onChange={event => setUnitRate(event.target.value)} style={inputStyle} placeholder="Unit rate" disabled={!quantity} />
               <input type="number" min="0" step="0.01" value={quantity ? calculatedAmount : directAmount} onChange={event => quantity ? undefined : setDirectAmount(event.target.value)} style={inputStyle} placeholder="Amount" readOnly={Boolean(quantity)} />
-            </div>
+            </div>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="date" value={expenseDate} onChange={event => setExpenseDate(event.target.value)} style={inputStyle} />
               <select value={paymentMethod} onChange={event => setPaymentMethod(event.target.value)} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option value="CREDIT">Credit / Payable</option></select>
               {paymentMethod === 'CREDIT' ? <input required type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} style={inputStyle} /> : <input value={reference} onChange={event => setReference(event.target.value)} style={inputStyle} placeholder="Reference" />}
             </div>
             {paymentMethod === 'CREDIT' && <input value={reference} onChange={event => setReference(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
-            {masterCategory === 'OPEX' && (
+            {masterCategory === 'OPEX' && !isAnimalPurchase && (
               <div style={{ marginTop: 6, padding: 8, border: '1px solid #334155', borderRadius: 6, background: '#0f172a' }}>
                 <div style={{ fontSize: 9, fontWeight: 900, color: '#cbd5e1', marginBottom: 6 }}>COP Classification & Attribution</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -1311,8 +1395,9 @@ export default function FinanceTab({
                 )}
               </div>
             )}
+            {isAnimalPurchase && <div style={{ marginTop: 6, padding: 8, border: '1px solid #334155', borderRadius: 6, background: '#0f172a', color: '#cbd5e1', fontSize: 8 }}>Animal Purchase is capital/non-OPEX and is excluded from Estimated COP. Its standard category is retained until the Passport record is completed.</div>}
             <input value={notes} onChange={event => setNotes(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Notes" />
-            <button disabled={saving} type="submit" style={{ ...button('#0284c7'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : 'Save Expense'}</button>
+            <button disabled={saving} type="submit" style={{ ...button('#0284c7'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : isAnimalPurchase ? 'Endorse Animal Purchase' : 'Save Expense'}</button>
           </form>
 
           <section style={card}>
@@ -1338,16 +1423,17 @@ export default function FinanceTab({
         {statusPeriodMode === 'MONTH' && <div style={{ marginBottom: 8 }}><input type="month" value={statusMonth} onChange={event => setStatusMonth(event.target.value)} style={{ ...inputStyle, width: 160 }} /></div>}
         {statusPeriodMode === 'CUSTOM' && <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}><input type="date" value={statusStart} onChange={event => setStatusStart(event.target.value)} style={{ ...inputStyle, width: 150 }} /><span style={{ fontSize: 9, color: '#64748b' }}>to</span><input type="date" value={statusEnd} onChange={event => setStatusEnd(event.target.value)} style={{ ...inputStyle, width: 150 }} /></div>}
         <div style={{ fontSize: 9, color: '#94a3b8', marginBottom: 7 }}>Period: {statusBounds.start === '0001-01-01' ? 'Farm inception' : statusBounds.start} → {statusBounds.end}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 7, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 7, marginBottom: 10 }}>
           {[
             ['Revenues', statusRevenue, '#34d399'],
+            ['Capital Added', statusCapitalInflow, '#2dd4bf'],
             ['Expenses', statusExpenses, '#f87171'],
             ['Balance', statusBalance, statusBalance >= 0 ? '#38bdf8' : '#f87171'],
           ].map(([cardLabel, value, color]) => <div key={String(cardLabel)} style={{ background: '#0f172a', border: '1px solid #1f2937', borderLeft: `4px solid ${String(color)}`, borderRadius: 7, padding: '9px 10px' }}><div style={{ fontSize: 8, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>{String(cardLabel)}</div><div style={{ fontSize: 15, fontWeight: 900, color: String(color), marginTop: 3 }}>{money(Number(value))}</div></div>)}
         </div>
-        <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 6 }}>Revenue vs Expense</div>
+        <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 6 }}>Cash Inflows vs Expense</div>
         <div style={{ display: 'grid', gridTemplateColumns: '88px 1fr 120px', gap: 8, alignItems: 'center', fontSize: 9 }}>
-          <span style={{ color: '#34d399', fontWeight: 800 }}>Revenue</span><div style={{ height: 16, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${(statusRevenue / graphMax) * 100}%`, background: '#059669' }} /></div><strong style={{ textAlign: 'right' }}>{money(statusRevenue)}</strong>
+          <span style={{ color: '#34d399', fontWeight: 800 }}>Revenue + capital</span><div style={{ height: 16, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${((statusRevenue + statusCapitalInflow) / graphMax) * 100}%`, background: '#059669' }} /></div><strong style={{ textAlign: 'right' }}>{money(statusRevenue + statusCapitalInflow)}</strong>
           <span style={{ color: '#f87171', fontWeight: 800 }}>Expenses</span><div style={{ height: 16, background: '#0f172a', border: '1px solid #1f2937', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${(statusExpenses / graphMax) * 100}%`, background: '#dc2626' }} /></div><strong style={{ textAlign: 'right' }}>{money(statusExpenses)}</strong>
         </div>
       </section>

@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from dairyos.finance.classification import transaction_classifier as classifier
+from dairyos.finance.opex_attribution import is_operating_expense
 
 
 class CostOfProductionService:
@@ -156,6 +157,7 @@ class CostOfProductionService:
             row
             for row in finance
             if classifier.is_expense(row)
+            and is_operating_expense(row)
         ]
 
         income = [

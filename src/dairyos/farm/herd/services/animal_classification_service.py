@@ -40,6 +40,19 @@ class AnimalCategory(StrEnum):
     MALE_CALVES = "Male Calf"
 
 
+# One shared vocabulary for purchase entry and the detailed Passport form.
+# Values are the singular canonical categories persisted on an individual
+# animal; labels are the operator-facing standard herd categories.
+STANDARD_ANIMAL_CATEGORY_OPTIONS = (
+    {"value": "Milking", "label": "Milking Cows"},
+    {"value": "Dry", "label": "Dry Cows"},
+    {"value": "Heifer", "label": "Heifers"},
+    {"value": "Female Calf", "label": "Female Calves"},
+    {"value": "Male Calf", "label": "Male Calves"},
+    {"value": "Bull", "label": "Bulls"},
+)
+
+
 class AnimalClassificationError(ValueError):
     """Raised when supplied animal facts cannot form a valid classification."""
 

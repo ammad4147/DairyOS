@@ -2065,8 +2065,33 @@ def record_financial_entry(
         )
     payload["transaction_type"] = transaction_type
 
+    if transaction_type == "OWNER_INVESTMENT":
+        # Keep the legacy compatibility route aligned with the governed
+        # Finance ledger. An investment is a received financing inflow, not a
+        # generic income/expense row and never a credit payable.
+        if entry.category != "OWNER_INVESTMENT":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Owner investment entries must use category "
+                    "OWNER_INVESTMENT."
+                ),
+            )
+        if str(entry.payment_method or "").strip().upper() == "CREDIT":
+            raise HTTPException(
+                status_code=422,
+                detail="Owner investment cannot be recorded as credit.",
+            )
+        payload["category"] = "OWNER_INVESTMENT"
+        payload["status"] = "RECEIVED"
+        payload["payment_method"] = entry.payment_method or "CASH"
+
     allowed_categories = set(GOVERNED["financial_categories"])
-    if entry.category is not None and entry.category not in allowed_categories:
+    if (
+        transaction_type != "OWNER_INVESTMENT"
+        and entry.category is not None
+        and entry.category not in allowed_categories
+    ):
         raise HTTPException(
             status_code=422,
             detail=(

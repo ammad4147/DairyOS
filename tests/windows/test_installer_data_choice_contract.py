@@ -87,6 +87,18 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
     assert "Result := StopInstalledDairyOSForUninstall();" in source
 
 
+def test_uninstall_preservation_archive_is_validated_outside_live_data_root():
+    source = _source()
+
+    assert "function IsPathWithinRoot" in source
+    assert "Choose a preservation location outside the DairyOS farm-data directory." in source
+    assert "if not ForceDirectories(PreservationDestination) then" in source
+    assert "System.IO.Compression.ZipFile]::CreateFromDirectory" in source
+    assert "System.IO.Compression.ZipFile]::OpenRead" in source
+    assert "The preservation package is empty." in source
+    assert "Compress-Archive -Path $items" not in source
+
+
 def test_ci_does_not_create_preservation_sentinel_before_programdata_bootstrap():
     workflow = (
         ROOT / ".github" / "workflows" / "installer-windows.yml"

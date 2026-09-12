@@ -9,6 +9,7 @@ ATTRIBUTION_METHODS = frozenset({"DIRECT", "PERIODIC", "CONSUMPTION", "ALLOCATED
 
 NON_OPEX_ITEMS = frozenset({
     "Equipment Purchase",
+    "Animal Purchase",
     "Loan Interest",
 })
 
@@ -121,6 +122,44 @@ def default_attribution_method(sub_category: str | None) -> str | None:
     if item in ALLOCATED_ITEMS:
         return "ALLOCATED"
     return None
+
+
+def is_operating_expense(row) -> bool:
+    """Return whether an expense row belongs in generic operating COP.
+
+    The legacy cost service predates explicit COP metadata, so it must apply
+    the same governed non-OPEX policy as the Finance ledger when it reads old
+    rows.  Explicit metadata wins; otherwise the governed sub-category and
+    legacy category spellings provide a conservative compatibility fallback.
+    """
+
+    classification = str(
+        getattr(row, "cop_classification", "") or ""
+    ).strip().upper()
+    if classification == "NON_OPEX":
+        return False
+    if classification == "OPEX":
+        return True
+
+    item = str(getattr(row, "sub_category", "") or "").strip()
+    if item in NON_OPEX_ITEMS:
+        return False
+
+    legacy_category_value = str(
+        getattr(row, "category", "") or ""
+    ).strip().upper().replace("_", " ")
+    if legacy_category_value in {
+        "EQUIPMENT",
+        "EQUIPMENT PURCHASE",
+        "ANIMAL PURCHASE",
+    }:
+        return False
+
+    return default_cop_classification(
+        getattr(row, "master_category", None),
+        item,
+    ) != "NON_OPEX"
+
 
 def attributed_amount(row, period_start: date, period_end: date) -> tuple[Decimal, str]:
     """Return amount attributable to the requested inclusive date range and status."""
