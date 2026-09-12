@@ -865,6 +865,7 @@ begin
   { Verify and create the preservation package before changing the scheduled
     task. If archiving fails, uninstall remains blocked without leaving the
     installed runtime's automatic-backup protection removed. }
+  Log('DairyOS uninstall: entering preservation-package step.');
   if not CreatePreservationPackage() then
   begin
     Log('DairyOS uninstall: preservation package creation failed.');
@@ -902,6 +903,8 @@ var
   ResultCode: Integer;
 begin
   Result := False;
+  Log('DairyOS uninstall: preservation step entered; destination=' +
+    PreservationDestination);
 
   if PreservationDestination = '' then
   begin
@@ -910,6 +913,7 @@ begin
     exit;
   end;
 
+  Log('DairyOS uninstall: checking farm-data root ' + DairyOSDataRoot());
   if not DirExists(DairyOSDataRoot()) then
   begin
     MsgBox(
@@ -923,6 +927,7 @@ begin
   { Never allow the destination to be inside the data being archived.  Apart
     from producing a misleading backup, that would let the archive include
     itself and can leave Compress-Archive with a locked/incomplete file. }
+  Log('DairyOS uninstall: validating preservation destination is outside farm-data root.');
   if IsPathWithinRoot(PreservationDestination, DairyOSDataRoot()) then
   begin
     MsgBox(
@@ -934,6 +939,7 @@ begin
     exit;
   end;
 
+  Log('DairyOS uninstall: creating preservation destination directory.');
   if not ForceDirectories(PreservationDestination) then
   begin
     MsgBox(
