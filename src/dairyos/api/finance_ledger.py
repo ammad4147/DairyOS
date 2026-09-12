@@ -1373,6 +1373,8 @@ def link_animal_purchase(
                 "transaction_id": transaction_id,
                 "action": "ANIMAL_PURCHASE_LINK",
                 "transaction_type": row.transaction_type,
+                "amount": str(row.amount or 0),
+                "status": row.status,
                 "animal_id": animal_id,
                 "animal_category": expected_category,
             },
