@@ -120,5 +120,6 @@ def test_payroll_api_create_satisfies_financial_input_contract(client: TestClien
 
     assert response.status_code == 201, response.text
     payload = response.json()
+    assert payload["id"] > 0
     assert payload["status"] == "DRAFT"
     assert Decimal(payload["net_pay"]) == Decimal("13800")

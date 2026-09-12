@@ -16,6 +16,10 @@ class PayrollRepository:
     def add(self, record: PayrollRecord):
         if self.session:
             self.session.add(record)
+            # The operational-write decorator owns the outer transaction, so
+            # flush here to materialize the generated id and Python defaults
+            # before the API serializes the record and journals its input.
+            self.session.flush()
             if not self.session.info.get("operational_write_managed", False):
                 self.session.commit()
                 self.session.refresh(record)
