@@ -726,44 +726,40 @@ end;
 
 function RemoveInstalledBackupTask(): Boolean;
 var
-  PowerShellExe: String;
-  PowerShellCommand: String;
-  Params: String;
-  SafeDiagnosticPath: String;
+  SchtasksExe: String;
   ResultCode: Integer;
+  QueryResultCode: Integer;
 begin
   { Treat an already-removed task as success, but fail closed if the task
-    exists and cannot be removed. This prevents the uninstaller from leaving
-    a scheduled action pointing at an application that has been removed. }
-  SafeDiagnosticPath := UninstallDiagnosticPath();
-  StringChangeEx(SafeDiagnosticPath, '''', '''''', True);
-  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
-  PowerShellCommand :=
-    '$ErrorActionPreference = ''Stop''; ' +
-    '$diagnostic = ''' + SafeDiagnosticPath + '''; ' +
-    'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue; ' +
-    'try { ' +
-      '$task = Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
-        '-ErrorAction SilentlyContinue; ' +
-      'if ($null -ne $task) { ' +
-        'Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
-          '-Confirm:$false } ' +
-    '} catch { ' +
-      '$_ | Out-File -LiteralPath $diagnostic -Encoding utf8; ' +
-      'exit 1 ' +
-    '}';
-  Params :=
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
-    PowerShellCommand + '"';
-
-  Result := Exec(
-    PowerShellExe,
-    Params,
+    remains after deletion. This prevents the uninstaller from leaving a
+    scheduled action pointing at an application that has been removed. }
+  SchtasksExe := ExpandConstant('{sys}\schtasks.exe');
+  if not Exec(
+    SchtasksExe,
+    '/Delete /F /TN "DairyOS-Automatic-Backup"',
+    '',
     ExpandConstant('{app}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
-  ) and (ResultCode = 0);
+  ) then
+    exit;
+
+  { The delete command returns a nonzero code when the task is already
+    absent. Querying afterward distinguishes that harmless case from a task
+    that still exists and could run an executable that Setup is removing. }
+  if not Exec(
+    SchtasksExe,
+    '/Query /TN "DairyOS-Automatic-Backup"',
+    '',
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    QueryResultCode
+  ) then
+    exit;
+
+  Result := QueryResultCode <> 0;
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean;

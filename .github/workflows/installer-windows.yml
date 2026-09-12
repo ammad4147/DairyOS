@@ -455,8 +455,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path $preservationRoot | Out-Null
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
+          $preservationEnvName = "DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION"
           $previousPreservationDestination = $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION
+          $previousMachinePreservationDestination = [Environment]::GetEnvironmentVariable($preservationEnvName, "Machine")
           $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $preservationRoot
+          [Environment]::SetEnvironmentVariable($preservationEnvName, $preservationRoot, "Machine")
           try {
             $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART")
             $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
@@ -468,6 +471,7 @@ jobs:
             else {
               $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $previousPreservationDestination
             }
+            [Environment]::SetEnvironmentVariable($preservationEnvName, $previousMachinePreservationDestination, "Machine")
           }
           if ($uninstall.ExitCode -ne 0) {
             $diagnostic = Join-Path $preservationRoot "DairyOS-uninstall-diagnostic.txt"

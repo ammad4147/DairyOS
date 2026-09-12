@@ -106,8 +106,9 @@ def test_uninstall_preserves_before_removing_automatic_backup_task():
     block = source[start:end]
 
     assert "function RemoveInstalledBackupTask(): Boolean;" in source
-    assert "Get-ScheduledTask -TaskName ''DairyOS-Automatic-Backup''" in source
-    assert "Unregister-ScheduledTask -TaskName ''DairyOS-Automatic-Backup''" in source
+    assert "schtasks.exe" in source
+    assert '/Delete /F /TN "DairyOS-Automatic-Backup"' in source
+    assert '/Query /TN "DairyOS-Automatic-Backup"' in source
     assert block.index("if not CreatePreservationPackage() then") < block.index(
         "if not RemoveInstalledBackupTask() then"
     )
