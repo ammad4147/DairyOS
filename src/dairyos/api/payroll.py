@@ -88,14 +88,28 @@ def list_payroll(container=Depends(get_container)):
 def create_payroll(request: PayrollCreateRequest, container=Depends(get_container)):
     if request.period_end < request.period_start:
         raise HTTPException(status_code=422, detail="period_end must be on or after period_start")
-    record = PayrollRecord(**request.model_dump())
+    # Set the initial state explicitly before the managed transaction flushes.
+    # SQLAlchemy's column default is applied at INSERT time, which is later
+    # than this route's response serialization and input-journal capture.
+    record = PayrollRecord(**request.model_dump(), status="DRAFT")
     created = _repo(container).add(record)
     response = _serialize(created)
     gateway = getattr(container, "input_gateway", None)
     if gateway is not None:
         gateway.record(
             input_type="financial",
-            payload={"payroll_id": created.id, "net_pay": str(created.net_pay), "period_start": created.period_start.isoformat(), "period_end": created.period_end.isoformat()},
+            payload={
+                "transaction_type": "EXPENSE",
+                "amount": str(created.net_pay),
+                "category": "LABOUR",
+                "master_category": "OPEX",
+                "sub_category": _payroll_subcategory(created.employee_role),
+                "status": "DRAFT",
+                "payroll_id": created.id,
+                "net_pay": str(created.net_pay),
+                "period_start": created.period_start.isoformat(),
+                "period_end": created.period_end.isoformat(),
+            },
             actor="PAYROLL_API",
         )
     return response
@@ -110,7 +124,19 @@ def pay_payroll(record_id: int, payment_date: date | None = None, container=Depe
         response = _pay_payroll(record_id, payment_date, runtime_factory)
         container.input_gateway.record(
             input_type="financial",
-            payload={"payroll_id": record_id, "action": "PAY", "finance_transaction_id": response.get("finance_transaction_id")},
+            payload={
+                "transaction_type": "EXPENSE",
+                "amount": response.get("net_pay", "0"),
+                "category": "LABOUR",
+                "master_category": "OPEX",
+                "sub_category": _payroll_subcategory(
+                    response.get("employee_role", "Daily / Temporary Labor")
+                ),
+                "status": response.get("status", "PAID"),
+                "payroll_id": record_id,
+                "action": "PAY",
+                "finance_transaction_id": response.get("finance_transaction_id"),
+            },
             actor="PAYROLL_API",
         )
         return response

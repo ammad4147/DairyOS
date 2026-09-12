@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
+from fastapi.testclient import TestClient
+
 from dairyos.api.payroll import pay_payroll
 from dairyos.data.models.payroll import PayrollRecord
 
@@ -95,3 +97,28 @@ def test_payroll_payment_posts_one_finance_transaction_and_is_idempotent():
     assert row.cop_attribution_method == "PERIODIC"
     assert row.cop_coverage_start == date(2026, 8, 1)
     assert row.cop_coverage_end == date(2026, 8, 31)
+
+
+def test_payroll_api_create_satisfies_financial_input_contract(client: TestClient):
+    response = client.post(
+        "/farm/payroll",
+        json={
+            "employee_name": "Contract Worker",
+            "employee_role": "Feeder",
+            "period_start": "2026-09-01",
+            "period_end": "2026-09-13",
+            "worked_days": 13,
+            "base_pay": 13000,
+            "overtime_hours": 2,
+            "overtime_rate": 200,
+            "allowances": 500,
+            "advances": 0,
+            "deductions": 100,
+            "notes": "Financial input contract regression",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "DRAFT"
+    assert Decimal(payload["net_pay"]) == Decimal("13800")
