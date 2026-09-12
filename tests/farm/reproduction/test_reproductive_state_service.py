@@ -85,6 +85,7 @@ def test_insemination_then_confirmed_pregnancy_produces_days_open_and_ecd():
 
     assert state.pregnancy_status == "PREGNANT"
     assert state.last_insemination_date == date(2026, 3, 10)
+    assert state.days_pregnant == 41
     assert state.days_open == 68
     assert state.expected_calving_date == date(
         2026, 12, 15

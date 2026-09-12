@@ -410,9 +410,9 @@ class ReproductiveStateService:
             else None
         )
         days_pregnant = (
-            max((as_of_date - pregnancy_confirmed_date).days, 0)
+            max((as_of_date - last_insemination_date).days, 0)
             if pregnancy_status == "PREGNANT"
-            and pregnancy_confirmed_date is not None
+            and last_insemination_date is not None
             else None
         )
 

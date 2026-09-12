@@ -38,7 +38,9 @@ DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
-VersionInfoComments=Source commit {#SourceCommit}; source tree {#SourceTree}
+; Source commit and tree are bound in the release manifests. Inno Setup does
+; not support VersionInfoComments; keeping provenance in the manifest avoids
+; compiler-version-specific directives in the executable version resource.
 
 [Files]
 Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion

@@ -20,6 +20,20 @@ def test_duplicate_compatibility_routes_are_not_mounted_as_public_authorities():
     )
 
 
+def test_event_only_root_write_routes_are_not_public_authorities():
+    command_center_source = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "dairyos"
+        / "api"
+        / "command_center.py"
+    ).read_text(encoding="utf-8")
+
+    assert '@router.post("/animals")' not in command_center_source
+    assert '@router.post("/milk")' not in command_center_source
+    assert '@router.post("/feed")' not in command_center_source
+
+
 def test_production_reproductive_policies_use_283_day_gestation():
     assert breeding_biology._POLICY.gestation_days == 283
     assert animal_reproduction._POLICY.gestation_days == 283

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
 from dairyos.api.dependencies import get_container
-from dairyos.domain.commands import Command
 
 
 router = APIRouter(tags=["Command Center"])
@@ -65,24 +64,3 @@ def update_action(action_id: str, payload: dict):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-
-@router.post("/animals")
-def create_animal(payload: dict):
-    container = get_container()
-    container.operations.handle_command(Command(name="CreateAnimal", payload=payload))
-    return {"status": "ok"}
-
-
-@router.post("/milk")
-def record_milk(payload: dict):
-    container = get_container()
-    container.operations.handle_command(Command(name="RecordMilk", payload=payload))
-    return {"status": "ok"}
-
-
-@router.post("/feed")
-def feed_animal(payload: dict):
-    container = get_container()
-    container.operations.handle_command(Command(name="FeedAnimal", payload=payload))
-    return {"status": "ok"}

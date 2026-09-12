@@ -9,6 +9,7 @@ def _source() -> str:
 def test_installer_uses_large_dpi_aware_data_choice_page():
     source = _source()
 
+    assert "VersionInfoComments=" not in source
     assert "WizardResizable=" not in source
     assert "WizardSizePercent=140,135" in source
     assert "ScaleX(" in source
