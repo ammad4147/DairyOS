@@ -20,6 +20,12 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert "dist\\DairyOS-Installer" not in build
     assert "OutputDir=..\\..\\dist\\DairyOS-Release" in source
     assert "Source: \"..\\..\\dist\\DairyOS-Release\\DairyOS\\*\"" in source
+    assert '"-o" + (Split-Path -Parent $outputPath)' in build
+    assert '"-dSourceCommit=$($releaseManifest.source_commit)"' in build
+    assert '"-dSourceTree=$($releaseManifest.source_tree)"' in build
+    assert '"/O"' not in build
+    assert '"/DSourceCommit=' not in build
+    assert '"/DSourceTree=' not in build
 
 
 def test_installer_exposes_data_status_without_a_fake_destructive_choice():
