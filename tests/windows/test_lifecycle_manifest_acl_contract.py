@@ -60,6 +60,28 @@ def test_installer_grants_modify_only_to_lifecycle_manifest():
     assert lifecycle < lifecycle_acl < backup_acl < backup_task
 
 
+def test_installer_grants_modify_to_one_shot_installation_choice():
+    source = ISS.read_text(encoding="utf-8")
+
+    assert "procedure ProvisionInstallationChoiceAcl();" in source
+    assert "/grant:r *S-1-5-32-545:(M)" in source
+
+    start = source.index("procedure ProvisionInstallationChoiceAcl();")
+    end = source.index("procedure CurStepChanged", start)
+    block = source[start:end]
+
+    assert "PendingChoicePath :=" in block
+    assert "DairyOSDataRoot('')" in block
+    assert "pending-installation-choice.json" in block
+    assert "postgres\\data" not in block
+    assert "security.json" not in block
+    assert "/T" not in block
+
+    staged = source.index("    StageInstallationChoice();")
+    choice_acl = source.index("    ProvisionInstallationChoiceAcl();")
+    assert staged < choice_acl
+
+
 def test_installer_ci_certifies_installed_lifecycle_acl():
     source = WORKFLOW.read_text(encoding="utf-8")
 

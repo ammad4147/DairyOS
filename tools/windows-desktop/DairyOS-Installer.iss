@@ -370,6 +370,40 @@ begin
     );
 end;
 
+procedure ProvisionInstallationChoiceAcl();
+var
+  PendingChoicePath: String;
+  IcaclsExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  PendingChoicePath :=
+    DairyOSDataRoot('') + '\pending-installation-choice.json';
+
+  { StageInstallationChoice runs elevated and creates this one-shot control
+    file. The normal, non-elevated supervisor must be able to consume it and
+    atomically replace it if a recovery action fails. Grant Modify only to
+    this control file; do not broaden permissions to PostgreSQL or farm data. }
+  if not FileExists(PendingChoicePath) then
+    exit;
+
+  IcaclsExe := ExpandConstant('{sys}\icacls.exe');
+  Params := '"' + PendingChoicePath + '" /grant:r *S-1-5-32-545:(M)';
+
+  if (not Exec(
+    IcaclsExe,
+    Params,
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  )) or (ResultCode <> 0) then
+    RaiseException(
+      'DairyOS installation-choice permissions could not be provisioned. ' +
+      'Setup cannot continue safely.'
+    );
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
@@ -380,6 +414,7 @@ begin
     ProvisionBackupTreeAcl();
     ProvisionAutomaticBackupTask();
     StageInstallationChoice();
+    ProvisionInstallationChoiceAcl();
   end;
 end;
 

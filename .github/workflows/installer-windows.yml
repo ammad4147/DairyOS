@@ -106,6 +106,15 @@ jobs:
             throw "Installer did not provision lifecycle.json."
           }
 
+          # The one-shot installation choice is created by elevated Setup,
+          # then consumed by the ordinary packaged supervisor. Verify that
+          # the runtime can clear/replace this control file without granting
+          # it access to the database or other farm records.
+          $pendingChoicePath = Join-Path $dataRoot "pending-installation-choice.json"
+          if (-not (Test-Path $pendingChoicePath -PathType Leaf)) {
+            throw "Installer did not provision pending installation choice."
+          }
+
           $usersSid = "S-1-5-32-545"
           $modify = [System.Security.AccessControl.FileSystemRights]::Modify
           $lifecycleAllowsModify = $false
@@ -136,6 +145,34 @@ jobs:
           }
 
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
+
+          $pendingChoiceAllowsModify = $false
+          foreach ($rule in (Get-Acl $pendingChoicePath).Access) {
+            try {
+              $ruleSid = $rule.IdentityReference.Translate(
+                [System.Security.Principal.SecurityIdentifier]
+              ).Value
+            }
+            catch {
+              continue
+            }
+
+            if (
+              $ruleSid -eq $usersSid -and
+              $rule.AccessControlType -eq
+                [System.Security.AccessControl.AccessControlType]::Allow -and
+              (($rule.FileSystemRights -band $modify) -eq $modify)
+            ) {
+              $pendingChoiceAllowsModify = $true
+              break
+            }
+          }
+
+          if (-not $pendingChoiceAllowsModify) {
+            throw "Installed pending installation choice is not modifiable by the built-in Users group."
+          }
+
+          Write-Host "INSTALLATION CHOICE ACL CERTIFICATION: PASS"
 
 
           # Bootstrap the actual ProgramData private cluster before seeding any
