@@ -393,6 +393,38 @@ def initialize_cluster(
     )
 
 
+def _postgres_is_ready(
+    host: str,
+    port: int,
+    *,
+    timeout: float = 5.0,
+) -> bool:
+    """Return only when PostgreSQL itself reports that it accepts connections.
+
+    TCP reachability is insufficient for readiness: PostgreSQL can already be
+    listening while crash recovery/startup is still in progress and reject
+    database connections with "the database system is starting up".
+    """
+    try:
+        result = _run(
+            [
+                str(_binary("pg_isready.exe")),
+                "-h",
+                host,
+                "-p",
+                str(port),
+                "-t",
+                str(max(1, int(timeout))),
+            ],
+            check=False,
+            timeout=max(1.0, timeout) + 1.0,
+        )
+    except PrivatePostgreSQLError:
+        return False
+
+    return result.returncode == 0
+
+
 def _wait_for_server(
     host: str,
     port: int,
@@ -401,12 +433,22 @@ def _wait_for_server(
     deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
-        if _is_port_open(host, port):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+
+        if _postgres_is_ready(
+            host,
+            port,
+            timeout=min(5.0, remaining),
+        ):
             return
-        time.sleep(0.25)
+
+        time.sleep(min(0.25, max(0.0, deadline - time.monotonic())))
 
     raise PrivatePostgreSQLError(
-        f"Private PostgreSQL did not become available on {host}:{port}."
+        "Private PostgreSQL did not become ready to accept database "
+        f"connections on {host}:{port} within {timeout:g} seconds."
     )
 
 
@@ -629,7 +671,10 @@ def persisted_cluster_is_running() -> bool:
     except (TypeError, ValueError):
         return False
 
-    return 1 <= port <= 65535 and _is_port_open(host, port)
+    return (
+        1 <= port <= 65535
+        and _postgres_is_ready(host, port, timeout=2.0)
+    )
 
 def stop(
     config: PrivatePostgreSQLConfig,
@@ -662,7 +707,11 @@ def status(config: PrivatePostgreSQLConfig) -> PrivatePostgreSQLStatus:
     version = detect_installed_version()
     running = (
         _pid_file(config.data_root).is_file()
-        and _is_port_open(config.host, config.port)
+        and _postgres_is_ready(
+            config.host,
+            config.port,
+            timeout=2.0,
+        )
     )
 
     return PrivatePostgreSQLStatus(
