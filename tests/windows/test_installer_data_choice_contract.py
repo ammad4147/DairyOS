@@ -47,27 +47,25 @@ def test_installer_exposes_explicit_clean_and_restore_choices():
     assert "DairyOS-Admin.exe" not in source
 
 
-def test_uninstaller_explicitly_keeps_data_without_standalone_admin():
+def test_uninstaller_is_straightforward_and_keeps_programdata_in_place():
     source = _source()
 
-    assert "YES - PRESERVE FARM DATA AND UNINSTALL" in source
-    assert "Choose a destination for a verified farm-data package" in source
-    assert "NO - CANCEL AND KEEP THE APPLICATION" in source
-    assert "GetDateTimeString('yyyymmdd-hhnnss', '', '')" in source
-    assert "BrowseForFolder(" in source
-    assert "SelectDirectory(" not in source
+    assert "beginning straightforward keep-data uninstall" in source
+    assert "Result := StopInstalledDairyOSForUninstall();" in source
+    assert "PRESERVE FARM DATA AND UNINSTALL" not in source
+    assert "BrowseForFolder(" not in source
+    assert "CreatePreservationPackage" not in source
+    assert "DairyOS-Farm-Preservation-" not in source
+    assert "[UninstallDelete]\n; Deliberately empty." in source
     assert "DairyOS-Admin.exe" not in source
 
 
-def test_silent_uninstall_bypasses_interactive_data_prompt():
+def test_uninstall_has_no_custom_interactive_or_silent_data_prompt():
     source = _source()
 
-    assert "function IsSilentUninstall(): Boolean;" in source
-    assert "ParamCount" in source
-    assert "ParamStr(I)" in source
-    assert "(Param = '/SILENT') or (Param = '/VERYSILENT')" in source
-    assert "if IsSilentUninstall() then" in source
-    assert "if WizardSilent() then" not in source
+    assert "function IsSilentUninstall(): Boolean;" not in source
+    assert "DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION" not in source
+    assert "Choose how to proceed with DairyOS uninstall" not in source
 
 
 def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
@@ -87,42 +85,30 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
     assert "Result := StopInstalledDairyOSForUninstall();" in source
 
 
-def test_uninstall_preservation_archive_is_validated_outside_live_data_root():
-    source = _source()
-
-    assert "function IsPathWithinRoot" in source
-    assert "Choose a preservation location outside the DairyOS farm-data directory." in source
-    assert "ForceDirectories(PreservationDestination)" not in source
-    assert "System.IO.Compression.ZipFile]::CreateFromDirectory" in source
-    assert "System.IO.Compression.ZipFile]::OpenRead" in source
-    assert "The preservation package is empty." in source
-    assert "Compress-Archive -Path $items" not in source
-
-
-def test_uninstall_preserves_before_removing_automatic_backup_task():
+def test_uninstall_removes_automatic_backup_task_without_archive_step():
     source = _source()
     start = source.index("function StopInstalledDairyOSForUninstall")
-    end = source.index("function CreatePreservationPackage", start)
+    end = source.index("function InitializeUninstall", start)
     block = source[start:end]
 
     assert "function RemoveInstalledBackupTask(): Boolean;" in source
     assert "schtasks.exe" in source
     assert '/Delete /F /TN "DairyOS-Automatic-Backup"' in source
     assert '/Query /TN "DairyOS-Automatic-Backup"' in source
-    assert block.index("if not CreatePreservationPackage() then") < block.index(
-        "if not RemoveInstalledBackupTask() then"
-    )
+    assert "CreatePreservationPackage" not in block
+    assert "if not RemoveInstalledBackupTask() then" in block
 
 
-def test_unattended_uninstall_can_exercise_the_verified_preservation_path():
+def test_uninstall_archive_transport_is_absent():
     source = _source()
 
-    assert "DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION" in source
-    assert "PreservationDestination := GetEnv('DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION');" in source
-    assert "BrowseForFolder(" in source
+    assert "PreservationDestination" not in source
+    assert "CreatePreservationPackage" not in source
+    assert "UninstallDiagnosticPath" not in source
+    assert "System.IO.Compression.ZipFile" not in source
 
 
-def test_ci_does_not_create_preservation_sentinel_before_programdata_bootstrap():
+def test_ci_does_not_create_retention_sentinel_before_programdata_bootstrap():
     workflow = (
         ROOT / ".github" / "workflows" / "installer-windows.yml"
     ).read_text(encoding="utf-8")

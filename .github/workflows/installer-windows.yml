@@ -443,47 +443,22 @@ jobs:
           }
 
           # Create the keep-data sentinel only after the real ProgramData farm
-          # has been initialized. Creating an arbitrary persistent file before
-          # first bootstrap would correctly trigger DairyOS startup-integrity
-          # protection against silently replacing an established farm.
+          # has been initialized. Uninstall must leave ProgramData untouched.
           "preserve-me" | Set-Content -Path $marker -Encoding ascii
           if (-not (Test-Path $marker -PathType Leaf)) {
-            throw "Unable to create ProgramData preservation marker before uninstall."
+            throw "Unable to create ProgramData retention marker before uninstall."
           }
 
-          $preservationRoot = Join-Path $env:RUNNER_TEMP "dairyos-preservation"
-          New-Item -ItemType Directory -Force -Path $preservationRoot | Out-Null
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
-          $preservationEnvName = "DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION"
-          $previousPreservationDestination = $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION
-          $previousMachinePreservationDestination = [Environment]::GetEnvironmentVariable($preservationEnvName, "Machine")
-          $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $preservationRoot
-          [Environment]::SetEnvironmentVariable($preservationEnvName, $preservationRoot, "Machine")
           $uninstallLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall.log"
           Remove-Item $uninstallLog -Force -ErrorAction SilentlyContinue
-          try {
-            $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$uninstallLog")
-            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
-          }
-          finally {
-            if ($null -eq $previousPreservationDestination) {
-              Remove-Item Env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION -ErrorAction SilentlyContinue
-            }
-            else {
-              $env:DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION = $previousPreservationDestination
-            }
-            [Environment]::SetEnvironmentVariable($preservationEnvName, $previousMachinePreservationDestination, "Machine")
-          }
+          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$uninstallLog")
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) {
             if (Test-Path $uninstallLog -PathType Leaf) {
               Write-Host "UNINSTALL LOG:" -ForegroundColor Yellow
               Get-Content $uninstallLog
-            }
-            $diagnostic = Join-Path $preservationRoot "DairyOS-uninstall-diagnostic.txt"
-            if (Test-Path $diagnostic -PathType Leaf) {
-              Write-Host "UNINSTALL DIAGNOSTIC:" -ForegroundColor Yellow
-              Get-Content $diagnostic
             }
             throw "Silent uninstaller exited with code $($uninstall.ExitCode)."
           }
@@ -500,24 +475,9 @@ jobs:
           if ($taskExit -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
           if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
           if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
-          $preservationPackages = @(Get-ChildItem $preservationRoot -Filter "DairyOS-Farm-Preservation-*.zip" -File)
-          if ($preservationPackages.Count -ne 1) {
-            throw "Expected exactly one verified DairyOS preservation package, found $($preservationPackages.Count)."
-          }
-          if ($preservationPackages[0].Length -le 0) {
-            throw "DairyOS preservation package is empty."
-          }
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [System.IO.Compression.ZipFile]::OpenRead($preservationPackages[0].FullName)
-          try {
-            if ($zip.Entries.Count -eq 0) { throw "DairyOS preservation package contains no entries." }
-          }
-          finally {
-            $zip.Dispose()
-          }
 
           Remove-Item $marker -Force
-          Write-Host "INSTALL / UNINSTALL VERIFIED-PRESERVATION CERTIFICATION: PASS"
+          Write-Host "INSTALL / UNINSTALL KEEP-DATA CERTIFICATION: PASS"
           exit 0
 
       - name: Publish installer artifact

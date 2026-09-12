@@ -72,46 +72,17 @@ var
   CleanConfirmationPage: TInputQueryWizardPage;
   BackupChoicePage: TInputOptionWizardPage;
   ExistingDataDetected: Boolean;
-  PreservationDestination: String;
   SelectedInstallMode: String;
   SelectedBackupPath: String;
   CleanConfirmationAccepted: Boolean;
   RestoreChoiceIndex: Integer;
   BackupCandidatePaths: array of String;
 
-function CreatePreservationPackage(): Boolean; forward;
 procedure StageInstallationChoice(); forward;
 
 function DairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
-end;
-
-
-function StripTrailingSeparators(const Value: String): String;
-begin
-  Result := Value;
-  while (Length(Result) > 3) and
-    ((Result[Length(Result)] = '\') or (Result[Length(Result)] = '/')) do
-    Delete(Result, Length(Result), 1);
-end;
-
-
-function IsPathWithinRoot(const Candidate, Root: String): Boolean;
-var
-  CandidatePath: String;
-  RootPath: String;
-begin
-  CandidatePath := Lowercase(
-    StripTrailingSeparators(Candidate)
-  );
-  RootPath := Lowercase(
-    StripTrailingSeparators(Root)
-  );
-
-  Result :=
-    (CandidatePath = RootPath) or
-    (Pos(AddBackslash(RootPath), AddBackslash(CandidatePath)) = 1);
 end;
 
 
@@ -667,23 +638,6 @@ begin
   Result := True;
 end;
 
-function IsSilentUninstall(): Boolean;
-var
-  I: Integer;
-  Param: String;
-begin
-  Result := False;
-  for I := 1 to ParamCount do
-  begin
-    Param := Uppercase(ParamStr(I));
-    if (Param = '/SILENT') or (Param = '/VERYSILENT') then
-    begin
-      Result := True;
-      exit;
-    end;
-  end;
-end;
-
 function StopInstalledProcessByPath(const ExecutablePath: String): Boolean;
 var
   PowerShellExe: String;
@@ -721,15 +675,6 @@ begin
   Log('DairyOS uninstall: process-stop helper for ' + ExecutablePath +
     ' exited with code ' + IntToStr(ResultCode));
   Result := ResultCode = 0;
-end;
-
-function UninstallDiagnosticPath(): String;
-begin
-  if PreservationDestination <> '' then
-    Result := AddBackslash(PreservationDestination) +
-      'DairyOS-uninstall-diagnostic.txt'
-  else
-    Result := ExpandConstant('{tmp}\DairyOS-uninstall-diagnostic.txt');
 end;
 
 function RemoveInstalledBackupTask(): Boolean;
@@ -795,7 +740,7 @@ var
   ResultCode: Integer;
 begin
   Result := False;
-  Log('DairyOS uninstall: stopping private runtime and preparing farm-data preservation.');
+  Log('DairyOS uninstall: stopping the private runtime.');
 
   { Stop only the private DairyOS PostgreSQL cluster, identified by its
     persistent data directory. Never terminate arbitrary postgres.exe
@@ -862,23 +807,13 @@ begin
     exit;
   end;
 
-  { Verify and create the preservation package before changing the scheduled
-    task. If archiving fails, uninstall remains blocked without leaving the
-    installed runtime's automatic-backup protection removed. }
-  Log('DairyOS uninstall: entering preservation-package step.');
-  if not CreatePreservationPackage() then
-  begin
-    Log('DairyOS uninstall: preservation package creation failed.');
-    exit;
-  end;
-
-  { Remove the scheduled task only after preservation succeeds. Backup data
-    itself remains under ProgramData. }
+  { Remove the application-owned task. Farm data and existing backups remain
+    untouched under ProgramData. }
   if not RemoveInstalledBackupTask() then
   begin
     MsgBox(
-      'The farm-data preservation package was verified, but the DairyOS automatic-backup task ' +
-      'could not be removed. Uninstall is blocked and the application remains installed.',
+      'The DairyOS automatic-backup task could not be removed. ' +
+      'Uninstall is blocked and the application remains installed.',
       mbError,
       MB_OK
     );
@@ -891,173 +826,8 @@ begin
   Result := True;
 end;
 
-function CreatePreservationPackage(): Boolean;
-var
-  PowerShellExe: String;
-  PowerShellCommand: String;
-  Params: String;
-  ArchivePath: String;
-  SafeDataRoot: String;
-  SafeArchivePath: String;
-  SafeDiagnosticPath: String;
-  ResultCode: Integer;
-begin
-  Result := False;
-  Log('DairyOS uninstall: preservation step entered; destination=' +
-    PreservationDestination);
-
-  if PreservationDestination = '' then
-  begin
-    Log('DairyOS uninstall: no preservation destination supplied.');
-    Result := True;
-    exit;
-  end;
-
-  Log('DairyOS uninstall: checking farm-data root ' + DairyOSDataRoot());
-  if not DirExists(DairyOSDataRoot()) then
-  begin
-    MsgBox(
-      'The DairyOS farm-data directory does not exist, so a preservation package could not be created.',
-      mbError,
-      MB_OK
-    );
-    exit;
-  end;
-
-  { Never allow the destination to be inside the data being archived.  Apart
-    from producing a misleading backup, that would let the archive include
-    itself and can leave Compress-Archive with a locked/incomplete file. }
-  Log('DairyOS uninstall: validating preservation destination is outside farm-data root.');
-  if IsPathWithinRoot(PreservationDestination, DairyOSDataRoot()) then
-  begin
-    MsgBox(
-      'Choose a preservation location outside the DairyOS farm-data directory. ' +
-      'The selected location would otherwise be included in its own archive.',
-      mbError,
-      MB_OK
-    );
-    exit;
-  end;
-
-  ArchivePath :=
-    AddBackslash(PreservationDestination) +
-    'DairyOS-Farm-Preservation-' +
-    GetDateTimeString('yyyymmdd-hhnnss', '', '') +
-    '.zip';
-  Log('DairyOS uninstall: creating preservation package at ' + ArchivePath);
-
-  SafeDataRoot := DairyOSDataRoot();
-  StringChangeEx(SafeDataRoot, '''', '''''', True);
-  SafeArchivePath := ArchivePath;
-  StringChangeEx(SafeArchivePath, '''', '''''', True);
-  SafeDiagnosticPath := UninstallDiagnosticPath();
-  StringChangeEx(SafeDiagnosticPath, '''', '''''', True);
-
-  { PostgreSQL is stopped before this function is called. Package the entire
-    ProgramData farm root, then reopen the archive and verify that it contains
-    entries before uninstall is allowed to continue. }
-  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
-  PowerShellCommand :=
-    '$ErrorActionPreference = ''Stop''; ' +
-    'Add-Type -AssemblyName System.IO.Compression.FileSystem; ' +
-    '$source = ''' + SafeDataRoot + '''; ' +
-    '$archive = ''' + SafeArchivePath + '''; ' +
-    '$diagnostic = ''' + SafeDiagnosticPath + '''; ' +
-    'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue; ' +
-    'try { ' +
-      'if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw ''DairyOS farm data root is unavailable.'' }; ' +
-      '$items = @(Get-ChildItem -LiteralPath $source -Force); ' +
-      'if ($items.Count -eq 0) { throw ''DairyOS farm data root is empty.'' }; ' +
-      '[System.IO.Compression.ZipFile]::CreateFromDirectory($source, $archive, [System.IO.Compression.CompressionLevel]::Optimal, $true); ' +
-      'if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw ''The preservation package was not created.'' }; ' +
-      '$zip = [System.IO.Compression.ZipFile]::OpenRead($archive); ' +
-      'try { if ($zip.Entries.Count -eq 0) { throw ''The preservation package is empty.'' } } ' +
-      'finally { $zip.Dispose() }; ' +
-      'Remove-Item -LiteralPath $diagnostic -Force -ErrorAction SilentlyContinue ' +
-    '} catch { ' +
-      '$_ | Out-File -LiteralPath $diagnostic -Encoding utf8; ' +
-      'Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue; ' +
-      'exit 1 ' +
-    '}';
-  Params :=
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
-    PowerShellCommand + '"';
-
-  if (not Exec(
-    PowerShellExe,
-    Params,
-    PreservationDestination,
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  )) or (ResultCode <> 0) or (not FileExists(ArchivePath)) then
-  begin
-    Log('DairyOS uninstall: preservation helper failed with code ' +
-      IntToStr(ResultCode));
-    MsgBox(
-      'DairyOS could not create and verify the farm-data preservation package. ' +
-      'Uninstall is blocked and the application remains installed. ' +
-      'A diagnostic file was written beside the selected destination when possible.',
-      mbError,
-      MB_OK
-    );
-    exit;
-  end;
-
-  MsgBox(
-    'Verified DairyOS farm-data preservation package saved at:' + #13#10 +
-    ArchivePath,
-    mbInformation,
-    MB_OK
-  );
-  Log('DairyOS uninstall: verified preservation package at ' + ArchivePath);
-  Result := True;
-end;
-
 function InitializeUninstall(): Boolean;
-var
-  Choice: Integer;
 begin
-  Result := True;
-  { The environment value is used only by the unattended certification path.
-    Interactive uninstall still requires the operator to choose the destination
-    through BrowseForFolder. The same path validation and ZIP verification are
-    used in both cases. }
-  PreservationDestination := GetEnv('DAIRYOS_UNINSTALL_PRESERVATION_DESTINATION');
-  Log('DairyOS uninstall: InitializeUninstall entered; silent=' +
-    IntToStr(Ord(IsSilentUninstall())) + '; preservation destination=' +
-    PreservationDestination);
-
-  if IsSilentUninstall() then
-  begin
-    Result := StopInstalledDairyOSForUninstall();
-    exit;
-  end;
-
-  Choice := MsgBox(
-    'Choose how to proceed with DairyOS uninstall:' + #13#10 + #13#10 +
-    'YES - PRESERVE FARM DATA AND UNINSTALL' + #13#10 +
-    'Choose a destination for a verified farm-data package, then remove the DairyOS application.' + #13#10 + #13#10 +
-    'NO - CANCEL AND KEEP THE APPLICATION' + #13#10 +
-    'No data or application files are removed.',
-    mbConfirmation,
-    MB_YESNO
-  );
-
-  if Choice = IDYES then
-  begin
-    if not BrowseForFolder(
-      'Select a destination folder for the verified DairyOS farm-data preservation package:',
-      PreservationDestination,
-      False
-    ) then
-    begin
-      Result := False;
-      exit;
-    end;
-    Result := StopInstalledDairyOSForUninstall();
-    exit;
-  end;
-
-  Result := False;
+  Log('DairyOS uninstall: beginning straightforward keep-data uninstall.');
+  Result := StopInstalledDairyOSForUninstall();
 end;

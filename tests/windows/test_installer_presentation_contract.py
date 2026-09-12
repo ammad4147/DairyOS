@@ -39,11 +39,11 @@ def test_install_data_choice_requires_explicit_clean_confirmation_or_backup():
     assert "SelectedBackupPath" in block
     assert "MsgBox(" in block
 
-def test_uninstall_prompt_keeps_data_without_standalone_admin():
+def test_uninstall_is_direct_and_keeps_data_without_standalone_admin():
     source = _source()
-    assert "YES - PRESERVE FARM DATA AND UNINSTALL" in source
-    assert "NO - CANCEL AND KEEP THE APPLICATION" in source
-    assert "CANCEL - DO NOT UNINSTALL" not in source
+    assert "PRESERVE FARM DATA AND UNINSTALL" not in source
+    assert "Choose how to proceed with DairyOS uninstall" not in source
+    assert "beginning straightforward keep-data uninstall" in source
     assert "DairyOS Administration" not in source
     assert "DairyOS-Admin.exe" not in source
     assert "StopInstalledDairyOSForUninstall" in source
@@ -54,8 +54,6 @@ def test_installer_user_facing_text_avoids_garbled_unicode_punctuation():
 
     assert "•" not in source
     assert "—" not in source
-    assert "YES - PRESERVE FARM DATA AND UNINSTALL" in source
-    assert "NO - CANCEL AND KEEP THE APPLICATION" in source
 
 
 def test_installer_and_shortcuts_use_the_dairyos_cow_icon():
