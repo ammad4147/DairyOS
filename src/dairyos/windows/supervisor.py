@@ -852,12 +852,15 @@ def run(config: SupervisorConfig) -> int:
             )
             return 4
 
-        # A restore selected in the installer must repair the database before
-        # the normal migration/startup-integrity gates inspect it. The
-        # selected path is re-verified inside process_pending_installation_choice
-        # and the request is cleared only after a successful restore.
+        # Any installer-selected action must be applied before the normal
+        # migration/startup-integrity gates inspect the database. In
+        # particular, clean installation must be able to replace an empty or
+        # stale established database before the safety gate blocks startup.
+        # The selected path is re-verified inside
+        # process_pending_installation_choice and the request is cleared only
+        # after successful completion.
         try:
-            process_pending_installation_choice(restore_only=True)
+            process_pending_installation_choice()
         except Exception as exc:
             LOG.exception("DairyOS installer-selected recovery could not be applied")
             show_startup_error(
@@ -885,17 +888,6 @@ def run(config: SupervisorConfig) -> int:
                 "No application window was started. Existing farm data was not intentionally deleted.",
             )
             return 3
-
-        try:
-            process_pending_installation_choice()
-        except Exception as exc:
-            LOG.exception("DairyOS installer-selected clean installation could not be applied")
-            show_startup_error(
-                "DairyOS clean installation could not be completed",
-                "The selected clean-install action was not applied and the request was retained.\n\n"
-                f"{exc}\n\nExisting farm data was not intentionally deleted.",
-            )
-            return 5
 
         try:
             process_pending_system_reset()
