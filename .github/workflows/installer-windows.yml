@@ -303,8 +303,11 @@ jobs:
           # path variables. A frozen DairyOS.exe must locate its private
           # PostgreSQL beside itself, never through stale machine/session state.
           $certDataRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installed-Preflight-Data"
+          $certInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-Installed-Preflight-installation-state.json"
           if (Test-Path $certDataRoot) { Remove-Item $certDataRoot -Recurse -Force }
+          Remove-Item $certInstallationState -Force -ErrorAction SilentlyContinue
           $env:DAIRYOS_DATA_DIR = $certDataRoot
+          $env:DAIRYOS_INSTALLATION_STATE = $certInstallationState
           $env:DAIRYOS_ENV = "production"
           $env:DAIRYOS_INSTALL_ROOT = Join-Path $env:RUNNER_TEMP "STALE-DAIRYOS-INSTALL-ROOT"
           $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $env:RUNNER_TEMP "STALE-POSTGRES-RUNTIME"
@@ -345,6 +348,9 @@ jobs:
           # packaged DairyOS database path. Do not clone a PostgreSQL cluster
           # by filesystem copy: runtime/config state is bound to its data root.
           $env:DAIRYOS_DATA_DIR = $dataRoot
+          $programDataInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-ProgramData-installation-state.json"
+          Remove-Item $programDataInstallationState -Force -ErrorAction SilentlyContinue
+          $env:DAIRYOS_INSTALLATION_STATE = $programDataInstallationState
           $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-programdata-preflight.txt"
           Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
           $programDataPreflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
