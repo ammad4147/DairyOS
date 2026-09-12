@@ -978,14 +978,6 @@ def main(argv: list[str] | None = None) -> int:
         return server_main(backend_argv)
 
     args = build_parser().parse_args(argv)
-    if args.data_root and not args.lifecycle_choice:
-        # The installer passes the selected fresh data root explicitly for
-        # its immediate post-install launch. This avoids relying on the
-        # parent Setup process having refreshed its inherited environment
-        # after writing the machine-level registry value.
-        os.environ["DAIRYOS_DATA_DIR"] = str(
-            Path(args.data_root).expanduser().resolve()
-        )
     if args.lifecycle_install:
         installation_root = args.installation_root or str(Path(sys.executable).resolve().parent)
         data_root_override = args.data_root or None
@@ -1015,6 +1007,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 5
         return 0
+    if args.data_root:
+        # The installer passes the selected fresh data root explicitly for
+        # its immediate post-install launch. This avoids relying on the
+        # parent Setup process having refreshed its inherited environment
+        # after writing the machine-level registry value. Lifecycle helper
+        # commands above use explicit arguments and must not leak their
+        # temporary test/runtime root into the hosting process.
+        os.environ["DAIRYOS_DATA_DIR"] = str(
+            Path(args.data_root).expanduser().resolve()
+        )
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
