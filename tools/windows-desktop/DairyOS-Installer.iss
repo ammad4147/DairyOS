@@ -939,11 +939,11 @@ begin
     exit;
   end;
 
-  Log('DairyOS uninstall: creating preservation destination directory.');
-  if not ForceDirectories(PreservationDestination) then
+  Log('DairyOS uninstall: validating preservation destination directory.');
+  if not DirExists(PreservationDestination) then
   begin
     MsgBox(
-      'DairyOS could not create the selected preservation folder. ' +
+      'The selected preservation folder does not exist. ' +
       'Uninstall is blocked and the application remains installed.',
       mbError,
       MB_OK
