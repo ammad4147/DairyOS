@@ -49,6 +49,35 @@ def test_keep_choice_round_trips_without_a_backup(tmp_path):
     assert choice.backup_path is None
 
 
+def test_new_choice_round_trips_without_a_backup(tmp_path):
+    write_pending_installation_choice(tmp_path, mode="new")
+
+    choice = read_pending_installation_choice(tmp_path)
+
+    assert choice is not None
+    assert choice.mode == "new"
+    assert choice.backup_path is None
+
+
+def test_new_choice_is_non_destructive_when_applied(monkeypatch, tmp_path):
+    root = tmp_path / "DairyOS"
+    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(root))
+    (root / "logs").mkdir(parents=True)
+    (root / "logs" / "historical.log").write_text("keep", encoding="utf-8")
+    (root / "storage").mkdir()
+    (root / "storage" / "history.json").write_text("{}", encoding="utf-8")
+    (root / "backups").mkdir()
+    (root / "backups" / "retained-backup").mkdir()
+    write_pending_installation_choice(root, mode="new")
+
+    supervisor.process_pending_installation_choice()
+
+    assert read_pending_installation_choice(root) is None
+    assert (root / "logs" / "historical.log").read_text(encoding="utf-8") == "keep"
+    assert (root / "storage" / "history.json").read_text(encoding="utf-8") == "{}"
+    assert (root / "backups" / "retained-backup").is_dir()
+
+
 def test_supervisor_stages_explicit_clean_choice(monkeypatch, tmp_path):
     root = tmp_path / "DairyOS"
     monkeypatch.setenv("DAIRYOS_DATA_DIR", str(root))

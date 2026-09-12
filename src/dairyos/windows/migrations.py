@@ -144,14 +144,18 @@ def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...
 
 
 def _explicit_clean_install_requested() -> bool:
-    """Return whether the installer explicitly authorized empty bootstrap."""
+    """Return whether the installer explicitly authorized empty bootstrap.
+
+    This authorization only permits bootstrapping a genuinely empty database;
+    it never authorizes deletion or replacement of an existing farm.
+    """
     try:
         choice = read_pending_installation_choice(paths.data_root(create=False))
     except InstallationChoiceError as exc:
         raise MigrationGateError(
             f"DairyOS installation choice is invalid; startup is blocked: {exc}"
         ) from exc
-    return choice is not None and choice.mode == "clean"
+    return choice is not None and choice.mode in {"clean", "new"}
 
 
 def migrate_if_needed() -> MigrationResult:

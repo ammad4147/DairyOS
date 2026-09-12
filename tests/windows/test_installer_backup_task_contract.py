@@ -45,7 +45,7 @@ def test_installer_ci_executes_registered_scheduled_task_and_checks_health():
 def test_installer_provisions_modify_acl_only_for_mutable_backup_tree():
     source = ISS.read_text(encoding="utf-8")
     assert "procedure ProvisionBackupTreeAcl();" in source
-    assert "BackupPath := DairyOSDataRoot() + '\\backups';" in source
+    assert "BackupPath := DairyOSDataRoot('') + '\\backups';" in source
     assert "*S-1-5-32-545:(OI)(CI)(M)" in source
     assert "/T /C" in source
 

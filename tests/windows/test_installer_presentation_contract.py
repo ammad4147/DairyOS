@@ -15,8 +15,9 @@ def test_installer_exposes_explicit_data_and_recovery_choices():
     assert "TInputOptionWizardPage" in source
     assert "Keep existing farm data (recommended)" in source
     assert "Restore from a verified backup" in source
-    assert "Start a clean farm" in source
+    assert "Create a separate empty farm (preserve existing data)" in source
     assert "CLEAN INSTALL DAIRYOS DATA" in source
+    assert "Existing DairyOS records, logs and backups will not be deleted or changed." in source
     assert "Backup candidate (DairyOS verifies before restore)" in source
     assert "No active DairyOS farm was detected, but recovery points are available." in source
     assert "--choice-mode keep" in source

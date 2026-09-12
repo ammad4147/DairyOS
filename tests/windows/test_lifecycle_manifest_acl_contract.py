@@ -38,7 +38,7 @@ def test_installer_grants_modify_only_to_lifecycle_manifest():
     source = ISS.read_text(encoding="utf-8")
 
     assert "procedure ProvisionLifecycleManifestAcl();" in source
-    assert "LifecyclePath := DairyOSDataRoot() + '\\lifecycle.json';" in source
+    assert "LifecyclePath := DairyOSDataRoot('') + '\\lifecycle.json';" in source
     assert "/grant:r *S-1-5-32-545:(M)" in source
 
     start = source.index("procedure ProvisionLifecycleManifestAcl();")
@@ -74,11 +74,11 @@ def test_backup_acl_is_scoped_separately_from_lifecycle_acl():
     end = source.index("procedure ProvisionAutomaticBackupTask();", start)
     block = source[start:end]
 
-    assert "BackupPath := DairyOSDataRoot() + '\\backups';" in block
+    assert "BackupPath := DairyOSDataRoot('') + '\\backups';" in block
     assert "*S-1-5-32-545:(OI)(CI)(M)" in block
     assert "/T /C" in block
 
     # Verify scope by path targets/commands, not explanatory prose.
-    assert "DairyOSDataRoot() + '\\postgres" not in block
-    assert "DairyOSDataRoot() + '\\security" not in block
+    assert "DairyOSDataRoot('') + '\\postgres" not in block
+    assert "DairyOSDataRoot('') + '\\security" not in block
     assert "security.json" not in block

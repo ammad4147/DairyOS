@@ -30,6 +30,23 @@ On Windows use `scripts/install/Install-DairyOS.ps1`. The script creates a dedic
 
 For an existing installation, use `-Upgrade`. A data backup is created before the change and the runtime directory is snapshotted so a failed upgrade can restore both the data state and the previous runtime files.
 
+### New empty farm versus existing farm data
+
+The Windows installer treats **Create a separate empty farm** as a
+non-destructive provisioning operation. When an existing farm is detected,
+the installer allocates a new sibling data root and points the new installation
+at that root. It never clears, replaces, scans arbitrary drives for, or
+deletes the existing farm database, logs, storage, or backups. The previous
+root remains available for a later Keep or explicitly selected Restore action.
+
+The installer only looks for recovery points in the active DairyOS backup
+directory and explicitly configured recovery/mirror roots. A backup-only
+directory is not treated as proof that an active farm should be reused.
+
+The terms **new empty farm** and **clean install** must therefore never be
+implemented as a reset. Permanent removal is a separate, explicitly named
+purge operation and is not part of installation.
+
 ## Validation
 
 The lifecycle validator checks:

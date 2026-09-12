@@ -115,7 +115,7 @@ def test_reset_delegates_mutation_to_lifecycle_coordinator(tmp_path, monkeypatch
     assert manager.calls == [("validate", True), ("backup", "pre-reset", True)]
 
 
-def test_clean_install_clears_active_logs_and_backup_catalogue(tmp_path, monkeypatch):
+def test_clean_install_refuses_to_reuse_existing_data_root(tmp_path, monkeypatch):
     class CleanManager(FakeManager):
         database_url = "postgresql+psycopg://example"
 
@@ -145,31 +145,11 @@ def test_clean_install_clears_active_logs_and_backup_catalogue(tmp_path, monkeyp
         encoding="utf-8",
     )
 
-    external = tmp_path / "external" / "pre-clean-install-external"
-
-    def copy_external(path):
-        import shutil
-
-        external.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(path, external)
-        return external
-
-    monkeypatch.setattr("dairyos.admin.service._assert_runtime_stopped", lambda: None)
-    monkeypatch.setattr("dairyos.admin.service._copy_external_recovery_artifact", copy_external)
-    monkeypatch.setattr("dairyos.admin.service._verify_backup_directory", lambda *args, **kwargs: None)
-    monkeypatch.setattr("dairyos.admin.service._write_audit_event", lambda *args, **kwargs: None)
-    monkeypatch.setattr("dairyos.admin.service._record_database_checksum", lambda path: None)
-    monkeypatch.setattr("dairyos.admin.service.reset_operational_data", lambda *args, **kwargs: SimpleNamespace(tables_cleared=("animal",)))
     monkeypatch.setattr("dairyos.admin.service.verify_zero_state", lambda url: {})
-
     manager = CleanManager(root)
-    result = AdminService(manager).clean_install(CLEAN_INSTALL_CONFIRMATION)
+    with pytest.raises(LifecycleError, match="refuses to reuse an existing farm data root"):
+        AdminService(manager).clean_install(CLEAN_INSTALL_CONFIRMATION)
 
-    assert result.success is True
-    assert list((root / "storage").iterdir()) == []
-    assert list((root / "logs").iterdir()) == []
-    assert list((root / "backups").iterdir()) == []
-    assert external.is_dir()
-    assert json.loads((root / "lifecycle.json").read_text())[
-        "last_backup"
-    ] is None
+    assert (root / "logs" / "old.log").read_text() == "old"
+    assert (root / "storage" / "old.json").read_text() == "{}"
+    assert (root / "backups" / "old-backup").is_dir()

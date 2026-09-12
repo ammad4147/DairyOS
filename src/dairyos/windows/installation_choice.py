@@ -18,7 +18,7 @@ import tempfile
 
 PENDING_INSTALLATION_CHOICE_FILENAME = "pending-installation-choice.json"
 INSTALLATION_CHOICE_VERSION = 1
-VALID_INSTALLATION_CHOICES = frozenset({"clean", "restore", "keep"})
+VALID_INSTALLATION_CHOICES = frozenset({"clean", "new", "restore", "keep"})
 
 
 class InstallationChoiceError(RuntimeError):
@@ -45,7 +45,7 @@ def write_pending_installation_choice(
     normalized_mode = str(mode or "").strip().lower()
     if normalized_mode not in VALID_INSTALLATION_CHOICES:
         raise InstallationChoiceError(
-            "Installation choice must be 'clean', 'restore' or 'keep'."
+            "Installation choice must be 'new', 'clean', 'restore' or 'keep'."
         )
 
     normalized_backup: str | None = None

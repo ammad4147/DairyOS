@@ -83,15 +83,17 @@ def test_empty_database_uses_explicit_bootstrap(monkeypatch):
     assert calls[0][2] == target
 
 
-def test_explicit_clean_install_allows_empty_database_bootstrap(
+@pytest.mark.parametrize("mode", ["clean", "new"])
+def test_explicit_new_farm_choice_allows_empty_database_bootstrap(
     monkeypatch,
     tmp_path,
+    mode,
 ):
     root = tmp_path / "DairyOS"
     monkeypatch.setenv("DAIRYOS_DATA_DIR", str(root))
     from dairyos.windows.installation_choice import write_pending_installation_choice
 
-    write_pending_installation_choice(root, mode="clean")
+    write_pending_installation_choice(root, mode=mode)
     target = ("20260826_01",)
     config = _patch_migration_environment(monkeypatch, target, target, 0)
     calls = []

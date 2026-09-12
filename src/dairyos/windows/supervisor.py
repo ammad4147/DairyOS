@@ -81,20 +81,20 @@ def queue_installation_choice(
     )
 
 
-def process_pending_installation_choice(*, restore_only: bool = False) -> None:
+def process_pending_installation_choice(
+    *,
+    restore_only: bool = False,
+) -> None:
     """Apply one explicit installer choice before normal backend startup."""
     from dairyos.platform.paths import data_root
 
     root = data_root(create=False)
     choice = read_pending_installation_choice(root)
-    if choice is None or (restore_only and choice.mode == "clean"):
+    if choice is None or (restore_only and choice.mode in {"clean", "new"}):
         return
 
     from dairyos.admin.database import acquire_admin_database
-    from dairyos.admin.service import (
-        CLEAN_INSTALL_CONFIRMATION,
-        AdminService,
-    )
+    from dairyos.admin.service import AdminService
 
     try:
         if choice.mode == "keep":
@@ -119,27 +119,21 @@ def process_pending_installation_choice(*, restore_only: bool = False) -> None:
                 LOG.info("Installer-selected DairyOS recovery completed: %s", result.message)
             finally:
                 lease.close()
-        elif choice.mode == "clean":
-            lease = acquire_admin_database(
-                Path(sys.executable).resolve().parent,
-                data_root=root,
+        elif choice.mode in {"clean", "new"}:
+            # ``clean`` is retained only for compatibility with an older
+            # pending request. It is never allowed to delete or rewrite an
+            # existing data root. The current installer uses ``new`` with a
+            # newly allocated root, so migration can bootstrap it safely.
+            LOG.info(
+                "Installer selected a new empty DairyOS farm; existing data was not changed"
             )
-            try:
-                result = AdminService(lease.manager).clean_install(
-                    CLEAN_INSTALL_CONFIRMATION,
-                    requested_at=choice.requested_at,
-                )
-                LOG.info("Installer-selected DairyOS clean installation completed: %s", result.message)
-            finally:
-                lease.close()
         else:  # pragma: no cover - read helper rejects unsupported modes
             raise InstallationChoiceError(
                 f"Unsupported pending DairyOS installation choice: {choice.mode}"
             )
     except Exception:
-        # Restore/clean can replace the active data tree, including this
-        # one-shot request. Re-stage it after a failed attempt so the operator
-        # can retry or choose Keep from the installer without losing intent.
+        # Re-stage a failed one-shot request so the operator can retry or
+        # choose Keep from the installer without losing intent.
         try:
             write_pending_installation_choice(
                 root,
@@ -853,11 +847,11 @@ def run(config: SupervisorConfig) -> int:
             return 4
 
         # A restore selected in the installer must repair the database before
-        # the normal migration/startup-integrity gates inspect it. A clean
+        # the normal migration/startup-integrity gates inspect it. A new-farm
         # choice is intentionally retained through migration: the migration
-        # gate uses its explicit authorization to bootstrap an empty database,
-        # after which the clean reset is applied below. Requests are cleared
-        # only after successful completion.
+        # gate uses its explicit authorization only to bootstrap an empty
+        # database in the selected data root. No existing farm root is reset,
+        # deleted, or replaced. Requests are cleared only after success.
         try:
             process_pending_installation_choice(restore_only=True)
         except Exception as exc:
@@ -891,10 +885,10 @@ def run(config: SupervisorConfig) -> int:
         try:
             process_pending_installation_choice()
         except Exception as exc:
-            LOG.exception("DairyOS installer-selected clean installation could not be applied")
+            LOG.exception("DairyOS installer-selected data action could not be applied")
             show_startup_error(
-                "DairyOS clean installation could not be completed",
-                "The selected clean-install action was not applied and the request was retained.\n\n"
+                "DairyOS installation data action could not be completed",
+                "The selected installation data action was not applied and the request was retained.\n\n"
                 f"{exc}\n\nExisting farm data was not intentionally deleted.",
             )
             return 5
@@ -962,7 +956,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--lifecycle-choice", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--choice-mode",
-        choices=("clean", "restore", "keep"),
+        choices=("new", "clean", "restore", "keep"),
         default=None,
         help=argparse.SUPPRESS,
     )
@@ -984,6 +978,14 @@ def main(argv: list[str] | None = None) -> int:
         return server_main(backend_argv)
 
     args = build_parser().parse_args(argv)
+    if args.data_root and not args.lifecycle_choice:
+        # The installer passes the selected fresh data root explicitly for
+        # its immediate post-install launch. This avoids relying on the
+        # parent Setup process having refreshed its inherited environment
+        # after writing the machine-level registry value.
+        os.environ["DAIRYOS_DATA_DIR"] = str(
+            Path(args.data_root).expanduser().resolve()
+        )
     if args.lifecycle_install:
         installation_root = args.installation_root or str(Path(sys.executable).resolve().parent)
         data_root_override = args.data_root or None
@@ -996,7 +998,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.lifecycle_choice:
         if not args.choice_mode:
             raise SystemExit(
-                "--lifecycle-choice requires --choice-mode clean, restore or keep"
+                "--lifecycle-choice requires --choice-mode new, restore or keep"
             )
         root = _installation_choice_data_root(args.data_root)
         try:

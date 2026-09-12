@@ -35,14 +35,14 @@ def test_installer_exposes_explicit_clean_and_restore_choices():
     assert "CreateInputOptionPage" in source
     assert "Keep existing farm data (recommended)" in source
     assert "Restore from a verified backup" in source
-    assert "Start a clean farm" in source
+    assert "Create a separate empty farm (preserve existing data)" in source
     assert "ScanKnownBackupRoots" in source
     assert "StageInstallationChoice" in source
     assert "TRadioButton" not in source
     assert "ShouldLaunchDairyOS" in source
     assert "--lifecycle-choice" in source
     assert "--choice-mode restore" in source
-    assert "--choice-mode clean" in source
+    assert "--choice-mode new" in source
     assert "--choice-mode keep" in source
     assert "DairyOS-Admin.exe" not in source
 
@@ -73,7 +73,7 @@ def test_uninstall_stops_only_dairyos_private_cluster_and_runtime_processes():
 
     assert "function StopInstalledDairyOSForUninstall(): Boolean;" in source
     assert "runtime\\PostgreSQL\\bin\\pg_ctl.exe" in source
-    assert "DairyOSDataRoot() + '\\postgres\\data'" in source
+    assert "DairyOSDataRoot('') + '\\postgres\\data'" in source
     assert "postmaster.pid" in source
     assert "stop -m fast -w -t 30" in source
     assert "Get-CimInstance Win32_Process" in source
@@ -120,7 +120,7 @@ def test_ci_does_not_create_retention_sentinel_before_programdata_bootstrap():
     assert early < preflight < marker_write
 
 
-def test_new_install_stages_explicit_clean_bootstrap_while_keep_stays_non_destructive():
+def test_new_install_stages_explicit_non_destructive_bootstrap_while_keep_stays_non_destructive():
     source = _source()
 
     keep = source.index("else if SelectedInstallMode = 'keep' then")
@@ -130,5 +130,29 @@ def test_new_install_stages_explicit_clean_bootstrap_while_keep_stays_non_destru
     new_block = source[new:new_end]
 
     assert "--choice-mode keep" in keep_block
-    assert "--choice-mode clean" in new_block
+    assert "--choice-mode new" in new_block
     assert "SelectedInstallMode = 'new'" not in keep_block
+
+
+def test_clean_install_uses_a_new_data_root_and_does_not_delete_existing_data():
+    source = _source()
+
+    assert "AllocateNewDairyOSDataRoot" in source
+    assert "SelectNewDairyOSDataRoot" in source
+    assert "CanonicalDairyOSDataRoot" in source
+    assert "DAIRYOS_DATA_DIR" in source
+    assert "SelectedDataRoot := AllocateNewDairyOSDataRoot()" in source
+    assert "ExistingDairyOSDataRoot()" in source
+    assert "ValueData: \"{code:DairyOSDataRoot}\"" in source
+    assert 'Parameters: "--data-root ""{code:DairyOSDataRoot}"""' in source
+    assert "DirectoryHasEntries(Root + '\\backups')" not in source
+    assert "arbitrary historical backup trees" in source
+    assert "Existing DairyOS records, logs and backups will not be deleted or changed." in source
+
+
+def test_selected_new_root_is_used_for_post_install_provisioning_and_launch():
+    source = _source()
+
+    assert "SelectedDataRoot := AllocateNewDairyOSDataRoot()" in source
+    assert "--data-root \"' + DairyOSDataRoot('') + '\"" in source
+    assert 'Parameters: "--data-root ""{code:DairyOSDataRoot}"""' in source

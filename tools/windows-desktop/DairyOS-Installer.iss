@@ -48,7 +48,7 @@ Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recurse
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_ENV"; ValueData: "production"; Flags: uninsdeletevalue
-Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_DATA_DIR"; ValueData: "{commonappdata}\DairyOS"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_DATA_DIR"; ValueData: "{code:DairyOSDataRoot}"; Flags: uninsdeletevalue
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_INSTALL_ROOT"; ValueData: "{app}"; Flags: uninsdeletevalue
 
 [Icons]
@@ -59,7 +59,7 @@ Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{ap
 Name: "{commonappdata}\DairyOS"
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
+Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
 ; Deliberately empty. ProgramData contains farm data, the private PostgreSQL
@@ -77,12 +77,57 @@ var
   CleanConfirmationAccepted: Boolean;
   RestoreChoiceIndex: Integer;
   BackupCandidatePaths: array of String;
+  SelectedDataRoot: String;
 
 procedure StageInstallationChoice(); forward;
 
-function DairyOSDataRoot(): String;
+function CanonicalDairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
+end;
+
+function ExistingDairyOSDataRoot(): String;
+var
+  ConfiguredRoot: String;
+begin
+  { The machine-level pointer is the active root after a prior installation,
+    including a previously selected sibling new-farm root. Fall back to the
+    conventional root only when no active pointer exists. }
+  if RegQueryStringValue(
+    HKLM,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'DAIRYOS_DATA_DIR',
+    ConfiguredRoot
+  ) and (ConfiguredRoot <> '') then
+    Result := ConfiguredRoot
+  else
+    Result := CanonicalDairyOSDataRoot();
+end;
+
+function AllocateNewDairyOSDataRoot(): String;
+var
+  Base: String;
+  Candidate: String;
+  Suffix: Integer;
+begin
+  Base := ExpandConstant('{commonappdata}\DairyOS-New-') +
+    GetDateTimeString('yyyymmdd-hhnnss', '', '');
+  Candidate := Base;
+  Suffix := 0;
+  while DirExists(Candidate) do
+  begin
+    Suffix := Suffix + 1;
+    Candidate := Base + '-' + IntToStr(Suffix);
+  end;
+  Result := Candidate;
+end;
+
+function DairyOSDataRoot(Param: String): String;
+begin
+  if SelectedDataRoot <> '' then
+    Result := SelectedDataRoot
+  else
+    Result := ExistingDairyOSDataRoot();
 end;
 
 
@@ -99,7 +144,7 @@ begin
   Params :=
     '--lifecycle-install ' +
     '--installation-root "' + ExpandConstant('{app}') + '" ' +
-    '--data-root "' + DairyOSDataRoot() + '"';
+    '--data-root "' + DairyOSDataRoot('') + '"';
 
   if (not Exec(
     DairyOSExe,
@@ -122,7 +167,7 @@ var
   Params: String;
   ResultCode: Integer;
 begin
-  LifecyclePath := DairyOSDataRoot() + '\lifecycle.json';
+  LifecyclePath := DairyOSDataRoot('') + '\lifecycle.json';
 
   if not FileExists(LifecyclePath) then
     RaiseException(
@@ -158,7 +203,7 @@ var
   Params: String;
   ResultCode: Integer;
 begin
-  BackupPath := DairyOSDataRoot() + '\backups';
+  BackupPath := DairyOSDataRoot('') + '\backups';
 
   if not DirExists(BackupPath) then
     ForceDirectories(BackupPath);
@@ -192,7 +237,7 @@ var
   Params: String;
   ResultCode: Integer;
 begin
-  StoragePath := DairyOSDataRoot() + '\storage';
+  StoragePath := DairyOSDataRoot('') + '\storage';
 
   if not DirExists(StoragePath) then
     ForceDirectories(StoragePath);
@@ -275,11 +320,11 @@ begin
   if SelectedInstallMode = 'clean' then
   begin
     if not CleanConfirmationAccepted then
-      RaiseException('Clean installation was not explicitly confirmed.');
+      RaiseException('New empty farm was not explicitly confirmed.');
     Params :=
       '--lifecycle-choice ' +
-      '--choice-mode clean ' +
-      '--data-root "' + DairyOSDataRoot() + '"';
+      '--choice-mode new ' +
+      '--data-root "' + DairyOSDataRoot('') + '"';
   end
   else if SelectedInstallMode = 'restore' then
   begin
@@ -289,26 +334,23 @@ begin
       '--lifecycle-choice ' +
       '--choice-mode restore ' +
       '--backup-path "' + SelectedBackupPath + '" ' +
-      '--data-root "' + DairyOSDataRoot() + '"';
+      '--data-root "' + DairyOSDataRoot('') + '"';
   end
   else if SelectedInstallMode = 'keep' then
   begin
     Params :=
       '--lifecycle-choice ' +
       '--choice-mode keep ' +
-      '--data-root "' + DairyOSDataRoot() + '"';
+      '--data-root "' + DairyOSDataRoot('') + '"';
   end
   else if SelectedInstallMode = 'new' then
   begin
-    { Setup provisions lifecycle/storage folders before the packaged startup
-      gate runs.  A genuinely new install must therefore carry an explicit
-      clean-bootstrap authorization; treating it as Keep would make the
-      safety gate mistake the freshly provisioned runtime folders for an
-      established farm and block first start. }
+    { A new root carries an explicit non-destructive bootstrap authorization.
+      The previous root is never opened for deletion or reset. }
     Params :=
       '--lifecycle-choice ' +
-      '--choice-mode clean ' +
-      '--data-root "' + DairyOSDataRoot() + '"';
+      '--choice-mode new ' +
+      '--data-root "' + DairyOSDataRoot('') + '"';
   end
   else
     exit;
@@ -419,19 +461,26 @@ begin
   end;
 end;
 
+function SelectNewDairyOSDataRoot(): String;
+begin
+  { Reuse the conventional root only when it is genuinely empty. If any
+    prior material exists there, allocate a sibling so a new farm starts with
+    no inherited records or logs while the prior root remains untouched. }
+  if DirectoryHasEntries(ExistingDairyOSDataRoot()) then
+    Result := AllocateNewDairyOSDataRoot()
+  else
+    Result := ExistingDairyOSDataRoot();
+end;
+
 procedure ScanKnownBackupRoots();
 var
-  Root: String;
   ConfiguredRoot: String;
-  Drive: String;
-  I: Integer;
 begin
   SetArrayLength(BackupCandidatePaths, 0);
-  Root := DairyOSDataRoot();
-
-  ScanBackupDirectory(AddBackslash(Root) + 'backups', 0);
-  ScanBackupDirectory(AddBackslash(ExtractFileDir(Root)) + 'recovery', 0);
-  ScanBackupDirectory(AddBackslash(ExtractFileDir(Root)) + 'DairyOS-PurgeBackups', 0);
+  { Only explicitly owned/declared recovery locations are inspected. A clean
+    install must not treat arbitrary historical backup trees as active farm
+    data or make a recovery choice from an unrelated drive. }
+  ScanBackupDirectory(AddBackslash(ExistingDairyOSDataRoot()) + 'backups', 0);
 
   ConfiguredRoot := GetEnv('DAIRYOS_BACKUP_MIRROR_ROOT');
   if ConfiguredRoot <> '' then
@@ -440,20 +489,13 @@ begin
   if ConfiguredRoot <> '' then
     ScanBackupDirectory(ConfiguredRoot, 0);
 
-  { Match the bounded, known removable/external backup roots used by the
-    recovery catalog without searching arbitrary user files. }
-  for I := Ord('C') to Ord('Z') do
-  begin
-    Drive := Chr(I) + ':\DairyOS-Backups';
-    ScanBackupDirectory(Drive, 0);
-  end;
 end;
 
 function DetectExistingDairyOSData(): Boolean;
 var
   Root: String;
 begin
-  Root := DairyOSDataRoot();
+  Root := ExistingDairyOSDataRoot();
   Result :=
     FileExists(Root + '\installation_state.json') or
     FileExists(Root + '\lifecycle.json') or
@@ -461,7 +503,6 @@ begin
     FileExists(Root + '\postgres\security.json') or
     DirExists(Root + '\postgres\data') or
     DirectoryHasEntries(Root + '\storage') or
-    DirectoryHasEntries(Root + '\backups') or
     FileExists(ExpandConstant('{localappdata}\DairyOS-installation-state.json'));
 end;
 
@@ -469,6 +510,7 @@ procedure InitializeWizard();
 var
   I: Integer;
 begin
+  SelectedDataRoot := ExistingDairyOSDataRoot();
   ExistingDataDetected := DetectExistingDairyOSData();
   ScanKnownBackupRoots();
   SelectedBackupPath := '';
@@ -481,13 +523,13 @@ begin
       wpSelectDir,
       'DairyOS Farm Data',
       'Choose how this installation should use the existing farm data.',
-      'Keep the current farm, restore one selected recovery point, or start a clean active farm.',
+      'Keep the current farm, restore one selected recovery point, or create a separate empty farm.',
       True,
       True
     );
     DataChoicePage.Add('Keep existing farm data (recommended)');
     DataChoicePage.Add('Restore from a verified backup');
-    DataChoicePage.Add('Start a clean farm');
+    DataChoicePage.Add('Create a separate empty farm (preserve existing data)');
     DataChoicePage.SelectedValueIndex := 0;
     SelectedInstallMode := 'keep';
     RestoreChoiceIndex := 1;
@@ -507,6 +549,7 @@ begin
     DataChoicePage.SelectedValueIndex := 0;
     SelectedInstallMode := 'new';
     RestoreChoiceIndex := 1;
+    SelectedDataRoot := SelectNewDairyOSDataRoot();
   end
   else
   begin
@@ -521,16 +564,17 @@ begin
     DataChoicePage.Add('Initialize a new empty farm');
     DataChoicePage.SelectedValueIndex := 0;
     SelectedInstallMode := 'new';
+    SelectedDataRoot := SelectNewDairyOSDataRoot();
   end;
 
   CleanConfirmationPage := CreateInputQueryPage(
     DataChoicePage.ID,
-    'Confirm clean DairyOS farm',
-    'This action clears the active farm history.',
-    'Type the exact phrase below to confirm that the new installation starts with no prior farm data or logs.'
+    'Confirm new empty DairyOS farm',
+    'This action creates a separate empty farm data root.',
+    'Type the exact phrase below to confirm. Existing DairyOS records, logs and backups will not be deleted or changed.'
   );
   CleanConfirmationPage.Add(
-    'Type CLEAN INSTALL DAIRYOS DATA to confirm:',
+    'Type CLEAN INSTALL DAIRYOS DATA to confirm a new farm:',
     False
   );
 
@@ -565,25 +609,30 @@ begin
       if DataChoicePage.SelectedValueIndex = 0 then
       begin
         SelectedInstallMode := 'keep';
+        SelectedDataRoot := ExistingDairyOSDataRoot();
         exit;
       end;
 
       if DataChoicePage.SelectedValueIndex = 1 then
       begin
         SelectedInstallMode := 'restore';
+        SelectedDataRoot := ExistingDairyOSDataRoot();
         exit;
       end;
 
       SelectedInstallMode := 'clean';
+      SelectedDataRoot := AllocateNewDairyOSDataRoot();
       exit;
     end;
     if (RestoreChoiceIndex >= 0) and
        (DataChoicePage.SelectedValueIndex = RestoreChoiceIndex) then
     begin
       SelectedInstallMode := 'restore';
+      SelectedDataRoot := ExistingDairyOSDataRoot();
       exit;
     end;
     SelectedInstallMode := 'new';
+    SelectedDataRoot := SelectNewDairyOSDataRoot();
     exit;
   end;
 
@@ -592,7 +641,7 @@ begin
     if CleanConfirmationPage.Values[0] <> 'CLEAN INSTALL DAIRYOS DATA' then
     begin
       MsgBox(
-        'Clean installation was not confirmed. No active farm data was changed.',
+        'New empty farm was not confirmed. Existing farm data was not changed.',
         mbError,
         MB_OK
       );
@@ -601,6 +650,8 @@ begin
     end;
     CleanConfirmationAccepted := True;
     SelectedInstallMode := 'clean';
+    if SelectedDataRoot = ExistingDairyOSDataRoot() then
+      SelectedDataRoot := AllocateNewDairyOSDataRoot();
     exit;
   end;
 
@@ -746,7 +797,7 @@ begin
     persistent data directory. Never terminate arbitrary postgres.exe
     processes because the workstation may host unrelated PostgreSQL services. }
   PgCtl := ExpandConstant('{app}\runtime\PostgreSQL\bin\pg_ctl.exe');
-  DataDir := DairyOSDataRoot() + '\postgres\data';
+  DataDir := DairyOSDataRoot('') + '\postgres\data';
   PidFile := DataDir + '\postmaster.pid';
 
   if FileExists(PidFile) then

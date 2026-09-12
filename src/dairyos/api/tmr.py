@@ -824,7 +824,7 @@ def lock_daily_tmr_cost_snapshot(
     # because the scheduler happened to start. A snapshot is an operational
     # authority for an actual catered herd; with no automatically connected
     # animals there is no completed TMR calculation to materialise. This also
-    # keeps clean-install state visibly empty after the first application
+    # keeps new-farm state visibly empty after the first application
     # start. Once a Milking animal exists, a zero-cost formulation remains a
     # legitimate snapshot and is retained for the selected operational day.
     if not any(int(value or 0) > 0 for value in live["herd_counts"].values()):
