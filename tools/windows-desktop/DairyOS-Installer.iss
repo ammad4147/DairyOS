@@ -320,11 +320,23 @@ begin
       '--backup-path "' + SelectedBackupPath + '" ' +
       '--data-root "' + DairyOSDataRoot() + '"';
   end
-  else if (SelectedInstallMode = 'keep') or (SelectedInstallMode = 'new') then
+  else if SelectedInstallMode = 'keep' then
   begin
     Params :=
       '--lifecycle-choice ' +
       '--choice-mode keep ' +
+      '--data-root "' + DairyOSDataRoot() + '"';
+  end
+  else if SelectedInstallMode = 'new' then
+  begin
+    { Setup provisions lifecycle/storage folders before the packaged startup
+      gate runs.  A genuinely new install must therefore carry an explicit
+      clean-bootstrap authorization; treating it as Keep would make the
+      safety gate mistake the freshly provisioned runtime folders for an
+      established farm and block first start. }
+    Params :=
+      '--lifecycle-choice ' +
+      '--choice-mode clean ' +
       '--data-root "' + DairyOSDataRoot() + '"';
   end
   else

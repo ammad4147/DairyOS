@@ -45,7 +45,7 @@ def write_pending_installation_choice(
     normalized_mode = str(mode or "").strip().lower()
     if normalized_mode not in VALID_INSTALLATION_CHOICES:
         raise InstallationChoiceError(
-            "Installation choice must be either 'clean' or 'restore'."
+            "Installation choice must be 'clean', 'restore' or 'keep'."
         )
 
     normalized_backup: str | None = None

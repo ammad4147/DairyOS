@@ -109,3 +109,17 @@ def test_ci_does_not_create_preservation_sentinel_before_programdata_bootstrap()
     marker_write = workflow.index('"preserve-me" | Set-Content -Path $marker -Encoding ascii')
 
     assert early < preflight < marker_write
+
+
+def test_new_install_stages_explicit_clean_bootstrap_while_keep_stays_non_destructive():
+    source = _source()
+
+    keep = source.index("else if SelectedInstallMode = 'keep' then")
+    new = source.index("else if SelectedInstallMode = 'new' then", keep)
+    keep_block = source[keep:new]
+    new_end = source.index("  else\n    exit;", new)
+    new_block = source[new:new_end]
+
+    assert "--choice-mode keep" in keep_block
+    assert "--choice-mode clean" in new_block
+    assert "SelectedInstallMode = 'new'" not in keep_block
