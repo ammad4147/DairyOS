@@ -265,14 +265,14 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const milkingAdultCount = canonicalHerd[0].value;
   const dryAdultCount = canonicalHerd[1].value;
   const totalAdultCount = milkingAdultCount + dryAdultCount;
-  const wetAverageYield =
-    data?.herdMetrics?.wetAverageYieldPercentage == null
+  const averageYieldMilkingAnimals =
+    data?.herdMetrics?.averageYieldMilkingAnimalsLiters == null
       ? 'N/A'
-      : `${Number(data.herdMetrics.wetAverageYieldPercentage).toFixed(2)}%`;
-  const dryAverageYield =
-    data?.herdMetrics?.dryAverageYieldPercentage == null
+      : `${Number(data.herdMetrics.averageYieldMilkingAnimalsLiters).toFixed(2)} L`;
+  const averageYieldTotalHerd =
+    data?.herdMetrics?.averageYieldTotalHerdLiters == null
       ? 'N/A'
-      : `${Number(data.herdMetrics.dryAverageYieldPercentage).toFixed(2)}%`;
+      : `${Number(data.herdMetrics.averageYieldTotalHerdLiters).toFixed(2)} L`;
   const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
   const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
 
@@ -891,7 +891,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" style={{ flex:'1.6 1 0', display:'flex', flexDirection:'column', background:'#111827', border:'1px solid #1f2937', borderRadius:8, padding:10, minHeight:0, minWidth:0, overflow:'hidden' }}>
             <div className="cmd-card-title clickable-title" onClick={() => onNavigate?.('milk')} style={{ display:'flex', alignItems:'center', gap:6, color:'#38bdf8', fontWeight:'bold', fontSize:12, cursor:'pointer', marginBottom:8 }}> <Milk size={16} /> <span>Milk Production & Farm Yield</span></div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:6, marginBottom:8, minWidth:0 }}>
-              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Wet Average Yield" value={wetAverageYield} color="#34d399" /><SmallStat label="Dry Average Yield" value={dryAverageYield} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={currentComlDisplay} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
+              <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Average Yield (Milking Animals)" value={averageYieldMilkingAnimals} color="#34d399" /><SmallStat label="Average Yield (Total Herd)" value={averageYieldTotalHerd} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={currentComlDisplay} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}>
               <WideStat

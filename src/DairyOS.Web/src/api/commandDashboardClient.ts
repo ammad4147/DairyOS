@@ -13,8 +13,8 @@ export interface HerdCategory {
 }
 
 export interface HerdMetrics {
-  wetAverageYieldPercentage: number | null;
-  dryAverageYieldPercentage: number | null;
+  averageYieldMilkingAnimalsLiters: number | null;
+  averageYieldTotalHerdLiters: number | null;
 }
 
 export interface DashboardSickAnimal {
@@ -107,8 +107,8 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   averageYieldPerCow: 0,
   herdComposition: [],
   herdMetrics: {
-    wetAverageYieldPercentage: null,
-    dryAverageYieldPercentage: null,
+    averageYieldMilkingAnimalsLiters: null,
+    averageYieldTotalHerdLiters: null,
   },
   topPerformers: [],
   bottomPerformers: [],
@@ -481,14 +481,14 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
     })),
 
     herdMetrics: {
-      wetAverageYieldPercentage:
-        rawHerdMetrics.wet_average_yield_percentage == null
+      averageYieldMilkingAnimalsLiters:
+        rawHerdMetrics.average_yield_milking_animals_liters == null
           ? null
-          : Number(rawHerdMetrics.wet_average_yield_percentage),
-      dryAverageYieldPercentage:
-        rawHerdMetrics.dry_average_yield_percentage == null
+          : Number(rawHerdMetrics.average_yield_milking_animals_liters),
+      averageYieldTotalHerdLiters:
+        rawHerdMetrics.average_yield_total_herd_liters == null
           ? null
-          : Number(rawHerdMetrics.dry_average_yield_percentage),
+          : Number(rawHerdMetrics.average_yield_total_herd_liters),
     },
 
     productionExtremes: {

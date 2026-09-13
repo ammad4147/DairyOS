@@ -46,6 +46,60 @@ DEFAULT_DATABASE = "dairyos"
 DEFAULT_USER = "dairyos_admin"
 _VERSION_RE = re.compile(r"PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})", re.IGNORECASE)
 
+# DairyOS owns its bundled PostgreSQL runtime and its connection authority.
+# Ambient libpq/PostgreSQL variables from the launching shell, desktop,
+# installer, scheduled task, or service must not redirect or poison that
+# private runtime.
+_POSTGRES_ENVIRONMENT_VARIABLES = frozenset(
+    {
+        "PGAPPNAME",
+        "PGCHANNELBINDING",
+        "PGCLIENTENCODING",
+        "PGCONNECT_TIMEOUT",
+        "PGDATABASE",
+        "PGDATA",
+        "PGGSSENCMODE",
+        "PGGSSLIB",
+        "PGHOST",
+        "PGHOSTADDR",
+        "PGKRBSRVNAME",
+        "PGOPTIONS",
+        "PGPASSFILE",
+        "PGPASSWORD",
+        "PGPORT",
+        "PGREQUIREPEER",
+        "PGREQUIRESSL",
+        "PGSERVICE",
+        "PGSERVICEFILE",
+        "PGSYSCONFDIR",
+        "PGSSLCERT",
+        "PGSSLCRL",
+        "PGSSLCRLDIR",
+        "PGSSLKEY",
+        "PGSSLMODE",
+        "PGSSLROOTCERT",
+        "PGSSLSNI",
+        "PGTARGETSESSIONATTRS",
+        "PGUSER",
+    }
+)
+
+
+def _postgres_subprocess_environment(
+    *,
+    user: str | None = None,
+) -> dict[str, str]:
+    """Return an environment isolated from ambient PostgreSQL authority."""
+    environment = os.environ.copy()
+
+    for name in _POSTGRES_ENVIRONMENT_VARIABLES:
+        environment.pop(name, None)
+
+    if user is not None:
+        environment["PGUSER"] = user
+
+    return environment
+
 
 def runtime_root() -> Path:
     """Return the PostgreSQL runtime shipped with the DairyOS bundle.
@@ -163,7 +217,11 @@ def _run(
                 check=False,
                 timeout=timeout,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                env=env,
+                env=(
+                    _postgres_subprocess_environment()
+                    if env is None
+                    else env
+                ),
             )
         else:
             result = subprocess.run(
@@ -174,7 +232,11 @@ def _run(
                 check=False,
                 timeout=timeout,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                env=env,
+                env=(
+                    _postgres_subprocess_environment()
+                    if env is None
+                    else env
+                ),
             )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise PrivatePostgreSQLError(
@@ -602,8 +664,9 @@ def start(
     if not pid_path.is_file():
         log_file = paths.logs_dir(create=True) / "private-postgres.log"
 
-        pgctl_env = os.environ.copy()
-        pgctl_env["PGUSER"] = cluster_user
+        pgctl_env = _postgres_subprocess_environment(
+            user=cluster_user,
+        )
 
         _run(
             [

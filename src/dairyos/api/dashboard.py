@@ -142,24 +142,26 @@ def _herd_composition(active_animals) -> list[dict]:
     ]
 
 
-def _herd_metrics(herd_composition: list[dict]) -> dict[str, float | None]:
-    """Expose governed herd ratios so the UI does not recreate business math."""
+def _herd_metrics(
+    herd_composition: list[dict],
+    *,
+    daily_milk_liters: float,
+) -> dict[str, float | None]:
+    """Expose governed daily milk-yield averages for Dashboard herd populations."""
     counts = {
         str(item.get("name")): int(item.get("value") or 0)
         for item in herd_composition
     }
-    milking = counts.get("Milking", 0)
-    dry = counts.get("Dry", 0)
-    total_adults = milking + dry
+    milking_animals = counts.get("Milking", 0)
     total_herd = sum(counts.values())
     return {
-        "wet_average_yield_percentage": (
-            round((milking / total_adults) * 100.0, 2)
-            if total_adults
+        "average_yield_milking_animals_liters": (
+            round(daily_milk_liters / milking_animals, 2)
+            if milking_animals
             else None
         ),
-        "dry_average_yield_percentage": (
-            round((milking / total_herd) * 100.0, 2)
+        "average_yield_total_herd_liters": (
+            round(daily_milk_liters / total_herd, 2)
             if total_herd
             else None
         ),
@@ -350,7 +352,6 @@ def get_dashboard(container=Depends(get_container)):
         threshold=39.5,
     )
     herd_composition = _herd_composition(active_animals)
-    herd_metrics = _herd_metrics(herd_composition)
     health_dashboard_animals = _health_dashboard_animals(
         open_health_cases,
         operational_date,
@@ -405,6 +406,11 @@ def get_dashboard(container=Depends(get_container)):
             ledger_total_by_animal[animal_id] = float(row.total_yield)
 
     current_milking_ids = set(ledger_total_by_animal)
+    daily_milk_liters = sum(ledger_total_by_animal.values())
+    herd_metrics = _herd_metrics(
+        herd_composition,
+        daily_milk_liters=daily_milk_liters,
+    )
     average_yield_per_cow = (
         round(sum(ledger_total_by_animal.values()) / len(ledger_total_by_animal), 2)
         if ledger_total_by_animal else None
