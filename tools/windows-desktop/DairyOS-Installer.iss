@@ -111,7 +111,7 @@ var
   Suffix: Integer;
 begin
   Base := ExpandConstant('{commonappdata}\DairyOS-New-') +
-    GetDateTimeString('yyyymmdd-hhnnss', '', '');
+    GetDateTimeString('yyyymmdd-hhnnss', '-', ':');
   Candidate := Base;
   Suffix := 0;
   while DirExists(Candidate) do

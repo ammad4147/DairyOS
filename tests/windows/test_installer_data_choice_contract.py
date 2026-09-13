@@ -156,3 +156,27 @@ def test_selected_new_root_is_used_for_post_install_provisioning_and_launch():
     assert "SelectedDataRoot := AllocateNewDairyOSDataRoot()" in source
     assert "--data-root \"' + DairyOSDataRoot('') + '\"" in source
     assert 'Parameters: "--data-root ""{code:DairyOSDataRoot}"""' in source
+
+
+def test_separate_empty_farm_uses_runtime_valid_timestamp_separators() -> None:
+    """Prevent the Inno runtime Type Mismatch reproduced by INST-LIFECYCLE-01."""
+    source = _source()
+
+    broken_runtime_call = "GetDateTimeString('yyyymmdd-hhnnss', '', '')"
+    proven_runtime_call = "GetDateTimeString('yyyymmdd-hhnnss', '-', ':')"
+
+    assert broken_runtime_call not in source
+    assert source.count(proven_runtime_call) == 1
+
+    allocator_start = source.index("function AllocateNewDairyOSDataRoot(): String;")
+    allocator_end = source.index(
+        "function DairyOSDataRoot(Param: String): String;",
+        allocator_start,
+    )
+    allocator = source[allocator_start:allocator_end]
+
+    assert proven_runtime_call in allocator
+    assert r"ExpandConstant('{commonappdata}\DairyOS-New-')" in allocator
+    assert "while DirExists(Candidate) do" in allocator
+    assert "Candidate := Base + '-' + IntToStr(Suffix);" in allocator
+    assert "Result := Candidate;" in allocator

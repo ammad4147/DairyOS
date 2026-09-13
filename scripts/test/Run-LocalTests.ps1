@@ -110,8 +110,7 @@ $logFile = Join-Path $testRoot "postgres.log"
 
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 
-$previousEnvironment = @{}
-foreach ($name in @(
+$dairyOsEnvironmentNames = @(
     "DAIRYOS_ENV",
     "DAIRYOS_DATABASE_URL",
     "DAIRYOS_DB_HOST",
@@ -129,8 +128,74 @@ foreach ($name in @(
     "DAIRYOS_BACKUP_SEARCH_ROOTS",
     "DAIRYOS_PREFLIGHT_REPORT",
     "DAIRYOS_PRIVATE_POSTGRES_DATA"
-)) {
-    $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+)
+
+# PostgreSQL command-line tools consume a broad PG* environment surface.
+# The local runner owns an isolated disposable cluster, so ambient PostgreSQL
+# configuration must not influence initdb, pg_ctl, createdb, pg_isready, or
+# pytest database clients.
+$postgresEnvironmentNames = @(
+    "PGAPPNAME",
+    "PGCHANNELBINDING",
+    "PGCLIENTENCODING",
+    "PGCONNECT_TIMEOUT",
+    "PGDATA",
+    "PGDATABASE",
+    "PGGSSENCMODE",
+    "PGGSSLIB",
+    "PGHOST",
+    "PGHOSTADDR",
+    "PGKRBSRVNAME",
+    "PGOPTIONS",
+    "PGPASSFILE",
+    "PGPASSWORD",
+    "PGPORT",
+    "PGREQUIREAUTH",
+    "PGREQUIREPEER",
+    "PGREQUIRESSL",
+    "PGSERVICE",
+    "PGSERVICEFILE",
+    "PGSSLCERT",
+    "PGSSLCRL",
+    "PGSSLCRLDIR",
+    "PGSSLKEY",
+    "PGSSLMAXPROTOCOLVERSION",
+    "PGSSLMINPROTOCOLVERSION",
+    "PGSSLMODE",
+    "PGSSLNEGOTIATION",
+    "PGSSLROOTCERT",
+    "PGSSLSNI",
+    "PGSYSCONFDIR",
+    "PGTARGETSESSIONATTRS",
+    "PGUSER"
+)
+
+$managedEnvironmentNames = @(
+    $dairyOsEnvironmentNames
+    $postgresEnvironmentNames
+)
+
+$previousEnvironment = @{}
+
+foreach ($name in $managedEnvironmentNames) {
+    $path = "Env:$name"
+    $exists = Test-Path $path
+
+    $previousEnvironment[$name] = @{
+        Exists = $exists
+        Value = if ($exists) {
+            (Get-Item $path).Value
+        }
+        else {
+            $null
+        }
+    }
+}
+
+# Remove PostgreSQL environment variables before the first PostgreSQL
+# executable is invoked. Present-but-empty values are contamination too.
+foreach ($name in $postgresEnvironmentNames) {
+    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
 }
 
 $clusterInitialized = $false
@@ -244,12 +309,12 @@ finally {
     }
 
     foreach ($name in $previousEnvironment.Keys) {
-        $value = $previousEnvironment[$name]
-        if ($null -eq $value) {
-            Remove-Item "Env:$name" -ErrorAction SilentlyContinue
-        }
-        else {
-            Set-Item "Env:$name" $value
+        $state = $previousEnvironment[$name]
+
+        Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+
+        if ($state.Exists) {
+            Set-Item "Env:$name" -Value $state.Value
         }
     }
 
