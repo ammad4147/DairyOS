@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
-from datetime import timedelta, time
+from datetime import time
 
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
@@ -17,8 +17,10 @@ from dairyos.farm.settings.services.operational_date_authority import (
 log = logging.getLogger(__name__)
 
 # The nightly operational summary is finalized at 23:00 farm-local time.
-# Lock the completed day's TMR cost shortly before that report slot so the
-# summary consumes a stable, end-of-day authority.
+# Lock the current operational day's TMR cost shortly before that report slot.
+# Historical days are deliberately never reconstructed from the current Animal
+# Register: without an immutable same-day population authority, backdating a
+# snapshot would fabricate historical herd strength and Feed Cost/L.
 RUN_AFTER_LOCAL_TIME = time(22, 55)
 
 
@@ -44,8 +46,6 @@ class DailyTMRCostScheduler:
             return
 
         self._stop.clear()
-
-        # Catch up if DairyOS starts after the previous farm-local summary slot.
         self._run_if_due()
 
         self._thread = threading.Thread(
@@ -58,9 +58,7 @@ class DailyTMRCostScheduler:
         log.info(
             "Daily TMR cost scheduler started "
             "(farm-local lock time=%s)",
-            self.run_after_local_time.isoformat(
-                timespec="minutes"
-            ),
+            self.run_after_local_time.isoformat(timespec="minutes"),
         )
 
     def stop(self) -> None:
@@ -70,7 +68,6 @@ class DailyTMRCostScheduler:
             self._thread.join(timeout=2)
 
         self._thread = None
-
         log.info("Daily TMR cost scheduler stopped")
 
     def _loop(self) -> None:
@@ -85,24 +82,18 @@ class DailyTMRCostScheduler:
 
         try:
             factory = self.factory_provider()
-
-            authority = OperationalDateAuthority(
-                repository_factory=factory,
-            )
-
+            authority = OperationalDateAuthority(repository_factory=factory)
             now = authority.current_datetime()
 
-            from dairyos.api.tmr import (
-                lock_daily_tmr_cost_snapshot,
-            )
+            # A missed prior-day lock cannot be reconstructed safely from the
+            # current Animal Register. Before today's lock window, fail closed
+            # and let historical TMR authority remain explicitly missing.
+            if now.time().replace(tzinfo=None) < self.run_after_local_time:
+                return False
+
+            from dairyos.api.tmr import lock_daily_tmr_cost_snapshot
 
             operational_date = authority.current_date()
-            # Before tonight's 22:55 lock window, a startup belongs to the
-            # catch-up path for yesterday. Once the window opens, finalize
-            # today's completed operational record for the 23:00 summary.
-            if now.time().replace(tzinfo=None) < self.run_after_local_time:
-                operational_date -= timedelta(days=1)
-
             result = lock_daily_tmr_cost_snapshot(
                 factory,
                 operational_date=operational_date,
@@ -112,11 +103,7 @@ class DailyTMRCostScheduler:
                 log.info(
                     "Daily TMR cost locked for farm date %s: %.4f",
                     result["operational_date"],
-                    float(
-                        result[
-                            "total_herd_feed_cost_per_day"
-                        ]
-                    ),
+                    float(result["total_herd_feed_cost_per_day"]),
                 )
 
             return bool(result.get("created"))
@@ -128,13 +115,10 @@ class DailyTMRCostScheduler:
                 except Exception:
                     pass
 
-            log.exception(
-                "Daily TMR cost lock failed"
-            )
+            log.exception("Daily TMR cost lock failed")
             return False
 
         finally:
             if factory is not None:
                 factory.close()
-
             self._lock.release()
