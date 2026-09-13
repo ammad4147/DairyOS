@@ -29,7 +29,10 @@ from dairyos.windows.protected_secret import (
     unprotect_bytes as _unprotect_windows,
 )
 
-from dairyos.windows.private_postgres import PrivatePostgreSQLConfig
+from dairyos.windows.private_postgres import (
+    PrivatePostgreSQLConfig,
+    isolated_postgres_environment,
+)
 
 
 SECURITY_VERSION = 1
@@ -167,16 +170,23 @@ def install_steady_state_hba_before_start_if_available() -> bool:
     return True
 
 
-def _connect(config: PrivatePostgreSQLConfig, *, user: str, password: str | None, database: str | None = None):
-    return psycopg.connect(
-        host=config.host,
-        port=config.port,
-        dbname=database or config.database,
-        user=user,
-        password=password,
-        connect_timeout=10,
-        autocommit=True,
-    )
+def _connect(
+    config: PrivatePostgreSQLConfig,
+    *,
+    user: str,
+    password: str | None,
+    database: str | None = None,
+):
+    with isolated_postgres_environment():
+        return psycopg.connect(
+            host=config.host,
+            port=config.port,
+            dbname=database or config.database,
+            user=user,
+            password=password,
+            connect_timeout=10,
+            autocommit=True,
+        )
 
 
 def _literal(connection, value: str) -> str:

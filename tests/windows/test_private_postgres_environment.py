@@ -162,3 +162,82 @@ def test_start_pg_ctl_environment_rejects_ambient_pgport(
     assert "PGHOST" not in environment
     assert "PGDATA" not in environment
     assert "PGOPTIONS" not in environment
+
+def test_isolated_postgres_environment_restores_exact_state(
+    monkeypatch,
+):
+    monkeypatch.delenv("PGAPPNAME", raising=False)
+    monkeypatch.setenv("PGSERVICE", "wrong_service")
+    monkeypatch.setenv(
+        "PGSERVICEFILE",
+        r"C:\wrong-service.conf",
+    )
+    monkeypatch.setenv(
+        "PGSYSCONFDIR",
+        r"C:\wrong-pg-sysconf",
+    )
+    monkeypatch.setenv("PGPORT", "")
+    monkeypatch.setenv("PGHOST", "203.0.113.1")
+    monkeypatch.setenv("PGDATABASE", "wrong_database")
+    monkeypatch.setenv("PGUSER", "wrong_user")
+    monkeypatch.setenv("PGPASSWORD", "ambient-secret")
+    monkeypatch.setenv("PGOPTIONS", "-c port=1")
+    monkeypatch.setenv("PGSSLMODE", "require")
+
+    before = {
+        name: (
+            name in pg.os.environ,
+            pg.os.environ.get(name),
+        )
+        for name in pg._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    with pg.isolated_postgres_environment():
+        for name in pg._POSTGRES_ENVIRONMENT_VARIABLES:
+            assert name not in pg.os.environ
+
+    after = {
+        name: (
+            name in pg.os.environ,
+            pg.os.environ.get(name),
+        )
+        for name in pg._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    assert after == before
+
+
+def test_isolated_postgres_environment_restores_after_failure(
+    monkeypatch,
+):
+    monkeypatch.delenv("PGAPPNAME", raising=False)
+    monkeypatch.setenv("PGSERVICE", "")
+    monkeypatch.setenv("PGSERVICEFILE", "")
+    monkeypatch.setenv("PGPORT", "")
+
+    before = {
+        name: (
+            name in pg.os.environ,
+            pg.os.environ.get(name),
+        )
+        for name in pg._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    try:
+        with pg.isolated_postgres_environment():
+            for name in pg._POSTGRES_ENVIRONMENT_VARIABLES:
+                assert name not in pg.os.environ
+
+            raise RuntimeError("deliberate test failure")
+    except RuntimeError as exc:
+        assert str(exc) == "deliberate test failure"
+
+    after = {
+        name: (
+            name in pg.os.environ,
+            pg.os.environ.get(name),
+        )
+        for name in pg._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    assert after == before

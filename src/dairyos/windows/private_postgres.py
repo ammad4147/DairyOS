@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 import os
@@ -10,6 +11,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 from dairyos.platform import paths
@@ -99,6 +101,46 @@ def _postgres_subprocess_environment(
         environment["PGUSER"] = user
 
     return environment
+
+
+_POSTGRES_ENVIRONMENT_LOCK = threading.RLock()
+
+
+@contextmanager
+def isolated_postgres_environment():
+    """Temporarily remove ambient libpq authority.
+
+    libpq can consume PostgreSQL environment settings even when core
+    connection parameters are supplied explicitly. DairyOS' packaged
+    private PostgreSQL connections therefore establish their libpq
+    connection while the governed PostgreSQL environment variables are
+    absent.
+
+    The exact prior environment state is restored on every exit path.
+    The scope is serialized because os.environ is process-global.
+    """
+    with _POSTGRES_ENVIRONMENT_LOCK:
+        previous = {
+            name: (
+                name in os.environ,
+                os.environ.get(name),
+            )
+            for name in _POSTGRES_ENVIRONMENT_VARIABLES
+        }
+
+        try:
+            for name in _POSTGRES_ENVIRONMENT_VARIABLES:
+                os.environ.pop(name, None)
+
+            yield
+        finally:
+            for name, (existed, value) in previous.items():
+                if existed:
+                    os.environ[name] = (
+                        "" if value is None else value
+                    )
+                else:
+                    os.environ.pop(name, None)
 
 
 def runtime_root() -> Path:

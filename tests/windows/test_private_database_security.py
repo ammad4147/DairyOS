@@ -60,3 +60,170 @@ def test_existing_security_reasserts_restricted_role_passwords(monkeypatch):
     rendered = "\n".join(connection.statements)
     assert "ALTER ROLE dairyos_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD 'LITERAL:app-secret'" in rendered
     assert "ALTER ROLE dairyos_backup LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD 'LITERAL:backup-secret'" in rendered
+
+def test_private_security_connect_isolates_ambient_libpq(
+    monkeypatch,
+):
+    from pathlib import Path
+
+    from dairyos.windows import private_postgres
+
+    config = private_postgres.PrivatePostgreSQLConfig(
+        runtime_root=Path("runtime"),
+        data_root=Path("data"),
+        host="127.0.0.1",
+        port=55432,
+        database="dairyos",
+        user="dairyos_admin",
+        bundled_version="18.6",
+    )
+
+    poisoned = {
+        "PGSERVICE": "",
+        "PGSERVICEFILE": "",
+        "PGSYSCONFDIR": "",
+        "PGHOST": "203.0.113.1",
+        "PGPORT": "",
+        "PGDATABASE": "wrong_database",
+        "PGUSER": "wrong_user",
+        "PGPASSWORD": "ambient-secret",
+        "PGOPTIONS": "-c port=1",
+        "PGSSLMODE": "require",
+    }
+
+    for name, value in poisoned.items():
+        monkeypatch.setenv(name, value)
+
+    before = {
+        name: (
+            name in private_postgres.os.environ,
+            private_postgres.os.environ.get(name),
+        )
+        for name
+        in private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    captured = {}
+
+    class FakeConnection:
+        pass
+
+    connection = FakeConnection()
+
+    def fake_connect(**kwargs):
+        captured["kwargs"] = kwargs
+        captured["environment"] = {
+            name: (
+                name in private_postgres.os.environ,
+                private_postgres.os.environ.get(name),
+            )
+            for name
+            in private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+        }
+        return connection
+
+    monkeypatch.setattr(
+        security.psycopg,
+        "connect",
+        fake_connect,
+    )
+
+    result = security._connect(
+        config,
+        user="dairyos_admin",
+        password=None,
+    )
+
+    assert result is connection
+
+    for exists, value in captured["environment"].values():
+        assert exists is False
+        assert value is None
+
+    assert captured["kwargs"]["host"] == "127.0.0.1"
+    assert captured["kwargs"]["port"] == 55432
+    assert captured["kwargs"]["dbname"] == "dairyos"
+    assert captured["kwargs"]["user"] == "dairyos_admin"
+    assert captured["kwargs"]["password"] is None
+    assert captured["kwargs"]["connect_timeout"] == 10
+    assert captured["kwargs"]["autocommit"] is True
+
+    after = {
+        name: (
+            name in private_postgres.os.environ,
+            private_postgres.os.environ.get(name),
+        )
+        for name
+        in private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    assert after == before
+
+
+def test_private_security_connect_restores_environment_on_failure(
+    monkeypatch,
+):
+    from pathlib import Path
+
+    from dairyos.windows import private_postgres
+
+    config = private_postgres.PrivatePostgreSQLConfig(
+        runtime_root=Path("runtime"),
+        data_root=Path("data"),
+        host="127.0.0.1",
+        port=55432,
+        database="dairyos",
+        user="dairyos_admin",
+        bundled_version="18.6",
+    )
+
+    monkeypatch.setenv("PGSERVICE", "")
+    monkeypatch.setenv("PGSERVICEFILE", "")
+    monkeypatch.setenv("PGPORT", "")
+
+    before = {
+        name: (
+            name in private_postgres.os.environ,
+            private_postgres.os.environ.get(name),
+        )
+        for name
+        in private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    def failing_connect(**kwargs):
+        for name in (
+            private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+        ):
+            assert name not in private_postgres.os.environ
+
+        raise RuntimeError("synthetic psycopg failure")
+
+    monkeypatch.setattr(
+        security.psycopg,
+        "connect",
+        failing_connect,
+    )
+
+    try:
+        security._connect(
+            config,
+            user="dairyos_admin",
+            password=None,
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "synthetic psycopg failure"
+    else:
+        raise AssertionError(
+            "Expected synthetic psycopg failure."
+        )
+
+    after = {
+        name: (
+            name in private_postgres.os.environ,
+            private_postgres.os.environ.get(name),
+        )
+        for name
+        in private_postgres._POSTGRES_ENVIRONMENT_VARIABLES
+    }
+
+    assert after == before
