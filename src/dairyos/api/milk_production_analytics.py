@@ -45,6 +45,43 @@ class MilkReceiptRequest(BaseModel):
     recorded_by: str = Field(default="UI Operator", min_length=1)
 
 
+def _rank_production_snapshots(snapshots: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Split one governed production population into disjoint high/low bands."""
+    ranked = sorted(
+        snapshots,
+        key=lambda item: float(item.get("total_litres") or 0.0),
+    )
+
+    def displayed_litre_band(item) -> int:
+        litres = float(item.get("total_litres") or 0.0)
+        return int(litres + 0.5)
+
+    yield_bands = sorted({displayed_litre_band(item) for item in ranked})
+    lowest_bands: set[int] = set()
+    highest_bands: set[int] = set()
+
+    if len(yield_bands) > 1:
+        split = len(yield_bands) // 2
+        if len(yield_bands) % 2:
+            lowest_bands = set(yield_bands[:split])
+            highest_bands = set(yield_bands[split + 1:])
+        else:
+            lowest_bands = set(yield_bands[:split])
+            highest_bands = set(yield_bands[split:])
+
+    highest = [
+        item
+        for item in reversed(ranked)
+        if displayed_litre_band(item) in highest_bands
+    ]
+    lowest = [
+        item
+        for item in ranked
+        if displayed_litre_band(item) in lowest_bands
+    ]
+    return highest, lowest
+
+
 def _production_extremes(
     *,
     service: MilkProductionTrendIntelligenceService,
@@ -55,11 +92,13 @@ def _production_extremes(
 ) -> dict:
     """Return latest actually-recorded animal production extremes.
 
-    The old surface required a complete animal-day before showing anything,
-    which made the panel blank during ordinary live operations. Extremes are
-    descriptive, not a completed-day comparison, so valid partial production
-    is sufficient. If the selected day has no recorded milk yet, fall back to
-    the most recent recorded day in the prior week.
+    The top-level population is retained for backwards compatibility. The
+    Dashboard uses the governed milking-frequency cohorts so twice-daily and
+    thrice-daily animals are never ranked against each other.
+
+    Valid partial production remains visible during ordinary live operations.
+    If the selected day has no recorded milk yet, the legacy top-level surface
+    falls back to the most recent recorded day in the prior week.
     """
 
     selected_date = None
@@ -85,47 +124,46 @@ def _production_extremes(
             snapshots = candidate
             break
 
-    snapshots.sort(key=lambda item: float(item.get("total_litres") or 0.0))
+    highest, lowest = _rank_production_snapshots(snapshots)
 
-    # Production Extremes must be mutually exclusive. The Dashboard
-    # displays whole litres, so classification uses the same displayed
-    # litre band rather than allowing visually identical values to
-    # appear in both Highest and Lowest.
-    def displayed_litre_band(item) -> int:
-        litres = float(item.get("total_litres") or 0.0)
-        return int(litres + 0.5)
+    frequency_by_animal = {
+        str(getattr(animal, "animal_id", "")): str(
+            getattr(animal, "milking_frequency", "") or ""
+        ).strip().upper()
+        for animal in animals
+    }
 
-    yield_bands = sorted(
-        {displayed_litre_band(item) for item in snapshots}
-    )
+    cohorts: dict[str, dict] = {}
+    for frequency in ("THRICE_DAILY", "TWICE_DAILY"):
+        cohort_snapshots = [
+            item
+            for item in snapshots
+            if frequency_by_animal.get(str(item.get("animal_id") or ""))
+            == frequency
+        ]
+        cohort_highest, cohort_lowest = _rank_production_snapshots(
+            cohort_snapshots
+        )
+        cohorts[frequency] = {
+            "highest": cohort_highest,
+            "lowest": cohort_lowest,
+            "population_count": len(cohort_snapshots),
+            "production_date": selected_date.isoformat() if selected_date else None,
+            "data_status": (
+                "LIVE_PERSISTED_DATA" if cohort_snapshots else "NO_DATA"
+            ),
+        }
 
-    lowest_bands: set[int] = set()
-    highest_bands: set[int] = set()
-
-    if len(yield_bands) > 1:
-        split = len(yield_bands) // 2
-
-        if len(yield_bands) % 2:
-            # Odd number of distinct production bands:
-            # the middle band is neutral and appears in neither list.
-            lowest_bands = set(yield_bands[:split])
-            highest_bands = set(yield_bands[split + 1:])
-        else:
-            # Even number of distinct production bands:
-            # split cleanly between lower and upper halves.
-            lowest_bands = set(yield_bands[:split])
-            highest_bands = set(yield_bands[split:])
-
-    highest = [
-        item
-        for item in reversed(snapshots)
-        if displayed_litre_band(item) in highest_bands
-    ]
-    lowest = [
-        item
+    assigned_ids = {
+        animal_id
+        for animal_id, frequency in frequency_by_animal.items()
+        if frequency in {"THRICE_DAILY", "TWICE_DAILY"}
+    }
+    unassigned_count = sum(
+        1
         for item in snapshots
-        if displayed_litre_band(item) in lowest_bands
-    ]
+        if str(item.get("animal_id") or "") not in assigned_ids
+    )
 
     return {
         "highest": highest,
@@ -133,6 +171,8 @@ def _production_extremes(
         "population_count": len(snapshots),
         "production_date": selected_date.isoformat() if selected_date else None,
         "data_status": "LIVE_PERSISTED_DATA" if snapshots else "NO_DATA",
+        "cohorts": cohorts,
+        "unassigned_frequency_count": unassigned_count,
     }
 
 
