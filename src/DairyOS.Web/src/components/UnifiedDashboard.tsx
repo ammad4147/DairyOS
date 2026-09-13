@@ -29,6 +29,8 @@ type MonthlyComlOutput = {
   costOfMilkProductionPerLiter: number;
 };
 
+type ExtremeCohort = 'THRICE_DAILY' | 'TWICE_DAILY';
+
 function monthLabel(month: string): string {
   return new Date(`${month}-01T00:00:00`).toLocaleDateString('en-PK', {
     month: 'short',
@@ -44,6 +46,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [error, setError] = useState<string | null>(null);
   const [chartDays, setChartDays] = useState(7);
   const [extremesCount, setExtremesCount] = useState(3);
+  const [extremeCohort, setExtremeCohort] = useState<ExtremeCohort>('THRICE_DAILY');
   const [expandedMilkList, setExpandedMilkList] = useState<
     'YIELD_DROP' | 'PRODUCTION_EXTREMES' | null
   >(null);
@@ -210,15 +213,11 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
       return;
     }
 
-    // A live-derived yield drop may exist before a persisted operational
-    // finding has been created. It must still remain visible and actionable.
     openPassportHandler(animalId);
   };
 
   if (loading && !data) return <div style={{ padding:30, color:'#94a3b8', textAlign:'center', fontSize:12 }}>Loading authoritative command picture...</div>;
 
-  // Herd membership and milking eligibility are backend authorities. The
-  // dashboard must not replace them with a second frontend animal snapshot.
   const todayYield =
     currentTrendYield !== null
       ? currentTrendYield
@@ -262,8 +261,8 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   }));
   const herdCol1 = canonicalHerd.slice(0,3), herdCol2 = canonicalHerd.slice(3,6);
   const totalHerdCount = canonicalHerd.reduce((sum,c) => sum + c.value, 0);
-  const milkingAdultCount = canonicalHerd[0].value;
-  const dryAdultCount = canonicalHerd[1].value;
+  const milkingAdultCount = canonicalHerd[0]?.value || 0;
+  const dryAdultCount = canonicalHerd[1]?.value || 0;
   const totalAdultCount = milkingAdultCount + dryAdultCount;
   const averageYieldMilkingAnimals =
     data?.herdMetrics?.averageYieldMilkingAnimalsLiters == null
@@ -273,27 +272,21 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     data?.herdMetrics?.averageYieldTotalHerdLiters == null
       ? 'N/A'
       : `${Number(data.herdMetrics.averageYieldTotalHerdLiters).toFixed(2)} L`;
-  const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
-  const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
 
-  // The selector is a requested maximum per side, not a quota.
-  //
-  // Highest and Lowest are already classified by the backend using
-  // mutually exclusive displayed-yield bands. Never extend one side
-  // into the other merely to satisfy the selected number.
-  //
-  // Example:
-  // selected = 10
-  // backend Highest = 3 safe animals
-  // backend Lowest  = 4 safe animals
-  // display         = 3 Highest + 4 Lowest
-  // Dropdown value is a display maximum, not a quota.
-  //
-  // Keep at least 1..10 available for normal operator selection,
-  // but allow larger selections automatically for large farms.
-  //
-  // If selected = 10 and only 2 Highest / 3 Lowest animals safely
-  // qualify, the dashboard displays 2 and 3 respectively.
+  const selectedExtremeCohort =
+    data?.productionExtremes?.cohorts?.[extremeCohort] || {
+      highest: [],
+      lowest: [],
+      populationCount: 0,
+      productionDate: null,
+      dataStatus: 'NO_DATA',
+    };
+  const extremeCohortLabel = extremeCohort === 'THRICE_DAILY'
+    ? 'Thrice Milking'
+    : 'Twice Milking';
+  const allTopPerformers = Array.isArray(selectedExtremeCohort.highest) ? selectedExtremeCohort.highest : [];
+  const allBottomPerformers = Array.isArray(selectedExtremeCohort.lowest) ? selectedExtremeCohort.lowest : [];
+
   const maximumExtremePopulation = Math.max(
     10,
     allTopPerformers.length,
@@ -418,467 +411,81 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   if (expandedMilkList === 'YIELD_DROP') {
     return (
-      <div
-        style={{
-          height:'calc(100vh - 60px)',
-          overflow:'auto',
-          boxSizing:'border-box',
-          padding:16,
-          background:'#0b1120',
-          color:'#fff',
-        }}
-      >
-        <div
-          style={{
-            display:'flex',
-            justifyContent:'space-between',
-            alignItems:'center',
-            gap:12,
-            marginBottom:12,
-          }}
-        >
+      <div style={{height:'calc(100vh - 60px)',overflow:'auto',boxSizing:'border-box',padding:16,background:'#0b1120',color:'#fff'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:12}}>
           <div>
-            <div
-              style={{
-                fontSize:16,
-                fontWeight:900,
-                color:'#f87171',
-              }}
-            >
-              Yield Drop Watchlist
-            </div>
-
-            <div
-              style={{
-                fontSize:10,
-                color:'#94a3b8',
-                marginTop:3,
-              }}
-            >
-              Complete active watchlist · {activeDropAlerts.length} animal{activeDropAlerts.length === 1 ? '' : 's'}
-            </div>
+            <div style={{fontSize:16,fontWeight:900,color:'#f87171'}}>Yield Drop Watchlist</div>
+            <div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Complete active watchlist · {activeDropAlerts.length} animal{activeDropAlerts.length === 1 ? '' : 's'}</div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setExpandedMilkList(null)}
-            style={{
-              background:'#1e293b',
-              border:'1px solid #334155',
-              borderRadius:6,
-              padding:'7px 12px',
-              color:'#e2e8f0',
-              cursor:'pointer',
-              fontSize:10,
-              fontWeight:800,
-            }}
-          >
-            ← Back to Dashboard
-          </button>
+          <button type="button" onClick={() => setExpandedMilkList(null)} style={{background:'#1e293b',border:'1px solid #334155',borderRadius:6,padding:'7px 12px',color:'#e2e8f0',cursor:'pointer',fontSize:10,fontWeight:800}}>← Back to Dashboard</button>
         </div>
-
-        <div
-          style={{
-            background:'#111827',
-            border:'1px solid #1f2937',
-            borderRadius:8,
-            overflow:'hidden',
-          }}
-        >
-          <div
-            style={{
-              display:'grid',
-              gridTemplateColumns:
-                '55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',
-              gap:8,
-              padding:'8px 10px',
-              background:'#0f172a',
-              color:'#94a3b8',
-              fontSize:9,
-              fontWeight:900,
-              textTransform:'uppercase',
-            }}
-          >
-            <span>#</span>
-            <span>Animal</span>
-            <span>Severity</span>
-            <span>Yield Drop</span>
-            <span>Status</span>
-          </div>
-
+        <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',gap:8,padding:'8px 10px',background:'#0f172a',color:'#94a3b8',fontSize:9,fontWeight:900,textTransform:'uppercase'}}><span>#</span><span>Animal</span><span>Severity</span><span>Yield Drop</span><span>Status</span></div>
           {activeDropAlerts.length === 0 ? (
-            <div
-              style={{
-                padding:24,
-                textAlign:'center',
-                color:'#34d399',
-                fontSize:11,
-              }}
-            >
-              No active yield drop warnings
-            </div>
+            <div style={{padding:24,textAlign:'center',color:'#34d399',fontSize:11}}>No active yield drop warnings</div>
           ) : (
             activeDropAlerts.map((item:any, index:number) => {
-              const directPct =
-                item.dropPercent ??
-                item.drop_percent;
-
-              const detailText = String(
-                item.details ??
-                item.detail ??
-                '',
-              );
-
-              const detailMatch = detailText.match(
-                /(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i,
-              );
-
-              const pct =
-                directPct !== undefined &&
-                directPct !== null
-                  ? Math.abs(Number(directPct))
-                  : detailMatch
-                    ? Math.abs(Number(detailMatch[1]))
-                    : null;
-
-              const dropLabel =
-                pct !== null &&
-                Number.isFinite(pct)
-                  ? `${pct.toFixed(1)}% Drop`
-                  : 'Yield Drop';
-
+              const directPct = item.dropPercent ?? item.drop_percent;
+              const detailText = String(item.details ?? item.detail ?? '');
+              const detailMatch = detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);
+              const pct = directPct !== undefined && directPct !== null
+                ? Math.abs(Number(directPct))
+                : detailMatch ? Math.abs(Number(detailMatch[1])) : null;
+              const dropLabel = pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Yield Drop';
               return (
-                <div
-                  key={item.id}
-                  onClick={() =>
-                    item.animalId &&
-                    handleOpenDropComparison(item.animalId)
-                  }
-                  style={{
-                    display:'grid',
-                    gridTemplateColumns:
-                      '55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',
-                    gap:8,
-                    padding:'9px 10px',
-                    borderTop:
-                      index === 0
-                        ? 'none'
-                        : '1px solid #1f2937',
-                    alignItems:'center',
-                    fontSize:10,
-                    cursor:item.animalId
-                      ? 'pointer'
-                      : 'default',
-                  }}
-                >
-                  <span style={{color:'#64748b'}}>
-                    {index + 1}
-                  </span>
-
-                  <span
-                    style={{
-                      color:'#38bdf8',
-                      fontWeight:900,
-                    }}
-                  >
-                    #{item.animalId || 'Unavailable'}
-                  </span>
-
-                  <span
-                    style={{
-                      color:
-                        item.currentLevel === 'RED'
-                          ? '#ef4444'
-                          : '#facc15',
-                      fontWeight:900,
-                    }}
-                  >
-                    {item.currentLevel === 'RED'
-                      ? 'CRITICAL'
-                      : 'HIGH'}
-                  </span>
-
-                  <span style={{color:'#cbd5e1'}}>
-                    {dropLabel}
-                    {detailText
-                      ? ` — ${detailText}`
-                      : ''}
-                  </span>
-
-                  <span
-                    style={{
-                      color:'#94a3b8',
-                      fontWeight:800,
-                    }}
-                  >
-                    {item.derivedLive
-                      ? 'LIVE'
-                      : item.status}
-                  </span>
+                <div key={item.id} onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{display:'grid',gridTemplateColumns:'55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',gap:8,padding:'9px 10px',borderTop:index===0?'none':'1px solid #1f2937',alignItems:'center',fontSize:10,cursor:item.animalId?'pointer':'default'}}>
+                  <span style={{color:'#64748b'}}>{index + 1}</span>
+                  <span style={{color:'#38bdf8',fontWeight:900}}>#{item.animalId || 'Unavailable'}</span>
+                  <span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:900}}>{item.currentLevel==='RED'?'CRITICAL':'HIGH'}</span>
+                  <span style={{color:'#cbd5e1'}}>{dropLabel}{detailText ? ` — ${detailText}` : ''}</span>
+                  <span style={{color:'#94a3b8',fontWeight:800}}>{item.derivedLive?'LIVE':item.status}</span>
                 </div>
               );
             })
           )}
         </div>
-
-        {selectedDropAlert && (
-          <YieldDropAlertModal
-            alert={selectedDropAlert}
-            onClose={() =>
-              setSelectedDropAlertId(null)
-            }
-            onOpenPassport={animalId => {
-              setSelectedDropAlertId(null);
-              openPassportHandler(animalId);
-            }}
-          />
-        )}
-
-        {passportTag && (
-          <AnimalPassportModal
-            animalId={passportTag}
-            onClose={() =>
-              setPassportTag(null)
-            }
-          />
-        )}
+        {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
+        {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)} />}
       </div>
     );
   }
 
   if (expandedMilkList === 'PRODUCTION_EXTREMES') {
     return (
-      <div
-        style={{
-          height:'calc(100vh - 60px)',
-          overflow:'auto',
-          boxSizing:'border-box',
-          padding:16,
-          background:'#0b1120',
-          color:'#fff',
-        }}
-      >
-        <div
-          style={{
-            display:'flex',
-            justifyContent:'space-between',
-            alignItems:'center',
-            gap:12,
-            marginBottom:12,
-          }}
-        >
+      <div style={{height:'calc(100vh - 60px)',overflow:'auto',boxSizing:'border-box',padding:16,background:'#0b1120',color:'#fff'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:12}}>
           <div>
-            <div
-              style={{
-                fontSize:16,
-                fontWeight:900,
-                color:'#34d399',
-              }}
-            >
-              Production Extremes
-            </div>
-
-            <div
-              style={{
-                fontSize:10,
-                color:'#94a3b8',
-                marginTop:3,
-              }}
-            >
-              Complete non-overlapping production populations
-            </div>
+            <div style={{fontSize:16,fontWeight:900,color:'#34d399'}}>Production Extremes</div>
+            <div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>Complete non-overlapping production populations · {extremeCohortLabel}</div>
           </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              setExpandedMilkList(null)
-            }
-            style={{
-              background:'#1e293b',
-              border:'1px solid #334155',
-              borderRadius:6,
-              padding:'7px 12px',
-              color:'#e2e8f0',
-              cursor:'pointer',
-              fontSize:10,
-              fontWeight:800,
-            }}
-          >
-            ← Back to Dashboard
-          </button>
-        </div>
-
-        <div
-          style={{
-            display:'grid',
-            gridTemplateColumns:
-              'repeat(2,minmax(0,1fr))',
-            gap:12,
-            alignItems:'start',
-          }}
-        >
-          <div
-            style={{
-              background:'#111827',
-              border:'1px solid #1f2937',
-              borderRadius:8,
-              overflow:'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding:'9px 12px',
-                color:'#34d399',
-                fontWeight:900,
-                fontSize:12,
-              }}
-            >
-              Highest Production ({allTopPerformers.length})
-            </div>
-
-            {allTopPerformers.length === 0 ? (
-              <div
-                style={{
-                  padding:20,
-                  color:'#64748b',
-                  fontSize:10,
-                }}
-              >
-                No high-production extreme records available.
-              </div>
-            ) : (
-              allTopPerformers.map((item, index) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display:'grid',
-                    gridTemplateColumns:
-                      '55px minmax(120px,1fr) 120px',
-                    gap:8,
-                    padding:'8px 12px',
-                    borderTop:'1px solid #1f2937',
-                    fontSize:10,
-                    alignItems:'center',
-                  }}
-                >
-                  <span style={{color:'#64748b'}}>
-                    {index + 1}
-                  </span>
-
-                  <span
-                    onClick={() =>
-                      openPassportHandler(item.id)
-                    }
-                    style={{
-                      color:'#38bdf8',
-                      fontWeight:900,
-                      cursor:'pointer',
-                      textDecoration:'underline',
-                    }}
-                  >
-                    #{item.id}
-                  </span>
-
-                  <span
-                    style={{
-                      textAlign:'right',
-                      color:'#34d399',
-                      fontWeight:900,
-                    }}
-                  >
-                    {Math.round(item.yield)} L
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div
-            style={{
-              background:'#111827',
-              border:'1px solid #1f2937',
-              borderRadius:8,
-              overflow:'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding:'9px 12px',
-                color:'#f87171',
-                fontWeight:900,
-                fontSize:12,
-              }}
-            >
-              Lowest Production ({allBottomPerformers.length})
-            </div>
-
-            {allBottomPerformers.length === 0 ? (
-              <div
-                style={{
-                  padding:20,
-                  color:'#64748b',
-                  fontSize:10,
-                }}
-              >
-                No low-production extreme records available.
-              </div>
-            ) : (
-              allBottomPerformers.map((item, index) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display:'grid',
-                    gridTemplateColumns:
-                      '55px minmax(120px,1fr) 120px',
-                    gap:8,
-                    padding:'8px 12px',
-                    borderTop:'1px solid #1f2937',
-                    fontSize:10,
-                    alignItems:'center',
-                  }}
-                >
-                  <span style={{color:'#64748b'}}>
-                    {index + 1}
-                  </span>
-
-                  <span
-                    onClick={() =>
-                      openPassportHandler(item.id)
-                    }
-                    style={{
-                      color:'#38bdf8',
-                      fontWeight:900,
-                      cursor:'pointer',
-                      textDecoration:'underline',
-                    }}
-                  >
-                    #{item.id}
-                  </span>
-
-                  <span
-                    style={{
-                      textAlign:'right',
-                      color:'#f87171',
-                      fontWeight:900,
-                    }}
-                  >
-                    {Math.round(item.yield)} L
-                  </span>
-                </div>
-              ))
-            )}
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <CohortTabs selected={extremeCohort} onChange={setExtremeCohort} />
+            <button type="button" onClick={() => setExpandedMilkList(null)} style={{background:'#1e293b',border:'1px solid #334155',borderRadius:6,padding:'7px 12px',color:'#e2e8f0',cursor:'pointer',fontSize:10,fontWeight:800}}>← Back to Dashboard</button>
           </div>
         </div>
-
-        {passportTag && (
-          <AnimalPassportModal
-            animalId={passportTag}
-            onClose={() =>
-              setPassportTag(null)
-            }
-          />
-        )}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:12,alignItems:'start'}}>
+          <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'9px 12px',color:'#34d399',fontWeight:900,fontSize:12}}>Highest Production ({allTopPerformers.length})</div>
+            {allTopPerformers.length === 0 ? <div style={{padding:20,color:'#64748b',fontSize:10}}>No high-production extreme records available.</div> : allTopPerformers.map((item, index) => (
+              <div key={item.id} style={{display:'grid',gridTemplateColumns:'55px minmax(120px,1fr) 120px',gap:8,padding:'8px 12px',borderTop:'1px solid #1f2937',fontSize:10,alignItems:'center'}}>
+                <span style={{color:'#64748b'}}>{index + 1}</span>
+                <span onClick={()=>openPassportHandler(item.id)} style={{color:'#38bdf8',fontWeight:900,cursor:'pointer',textDecoration:'underline'}}>#{item.id}</span>
+                <span style={{textAlign:'right',color:'#34d399',fontWeight:900}}>{Math.round(item.yield)} L</span>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'#111827',border:'1px solid #1f2937',borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'9px 12px',color:'#f87171',fontWeight:900,fontSize:12}}>Lowest Production ({allBottomPerformers.length})</div>
+            {allBottomPerformers.length === 0 ? <div style={{padding:20,color:'#64748b',fontSize:10}}>No low-production extreme records available.</div> : allBottomPerformers.map((item, index) => (
+              <div key={item.id} style={{display:'grid',gridTemplateColumns:'55px minmax(120px,1fr) 120px',gap:8,padding:'8px 12px',borderTop:'1px solid #1f2937',fontSize:10,alignItems:'center'}}>
+                <span style={{color:'#64748b'}}>{index + 1}</span>
+                <span onClick={()=>openPassportHandler(item.id)} style={{color:'#38bdf8',fontWeight:900,cursor:'pointer',textDecoration:'underline'}}>#{item.id}</span>
+                <span style={{textAlign:'right',color:'#f87171',fontWeight:900}}>{Math.round(item.yield)} L</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>} 
       </div>
     );
   }
@@ -894,158 +501,55 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
               <SmallStat label="Milking Animals" value={milkingAdultCount} /><SmallStat label="Total Adults" value={totalAdultCount} /><SmallStat label="Average Yield (Milking Animals)" value={averageYieldMilkingAnimals} color="#34d399" /><SmallStat label="Average Yield (Total Herd)" value={averageYieldTotalHerd} color="#38bdf8" /><SmallStat label="Cost of Milk Production/Liter" value={currentComlDisplay} color="#a78bfa" sublabel={monthLabel(currentComlMonth)} />
             </div>
             <div className="stat-row" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8, marginBottom:8, minWidth:0 }}>
-              <WideStat
-                label={currentDateLabel}
-                value={
-                  currentTrendYield === null
-                    ? 'No milk entered'
-                    : `${Number(currentTrendYield).toFixed(1)} L`
-                }
-                color={todayYieldColor}
-              />
-              <WideStat
-                label={priorDateLabel}
-                value={
-                  priorTrendYield === null
-                    ? 'No milk entered'
-                    : `${Number(priorTrendYield).toFixed(1)} L`
-                }
-                color="#cbd5e1"
-                border="#64748b"
-              />
+              <WideStat label={currentDateLabel} value={currentTrendYield===null?'No milk entered':`${Number(currentTrendYield).toFixed(1)} L`} color={todayYieldColor} />
+              <WideStat label={priorDateLabel} value={priorTrendYield===null?'No milk entered':`${Number(priorTrendYield).toFixed(1)} L`} color="#cbd5e1" border="#64748b" />
               <WideStat label="Receivables" value={`Rs. ${Number(data?.finance?.receivables || 0).toLocaleString()}`} color="#f59e0b" border="#f59e0b" />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip
-  contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}}
-  labelFormatter={(_, payload) => {
-    const point = payload?.[0]?.payload as any;
-    return point?.date || '';
-  }}
-  formatter={(value) => [
-    value === null || value === undefined
-      ? 'No milk entered'
-      : `${Number(value).toFixed(1)} L`,
-    'Milk',
-  ]}
-/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span
-  onClick={() => setExpandedMilkList('YIELD_DROP')}
-  title="Open complete Yield Drop Watchlist"
-  style={{
-    fontSize:10,
-    fontWeight:800,
-    color:'#f87171',
-    display:'flex',
-    alignItems:'center',
-    gap:4,
-    cursor:'pointer',
-    textDecoration:'underline',
-  }}
-><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>item.animalId&&handleOpenDropComparison(item.animalId)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:item.animalId?'pointer':'default',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal ID unavailable'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700}}>{(() => {
-  const directPct = item.dropPercent ?? item.drop_percent;
-  const detailText = String(item.details ?? item.detail ?? '');
-  const detailMatch = detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);
-  const pct = directPct !== undefined && directPct !== null
-    ? Math.abs(Number(directPct))
-    : detailMatch
-      ? Math.abs(Number(detailMatch[1]))
-      : null;
-  return pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Yield Drop';
-})()}</span></div>)}</div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}} labelFormatter={(_, payload) => {const point = payload?.[0]?.payload as any; return point?.date || '';}} formatter={(value) => [value===null||value===undefined?'No milk entered':`${Number(value).toFixed(1)} L`,'Milk']}/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span onClick={() => setExpandedMilkList('YIELD_DROP')} title="Open complete Yield Drop Watchlist" style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4,cursor:'pointer',textDecoration:'underline'}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>item.animalId&&handleOpenDropComparison(item.animalId)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:item.animalId?'pointer':'default',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal ID unavailable'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700}}>{(() => {const directPct=item.dropPercent??item.drop_percent;const detailText=String(item.details??item.detail??'');const detailMatch=detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);const pct=directPct!==undefined&&directPct!==null?Math.abs(Number(directPct)):detailMatch?Math.abs(Number(detailMatch[1])):null;return pct!==null&&Number.isFinite(pct)?`${pct.toFixed(1)}% Drop`:'Yield Drop';})()}</span></div>)}</div></div>
             </div>
           </div>
           <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}>
             <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span onClick={()=>onNavigate?.('animals')} style={{display:'flex',alignItems:'center',gap:6,color:'#f59e0b',fontWeight:800,fontSize:12,cursor:'pointer'}}><CowIcon size={16} color="#f59e0b"/> Total Herd</span><span style={{fontSize:10,color:'#94a3b8'}}>Total: {totalHerdCount} Head</span></div><div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,overflow:'hidden'}}><HerdTable rows={herdCol1}/><HerdTable rows={herdCol2}/></div></div>
-            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Milk size={15}/> Unreconciled Milk</div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,flex:1,background:'#1e293b',borderRadius:6,padding:8,minWidth:0}}>
-                <div style={{fontSize:18,fontWeight:900,color:'#38bdf8'}}>{unreconciledMilkDisplay}</div>
-                <div style={{fontSize:9,color:'#94a3b8',textAlign:'center'}}>Overall Reconciliation / Closing Balance</div>
-              </div>
-            </div>
+            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Milk size={15}/> Unreconciled Milk</div><div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,flex:1,background:'#1e293b',borderRadius:6,padding:8,minWidth:0}}><div style={{fontSize:18,fontWeight:900,color:'#38bdf8'}}>{unreconciledMilkDisplay}</div><div style={{fontSize:9,color:'#94a3b8',textAlign:'center'}}>Overall Reconciliation / Closing Balance</div></div></div>
           </div>
         </div>
         <div className="cmd-col" style={{display:'flex',flexDirection:'column',gap:10,minHeight:0,minWidth:0,overflow:'hidden'}}>
-          <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span
-  onClick={() => setExpandedMilkList('PRODUCTION_EXTREMES')}
-  title="Open complete Production Extremes"
-  style={{
-    display:'flex',
-    alignItems:'center',
-    gap:6,
-    color:'#34d399',
-    fontWeight:800,
-    fontSize:12,
-    cursor:'pointer',
-    textDecoration:'underline',
-  }}
-><Sparkles size={15}/> Production Extremes</span><select
-  value={Math.min(extremesCount, Math.max(maximumExtremePopulation, 1))}
-  onChange={e=>setExtremesCount(Number(e.target.value))}
-  disabled={maximumExtremePopulation === 0}
-  style={selectStyle}
->{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
-          <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
-            <div
-              className="cmd-card"
-              role="button"
-              tabIndex={0}
-              aria-label="Open Clinical Health"
-              onClick={()=>onNavigate?.('health')}
-              onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('health')}}}
-              style={{...cardBase,minWidth:0,cursor:'pointer'}}
-            >
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#ef4444',fontWeight:800,fontSize:12,marginBottom:6}}>
-                <span style={{display:'flex',alignItems:'center',gap:6}}><HeartPulse size={15}/> Clinical Health</span>
-                <span style={{fontSize:9,color:'#fca5a5'}}>{sickAnimals.length} active</span>
-              </div>
-              <div style={attentionList}>
-                {sickAnimals.length===0
-                  ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No active sick animals</div>
-                  : sickAnimals.slice(0,8).map(item=><div key={item.animalId} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#fca5a5',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.diagnosis}</span><span style={{color:'#f87171',fontSize:8,fontWeight:800}}>{item.severity}</span></div>)}
-                {sickAnimals.length>8&&<div style={attentionMore}>+{sickAnimals.length-8} more · Open Clinical Health</div>}
-              </div>
+          <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6,minWidth:0}}>
+              <span onClick={() => setExpandedMilkList('PRODUCTION_EXTREMES')} title="Open complete Production Extremes" style={{display:'flex',alignItems:'center',gap:6,color:'#34d399',fontWeight:800,fontSize:12,cursor:'pointer',textDecoration:'underline',minWidth:0}}><Sparkles size={15}/> Production Extremes</span>
+              <select value={Math.min(extremesCount, Math.max(maximumExtremePopulation, 1))} onChange={e=>setExtremesCount(Number(e.target.value))} disabled={maximumExtremePopulation===0} style={selectStyle}>{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>
             </div>
-            <div
-              className="cmd-card"
-              role="button"
-              tabIndex={0}
-              aria-label="Open Vaccination"
-              onClick={()=>onNavigate?.('vaccination')}
-              onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('vaccination')}}}
-              style={{...cardBase,minWidth:0,cursor:'pointer'}}
-            >
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6}}>
-                <span style={{display:'flex',alignItems:'center',gap:6}}><ShieldCheck size={15}/> Vaccination Operations</span>
-                <span style={{fontSize:9,color:'#86efac'}}>{dueVaccinations.length} scheduled</span>
-              </div>
-              <div style={{...attentionList,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}>
-                {dueVaccinations.length===0
-                  ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No vaccination due dates recorded</div>
-                  : dueVaccinations.slice(0,8).map(item=><div key={`${item.animalId}-${item.vaccine}-${item.nextDueDate}`} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#cbd5e1',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.vaccine}</span><span style={{color:item.dueState==='OVERDUE'?'#f87171':item.dueState==='DUE_TODAY'?'#fcd34d':'#86efac',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>{item.nextDueDate}</span></div>)}
-                {dueVaccinations.length>8&&<div style={attentionMore}>+{dueVaccinations.length-8} more · Open Vaccination</div>}
-              </div>
+            <CohortTabs selected={extremeCohort} onChange={setExtremeCohort} compact />
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto',marginTop:4}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div>
+          </div>
+          <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
+            <div className="cmd-card" role="button" tabIndex={0} aria-label="Open Clinical Health" onClick={()=>onNavigate?.('health')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('health')}}} style={{...cardBase,minWidth:0,cursor:'pointer'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#ef4444',fontWeight:800,fontSize:12,marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6}}><HeartPulse size={15}/> Clinical Health</span><span style={{fontSize:9,color:'#fca5a5'}}>{sickAnimals.length} active</span></div>
+              <div style={attentionList}>{sickAnimals.length===0?<div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No active sick animals</div>:sickAnimals.slice(0,8).map(item=><div key={item.animalId} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#fca5a5',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.diagnosis}</span><span style={{color:'#f87171',fontSize:8,fontWeight:800}}>{item.severity}</span></div>)}{sickAnimals.length>8&&<div style={attentionMore}>+{sickAnimals.length-8} more · Open Clinical Health</div>}</div>
+            </div>
+            <div className="cmd-card" role="button" tabIndex={0} aria-label="Open Vaccination" onClick={()=>onNavigate?.('vaccination')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('vaccination')}}} style={{...cardBase,minWidth:0,cursor:'pointer'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6}}><ShieldCheck size={15}/> Vaccination Operations</span><span style={{fontSize:9,color:'#86efac'}}>{dueVaccinations.length} scheduled</span></div>
+              <div style={{...attentionList,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}>{dueVaccinations.length===0?<div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No vaccination due dates recorded</div>:dueVaccinations.slice(0,8).map(item=><div key={`${item.animalId}-${item.vaccine}-${item.nextDueDate}`} style={attentionRow}><span style={{color:'#7dd3fc',fontWeight:800}}>#{item.animalId}</span><span style={{color:'#cbd5e1',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.vaccine}</span><span style={{color:item.dueState==='OVERDUE'?'#f87171':item.dueState==='DUE_TODAY'?'#fcd34d':'#86efac',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>{item.nextDueDate}</span></div>)}{dueVaccinations.length>8&&<div style={attentionMore}>+{dueVaccinations.length-8} more · Open Vaccination</div>}</div>
             </div>
           </div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
-            <div className="cmd-card" style={{...cardBase,minWidth:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div>
-            </div>
-            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase,minWidth:0}}>
-              <div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div>
-              <div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div>
-            </div>
+            <div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div></div>
+            <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase,minWidth:0}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div></div>
           </div>
         </div>
       </div>
       {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
-      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>}
+      {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>} 
     </div>
   );
 }
 
+function CohortTabs({selected,onChange,compact=false}:{selected:ExtremeCohort;onChange:(value:ExtremeCohort)=>void;compact?:boolean}){
+  const options:[ExtremeCohort,string][]=[['THRICE_DAILY','Thrice Milking'],['TWICE_DAILY','Twice Milking']];
+  return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,minWidth:0}}>{options.map(([value,label])=><button key={value} type="button" onClick={(event)=>{event.stopPropagation();onChange(value)}} aria-pressed={selected===value} style={{background:selected===value?'#1d4ed8':'#161f30',border:selected===value?'1px solid #60a5fa':'1px solid #334155',borderRadius:4,padding:compact?'2px 4px':'5px 8px',fontSize:compact?8:9,fontWeight:800,color:selected===value?'#eff6ff':'#94a3b8',cursor:'pointer',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</button>)}</div>;
+}
 function SmallStat({label,value,color='#fff',sublabel}:{label:string,value:string|number,color?:string,sublabel?:string}){return <div style={{background:'#1e293b',padding:6,borderRadius:6,minWidth:0}}><div style={{fontSize:8,color:'#94a3b8'}}>{label}</div><div style={{fontSize:13,fontWeight:900,color,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{value}</div>{sublabel && <div style={{fontSize:7,color:'#64748b',marginTop:2}}>{sublabel}</div>}</div>}
 function WideStat({label,value,color,border='#38bdf8'}:{label:string,value:string,color:string,border?:string}){return <div style={{background:'#1e293b',padding:'8px 12px',borderRadius:6,borderLeft:`3px solid ${border}`,display:'flex',justifyContent:'space-between',alignItems:'center',minWidth:0}}><div style={{fontSize:10,color:'#94a3b8',fontWeight:800}}>{label}</div><div style={{fontSize:15,fontWeight:900,color}}>{value}</div></div>}
 function HerdTable({rows}:{rows:{name:string;value:number;color:string}[]}){return <div style={{minHeight:0,overflow:'auto'}}><table style={{width:'100%',fontSize:10,borderCollapse:'collapse'}}><thead><tr style={{color:'#94a3b8',borderBottom:'1px solid #1f2937'}}><th style={{textAlign:'left',padding:3}}>Category</th><th style={{textAlign:'right',padding:3}}>Count</th></tr></thead><tbody>{rows.map(c=><tr key={c.name} style={{borderBottom:'1px solid #1a2234'}}><td style={{display:'flex',alignItems:'center',gap:4,padding:4,color:'#e2e8f0'}}><div style={{width:6,height:6,backgroundColor:c.color,borderRadius:2}}/>{c.name}</td><td style={{fontWeight:800,textAlign:'right',padding:4}}>{c.value}</td></tr>)}</tbody></table></div>}
