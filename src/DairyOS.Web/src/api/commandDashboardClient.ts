@@ -6,6 +6,14 @@ export interface PerformerItem {
   yield: number;
 }
 
+export interface ProductionExtremeCohort {
+  highest: PerformerItem[];
+  lowest: PerformerItem[];
+  populationCount: number;
+  productionDate: string | null;
+  dataStatus: string;
+}
+
 export interface HerdCategory {
   name: string;
   value: number;
@@ -50,6 +58,10 @@ export interface CommandDashboardData {
   productionExtremes: {
     highest: PerformerItem[];
     lowest: PerformerItem[];
+    cohorts: {
+      THRICE_DAILY: ProductionExtremeCohort;
+      TWICE_DAILY: ProductionExtremeCohort;
+    };
   };
   yieldDropWatchlist: any[];
   productionDrop: {
@@ -96,6 +108,14 @@ type LedgerResponse = {
   dispositions?: any[];
 };
 
+const EMPTY_COHORT = (): ProductionExtremeCohort => ({
+  highest: [],
+  lowest: [],
+  populationCount: 0,
+  productionDate: null,
+  dataStatus: 'NO_DATA',
+});
+
 const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   todayLiters: 0,
   yesterdayLiters: 0,
@@ -116,6 +136,10 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   productionExtremes: {
     highest: [],
     lowest: [],
+    cohorts: {
+      THRICE_DAILY: EMPTY_COHORT(),
+      TWICE_DAILY: EMPTY_COHORT(),
+    },
   },
   yieldDropWatchlist: [],
   productionDrop: null,
@@ -155,7 +179,6 @@ const sumLedgerForDate = (
       if (String(row.status || "RECORDED").toUpperCase() === "VOID") {
         return false;
       }
-
       return isoDate(row.production_date || row.recorded_at) === targetDate;
     })
     .reduce(
@@ -175,17 +198,9 @@ const groupLedgerByDate = (
     if (String(row.status || "RECORDED").toUpperCase() === "VOID") {
       continue;
     }
-
-    const day = isoDate(
-      row.production_date || row.recorded_at,
-    );
-
+    const day = isoDate(row.production_date || row.recorded_at);
     if (!day) continue;
-
-    totals.set(
-      day,
-      (totals.get(day) || 0) + Number(row.total_yield || 0),
-    );
+    totals.set(day, (totals.get(day) || 0) + Number(row.total_yield || 0));
   }
 
   const series: Array<{ day: string; yield: number | null }> = [];
@@ -195,291 +210,145 @@ const groupLedgerByDate = (
   while (cursor <= end) {
     const day = cursor.toISOString().slice(0, 10);
     const total = totals.get(day);
-
     series.push({
       day,
-      yield: total === undefined
-        ? null
-        : Number(total.toFixed(2)),
+      yield: total === undefined ? null : Number(total.toFixed(2)),
     });
-
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   return series;
 };
 
-export async function fetchCommandDashboardData(): Promise<CommandDashboardData> {
-  const base =
-    API_BASE_URL ||
-    "http://127.0.0.1:8000";
+const performerItems = (items: unknown): PerformerItem[] =>
+  Array.isArray(items)
+    ? items.map((item: any) => ({
+        id: String(item?.animal_id || ""),
+        yield: Number(item?.total_litres || 0),
+      }))
+    : [];
 
+const productionCohort = (raw: any): ProductionExtremeCohort => ({
+  highest: performerItems(raw?.highest),
+  lowest: performerItems(raw?.lowest),
+  populationCount: Number(raw?.population_count || 0),
+  productionDate: raw?.production_date ? String(raw.production_date) : null,
+  dataStatus: String(raw?.data_status || 'NO_DATA'),
+});
+
+export async function fetchCommandDashboardData(): Promise<CommandDashboardData> {
+  const base = API_BASE_URL || "http://127.0.0.1:8000";
   const today = farmToday();
   const yesterday = shiftFarmDate(today, -1);
   const trendStart = shiftFarmDate(today, -29);
 
-  const [
-    dashboardResponse,
-    todayLedgerResponse,
-    trendLedgerResponse,
-  ] = await Promise.all([
-    fetch(`${base}/dashboard`, {
-      headers: { Accept: "application/json" },
-    }),
-
+  const [dashboardResponse, todayLedgerResponse, trendLedgerResponse] = await Promise.all([
+    fetch(`${base}/dashboard`, { headers: { Accept: "application/json" } }),
     fetch(
       `${base}/farm/milk/ledger?start_date=${today}&end_date=${today}`,
-      {
-        headers: { Accept: "application/json" },
-      },
+      { headers: { Accept: "application/json" } },
     ),
-
     fetch(
       `${base}/farm/milk/ledger?start_date=${trendStart}&end_date=${today}`,
-      {
-        headers: { Accept: "application/json" },
-      },
+      { headers: { Accept: "application/json" } },
     ),
   ]);
 
   if (!dashboardResponse.ok) {
-    throw new Error(
-      `Dashboard request failed with HTTP ${dashboardResponse.status}`,
-    );
+    throw new Error(`Dashboard request failed with HTTP ${dashboardResponse.status}`);
   }
-
   if (!todayLedgerResponse.ok) {
-    throw new Error(
-      `Milk ledger request failed with HTTP ${todayLedgerResponse.status}`,
-    );
+    throw new Error(`Milk ledger request failed with HTTP ${todayLedgerResponse.status}`);
   }
-
   if (!trendLedgerResponse.ok) {
-    throw new Error(
-      `Milk trend ledger request failed with HTTP ${trendLedgerResponse.status}`,
-    );
+    throw new Error(`Milk trend ledger request failed with HTTP ${trendLedgerResponse.status}`);
   }
 
   const raw = await dashboardResponse.json();
-
-  const todayLedger =
-    (await todayLedgerResponse.json()) as LedgerResponse;
-
-  const trendLedger =
-    (await trendLedgerResponse.json()) as LedgerResponse;
-
+  const todayLedger = (await todayLedgerResponse.json()) as LedgerResponse;
+  const trendLedger = (await trendLedgerResponse.json()) as LedgerResponse;
   const data = EMPTY_DASHBOARD();
 
-  const dashboard =
-    raw?.dashboard || {};
+  const dashboard = raw?.dashboard || {};
+  const rawMilk = raw?.milk || {};
+  const rawAnimals = raw?.animals || {};
+  const rawHealth = raw?.health || dashboard.health || {};
+  const rawVaccination = raw?.vaccination || dashboard.vaccination || {};
+  const rawReproduction = raw?.reproduction || dashboard.reproduction || {};
+  const rawFinance = raw?.finance || dashboard.finance || {};
 
-  const rawMilk =
-    raw?.milk || {};
+  const todayProduction = sumLedgerForDate(todayLedger.production || [], today);
+  const trend = groupLedgerByDate(trendLedger.production || [], trendStart, today);
+  const yesterdayLiters = sumLedgerForDate(trendLedger.production || [], yesterday);
 
-  const rawAnimals =
-    raw?.animals || {};
+  const animalMap = raw?.operational_state?.animals || {};
+  const animalList = Object.values(animalMap) as any[];
+  const activeAnimalList = animalList.filter((animal: any) => animal?.active !== false);
 
-  const rawHealth =
-    raw?.health || dashboard.health || {};
-
-  const rawVaccination =
-    raw?.vaccination || dashboard.vaccination || {};
-
-  const rawReproduction =
-    raw?.reproduction || dashboard.reproduction || {};
-
-  const rawFinance =
-    raw?.finance || dashboard.finance || {};
-
-  const todayProduction =
-    sumLedgerForDate(
-      todayLedger.production || [],
-      today,
-    );
-
-  const trend =
-    groupLedgerByDate(
-      trendLedger.production || [],
-      trendStart,
-      today,
-    );
-
-  const yesterdayLiters =
-    sumLedgerForDate(
-      trendLedger.production || [],
-      yesterday,
-    );
-
-  const animalMap =
-    raw?.operational_state?.animals || {};
-
-  const animalList =
-    Object.values(animalMap) as any[];
-
-  const activeAnimalList =
-    animalList.filter(
+  const milkingAnimals = Number(
+    rawMilk.current_milking_count ??
+    rawMilk.milking_population_count ??
+    dashboard.animals?.milking ??
+    activeAnimalList.filter(
       (animal: any) =>
-        animal?.active !== false,
-    );
+        String(animal.lifecycle_status || "").toUpperCase() === "LACTATING" ||
+        animal.is_currently_milking === true,
+    ).length,
+  );
 
-  const milkingAnimals =
-    Number(
-      rawMilk.current_milking_count ??
-      rawMilk.milking_population_count ??
-      dashboard.animals?.milking ??
-      activeAnimalList.filter(
-        (animal: any) =>
-          String(
-            animal.lifecycle_status || "",
-          ).toUpperCase() === "LACTATING" ||
-          animal.is_currently_milking === true,
-      ).length,
-    );
+  const milkingPercentage = Number(
+    rawMilk.milking_percentage ??
+    dashboard.animals?.milking_percentage ??
+    (
+      rawMilk.milking_population_count
+        ? (milkingAnimals / Number(rawMilk.milking_population_count)) * 100
+        : 0
+    ),
+  );
 
-  const milkingPercentage =
-    Number(
-      rawMilk.milking_percentage ??
-      dashboard.animals?.milking_percentage ??
-      (
-        rawMilk.milking_population_count
-          ? (
-              milkingAnimals /
-              Number(rawMilk.milking_population_count)
-            ) *
-            100
-          : 0
-      ),
-    );
-
-  const backendAverage =
-    rawMilk.average_yield_per_cow;
-
+  const backendAverage = rawMilk.average_yield_per_cow;
   const actualAverage =
-    backendAverage !== null &&
-    backendAverage !== undefined
+    backendAverage !== null && backendAverage !== undefined
       ? Number(backendAverage)
-      : (
-          todayProduction > 0 &&
-          milkingAnimals > 0
-            ? todayProduction / milkingAnimals
-            : null
-        );
+      : todayProduction > 0 && milkingAnimals > 0
+        ? todayProduction / milkingAnimals
+        : null;
 
-  const productionDrop =
-    rawMilk.production_drop ??
-    null;
+  const productionDrop = rawMilk.production_drop ?? null;
+  const productionExtremes = rawMilk.production_extremes ?? {};
+  const yieldDropWatchlist = Array.isArray(rawMilk.yield_drop_watchlist)
+    ? rawMilk.yield_drop_watchlist
+    : [];
 
-  const productionExtremes =
-    rawMilk.production_extremes ??
-    {};
-
-  const yieldDropWatchlist =
-    Array.isArray(
-      rawMilk.yield_drop_watchlist,
-    )
-      ? rawMilk.yield_drop_watchlist
-      : [];
-
-  const herdComposition =
-    Array.isArray(
-      dashboard.animals?.composition,
-    )
-      ? dashboard.animals.composition
-      : [];
+  const herdComposition = Array.isArray(dashboard.animals?.composition)
+    ? dashboard.animals.composition
+    : [];
 
   const rawHerdMetrics =
-    rawAnimals.herd_metrics ??
-    dashboard.animals?.herd_metrics ??
-    {};
+    rawAnimals.herd_metrics ?? dashboard.animals?.herd_metrics ?? {};
 
   return {
     ...data,
-
-    // Current-day Milk ledger is authoritative.
-    todayLiters:
-      Number(
-        todayProduction.toFixed(2),
-      ),
-
-    yesterdayLiters:
-      Number(
-        yesterdayLiters.toFixed(2),
-      ),
-
-    todayDate:
-      today,
-
-    yesterdayDate:
-      yesterday,
-
+    todayLiters: Number(todayProduction.toFixed(2)),
+    yesterdayLiters: Number(yesterdayLiters.toFixed(2)),
+    todayDate: today,
+    yesterdayDate: yesterday,
     milkingAnimals,
-
-    adultAnimals:
-      Number(
-        rawMilk.milking_population_count ??
-        (
-          Number(
-            rawAnimals.total ||
-            dashboard.animals?.total ||
-            activeAnimalList.length ||
-            0,
-          )
-        ),
-      ),
-
-    milkingPercentage:
-      Number(
-        milkingPercentage.toFixed(1),
-      ),
-
+    adultAnimals: Number(
+      rawMilk.milking_population_count ??
+      Number(rawAnimals.total || dashboard.animals?.total || activeAnimalList.length || 0),
+    ),
+    milkingPercentage: Number(milkingPercentage.toFixed(1)),
     averageYieldPerCow:
-      actualAverage === null
-        ? null
-        : Number(
-            actualAverage.toFixed(2),
-          ),
-
-    topPerformers:
-      Array.isArray(
-        productionExtremes.highest,
-      )
-        ? productionExtremes.highest.map(
-            (item: any) => ({
-              id: String(
-                item?.animal_id || "",
-              ),
-              yield: Number(
-                item?.total_litres || 0,
-              ),
-            }),
-          )
-        : [],
-
-    bottomPerformers:
-      Array.isArray(
-        productionExtremes.lowest,
-      )
-        ? productionExtremes.lowest.map(
-            (item: any) => ({
-              id: String(
-                item?.animal_id || "",
-              ),
-              yield: Number(
-                item?.total_litres || 0,
-              ),
-            }),
-          )
-        : [],
-
-    yieldTrend:
-      trend,
-
+      actualAverage === null ? null : Number(actualAverage.toFixed(2)),
+    topPerformers: performerItems(productionExtremes.highest),
+    bottomPerformers: performerItems(productionExtremes.lowest),
+    yieldTrend: trend,
     herdComposition: herdComposition.map((item: any) => ({
       name: String(item?.name || item?.category || 'Unclassified'),
       value: Number(item?.value ?? item?.count ?? 0),
       color: item?.color ? String(item.color) : undefined,
     })),
-
     herdMetrics: {
       averageYieldMilkingAnimalsLiters:
         rawHerdMetrics.average_yield_milking_animals_liters == null
@@ -490,139 +359,63 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
           ? null
           : Number(rawHerdMetrics.average_yield_total_herd_liters),
     },
-
     productionExtremes: {
-      highest:
-        Array.isArray(
-          productionExtremes.highest,
-        )
-          ? productionExtremes.highest.map(
-              (item: any) => ({
-                id: String(
-                  item?.animal_id || "",
-                ),
-                yield: Number(
-                  item?.total_litres || 0,
-                ),
-              }),
-            )
-          : [],
-
-      lowest:
-        Array.isArray(
-          productionExtremes.lowest,
-        )
-          ? productionExtremes.lowest.map(
-              (item: any) => ({
-                id: String(
-                  item?.animal_id || "",
-                ),
-                yield: Number(
-                  item?.total_litres || 0,
-                ),
-              }),
-            )
-          : [],
+      highest: performerItems(productionExtremes.highest),
+      lowest: performerItems(productionExtremes.lowest),
+      cohorts: {
+        THRICE_DAILY: productionCohort(
+          productionExtremes.cohorts?.THRICE_DAILY,
+        ),
+        TWICE_DAILY: productionCohort(
+          productionExtremes.cohorts?.TWICE_DAILY,
+        ),
+      },
     },
-
     yieldDropWatchlist,
-
     productionDrop,
-
     health: {
-      sick:
-        Number(
-          rawHealth.active_exceptions ??
-          rawHealth.sick ??
-          0,
-        ),
-
-      mastitis:
-        Number(
-          rawHealth.critical_cases ??
-          rawHealth.mastitis ??
-          0,
-        ),
-
-      highTemp:
-        Number(
-          rawHealth.high_temperature ??
-          rawHealth.highTemp ??
-          0,
-        ),
-
-      completedVax:
-        Number(
-          rawHealth.completed_vaccinations ??
-          rawHealth.completedVax ??
-          0,
-        ),
-
-      dueVax:
-        Number(
-          rawHealth.due_vaccinations ??
-          rawHealth.dueVax ??
-          0,
-        ),
-
-      sickAnimals:
-        Array.isArray(rawHealth.sick_animals)
-          ? rawHealth.sick_animals.map((item: any) => ({
-              animalId: String(item?.animal_id || ''),
-              diagnosis: String(item?.diagnosis || 'Unspecified'),
-              severity: String(item?.severity || 'NORMAL'),
-              openedAt: String(item?.opened_at || ''),
-              followUpDueAt: String(item?.follow_up_due_at || ''),
-            }))
-          : [],
+      sick: Number(rawHealth.active_exceptions ?? rawHealth.sick ?? 0),
+      mastitis: Number(rawHealth.critical_cases ?? rawHealth.mastitis ?? 0),
+      highTemp: Number(rawHealth.high_temperature ?? rawHealth.highTemp ?? 0),
+      completedVax: Number(
+        rawHealth.completed_vaccinations ?? rawHealth.completedVax ?? 0,
+      ),
+      dueVax: Number(rawHealth.due_vaccinations ?? rawHealth.dueVax ?? 0),
+      sickAnimals: Array.isArray(rawHealth.sick_animals)
+        ? rawHealth.sick_animals.map((item: any) => ({
+            animalId: String(item?.animal_id || ''),
+            diagnosis: String(item?.diagnosis || 'Unspecified'),
+            severity: String(item?.severity || 'NORMAL'),
+            openedAt: String(item?.opened_at || ''),
+            followUpDueAt: String(item?.follow_up_due_at || ''),
+          }))
+        : [],
     },
-
     vaccination: {
-      dueAnimals:
-        Array.isArray(rawVaccination.due_animals)
-          ? rawVaccination.due_animals.map((item: any) => ({
-              animalId: String(item?.animal_id || ''),
-              vaccine: String(item?.vaccine || 'Vaccination'),
-              administeredDate: String(item?.administered_date || ''),
-              nextDueDate: String(item?.next_due_date || ''),
-              dueState: String(item?.due_state || 'SCHEDULED'),
-            }))
-          : [],
+      dueAnimals: Array.isArray(rawVaccination.due_animals)
+        ? rawVaccination.due_animals.map((item: any) => ({
+            animalId: String(item?.animal_id || ''),
+            vaccine: String(item?.vaccine || 'Vaccination'),
+            administeredDate: String(item?.administered_date || ''),
+            nextDueDate: String(item?.next_due_date || ''),
+            dueState: String(item?.due_state || 'SCHEDULED'),
+          }))
+        : [],
     },
-
     reproduction: {
-      inseminated:
-        Number(
-          rawReproduction.inseminated ??
-          0,
-        ),
-
-      pregnant:
-        Number(
-          rawReproduction.pregnant ??
-          0,
-        ),
-
-      pregnancyRatio:
-        Number(
-          rawReproduction.pregnancy_ratio_percent ??
-          rawReproduction.pregnancyRatio ??
-          0,
-        ),
+      inseminated: Number(rawReproduction.inseminated ?? 0),
+      pregnant: Number(rawReproduction.pregnant ?? 0),
+      pregnancyRatio: Number(
+        rawReproduction.pregnancy_ratio_percent ??
+        rawReproduction.pregnancyRatio ??
+        0,
+      ),
     },
-
     finance: {
-      receivables:
-        Number(
-          rawFinance.receivables ??
-          0,
-        ),
-      receivableCount:
-        Number(
-          rawFinance.receivable_count ??
-          rawFinance.receivableCount ??
-          0,
-        ),
+      receivables: Number(rawFinance.receivables ?? 0),
+      receivableCount: Number(
+        rawFinance.receivable_count ?? rawFinance.receivableCount ?? 0,
+      ),
     },
   };
 }
