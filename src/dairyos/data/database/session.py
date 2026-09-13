@@ -1,12 +1,13 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 
 from dairyos.data.database.base import Base
+from dairyos.windows.private_postgres import isolated_postgres_environment
 
 __all__ = ["DATABASE_URL", "Base", "SessionLocal", "engine", "get_session"]
 
@@ -107,6 +108,27 @@ DATABASE_URL = _build_database_url()
 engine = create_engine(
     DATABASE_URL,
 )
+
+
+def _connect_with_isolated_postgres_environment(
+    dialect,
+    connection_record,
+    cargs,
+    cparams,
+):
+    """Open one DBAPI connection without ambient libpq authority."""
+    del connection_record
+    with isolated_postgres_environment():
+        return dialect.connect(*cargs, **cparams)
+
+
+event.listen(
+    engine,
+    "do_connect",
+    _connect_with_isolated_postgres_environment,
+    retval=True,
+)
+
 
 SessionLocal = sessionmaker(
     bind=engine,

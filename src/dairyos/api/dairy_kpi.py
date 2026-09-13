@@ -62,6 +62,22 @@ def _record_date(record, *names):
     return None
 
 
+def _as_farm_local_datetime(value, timezone_info):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone_info).astimezone(UTC)
+        return value.astimezone(UTC)
+    if isinstance(value, date):
+        return datetime.combine(
+            value,
+            time.min,
+            tzinfo=timezone_info,
+        ).astimezone(UTC)
+    return None
+
+
 def _has_entered_yield(record) -> bool:
     if getattr(record, "total_yield", None) is not None:
         return True
@@ -137,10 +153,29 @@ def _interval_metrics(breeding):
     }
 
 
-def _overview(factory, start, end, *, display_start=None, display_end=None):
+def _overview(
+    factory,
+    start,
+    end,
+    *,
+    timezone_info=UTC,
+    display_start=None,
+    display_end=None,
+):
     animals = [a for a in factory.animal().get_all() if getattr(a, "active", True)]
     milk = [r for r in factory.milk().get_all() if _in_period(r, start, end, "production_date")]
-    feed = [r for r in factory.feed().get_all() if _in_period(r, start, end, "feeding_date")]
+    feed = [
+        r
+        for r in factory.feed().get_all()
+        if (
+            (timestamp := _as_farm_local_datetime(
+                getattr(r, "feeding_date", None),
+                timezone_info,
+            ))
+            is not None
+            and start <= timestamp < end
+        )
+    ]
     health = [r for r in factory.health().get_all() if _in_period(r, start, end, "observed_at", "timestamp", "observation_date", "created_at")]
     breeding = [r for r in factory.breeding().get_all() if _in_period(r, start, end, "timestamp")]
     treatments = [r for r in factory.treatment().get_all() if _in_period(r, start, end, "treated_at")]
@@ -268,6 +303,7 @@ def standard_dairy_kpi_overview(days: int = Query(default=30, ge=1, le=3650), co
             factory,
             start,
             end,
+            timezone_info=timezone_info,
             display_start=local_start,
             display_end=local_end,
         )
@@ -300,6 +336,7 @@ def standard_dairy_kpi_period(start_date: date, end_date: date, container=Depend
             factory,
             local_start.astimezone(UTC),
             local_end.astimezone(UTC),
+            timezone_info=timezone_info,
             display_start=local_start,
             display_end=local_end,
         )

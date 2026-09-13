@@ -90,3 +90,169 @@ def test_passwordless_non_test_database_still_requires_production_secret(monkeyp
         raise AssertionError(
             "non-test production database accepted passwordless access"
         )
+
+def _hostile_libpq_state(monkeypatch):
+    hostile = {
+        "PGAPPNAME": "",
+        "PGCONNECT_TIMEOUT": "",
+        "PGDATABASE": "ambient_database",
+        "PGHOST": "ambient.invalid",
+        "PGHOSTADDR": "192.0.2.10",
+        "PGOPTIONS": "-c statement_timeout=1",
+        "PGPORT": "1",
+        "PGSERVICE": "",
+        "PGSERVICEFILE": "",
+        "PGSSLMODE": "disable",
+        "PGSYSCONFDIR": "",
+        "PGUSER": "ambient_user",
+    }
+    for name, value in hostile.items():
+        monkeypatch.setenv(name, value)
+    return hostile
+
+
+def test_central_engine_registers_physical_connect_isolation_hook():
+    from sqlalchemy import event
+
+    session = importlib.import_module(
+        "dairyos.data.database.session"
+    )
+
+    assert event.contains(
+        session.engine,
+        "do_connect",
+        session._connect_with_isolated_postgres_environment,
+    )
+
+
+def test_central_physical_connect_preserves_arguments_and_environment(
+    monkeypatch,
+):
+    import os
+
+    session = importlib.import_module(
+        "dairyos.data.database.session"
+    )
+    hostile = _hostile_libpq_state(monkeypatch)
+    monkeypatch.delenv("PGPASSFILE", raising=False)
+
+    observed = {}
+    sentinel = object()
+
+    class FakeDialect:
+        def connect(self, *args, **kwargs):
+            observed["args"] = args
+            observed["kwargs"] = dict(kwargs)
+            observed["hostile_present"] = {
+                name: name in os.environ for name in hostile
+            }
+            observed["pgpassfile_present"] = (
+                "PGPASSFILE" in os.environ
+            )
+            return sentinel
+
+    cargs = ("dialect-positional",)
+    cparams = {
+        "host": "127.0.0.1",
+        "port": 65432,
+        "dbname": "dairyos_test_connection_isolation",
+        "user": "dairyos",
+        "context": "dialect-owned-context",
+    }
+
+    result = session._connect_with_isolated_postgres_environment(
+        FakeDialect(),
+        object(),
+        cargs,
+        cparams,
+    )
+
+    assert result is sentinel
+    assert observed["args"] == cargs
+    assert observed["kwargs"] == cparams
+    assert not any(observed["hostile_present"].values())
+    assert observed["pgpassfile_present"] is False
+
+    assert {
+        name: os.environ[name] for name in hostile
+    } == hostile
+    assert "PGPASSFILE" not in os.environ
+
+
+def test_central_physical_connect_restores_environment_after_failure(
+    monkeypatch,
+):
+    import os
+
+    session = importlib.import_module(
+        "dairyos.data.database.session"
+    )
+    hostile = _hostile_libpq_state(monkeypatch)
+
+    class ExpectedFailure(RuntimeError):
+        pass
+
+    class FailingDialect:
+        def connect(self, *args, **kwargs):
+            assert all(
+                name not in os.environ for name in hostile
+            )
+            raise ExpectedFailure("physical connect failed")
+
+    try:
+        session._connect_with_isolated_postgres_environment(
+            FailingDialect(),
+            object(),
+            (),
+            {"host": "127.0.0.1"},
+        )
+    except ExpectedFailure as exc:
+        assert str(exc) == "physical connect failed"
+    else:
+        raise AssertionError("expected physical connection failure")
+
+    assert {
+        name: os.environ[name] for name in hostile
+    } == hostile
+
+
+def test_central_physical_connect_isolates_every_attempt(
+    monkeypatch,
+):
+    import os
+
+    session = importlib.import_module(
+        "dairyos.data.database.session"
+    )
+    hostile = _hostile_libpq_state(monkeypatch)
+    observed = []
+
+    class FakeDialect:
+        def connect(self, *args, **kwargs):
+            observed.append(
+                all(name not in os.environ for name in hostile)
+            )
+            return object()
+
+    dialect = FakeDialect()
+
+    first = session._connect_with_isolated_postgres_environment(
+        dialect,
+        object(),
+        (),
+        {"host": "127.0.0.1"},
+    )
+
+    second = session._connect_with_isolated_postgres_environment(
+        dialect,
+        object(),
+        (),
+        {"host": "127.0.0.1"},
+    )
+
+    assert first is not second
+    assert observed == [True, True]
+
+    assert {
+        name: os.environ[name] for name in hostile
+    } == hostile

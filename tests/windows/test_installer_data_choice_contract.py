@@ -180,3 +180,46 @@ def test_separate_empty_farm_uses_runtime_valid_timestamp_separators() -> None:
     assert "while DirExists(Candidate) do" in allocator
     assert "Candidate := Base + '-' + IntToStr(Suffix);" in allocator
     assert "Result := Candidate;" in allocator
+
+def test_permanent_shortcuts_pin_the_selected_farm_data_root():
+    source = _source()
+
+    icons_start = source.index("[Icons]")
+    dirs_start = source.index("[Dirs]", icons_start)
+    icons = source[icons_start:dirs_start]
+
+    start_menu = next(
+        line
+        for line in icons.splitlines()
+        if 'Name: "{autoprograms}\\DairyOS"' in line
+    )
+
+    desktop = next(
+        line
+        for line in icons.splitlines()
+        if 'Name: "{autodesktop}\\DairyOS"' in line
+    )
+
+    selected_root_argument = (
+        'Parameters: "--data-root '
+        '""{code:DairyOSDataRoot}"""'
+    )
+
+    assert selected_root_argument in start_menu
+    assert selected_root_argument in desktop
+
+
+def test_selected_root_has_persistent_and_explicit_launch_authority():
+    source = _source()
+
+    assert (
+        'ValueName: "DAIRYOS_DATA_DIR"; '
+        'ValueData: "{code:DairyOSDataRoot}"'
+    ) in source
+
+    explicit_argument = (
+        'Parameters: "--data-root '
+        '""{code:DairyOSDataRoot}"""'
+    )
+
+    assert source.count(explicit_argument) >= 3
