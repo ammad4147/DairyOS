@@ -32,6 +32,7 @@ from dairyos.windows.installation_choice import (
     InstallationChoiceError,
     read_pending_installation_choice,
 )
+from dairyos.windows.private_postgres import isolated_postgres_environment
 
 
 MIGRATION_LOCK_KEY = 746182934517
@@ -180,82 +181,83 @@ def migrate_if_needed() -> MigrationResult:
         config, script = _build_config()
         engine = create_engine(database_url, pool_pre_ping=True)
 
-        with engine.begin() as connection:
-            connection.execute(
-                text("SELECT pg_advisory_xact_lock(:lock_key)"),
-                {"lock_key": MIGRATION_LOCK_KEY},
-            )
-            migration_context = MigrationContext.configure(connection)
-            current = tuple(sorted(migration_context.get_current_heads()))
-            target = tuple(sorted(script.get_heads()))
-            application_tables = _public_application_table_count(connection)
-            explicit_clean_install = _explicit_clean_install_requested()
+        with isolated_postgres_environment():
+            with engine.begin() as connection:
+                connection.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                    {"lock_key": MIGRATION_LOCK_KEY},
+                )
+                migration_context = MigrationContext.configure(connection)
+                current = tuple(sorted(migration_context.get_current_heads()))
+                target = tuple(sorted(script.get_heads()))
+                application_tables = _public_application_table_count(connection)
+                explicit_clean_install = _explicit_clean_install_requested()
 
-            if application_tables == 0:
-                if explicit_clean_install:
-                    _bootstrap_empty_database(connection, config, target)
-                    return MigrationResult(True, current, target, None)
+                if application_tables == 0:
+                    if explicit_clean_install:
+                        _bootstrap_empty_database(connection, config, target)
+                        return MigrationResult(True, current, target, None)
 
-                try:
-                    inspect_startup_integrity(application_tables=0)
-                except StartupIntegrityError as exc:
-                    raise MigrationGateError(str(exc)) from exc
+                    try:
+                        inspect_startup_integrity(application_tables=0)
+                    except StartupIntegrityError as exc:
+                        raise MigrationGateError(str(exc)) from exc
+
+                    if current == target:
+                        raise MigrationGateError(
+                            "DairyOS database reports the packaged migration head but contains no "
+                            "application tables. Startup is blocked because farm data may have been "
+                            "removed or the database is otherwise inconsistent. Data recovery is required."
+                        )
+
+                    if not current:
+                        _bootstrap_empty_database(connection, config, target)
+                        return MigrationResult(True, current, target, None)
 
                 if current == target:
-                    raise MigrationGateError(
-                        "DairyOS database reports the packaged migration head but contains no "
-                        "application tables. Startup is blocked because farm data may have been "
-                        "removed or the database is otherwise inconsistent. Data recovery is required."
-                    )
+                    if transient_admin_url:
+                        install_destructive_guards(connection)
+                    else:
+                        verify_destructive_guards(connection)
+                    return MigrationResult(False, current, target)
 
                 if not current:
-                    _bootstrap_empty_database(connection, config, target)
-                    return MigrationResult(True, current, target, None)
+                    raise MigrationGateError(
+                        "DairyOS database has application tables but no Alembic history. "
+                        "Startup is blocked because the existing schema cannot be safely inferred."
+                    )
 
-            if current == target:
-                if transient_admin_url:
+                manager = LifecycleManager(
+                    installation_root=Path(sys.executable).resolve().parent,
+                    data_root=paths.data_root(create=True),
+                    database_url=database_url,
+                )
+                try:
+                    backup_path = manager.backup(label="pre-migration")
+                except Exception as exc:
+                    raise MigrationGateError(
+                        f"Pre-migration backup failed; startup is blocked: {exc}"
+                    ) from exc
+
+                config.attributes["connection"] = connection
+                try:
+                    command.upgrade(config, "heads")
                     install_destructive_guards(connection)
-                else:
-                    verify_destructive_guards(connection)
-                return MigrationResult(False, current, target)
+                except Exception as exc:
+                    raise MigrationGateError(
+                        "DairyOS database migration failed. Startup is blocked. "
+                        f"Pre-migration backup: {backup_path}. Original error: {exc}"
+                    ) from exc
 
-            if not current:
-                raise MigrationGateError(
-                    "DairyOS database has application tables but no Alembic history. "
-                    "Startup is blocked because the existing schema cannot be safely inferred."
-                )
+                verification = MigrationContext.configure(connection)
+                final_heads = tuple(sorted(verification.get_current_heads()))
+                if final_heads != target:
+                    raise MigrationGateError(
+                        "DairyOS migration completed without reaching all expected heads. "
+                        f"Expected {target}; found {final_heads}. Backup: {backup_path}"
+                    )
 
-            manager = LifecycleManager(
-                installation_root=Path(sys.executable).resolve().parent,
-                data_root=paths.data_root(create=True),
-                database_url=database_url,
-            )
-            try:
-                backup_path = manager.backup(label="pre-migration")
-            except Exception as exc:
-                raise MigrationGateError(
-                    f"Pre-migration backup failed; startup is blocked: {exc}"
-                ) from exc
-
-            config.attributes["connection"] = connection
-            try:
-                command.upgrade(config, "heads")
-                install_destructive_guards(connection)
-            except Exception as exc:
-                raise MigrationGateError(
-                    "DairyOS database migration failed. Startup is blocked. "
-                    f"Pre-migration backup: {backup_path}. Original error: {exc}"
-                ) from exc
-
-            verification = MigrationContext.configure(connection)
-            final_heads = tuple(sorted(verification.get_current_heads()))
-            if final_heads != target:
-                raise MigrationGateError(
-                    "DairyOS migration completed without reaching all expected heads. "
-                    f"Expected {target}; found {final_heads}. Backup: {backup_path}"
-                )
-
-            return MigrationResult(True, current, target, backup_path)
+                return MigrationResult(True, current, target, backup_path)
     except MigrationGateError:
         raise
     except Exception as exc:

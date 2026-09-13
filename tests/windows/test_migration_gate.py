@@ -204,3 +204,116 @@ def test_privileged_url_is_cleared_when_engine_creation_fails(monkeypatch):
         migrations.migrate_if_needed()
 
     assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
+
+
+def test_migration_connection_isolates_ambient_libpq_environment(monkeypatch):
+    import os
+
+    governed = {
+        "PGCONNECT_TIMEOUT": "",
+        "PGSERVICE": "",
+        "PGSERVICEFILE": "",
+        "PGHOST": "203.0.113.77",
+        "PGPORT": "",
+        "PGOPTIONS": "-c statement_timeout=1",
+    }
+
+    for name, value in governed.items():
+        monkeypatch.setenv(name, value)
+
+    observed = {}
+
+    class InspectingEngine(_Engine):
+        def begin(self):
+            for name in governed:
+                observed[name] = (name in os.environ, os.environ.get(name))
+            return super().begin()
+
+    connection = _Connection()
+    engine = InspectingEngine(connection)
+    config = SimpleNamespace(attributes={})
+    target = ("20260826_01",)
+    script = SimpleNamespace(get_heads=lambda: target)
+    context = SimpleNamespace(get_current_heads=lambda: target)
+
+    monkeypatch.setattr(
+        migrations,
+        "_database_url",
+        lambda: "postgresql+psycopg://dairyos:test@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(migrations, "_build_config", lambda: (config, script))
+    monkeypatch.setattr(migrations, "create_engine", lambda *_args, **_kwargs: engine)
+    monkeypatch.setattr(
+        migrations.MigrationContext,
+        "configure",
+        lambda *_args, **_kwargs: context,
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_public_application_table_count",
+        lambda _connection: 1,
+    )
+    monkeypatch.setattr(migrations, "verify_destructive_guards", lambda _connection: None)
+    monkeypatch.setattr(migrations, "restore_verification_due", lambda: False)
+
+    result = migrations.migrate_if_needed()
+
+    assert result.migrated is False
+    assert all(
+        existed is False and value is None
+        for existed, value in observed.values()
+    )
+
+    for name, value in governed.items():
+        assert name in os.environ
+        assert os.environ[name] == value
+
+
+def test_migration_connection_restores_ambient_libpq_after_failure(monkeypatch):
+    import os
+
+    monkeypatch.setenv("PGCONNECT_TIMEOUT", "")
+    monkeypatch.setenv("PGSERVICEFILE", "")
+    monkeypatch.delenv("PGAPPNAME", raising=False)
+
+    observed = {}
+
+    class FailingEngine:
+        def begin(self):
+            for name in ("PGCONNECT_TIMEOUT", "PGSERVICEFILE", "PGAPPNAME"):
+                observed[name] = (name in os.environ, os.environ.get(name))
+            raise RuntimeError("connection acquisition failed")
+
+        def dispose(self):
+            pass
+
+    monkeypatch.setattr(
+        migrations,
+        "_database_url",
+        lambda: "postgresql+psycopg://dairyos:test@127.0.0.1:5432/dairyos",
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_build_config",
+        lambda: (SimpleNamespace(attributes={}), SimpleNamespace(get_heads=lambda: ())),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "create_engine",
+        lambda *_args, **_kwargs: FailingEngine(),
+    )
+    monkeypatch.setattr(migrations, "restore_verification_due", lambda: False)
+
+    with pytest.raises(
+        migrations.MigrationGateError,
+        match="database preflight failed",
+    ):
+        migrations.migrate_if_needed()
+
+    assert all(
+        existed is False and value is None
+        for existed, value in observed.values()
+    )
+    assert os.environ["PGCONNECT_TIMEOUT"] == ""
+    assert os.environ["PGSERVICEFILE"] == ""
+    assert "PGAPPNAME" not in os.environ
