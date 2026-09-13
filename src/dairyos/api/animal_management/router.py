@@ -110,7 +110,10 @@ def _serialize_vaccination_record(record):
         "animal_id": record.animal_id,
         "vaccine": record.vaccine,
         "dose": record.dose,
-        "administered_date": record.administered_date.isoformat(),
+        "administered_date": (
+            record.administered_date.isoformat()
+            if record.administered_date else None
+        ),
         "next_due_date": (
             record.next_due_date.isoformat() if record.next_due_date else None
         ),
@@ -535,19 +538,19 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
     if not vaccine:
         raise HTTPException(status_code=422, detail="vaccine required")
     operational_date = _farm_operational_date(container)
-    administered = _parse_date(
-        payload.get("administered_date") or operational_date,
-        "administered_date",
-    )
-    if administered is None:
+    schedule_only = str(payload.get("schedule_status") or "").strip().upper() == "SCHEDULED"
+    administered = _parse_date(payload.get("administered_date"), "administered_date")
+    if not schedule_only and administered is None:
+        administered = operational_date
+    if not schedule_only and administered is None:
         raise HTTPException(status_code=422, detail="administered_date must be an ISO date")
-    if administered > operational_date:
+    if administered is not None and administered > operational_date:
         raise HTTPException(
             status_code=422,
             detail="administered_date cannot be in the future of the farm operational date",
         )
     next_due = _parse_date(payload.get("next_due_date"), "next_due_date")
-    if next_due is not None and next_due < administered:
+    if next_due is not None and administered is not None and next_due < administered:
         raise HTTPException(
             status_code=422,
             detail="next_due_date cannot precede administered_date",
@@ -558,6 +561,7 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         or ("NEXT_DUE_DATE" if next_due is not None else "UNKNOWN_NEXT_DUE")
     ).strip().upper()
     allowed_schedule_statuses = {
+        "SCHEDULED",
         "NEXT_DUE_DATE",
         "NO_REPEAT_REQUIRED",
         "UNKNOWN_NEXT_DUE",
@@ -570,7 +574,7 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
                 "or UNKNOWN_NEXT_DUE"
             ),
         )
-    if schedule_status == "NEXT_DUE_DATE" and next_due is None:
+    if schedule_status in {"SCHEDULED", "NEXT_DUE_DATE"} and next_due is None:
         raise HTTPException(
             status_code=422,
             detail="next_due_date is required when schedule_status is NEXT_DUE_DATE",
@@ -613,7 +617,7 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         "animal_id": animal_id,
         "vaccine": vaccine,
         "dose": record.dose,
-        "administered_date": administered.isoformat(),
+        "administered_date": administered.isoformat() if administered else None,
         "next_due_date": next_due.isoformat() if next_due else None,
         "schedule_status": schedule_status,
         "batch_number": record.batch_number,

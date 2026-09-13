@@ -543,7 +543,7 @@ def get_dashboard(container=Depends(get_container)):
     payload["vaccination"] = {
         "completed": completed_vaccinations,
         "due": due_vaccinations,
-        "due_animals": list(vaccination_projection["schedules"]),
+        "due_animals": list(vaccination_projection["due"]),
         "completed_vaccinations": completed_vaccinations,
         "due_vaccinations": due_vaccinations,
         "data_status": "LIVE_PERSISTED_DATA",

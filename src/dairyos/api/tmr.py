@@ -505,10 +505,9 @@ def _active_herd_counts(factory) -> dict[str, int]:
         if status in inactive_statuses:
             continue
         category = _normalize_herd_category(animal)
-        # The governing farm requirement connects only the Milking category
-        # automatically to the Animal Register. Other ration categories keep
-        # their formulation authority but require explicit population input.
-        if category in AUTO_CONNECTED_HERD_CATEGORIES:
+        # Category populations come from the active Animal Register for every
+        # governed ration category, so no category silently prices at zero.
+        if category in counts:
             counts[category] += 1
     return counts
 

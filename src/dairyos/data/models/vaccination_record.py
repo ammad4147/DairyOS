@@ -20,7 +20,9 @@ class VaccinationRecord(Base):
     )
     vaccine = Column(String, nullable=False, index=True)
     dose = Column(String, nullable=True)
-    administered_date = Column(Date, nullable=False, index=True)
+    # A schedule exists before administration; the administered fact is
+    # endorsed later by the operator.
+    administered_date = Column(Date, nullable=True, index=True)
     next_due_date = Column(Date, nullable=True, index=True)
     schedule_status = Column(String, nullable=False, default="UNKNOWN_NEXT_DUE")
     batch_number = Column(String, nullable=True)
