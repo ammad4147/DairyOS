@@ -50,6 +50,10 @@ export interface CommandDashboardData {
   productionExtremes: {
     highest: PerformerItem[];
     lowest: PerformerItem[];
+    cohorts: {
+      THRICE_DAILY: { highest: PerformerItem[]; lowest: PerformerItem[] };
+      TWICE_DAILY: { highest: PerformerItem[]; lowest: PerformerItem[] };
+    };
   };
   yieldDropWatchlist: any[];
   productionDrop: {
@@ -116,6 +120,10 @@ const EMPTY_DASHBOARD = (): CommandDashboardData => ({
   productionExtremes: {
     highest: [],
     lowest: [],
+    cohorts: {
+      THRICE_DAILY: { highest: [], lowest: [] },
+      TWICE_DAILY: { highest: [], lowest: [] },
+    },
   },
   yieldDropWatchlist: [],
   productionDrop: null,
@@ -493,36 +501,49 @@ export async function fetchCommandDashboardData(): Promise<CommandDashboardData>
 
     productionExtremes: {
       highest:
-        Array.isArray(
-          productionExtremes.highest,
-        )
-          ? productionExtremes.highest.map(
-              (item: any) => ({
-                id: String(
-                  item?.animal_id || "",
-                ),
-                yield: Number(
-                  item?.total_litres || 0,
-                ),
-              }),
-            )
+        Array.isArray(productionExtremes.highest)
+          ? productionExtremes.highest.map((item: any) => ({
+              id: String(item?.animal_id || ""),
+              yield: Number(item?.total_litres || 0),
+            }))
           : [],
-
       lowest:
-        Array.isArray(
-          productionExtremes.lowest,
-        )
-          ? productionExtremes.lowest.map(
-              (item: any) => ({
-                id: String(
-                  item?.animal_id || "",
-                ),
-                yield: Number(
-                  item?.total_litres || 0,
-                ),
-              }),
-            )
+        Array.isArray(productionExtremes.lowest)
+          ? productionExtremes.lowest.map((item: any) => ({
+              id: String(item?.animal_id || ""),
+              yield: Number(item?.total_litres || 0),
+            }))
           : [],
+      cohorts: {
+        THRICE_DAILY: {
+          highest: Array.isArray(productionExtremes.cohorts?.THRICE_DAILY?.highest)
+            ? productionExtremes.cohorts.THRICE_DAILY.highest.map((item: any) => ({
+                id: String(item?.animal_id || ""),
+                yield: Number(item?.total_litres || 0),
+              }))
+            : [],
+          lowest: Array.isArray(productionExtremes.cohorts?.THRICE_DAILY?.lowest)
+            ? productionExtremes.cohorts.THRICE_DAILY.lowest.map((item: any) => ({
+                id: String(item?.animal_id || ""),
+                yield: Number(item?.total_litres || 0),
+              }))
+            : [],
+        },
+        TWICE_DAILY: {
+          highest: Array.isArray(productionExtremes.cohorts?.TWICE_DAILY?.highest)
+            ? productionExtremes.cohorts.TWICE_DAILY.highest.map((item: any) => ({
+                id: String(item?.animal_id || ""),
+                yield: Number(item?.total_litres || 0),
+              }))
+            : [],
+          lowest: Array.isArray(productionExtremes.cohorts?.TWICE_DAILY?.lowest)
+            ? productionExtremes.cohorts.TWICE_DAILY.lowest.map((item: any) => ({
+                id: String(item?.animal_id || ""),
+                yield: Number(item?.total_litres || 0),
+              }))
+            : [],
+        },
+      },
     },
 
     yieldDropWatchlist,

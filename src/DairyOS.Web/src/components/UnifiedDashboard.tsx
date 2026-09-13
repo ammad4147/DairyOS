@@ -44,6 +44,9 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [error, setError] = useState<string | null>(null);
   const [chartDays, setChartDays] = useState(7);
   const [extremesCount, setExtremesCount] = useState(3);
+  const [productionExtremesFrequency, setProductionExtremesFrequency] = useState<
+    'THRICE_DAILY' | 'TWICE_DAILY'
+  >('THRICE_DAILY');
   const [expandedMilkList, setExpandedMilkList] = useState<
     'YIELD_DROP' | 'PRODUCTION_EXTREMES' | null
   >(null);
@@ -273,8 +276,15 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     data?.herdMetrics?.averageYieldTotalHerdLiters == null
       ? 'N/A'
       : `${Number(data.herdMetrics.averageYieldTotalHerdLiters).toFixed(2)} L`;
-  const allTopPerformers = Array.isArray(data?.topPerformers) ? data.topPerformers : [];
-  const allBottomPerformers = Array.isArray(data?.bottomPerformers) ? data.bottomPerformers : [];
+  const selectedProductionExtremes =
+    data?.productionExtremes?.cohorts?.[productionExtremesFrequency] ??
+    data?.productionExtremes;
+  const allTopPerformers = Array.isArray(selectedProductionExtremes?.highest)
+    ? selectedProductionExtremes.highest
+    : [];
+  const allBottomPerformers = Array.isArray(selectedProductionExtremes?.lowest)
+    ? selectedProductionExtremes.lowest
+    : [];
 
   // The selector is a requested maximum per side, not a quota.
   //
@@ -685,7 +695,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                 marginTop:3,
               }}
             >
-              Complete non-overlapping production populations
+              {productionExtremesFrequency === 'THRICE_DAILY' ? 'Thrice Milking' : 'Twice Milking'} · complete non-overlapping production population
             </div>
           </div>
 
@@ -967,7 +977,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           </div>
         </div>
         <div className="cmd-col" style={{display:'flex',flexDirection:'column',gap:10,minHeight:0,minWidth:0,overflow:'hidden'}}>
-          <div className="cmd-card" style={{flex:'0.9 1 0',...cardBase}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><span
+          <div className="cmd-card" style={{...cardBase,flex:'0.9 1 0',display:'flex',flexDirection:'column'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}><span
   onClick={() => setExpandedMilkList('PRODUCTION_EXTREMES')}
   title="Open complete Production Extremes"
   style={{
@@ -985,7 +995,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   onChange={e=>setExtremesCount(Number(e.target.value))}
   disabled={maximumExtremePopulation === 0}
   style={selectStyle}
->{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
+>{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div role="tablist" aria-label="Production extremes milking frequency" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,marginBottom:5,flex:'0 0 auto'}}>{([['THRICE_DAILY','Thrice Milking'],['TWICE_DAILY','Twice Milking']] as const).map(([frequency,label])=><button key={frequency} type="button" role="tab" aria-selected={productionExtremesFrequency===frequency} onClick={()=>setProductionExtremesFrequency(frequency)} style={{border:productionExtremesFrequency===frequency?'1px solid #38bdf8':'1px solid #334155',background:productionExtremesFrequency===frequency?'rgba(56,189,248,.16)':'#111827',color:productionExtremesFrequency===frequency?'#7dd3fc':'#94a3b8',borderRadius:4,padding:'3px 4px',fontSize:8,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap'}}>{label}</button>)}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto'}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div></div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
             <div
               className="cmd-card"
