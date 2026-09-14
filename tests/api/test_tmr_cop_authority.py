@@ -21,7 +21,7 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
 
     def test_daily_lock_is_before_summary_and_never_backdates_history(self):
         self.assertIn(
-            "RUN_AFTER_LOCAL_TIME = time(22, 55)",
+            "RUN_AFTER_LOCAL_TIME = time(12, 0)",
             self.scheduler,
         )
         self.assertNotIn(
@@ -127,11 +127,11 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
             self.tmr,
         )
         self.assertIn(
-            '"basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_23_00"',
+            '"basis": "GOVERNED_TMR_X_ACTIVE_HERD_AT_12_00"',
             self.tmr,
         )
         self.assertIn(
-            'operator="TMR_DAILY_23_00_LOCK"',
+            'operator="TMR_DAILY_12_00_LOCK"',
             self.tmr,
         )
 

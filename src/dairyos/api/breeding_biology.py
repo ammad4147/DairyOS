@@ -30,6 +30,10 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
+    BreedingAnalyticsService,
+    BreedingCycleProjectionService,
+)
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving,
     is_insemination,
@@ -913,10 +917,10 @@ def _dashboard_reproduction(container) -> dict[str, Any]:
         elif current == "PREGNANT":
             pregnant += 1
 
-    active_cycle = pending + pregnant
-    pregnancy_ratio = (
-        round(pregnant / active_cycle * 100.0, 2) if active_cycle else 0.0
+    analytics = BreedingAnalyticsService.summarize(
+        BreedingCycleProjectionService.project(records)
     )
+    pregnancy_ratio = analytics["pregnancy_ratio_percent"]
     return {
         "inseminated": pending,
         "pregnant": pregnant,

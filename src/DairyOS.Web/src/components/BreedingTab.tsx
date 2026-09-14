@@ -46,7 +46,7 @@ interface Row {
 }
 interface Cycle { cycle_id:string; animal_id:string; cycle_number:number; service_attempt_number?:number; status:string; outcome?:string|null; insemination_date?:string|null; pregnancy_confirmation_date?:string|null; sire_code?:string|null; semen_type?:string|null; inseminator?:string|null; events:any[] }
 interface AnalyticsGroup { key:string; cycles:number; documented_outcomes:number; conceptions:number; negative_pd:number; pregnancy_losses:number; calvings:number; conception_rate_percent?:number|null; loss_rate_per_conception_percent?:number|null; cycle_ids:string[]; animal_ids:string[] }
-interface Analytics { data_status:string; cycle_count:number; closed_cycle_count:number; active_cycle_count:number; herd_conception_rate_percent?:number|null; herd_loss_rate_per_conception_percent?:number|null; by_animal:AnalyticsGroup[]; by_sire:AnalyticsGroup[]; by_semen_type:AnalyticsGroup[]; by_inseminator:AnalyticsGroup[]; by_service_attempt?:AnalyticsGroup[]; by_semen_lot?:AnalyticsGroup[]; by_semen_supplier?:AnalyticsGroup[]; signals:any[]; signal_policy?:any }
+interface Analytics { data_status:string; cycle_count:number; closed_cycle_count:number; active_cycle_count:number; pregnancy_ratio_percent?:number|null; herd_conception_rate_percent?:number|null; herd_loss_rate_per_conception_percent?:number|null; by_animal:AnalyticsGroup[]; by_sire:AnalyticsGroup[]; by_semen_type:AnalyticsGroup[]; by_inseminator:AnalyticsGroup[]; by_service_attempt?:AnalyticsGroup[]; by_semen_lot?:AnalyticsGroup[]; by_semen_supplier?:AnalyticsGroup[]; signals:any[]; signal_policy?:any }
 interface SemenLot { id:number; lot_code:string; sire_code:string; bull_name?:string|null; breed?:string|null; semen_type:string; supplier:string; batch_number:string; expiry_date?:string|null; storage_location?:string|null; unit_cost:number; available_straws:number; active:boolean }
 interface Props { onOpenPassport?: (tag: string) => void; herdMasterList?: HerdAnimal[]; onChanged?: () => void | Promise<void> }
 
@@ -295,8 +295,9 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const pending = states.filter(s => ['INSEMINATED', 'BRED'].includes(norm(s.state))).length;
   const pregStates = states.filter(s => norm(s.state) === 'PREGNANT');
   const pregnant = pregStates.length;
-  const cycle = pending + pregnant;
-  const ratio = cycle ? pregnant / cycle * 100 : 0;
+  const ratio = analytics?.pregnancy_ratio_percent == null
+    ? 0
+    : Number(analytics.pregnancy_ratio_percent);
   const availableForManualAi = aiCandidates.length;
   const gest = pregStates
     .map(s => {

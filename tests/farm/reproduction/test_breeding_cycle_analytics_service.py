@@ -90,3 +90,22 @@ def test_active_confirmed_pregnancy_counts_as_observed_conception_but_pending_ai
     )
     assert analytics["herd_conception_rate_percent"] == 100.0
     assert analytics["documented_conceptions"] == 1
+
+
+def test_pregnancy_ratio_uses_attributable_attempts_not_current_states():
+    records = [
+        ev("A1", "insemination", "2026-01-01"),
+        ev("A1", "pregnancy_negative", "2026-02-01", "open"),
+        ev("A1", "insemination", "2026-02-10"),
+        ev("A1", "pregnancy_confirmed", "2026-03-10", "confirmed"),
+        ev("A2", "insemination", "2026-01-05"),
+    ]
+    analytics = BreedingAnalyticsService.summarize(
+        BreedingCycleProjectionService.project(records)
+    )
+    assert analytics["pregnancy_ratio_percent"] == 50.0
+    assert analytics["pregnancy_ratio_basis"] == {
+        "successful_pregnancy_cycles": 1,
+        "attributable_ai_attempts": 2,
+        "formula": "successful pregnancy cycles / attributable AI attempts * 100",
+    }

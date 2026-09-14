@@ -16,12 +16,12 @@ from dairyos.farm.settings.services.operational_date_authority import (
 
 log = logging.getLogger(__name__)
 
-# The nightly operational summary is finalized at 23:00 farm-local time.
-# Lock the current operational day's TMR cost shortly before that report slot.
+# Lock the current operational day's TMR cost at the approved mid-day
+# farm-local operational point.
 # Historical days are deliberately never reconstructed from the current Animal
 # Register: without an immutable same-day population authority, backdating a
 # snapshot would fabricate historical herd strength and Feed Cost/L.
-RUN_AFTER_LOCAL_TIME = time(22, 55)
+RUN_AFTER_LOCAL_TIME = time(12, 0)
 
 
 class DailyTMRCostScheduler:

@@ -280,6 +280,15 @@ class BreedingAnalyticsService:
             if c.get("outcome") in {"PREGNANCY_LOST", "ABORTION", "STILLBIRTH"}
         ]
         herd_conception = cls._rate(len(conceptions), len(documented))
+        attributable_attempts = sum(
+            int(c.get("service_attempt_number") or 0)
+            for c in conceptions
+        )
+        pregnancy_ratio = (
+            round(len(conceptions) / attributable_attempts * 100, 2)
+            if attributable_attempts
+            else 0.0
+        )
 
         by_animal = cls._group(rows, "animal_id")
         by_sire = cls._group(rows, "sire_code")
@@ -360,6 +369,12 @@ class BreedingAnalyticsService:
             "calvings": len(calvings),
             "pregnancy_losses": len(losses),
             "herd_conception_rate_percent": herd_conception,
+            "pregnancy_ratio_percent": pregnancy_ratio,
+            "pregnancy_ratio_basis": {
+                "successful_pregnancy_cycles": len(conceptions),
+                "attributable_ai_attempts": attributable_attempts,
+                "formula": "successful pregnancy cycles / attributable AI attempts * 100",
+            },
             "herd_loss_rate_per_conception_percent": cls._rate(len(losses), len(conceptions)),
             "by_animal": by_animal,
             "by_sire": by_sire,

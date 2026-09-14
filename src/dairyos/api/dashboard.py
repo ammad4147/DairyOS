@@ -24,6 +24,10 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
+    BreedingAnalyticsService,
+    BreedingCycleProjectionService,
+)
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -548,22 +552,9 @@ def get_dashboard(container=Depends(get_container)):
         "due_vaccinations": due_vaccinations,
         "data_status": "LIVE_PERSISTED_DATA",
     }
-    active_reproductive_cycle = (
-        reproduction_counts["inseminated"]
-        + reproduction_counts["pregnant"]
-    )
-    pregnancy_ratio = (
-        round(
-            (
-                reproduction_counts["pregnant"]
-                / active_reproductive_cycle
-            )
-            * 100.0,
-            2,
-        )
-        if active_reproductive_cycle
-        else 0.0
-    )
+    cycles = BreedingCycleProjectionService.project(breeding_records)
+    reproductive_analytics = BreedingAnalyticsService.summarize(cycles)
+    pregnancy_ratio = reproductive_analytics["pregnancy_ratio_percent"]
     payload["reproduction"] = {
         **reproduction_counts,
         "pregnancyRatio": pregnancy_ratio,

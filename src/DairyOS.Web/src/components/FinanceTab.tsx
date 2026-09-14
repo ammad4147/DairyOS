@@ -724,9 +724,20 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const popup = window.open('', '_blank', 'width=1100,height=800');
-    if (!popup) {
-      setError('The Revenue Ledger print window was blocked. Allow pop-ups for DairyOS and try again.');
+    // Print in a same-origin iframe so the operator is not dependent on a
+    // browser pop-up exception for the ledger workflow.
+    const printFrame = document.createElement('iframe');
+    printFrame.title = 'DairyOS Revenue Ledger print';
+    printFrame.style.position = 'fixed';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    printFrame.style.visibility = 'hidden';
+    document.body.appendChild(printFrame);
+    const printWindow = printFrame.contentWindow;
+    if (!printWindow) {
+      printFrame.remove();
+      setError('The Revenue Ledger print view could not be prepared. Please try again.');
       return;
     }
     const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -760,12 +771,15 @@ export default function FinanceTab({
           <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
       : '';
 
-    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DairyOS — Revenue Ledger</title><style>
+    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DairyOS — Revenue Ledger</title><style>
       @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
     </style></head><body><h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Date</th><th>Particulars</th><th style="text-align:right">Quantity</th><th>Buyer / Customer</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="7">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
-    popup.document.close();
-    popup.focus();
-    window.setTimeout(() => popup.print(), 250);
+    printWindow.document.close();
+    window.setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printFrame.remove();
+    }, 250);
   };
 
   const printLedger=(
@@ -775,9 +789,20 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const popup = window.open('', '_blank', 'width=1100,height=800');
-    if (!popup) {
-      setError('The ledger print window was blocked. Allow pop-ups for DairyOS and try again.');
+    // Use an in-document print surface; pop-up blocking must not prevent
+    // operators from printing an otherwise valid ledger.
+    const printFrame = document.createElement('iframe');
+    printFrame.title = 'DairyOS Ledger print';
+    printFrame.style.position = 'fixed';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    printFrame.style.visibility = 'hidden';
+    document.body.appendChild(printFrame);
+    const printWindow = printFrame.contentWindow;
+    if (!printWindow) {
+      printFrame.remove();
+      setError('The ledger print view could not be prepared. Please try again.');
       return;
     }
     const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -814,12 +839,15 @@ export default function FinanceTab({
       ? `<div class="summary">${Object.entries(summary).map(([labelText, value]) => `
           <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
       : '';
-    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
       @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:6px 7px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
     </style></head><body><h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Date</th><th>Type</th><th>Particulars</th><th>Master Category</th><th>Counterparty</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="8">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
-    popup.document.close();
-    popup.focus();
-    window.setTimeout(() => popup.print(), 250);
+    printWindow.document.close();
+    window.setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printFrame.remove();
+    }, 250);
   };
 
 

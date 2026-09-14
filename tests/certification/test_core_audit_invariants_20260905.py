@@ -80,5 +80,7 @@ def test_dashboard_reproduction_current_states_are_mutually_exclusive(client):
 
     assert reproduction["inseminated"] == 1
     assert reproduction["pregnant"] == 1
-    assert reproduction["pregnancyRatio"] == 50.0
-    assert reproduction["pregnancy_ratio_percent"] == 50.0
+    # Pregnancy Ratio is based on successful pregnancy cycles divided by
+    # attributable AI attempts; a pending AI is not a failed conception.
+    assert reproduction["pregnancyRatio"] == 100.0
+    assert reproduction["pregnancy_ratio_percent"] == 100.0

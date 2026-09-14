@@ -213,6 +213,16 @@ class FinanceRevenueLedgerQuantityContractTest(
             self.source,
         )
 
+    def test_ledger_print_does_not_depend_on_popup_permission(self):
+        """Regression for the observed blocked-ledger-print operator message."""
+        for marker in ("const printRevenueLedger=", "const printLedger="):
+            start = self.source.index(marker)
+            end = self.source.find("\n  const ", start + len(marker))
+            printable = self.source[start:] if end == -1 else self.source[start:end]
+            self.assertIn("document.createElement('iframe')", printable)
+            self.assertIn("printWindow.print()", printable)
+            self.assertNotIn("window.open('', '_blank'", printable)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
