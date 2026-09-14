@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 
@@ -62,6 +63,8 @@ class Animal(Base):
     milking_frequency = Column(String, nullable=True)
     production_group = Column(String, nullable=True)
     location = Column(String, nullable=True)
+    # Optional bounded local image data for the animal passport.
+    photo_data = Column(Text, nullable=True)
     active = Column(Boolean, default=True, nullable=False)
 
     # ------------------------------------------------------------------

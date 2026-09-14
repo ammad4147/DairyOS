@@ -61,6 +61,7 @@ def serialize_animal(animal):
         "milking_frequency": animal.milking_frequency if is_milking else None,
         "production_group": animal.production_group,
         "location": animal.location,
+        "photo_data": getattr(animal, "photo_data", None),
         "active": animal.active,
         "created_at": animal.created_at.isoformat() if animal.created_at else None,
         "updated_at": animal.updated_at.isoformat() if animal.updated_at else None,
@@ -343,6 +344,7 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
         "sire_id",
         "production_group",
         "location",
+        "photo_data",
     }
     changed = {}
     for field in editable_fields:
