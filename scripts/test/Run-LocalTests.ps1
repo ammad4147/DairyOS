@@ -268,11 +268,23 @@ try {
     $env:DAIRYOS_DB_PASSWORD = ""
     $env:DAIRYOS_DATABASE_URL = "postgresql+psycopg://postgres@127.0.0.1:$port/dairyos_test"
 
-    $args = @("-q") + $PytestArgs
+    # Pytest temporary state belongs to this runner invocation just like the
+    # disposable PostgreSQL cluster and DairyOS mutable filesystem state.
+    # Keep it outside the repository so a stale or inaccessible repository
+    # .pytest_tmp cannot affect an isolated test run.
+    $pytestBaseTemp = Join-Path $testRoot "pytest"
+
+    # The mandatory runner-owned basetemp is appended after caller arguments
+    # so callers cannot redirect pytest temporary state outside $testRoot.
+    $args = @("-q") + $PytestArgs + @("--basetemp=$pytestBaseTemp")
 
     Write-Host ""
     Write-Host "=== TEST DATABASE ==="
     Write-Host $env:DAIRYOS_DATABASE_URL
+
+    Write-Host ""
+    Write-Host "=== PYTEST BASETEMP ==="
+    Write-Host $pytestBaseTemp
 
     Write-Host ""
     Write-Host "=== PYTEST ==="
