@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Ban, Edit3, Printer, Search, WalletCards } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { farmToday } from '../utils/farmDate';
@@ -229,6 +229,9 @@ const isRevenue = (t: Transaction) =>
   t.transaction_type === 'INCOME' || t.transaction_type === 'RECEIPT';
 const isCapitalInflow = (t: Transaction) =>
   t.transaction_type === 'OWNER_INVESTMENT';
+const isOwnerWithdrawal = (t: Transaction) =>
+  t.transaction_type === 'OWNER_WITHDRAWAL';
+
 const isRevenueSide = (t: Transaction) => isRevenue(t) || isCapitalInflow(t);
 const isExpense = (t: Transaction) =>
   t.transaction_type === 'EXPENSE' || t.transaction_type === 'PAYMENT';
@@ -435,7 +438,10 @@ export default function FinanceTab({
   const payableTotal = activeExpenseRows
     .filter(t => t.status === 'PAYABLE')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  const netCash = cashRevenue + capitalAdded - totalExpenses;
+  const ownerWithdrawals = transactions
+    .filter(isOwnerWithdrawal)
+    .reduce((sum, t) => sum + activeAmount(t), 0);
+  const netCash = cashRevenue + capitalAdded - totalExpenses - ownerWithdrawals;
 
 
   const exploreBounds = useMemo(
@@ -450,13 +456,19 @@ export default function FinanceTab({
     if (exploreView === 'REVENUE' && !isRevenueSide(t)) return false;
     if (exploreView === 'EXPENSES' && !isExpense(t)) return false;
     if (isExpense(t) && exploreExpenseFilter !== 'ALL' && t.master_category !== exploreExpenseFilter) return false;
-    return isRevenueSide(t) || isExpense(t);
+    return isRevenueSide(t) || isExpense(t) || isOwnerWithdrawal(t);
   }).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.id - b.id), [transactions, exploreBounds, exploreView, exploreExpenseFilter]);
 
   const carriedForward = useMemo(
     () => transactions
       .filter(t => String(t.date || '').slice(0, 10) < exploreBounds.start)
-      .reduce((sum, t) => sum + (isRevenueSide(t) ? activeAmount(t) : isExpense(t) ? -activeAmount(t) : 0), 0),
+      .reduce((sum, t) => sum + (
+        isRevenueSide(t)
+          ? activeAmount(t)
+          : isExpense(t) || isOwnerWithdrawal(t)
+            ? -activeAmount(t)
+            : 0
+      ), 0),
     [transactions, exploreBounds.start],
   );
   const periodRevenue = useMemo(
@@ -471,7 +483,16 @@ export default function FinanceTab({
     () => exploredRows.filter(isExpense).reduce((sum, t) => sum + activeAmount(t), 0),
     [exploredRows],
   );
-  const periodNet = periodRevenue + periodCapitalInflow - periodExpenses;
+  const periodOwnerWithdrawals = useMemo(
+    () => exploredRows.filter(isOwnerWithdrawal).reduce((sum, t) => sum + activeAmount(t), 0),
+    [exploredRows],
+  );
+  const periodOperatingNet = periodRevenue - periodExpenses;
+  const periodNet =
+    periodRevenue +
+    periodCapitalInflow -
+    periodExpenses -
+    periodOwnerWithdrawals;
   const closingBalance = carriedForward + periodNet;
 
   const statusBounds = useMemo(() => {
@@ -495,8 +516,20 @@ export default function FinanceTab({
     () => statusRows.filter(isExpense).reduce((sum, t) => sum + activeAmount(t), 0),
     [statusRows],
   );
-  const statusBalance = statusRevenue + statusCapitalInflow - statusExpenses;
-  const graphMax = Math.max(statusRevenue + statusCapitalInflow, statusExpenses, 1);
+  const statusOwnerWithdrawals = useMemo(
+    () => statusRows.filter(isOwnerWithdrawal).reduce((sum, t) => sum + activeAmount(t), 0),
+    [statusRows],
+  );
+  const statusBalance =
+    statusRevenue +
+    statusCapitalInflow -
+    statusExpenses -
+    statusOwnerWithdrawals;
+  const graphMax = Math.max(
+    statusRevenue + statusCapitalInflow,
+    statusExpenses + statusOwnerWithdrawals,
+    1,
+  );
 
   const calculatedAmount = quantity && unitRate
     ? Number(quantity) * Number(unitRate)
@@ -622,7 +655,13 @@ export default function FinanceTab({
     const header = ['Date', 'Type', 'Particulars', 'Master Category', 'Counterparty', 'Reference', 'Status', 'Amount'];
     const detailRows = rows.map(t => [
       String(t.date || '').slice(0, 10),
-      isCapitalInflow(t) ? 'Capital Inflow' : isRevenue(t) ? 'Revenue' : 'Expense',
+      isCapitalInflow(t)
+        ? 'Capital Inflow'
+        : isOwnerWithdrawal(t)
+          ? 'Owner Draw'
+          : isRevenue(t)
+            ? 'Revenue'
+            : 'Expense',
       ledgerParticulars(t),
       t.master_category || '',
       ledgerCounterparty(t),
@@ -671,7 +710,9 @@ export default function FinanceTab({
       'Period Revenue': periodRevenue,
       'Capital Added': periodCapitalInflow,
       'Period Expenses': periodExpenses,
-      'Period Net': periodNet,
+      'Owner Draw': periodOwnerWithdrawals,
+      'Operating Net': periodOperatingNet,
+      'Cash Movement': periodNet,
       'Closing Balance': closingBalance,
     });
   };
@@ -752,7 +793,15 @@ export default function FinanceTab({
       return `
         <tr class="${isVoid ? 'void' : ''}">
           <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
-          <td>${esc(isCapitalInflow(t) ? 'Capital Inflow' : isRevenue(t) ? 'Revenue' : 'Expense')}</td>
+          <td>${esc(
+            isCapitalInflow(t)
+              ? 'Capital Inflow'
+              : isOwnerWithdrawal(t)
+                ? 'Owner Draw'
+                : isRevenue(t)
+                  ? 'Revenue'
+                  : 'Expense'
+          )}</td>
           <td>${esc(ledgerParticulars(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
           <td>${esc(t.master_category || '—')}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
@@ -850,10 +899,12 @@ export default function FinanceTab({
     'Bull Sale': 'BULL_SALE',
   };
   const isOwnerInvestment = revCategory === 'Owner Investment / Add Money';
+  const isOwnerWithdrawal = revCategory === 'Owner Draw / Withdraw Money';
+  const isOwnerFinancing = isOwnerInvestment || isOwnerWithdrawal;
 
   useEffect(() => {
-    if (isOwnerInvestment) setRevStatus('RECEIVED');
-  }, [isOwnerInvestment]);
+    if (isOwnerFinancing) setRevStatus('RECEIVED');
+  }, [isOwnerFinancing]);
 
   const isMilkSale = revCategory === 'Milk Sales';
   const calculatedMilkSaleAmount = isMilkSale && revQty && revRate
@@ -897,8 +948,12 @@ export default function FinanceTab({
     const amount = isMilkSale
       ? calculatedMilkSaleAmount
       : Number(revAmount);
-    if (isOwnerInvestment && revStatus !== 'RECEIVED') {
-      setError('Owner investment must be recorded as cash received.');
+    if (isOwnerFinancing && revStatus !== 'RECEIVED') {
+      setError(
+        isOwnerInvestment
+          ? 'Owner investment must be recorded as cash received.'
+          : 'Owner withdrawal must be recorded as an immediate cash movement.',
+      );
       return;
     }
     if (isMilkSale && (!(Number(revQty) > 0) || !(Number(revRate) > 0))) {
@@ -917,6 +972,7 @@ export default function FinanceTab({
         'Milk Sales': 'MILK_SALES',
         'Organic Manure / Dung': 'MANURE_SALES',
         'Owner Investment / Add Money': 'OWNER_INVESTMENT',
+        'Owner Draw / Withdraw Money': 'OWNER_WITHDRAWAL',
         ...animalSaleCategories,
       };
       const response = await fetch(`${API_BASE}/farm/finance-ledger`, {
@@ -925,17 +981,19 @@ export default function FinanceTab({
         body: JSON.stringify({
           transaction_type: isOwnerInvestment
             ? 'OWNER_INVESTMENT'
-            : revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
+            : isOwnerWithdrawal
+              ? 'OWNER_WITHDRAWAL'
+              : revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
           amount: isMilkSale ? undefined : amount,
-          quantity: isAnimalSale ? 1 : isOwnerInvestment ? null : (revQty ? Number(revQty) : null),
-          unit: isAnimalSale ? 'head' : isOwnerInvestment ? null : (isMilkSale && revQty ? 'litres' : null),
+          quantity: isAnimalSale ? 1 : isOwnerFinancing ? null : (revQty ? Number(revQty) : null),
+          unit: isAnimalSale ? 'head' : isOwnerFinancing ? null : (isMilkSale && revQty ? 'litres' : null),
           unit_rate: isMilkSale ? Number(revRate) : null,
           transaction_date: revDate,
-          payment_method: isOwnerInvestment || revStatus === 'RECEIVED' ? 'CASH' : 'CREDIT',
+          payment_method: isOwnerFinancing || revStatus === 'RECEIVED' ? 'CASH' : 'CREDIT',
           counterparty: revCounterparty || null,
-          status: isOwnerInvestment ? 'RECEIVED' : revStatus,
-          due_date: isOwnerInvestment || revStatus !== 'RECEIVABLE' ? null : revDueDate,
+          status: isOwnerFinancing ? 'RECEIVED' : revStatus,
+          due_date: isOwnerFinancing || revStatus !== 'RECEIVABLE' ? null : revDueDate,
           reference: revRef || null,
           notes: isAnimalSale
             ? `${revCategory} — Animal ${revAnimalId}${revNotes ? ` — ${revNotes}` : ''}`
@@ -1154,7 +1212,7 @@ export default function FinanceTab({
             </div>
             <div style={{ display: 'flex', gap: 5 }}>
               <button type="button" onClick={saveExploredLedger} style={smallButton}>Save CSV</button>
-              <button type="button" onClick={() => printLedger('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, { 'Carried Forward': carriedForward, 'Period Revenue': periodRevenue, 'Capital Added': periodCapitalInflow, 'Period Expenses': periodExpenses, 'Period Net': periodNet, 'Closing Balance': closingBalance })} style={smallButton}><Printer size={11} /> Print</button>
+              <button type="button" onClick={() => printLedger('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, { 'Carried Forward': carriedForward, 'Period Revenue': periodRevenue, 'Capital Added': periodCapitalInflow, 'Period Expenses': periodExpenses, 'Owner Draw': periodOwnerWithdrawals, 'Operating Net': periodOperatingNet, 'Cash Movement': periodNet, 'Closing Balance': closingBalance })} style={smallButton}><Printer size={11} /> Print</button>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -1189,7 +1247,8 @@ export default function FinanceTab({
               ['Period Revenue', periodRevenue, '#34d399'],
               ['Capital Added', periodCapitalInflow, '#2dd4bf'],
               ['Period Expenses', periodExpenses, '#f87171'],
-              ['Period Net', periodNet, periodNet >= 0 ? '#38bdf8' : '#f87171'],
+              ['Owner Draw', periodOwnerWithdrawals, '#f59e0b'],
+              ['Cash Movement', periodNet, periodNet >= 0 ? '#38bdf8' : '#f87171'],
               ['Closing Balance', closingBalance, closingBalance >= 0 ? '#a78bfa' : '#f87171'],
             ].map(([cardLabel, value, color]) => (
               <div key={String(cardLabel)} style={{ background: '#0f172a', border: '1px solid #1f2937', borderRadius: 6, padding: 8 }}>
@@ -1209,7 +1268,7 @@ export default function FinanceTab({
                 <div key={`${isRevenueSide(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
                   <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
                     <span style={{ width: 76, flex: '0 0 76px' }}>{String(r.date || '').slice(0, 10) || '—'}</span>
-                    <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenueSide(r) ? '#34d399' : '#f59e0b' }}>{isCapitalInflow(r) ? 'CAP' : isRevenue(r) ? 'REV' : 'EXP'}</span>
+                    <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenueSide(r) ? '#34d399' : '#f59e0b' }}>{isCapitalInflow(r) ? 'CAP' : isOwnerWithdrawal(r) ? 'DRAW' : isRevenue(r) ? 'REV' : 'EXP'}</span>
                     <span style={ledgerEllipsis}>{r.sub_category || r.category || '—'}</span>
                     <span style={{ ...ledgerEllipsis, flexBasis: 92 }}>{r.counterparty || r.vendor_name || '—'}</span>
                     <span style={{ width: 76, flex: '0 0 76px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
@@ -1222,7 +1281,7 @@ export default function FinanceTab({
             {exploredRows.length === 0 && <div style={empty}>No ledger entries in this period/view.</div>}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #1f2937', fontSize: 10 }}>
-            <strong>Period Aggregate: Revenue {money(periodRevenue)} · Capital {money(periodCapitalInflow)} · Expenses {money(periodExpenses)} · Net {money(periodNet)}</strong>
+            <strong>Period Aggregate: Revenue {money(periodRevenue)} · Capital {money(periodCapitalInflow)} · Expenses {money(periodExpenses)} · Owner Draw {money(periodOwnerWithdrawals)} · Cash Movement {money(periodNet)}</strong>
             <strong style={{ color: closingBalance >= 0 ? '#a78bfa' : '#f87171' }}>Closing: {money(closingBalance)}</strong>
           </div>
         </section>
@@ -1231,10 +1290,10 @@ export default function FinanceTab({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 10 }}>
           <form onSubmit={saveRevenue} style={card}>
-            <div style={sectionTitle}>{isOwnerInvestment ? 'Add Investment / Money' : 'Record Revenue'}</div>
+            <div style={sectionTitle}>{isOwnerInvestment ? 'Add Investment / Money' : isOwnerWithdrawal ? 'Owner Draw / Withdrawal' : 'Record Revenue'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 6 }}>
               <select value={revCategory} onChange={event => setRevCategory(event.target.value)} style={inputStyle}>
-                <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option><option>Owner Investment / Add Money</option>
+                <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option><option>Owner Investment / Add Money</option><option>Owner Draw / Withdraw Money</option>
               </select>
               {isMilkSale
                 ? <input required type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity (Litres)" />
@@ -1243,12 +1302,27 @@ export default function FinanceTab({
                 ? <input required type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
                 : isAnimalSale
                   ? <input type="number" value="1" readOnly disabled style={inputStyle} aria-label="Animal sale quantity" title="A selected Animal ID represents one head." />
-                  : isOwnerInvestment
-                    ? <input value="Cash contribution" readOnly disabled style={inputStyle} aria-label="Investment type" />
+                  : isOwnerFinancing
+                    ? <input
+                        value={isOwnerInvestment ? 'Cash contribution' : 'Owner withdrawal'}
+                        readOnly
+                        disabled
+                        style={inputStyle}
+                        aria-label="Financing type"
+                      />
                     : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
             </div>
             {isMilkSale && <input readOnly value={calculatedMilkSaleAmount > 0 ? calculatedMilkSaleAmount.toFixed(2) : ''} style={{ ...inputStyle, marginTop: 6, color: '#34d399', fontWeight: 800 }} placeholder="Amount — auto calculated from Quantity × Rate" />}
-            {isOwnerInvestment && <div style={{ marginTop: 6, padding: 8, border: '1px solid #065f46', borderRadius: 6, background: '#052e2b', color: '#a7f3d0', fontSize: 9 }}>Owner Investment / Add Money is recorded as a financing cash inflow. It is visible in cash position and the ledger, but is excluded from operating revenue and COP.</div>}
+            {isOwnerInvestment && (
+              <div style={{ marginTop: 6, padding: 8, border: '1px solid #065f46', borderRadius: 6, background: '#052e2b', color: '#a7f3d0', fontSize: 9 }}>
+                Owner Investment / Add Money is recorded as a financing cash inflow. It increases cash position but is excluded from operating revenue, farm expense, OPEX, CAPEX and Estimated COP.
+              </div>
+            )}
+            {isOwnerWithdrawal && (
+              <div style={{ marginTop: 6, padding: 8, border: '1px solid #92400e', borderRadius: 6, background: '#451a03', color: '#fde68a', fontSize: 9 }}>
+                Owner Draw / Withdrawal is a financing cash outflow. It reduces cash position but is excluded from revenue, farm expense, OPEX, CAPEX and Estimated COP.
+              </div>
+            )}
             {isAnimalSale && (
               <div style={{ marginTop: 6 }}>
                 <select required value={revAnimalId} onChange={event => setRevAnimalId(event.target.value)} style={inputStyle}>
@@ -1260,19 +1334,40 @@ export default function FinanceTab({
             )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="date" value={revDate} onChange={event => setRevDate(event.target.value)} style={inputStyle} />
-              {isOwnerInvestment
-                ? <select value="RECEIVED" disabled style={{ ...inputStyle, opacity: .8 }} aria-label="Investment status"><option value="RECEIVED">Cash Received</option></select>
+              {isOwnerFinancing
+                ? <select value="RECEIVED" disabled style={{ ...inputStyle, opacity: .8 }} aria-label="Financing status">
+                    <option value="RECEIVED">{isOwnerInvestment ? 'Cash Received' : 'Cash Withdrawn'}</option>
+                  </select>
                 : <select value={revStatus} onChange={event => setRevStatus(event.target.value as RevenueStatus)} style={inputStyle}>
                     <option value="RECEIVABLE">Credit / Receivable</option><option value="RECEIVED">Cash Received</option>
                   </select>}
-              {!isOwnerInvestment && revStatus === 'RECEIVABLE'
+              {!isOwnerFinancing && revStatus === 'RECEIVABLE'
                 ? <input required type="date" value={revDueDate} onChange={event => setRevDueDate(event.target.value)} style={inputStyle} />
                 : <input value={revRef} onChange={event => setRevRef(event.target.value)} style={inputStyle} placeholder="Reference" />}
             </div>
-            {!isOwnerInvestment && revStatus === 'RECEIVABLE' && <input value={revRef} onChange={event => setRevRef(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
-            <input value={revCounterparty} onChange={event => setRevCounterparty(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={isOwnerInvestment ? 'Investor / Source (optional)' : 'Customer / Buyer'} />
+            {!isOwnerFinancing && revStatus === 'RECEIVABLE' && <input value={revRef} onChange={event => setRevRef(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
+            <input
+              value={revCounterparty}
+              onChange={event => setRevCounterparty(event.target.value)}
+              style={{ ...inputStyle, marginTop: 6 }}
+              placeholder={
+                isOwnerInvestment
+                  ? 'Investor / Source (optional)'
+                  : isOwnerWithdrawal
+                    ? 'Owner / Recipient (optional)'
+                    : 'Customer / Buyer'
+              }
+            />
             <input value={revNotes} onChange={event => setRevNotes(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Notes" />
-            <button disabled={saving} type="submit" style={{ ...button('#059669'), width: '100%', marginTop: 6 }}>{saving ? 'Saving…' : isOwnerInvestment ? 'Add Money to Finance' : 'Save Revenue'}</button>
+            <button disabled={saving} type="submit" style={{ ...button(isOwnerWithdrawal ? '#d97706' : '#059669'), width: '100%', marginTop: 6 }}>
+              {saving
+                ? 'Saving…'
+                : isOwnerInvestment
+                  ? 'Add Money to Finance'
+                  : isOwnerWithdrawal
+                    ? 'Record Owner Draw'
+                    : 'Save Revenue'}
+            </button>
           </form>
 
           <section style={card}>
