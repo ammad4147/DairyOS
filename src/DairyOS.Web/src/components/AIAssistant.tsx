@@ -405,7 +405,6 @@ export default function AIAssistant() {
             </div>
             <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55, color: '#f8fafc' }}>{answer.answer}</div>
             <ProbableAvenues items={answer.matched_items || []} ask={(nextQuestion) => void ask(nextQuestion)} />
-            {answer.selected_role_guidance && <div style={{ marginTop: 9, padding: 9, background: '#0c4a6e', border: '1px solid #075985', borderRadius: 6, color: '#e0f2fe', fontSize: 10 }}><strong>{answer.role || role} perspective:</strong> {answer.selected_role_guidance}</div>}
             {answer.expanded_explanation && <details style={{ marginTop: 9, color: '#cbd5e1', fontSize: 10, lineHeight: 1.5 }}><summary>Explain the answer</summary><div style={{ marginTop: 6 }}>{answer.expanded_explanation}</div></details>}
           </section>
 
