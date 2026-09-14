@@ -1508,6 +1508,7 @@ def _record_synthetic_health_stage(
     created_animals: dict[str, str],
     *,
     operational_clock: dict[str, date],
+    simulation_start_date: date,
 ):
     """SIM-H: exercise a linked clinical case through resolution.
 
@@ -1518,7 +1519,11 @@ def _record_synthetic_health_stage(
     """
 
     animal_id = created_animals["MILK-THRICE-01"]
-    health_date = datetime.now().astimezone().date()
+
+    # FC-SIM owns its synthetic operational timeline. Health begins on the
+    # day after the frozen whole-farm production oracle so SIM-X can exercise
+    # a new MORNING Milk session without colliding with SIM-M Day 0 state.
+    health_date = simulation_start_date + timedelta(days=1)
     operational_clock["value"] = health_date
 
     def get_json(path: str, **kwargs):
@@ -2887,6 +2892,7 @@ def test_fc_sim_08_whole_farm_certification_contract(client, monkeypatch):
         client,
         created_animals,
         operational_clock=operational_clock,
+        simulation_start_date=operational_date,
     )
 
     _print_reconciliation(
