@@ -364,12 +364,6 @@ export default function AIAssistant() {
             />
           </div>
         </label>
-        <label style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>
-          Perspective
-          <select aria-label="AI Assistant perspective" value={role} onChange={event => setRole(event.target.value as Role)} style={{ ...field, marginTop: 4 }}>
-            {ROLES.map(option => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
       </div>
       <div style={{ display: 'flex', gap: 7, marginTop: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={() => void ask()} disabled={busy} style={{ ...smallButton(true), background: '#0369a1', opacity: busy ? 0.65 : 1 }}>
