@@ -899,8 +899,8 @@ export default function FinanceTab({
     'Bull Sale': 'BULL_SALE',
   };
   const isOwnerInvestment = revCategory === 'Owner Investment / Add Money';
-  const isOwnerWithdrawal = revCategory === 'Owner Draw / Withdraw Money';
-  const isOwnerFinancing = isOwnerInvestment || isOwnerWithdrawal;
+  const isOwnerWithdrawalEntry = revCategory === 'Owner Draw / Withdraw Money';
+  const isOwnerFinancing = isOwnerInvestment || isOwnerWithdrawalEntry;
 
   useEffect(() => {
     if (isOwnerFinancing) setRevStatus('RECEIVED');
@@ -981,7 +981,7 @@ export default function FinanceTab({
         body: JSON.stringify({
           transaction_type: isOwnerInvestment
             ? 'OWNER_INVESTMENT'
-            : isOwnerWithdrawal
+            : isOwnerWithdrawalEntry
               ? 'OWNER_WITHDRAWAL'
               : revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
@@ -1290,7 +1290,7 @@ export default function FinanceTab({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 10 }}>
           <form onSubmit={saveRevenue} style={card}>
-            <div style={sectionTitle}>{isOwnerInvestment ? 'Add Investment / Money' : isOwnerWithdrawal ? 'Owner Draw / Withdrawal' : 'Record Revenue'}</div>
+            <div style={sectionTitle}>{isOwnerInvestment ? 'Add Investment / Money' : isOwnerWithdrawalEntry ? 'Owner Draw / Withdrawal' : 'Record Revenue'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 6 }}>
               <select value={revCategory} onChange={event => setRevCategory(event.target.value)} style={inputStyle}>
                 <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option><option>Owner Investment / Add Money</option><option>Owner Draw / Withdraw Money</option>
@@ -1318,7 +1318,7 @@ export default function FinanceTab({
                 Owner Investment / Add Money is recorded as a financing cash inflow. It increases cash position but is excluded from operating revenue, farm expense, OPEX, CAPEX and Estimated COP.
               </div>
             )}
-            {isOwnerWithdrawal && (
+            {isOwnerWithdrawalEntry && (
               <div style={{ marginTop: 6, padding: 8, border: '1px solid #92400e', borderRadius: 6, background: '#451a03', color: '#fde68a', fontSize: 9 }}>
                 Owner Draw / Withdrawal is a financing cash outflow. It reduces cash position but is excluded from revenue, farm expense, OPEX, CAPEX and Estimated COP.
               </div>
@@ -1353,18 +1353,18 @@ export default function FinanceTab({
               placeholder={
                 isOwnerInvestment
                   ? 'Investor / Source (optional)'
-                  : isOwnerWithdrawal
+                  : isOwnerWithdrawalEntry
                     ? 'Owner / Recipient (optional)'
                     : 'Customer / Buyer'
               }
             />
             <input value={revNotes} onChange={event => setRevNotes(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Notes" />
-            <button disabled={saving} type="submit" style={{ ...button(isOwnerWithdrawal ? '#d97706' : '#059669'), width: '100%', marginTop: 6 }}>
+            <button disabled={saving} type="submit" style={{ ...button(isOwnerWithdrawalEntry ? '#d97706' : '#059669'), width: '100%', marginTop: 6 }}>
               {saving
                 ? 'Saving…'
                 : isOwnerInvestment
                   ? 'Add Money to Finance'
-                  : isOwnerWithdrawal
+                  : isOwnerWithdrawalEntry
                     ? 'Record Owner Draw'
                     : 'Save Revenue'}
             </button>

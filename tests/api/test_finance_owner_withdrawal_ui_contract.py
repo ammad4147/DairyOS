@@ -16,6 +16,7 @@ def test_owner_withdrawal_is_exposed_as_financing_cash_outflow():
     assert "Owner Draw / Withdraw Money" in FINANCE
     assert "'OWNER_WITHDRAWAL'" in FINANCE
     assert "const isOwnerWithdrawal" in FINANCE
+    assert "const isOwnerWithdrawalEntry" in FINANCE
     assert "const isOwnerFinancing" in FINANCE
     assert "Owner Draw / Withdrawal" in FINANCE
     assert "'Owner Draw'" in FINANCE
@@ -40,7 +41,7 @@ def test_owner_withdrawal_reduces_cash_without_becoming_expense():
 
 def test_owner_withdrawal_submission_is_immediate_financing_movement():
     assert (
-        "isOwnerWithdrawal\n"
+        "isOwnerWithdrawalEntry\n"
         "              ? 'OWNER_WITHDRAWAL'"
     ) in FINANCE
     assert (
@@ -91,3 +92,15 @@ def test_owner_withdrawal_is_not_mislabelled_as_expense_in_explorer():
     assert "'Owner Draw': periodOwnerWithdrawals" in FINANCE
     assert "'Operating Net': periodOperatingNet" in FINANCE
     assert "'Cash Movement': periodNet" in FINANCE
+
+
+def test_owner_withdrawal_form_boolean_does_not_shadow_transaction_predicate():
+    assert "const isOwnerWithdrawal = (t: Transaction) =>" in FINANCE
+    assert (
+        "const isOwnerWithdrawalEntry = "
+        "revCategory === 'Owner Draw / Withdraw Money';"
+    ) in FINANCE
+    assert "const isOwnerWithdrawal = revCategory" not in FINANCE
+    assert ".filter(isOwnerWithdrawal)" in FINANCE
+    assert "isOwnerWithdrawal(t)" in FINANCE
+    assert "isOwnerWithdrawal(r)" in FINANCE
