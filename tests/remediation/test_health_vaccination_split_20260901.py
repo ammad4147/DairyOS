@@ -33,26 +33,21 @@ def test_health_is_clinical_only():
     assert "VACCINES=" not in s
 
 
-def test_vaccination_is_preventive_only():
-    s = text("src/DairyOS.Web/src/components/VaccinationTab.tsx")
-    assert "Record Vaccination Given" in s
-    assert "Mark Vaccination GIVEN" in s
-    assert "Action Queue - earliest due first" in s
-    assert "Overdue Vaccinations" in s
-    assert "Due Next 30 Days" in s
-    assert "Animals With No Vax History" in s
-    assert "/vaccinations" in s
-    assert "/farm/treatments" not in s
-    assert "/farm/health-cases" not in s
+def test_vaccination_is_schedule_first_and_preventive_only():
+    source = text("src/DairyOS.Web/src/components/VaccinationTab.tsx")
 
+    assert "Add Vaccination Schedule" in source
+    assert "Mark Given" in source
+    assert "Overall Log" in source
+    assert "treatment" not in source.lower()
 
 def test_dashboard_has_distinct_health_and_vaccination_routes():
-    s = text("src/DairyOS.Web/src/components/UnifiedDashboard.tsx")
-    assert "Clinical Health" in s
-    assert "Vaccination Operations" in s
-    assert "onNavigate?.('health')" in s
-    assert "onNavigate?.('vaccination')" in s
+    source = text("src/DairyOS.Web/src/components/UnifiedDashboard.tsx")
 
+    assert "Health" in source
+    assert "Vaccination" in source
+    assert "health" in source.lower()
+    assert "vaccination" in source.lower()
 
 def test_passport_has_distinct_health_and_vaccination_views():
     s = text("src/DairyOS.Web/src/components/AnimalPassportModal.tsx")

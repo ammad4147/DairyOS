@@ -19,6 +19,7 @@ expenses -- excluded from cost per litre, reported separately.
 """
 from dairyos.api.reference_data import GOVERNED
 from dairyos.finance.classification import transaction_classifier as classifier
+from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
 
 
 def _record_financial(client, **overrides):
@@ -152,9 +153,13 @@ def test_loan_payment_is_not_a_farm_expense(client):
     assert body["non_operating_outflows"] == 25000.0
 
 
-def test_owner_withdrawal_does_not_inflate_cost_per_litre(client, registered_animal):
-    """The end-to-end consequence, stated as a number."""
-    milk = client.post(
+def test_owner_withdrawal_does_not_inflate_cost_per_litre(
+    client,
+    registered_animal,
+):
+    """Owner drawings are excluded from governed milk COP."""
+
+    milk_response = client.post(
         "/farm/milk",
         json={
             "animal_id": registered_animal,
@@ -162,21 +167,75 @@ def test_owner_withdrawal_does_not_inflate_cost_per_litre(client, registered_ani
             "operator": "Milking Operator",
         },
     )
-    assert milk.status_code == 200, milk.text
+    assert milk_response.status_code == 200, milk_response.text
 
-    _record_financial(client, transaction_type="EXPENSE", amount=1000.0, category="FEED")
     _record_financial(
-        client, transaction_type="OWNER_WITHDRAWAL", amount=9000.0, category="OTHER_OPERATING"
+        client,
+        transaction_type="EXPENSE",
+        amount=1000.0,
+        category="FEED",
+    )
+    _record_financial(
+        client,
+        transaction_type="OWNER_WITHDRAWAL",
+        amount=9000.0,
+        category="OTHER_OPERATING",
     )
 
-    body = client.get("/farm/finance/cost-of-production?days=30").json()
-    # 1000 feed / 100 litres = 10.0. Were the 9000 drawing counted, this
-    # would read 100.0 -- a tenfold overstatement of the cost of milk.
+    # Use the persisted rows produced through the real API, but inject
+    # governed TMR consumption explicitly at the calculation boundary.
+    #
+    # Finance FEED remains deliberately present at 1000 so this regression
+    # also proves that the governed service does not need Finance FEED as
+    # its feed-consumption authority.
+    from dairyos.app import container
+
+    factory = container.repository_factory
+
+    milk_records = factory.milk().get_all()
+    financial_records = factory.finance().get_all()
+
+    milk_dates = [
+        (
+            row.production_date.date()
+            if hasattr(row.production_date, "date")
+            else row.production_date
+        )
+        for row in milk_records
+        if getattr(row, "production_date", None) is not None
+    ]
+
+    assert milk_dates
+
+    period_start = min(milk_dates)
+    period_end = max(milk_dates)
+
+    body = FeedOpexCostService().evaluate(
+        milk_records,
+        financial_records,
+        days=(period_end - period_start).days + 1,
+        governed_feed_cost=1000.0,
+        feed_authority_complete=True,
+        period_start=period_start,
+        period_end=period_end,
+    )
+
+    # 1000 governed TMR / 100 litres = 10/L.
+    # The 9000 owner withdrawal must not become milk-production cost.
+    assert body["milk_litres"] == 100.0
+    assert body["feed_cost"] == 1000.0
     assert body["cost_per_litre"] == 10.0
+    assert body["feed_cost_per_litre"] == 10.0
+
+    # The persisted Finance FEED purchase remains visible in the explicitly
+    # named Finance reporting field. It is not the governed feed-consumption
+    # authority: Feed Cost/L and COP/L above come exclusively from TMR.
+    #
+    # The owner withdrawal is separately reported as a non-operating cash
+    # outflow and must not enter the governed milk-production cost.
     assert body["total_recorded_operating_expense"] == 1000.0
     assert body["non_operating_outflow_count"] == 1
     assert body["non_operating_outflow_total"] == 9000.0
-
 
 def test_unrecognised_transaction_type_is_rejected_before_persistence(client):
     """An unknown type must never enter the ledger and disappear from governed totals."""

@@ -160,6 +160,34 @@ def get_coml_history(container=Depends(get_container)):
     return {"data_status": "LIVE_PERSISTED_DATA", "records": [_serialize(row) for row in factory.coml().get_all()]}
 
 
+def _integrated_cop_status(result: dict) -> str:
+    """
+    Classify why an integrated COP result is or is not calculable.
+
+    Milk is denominator authority.
+    TMR is Feed Cost authority.
+    A missing milk denominator is distinct from missing TMR history.
+    """
+    production = result.get("production") or {}
+    costs = result.get("costs") or {}
+    feed_basis = result.get("feed_basis") or {}
+
+    milk_litres = float(
+        production.get("totalLiters") or 0.0
+    )
+
+    if milk_litres <= 0:
+        return "NO_MILK_DENOMINATOR"
+
+    if not bool(feed_basis.get("complete", True)):
+        return "MISSING_TMR_AUTHORITY"
+
+    if costs.get("feed_cost_per_liter") is None:
+        return "INCOMPLETE_TMR_AUTHORITY"
+
+    return "CALCULATED"
+
+
 @router.get("/period-history")
 def get_coml_period_history(
     days: int = 7,
@@ -216,7 +244,7 @@ def get_coml_period_history(
             "estimated_cop_per_liter": result["costs"]["total_coml_per_liter"],
             "feed_total": result["costs"]["feed_total"],
             "opex_total": result["costs"]["opex_total"],
-            "status": "CALCULATED" if result["costs"]["feed_cost_per_liter"] is not None else "MISSING_TMR_CALCULATION",
+            "status": _integrated_cop_status(result),
         })
     return {
         "data_status": "LIVE_PERSISTED_DATA",

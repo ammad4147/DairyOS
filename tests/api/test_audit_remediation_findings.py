@@ -208,7 +208,7 @@ def test_feed_date_only_is_not_accepted_as_a_timestamp(client):
     assert response.status_code == 422, response.text
 
 
-def test_non_milking_categories_are_not_auto_populated_from_herd_counts(client):
+def test_non_milking_categories_are_auto_populated_from_animal_register(client):
     created = client.post(
         "/farm/animals",
         json={
@@ -224,10 +224,24 @@ def test_non_milking_categories_are_not_auto_populated_from_herd_counts(client):
     summary = client.get("/farm/tmr")
     assert summary.status_code == 200, summary.text
     body = summary.json()
-    assert body["herd_counts"]["Dry"] == 0
-    dry = next(row for row in body["categories"] if row["category"] == "Dry")
-    assert dry["population_authority"] == "MANUAL_GROUP_SIZE_REQUIRED"
-    assert dry["category_cost_per_day"] == 0
+
+    assert body["herd_counts"]["Dry"] == 1
+
+    dry = next(
+        row
+        for row in body["categories"]
+        if row["category"] == "Dry"
+    )
+
+    assert dry["animal_count"] == 1
+    assert (
+        dry["population_authority"]
+        == "ACTIVE_ANIMAL_REGISTER"
+    )
+    assert (
+        dry["category_cost_per_day"]
+        == dry["cost_per_head_day"]
+    )
 
 
 def test_daily_tmr_snapshot_is_unique_and_sequentially_idempotent(client):

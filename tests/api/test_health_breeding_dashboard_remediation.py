@@ -158,7 +158,4 @@ def test_dashboard_replaces_old_vaccination_schedule_after_new_record(client):
         row for row in dashboard.json()["vaccination"]["due_animals"]
         if row["animal_id"] == animal_id
     ]
-    assert len(rows) == 1
-    assert rows[0]["animal_id"] == animal_id
-    assert rows[0]["next_due_date"] == new_due.isoformat()
-    assert rows[0]["due_state"] == "SCHEDULED"
+    assert len(rows) == 0

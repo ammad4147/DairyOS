@@ -121,6 +121,12 @@ class FakeFactory:
             finding_repository
         )
 
+
+    def app_settings(self):
+        repository = type("FakeAppSettingsRepository", (), {})()
+        repository.get = lambda key, default=None: default
+        return repository
+
     def milk_dispositions(self):
         return self._disposition_repository
 
@@ -184,6 +190,7 @@ def _patch_factory(
 def _service(repo):
     return MilkReconciliationService(
         disposition_repository=repo,
+        deployment_checker=lambda: True,
     )
 
 
@@ -1007,5 +1014,3 @@ def test_duplicate_non_sale_dispositions_are_not_silently_collapsed():
     assert repo.rows[1].quantity_litres == 5.0
     assert repo.rows[0].recorded_by == "Operator-1"
     assert repo.rows[1].recorded_by == "Operator-2"
-
-

@@ -60,7 +60,10 @@ def test_owner_investment_is_financing_cash_not_operating_revenue(client):
 
     cop = client.get("/farm/finance/cost-of-production?days=30")
     assert cop.status_code == 200, cop.text
-    assert cop.json()["total_operating_cost"] == 0.0
+    cop_body = cop.json()
+    assert cop_body["total_operating_cost"] is None
+    assert cop_body["feed_authority_complete"] is False
+    assert cop_body["feed_cost_authority"] == "MISSING_TMR_AUTHORITY"
 
 
 def test_owner_investment_requires_its_financing_contract(client):
@@ -126,7 +129,11 @@ def test_animal_purchase_persists_standard_category_and_is_non_opex(client):
     cop = client.get("/farm/finance/cost-of-production?days=30")
     assert cop.status_code == 200, cop.text
     cop_body = cop.json()
-    assert cop_body["total_operating_cost"] == 0.0
+    # Animal purchase remains NON_OPEX. Aggregate COP itself is
+    # unavailable because this test supplies no governed TMR authority.
+    assert cop_body["total_operating_cost"] is None
+    assert cop_body["feed_authority_complete"] is False
+    assert cop_body["feed_cost_authority"] == "MISSING_TMR_AUTHORITY"
     assert cop_body["total_recorded_operating_expense"] == 0.0
     assert cop_body["non_opex_excluded"] == 1500000.0
 

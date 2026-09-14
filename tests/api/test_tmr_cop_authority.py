@@ -19,12 +19,25 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         cls.app = APP.read_text(encoding="utf-8")
         cls.scheduler = SCHEDULER.read_text(encoding="utf-8")
 
-    def test_daily_lock_is_before_the_2300_summary_and_catches_up_after_restart(self):
-        self.assertIn("RUN_AFTER_LOCAL_TIME = time(22, 55)", self.scheduler)
-        self.assertIn("operational_date -= timedelta(days=1)", self.scheduler)
-        # The scheduler must evaluate the prior date after startup before the
-        # lock window; it must not silently return and lose the missed slot.
-        self.assertNotIn("if (\n                now.time().replace(tzinfo=None)\n                < self.run_after_local_time\n            ):\n                return False", self.scheduler)
+    def test_daily_lock_is_before_summary_and_never_backdates_history(self):
+        self.assertIn(
+            "RUN_AFTER_LOCAL_TIME = time(22, 55)",
+            self.scheduler,
+        )
+        self.assertNotIn(
+            "operational_date -= timedelta(days=1)",
+            self.scheduler,
+        )
+        self.assertIn(
+            "operational_date = authority.current_date()",
+            self.scheduler,
+        )
+        # A missed historical lock must remain visibly missing rather than
+        # reconstructing yesterday from today's TMR/herd/price state.
+        self.assertIn(
+            "if now.time().replace(tzinfo=None) < self.run_after_local_time:",
+            self.scheduler,
+        )
 
     def test_six_dairyos_categories_are_mapped(self):
         for value in (

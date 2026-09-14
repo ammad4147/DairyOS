@@ -3,6 +3,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
+from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+
 from dairyos.missed_milking_scheduler import (
     LAST_RECONCILED_DATE_KEY,
     DailyMissedMilkingScheduler,
@@ -88,7 +90,7 @@ def test_scheduler_does_not_run_before_daily_time():
     assert settings.set_calls == []
 
 
-def test_scheduler_uses_configured_farm_timezone():
+def test_scheduler_uses_host_system_timezone():
     settings = FakeSettingsRepository()
     settings.values["timezone"] = "Asia/Karachi"
     factory = factory_with(settings)
@@ -106,7 +108,7 @@ def test_scheduler_uses_configured_farm_timezone():
     with patch("dairyos.missed_milking_scheduler.MissedMilkingControlService"):
         assert scheduler._run_if_due() is True
 
-    assert observed == [ZoneInfo("Asia/Karachi")]
+    assert observed == [FarmSettingsService(factory).get_timezone_info()]
 
 
 def test_failed_run_is_not_marked_complete_and_can_retry():

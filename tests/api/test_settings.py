@@ -193,10 +193,10 @@ def test_legacy_reset_preserves_settings_and_does_not_mutate_data(client):
 
 
 def test_operational_settings_are_persisted(client):
-    response = client.put("/settings/operational", json={"timezone": "UTC", "operational_date_convention": "FARM_LOCAL_DATE"})
+    response = client.put("/settings/operational", json={"timezone": "SYSTEM", "operational_date_convention": "FARM_LOCAL_DATE"})
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["timezone"] == "UTC"
+    assert response.json()["timezone"] == "SYSTEM"
     assert body["operational_date_convention"] == "FARM_LOCAL_DATE"
     assert body["current_operational_date"]
 

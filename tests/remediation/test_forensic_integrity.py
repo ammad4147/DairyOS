@@ -28,16 +28,41 @@ def expense(amount, when=NOW):
     return N(amount=Decimal(amount), transaction_date=when, transaction_type="EXPENSE", category="FEED", master_category="FEED", status="RECORDED")
 
 
-@pytest.mark.parametrize("service", [CostOfProductionService, FeedOpexCostService])
-def test_future_records_cannot_change_period_cost(service):
-    result = service().evaluate(
+def test_future_records_cannot_change_legacy_period_cost():
+    result = CostOfProductionService().evaluate(
         [milk(100), milk(900, NOW + timedelta(days=1))],
-        [expense("10000"), expense("90000", NOW + timedelta(microseconds=1))], days=1, now=NOW,
+        [
+            expense("10000"),
+            expense("90000", NOW + timedelta(microseconds=1)),
+        ],
+        days=1,
+        now=NOW,
     )
+
     assert result["milk_litres"] == 100
-    assert result["cost_per_litre"] == 100  # 10000 PKR / 100 L
-    if "cmpl" in result:
-        assert result["cmpl"] == 100
+    assert result["cost_per_litre"] == 100
+
+
+def test_future_records_cannot_change_governed_cop():
+    result = FeedOpexCostService().evaluate(
+        [milk(100), milk(900, NOW + timedelta(days=1))],
+        [
+            expense("10000"),
+            expense("90000", NOW + timedelta(microseconds=1)),
+        ],
+        days=1,
+        now=NOW,
+        governed_feed_cost=10000,
+        feed_authority_complete=True,
+        period_start=NOW.date(),
+        period_end=NOW.date(),
+    )
+
+    assert result["milk_litres"] == 100
+    assert result["feed_cost"] == 10000
+    assert result["feed_cost_per_litre"] == 100
+    assert result["cost_per_litre"] == 100
+    assert result["cmpl"] == 100
 
 
 def test_period_includes_both_exact_boundaries_only():

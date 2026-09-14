@@ -1,3 +1,4 @@
+import dairyos.api.finance_ledger as finance_ledger_api
 from dairyos.finance.expense_taxonomy import EXPENSE_TAXONOMIES, MASTER_CATEGORIES, all_items, legacy_category
 
 
@@ -111,14 +112,27 @@ def test_other_cannot_carry_custom_specification_for_normal_item(client):
     assert response.status_code == 422, response.text
 
 
-def test_feed_opex_cost_endpoint_splits_same_persistent_ledger(client, registered_animal):
+def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
+    client,
+    registered_animal,
+    monkeypatch,
+):
     milk = client.post(
         "/farm/milk",
         json={"animal_id": registered_animal, "morning_yield": 100.0, "operator": "Test"},
     )
     assert milk.status_code == 200, milk.text
 
-    assert _post_expense(client, quantity=100, unit="kg", unit_rate=10).status_code == 200
+    # Finance FEED remains purchase/inventory evidence. Deliberately make the
+    # purchase amount differ from governed TMR consumption so authority drift
+    # cannot pass unnoticed.
+    assert _post_expense(
+        client,
+        quantity=100,
+        unit="kg",
+        unit_rate=10,
+    ).status_code == 200
+
     assert _post_expense(
         client,
         master_category="OPEX",
@@ -132,20 +146,47 @@ def test_feed_opex_cost_endpoint_splits_same_persistent_ledger(client, registere
         cop_coverage_end="2026-08-22",
     ).status_code == 200
 
-    body = client.get("/farm/finance-ledger/cost-of-production?days=30")
+    monkeypatch.setattr(
+        finance_ledger_api,
+        "tmr_feed_cost_for_period",
+        lambda factory, start, end: {
+            "total_feed_cost": 2000.0,
+            "complete": True,
+            "missing_authority_days": [],
+            "source": "TEST_GOVERNED_TMR",
+        },
+    )
+
+    body = client.get(
+        "/farm/finance-ledger/cost-of-production?days=30"
+    )
     assert body.status_code == 200, body.text
+
     data = body.json()
-    assert data["feed_cost"] == 1000
+
+    assert data["milk_litres"] == 100
+    assert data["feed_cost"] == 2000
     assert data["opex"] == 500
     assert data["unattributed_opex"] == 0
-    assert data["total_operating_cost"] == 1500
-    assert data["cmpl"] == 15
-    assert data["feed_cost_per_litre"] == 10
+    assert data["total_operating_cost"] == 2500
+    assert data["feed_cost_per_litre"] == 20
     assert data["opex_cost_per_litre"] == 5
+    assert data["cost_per_litre"] == 25
+    assert data["cmpl"] == 25
+    assert data["feed_authority_complete"] is True
+    assert data["feed_cost_authority"] == "GOVERNED_TMR_CONSUMPTION"
 
 
-def test_voided_transaction_is_not_counted_in_feed_or_opex(client):
-    response = _post_expense(client, quantity=100, unit="kg", unit_rate=10)
+def test_voided_finance_feed_purchase_does_not_change_governed_feed_cop(
+    client,
+    monkeypatch,
+):
+    response = _post_expense(
+        client,
+        quantity=100,
+        unit="kg",
+        unit_rate=10,
+    )
     assert response.status_code == 200, response.text
     transaction = response.json()
 
@@ -155,6 +196,26 @@ def test_voided_transaction_is_not_counted_in_feed_or_opex(client):
     )
     assert voided.status_code == 200, voided.text
 
-    body = client.get("/farm/finance-ledger/cost-of-production?days=30").json()
-    assert body["feed_cost"] == 0
-    assert body["total_operating_cost"] == 0
+    monkeypatch.setattr(
+        finance_ledger_api,
+        "tmr_feed_cost_for_period",
+        lambda factory, start, end: {
+            "total_feed_cost": 0.0,
+            "complete": True,
+            "missing_authority_days": [],
+            "source": "TEST_GOVERNED_TMR",
+        },
+    )
+
+    body = client.get(
+        "/farm/finance-ledger/cost-of-production?days=30"
+    )
+    assert body.status_code == 200, body.text
+
+    data = body.json()
+
+    assert data["feed_cost"] == 0
+    assert data["opex"] == 0
+    assert data["total_operating_cost"] == 0
+    assert data["feed_authority_complete"] is True
+    assert data["feed_cost_authority"] == "GOVERNED_TMR_CONSUMPTION"

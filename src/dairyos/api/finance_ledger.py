@@ -9,7 +9,7 @@ disposition ledger so Finance and Milk remain synchronized.
 """
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,6 +21,7 @@ from dairyos.api.reference_data import GOVERNED
 from dairyos.api.tmr import (
     is_tmr_catalog_row,
     tmr_default_catalog_names,
+    tmr_feed_cost_for_period,
 )
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.financial_transaction import FinancialTransaction
@@ -1820,11 +1821,28 @@ def finance_cost_of_production(
         datetime.max.time(),
         tzinfo=UTC,
     )
+    period_start = operational_date - timedelta(
+        days=days - 1
+    )
+    feed_basis = tmr_feed_cost_for_period(
+        factory,
+        period_start,
+        operational_date,
+    )
+
     return FeedOpexCostService().evaluate(
         factory.milk().get_all(),
         factory.finance().get_all(),
         days=days,
         now=period_end,
+        governed_feed_cost=feed_basis.get(
+            "total_feed_cost"
+        ),
+        feed_authority_complete=bool(
+            feed_basis.get("complete", True)
+        ),
+        period_start=period_start,
+        period_end=operational_date,
     )
 
 
@@ -1864,11 +1882,25 @@ def feed_opex_profitability(
             value = value.date()
         return value is not None and period_start <= value <= period_end
 
+    feed_basis = tmr_feed_cost_for_period(
+        factory,
+        period_start,
+        period_end,
+    )
+
     return FeedOpexCostService().evaluate(
         [row for row in factory.milk().get_all() if in_period(row, "production_date")],
         [row for row in factory.finance().get_all() if in_period(row, "transaction_date")],
         days=days,
         now=datetime.combine(period_end, datetime.max.time(), tzinfo=UTC),
+        governed_feed_cost=feed_basis.get(
+            "total_feed_cost"
+        ),
+        feed_authority_complete=bool(
+            feed_basis.get("complete", True)
+        ),
+        period_start=period_start,
+        period_end=period_end,
     )
 
 

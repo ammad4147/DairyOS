@@ -625,11 +625,7 @@ def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
                 "category": category,
                 "stage_keys": stage_keys,
                 "animal_count": count,
-                "population_authority": (
-                    "ACTIVE_MILKING_HERD_REGISTER"
-                    if category in AUTO_CONNECTED_HERD_CATEGORIES
-                    else "MANUAL_GROUP_SIZE_REQUIRED"
-                ),
+                "population_authority": "ACTIVE_ANIMAL_REGISTER",
                 "cost_per_head_day": round(head_cost, 4),
                 "category_cost_per_day": round(head_cost * count, 4),
             }

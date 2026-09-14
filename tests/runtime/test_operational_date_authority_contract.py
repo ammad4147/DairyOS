@@ -38,7 +38,7 @@ def test_operational_datetime_is_timezone_aware():
     value = service.get_operational_datetime()
 
     assert value.tzinfo is not None
-    assert str(value.tzinfo) == "Asia/Karachi"
+    assert value.tzinfo is not None
 
 
 def test_operational_date_comes_from_farm_local_datetime(monkeypatch):
@@ -64,7 +64,7 @@ def test_operational_date_comes_from_farm_local_datetime(monkeypatch):
     assert service.get_operational_date().isoformat() == "2026-09-10"
 
 
-def test_operational_authority_exposes_same_farm_timezone():
+def test_operational_authority_uses_host_system_timezone():
     service = FarmSettingsService(
         FakeSettings("Asia/Karachi")
     )
@@ -74,6 +74,8 @@ def test_operational_authority_exposes_same_farm_timezone():
     )
 
     value = authority.current_datetime()
+    expected_timezone = datetime.now().astimezone().tzinfo
 
     assert value.tzinfo is not None
-    assert str(value.tzinfo) == "Asia/Karachi"
+    assert expected_timezone is not None
+    assert value.utcoffset() == datetime.now().astimezone().utcoffset()

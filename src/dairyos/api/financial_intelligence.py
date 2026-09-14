@@ -1,10 +1,11 @@
 """Financial intelligence derived from persisted farm transactions and milk."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, Query
 
+from dairyos.api.tmr import tmr_feed_cost_for_period
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -49,11 +50,31 @@ def cost_of_production(days: int = Query(default=30, ge=1, le=366)):
     factory = RepositoryFactory.create()
     try:
         period_end = _operational_period_end(factory)
+        operational_date = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
+        period_start = operational_date - timedelta(
+            days=days - 1
+        )
+        feed_basis = tmr_feed_cost_for_period(
+            factory,
+            period_start,
+            operational_date,
+        )
+
         return FeedOpexCostService().evaluate(
             factory.milk().get_all(),
             factory.finance().get_all(),
             days=days,
             now=period_end,
+            governed_feed_cost=feed_basis.get(
+                "total_feed_cost"
+            ),
+            feed_authority_complete=bool(
+                feed_basis.get("complete", True)
+            ),
+            period_start=period_start,
+            period_end=operational_date,
         )
     finally:
         factory.close()

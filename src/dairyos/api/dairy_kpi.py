@@ -8,12 +8,13 @@ from datetime import UTC, date, datetime, time, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.tmr import tmr_feed_cost_for_period
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.finance.profitability.services.cost_of_production_service import (
-    CostOfProductionService,
+from dairyos.finance.profitability.services.feed_opex_cost_service import (
+    FeedOpexCostService,
 )
 from dairyos.herd.reproduction.services.reproduction_kpi_service import (
     ReproductionKpiService,
@@ -207,8 +208,51 @@ def _overview(
     health_per_100_animals = (len(health) / len(animals)) * 100 if animals else None
     treatment_rate = (len({r.animal_id for r in treatments}) / len(animals)) * 100 if animals else None
 
-    cost = CostOfProductionService().evaluate(milk, finance, days=(end - start).days, now=end)
-    expense_categories = cost.get("expense_by_category", {})
+    tmr_start = (display_start or start).date()
+    tmr_end_exclusive = (display_end or end).date()
+    tmr_end = tmr_end_exclusive - timedelta(days=1)
+
+    feed_basis = tmr_feed_cost_for_period(
+        factory,
+        tmr_start,
+        tmr_end,
+    )
+    feed_authority_complete = bool(
+        feed_basis.get("complete", True)
+    )
+    governed_feed_total = (
+        float(feed_basis["total_feed_cost"])
+        if (
+            feed_authority_complete
+            and feed_basis.get("total_feed_cost") is not None
+        )
+        else None
+    )
+    feed_cost_per_litre = (
+        governed_feed_total / milk_total
+        if (
+            governed_feed_total is not None
+            and milk_total > 0
+        )
+        else None
+    )
+
+    cost = FeedOpexCostService().evaluate(
+        milk,
+        finance,
+        days=(end - start).days,
+        now=end,
+        governed_feed_cost=feed_basis.get(
+            "total_feed_cost"
+        ),
+        feed_authority_complete=feed_authority_complete,
+        period_start=tmr_start,
+        period_end=tmr_end,
+    )
+    expense_categories = cost.get(
+        "expense_by_category",
+        {},
+    )
 
     interval_metrics = _interval_metrics(breeding)
     conception_rate = ReproductionKpiService.calculate_observed_conception_rate(inseminations, pregnancy_checks)
@@ -220,7 +264,7 @@ def _overview(
         "calving_interval": interval_metrics["calving_interval_days"] is not None,
         "days_open": interval_metrics["days_open"] is not None,
         "feed_conversion": False,
-        "feed_cost_per_litre": "FEED" in expense_categories and milk_total > 0,
+        "feed_cost_per_litre": feed_cost_per_litre is not None,
         "cost_per_litre": cost.get("cost_per_litre") is not None,
         "labour_per_litre": "LABOUR" in expense_categories and milk_total > 0,
         "treatment_rate": treatment_rate is not None,
@@ -254,7 +298,7 @@ def _overview(
             "confirmed_pregnancies": confirmed_pregnancies if confirmed_pregnancies else None,
             "conception_rate_percent": conception_rate,
             **interval_metrics,
-            "feed_cost_per_litre": round(float(expense_categories.get("FEED", 0)) / milk_total, 4) if covered["feed_cost_per_litre"] else None,
+            "feed_cost_per_litre": round(feed_cost_per_litre, 4) if feed_cost_per_litre is not None else None,
             "labour_cost_per_litre": round(float(expense_categories.get("LABOUR", 0)) / milk_total, 4) if covered["labour_per_litre"] else None,
             "cost_per_litre": cost.get("cost_per_litre"),
         },
@@ -266,7 +310,8 @@ def _overview(
                 "peak_daily_milk": "maximum aggregate litres across persisted animal/day milk records",
                 "treatment_rate": "distinct treated animals divided by active animals for the period",
                 "feed_conversion": "not calculated: persisted feed quantities are as-fed kg, while scientifically valid feed conversion requires observed DMI",
-                "feed_cost_per_litre": "persisted FEED expense divided by persisted milk litres",
+                "feed_cost_per_litre": "governed whole-herd TMR consumption cost divided by persisted milk litres; historical periods require immutable daily TMR authority",
+                "cost_per_litre": "governed whole-herd TMR consumption cost plus attributed Finance OPEX divided by persisted milk litres",
                 "labour_per_litre": "persisted LABOUR expense divided by persisted milk litres",
                 "conception_rate": "confirmed conceptions divided by services with a documented pregnancy diagnosis outcome",
                 "confirmed_pregnancies": "one confirmed conception per insemination with documented positive pregnancy evidence; repeated positive checks do not create additional conceptions",
@@ -276,6 +321,14 @@ def _overview(
             "source": "persisted operational repositories",
             "synthetic_values": False,
             "derived_values": "calculated only when required persisted inputs exist",
+            "feed_cost_authority": {
+                "source": feed_basis.get("source"),
+                "complete": feed_authority_complete,
+                "missing_authority_days": feed_basis.get(
+                    "missing_authority_days",
+                    [],
+                ),
+            },
             "unsupported_without_history": ["mortality_rate", "culling_rate", "persistency", "feed_conversion"],
         },
     }

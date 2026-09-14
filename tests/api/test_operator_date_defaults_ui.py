@@ -10,12 +10,13 @@ DASHBOARD = (ROOT / "src/DairyOS.Web/src/api/commandDashboardClient.ts").read_te
 DEFAULTS = (ROOT / "src/dairyos/core/configuration/defaults.py").read_text(encoding="utf-8")
 
 
-def test_farm_date_helper_uses_windows_local_time_by_default_and_preserves_override():
-    assert "SYSTEM_TIMEZONE = 'SYSTEM'" in FARM_DATE
-    assert "setFarmTimezone" in FARM_DATE
-    assert "timeZone: 'Asia/Karachi'" not in FARM_DATE
-    assert "current === previousAutomatic ? next : current" in FARM_DATE
+def test_farm_date_helper_uses_windows_system_clock_only():
+    source = FARM_DATE
 
+    assert "SYSTEM_TIMEZONE = 'SYSTEM'" in source
+    assert "Intl.DateTimeFormat" in source
+    assert "Area/City" not in source
+    assert "Asia/Karachi" not in source
 
 def test_breeding_event_date_is_farm_local_and_resets_when_form_opens():
     assert "useFarmDateField" in BREEDING
@@ -45,13 +46,16 @@ def test_dashboard_fallback_date_uses_farm_local_today():
     assert 'todayDate: new Date().toISOString().split("T")[0]' not in DASHBOARD
 
 
-def test_settings_exposes_windows_local_clock_and_explicit_timezone_override():
-    settings = (ROOT / "src/DairyOS.Web/src/components/SettingsTab.tsx").read_text(encoding="utf-8")
-    assert "Windows system local date and time" in settings
-    assert "Save Clock Setting" in settings
-    assert "/settings/operational" in settings
-    assert "SYSTEM or Area/City" in settings
+def test_settings_exposes_windows_system_clock_without_timezone_override():
+    source = (
+        ROOT / "src/DairyOS.Web/src/components/SettingsTab.tsx"
+    ).read_text(encoding="utf-8")
 
+    assert "Windows" in source
+    assert "local date" in source.lower() or "local time" in source.lower()
+    assert "Save Clock Setting" not in source
+    assert "SYSTEM or Area/City" not in source
+    assert "Asia/Karachi" not in source
 
 def test_legacy_configuration_default_also_delegates_to_windows_local_time():
     assert '"timezone": "SYSTEM"' in DEFAULTS

@@ -9,14 +9,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 DEFAULT_FARM_NAME = "Trident Dairies"
 DEFAULT_ANIMAL_ID_PREFIX = "TD"
-# ``SYSTEM`` means the Windows computer's current local timezone.  A farm can
-# still opt into any valid IANA timezone through Settings, but a new install
-# must not silently inherit a developer or deployment machine timezone.
+# DairyOS operational date/time always follows the host operating system's
+# local clock and timezone. UTC remains the persistence/audit timestamp basis.
 DEFAULT_TIMEZONE = "SYSTEM"
 DEFAULT_OPERATIONAL_DATE_CONVENTION = "FARM_LOCAL_DATE"
 DEFAULT_DASHBOARD_TREND_PERIOD = "7d"
@@ -105,32 +103,12 @@ class FarmSettingsService:
         return datetime.now().astimezone().tzinfo or timezone.utc
 
     def get_timezone(self) -> str:
-        timezone_name = str(
-            self.repository.get(
-                "timezone",
-                DEFAULT_TIMEZONE,
-            )
-            or DEFAULT_TIMEZONE
-        ).strip()
-
-        if timezone_name.upper() in {"", "SYSTEM", "LOCAL", "WINDOWS"}:
-            return DEFAULT_TIMEZONE
-
-        try:
-            ZoneInfo(timezone_name)
-        except (
-            ZoneInfoNotFoundError,
-            ValueError,
-        ):
-            return DEFAULT_TIMEZONE
-
-        return timezone_name
+        """Return the sole supported DairyOS operational timezone authority."""
+        return DEFAULT_TIMEZONE
 
     def get_timezone_info(self):
-        timezone_name = self.get_timezone()
-        if timezone_name == DEFAULT_TIMEZONE:
-            return self._system_timezone_info()
-        return ZoneInfo(timezone_name)
+        """Return the host operating system's current local timezone."""
+        return self._system_timezone_info()
 
     def get_operational_date_convention(self) -> str:
         convention = str(
@@ -308,24 +286,16 @@ class FarmSettingsService:
         updated_by: str | None = None,
     ) -> dict:
         if timezone_name is not None:
-            timezone_name = timezone_name.strip()
-
-            if timezone_name.upper() in {"", "SYSTEM", "LOCAL", "WINDOWS"}:
-                timezone_name = DEFAULT_TIMEZONE
-            else:
-                try:
-                    ZoneInfo(timezone_name)
-                except (
-                    ZoneInfoNotFoundError,
-                    ValueError,
-                ) as exc:
-                    raise ValueError(
-                        f"Unknown IANA timezone: {timezone_name}"
-                    ) from exc
+            timezone_name = timezone_name.strip().upper()
+            if timezone_name not in {"", "SYSTEM", "LOCAL", "WINDOWS"}:
+                raise ValueError(
+                    "DairyOS operational timezone is controlled by the "
+                    "host operating system and cannot be overridden."
+                )
 
             self.repository.set(
                 "timezone",
-                timezone_name,
+                DEFAULT_TIMEZONE,
                 updated_by=updated_by,
             )
 

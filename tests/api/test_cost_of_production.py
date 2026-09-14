@@ -52,7 +52,15 @@ def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_
     assert body["data_status"] == "LIVE_PERSISTED_DATA"
     assert body["milk_litres"] >= 10.0
     assert body["total_recorded_operating_expense"] >= 1500.0
-    assert body["cost_per_litre"] == 150.0
+    # Finance FEED is purchase/inventory evidence, not governed
+    # feed-consumption authority. This fixture supplies no immutable
+    # historical TMR authority for the requested period, so authoritative
+    # COP must fail closed rather than reinterpret the FEED purchase.
+    assert body["cost_per_litre"] is None
+    assert body["feed_cost"] is None
+    assert body["total_operating_cost"] is None
+    assert body["feed_authority_complete"] is False
+    assert body["feed_cost_authority"] == "MISSING_TMR_AUTHORITY"
     assert body["expense_by_category"]["FEED"] >= 1200.0
     assert body["expense_by_category"]["HEALTH"] >= 300.0
     assert body["milk_revenue"] >= 750.0
