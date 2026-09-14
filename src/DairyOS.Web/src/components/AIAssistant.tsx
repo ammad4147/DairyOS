@@ -255,6 +255,25 @@ function ActionsPanel({ actions }: { actions: NextAction[] }) {
   );
 }
 
+function ProbableAvenues({ items, ask }: { items: RelatedItem[]; ask: (question: string) => void }) {
+  if (!items.length) return null;
+  return (
+    <Section title="Probable avenues">
+      <div style={{ color: '#cbd5e1', fontSize: 10, lineHeight: 1.45, marginBottom: 7 }}>
+        Ranked grounded avenues identified from your question. Choose one to narrow the investigation.
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {items.slice(0, 6).map((item, index) => (
+          <button key={item.id} type="button" onClick={() => ask(item.question)} style={{ ...smallButton(), display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span><strong>{index + 1}. {item.title}</strong><span style={{ display: 'block', color: '#94a3b8', fontSize: 9, marginTop: 2 }}>{item.domain} · {item.capability}</span></span>
+            <ArrowRight size={11} style={{ color: '#38bdf8', flexShrink: 0 }} />
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 export default function AIAssistant() {
   const [question, setQuestion] = useState('');
   const [role, setRole] = useState<Role>('Operator');
@@ -385,6 +404,7 @@ export default function AIAssistant() {
               </div>
             </div>
             <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55, color: '#f8fafc' }}>{answer.answer}</div>
+            <ProbableAvenues items={answer.matched_items || []} ask={(nextQuestion) => void ask(nextQuestion)} />
             {answer.selected_role_guidance && <div style={{ marginTop: 9, padding: 9, background: '#0c4a6e', border: '1px solid #075985', borderRadius: 6, color: '#e0f2fe', fontSize: 10 }}><strong>{answer.role || role} perspective:</strong> {answer.selected_role_guidance}</div>}
             {answer.expanded_explanation && <details style={{ marginTop: 9, color: '#cbd5e1', fontSize: 10, lineHeight: 1.5 }}><summary>Explain the answer</summary><div style={{ marginTop: 6 }}>{answer.expanded_explanation}</div></details>}
           </section>
