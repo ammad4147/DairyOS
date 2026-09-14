@@ -21,10 +21,10 @@ System Health execution is read-only and must report evidence, never repair farm
 | SIM-F | TMR cost arithmetic | Frozen ingredient prices and snapshot totals | Implement new; calculation reconciliation | `SH-F-004`; price/rounding tests |
 | SIM-F | Expected SYSTEM_TMR materialisation | Feed Storage movement authority | Extend existing; no failure when no feed was purchased and current semantics require no movement | `SH-F-005`; purchased/no-purchase cases |
 | SIM-F | Materialised movement/date/history agrees with snapshot | Feed Storage and TMR history | Implement new; cross-module reconciliation | `SH-F-006`; operational-date/idempotency tests |
-| SIM-$ | VOID excluded from active totals | Finance ledger authority | Extend existing; integrity check only | `SH-X-001`; VOID totals tests |
 | SIM-$ | Sale quantity × rate and orphan references | Finance transaction authority | Implement new; calculation/reference reconciliation | `SH-$-001`; quantity/rate/orphan tests |
 | SIM-$ | Feed price and semen inventory attribution | Finance, Feed, Semen authorities | Implement new where source references exist | `SH-$-002`; linked/unlinked tests |
 | SIM-$ | Equipment purchase excluded from OPEX | OPEX classification authority | Extend existing COP/OPEX reconciliation | `SH-$-003`; classification tests |
+| SIM-$ | VOID excluded from active totals | Finance ledger authority | Extend existing; integrity check only | `SH-$-004`; VOID totals tests |
 | SIM-C | Feed Cost/L, OPEX/L, COP/L arithmetic and periods | Canonical COML/COP services | Merge with existing calculation authority; no parallel formula | `SH-C-001`; null denominator and period tests |
 | SIM-C | Historical authority missing or replaced by present authority | TMR snapshots, period milk and finance authorities | Implement new; `AUTHORITY_MISSING`/`ATTENTION` | `SH-C-002`; historical snapshot tests |
 | SIM-B | AI/PD/pregnancy/calving/loss structural integrity | Breeding cycle projection and canonical analytics | Extend existing; structural checks only | `SH-B-001`; lifecycle sequence tests |
@@ -53,4 +53,3 @@ System Health execution is read-only and must report evidence, never repair farm
 ## Status semantics
 
 Checks use the existing `PASS`/`WARNING`/`FAIL` response contract. Where an authority is absent, the implementation must expose an explicit authority-missing condition in evidence and must not report mathematical `PASS` merely because it had nothing to calculate.
-
