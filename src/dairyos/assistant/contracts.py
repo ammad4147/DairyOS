@@ -95,7 +95,6 @@ class AgentState(StrictModel):
     """State carried through the bounded PLAN -> ACT -> OBSERVE loop."""
 
     conversation_id: str = Field(min_length=1, max_length=120)
-    role: str = Field(min_length=1, max_length=80)
     question: str = Field(min_length=2, max_length=4_000)
     history: list[dict[str, str]] = Field(default_factory=list)
     previous_user_question: str = ""
@@ -123,7 +122,6 @@ class AssistantResponse(StrictModel):
     agentic: Literal[True] = True
     conversation_id: str = Field(min_length=1, max_length=120)
     question: str = Field(min_length=2, max_length=4_000)
-    role: str = Field(min_length=1, max_length=80)
     answer_type: str = Field(min_length=1, max_length=120)
     scope: str = Field(min_length=1, max_length=240)
     title: str = Field(min_length=1, max_length=240)
@@ -145,8 +143,6 @@ class AssistantResponse(StrictModel):
     expected_result: str = ""
     exceptions_recovery: list[str] = Field(default_factory=list)
     effects: list[str] = Field(default_factory=list)
-    role_guidance: dict[str, str] = Field(default_factory=dict)
-    selected_role_guidance: str = ""
     sources: list[str] = Field(default_factory=list)
     related: list[dict[str, Any]] = Field(default_factory=list)
     matched_items: list[dict[str, Any]] = Field(default_factory=list)

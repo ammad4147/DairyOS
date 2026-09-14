@@ -1152,7 +1152,7 @@ class GroundedAssistant:
             return "SOP / CHECKLIST"
         return "INFORMATION"
 
-    def answer(self, question: str, role: str = "Operator") -> dict[str, Any]:
+    def answer(self, question: str) -> dict[str, Any]:
         cleaned = question.strip()
         matches = self.search(cleaned)
         if not matches:
@@ -1173,12 +1173,6 @@ class GroundedAssistant:
                     "title": "DairyOS capability overview",
                     "answer": "DairyOS records and connects farm operations: animals, milk production, feed and TMR, health, breeding, inventory, equipment, workforce, Finance, COP, dashboards, backups, and recovery.",
                     "expanded_explanation": "Each operational entry is persisted through its governed authority and may propagate to related dashboards, ledgers, animal passports, alerts, reports, or calculations. DairyOS can explain procedures, calculation rules, data destinations, safety boundaries, and troubleshooting steps, but this read-only Assistant does not perform farm writes.",
-                    "role": role if role in _ROLES else "Operator",
-                    "role_guidance": {
-                        r: "Ask about the DairyOS module, record, calculation, or problem you need to understand."
-                        for r in _ROLES
-                    },
-                    "selected_role_guidance": "Ask for a module, record type, calculation, or symptom and I will explain the governed path.",
                     "preconditions": [
                         "Name the farm area or record you want to understand."
                     ],
@@ -1231,7 +1225,6 @@ class GroundedAssistant:
             if redirected is not None and redirected.review_status != "DEPRECATED":
                 primary = redirected
         intent = self._intent(cleaned, primary)
-        selected_role = role if role in _ROLES else "Operator"
         related: list[KnowledgeRecord] = []
         for related_id in primary.related:
             candidate = self._items.get(related_id)
@@ -1262,11 +1255,6 @@ class GroundedAssistant:
             "title": primary.title,
             "answer": primary.answer,
             "expanded_explanation": primary.expanded_explanation,
-            "role": selected_role,
-            "role_guidance": primary.roles,
-            "selected_role_guidance": primary.roles.get(
-                selected_role, primary.roles["Operator"]
-            ),
             "preconditions": primary.preconditions,
             "steps": primary.steps,
             "expected_result": primary.expected_result,

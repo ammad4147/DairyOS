@@ -40,7 +40,6 @@ class ConversationStore:
         role: str,
         content: str,
         *,
-        perspective: str = "Operator",
         metadata: dict[str, Any] | None = None,
     ) -> None:
         factory = RepositoryFactory.create()
@@ -53,13 +52,11 @@ class ConversationStore:
                 if conversation is None:
                     conversation = AIAssistantConversationModel(
                         conversation_id=conversation_id,
-                        role=perspective,
                         created_at=now,
                         updated_at=now,
                     )
                     factory.session.add(conversation)
                 else:
-                    conversation.role = perspective
                     conversation.updated_at = now
                 factory.session.add(
                     AIAssistantMessageModel(

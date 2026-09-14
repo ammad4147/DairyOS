@@ -10,7 +10,9 @@ class AIAssistantConversationModel(Base):
     __tablename__ = "ai_assistant_conversations"
 
     conversation_id = Column(String(120), primary_key=True)
-    role = Column(String(80), nullable=False)
+    # Legacy storage column retained for existing databases.  AI Assistant no
+    # longer has a role/perspective contract; new rows use a neutral marker.
+    role = Column(String(80), nullable=False, default="UNSCOPED")
     created_at = Column(DateTime, nullable=False, default=utcnow)
     updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 

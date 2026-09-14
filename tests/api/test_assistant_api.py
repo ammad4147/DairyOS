@@ -37,16 +37,12 @@ def test_assistant_answers_dairyos_workflow_with_sop_shape():
 
 
 def test_assistant_answers_health_questions_as_educational_information():
-    result = GroundedAssistant().answer(
-        "What are the signs of mastitis?",
-        role="Veterinary / Health",
-    )
+    result = GroundedAssistant().answer("What are the signs of mastitis?")
 
     assert result["answer_type"] == "INFORMATION"
     assert result["scope"] == "Educational health and veterinary information"
     assert result["answer"]
     assert result["safety"]
-    assert result["selected_role_guidance"]
 
 
 def test_assistant_does_not_invent_answers_outside_grounded_coverage():

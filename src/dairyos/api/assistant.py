@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -15,13 +13,6 @@ router = APIRouter(prefix="/ai-assistant", tags=["AI Assistant"])
 
 class AssistantQuestion(BaseModel):
     question: str = Field(min_length=2, max_length=4000)
-    role: Literal[
-        "Operator",
-        "Supervisor",
-        "Finance",
-        "Veterinary / Health",
-        "Technical",
-    ] = "Operator"
     conversation_id: str | None = Field(default=None, max_length=120)
 
 
@@ -29,7 +20,7 @@ class AssistantQuestion(BaseModel):
 def ask_assistant(payload: AssistantQuestion):
     try:
         return get_agentic_assistant().ask(
-            payload.question, payload.role, payload.conversation_id
+            payload.question, payload.conversation_id
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

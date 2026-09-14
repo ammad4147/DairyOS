@@ -51,7 +51,6 @@ class EmptyToolArguments(StrictModel):
 
 class KnowledgeToolArguments(StrictModel):
     question: str = Field(min_length=1, max_length=4_000)
-    role: str = Field(default="Operator", max_length=80)
 
 
 class DateReaderToolArguments(StrictModel):
@@ -115,8 +114,8 @@ class AssistantTool:
         return self.handler(**validated.model_dump(exclude_none=True))
 
 
-def _knowledge(question: str, role: str = "Operator") -> dict[str, Any]:
-    return GroundedAssistant().answer(question, role)
+def _knowledge(question: str) -> dict[str, Any]:
+    return GroundedAssistant().answer(question)
 
 
 def _coverage() -> dict[str, Any]:
@@ -278,7 +277,6 @@ class AgenticAssistant:
     def _new_state(
         self,
         question: str,
-        role: str,
         conversation_id: str | None,
     ) -> AgentState:
         resolved_id = conversation_id or str(uuid.uuid4())
@@ -313,7 +311,6 @@ class AgenticAssistant:
                     resolved_id,
                     "user",
                     question,
-                    perspective=role,
                     metadata={"message_type": "question"},
                 )
                 persistence = "PERSISTED"
@@ -321,7 +318,6 @@ class AgenticAssistant:
                 persistence = "MEMORY_ONLY"
         state = AgentState(
             conversation_id=resolved_id,
-            role=role,
             question=question,
             history=history,
             previous_user_question=previous_user_question,
@@ -361,7 +357,7 @@ class AgenticAssistant:
     def _tool_arguments(self, state: AgentState, tool_name: str) -> dict[str, Any]:
         if tool_name == "search_knowledge_base":
             context = "\n".join(item["content"] for item in state.history[-4:])
-            return {"question": context, "role": state.role}
+            return {"question": context}
         if tool_name == "read_database_schema":
             return {"question": state.question}
         if tool_name not in {
@@ -527,7 +523,6 @@ class AgenticAssistant:
         response = AssistantResponse(
             conversation_id=state.conversation_id,
             question=state.question,
-            role=state.role,
             answer_type=draft.answer_type,
             scope=draft.scope,
             title=draft.title,
@@ -546,8 +541,6 @@ class AgenticAssistant:
             expected_result=draft.expected_result,
             exceptions_recovery=draft.exceptions_recovery,
             effects=draft.effects,
-            role_guidance=draft.role_guidance,
-            selected_role_guidance=draft.selected_role_guidance,
             sources=draft.sources,
             related=draft.related,
             matched_items=draft.matched_items,
@@ -564,10 +557,9 @@ class AgenticAssistant:
     def ask(
         self,
         question: str,
-        role: str = "Operator",
         conversation_id: str | None = None,
     ) -> dict[str, Any]:
-        state = self._new_state(question, role, conversation_id)
+        state = self._new_state(question, conversation_id)
         self._plan(state)
         while state.phase != "SYNTHESIZE":
             if state.phase == "PLAN":
@@ -594,7 +586,6 @@ class AgenticAssistant:
                     state.conversation_id,
                     "assistant",
                     str(result.get("answer", "")),
-                    perspective=state.role,
                     metadata={
                         "message_type": "answer",
                         "answer_type": result.get("answer_type"),

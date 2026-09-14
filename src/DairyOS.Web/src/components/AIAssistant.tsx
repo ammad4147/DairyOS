@@ -29,15 +29,6 @@ const SUGGESTED_QUESTIONS = [
   'How can I run a read-only system health check safely?',
 ];
 
-const ROLES = [
-  'Operator',
-  'Supervisor',
-  'Finance',
-  'Veterinary / Health',
-  'Technical',
-] as const;
-
-type Role = (typeof ROLES)[number];
 type JsonMap = Record<string, unknown>;
 
 type RelatedItem = {
@@ -85,7 +76,6 @@ type AssistantResponse = {
   agentic: true;
   conversation_id: string;
   question: string;
-  role: string;
   answer_type: string;
   scope: string;
   title: string;
@@ -104,11 +94,8 @@ type AssistantResponse = {
   expected_result: string;
   exceptions_recovery: string[];
   effects: string[];
-  role_guidance?: Record<string, string>;
-  selected_role_guidance?: string;
   sources: string[];
   related: RelatedItem[];
-  matched_items?: RelatedItem[];
   review?: {
     status: string;
     note: string;
@@ -255,28 +242,8 @@ function ActionsPanel({ actions }: { actions: NextAction[] }) {
   );
 }
 
-function ProbableAvenues({ items, ask }: { items: RelatedItem[]; ask: (question: string) => void }) {
-  if (!items.length) return null;
-  return (
-    <Section title="Probable avenues">
-      <div style={{ color: '#cbd5e1', fontSize: 10, lineHeight: 1.45, marginBottom: 7 }}>
-        Ranked grounded avenues identified from your question. Choose one to narrow the investigation.
-      </div>
-      <div style={{ display: 'grid', gap: 6 }}>
-        {items.slice(0, 6).map((item, index) => (
-          <button key={item.id} type="button" onClick={() => ask(item.question)} style={{ ...smallButton(), display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span><strong>{index + 1}. {item.title}</strong><span style={{ display: 'block', color: '#94a3b8', fontSize: 9, marginTop: 2 }}>{item.domain} · {item.capability}</span></span>
-            <ArrowRight size={11} style={{ color: '#38bdf8', flexShrink: 0 }} />
-          </button>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
 export default function AIAssistant() {
   const [question, setQuestion] = useState('');
-  const [role, setRole] = useState<Role>('Operator');
   const [answer, setAnswer] = useState<AssistantResponse | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -298,7 +265,7 @@ export default function AIAssistant() {
       const response = await fetch(`${API_BASE}/ai-assistant/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: trimmed, role, conversation_id: conversationId }),
+        body: JSON.stringify({ question: trimmed, conversation_id: conversationId }),
       });
       const payload = await readApiPayload<AssistantResponse>(response, 'AI Assistant unavailable');
       setAnswer(payload);
@@ -313,6 +280,14 @@ export default function AIAssistant() {
       setBusy(false);
     }
   };
+
+  const typedKeywords = question.toLowerCase().split(/\s+/).filter(word => word.length >= 3);
+  const probableAvenues = typedKeywords.length === 0 ? [] : SUGGESTED_QUESTIONS
+    .map(text => ({ text, score: typedKeywords.filter(word => text.toLowerCase().includes(word)).length }))
+    .filter(item => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 5)
+    .map(item => item.text);
 
   const clear = async () => {
     const previousConversationId = conversationId;
@@ -339,6 +314,18 @@ export default function AIAssistant() {
           <div style={{ color: '#94a3b8', fontSize: 10, maxWidth: 700 }}>
             AI Assistant uses the local knowledge base for guidance and reads current DairyOS data only when the question requires it. Every live answer shows its evidence and data-quality status.
           </div>
+          {probableAvenues.length > 0 && (
+            <div style={{ marginTop: 7 }}>
+              <div style={{ ...heading, color: '#94a3b8', letterSpacing: 0 }}>Probable avenues</div>
+              <div style={{ display: 'grid', gap: 5, marginTop: 5 }}>
+                {probableAvenues.map(avenue => (
+                  <button key={avenue} type="button" onClick={() => setQuestion(avenue)} style={smallButton()}>
+                    {avenue}<ArrowRight size={11} style={{ float: 'right', marginTop: 1, color: '#38bdf8' }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#bbf7d0', fontSize: 9, fontWeight: 800 }}><ShieldCheck size={14} />READ ONLY · LIVE DATA WHEN NEEDED</div>
       </div>
@@ -398,7 +385,6 @@ export default function AIAssistant() {
               </div>
             </div>
             <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55, color: '#f8fafc' }}>{answer.answer}</div>
-            <ProbableAvenues items={answer.matched_items || []} ask={(nextQuestion) => void ask(nextQuestion)} />
             {answer.expanded_explanation && <details style={{ marginTop: 9, color: '#cbd5e1', fontSize: 10, lineHeight: 1.5 }}><summary>Explain the answer</summary><div style={{ marginTop: 6 }}>{answer.expanded_explanation}</div></details>}
           </section>
 

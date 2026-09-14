@@ -36,8 +36,6 @@ class ResponseDraft:
     next_actions: list[NextAction] = field(default_factory=list)
     exceptions_recovery: list[str] = field(default_factory=list)
     effects: list[str] = field(default_factory=list)
-    role_guidance: dict[str, str] = field(default_factory=dict)
-    selected_role_guidance: str = ""
     sources: list[str] = field(default_factory=list)
     related: list[dict[str, Any]] = field(default_factory=list)
     matched_items: list[dict[str, Any]] = field(default_factory=list)
@@ -845,8 +843,6 @@ def aggregate_knowledge(value: dict[str, Any]) -> ResponseDraft:
         next_actions=actions,
         exceptions_recovery=[str(item) for item in value.get("exceptions_recovery") or []],
         effects=[str(item) for item in value.get("effects") or []],
-        role_guidance={str(k): str(v) for k, v in (value.get("role_guidance") or {}).items()},
-        selected_role_guidance=str(value.get("selected_role_guidance") or ""),
         sources=[str(item) for item in value.get("sources") or []],
         related=value.get("related") or [],
         matched_items=value.get("matched_items") or [],
