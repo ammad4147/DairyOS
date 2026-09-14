@@ -168,6 +168,13 @@ def _parse_date(value, field_name):
         raise HTTPException(status_code=422, detail=f"{field_name} must be an ISO date") from exc
 
 
+def _require_text(payload: dict, field_name: str, *, source: str | None = None):
+    value = str(payload.get(source or field_name) or "").strip()
+    if not value:
+        raise HTTPException(status_code=422, detail=f"{field_name} required")
+    return value
+
+
 def _validate_milking_frequency(animal, frequency):
     if frequency is None:
         return
@@ -565,6 +572,7 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         "NEXT_DUE_DATE",
         "NO_REPEAT_REQUIRED",
         "UNKNOWN_NEXT_DUE",
+        "ADMINISTERED",
     }
     if schedule_status not in allowed_schedule_statuses:
         raise HTTPException(
@@ -579,6 +587,8 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
             status_code=422,
             detail="next_due_date is required when schedule_status is NEXT_DUE_DATE",
         )
+    if schedule_status == "SCHEDULED" and not str(payload.get("dose") or "").strip():
+        raise HTTPException(status_code=422, detail="dose required")
     if schedule_status == "NO_REPEAT_REQUIRED" and next_due is not None:
         raise HTTPException(
             status_code=422,
@@ -586,6 +596,23 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         )
 
     operator = str(payload.get("operator") or "API").strip() or "API"
+    vaccination_repository = container.repository_factory.vaccinations()
+    if (
+        schedule_status == "SCHEDULED"
+        and vaccination_repository.active_duplicate_exists(
+            animal_id=animal_id,
+            vaccine=vaccine,
+            scheduled_date=next_due,
+        )
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Duplicate active vaccination occurrence: "
+                f"{vaccine} on {next_due.isoformat()}"
+            ),
+        )
+
     record = VaccinationRecord(
         animal_id=animal_id,
         vaccine=vaccine,
@@ -609,9 +636,10 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
             else None
         ),
         operator=operator,
+        # ``status`` remains the validity boundary (active versus VOID).
+        # Administration state is represented by ``administered_date``.
         status="COMPLETED",
     )
-    vaccination_repository = container.repository_factory.vaccinations()
     vaccination_repository.add(record, commit=False)
     event_payload = {
         "animal_id": animal_id,
@@ -624,6 +652,11 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         "veterinarian": record.veterinarian,
         "notes": record.notes,
         "status": "COMPLETED",
+        "event_action": (
+            "SCHEDULE_CREATED"
+            if schedule_status == "SCHEDULED"
+            else "ADMINISTERED"
+        ),
     }
     event = _record_operational_event(
         container,
@@ -640,6 +673,628 @@ def record_vaccination(animal_id: str, payload: dict, container=Depends(get_cont
         container.repository_factory.session.commit()
         container.repository_factory.session.refresh(record)
     return _serialize_vaccination_record(record)
+
+
+@router.post("/animals/{animal_id}/vaccinations/schedule-batch")
+@operational_write
+def schedule_vaccination_batch(
+    animal_id: str,
+    payload: dict,
+    container=Depends(get_container),
+):
+    """Create one operator-submitted vaccination schedule atomically."""
+    animal = get_animal_record(container, animal_id)
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+    if getattr(animal, "active", True) is False:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccinations cannot be scheduled for inactive or exited animals.",
+        )
+
+    supplied_animal_id = str(payload.get("animal_id") or "").strip()
+    if supplied_animal_id and supplied_animal_id != animal_id:
+        raise HTTPException(
+            status_code=422,
+            detail="payload animal_id must match the path animal_id",
+        )
+
+    raw_occurrences = payload.get("occurrences")
+    if not isinstance(raw_occurrences, list) or not raw_occurrences:
+        raise HTTPException(
+            status_code=422,
+            detail="occurrences must contain at least one vaccination schedule",
+        )
+
+    operator = str(payload.get("operator") or "Operator UI").strip() or "Operator UI"
+    validated: list[dict] = []
+    submitted_keys: set[tuple[str, object]] = set()
+
+    # Validate the complete operator action before creating any row or event.
+    for index, occurrence in enumerate(raw_occurrences):
+        if not isinstance(occurrence, dict):
+            raise HTTPException(
+                status_code=422,
+                detail=f"occurrences[{index}] must be an object",
+            )
+
+        vaccine = str(
+            occurrence.get("vaccine")
+            or occurrence.get("vaccination")
+            or ""
+        ).strip()
+        if not vaccine:
+            raise HTTPException(
+                status_code=422,
+                detail=f"occurrences[{index}].vaccine required",
+            )
+
+        scheduled_date = _parse_date(
+            occurrence.get("scheduled_date")
+            or occurrence.get("next_due_date"),
+            f"occurrences[{index}].scheduled_date",
+        )
+        if scheduled_date is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"occurrences[{index}].scheduled_date required",
+            )
+
+        dose = str(occurrence.get("dose") or "").strip()
+        if not dose:
+            raise HTTPException(
+                status_code=422,
+                detail=f"occurrences[{index}].dose required",
+            )
+
+        duplicate_key = (
+            vaccine.casefold(),
+            scheduled_date,
+        )
+        if duplicate_key in submitted_keys:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Duplicate vaccination occurrence in submitted schedule: "
+                    f"{vaccine} on {scheduled_date.isoformat()}"
+                ),
+            )
+        submitted_keys.add(duplicate_key)
+
+        validated.append(
+            {
+                "vaccine": vaccine,
+                "scheduled_date": scheduled_date,
+                "dose": dose,
+                "batch_number": (
+                    str(occurrence.get("batch_number")).strip()
+                    if occurrence.get("batch_number")
+                    else None
+                ),
+                "veterinarian": (
+                    str(occurrence.get("veterinarian")).strip()
+                    if occurrence.get("veterinarian")
+                    else None
+                ),
+                "notes": (
+                    str(occurrence.get("notes")).strip()
+                    if occurrence.get("notes")
+                    else None
+                ),
+            }
+        )
+
+    vaccination_repository = container.repository_factory.vaccinations()
+    for occurrence in validated:
+        if vaccination_repository.active_duplicate_exists(
+            animal_id=animal_id,
+            vaccine=occurrence["vaccine"],
+            scheduled_date=occurrence["scheduled_date"],
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Duplicate active vaccination occurrence: "
+                    f"{occurrence['vaccine']} on "
+                    f"{occurrence['scheduled_date'].isoformat()}"
+                ),
+            )
+
+    records: list[VaccinationRecord] = []
+
+    for occurrence in validated:
+        record = VaccinationRecord(
+            animal_id=animal_id,
+            vaccine=occurrence["vaccine"],
+            dose=occurrence["dose"],
+            administered_date=None,
+            next_due_date=occurrence["scheduled_date"],
+            schedule_status="SCHEDULED",
+            batch_number=occurrence["batch_number"],
+            veterinarian=occurrence["veterinarian"],
+            notes=occurrence["notes"],
+            operator=operator,
+            # ``status`` remains the validity boundary (active versus VOID).
+            status="COMPLETED",
+        )
+        vaccination_repository.add(record, commit=False)
+
+        event_payload = {
+            "animal_id": animal_id,
+            "vaccine": record.vaccine,
+            "dose": record.dose,
+            "administered_date": None,
+            "next_due_date": record.next_due_date.isoformat(),
+            "scheduled_date": record.next_due_date.isoformat(),
+            "schedule_status": "SCHEDULED",
+            "batch_number": record.batch_number,
+            "veterinarian": record.veterinarian,
+            "notes": record.notes,
+            "status": "COMPLETED",
+            "event_action": "SCHEDULE_CREATED",
+        }
+        event = _record_operational_event(
+            container,
+            "vaccination",
+            event_payload,
+            operator,
+        )
+        if event is not None:
+            record.source_event_id = event.event_id
+
+        records.append(record)
+
+    container.repository_factory.session.flush()
+
+    if not container.repository_factory.session.info.get(
+        "operational_write_managed", False
+    ):
+        container.repository_factory.session.commit()
+        for record in records:
+            container.repository_factory.session.refresh(record)
+
+    return {
+        "animal_id": animal_id,
+        "count": len(records),
+        "occurrences": [
+            _serialize_vaccination_record(record)
+            for record in records
+        ],
+    }
+
+
+def _get_governed_vaccination_occurrence(
+    vaccination_repository,
+    animal_id: str,
+    vaccination_id: int,
+):
+    record = vaccination_repository.get_by_id(vaccination_id)
+
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Vaccination occurrence not found",
+        )
+
+    if str(record.animal_id) != animal_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccination occurrence does not belong to this animal",
+        )
+
+    if str(record.status or "").upper() == "VOID":
+        raise HTTPException(
+            status_code=409,
+            detail="VOID vaccination occurrence cannot be amended",
+        )
+
+    if record.administered_date is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Administered vaccination occurrence cannot be amended",
+        )
+
+    return record
+
+
+@router.post("/animals/{animal_id}/vaccinations/{vaccination_id}/amend")
+@operational_write
+def amend_scheduled_vaccination(
+    animal_id: str,
+    vaccination_id: int,
+    payload: dict,
+    container=Depends(get_container),
+):
+    """Governed amendment for an existing scheduled vaccination occurrence."""
+    animal = get_animal_record(container, animal_id)
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+
+    vaccination_repository = container.repository_factory.vaccinations()
+    record = _get_governed_vaccination_occurrence(
+        vaccination_repository,
+        animal_id,
+        vaccination_id,
+    )
+
+    vaccine = str(
+        payload.get("vaccine")
+        or payload.get("vaccination")
+        or ""
+    ).strip()
+    if not vaccine:
+        raise HTTPException(status_code=422, detail="vaccine required")
+
+    dose = _require_text(payload, "dose")
+    scheduled_date = _parse_date(
+        payload.get("scheduled_date") or payload.get("next_due_date"),
+        "scheduled_date",
+    )
+    if scheduled_date is None:
+        raise HTTPException(status_code=422, detail="scheduled_date required")
+
+    if vaccination_repository.active_duplicate_exists(
+        animal_id=animal_id,
+        vaccine=vaccine,
+        scheduled_date=scheduled_date,
+        exclude_id=record.id,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Duplicate active vaccination occurrence: "
+                f"{vaccine} on {scheduled_date.isoformat()}"
+            ),
+        )
+
+    operator = str(
+        payload.get("operator")
+        or payload.get("veterinarian")
+        or payload.get("administrator")
+        or "Operator UI"
+    ).strip() or "Operator UI"
+    veterinarian = (
+        str(
+            payload.get("veterinarian")
+            or payload.get("administrator")
+            or ""
+        ).strip()
+        or None
+    )
+    notes = (
+        str(payload.get("notes") or "").strip()
+        or None
+    )
+
+    vaccination_repository.amend_scheduled_occurrence(
+        record,
+        vaccine=vaccine,
+        dose=dose,
+        scheduled_date=scheduled_date,
+        veterinarian=veterinarian,
+        notes=notes,
+        operator=operator,
+        commit=False,
+    )
+
+    event_payload = {
+        "vaccination_occurrence_id": record.id,
+        "animal_id": record.animal_id,
+        "vaccine": record.vaccine,
+        "dose": record.dose,
+        "scheduled_date": record.next_due_date.isoformat(),
+        "next_due_date": record.next_due_date.isoformat(),
+        "administered_date": None,
+        "schedule_status": "SCHEDULED",
+        "batch_number": record.batch_number,
+        "veterinarian": record.veterinarian,
+        "notes": record.notes,
+        "status": record.status,
+        "event_action": "SCHEDULE_AMENDED",
+    }
+    _record_operational_event(
+        container,
+        "vaccination",
+        event_payload,
+        operator,
+    )
+
+    container.repository_factory.session.flush()
+    if not container.repository_factory.session.info.get(
+        "operational_write_managed", False
+    ):
+        container.repository_factory.session.commit()
+        container.repository_factory.session.refresh(record)
+
+    return _serialize_vaccination_record(record)
+
+
+@router.post("/animals/{animal_id}/vaccinations/{vaccination_id}/void")
+@operational_write
+def void_scheduled_vaccination(
+    animal_id: str,
+    vaccination_id: int,
+    payload: dict,
+    container=Depends(get_container),
+):
+    """Logically VOID one unadministered vaccination schedule occurrence."""
+    animal = get_animal_record(container, animal_id)
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+
+    vaccination_repository = container.repository_factory.vaccinations()
+    record = _get_governed_vaccination_occurrence(
+        vaccination_repository,
+        animal_id,
+        vaccination_id,
+    )
+
+    operator = str(
+        payload.get("operator")
+        or payload.get("veterinarian")
+        or payload.get("administrator")
+        or "Operator UI"
+    ).strip() or "Operator UI"
+    notes = (
+        str(payload.get("notes") or "").strip()
+        or record.notes
+    )
+
+    vaccination_repository.void_scheduled_occurrence(
+        record,
+        operator=operator,
+        notes=notes,
+        commit=False,
+    )
+
+    event_payload = {
+        "vaccination_occurrence_id": record.id,
+        "animal_id": record.animal_id,
+        "vaccine": record.vaccine,
+        "dose": record.dose,
+        "scheduled_date": (
+            record.next_due_date.isoformat()
+            if record.next_due_date
+            else None
+        ),
+        "next_due_date": (
+            record.next_due_date.isoformat()
+            if record.next_due_date
+            else None
+        ),
+        "administered_date": None,
+        "schedule_status": "VOID",
+        "batch_number": record.batch_number,
+        "veterinarian": record.veterinarian,
+        "notes": record.notes,
+        "status": "VOID",
+        "event_action": "SCHEDULE_VOIDED",
+    }
+    _record_operational_event(
+        container,
+        "vaccination",
+        event_payload,
+        operator,
+    )
+
+    container.repository_factory.session.flush()
+    if not container.repository_factory.session.info.get(
+        "operational_write_managed", False
+    ):
+        container.repository_factory.session.commit()
+        container.repository_factory.session.refresh(record)
+
+    return _serialize_vaccination_record(record)
+
+
+@router.post("/animals/{animal_id}/vaccinations/{vaccination_id}/administer")
+@operational_write
+def administer_scheduled_vaccination(
+    animal_id: str,
+    vaccination_id: int,
+    payload: dict,
+    container=Depends(get_container),
+):
+    """Endorse one existing scheduled vaccination occurrence as administered."""
+    animal = get_animal_record(container, animal_id)
+    if not animal:
+        raise HTTPException(status_code=404, detail="Animal not found")
+    if getattr(animal, "active", True) is False:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccinations cannot be administered to inactive or exited animals.",
+        )
+
+    vaccination_repository = container.repository_factory.vaccinations()
+    record = vaccination_repository.get_by_id(vaccination_id)
+
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Vaccination occurrence not found",
+        )
+
+    if str(record.animal_id) != animal_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccination occurrence does not belong to this animal",
+        )
+
+    if str(record.status or "").upper() == "VOID":
+        raise HTTPException(
+            status_code=409,
+            detail="VOID vaccination occurrence cannot be administered",
+        )
+
+    if record.administered_date is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccination occurrence has already been administered",
+        )
+
+    if record.next_due_date is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Vaccination occurrence has no scheduled date",
+        )
+
+    operational_date = _farm_operational_date(container)
+    administered = _parse_date(
+        payload.get("administered_date"),
+        "administered_date",
+    )
+    if administered is None:
+        administered = operational_date
+
+    if administered > operational_date:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "administered_date cannot be in the future "
+                "of the farm operational date"
+            ),
+        )
+
+    operator = str(
+        payload.get("operator")
+        or payload.get("veterinarian")
+        or "Operator UI"
+    ).strip() or "Operator UI"
+
+    record.administered_date = administered
+    record.schedule_status = "ADMINISTERED"
+    record.operator = operator
+
+    if payload.get("dose") is not None:
+        record.dose = str(payload.get("dose")).strip() or record.dose
+    if payload.get("batch_number") is not None:
+        record.batch_number = (
+            str(payload.get("batch_number")).strip() or record.batch_number
+        )
+    if payload.get("veterinarian") is not None:
+        record.veterinarian = (
+            str(payload.get("veterinarian")).strip() or record.veterinarian
+        )
+    if payload.get("notes") is not None:
+        record.notes = str(payload.get("notes")).strip() or record.notes
+
+    event_payload = {
+        "vaccination_occurrence_id": record.id,
+        "animal_id": record.animal_id,
+        "vaccine": record.vaccine,
+        "dose": record.dose,
+        "scheduled_date": (
+            record.next_due_date.isoformat()
+            if record.next_due_date
+            else None
+        ),
+        "administered_date": administered.isoformat(),
+        "next_due_date": record.next_due_date.isoformat(),
+        "schedule_status": "ADMINISTERED",
+        "batch_number": record.batch_number,
+        "veterinarian": record.veterinarian,
+        "notes": record.notes,
+        "status": "COMPLETED",
+        "event_action": "ADMINISTERED",
+    }
+
+    _record_operational_event(
+        container,
+        "vaccination",
+        event_payload,
+        operator,
+    )
+
+    container.repository_factory.session.flush()
+
+    if not container.repository_factory.session.info.get(
+        "operational_write_managed",
+        False,
+    ):
+        container.repository_factory.session.commit()
+        container.repository_factory.session.refresh(record)
+
+    return _serialize_vaccination_record(record)
+
+
+@router.get("/vaccinations/audit-history")
+def vaccination_audit_history(
+    animal_id: str | None = None,
+    container=Depends(get_container),
+):
+    """Return immutable vaccination lifecycle events from the event journal."""
+    history = []
+
+    for entry in container.event_journal.all_entries():
+        if entry.event_type != "OperationalInputReceived":
+            continue
+
+        payload = dict(entry.payload or {})
+
+        if str(payload.get("input_type") or "").lower() != "vaccination":
+            continue
+
+        event_animal_id = str(payload.get("animal_id") or "")
+
+        if animal_id is not None and event_animal_id != animal_id:
+            continue
+
+        raw_action = str(payload.get("event_action") or "").upper()
+
+        if raw_action in {"VACCINATION_SCHEDULED", "SCHEDULE_CREATED"}:
+            action = "SCHEDULE_CREATED"
+        elif raw_action in {"VACCINATION_SCHEDULE_AMENDED", "SCHEDULE_AMENDED"}:
+            action = "SCHEDULE_AMENDED"
+        elif raw_action in {"VACCINATION_SCHEDULE_VOIDED", "SCHEDULE_VOIDED"}:
+            action = "SCHEDULE_VOIDED"
+        elif raw_action in {"VACCINATION_ADMINISTERED", "ADMINISTERED"}:
+            action = "ADMINISTERED"
+        else:
+            action = "LEGACY"
+
+        scheduled_date = (
+            payload.get("scheduled_date")
+            or payload.get("next_due_date")
+        )
+
+        history.append(
+            {
+                "event_id": entry.event_id,
+                "event_type": entry.event_type,
+                "event_timestamp": entry.timestamp.isoformat(),
+                "vaccination_occurrence_id": payload.get(
+                    "vaccination_occurrence_id"
+                ),
+                "animal_id": event_animal_id,
+                "vaccine": payload.get("vaccine"),
+                "action": action,
+                "event_action": payload.get("event_action"),
+                "scheduled_date": scheduled_date,
+                "administered_date": payload.get("administered_date"),
+                "dose": payload.get("dose"),
+                "batch_number": payload.get("batch_number"),
+                "administrator": (
+                    payload.get("veterinarian")
+                    or payload.get("administrator")
+                ),
+                "operator": (
+                    payload.get("operator")
+                    or payload.get("actor")
+                ),
+                "notes": payload.get("notes"),
+                "status": payload.get("status"),
+            }
+        )
+
+    history.sort(
+        key=lambda row: (
+            row.get("event_timestamp") or "",
+            row.get("event_id") or "",
+        )
+    )
+
+    return history
+
 
 
 @router.get("/animals/{animal_id}/vaccinations")
@@ -661,6 +1316,15 @@ def list_vaccinations(animal_id: str, container=Depends(get_container)):
                 str(payload.get("input_type") or "").lower() == "vaccination"
                 and str(payload.get("animal_id") or "") == animal_id
                 and getattr(event, "event_id", None) not in linked_event_ids
+                and str(payload.get("event_action") or "").upper()
+                not in {
+                    "VACCINATION_ADMINISTERED",
+                    "ADMINISTERED",
+                    "VACCINATION_SCHEDULE_AMENDED",
+                    "SCHEDULE_AMENDED",
+                    "VACCINATION_SCHEDULE_VOIDED",
+                    "SCHEDULE_VOIDED",
+                }
             ):
                 legacy.append(payload)
         return [_serialize_vaccination_record(row) for row in relational] + legacy

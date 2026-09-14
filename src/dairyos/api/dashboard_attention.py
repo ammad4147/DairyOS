@@ -1,9 +1,9 @@
 """Authoritative, read-only attention lists used by the command dashboard.
 
-The dashboard must surface current work, not lifetime event totals.  These
-projections deliberately keep the append-only journal as the source of truth
-while collapsing repeated vaccination records to the latest schedule for each
-animal and vaccine.
+Vaccination scheduling is occurrence based.  Every relational vaccination row
+represents one independently scheduled occurrence.  Administered occurrences
+remain historical facts but are removed from current due/overdue attention.
+Legacy journal-only installations remain readable as a compatibility fallback.
 """
 
 from collections.abc import Iterable
@@ -50,38 +50,63 @@ def _as_utc_datetime(value: Any) -> datetime | None:
 
 
 def vaccination_event_records(events: Iterable[Any], relational_records=None):
-    """Yield non-void relational vaccinations plus legacy journal records.
+    """Yield relational vaccination occurrences plus legacy journal records.
 
-    New records are deduplicated by their source event ID. The relational
-    table is the authoritative source; the journal fallback preserves older
-    installations until those records are migrated.
+    The relational table is authoritative for linked records.  Journal events
+    whose source event IDs are already represented relationally are excluded.
+    This preserves old journal-only installations without duplicating current
+    relational records.
     """
+    relational_records = list(relational_records or [])
+
     linked_event_ids = {
         getattr(row, "source_event_id", None)
-        for row in (relational_records or [])
+        for row in relational_records
         if getattr(row, "source_event_id", None)
     }
+
     for event in events:
         if getattr(event, "name", None) != "OperationalInputReceived":
             continue
+
         payload = dict(getattr(event, "payload", {}) or {})
+
         if str(payload.get("input_type") or "").lower() != "vaccination":
             continue
+
         if str(payload.get("status") or "COMPLETED").upper() == "VOID":
             continue
+
+        # Administration endorses an existing relational occurrence.
+        # It is an audit event, not another vaccination occurrence.
+        if str(payload.get("event_action") or "").upper() in {
+            "VACCINATION_ADMINISTERED",
+            "ADMINISTERED",
+            "VACCINATION_SCHEDULE_AMENDED",
+            "SCHEDULE_AMENDED",
+            "VACCINATION_SCHEDULE_VOIDED",
+            "SCHEDULE_VOIDED",
+        }:
+            continue
+
         if getattr(event, "event_id", None) in linked_event_ids:
             continue
+
         yield event, payload
 
-    for row in relational_records or []:
-        if str(getattr(row, "status", "COMPLETED") or "COMPLETED").upper() == "VOID":
+    for row in relational_records:
+        if str(
+            getattr(row, "status", "COMPLETED") or "COMPLETED"
+        ).upper() == "VOID":
             continue
+
         yield (
             SimpleNamespace(
                 event_id=getattr(row, "source_event_id", None),
                 timestamp=getattr(row, "created_at", None),
             ),
             {
+                "vaccination_occurrence_id": getattr(row, "id", None),
                 "animal_id": row.animal_id,
                 "vaccine": row.vaccine,
                 "dose": row.dose,
@@ -103,87 +128,99 @@ def project_vaccination_schedule(
     active_animal_ids: set[str] | None = None,
     relational_records=None,
 ) -> dict[str, Any]:
-    """Project current vaccination schedules from append-only events.
+    """Project vaccination history and unresolved occurrence-level schedules."""
 
-    ``completed`` remains the lifetime record count for compatibility with
-    existing reporting.  ``schedules`` and ``due`` are different: they use the
-    latest persisted record per animal/vaccine, preventing an older due event
-    from surviving after a newer vaccination was recorded.
-    """
+    relational_records = list(relational_records or [])
+
     records = list(
         vaccination_event_records(
             events,
             relational_records=relational_records,
         )
     )
-    latest: dict[tuple[str, str], tuple[tuple[Any, ...], dict[str, Any]]] = {}
-
-    for position, (event, payload) in enumerate(records):
-        animal_id = str(payload.get("animal_id") or "").strip()
-        vaccine = str(
-            payload.get("vaccine") or payload.get("vaccination") or ""
-        ).strip()
-        if not animal_id or not vaccine:
-            continue
-        if active_animal_ids is not None and animal_id not in active_animal_ids:
-            continue
-
-        administered_date = _as_date(payload.get("administered_date"))
-        event_time = _as_utc_datetime(
-            getattr(event, "timestamp", None) or payload.get("timestamp")
-        )
-        rank = (
-            event_time or datetime.min.replace(tzinfo=UTC),
-            administered_date or date.min,
-            position,
-        )
-        key = (animal_id, " ".join(vaccine.casefold().split()))
-        previous = latest.get(key)
-        if previous is None or rank > previous[0]:
-            latest[key] = (rank, payload)
 
     schedules: list[dict[str, Any]] = []
     unscheduled: list[dict[str, Any]] = []
-    for _, payload in latest.values():
-        administered_date = _as_date(payload.get("administered_date"))
-        next_due = _as_date(payload.get("next_due_date"))
+    completed = 0
+
+    for event, payload in records:
+        animal_id = str(payload.get("animal_id") or "").strip()
+        vaccine = str(
+            payload.get("vaccine")
+            or payload.get("vaccination")
+            or ""
+        ).strip()
+
+        if not animal_id or not vaccine:
+            continue
+
+        if (
+            active_animal_ids is not None
+            and animal_id not in active_animal_ids
+        ):
+            continue
+
+        administered_date = _as_date(
+            payload.get("administered_date")
+        )
+        scheduled_date = _as_date(
+            payload.get("next_due_date")
+            or payload.get("scheduled_date")
+        )
         schedule_status = str(
             payload.get("schedule_status")
-            or ("NEXT_DUE_DATE" if next_due is not None else "UNKNOWN_NEXT_DUE")
+            or (
+                "NEXT_DUE_DATE"
+                if scheduled_date is not None
+                else "UNKNOWN_NEXT_DUE"
+            )
         ).upper()
-        if next_due is None:
+
+        if administered_date is not None:
+            completed += 1
+            continue
+
+        if scheduled_date is None:
             unscheduled.append(
                 {
-                    "animal_id": str(payload.get("animal_id") or ""),
-                    "vaccine": payload.get("vaccine") or payload.get("vaccination"),
-                    "administered_date": (
-                        administered_date.isoformat() if administered_date else ""
+                    "vaccination_occurrence_id": payload.get(
+                        "vaccination_occurrence_id"
                     ),
+                    "animal_id": animal_id,
+                    "vaccine": vaccine,
+                    "administered_date": "",
                     "next_due_date": None,
                     "schedule_status": schedule_status,
-                    "batch_number": payload.get("batch_number") or payload.get("batch"),
-                    "veterinarian": payload.get("veterinarian") or payload.get("operator"),
+                    "batch_number": payload.get("batch_number")
+                    or payload.get("batch"),
+                    "veterinarian": payload.get("veterinarian")
+                    or payload.get("operator"),
                 }
             )
             continue
-        if next_due < operational_date:
+
+        if scheduled_date < operational_date:
             due_state = "OVERDUE"
-        elif next_due == operational_date:
+        elif scheduled_date == operational_date:
             due_state = "DUE_TODAY"
         else:
             due_state = "SCHEDULED"
+
         schedules.append(
             {
-                "animal_id": str(payload.get("animal_id") or ""),
-                "vaccine": payload.get("vaccine") or payload.get("vaccination"),
-                "administered_date": (
-                    administered_date.isoformat() if administered_date else ""
+                "vaccination_occurrence_id": payload.get(
+                    "vaccination_occurrence_id"
                 ),
-                "next_due_date": next_due.isoformat(),
+                "animal_id": animal_id,
+                "vaccine": vaccine,
+                "administered_date": "",
+                "next_due_date": scheduled_date.isoformat(),
                 "schedule_status": schedule_status,
                 "due_state": due_state,
-                "batch_number": payload.get("batch_number") or payload.get("batch"),
-                "veterinarian": payload.get("veterinarian") or payload.get("operator"),
+                "batch_number": payload.get("batch_number")
+                or payload.get("batch"),
+                "veterinarian": payload.get("veterinarian")
+                or payload.get("operator"),
             }
         )
 
@@ -192,28 +229,39 @@ def project_vaccination_schedule(
             item["next_due_date"],
             item["animal_id"],
             str(item.get("vaccine") or ""),
+            int(item.get("vaccination_occurrence_id") or 0),
         )
     )
+
     unscheduled.sort(
-        key=lambda item: (item["animal_id"], str(item.get("vaccine") or ""))
+        key=lambda item: (
+            item["animal_id"],
+            str(item.get("vaccine") or ""),
+        )
     )
+
     due = [
         item
         for item in schedules
-        if item["next_due_date"] <= operational_date.isoformat()
+        if item["due_state"] in {"OVERDUE", "DUE_TODAY"}
     ]
+
     next_30 = operational_date + timedelta(days=30)
+
     return {
-        "completed": len(records),
+        "completed": completed,
         "schedules": schedules,
         "unscheduled": unscheduled,
         "unscheduled_count": len(unscheduled),
         "due": due,
-        "overdue": sum(item["due_state"] == "OVERDUE" for item in schedules),
+        "overdue": sum(
+            item["due_state"] == "OVERDUE"
+            for item in schedules
+        ),
         "due_next_30_days": sum(
-            operational_date.isoformat()
-            <= item["next_due_date"]
-            <= next_30.isoformat()
+            operational_date
+            < date.fromisoformat(item["next_due_date"])
+            <= next_30
             for item in schedules
         ),
     }
