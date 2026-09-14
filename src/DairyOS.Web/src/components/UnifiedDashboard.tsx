@@ -389,6 +389,9 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const sickAnimals = healthData.sickAnimals || [];
   const vaccinationData = data?.vaccination || { dueAnimals:[] };
   const dueVaccinations = vaccinationData.dueAnimals || [];
+  const vaccinationsDueToday = dueVaccinations.filter(item => item.dueState === 'DUE_TODAY');
+  const overdueVaccinations = dueVaccinations.filter(item => item.dueState === 'OVERDUE');
+  const vaccinationAttentionRows = [...vaccinationsDueToday, ...overdueVaccinations];
   const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; } | undefined;
   const reproData = {
     inseminated: reproSource?.inseminated ?? 0,
@@ -530,8 +533,12 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
               <div style={attentionList}>{sickAnimals.length===0?<div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No active sick animals</div>:sickAnimals.slice(0,8).map(item=><div key={item.animalId} style={attentionRow}><span onClick={e=>{e.stopPropagation();openPassportHandler(item.animalId)}} style={{color:'#7dd3fc',fontWeight:800,fontSize:10,cursor:'pointer',textDecoration:'underline'}}>#{item.animalId}</span><span style={{color:'#fca5a5',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.diagnosis}</span><span style={{color:'#f87171',fontSize:8,fontWeight:800}}>{item.severity}</span></div>)}{sickAnimals.length>8&&<div style={attentionMore}>+{sickAnimals.length-8} more · Open Clinical Health</div>}</div>
             </div>
             <div className="cmd-card" role="button" tabIndex={0} aria-label="Open Vaccination" onClick={()=>onNavigate?.('vaccination')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate?.('vaccination')}}} style={{...cardBase,minWidth:0,cursor:'pointer'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6}}><ShieldCheck size={15}/> Vaccinations</span><span style={{fontSize:9,color:'#86efac'}}>{dueVaccinations.length} scheduled</span></div>
-              <div style={{...attentionList,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}>{dueVaccinations.length===0?<div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No vaccination due dates recorded</div>:dueVaccinations.slice(0,8).map(item=><div key={`${item.animalId}-${item.vaccine}-${item.nextDueDate}`} style={attentionRow}><span onClick={e=>{e.stopPropagation();openPassportHandler(item.animalId)}} style={{color:'#7dd3fc',fontWeight:800,fontSize:10,cursor:'pointer',textDecoration:'underline'}}>#{item.animalId}</span><span style={{color:'#cbd5e1',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.vaccine}</span><span style={{color:item.dueState==='OVERDUE'?'#f87171':item.dueState==='DUE_TODAY'?'#fcd34d':'#86efac',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>{item.nextDueDate}</span></div>)}{dueVaccinations.length>8&&<div style={attentionMore}>+{dueVaccinations.length-8} more · Open Vaccination</div>}</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,color:'#22c55e',fontWeight:800,fontSize:12,marginBottom:6}}><span style={{display:'flex',alignItems:'center',gap:6}}><ShieldCheck size={15}/> Vaccinations</span><span style={{fontSize:9,color:'#86efac'}}>{vaccinationAttentionRows.length} attention</span></div>
+              <div style={{...attentionList,background:'rgba(34,197,94,.08)',borderColor:'rgba(34,197,94,.3)'}}>
+                {vaccinationsDueToday.length===0&&<div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:8}}>✓ No vaccinations due today</div>}
+                {vaccinationAttentionRows.slice(0,8).map(item=><div key={`${item.animalId}-${item.vaccine}-${item.nextDueDate}`} style={attentionRow}><span onClick={e=>{e.stopPropagation();openPassportHandler(item.animalId)}} style={{color:'#7dd3fc',fontWeight:800,fontSize:10,cursor:'pointer',textDecoration:'underline'}}>#{item.animalId}</span><span style={{color:'#cbd5e1',fontSize:9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.vaccine}</span>{item.dueState==='OVERDUE'?<span style={{color:'#f87171',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>{item.nextDueDate} · OVERDUE</span>:<span style={{color:'#fcd34d',fontSize:8,fontWeight:800,whiteSpace:'nowrap'}}>DUE TODAY</span>}</div>)}
+                {vaccinationAttentionRows.length>8&&<div style={attentionMore}>+{vaccinationAttentionRows.length-8} more · Open Vaccination</div>}
+              </div>
             </div>
           </div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>

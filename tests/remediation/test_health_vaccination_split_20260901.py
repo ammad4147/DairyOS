@@ -91,7 +91,11 @@ def test_dashboard_cards_show_current_attention_lists_not_lifetime_totals():
     assert "sickAnimals" in client
     assert "dueAnimals" in client
     assert "No active sick animals" in s
-    assert "No vaccination due dates recorded" in s
+    assert "No vaccinations due today" in s
+    assert "DUE TODAY" in s
+    assert "OVERDUE" in s
+    assert "vaccinationsDueToday" in s
+    assert "overdueVaccinations" in s
     assert "onNavigate?.('health')" in s
     assert "onNavigate?.('vaccination')" in s
     assert "healthData.completedVax" not in s
