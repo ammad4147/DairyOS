@@ -30,13 +30,13 @@ System Health execution is read-only and must report evidence, never repair farm
 | SIM-B | AI/PD/pregnancy/calving/loss structural integrity | Breeding cycle projection and canonical analytics | Extend existing; structural checks only | `SH-B-001`; lifecycle sequence tests |
 | SIM-B | Dashboard ratio agrees with canonical ratio | Breeding analytics service | Merge with existing canonical Pregnancy Ratio | `SH-B-002`; projection equality tests |
 | SIM-B | Semen lot consumption agrees with AI | Semen inventory and breeding records | Implement new where lot authority is present | `SH-B-003`; linked/unlinked tests |
-| SIM-H | Health observation/case/treatment orphan or cross-animal links | Health repositories and database constraints | Extend existing; detect residual data, do not duplicate API validation | `SH-H-001`; orphan/cross-animal tests |
+| SIM-H | Health observation/case/treatment orphan or cross-animal links | Health repositories and database constraints | Extend existing as detective control; API/transaction atomicity and same-animal validation remain the preventive production invariant and are not closed by this check | `SH-H-001`; orphan/cross-animal tests |
 | SIM-H | Health withdrawal agrees with Milk | Health withdrawal bridge and Milk disposition | Implement new; cross-module reconciliation | `SH-H-002`; withdrawal-period tests |
 | SIM-H | Health projection agrees with Passport | Passport health projection | Implement new; projection reconciliation | `SH-H-003`; history/projection tests |
 | SIM-V | Schedule authority agrees with Dashboard projection | Schedule-first vaccination projector | Implement new; reject duplicate overdue reminders | `SH-V-001`; due/overdue/completed tests |
 | SIM-V | Due-today, missed, and future schedule boundaries | Operational date authority and vaccination projector | Extend existing; temporal reconciliation | `SH-V-002`; boundary tests |
 | SIM-X | Cross-module operational date agreement | Farm operational date authority | Implement new; high-value integrity check | `SH-X-002`; fixed-date and transition tests |
-| SIM-X | Animal ↔ TMR ↔ Milk ↔ COP ↔ Finance authority chain | Canonical module services above | Implement as targeted reconciliation checks, not a parallel ledger | `SH-X-003`; cross-module disposable fixtures |
+| SIM-X | Animal ↔ TMR ↔ Milk ↔ COP ↔ Finance authority chain | Canonical module services above | Implement as targeted reconciliation checks that consume and compare canonical authorities; never maintain a shadow ledger or competing formula | `SH-X-003`; cross-module disposable fixtures |
 | SIM-N | Invalid/orphan/impossible persisted states | Database constraints plus checks above | Certification-only for creating invalid inputs; detection is implementable | Covered by domain checks; no production mutation |
 | SIM-N | Zero milk denominator / missing TMR authority | COP/TMR authority services | Implement new with nullable/incomplete semantics, never fabricated zero | `SH-C-002`; missing-authority tests |
 | SIM-N | Duplicate TMR materialisation / repeated PD state | TMR idempotency and breeding cycle authority | Extend existing; persisted-state reconciliation | `SH-F-006`, `SH-B-001`; idempotency tests |
@@ -53,3 +53,7 @@ System Health execution is read-only and must report evidence, never repair farm
 ## Status semantics
 
 Checks use the existing `PASS`/`WARNING`/`FAIL` response contract. Where an authority is absent, the implementation must expose an explicit authority-missing condition in evidence and must not report mathematical `PASS` merely because it had nothing to calculate.
+
+## Preventive versus detective controls
+
+System Health is detective. It identifies residual, historical, or projection-level corruption and reports evidence; it does not repair records and does not replace preventive API, transaction, database-constraint, or outbox guarantees. In particular, `SH-H-001` can detect residual evidence related to TX-04 and HEALTH-01, but those production findings require separate verification that new writes are prevented atomically and cannot cross animal ownership boundaries.
