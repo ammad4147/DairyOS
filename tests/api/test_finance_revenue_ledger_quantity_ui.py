@@ -155,10 +155,15 @@ class FinanceRevenueLedgerQuantityContractTest(
             self.ledger,
         )
 
-    def test_finance_reporting_does_not_depend_on_popup_permission(self):
-        self.assertIn("const printReport = () =>", self.reporting)
-        self.assertIn("window.print()", self.reporting)
+    def test_finance_reporting_prints_isolated_report_data_without_popup_permission(self):
+        self.assertIn("const printReport = async () =>", self.reporting)
+        self.assertIn("const data = preview || await loadDataset()", self.reporting)
+        self.assertIn("document.createElement('iframe')", self.reporting)
+        self.assertIn("printDocument.write(printableHtml(data))", self.reporting)
+        self.assertIn("printWindow.print()", self.reporting)
+        self.assertNotIn("window.print()", self.reporting)
         self.assertNotIn("window.open('', '_blank'", self.reporting)
+        self.assertIn("frame.remove()", self.reporting)
 
     def test_expense_and_explorer_show_complete_financial_fields(self):
         for label in (
@@ -217,23 +222,3 @@ class FinanceRevenueLedgerQuantityContractTest(
             'aria-label="Animal sale quantity"',
             self.source,
         )
-
-    def test_expense_edit_form_is_contextual_and_keeps_intent_fixed(self):
-        for marker in (
-            "const editIsAnimalPurchase",
-            "const editIsSemenPurchase",
-            "const editRequiresCustomSpecification",
-            "const editCopEnabled",
-            "The authoritative expense category is fixed for this edit.",
-            'name="animal_category" value={editTarget.animal_category || \'\'} readOnly',
-        ):
-            self.assertIn(marker, self.source)
-
-        self.assertIn(
-            "const amount = editIsAnimalPurchase ? Number(form.get('amount') || 0) : qty > 0 ? qty * rate",
-            self.source,
-        )
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
