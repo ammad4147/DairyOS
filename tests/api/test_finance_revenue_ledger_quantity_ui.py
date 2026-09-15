@@ -157,7 +157,8 @@ class FinanceRevenueLedgerQuantityContractTest(
 
     def test_finance_reporting_prints_isolated_report_data_without_popup_permission(self):
         self.assertIn("const printReport = async () =>", self.reporting)
-        self.assertIn("const data = preview || await loadDataset()", self.reporting)
+        self.assertIn("const data = await loadDataset()", self.reporting)
+        self.assertNotIn("const data = preview || await loadDataset()", self.reporting)
         self.assertIn("document.createElement('iframe')", self.reporting)
         self.assertIn("printDocument.write(printableHtml(data))", self.reporting)
         self.assertIn("printWindow.print()", self.reporting)
