@@ -20,10 +20,12 @@ type ExploreView = 'COMBINED' | 'REVENUE' | 'EXPENSES';
 type PeriodMode = 'MONTH' | 'CUSTOM';
 type RevenueStatus = 'RECEIVED' | 'RECEIVABLE';
 
+type RevenueFieldName = 'animalId' | 'amount' | 'quantity' | 'rate';
+
 type FinanceFieldContract = {
-  visible: readonly string[];
-  required: readonly string[];
-  clearsOnExit: readonly string[];
+  visible: readonly RevenueFieldName[];
+  required: readonly RevenueFieldName[];
+  clearsOnExit: readonly RevenueFieldName[];
 };
 
 const REVENUE_FIELD_CONTRACTS: Record<string, FinanceFieldContract> = {
@@ -70,6 +72,7 @@ type Transaction = {
   vendor_name?: string | null;
   notes?: string | null;
   status?: string | null;
+  currency?: string | null;
   due_date?: string | null;
   settled_date?: string | null;
   cop_classification?: string | null;
@@ -77,6 +80,17 @@ type Transaction = {
   cop_service_date?: string | null;
   cop_coverage_start?: string | null;
   cop_coverage_end?: string | null;
+  semen_lot_code?: string | null;
+  semen_type?: string | null;
+  sire_code?: string | null;
+  bull_name?: string | null;
+  semen_breed?: string | null;
+  semen_batch_number?: string | null;
+  semen_expiry_date?: string | null;
+  semen_storage_location?: string | null;
+  semen_country_source?: string | null;
+  semen_purchased_quantity?: number | null;
+  semen_unit_cost?: number | null;
 };
 
 type HerdAnimal = {
@@ -341,6 +355,9 @@ export default function FinanceTab({
   const [statusMonth, setStatusMonth] = useState(today().slice(0, 7));
   const [statusStart, setStatusStart] = useState(monthStartFor(today()));
   const [statusEnd, setStatusEnd] = useState(today());
+  const [editStatus, setEditStatus] = useState('');
+  const [editCopClassification, setEditCopClassification] = useState('');
+  const [editCopAttributionMethod, setEditCopAttributionMethod] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -389,6 +406,13 @@ export default function FinanceTab({
     setCopCoverageEnd('');
   }, [masterCategory, subCategory, taxonomy, expenseDate]);
 
+  useEffect(() => {
+    // A direct amount belongs to the current expense intent.  Clear it when
+    // the operator changes category so a hidden Animal Purchase amount cannot
+    // become the amount of a different expense after the controls change.
+    setDirectAmount('');
+  }, [masterCategory, subCategory]);
+
   const currentTaxonomy = taxonomy?.taxonomies?.[masterCategory] ?? {};
   const groupedTaxonomyEntries = Object.entries(taxonomy?.taxonomies?.[masterCategory] ?? {}) as [string, string[]][];
   const expenseGroups = groupedTaxonomyEntries.map(([group]) => group);
@@ -433,13 +457,30 @@ export default function FinanceTab({
         ? currentMonthExpenseRows.filter(t => String(t.cop_classification || '').toUpperCase() === 'NON_OPEX')
         : currentMonthExpenseRows.filter(t => t.master_category === ledgerFilter && (ledgerFilter !== 'OPEX' || String(t.cop_classification || '').toUpperCase() !== 'NON_OPEX'));
     return base.filter(t => !q || [
+      t.id,
+      t.master_category,
       t.sub_category,
       t.custom_specification,
       t.vendor_name,
       t.counterparty,
+      t.payment_method,
       t.reference,
       t.notes,
       t.status,
+      t.due_date,
+      t.settled_date,
+      t.animal_category,
+      t.animal_id,
+      t.semen_lot_code,
+      t.semen_type,
+      t.sire_code,
+      t.bull_name,
+      t.semen_breed,
+      t.semen_batch_number,
+      t.semen_storage_location,
+      t.semen_country_source,
+      t.cop_classification,
+      t.cop_attribution_method,
     ].some(v => String(v ?? '').toLowerCase().includes(q)));
   }, [currentMonthExpenseRows, ledgerFilter, search]);
 
@@ -584,25 +625,36 @@ export default function FinanceTab({
     setSemenCountry('');
   }, [isSemenPurchase]);
 
-  const ledgerParticulars = (t: Transaction) => t.sub_category || t.category || '—';
+  const ledgerParticulars = (t: Transaction) => {
+    const base = t.sub_category || t.category || '—';
+    const specification = String(t.custom_specification || '').trim();
+    return specification ? `${base} — ${specification}` : base;
+  };
   const ledgerCounterparty = (t: Transaction) => t.counterparty || t.vendor_name || '—';
   const ledgerReference = (t: Transaction) => t.reference || '—';
   const ledgerStatus = (t: Transaction) => t.status || 'RECORDED';
-  const ledgerQuantity= (t: Transaction) => {
+  const ledgerDate = (t: Transaction) => String(t.date || t.transaction_date || '').slice(0, 10) || '—';
+  const ledgerType = (t: Transaction) => isCapitalInflow(t)
+    ? 'Capital Inflow'
+    : isOwnerWithdrawal(t)
+      ? 'Owner Draw'
+      : isRevenue(t)
+        ? 'Revenue'
+        : 'Expense';
+  const ledgerQuantityValue = (t: Transaction) => {
     const qty = Number(t.quantity || 0);
-    if (!(qty > 0)) return '—';
-    const formatted = qty.toLocaleString('en-PK', { maximumFractionDigits: 2 });
-    if (String(t.category || '').toUpperCase() === 'MILK_SALES') {
-      return `${formatted} L`;
-    }
-    const recordedUnit = String(t.unit || '').trim();
-    return recordedUnit ? `${formatted} ${recordedUnit}` : formatted;
+    return qty > 0 ? qty.toLocaleString('en-PK', { maximumFractionDigits: 3 }) : '—';
   };
-  const ledgerRate = (t: Transaction) => {
+  const ledgerUnit = (t: Transaction) => {
+    const recordedUnit = String(t.unit || '').trim();
+    if (recordedUnit) return recordedUnit;
+    return String(t.category || '').toUpperCase() === 'MILK_SALES' && Number(t.quantity || 0) > 0
+      ? 'litres'
+      : '—';
+  };
+  const ledgerRateValue = (t: Transaction) => {
     const rate = Number(t.unit_rate || 0);
-    if (!(rate > 0)) return '';
-    const unit = String(t.unit || '').trim();
-    return `Rate: ${money(rate)}${unit ? ` / ${unit}` : ''}`;
+    return rate > 0 ? rate.toFixed(6).replace(/0+$/, '').replace(/\.$/, '') : '';
   };
 
   const revenueCategoryLabels: Record<string, string> = {
@@ -616,6 +668,7 @@ export default function FinanceTab({
     BULL_SALE: 'Bull Sale',
     OWNER_INVESTMENT: 'Owner Investment / Add Money',
     OTHER_REVENUE: 'Other Revenue',
+    OWNER_WITHDRAWAL: 'Owner Draw / Withdraw Money',
   };
 
   const revenueParticulars = (t: Transaction) => {
@@ -623,9 +676,88 @@ export default function FinanceTab({
     return revenueCategoryLabels[category] || ledgerParticulars(t);
   };
 
+  const ledgerItem = (t: Transaction) => isRevenue(t) || isCapitalInflow(t) || isOwnerWithdrawal(t)
+    ? revenueParticulars(t)
+    : ledgerParticulars(t);
+
   const revenueAnimalId= (t: Transaction) => {
+    if (t.animal_id) return String(t.animal_id);
     const match = String(t.notes || '').match(/\bAnimal\s+([A-Za-z0-9_-]+)/i);
     return match?.[1] || '';
+  };
+
+  const ledgerPayment = (t: Transaction) => {
+    const method = String(t.payment_method || '').trim().toUpperCase();
+    const labels: Record<string, string> = {
+      CASH: 'Cash',
+      BANK: 'Bank',
+      MOBILE: 'Mobile',
+      CREDIT: 'Credit',
+    };
+    return labels[method] || (method ? groupLabel(method) : '—');
+  };
+  const ledgerDueDate = (t: Transaction) => t.due_date || '—';
+  const ledgerSettledDate = (t: Transaction) => t.settled_date || '—';
+  const ledgerCop = (t: Transaction) => {
+    const classification = String(t.cop_classification || '').trim().toUpperCase();
+    const classificationLabel = classification === 'NON_OPEX'
+      ? 'Non-OPEX'
+      : classification === 'OPEX'
+        ? 'OPEX'
+        : '';
+    const method = t.cop_attribution_method ? groupLabel(t.cop_attribution_method) : '';
+    return [classificationLabel, method].filter(Boolean).join(' · ') || '—';
+  };
+  const ledgerDomainDetails = (t: Transaction) => {
+    const details: string[] = [];
+    const animalId = revenueAnimalId(t);
+    if (t.animal_category) details.push(`Animal category: ${t.animal_category}`);
+    if (animalId) details.push(`Animal: ${animalId}`);
+    if (t.semen_lot_code) details.push(`Semen lot: ${t.semen_lot_code}`);
+    if (t.semen_type) details.push(`Semen type: ${t.semen_type}`);
+    if (t.sire_code) details.push(`Sire: ${t.sire_code}`);
+    if (t.bull_name) details.push(`Bull: ${t.bull_name}`);
+    if (t.semen_breed) details.push(`Breed: ${t.semen_breed}`);
+    if (t.semen_batch_number) details.push(`Batch: ${t.semen_batch_number}`);
+    if (t.semen_expiry_date) details.push(`Expiry: ${t.semen_expiry_date}`);
+    if (t.semen_storage_location) details.push(`Storage: ${t.semen_storage_location}`);
+    if (t.semen_country_source) details.push(`Source: ${t.semen_country_source}`);
+    if (t.cop_service_date) details.push(`Service: ${t.cop_service_date}`);
+    if (t.cop_coverage_start || t.cop_coverage_end) {
+      details.push(`Coverage: ${t.cop_coverage_start || '—'} → ${t.cop_coverage_end || '—'}`);
+    }
+    return details.join(' · ') || '—';
+  };
+  const ledgerNotes = (t: Transaction) => String(t.notes || '').trim() || '—';
+
+  const ledgerCommonCsvValues = (t: Transaction, particulars: string) => [
+    String(t.id),
+    ledgerDate(t),
+    particulars,
+    ledgerQuantityValue(t),
+    ledgerUnit(t),
+    ledgerRateValue(t),
+    Number(t.amount || 0).toFixed(2),
+    ledgerCounterparty(t),
+    ledgerPayment(t),
+    ledgerReference(t),
+    ledgerStatus(t),
+    ledgerDueDate(t),
+    ledgerSettledDate(t),
+    ledgerCop(t),
+    ledgerDomainDetails(t),
+    ledgerNotes(t),
+  ];
+  const ledgerSummaryRow = (
+    labelText: string,
+    value: number,
+    amountIndex: number,
+    columnCount: number,
+  ) => {
+    const row = Array.from({ length: columnCount }, () => '');
+    row[0] = labelText;
+    row[amountIndex] = Number(value || 0).toFixed(2);
+    return row;
   };
 
   const saveRevenueLedgerCsv=(
@@ -634,38 +766,11 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const header = ['Transaction #', 'Date', 'Particulars', 'Quantity', 'Unit Rate', 'Buyer / Customer', 'Reference', 'Status', 'Amount'];
-    const detailRows = rows.map(t => {
-      const animalId = revenueAnimalId(t);
-      const particulars = animalId
-        ? `${revenueParticulars(t)} — Animal ${animalId}`
-        : revenueParticulars(t);
-
-      return [
-        String(t.id),
-        String(t.date || '').slice(0, 10),
-        particulars,
-        ledgerQuantity(t),
-        ledgerRate(t) || '',
-        ledgerCounterparty(t),
-        ledgerReference(t),
-        ledgerStatus(t),
-        Number(t.amount || 0).toFixed(2),
-      ];
-    });
+    const header = ['Transaction #', 'Date', 'Item / Category', 'Quantity', 'Unit', 'Unit Rate', 'Amount', 'Buyer / Customer', 'Payment Method', 'Reference', 'Status', 'Due Date', 'Settled Date', 'Animal / Other Details', 'Notes'];
+    const detailRows = rows.map(t => ledgerCommonCsvValues(t, revenueParticulars(t)));
     const summaryRows = [
       [],
-      ...Object.entries(summary).map(([labelText, value]) => [
-        labelText,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        Number(value || 0).toFixed(2),
-      ]),
+      ...Object.entries(summary).map(([labelText, value]) => ledgerSummaryRow(labelText, value, 6, header.length)),
     ];
     const csv = [
       ['DairyOS — Revenue Ledger'],
@@ -695,41 +800,21 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const header = ['Transaction #', 'Date', 'Type', 'Particulars', 'Master Category', 'Quantity', 'Unit Rate', 'Counterparty', 'Reference', 'Status', 'Amount'];
-    const detailRows = rows.map(t => [
-      String(t.id),
-      String(t.date || '').slice(0, 10),
-      isCapitalInflow(t)
-        ? 'Capital Inflow'
-        : isOwnerWithdrawal(t)
-          ? 'Owner Draw'
-          : isRevenue(t)
-            ? 'Revenue'
-            : 'Expense',
-      ledgerParticulars(t),
-      t.master_category || '',
-      ledgerQuantity(t),
-      ledgerRate(t) || '',
-      ledgerCounterparty(t),
-      ledgerReference(t),
-      ledgerStatus(t),
-      Number(t.amount || 0).toFixed(2),
-    ]);
+    const header = ['Transaction #', 'Date', 'Type', 'Item / Specification', 'Master Category', 'Quantity', 'Unit', 'Unit Rate', 'Amount', 'Counterparty', 'Payment Method', 'Reference', 'Status', 'Due Date', 'Settled Date', 'COP / Attribution', 'Animal / Other Details', 'Notes'];
+    const detailRows = rows.map(t => {
+      const common = ledgerCommonCsvValues(t, ledgerItem(t));
+      return [
+        common[0],
+        common[1],
+        ledgerType(t),
+        common[2],
+        t.master_category || '',
+        ...common.slice(3),
+      ];
+    });
     const summaryRows = [
       [],
-      ...Object.entries(summary).map(([labelText, value]) => [
-        labelText,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        Number(value || 0).toFixed(2),
-      ]),
+      ...Object.entries(summary).map(([labelText, value]) => ledgerSummaryRow(labelText, value, 8, header.length)),
     ];
     const csv = [
       [title],
@@ -766,6 +851,59 @@ export default function FinanceTab({
     });
   };
 
+  const printLedgerSurface = (title: string, content: string) => {
+    document.getElementById('dairyos-ledger-print-surface')?.remove();
+    document.getElementById('dairyos-ledger-print-style')?.remove();
+
+    const surface = document.createElement('div');
+    surface.id = 'dairyos-ledger-print-surface';
+    surface.innerHTML = content;
+
+    const style = document.createElement('style');
+    style.id = 'dairyos-ledger-print-style';
+    style.textContent = `
+      #dairyos-ledger-print-surface { display: none; }
+      @media print {
+        @page { size: A4 landscape; margin: 10mm; }
+        body > *:not(#dairyos-ledger-print-surface) { display: none !important; }
+        body { margin: 0; color: #111827; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+        #dairyos-ledger-print-surface { display: block !important; color: #111827; font-size: 8px; }
+        #dairyos-ledger-print-surface h1 { margin: 0 0 4px; font-size: 17px; }
+        #dairyos-ledger-print-surface .period { margin-bottom: 10px; color: #475569; }
+        #dairyos-ledger-print-surface table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        #dairyos-ledger-print-surface th, #dairyos-ledger-print-surface td { padding: 4px 5px; border-bottom: 1px solid #cbd5e1; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+        #dairyos-ledger-print-surface th { background: #f1f5f9; font-size: 7px; text-transform: uppercase; }
+        #dairyos-ledger-print-surface .numeric { text-align: right; white-space: nowrap; }
+        #dairyos-ledger-print-surface .notes, #dairyos-ledger-print-surface .details { font-size: 7px; }
+        #dairyos-ledger-print-surface tr.void td { color: #b91c1c; background: #fef2f2; text-decoration: line-through; }
+        #dairyos-ledger-print-surface tr.void .void-reason { text-decoration: none; color: #b91c1c; font-weight: bold; }
+        #dairyos-ledger-print-surface .void-reason { margin-top: 2px; }
+        #dairyos-ledger-print-surface .summary { width: 340px; margin-top: 12px; margin-left: auto; border-top: 2px solid #334155; }
+        #dairyos-ledger-print-surface .summary-row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; }
+        #dairyos-ledger-print-surface .footer { margin-top: 10px; color: #64748b; font-size: 7px; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(surface);
+
+    let fallbackTimer: number | undefined;
+    const cleanup = () => {
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+      window.removeEventListener('afterprint', cleanup);
+      surface.remove();
+      style.remove();
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    fallbackTimer = window.setTimeout(cleanup, 300000);
+    window.setTimeout(() => {
+      try {
+        window.print();
+      } catch {
+        cleanup();
+        setError(`${title} print view could not be prepared. Please try again.`);
+      }
+    }, 50);
+  };
 
   const printRevenueLedger=(
     rows: Transaction[],
@@ -773,22 +911,6 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    // Print in a same-origin iframe so the operator is not dependent on a
-    // browser pop-up exception for the ledger workflow.
-    const printFrame = document.createElement('iframe');
-    printFrame.title = 'DairyOS Revenue Ledger print';
-    printFrame.style.position = 'fixed';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    printFrame.style.visibility = 'hidden';
-    document.body.appendChild(printFrame);
-    const printWindow = printFrame.contentWindow;
-    if (!printWindow) {
-      printFrame.remove();
-      setError('The Revenue Ledger print view could not be prepared. Please try again.');
-      return;
-    }
     const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
       '&': '&amp;',
       '<': '&lt;',
@@ -807,14 +929,20 @@ export default function FinanceTab({
       return `
         <tr class="${isVoid ? 'void' : ''}">
           <td>${esc(String(t.id))}</td>
-          <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
+          <td>${esc(ledgerDate(t))}</td>
           <td>${esc(particulars)}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
-          <td class="quantity">${esc(ledgerQuantity(t))}</td>
-          <td class="rate">${esc(ledgerRate(t) || '—')}</td>
+          <td class="numeric">${esc(ledgerQuantityValue(t))}</td>
+          <td>${esc(ledgerUnit(t))}</td>
+          <td class="numeric">${esc(ledgerRateValue(t) ? money(Number(ledgerRateValue(t))) : '—')}</td>
+          <td class="numeric">${esc(money(Number(t.amount || 0)))}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
+          <td>${esc(ledgerPayment(t))}</td>
           <td>${esc(ledgerReference(t))}</td>
           <td>${esc(ledgerStatus(t))}</td>
-          <td class="amount">${esc(money(Number(t.amount || 0)))}</td>
+          <td>${esc(ledgerDueDate(t))}</td>
+          <td>${esc(ledgerSettledDate(t))}</td>
+          <td class="details">${esc(ledgerDomainDetails(t))}</td>
+          <td class="notes">${esc(ledgerNotes(t))}</td>
         </tr>`;
     }).join('');
     const summaryHtml = Object.keys(summary).length
@@ -822,15 +950,7 @@ export default function FinanceTab({
           <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
       : '';
 
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DairyOS — Revenue Ledger</title><style>
-      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.rate,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
-    </style></head><body><h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Particulars</th><th style="text-align:right">Quantity</th><th style="text-align:right">Unit Rate</th><th>Buyer / Customer</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="9">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
-    printWindow.document.close();
-    window.setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printFrame.remove();
-    }, 250);
+    printLedgerSurface('Revenue Ledger', `<h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Item / Category</th><th class="numeric">Quantity</th><th>Unit</th><th class="numeric">Unit Rate</th><th class="numeric">Amount</th><th>Buyer / Customer</th><th>Payment Method</th><th>Reference</th><th>Status</th><th>Due Date</th><th>Settled Date</th><th>Animal / Other Details</th><th>Notes</th></tr></thead><tbody>${tableRows || '<tr><td colspan="15">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div>`);
   };
 
   const printLedger=(
@@ -840,22 +960,6 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    // Use an in-document print surface; pop-up blocking must not prevent
-    // operators from printing an otherwise valid ledger.
-    const printFrame = document.createElement('iframe');
-    printFrame.title = 'DairyOS Ledger print';
-    printFrame.style.position = 'fixed';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    printFrame.style.visibility = 'hidden';
-    document.body.appendChild(printFrame);
-    const printWindow = printFrame.contentWindow;
-    if (!printWindow) {
-      printFrame.remove();
-      setError('The ledger print view could not be prepared. Please try again.');
-      return;
-    }
     const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
       '&': '&amp;',
       '<': '&lt;',
@@ -879,29 +983,28 @@ export default function FinanceTab({
                   ? 'Revenue'
                   : 'Expense'
           )}</td>
-          <td>${esc(ledgerParticulars(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
+          <td>${esc(ledgerItem(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
           <td>${esc(t.master_category || '—')}</td>
-          <td class="quantity">${esc(ledgerQuantity(t))}</td>
-          <td class="rate">${esc(ledgerRate(t) || '—')}</td>
+          <td class="numeric">${esc(ledgerQuantityValue(t))}</td>
+          <td>${esc(ledgerUnit(t))}</td>
+          <td class="numeric">${esc(ledgerRateValue(t) ? money(Number(ledgerRateValue(t))) : '—')}</td>
+          <td class="numeric">${esc(money(Number(t.amount || 0)))}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
+          <td>${esc(ledgerPayment(t))}</td>
           <td>${esc(ledgerReference(t))}</td>
           <td>${esc(ledgerStatus(t))}</td>
-          <td class="amount">${esc(money(Number(t.amount || 0)))}</td>
+          <td>${esc(ledgerDueDate(t))}</td>
+          <td>${esc(ledgerSettledDate(t))}</td>
+          <td>${esc(ledgerCop(t))}</td>
+          <td class="details">${esc(ledgerDomainDetails(t))}</td>
+          <td class="notes">${esc(ledgerNotes(t))}</td>
         </tr>`;
     }).join('');
     const summaryHtml = Object.keys(summary).length
       ? `<div class="summary">${Object.entries(summary).map(([labelText, value]) => `
           <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
       : '';
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:6px 7px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.rate,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
-    </style></head><body><h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Type</th><th>Particulars</th><th>Master Category</th><th style="text-align:right">Quantity</th><th style="text-align:right">Unit Rate</th><th>Counterparty</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="11">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
-    printWindow.document.close();
-    window.setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printFrame.remove();
-    }, 250);
+    printLedgerSurface(title, `<h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Type</th><th>Item / Specification</th><th>Master Category</th><th class="numeric">Quantity</th><th>Unit</th><th class="numeric">Unit Rate</th><th class="numeric">Amount</th><th>Counterparty</th><th>Payment Method</th><th>Reference</th><th>Status</th><th>Due Date</th><th>Settled Date</th><th>COP / Attribution</th><th>Animal / Other Details</th><th>Notes</th></tr></thead><tbody>${tableRows || '<tr><td colspan="18">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div>`);
   };
 
 
@@ -994,6 +1097,8 @@ export default function FinanceTab({
     : 0;
   const isAnimalSale = Boolean(animalSaleCategories[revCategory]);
   const revenueContract = REVENUE_FIELD_CONTRACTS[revCategory] ?? REVENUE_FIELD_CONTRACTS['Organic Manure / Dung'];
+  const hasRevenueField = (field: RevenueFieldName) => revenueContract.visible.includes(field);
+  const requiresRevenueField = (field: RevenueFieldName) => revenueContract.required.includes(field);
 
   // A hidden field is not merely invisible: leaving its state populated would
   // allow an old intent to leak into a later canonical payload.
@@ -1050,12 +1155,19 @@ export default function FinanceTab({
       );
       return;
     }
-    if (isMilkSale && (!(Number(revQty) > 0) || !(Number(revRate) > 0))) {
-      setError('Milk Sale requires a positive quantity and rate per litre.');
+    if (requiresRevenueField('quantity') && !(Number(revQty) > 0)) {
+      setError('This revenue type requires a positive quantity.');
       return;
     }
-    if (!(amount > 0)) return;
-    if (isAnimalSale && !revAnimalId) {
+    if (requiresRevenueField('rate') && !(Number(revRate) > 0)) {
+      setError('Milk Sale requires a positive rate per litre.');
+      return;
+    }
+    if (requiresRevenueField('amount') && !(amount > 0)) {
+      setError('Enter a positive revenue amount.');
+      return;
+    }
+    if (requiresRevenueField('animalId') && !revAnimalId) {
       setError('Select the Animal ID being sold.');
       return;
     }
@@ -1080,9 +1192,9 @@ export default function FinanceTab({
               : revStatus === 'RECEIVED' ? 'RECEIPT' : 'INCOME',
           category: categoryMap[revCategory] ?? 'OTHER_REVENUE',
           amount: isMilkSale ? undefined : amount,
-          quantity: isAnimalSale ? 1 : isOwnerFinancing ? null : (revQty ? Number(revQty) : null),
-          unit: isAnimalSale ? 'head' : isOwnerFinancing ? null : (isMilkSale && revQty ? 'litres' : null),
-          unit_rate: isMilkSale ? Number(revRate) : null,
+          quantity: isAnimalSale ? 1 : hasRevenueField('quantity') && revQty ? Number(revQty) : null,
+          unit: isAnimalSale ? 'head' : hasRevenueField('quantity') && revQty && isMilkSale ? 'litres' : null,
+          unit_rate: hasRevenueField('rate') && revRate ? Number(revRate) : null,
           transaction_date: revDate,
           payment_method: isOwnerFinancing || revStatus === 'RECEIVED' ? 'CASH' : 'CREDIT',
           counterparty: revCounterparty || null,
@@ -1164,6 +1276,25 @@ export default function FinanceTab({
     }
   };
 
+  const openEditTarget = (target: Transaction) => {
+    setEditTarget(target);
+    setEditStatus(String(target.status || 'RECORDED').toUpperCase());
+    setEditCopClassification(String(target.cop_classification || '').toUpperCase());
+    setEditCopAttributionMethod(String(target.cop_attribution_method || '').toUpperCase());
+  };
+
+  const editIsAnimalPurchase = editTarget?.sub_category === 'Animal Purchase';
+  const editIsSemenPurchase = editTarget?.sub_category === 'Semen Straws (Sexed / Conventional)';
+  const editRequiresCustomSpecification = editTarget?.sub_category === 'Other' || editTarget?.sub_category === 'Equipment Purchase';
+  const editCopEnabled = editTarget?.master_category === 'OPEX' && !editIsAnimalPurchase;
+  const editStatusChoices = editTarget
+    ? String(editTarget.status || 'RECORDED').toUpperCase() === 'PAYABLE'
+      ? ['PAYABLE', 'PAID']
+      : String(editTarget.status || 'RECORDED').toUpperCase() === 'RECEIVABLE'
+        ? ['RECEIVABLE', 'RECEIVED']
+        : ['RECORDED', 'PAYABLE', 'RECEIVABLE']
+    : [];
+
   const saveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editTarget) return;
@@ -1171,9 +1302,9 @@ export default function FinanceTab({
     setError('');
     try {
       const form = new FormData(e.currentTarget);
-      const qty = Number(form.get('quantity') || 0);
-      const rate = Number(form.get('unit_rate') || 0);
-      const amount = qty > 0 ? qty * rate : Number(form.get('amount') || 0);
+      const qty = editIsAnimalPurchase ? 0 : Number(form.get('quantity') || 0);
+      const rate = editIsAnimalPurchase ? 0 : Number(form.get('unit_rate') || 0);
+      const amount = editIsAnimalPurchase ? Number(form.get('amount') || 0) : qty > 0 ? qty * rate : Number(form.get('amount') || 0);
       const response = await fetch(`${API_BASE}/farm/finance-ledger/${editTarget.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1181,6 +1312,7 @@ export default function FinanceTab({
           master_category: form.get('master_category'),
           sub_category: form.get('sub_category'),
           custom_specification: form.get('custom_specification') || null,
+          animal_category: form.get('animal_category') || null,
           quantity: qty > 0 ? qty : null,
           unit: qty > 0 ? String(form.get('unit') || 'kg') : null,
           unit_rate: qty > 0 ? rate : null,
@@ -1223,41 +1355,49 @@ export default function FinanceTab({
     const isVoid = String(r.status || '').toUpperCase() === 'VOID';
     const reason = isVoid ? voidReasonFromNotes(r.notes) : '';
     const editable = !['VOID', 'PAID', 'RECEIVED'].includes(String(r.status));
-    const particulars = `${r.sub_category || r.category || '—'}${r.custom_specification ? ` — ${r.custom_specification}` : ''}`;
+    const particulars = ledgerParticulars(r);
+    const details = ledgerDomainDetails(r);
     return (
       <div
         key={r.id}
         style={{
           ...row,
-          minWidth: 980,
+          minWidth: 2100,
           color: isVoid ? '#f87171' : '#fff',
           background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent',
           borderLeft: isVoid ? '2px solid #ef4444' : undefined,
         }}
       >
-        <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
-          <span style={{ width: 58, flex: '0 0 58px', fontWeight: 800 }}>#{r.id}</span>
-          <span style={{ width: 76, flex: '0 0 76px' }}>{r.date?.slice(0, 10) || '—'}</span>
+        <div style={{ ...ledgerLine, alignItems: 'flex-start', textDecoration:isVoid?'line-through':'none' }}>
+          <span style={{ width: 62, flex: '0 0 62px', fontWeight: 800 }}>#{r.id}</span>
+          <span style={{ width: 88, flex: '0 0 88px' }}>{ledgerDate(r)}</span>
           <span title={particulars} style={{ ...ledgerEllipsis, flexBasis: 210 }}>
             <span>{particulars}</span>
           </span>
-          <span style={{ width: 92, flex: '0 0 92px' }}>{ledgerQuantity(r)}</span>
-          <span style={{ width: 118, flex: '0 0 118px' }}>{ledgerRate(r) || '—'}</span>
-          <span title={r.vendor_name || r.counterparty || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.vendor_name || r.counterparty || '—'}</span>
-          <span title={r.reference || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.reference || '—'}</span>
-          <span style={{ width: 70, flex: '0 0 70px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
-          <strong style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>{money(Number(r.amount || 0))}</strong>
-        </div>
-        {isVoid ? (
-          <span title={reason || 'Reason recorded in audit trail'} style={{ ...voidReasonStyle, maxWidth: 190 }}>
-            VOID: {reason||'See audit trail'}
+          <span style={{ width: 86, flex: '0 0 86px' }}>{r.master_category || '—'}</span>
+          <span style={{ width: 78, flex: '0 0 78px' }}>{ledgerQuantityValue(r)}</span>
+          <span style={{ width: 70, flex: '0 0 70px' }}>{ledgerUnit(r)}</span>
+          <span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>{ledgerRateValue(r) ? money(Number(ledgerRateValue(r))) : '—'}</span>
+          <strong style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>{money(Number(r.amount || 0))}</strong>
+          <span title={ledgerCounterparty(r)} style={{ ...ledgerEllipsis, flexBasis: 135 }}>{ledgerCounterparty(r)}</span>
+          <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerPayment(r)}</span>
+          <span title={ledgerReference(r)} style={{ ...ledgerEllipsis, flexBasis: 120 }}>{ledgerReference(r)}</span>
+          <span style={{ width: 94, flex: '0 0 94px', fontWeight: 800 }}>{ledgerStatus(r)}</span>
+          <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerDueDate(r)}</span>
+          <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerSettledDate(r)}</span>
+          <span title={ledgerCop(r)} style={{ ...ledgerEllipsis, flexBasis: 135 }}>{ledgerCop(r)}</span>
+          <span title={details} style={{ ...ledgerEllipsis, flexBasis: 250 }}>{details}</span>
+          <span title={ledgerNotes(r)} style={{ ...ledgerEllipsis, flexBasis: 210 }}>{ledgerNotes(r)}</span>
+          <span style={{ width: 130, flex: '0 0 130px', display: 'flex', justifyContent: 'flex-end', gap: 4, textDecoration: 'none' }}>
+            {isVoid ? <span style={{ color: '#f87171', fontSize: 9, fontWeight: 800 }}>Voided</span> : (
+              <>
+                {editable && <button type="button" onClick={() => openEditTarget(r)} style={smallButton}><Edit3 size={10} /></button>}
+                <button type="button" onClick={() => setVoidTarget(r)} style={{ ...smallButton, color: '#f87171' }}><Ban size={10} /></button>
+              </>
+            )}
           </span>
-        ) : (
-          <>
-            {editable && <button type="button" onClick={() => setEditTarget(r)} style={smallButton}><Edit3 size={10} /></button>}
-            <button type="button" onClick={() => setVoidTarget(r)} style={{ ...smallButton, color: '#f87171' }}><Ban size={10} /></button>
-          </>
-        )}
+        </div>
+        {isVoid && <span title={reason || 'Reason recorded in audit trail'} style={{ ...voidReasonStyle, maxWidth: 500 }}>VOID: {reason||'See audit trail'}</span>}
       </div>
     );
   };
@@ -1357,28 +1497,45 @@ export default function FinanceTab({
               </div>
             ))}
           </div>
-          <div style={{ ...ledgerLine, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px' }}>
-            <span style={{ width: 76, flex: '0 0 76px' }}>Date</span><span style={{ width: 64, flex: '0 0 64px' }}>Type</span><span style={ledgerEllipsis}>Particulars</span><span style={{ ...ledgerEllipsis, flexBasis: 92 }}>Counterparty</span><span style={{ width: 76, flex: '0 0 76px' }}>Status</span><span style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>Amount</span>
-          </div>
-          <div style={{ maxHeight: 310, overflowY: 'auto' }}>
-            {exploredRows.map(r => {
-              const isVoid = String(r.status || '').toUpperCase() === 'VOID';
-              const reason = isVoid ? voidReasonFromNotes(r.notes) : '';
-              return (
-                <div key={`${isRevenueSide(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
-                  <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
-                    <span style={{ width: 76, flex: '0 0 76px' }}>{String(r.date || '').slice(0, 10) || '—'}</span>
-                    <span style={{ width: 64, flex: '0 0 64px', fontWeight: 800, color: isRevenueSide(r) ? '#34d399' : '#f59e0b' }}>{isCapitalInflow(r) ? 'CAP' : isOwnerWithdrawal(r) ? 'DRAW' : isRevenue(r) ? 'REV' : 'EXP'}</span>
-                    <span style={ledgerEllipsis}>{r.sub_category || r.category || '—'}</span>
-                    <span style={{ ...ledgerEllipsis, flexBasis: 92 }}>{r.counterparty || r.vendor_name || '—'}</span>
-                    <span style={{ width: 76, flex: '0 0 76px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
-                    <strong style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>{money(Number(r.amount || 0))}</strong>
-                  </div>
-                  {isVoid && <span style={{ ...voidReasonStyle, maxWidth: 220 }}>VOID: {reason||'See audit trail'}</span>}
-                </div>
-              );
-            })}
-            {exploredRows.length === 0 && <div style={empty}>No ledger entries in this period/view.</div>}
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: 2100 }}>
+              <div style={{ ...ledgerLine, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px', alignItems: 'flex-start' }}>
+                <span style={{ width: 62, flex: '0 0 62px' }}>Transaction #</span><span style={{ width: 88, flex: '0 0 88px' }}>Date</span><span style={{ width: 90, flex: '0 0 90px' }}>Type</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Item / Specification</span><span style={{ width: 86, flex: '0 0 86px' }}>Master Category</span><span style={{ width: 78, flex: '0 0 78px' }}>Quantity</span><span style={{ width: 70, flex: '0 0 70px' }}>Unit</span><span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>Unit Rate</span><span style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>Amount</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>Counterparty</span><span style={{ width: 95, flex: '0 0 95px' }}>Payment Method</span><span style={{ ...ledgerEllipsis, flexBasis: 120 }}>Reference</span><span style={{ width: 94, flex: '0 0 94px' }}>Status</span><span style={{ width: 95, flex: '0 0 95px' }}>Due Date</span><span style={{ width: 95, flex: '0 0 95px' }}>Settled Date</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>COP / Attribution</span><span style={{ ...ledgerEllipsis, flexBasis: 250 }}>Animal / Other Details</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Notes</span>
+              </div>
+              <div style={{ maxHeight: 310, overflowY: 'auto' }}>
+                {exploredRows.map(r => {
+                  const isVoid = String(r.status || '').toUpperCase() === 'VOID';
+                  const reason = isVoid ? voidReasonFromNotes(r.notes) : '';
+                  const details = ledgerDomainDetails(r);
+                  return (
+                    <div key={`${isRevenueSide(r) ? 'R' : 'E'}-${r.id}`} style={{ ...row, minWidth: 2100, color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent' }}>
+                      <div style={{ ...ledgerLine, alignItems: 'flex-start', textDecoration:isVoid?'line-through':'none' }}>
+                        <span style={{ width: 62, flex: '0 0 62px', fontWeight: 800 }}>#{r.id}</span>
+                        <span style={{ width: 88, flex: '0 0 88px' }}>{ledgerDate(r)}</span>
+                        <span style={{ width: 90, flex: '0 0 90px', fontWeight: 800, color: isRevenueSide(r) ? '#34d399' : '#f59e0b' }}>{ledgerType(r)}</span>
+                        <span title={ledgerItem(r)} style={{ ...ledgerEllipsis, flexBasis: 210 }}>{ledgerItem(r)}</span>
+                        <span style={{ width: 86, flex: '0 0 86px' }}>{r.master_category || '—'}</span>
+                        <span style={{ width: 78, flex: '0 0 78px' }}>{ledgerQuantityValue(r)}</span>
+                        <span style={{ width: 70, flex: '0 0 70px' }}>{ledgerUnit(r)}</span>
+                        <span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>{ledgerRateValue(r) ? money(Number(ledgerRateValue(r))) : '—'}</span>
+                        <strong style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>{money(Number(r.amount || 0))}</strong>
+                        <span title={ledgerCounterparty(r)} style={{ ...ledgerEllipsis, flexBasis: 135 }}>{ledgerCounterparty(r)}</span>
+                        <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerPayment(r)}</span>
+                        <span title={ledgerReference(r)} style={{ ...ledgerEllipsis, flexBasis: 120 }}>{ledgerReference(r)}</span>
+                        <span style={{ width: 94, flex: '0 0 94px', fontWeight: 800 }}>{ledgerStatus(r)}</span>
+                        <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerDueDate(r)}</span>
+                        <span style={{ width: 95, flex: '0 0 95px' }}>{ledgerSettledDate(r)}</span>
+                        <span title={ledgerCop(r)} style={{ ...ledgerEllipsis, flexBasis: 135 }}>{ledgerCop(r)}</span>
+                        <span title={details} style={{ ...ledgerEllipsis, flexBasis: 250 }}>{details}</span>
+                        <span title={ledgerNotes(r)} style={{ ...ledgerEllipsis, flexBasis: 210 }}>{ledgerNotes(r)}</span>
+                      </div>
+                      {isVoid && <span style={{ ...voidReasonStyle, maxWidth: 500 }}>VOID: {reason||'See audit trail'}</span>}
+                    </div>
+                  );
+                })}
+                {exploredRows.length === 0 && <div style={empty}>No ledger entries in this period/view.</div>}
+              </div>
+            </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #1f2937', fontSize: 10 }}>
             <strong>Period Aggregate: Revenue {money(periodRevenue)} · Capital {money(periodCapitalInflow)} · Expenses {money(periodExpenses)} · Owner Draw {money(periodOwnerWithdrawals)} · Cash Movement {money(periodNet)}</strong>
@@ -1395,22 +1552,24 @@ export default function FinanceTab({
               <select value={revCategory} onChange={event => setRevCategory(event.target.value)} style={inputStyle}>
                 <option>Milk Sales</option><option>Organic Manure / Dung</option><option>Milking Animal Sale</option><option>Dry Animal Sale</option><option>Heifer Sale</option><option>Female Calf Sale</option><option>Male Calf Sale</option><option>Bull Sale</option><option>Owner Investment / Add Money</option><option>Owner Draw / Withdraw Money</option>
               </select>
-              {isMilkSale
-                ? <input required type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity (Litres)" />
-                : <input required type="number" min="0" step="0.01" value={revAmount} onChange={event => setRevAmount(event.target.value)} style={inputStyle} placeholder="Amount" />}
-              {isMilkSale
-                ? <input required type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
-                : isAnimalSale
-                  ? <input type="number" value="1" readOnly disabled style={inputStyle} aria-label="Animal sale quantity" title="A selected Animal ID represents one head." />
-                  : isOwnerFinancing
-                    ? <input
-                        value={isOwnerInvestment ? 'Cash contribution' : 'Owner withdrawal'}
-                        readOnly
-                        disabled
-                        style={inputStyle}
-                        aria-label="Financing type"
-                      />
-                    : <input type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />}
+              {hasRevenueField('quantity') && isMilkSale
+                ? <input required={requiresRevenueField('quantity')} type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity (Litres)" />
+                : hasRevenueField('amount')
+                  ? <input required={requiresRevenueField('amount')} type="number" min="0" step="0.01" value={revAmount} onChange={event => setRevAmount(event.target.value)} style={inputStyle} placeholder="Amount" />
+                  : null}
+              {hasRevenueField('rate')
+                ? <input required={requiresRevenueField('rate')} type="number" min="0" step="0.01" value={revRate} onChange={event => setRevRate(event.target.value)} style={inputStyle} placeholder="Rate / Litre" />
+                : isOwnerFinancing
+                  ? <input
+                      value={isOwnerInvestment ? 'Cash contribution' : 'Owner withdrawal'}
+                      readOnly
+                      disabled
+                      style={inputStyle}
+                      aria-label="Financing type"
+                    />
+                  : hasRevenueField('quantity')
+                    ? <input required={requiresRevenueField('quantity')} type="number" min="0" step="0.01" value={revQty} onChange={event => setRevQty(event.target.value)} style={inputStyle} placeholder="Quantity" />
+                    : null}
             </div>
             {isMilkSale && <input readOnly value={calculatedMilkSaleAmount > 0 ? calculatedMilkSaleAmount.toFixed(2) : ''} style={{ ...inputStyle, marginTop: 6, color: '#34d399', fontWeight: 800 }} placeholder="Amount — auto calculated from Quantity × Rate" />}
             {isOwnerInvestment && (
@@ -1425,7 +1584,7 @@ export default function FinanceTab({
             )}
             {isAnimalSale && (
               <div style={{ marginTop: 6 }}>
-                <select required value={revAnimalId} onChange={event => setRevAnimalId(event.target.value)} style={inputStyle}>
+                <select required={requiresRevenueField('animalId')} value={revAnimalId} onChange={event => setRevAnimalId(event.target.value)} style={inputStyle}>
                   <option value="">Select Animal ID being sold</option>
                   {saleEligibleAnimals.map(animal => <option key={animal.id} value={animal.id}>{animal.id} · {animal.category} · {animal.breed}</option>)}
                 </select>
@@ -1480,9 +1639,9 @@ export default function FinanceTab({
               </div>
             </div>
             <div style={{ overflowX: 'auto', border: '1px solid #1f2937', borderRadius: 6, background: '#0b1120' }}>
-                <table style={{ width: '100%', minWidth: 1080, borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 10 }}>
-                <colgroup><col style={{ width: 62 }} /><col style={{ width: 88 }} /><col style={{ width: 190 }} /><col style={{ width: 82 }} /><col style={{ width: 112 }} /><col style={{ width: 140 }} /><col style={{ width: 120 }} /><col style={{ width: 94 }} /><col style={{ width: 124 }} /><col style={{ width: 120 }} /></colgroup>
-                <thead><tr><th style={revenueHeaderCell}>Transaction #</th><th style={revenueHeaderCell}>Date</th><th style={revenueHeaderCell}>Particulars</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Quantity</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Unit Rate</th><th style={revenueHeaderCell}>Buyer / Customer</th><th style={revenueHeaderCell}>Reference</th><th style={revenueHeaderCell}>Status</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Amount</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Actions</th></tr></thead>
+              <table style={{ width: '100%', minWidth: 1950, borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 10 }}>
+                <colgroup><col style={{ width: 62 }} /><col style={{ width: 88 }} /><col style={{ width: 190 }} /><col style={{ width: 78 }} /><col style={{ width: 70 }} /><col style={{ width: 105 }} /><col style={{ width: 125 }} /><col style={{ width: 140 }} /><col style={{ width: 95 }} /><col style={{ width: 120 }} /><col style={{ width: 94 }} /><col style={{ width: 95 }} /><col style={{ width: 95 }} /><col style={{ width: 240 }} /><col style={{ width: 210 }} /><col style={{ width: 130 }} /></colgroup>
+                <thead><tr><th style={revenueHeaderCell}>Transaction #</th><th style={revenueHeaderCell}>Date</th><th style={revenueHeaderCell}>Item / Category</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Quantity</th><th style={revenueHeaderCell}>Unit</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Unit Rate</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Amount</th><th style={revenueHeaderCell}>Buyer / Customer</th><th style={revenueHeaderCell}>Payment Method</th><th style={revenueHeaderCell}>Reference</th><th style={revenueHeaderCell}>Status</th><th style={revenueHeaderCell}>Due Date</th><th style={revenueHeaderCell}>Settled Date</th><th style={revenueHeaderCell}>Animal / Other Details</th><th style={revenueHeaderCell}>Notes</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Actions</th></tr></thead>
                 <tbody>
                   {currentMonthRevenueRows.slice(0, 50).map(r => {
                     const isVoid = String(r.status || '').toUpperCase() === 'VOID';
@@ -1492,17 +1651,23 @@ export default function FinanceTab({
                       <React.Fragment key={r.id}>
                         <tr style={{ color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent', textDecoration:isVoid?'line-through':'none' }}>
                           <td style={{ ...revenueCell, fontWeight: 800 }}>#{r.id}</td>
-                          <td style={revenueCell}>{r.date?.slice(0, 10) || '—'}</td>
-                          <td style={revenueCell} title={r.notes || r.category || ''}>
+                          <td style={revenueCell}>{ledgerDate(r)}</td>
+                          <td style={revenueCell} title={ledgerItem(r)}>
                             <div style={{ fontWeight: 800, color: isVoid ? '#f87171' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis' }}>{revenueParticulars(r)}</div>
                             {animalId && <div style={{ marginTop: 2, color: '#38bdf8', fontSize: 9, fontWeight: 700 }}>Animal #{animalId}</div>}
                           </td>
-                          <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800, color: String(r.category || '').toUpperCase() === 'MILK_SALES' ? '#38bdf8' : '#cbd5e1' }}>{ledgerQuantity(r)}</td>
-                          <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800 }}>{ledgerRate(r) || '—'}</td>
-                          <td style={revenueCell} title={r.counterparty || ''}>{r.counterparty || '—'}</td>
-                          <td style={revenueCell} title={r.reference || ''}>{r.reference || '—'}</td>
-                          <td style={{ ...revenueCell, fontWeight: 800, color: isVoid ? '#f87171' : r.status === 'RECEIVABLE' ? '#f59e0b' : '#34d399' }}>{r.status || 'RECORDED'}</td>
+                          <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800, color: String(r.category || '').toUpperCase() === 'MILK_SALES' ? '#38bdf8' : '#cbd5e1' }}>{ledgerQuantityValue(r)}</td>
+                          <td style={revenueCell}>{ledgerUnit(r)}</td>
+                          <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800 }}>{ledgerRateValue(r) ? money(Number(ledgerRateValue(r))) : '—'}</td>
                           <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 900 }}>{money(Number(r.amount || 0))}</td>
+                          <td style={revenueCell} title={r.counterparty || ''}>{ledgerCounterparty(r)}</td>
+                          <td style={revenueCell}>{ledgerPayment(r)}</td>
+                          <td style={revenueCell} title={r.reference || ''}>{ledgerReference(r)}</td>
+                          <td style={{ ...revenueCell, fontWeight: 800, color: isVoid ? '#f87171' : r.status === 'RECEIVABLE' ? '#f59e0b' : '#34d399' }}>{ledgerStatus(r)}</td>
+                          <td style={revenueCell}>{ledgerDueDate(r)}</td>
+                          <td style={revenueCell}>{ledgerSettledDate(r)}</td>
+                          <td style={revenueCell} title={ledgerDomainDetails(r)}>{ledgerDomainDetails(r)}</td>
+                          <td style={revenueCell} title={ledgerNotes(r)}>{ledgerNotes(r)}</td>
                           <td style={{ ...revenueCell, textAlign: 'right', textDecoration: 'none' }}>
                             {isVoid ? <span style={{ color: '#f87171', fontSize: 9, fontWeight: 800 }}>Voided</span> : (
                               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
@@ -1512,7 +1677,7 @@ export default function FinanceTab({
                             )}
                           </td>
                         </tr>
-                        {isVoid && <tr><td colSpan={10} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason||'See audit trail'}</td></tr>}
+                        {isVoid && <tr><td colSpan={16} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason||'See audit trail'}</td></tr>}
                       </React.Fragment>
                     );
                   })}
@@ -1606,7 +1771,7 @@ export default function FinanceTab({
               <button type="button" onClick={() => printLedger(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}><Printer size={11} /> Print</button>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <div style={{ ...ledgerLine, minWidth: 980, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px' }}><span style={{ width: 58, flex: '0 0 58px' }}>Transaction #</span><span style={{ width: 76, flex: '0 0 76px' }}>Date</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Particulars</span><span style={{ width: 92, flex: '0 0 92px' }}>Quantity</span><span style={{ width: 118, flex: '0 0 118px' }}>Unit Rate</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Counterparty</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Reference</span><span style={{ width: 76, flex: '0 0 76px' }}>Status</span><span style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>Amount</span><span style={{ width: 70, flex: '0 0 70px', textAlign: 'right' }}>Actions</span></div>
+              <div style={{ ...ledgerLine, minWidth: 2100, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px', alignItems: 'flex-start' }}><span style={{ width: 62, flex: '0 0 62px' }}>Transaction #</span><span style={{ width: 88, flex: '0 0 88px' }}>Date</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Item / Specification</span><span style={{ width: 86, flex: '0 0 86px' }}>Master Category</span><span style={{ width: 78, flex: '0 0 78px' }}>Quantity</span><span style={{ width: 70, flex: '0 0 70px' }}>Unit</span><span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>Unit Rate</span><span style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>Amount</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>Counterparty</span><span style={{ width: 95, flex: '0 0 95px' }}>Payment Method</span><span style={{ ...ledgerEllipsis, flexBasis: 120 }}>Reference</span><span style={{ width: 94, flex: '0 0 94px' }}>Status</span><span style={{ width: 95, flex: '0 0 95px' }}>Due Date</span><span style={{ width: 95, flex: '0 0 95px' }}>Settled Date</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>COP / Attribution</span><span style={{ ...ledgerEllipsis, flexBasis: 250 }}>Animal / Other Details</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Notes</span><span style={{ width: 130, flex: '0 0 130px', textAlign: 'right' }}>Actions</span></div>
               {loading ? <div style={empty}>Loading persistent ledger…</div> : filteredExpenses.slice(0, 100).map(renderExpenseLedgerRow)}
               {!loading && filteredExpenses.length === 0 && <div style={empty}>No expenses match this view.</div>}
             </div>
@@ -1641,25 +1806,37 @@ export default function FinanceTab({
         <div style={modalBackdrop}>
           <form onSubmit={saveEdit} style={modalCard}>
             <strong style={{ fontSize: 13 }}>Edit Finance Entry #{editTarget.id}</strong>
+            <div style={{ marginTop: 5, fontSize: 9, color: '#94a3b8' }}>The authoritative expense category is fixed for this edit. Use a governed correction entry when the transaction intent itself was recorded incorrectly.</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8 }}>
               <input name="transaction_date" type="date" defaultValue={editTarget.date?.slice(0, 10)} style={inputStyle} />
-              <select name="master_category" defaultValue={editTarget.master_category || 'FEED'} style={inputStyle}><option>FEED</option><option>OPEX</option></select>
-              <input name="sub_category" defaultValue={editTarget.sub_category || ''} style={inputStyle} />
-              <input name="custom_specification" defaultValue={editTarget.custom_specification || ''} style={inputStyle} />
-              <input name="quantity" type="number" step="0.001" defaultValue={editTarget.quantity ?? ''} style={inputStyle} />
-              <input name="unit" defaultValue={editTarget.unit || 'kg'} style={inputStyle} />
-              <input name="unit_rate" type="number" step="0.01" defaultValue={editTarget.unit_rate ?? ''} style={inputStyle} />
-              <input name="amount" type="number" step="0.01" defaultValue={editTarget.amount} style={inputStyle} />
+              <input name="master_category" value={editTarget.master_category || '—'} readOnly style={{ ...inputStyle, opacity: .8 }} aria-label="Master category" />
+              <input name="sub_category" value={editTarget.sub_category || editTarget.category || '—'} readOnly style={{ ...inputStyle, opacity: .8 }} aria-label="Expense item" />
+              {editRequiresCustomSpecification && <input required name="custom_specification" defaultValue={editTarget.custom_specification || ''} style={inputStyle} placeholder={editTarget.sub_category === 'Equipment Purchase' ? 'Equipment name' : 'Specification'} />}
+              {editIsAnimalPurchase ? <>
+                <input name="animal_category" value={editTarget.animal_category || ''} readOnly style={{ ...inputStyle, opacity: .8 }} placeholder="Animal category" aria-label="Animal purchase category" />
+                <input required name="amount" type="number" min="0.01" step="0.01" defaultValue={editTarget.amount} style={inputStyle} placeholder="Purchase amount (PKR)" />
+              </> : <>
+                <input name="quantity" type="number" step="0.001" defaultValue={editTarget.quantity ?? ''} style={inputStyle} placeholder="Quantity" />
+                <input name="unit" defaultValue={editTarget.unit || 'kg'} style={inputStyle} placeholder="Unit" />
+                <input name="unit_rate" type="number" step="0.01" defaultValue={editTarget.unit_rate ?? ''} style={inputStyle} placeholder="Unit rate" />
+                <input name="amount" type="number" step="0.01" defaultValue={editTarget.amount} style={inputStyle} placeholder="Amount" />
+              </>}
+              {editIsSemenPurchase && <div style={{ gridColumn: '1 / -1', padding: 8, border: '1px solid #7c2d12', borderRadius: 6, background: '#1c1917', color: '#fed7aa', fontSize: 9 }}>
+                <strong>Semen Purchase details (read-only)</strong>
+                <div style={{ marginTop: 4 }}>Lot {editTarget.semen_lot_code || '—'} · {editTarget.semen_type || '—'} · Sire {editTarget.sire_code || '—'} · Batch {editTarget.semen_batch_number || '—'} · {editTarget.semen_purchased_quantity ?? editTarget.quantity ?? '—'} straws at PKR {editTarget.semen_unit_cost ?? editTarget.unit_rate ?? '—'}.</div>
+              </div>}
               <input name="counterparty" defaultValue={editTarget.vendor_name || editTarget.counterparty || ''} style={inputStyle} placeholder="Vendor" />
               <input name="reference" defaultValue={editTarget.reference || ''} style={inputStyle} placeholder="Reference" />
               <select name="payment_method" defaultValue={editTarget.payment_method || 'CASH'} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option>CREDIT</option></select>
-              <select name="status" defaultValue={editTarget.status === 'PAYABLE' ? 'PAYABLE' : 'PAID'} style={inputStyle}><option>PAID</option><option>PAYABLE</option></select>
-              <input name="due_date" type="date" defaultValue={editTarget.due_date || ''} style={inputStyle} />
-              <select name="cop_classification" defaultValue={editTarget.cop_classification || ''} style={inputStyle}><option value="">COP classification unresolved</option><option value="OPEX">OPEX</option><option value="NON_OPEX">NON-OPEX</option></select>
-              <select name="cop_attribution_method" defaultValue={editTarget.cop_attribution_method || ''} style={inputStyle}><option value="">Attribution unresolved</option><option value="DIRECT">DIRECT</option><option value="PERIODIC">PERIODIC</option><option value="CONSUMPTION">CONSUMPTION</option><option value="ALLOCATED">ALLOCATED</option></select>
-              <input name="cop_service_date" type="date" defaultValue={editTarget.cop_service_date || ''} style={inputStyle} title="COP service/incurred date" />
-              <input name="cop_coverage_start" type="date" defaultValue={editTarget.cop_coverage_start || ''} style={inputStyle} title="COP coverage start" />
-              <input name="cop_coverage_end" type="date" defaultValue={editTarget.cop_coverage_end || ''} style={inputStyle} title="COP coverage end" />
+              <select required name="status" value={editStatus || String(editTarget.status || 'RECORDED').toUpperCase()} onChange={event => setEditStatus(event.target.value)} style={inputStyle}>{editStatusChoices.map(value => <option key={value}>{value}</option>)}</select>
+              {['PAYABLE', 'RECEIVABLE'].includes(editStatus || String(editTarget.status || '').toUpperCase()) && <input required name="due_date" type="date" defaultValue={editTarget.due_date || ''} style={inputStyle} placeholder="Due date" />}
+              {editCopEnabled && <select name="cop_classification" value={editCopClassification} onChange={event => { setEditCopClassification(event.target.value); if (event.target.value !== 'OPEX') setEditCopAttributionMethod(''); }} style={inputStyle}><option value="">COP classification unresolved</option><option value="OPEX">OPEX</option><option value="NON_OPEX">NON-OPEX</option></select>}
+              {editCopEnabled && editCopClassification === 'OPEX' && <select name="cop_attribution_method" value={editCopAttributionMethod} onChange={event => setEditCopAttributionMethod(event.target.value)} style={inputStyle}><option value="">Attribution unresolved</option><option value="DIRECT">DIRECT</option><option value="PERIODIC">PERIODIC</option><option value="CONSUMPTION">CONSUMPTION</option><option value="ALLOCATED">ALLOCATED</option></select>}
+              {editCopEnabled && editCopClassification === 'OPEX' && editCopAttributionMethod === 'DIRECT' && <input name="cop_service_date" type="date" defaultValue={editTarget.cop_service_date || ''} style={inputStyle} title="COP service/incurred date" />}
+              {editCopEnabled && editCopClassification === 'OPEX' && ['PERIODIC', 'ALLOCATED'].includes(editCopAttributionMethod) && <>
+                <input name="cop_coverage_start" type="date" defaultValue={editTarget.cop_coverage_start || ''} style={inputStyle} title="COP coverage start" />
+                <input name="cop_coverage_end" type="date" defaultValue={editTarget.cop_coverage_end || ''} style={inputStyle} title="COP coverage end" />
+              </>}
               <input name="notes" defaultValue={editTarget.notes || ''} style={inputStyle} placeholder="Notes" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}><button type="button" onClick={() => setEditTarget(null)} style={smallButton}>Cancel</button><button disabled={editSaving} type="submit" style={button('#0284c7')}>{editSaving ? 'Saving…' : 'Save Changes'}</button></div>

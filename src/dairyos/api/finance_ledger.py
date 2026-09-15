@@ -165,7 +165,18 @@ class AnimalPurchaseLinkRequest(BaseModel):
     animal_id: str = Field(min_length=1)
 
 
-def _row_dict(row: FinancialTransaction) -> dict:
+def _row_dict(
+    row: FinancialTransaction,
+    *,
+    semen_lot: SemenLot | None = None,
+) -> dict:
+    """Return the complete Finance row, including linked purchase details.
+
+    General accounting fields live on ``FinancialTransaction``.  Semen
+    purchase fields are intentionally stored on the linked ``SemenLot`` so
+    stock and Finance share one purchase authority; include that linked
+    context in the ledger read model rather than making the UI reconstruct it.
+    """
     return {
         "id": row.id,
         "transaction_type": row.transaction_type,
@@ -214,7 +225,39 @@ def _row_dict(row: FinancialTransaction) -> dict:
             if getattr(row, "cop_coverage_end", None)
             else None
         ),
+        "semen_lot_code": getattr(semen_lot, "lot_code", None),
+        "semen_type": getattr(semen_lot, "semen_type", None),
+        "sire_code": getattr(semen_lot, "sire_code", None),
+        "bull_name": getattr(semen_lot, "bull_name", None),
+        "semen_breed": getattr(semen_lot, "breed", None),
+        "semen_batch_number": getattr(semen_lot, "batch_number", None),
+        "semen_expiry_date": (
+            semen_lot.expiry_date.isoformat()
+            if getattr(semen_lot, "expiry_date", None)
+            else None
+        ),
+        "semen_storage_location": getattr(semen_lot, "storage_location", None),
+        "semen_country_source": getattr(semen_lot, "country_source", None),
+        "semen_purchased_quantity": getattr(
+            semen_lot,
+            "purchased_quantity",
+            None,
+        ),
+        "semen_unit_cost": (
+            float(semen_lot.unit_cost)
+            if getattr(semen_lot, "unit_cost", None) is not None
+            else None
+        ),
     }
+
+
+def _row_dict_with_semen(factory, row: FinancialTransaction) -> dict:
+    semen_lot = (
+        factory.session.query(SemenLot)
+        .filter(SemenLot.purchase_transaction_id == row.id)
+        .first()
+    )
+    return _row_dict(row, semen_lot=semen_lot)
 
 
 
@@ -1309,7 +1352,7 @@ def link_animal_purchase(
     animal_id = payload.animal_id.strip()
     if getattr(row, "animal_id", None):
         if str(row.animal_id) == animal_id:
-            return _row_dict(row)
+            return _row_dict_with_semen(factory, row)
         raise HTTPException(
             status_code=409,
             detail="This Animal Purchase is already linked to another animal.",
@@ -1382,7 +1425,7 @@ def link_animal_purchase(
             actor="ANIMAL_PASSPORT_UI",
         )
 
-    return _row_dict(row)
+    return _row_dict_with_semen(factory, row)
 
 
 @router.get("")
@@ -1391,11 +1434,15 @@ def list_finance_ledger(
 ):
     factory = _factory(container)
     rows = factory.finance().get_all()
+    semen_lots = {
+        lot.purchase_transaction_id: lot
+        for lot in factory.session.query(SemenLot).all()
+    }
 
     return {
         "data_status": "LIVE_PERSISTED_DATA",
         "transactions": [
-            _row_dict(row)
+            _row_dict(row, semen_lot=semen_lots.get(row.id))
             for row in sorted(
                 rows,
                 key=lambda r: r.transaction_date or datetime.min,
@@ -1712,7 +1759,7 @@ def create_finance_ledger_entry(
             actor="FINANCE_API",
         )
 
-    return _row_dict(transaction)
+    return _row_dict_with_semen(factory, transaction)
 
 
 @router.get("/taxonomy")
@@ -1993,7 +2040,7 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
                 ),
             )
 
-        return _row_dict(row)
+        return _row_dict_with_semen(factory, row)
 
     transaction_type = classifier.normalize_transaction_type(
         row.transaction_type
@@ -2303,7 +2350,7 @@ def _edit_finance_ledger_entry(transaction_id, payload, factory):
 
     factory.session.flush()
 
-    return _row_dict(row)
+    return _row_dict_with_semen(factory, row)
 
 
 @router.delete("/{transaction_id}")
@@ -2449,4 +2496,4 @@ def _update_finance_ledger_status(transaction_id, payload, factory):
 
     factory.session.flush()
 
-    return _row_dict(row)
+    return _row_dict_with_semen(factory, row)

@@ -29,5 +29,6 @@ def test_specific_animal_sale_persists_one_head_and_quantity_is_not_editable():
 
     assert "quantity: isAnimalSale ? 1" in source
     assert "unit: isAnimalSale ? 'head'" in source
-    assert 'aria-label="Animal sale quantity"' in source
-    assert 'value="1" readOnly disabled' in source
+    assert "'Milking Animal Sale': { visible: ['animalId', 'amount']" in source
+    assert 'aria-label="Animal sale quantity"' not in source
+    assert 'value="1" readOnly disabled' not in source

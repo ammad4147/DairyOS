@@ -20,7 +20,7 @@ def test_owner_withdrawal_is_exposed_as_financing_cash_outflow():
     assert "const isOwnerFinancing" in FINANCE
     assert "Owner Draw / Withdrawal" in FINANCE
     assert "'Owner Draw'" in FINANCE
-    assert "'DRAW'" in FINANCE
+    assert "const ledgerType = (t: Transaction) =>" in FINANCE
 
 
 def test_owner_withdrawal_reduces_cash_without_becoming_expense():
@@ -85,10 +85,10 @@ def test_void_owner_withdrawal_is_zero_cash_movement():
 
 def test_owner_withdrawal_is_not_mislabelled_as_expense_in_explorer():
     assert (
-        "isCapitalInflow(r) ? 'CAP' : "
-        "isOwnerWithdrawal(r) ? 'DRAW' : "
-        "isRevenue(r) ? 'REV' : 'EXP'"
+        "const ledgerType = (t: Transaction) => isCapitalInflow(t)"
     ) in FINANCE
+    assert "isOwnerWithdrawal(t)" in FINANCE
+    assert "{ledgerType(r)}</span>" in FINANCE
     assert "'Owner Draw': periodOwnerWithdrawals" in FINANCE
     assert "'Operating Net': periodOperatingNet" in FINANCE
     assert "'Cash Movement': periodNet" in FINANCE
@@ -103,4 +103,4 @@ def test_owner_withdrawal_form_boolean_does_not_shadow_transaction_predicate():
     assert "const isOwnerWithdrawal = revCategory" not in FINANCE
     assert ".filter(isOwnerWithdrawal)" in FINANCE
     assert "isOwnerWithdrawal(t)" in FINANCE
-    assert "isOwnerWithdrawal(r)" in FINANCE
+    assert "ledgerType(r)" in FINANCE

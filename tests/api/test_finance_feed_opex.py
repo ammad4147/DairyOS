@@ -58,10 +58,18 @@ def test_feed_entry_is_persisted_as_feed_with_calculated_amount(client):
     assert row["amount"] == 9000
     assert row["vendor_name"] == "ABC Feed Supplier"
     assert row["payment_method"] == "BANK"
+    assert row["unit"] == "kg"
+    assert row["date"] == "2026-08-22"
+    assert row["reference"] == "BILL-001"
+    assert row["notes"] == "Silage batch"
+    assert row["status"] == "RECORDED"
 
     ledger = client.get("/farm/finance-ledger").json()["transactions"]
     stored = next(item for item in ledger if item["id"] == row["id"])
     assert stored["amount"] == 9000
+    assert stored["quantity"] == 500
+    assert stored["unit_rate"] == 18
+    assert stored["reference"] == "BILL-001"
 
 
 def test_opex_entry_is_persisted_in_same_ledger(client):

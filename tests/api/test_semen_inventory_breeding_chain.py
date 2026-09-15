@@ -34,6 +34,32 @@ def _purchase_semen(client):
     return next(row for row in stock.json()["available_lots"] if row["sire_code"] == "SIRE-900")
 
 
+def test_finance_ledger_exposes_linked_semen_purchase_form_details(client):
+    _purchase_semen(client)
+
+    ledger = client.get("/farm/finance-ledger")
+    assert ledger.status_code == 200, ledger.text
+    row = next(
+        item
+        for item in ledger.json()["transactions"]
+        if item["sub_category"] == "Semen Straws (Sexed / Conventional)"
+    )
+
+    assert row["quantity"] == 5
+    assert row["unit"] == "straw"
+    assert row["unit_rate"] == 4500
+    assert row["semen_lot_code"].startswith("SEM-")
+    assert row["semen_type"] == "SEXED"
+    assert row["sire_code"] == "SIRE-900"
+    assert row["bull_name"] == "Bull 900"
+    assert row["semen_breed"] == "Holstein"
+    assert row["semen_batch_number"] == "BATCH-900"
+    assert row["semen_storage_location"] == "Tank A"
+    assert row["semen_country_source"] == "Imported"
+    assert row["semen_purchased_quantity"] == 5
+    assert row["semen_unit_cost"] == 4500
+
+
 def test_finance_semen_purchase_creates_selectable_stock_and_ai_consumes_one(client, registered_animal):
     lot = _purchase_semen(client)
     assert lot["available_straws"] == 5
