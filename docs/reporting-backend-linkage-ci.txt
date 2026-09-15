@@ -1,0 +1,1 @@
+CI status is authoritative only for the current PR head; this file does not assert PASS.
