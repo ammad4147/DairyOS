@@ -32,7 +32,7 @@ router = APIRouter(prefix="/farm/reporting", tags=["Reporting"])
 
 DomainKey = Literal[
     "ANIMALS", "MILK", "MILK_QUALITY", "FEED", "FINANCE", "BREEDING",
-    "SEMEN", "HEALTH", "VACCINATION", "COML", "WHOLE_FARM",
+    "HEALTH", "VACCINATION", "COML", "WHOLE_FARM",
 ]
 PeriodMode = Literal[
     "TODAY", "YESTERDAY", "OPERATIONAL_DATE", "CURRENT_HERD", "AS_OF_DATE",
@@ -72,7 +72,6 @@ REPORTS: tuple[ReportDefinition, ...] = (
     _report("financial-summary", "FINANCE", "Income and Expense Summary", "Governed Finance calculations and canonical transaction classifier.", ("DATE_RANGE", "MONTH", "CURRENT_YEAR"), ("category", "payment_state"), ("finance.view",)),
     _report("breeding-cycle", "BREEDING", "Reproductive Cycle History", "Breeding lifecycle records, cycle attribution, PD results, pregnancy loss, and calving events.", ("DATE_RANGE", "AS_OF_DATE"), ("animal_id", "technician", "event_type"), ("breeding.view",)),
     _report("breeding-performance", "BREEDING", "Pregnancy and AI Performance", "Cycle-aware breeding records and semen usage links.", ("DATE_RANGE", "CUSTOM_PERIOD"), ("technician", "semen_type", "semen_lot"), ("breeding.view",), scope="Does not infer pregnancy success when cycle attribution is absent."),
-    _report("semen-stock", "SEMEN", "Semen Stock Balance", "Purchased semen Finance rows reconciled with breeding semen-lot usage.", ("AS_OF_DATE", "DATE_RANGE"), ("semen_type", "lot", "supplier"), ("breeding.view", "finance.view")),
     _report("health-cases", "HEALTH", "Health Cases and Treatments", "Health cases, observations, treatments, withdrawal references, and animal IDs.", ("DATE_RANGE", "AS_OF_DATE"), ("animal_id", "case_status", "severity"), ("health.view",)),
     _report("withdrawal", "HEALTH", "Withdrawal Periods", "Treatment records and persisted milk-withdrawal authority.", ("OPERATIONAL_DATE", "DATE_RANGE"), ("animal_id", "status"), ("health.view",)),
     _report("vaccination-schedule", "VACCINATION", "Vaccination Schedule and Due Status", "Vaccination records, administered state, schedule rows, due and overdue dates.", ("OPERATIONAL_DATE", "DATE_RANGE", "CUSTOM_PERIOD"), ("animal_id", "vaccine", "schedule_status"), ("health.view",)),
@@ -308,24 +307,6 @@ def _finance_dataset(payload: ReportingRequest, container: Any, operational_toda
     start,end=_period_dates(payload,operational_today); aliases={"transaction_type":("transaction_type","type"),"status":("status",),"category":("category","master_category","sub_category"),"counterparty":("counterparty",),"payment_state":("payment_state","settlement_status")}; records=[record for record in _repo_records(container,"finance") if _in_period(record,start,end) and _matches(record,aliases,payload.filters)]; income=sum(float(getattr(record,"amount",0) or 0) for record in records if finance_is_income(record)); expense=sum(float(getattr(record,"amount",0) or 0) for record in records if finance_is_expense(record)); active=sum(1 for record in records if finance_is_active(record)); summary={"operating_income":income,"operating_expenses":expense,"operating_net":income-expense,"active_records":active,"audit_records":len(records)}; rows=[{"metric":key,"amount":value} for key,value in summary.items() if key in {"operating_income","operating_expenses","operating_net"}] if payload.report_id=="financial-summary" else [_row(record) for record in records]; return _dataset(rows,summary=summary)
 
 
-def _semen_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
-    start,end=_period_dates(payload,operational_today); finance=[r for r in _repo_records(container,"finance") if _in_period(r,start,end)]; breeding=[r for r in _repo_records(container,"breeding") if _in_period(r,start,end)]; purchases={}
-    for record in finance:
-        text=" ".join(str(getattr(record,f,"") or "") for f in ("category","master_category","sub_category","notes")).upper(); lot=_text_or_none(getattr(record,"semen_lot_id",None) or getattr(record,"lot",None) or getattr(record,"reference",None))
-        if "SEMEN" not in text or lot is None: continue
-        quantity=float(getattr(record,"quantity",0) or 0); entry=purchases.setdefault(lot,{"lot":lot,"purchased_quantity":0.0,"used_quantity":0,"available_quantity":0.0,"supplier":_text_or_none(getattr(record,"counterparty",None)),"semen_type":_text_or_none(getattr(record,"semen_type",None))}); entry["purchased_quantity"] += quantity
-    for record in breeding:
-        if str(getattr(record,"event_type","")).upper() not in {"AI","INSEMINATION"}: continue
-        lot=_text_or_none(getattr(record,"semen_lot_id",None))
-        if lot is None: continue
-        entry=purchases.setdefault(lot,{"lot":lot,"purchased_quantity":0.0,"used_quantity":0,"available_quantity":0.0,"supplier":_text_or_none(getattr(record,"semen_supplier",None)),"semen_type":None}); entry["used_quantity"] += 1
-    rows=[]
-    for entry in purchases.values():
-        entry["available_quantity"]=entry["purchased_quantity"]-entry["used_quantity"]
-        if _matches(type("SemenView",(),entry)(),{"semen_type":("semen_type",),"lot":("lot",),"supplier":("supplier",)},payload.filters): rows.append(entry)
-    rows.sort(key=lambda item:str(item["lot"])); return _dataset(rows,summary={"lots":len(rows),"purchased_quantity":sum(r["purchased_quantity"] for r in rows),"used_quantity":sum(r["used_quantity"] for r in rows),"available_quantity":sum(r["available_quantity"] for r in rows)})
-
-
 def _snapshot_child(report_id: str, domain: DomainKey, mode: PeriodMode, selected: date) -> ReportingRequest:
     kwargs: dict[str,Any]={}
     if mode=="OPERATIONAL_DATE": kwargs["operational_date"]=selected
@@ -342,7 +323,6 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
     if payload.report_id in {"current-tmr","historical-tmr"}: return _generic_repo_dataset(payload,container,operational_today,"feed_rations",{"category":("category","animal_group","animal_category"),"ingredient":("ingredient","ingredient_name")})
     if payload.report_id in {"finance-ledger","financial-summary"}: return _finance_dataset(payload,container,operational_today)
     if payload.report_id in {"breeding-cycle","breeding-performance"}: return _generic_repo_dataset(payload,container,operational_today,"breeding",{"animal_id":("animal_id",),"technician":("technician",),"event_type":("event_type",),"semen_type":("semen_type",),"semen_lot":("semen_lot_id",)})
-    if payload.report_id=="semen-stock": return _semen_dataset(payload,container,operational_today)
     if payload.report_id=="health-cases": return _generic_repo_dataset(payload,container,operational_today,"health_cases",{"animal_id":("animal_id",),"case_status":("status",),"severity":("severity",)})
     if payload.report_id=="withdrawal": return _generic_repo_dataset(payload,container,operational_today,"treatment",{"animal_id":("animal_id",),"status":("status",)})
     if payload.report_id=="vaccination-schedule": return _generic_repo_dataset(payload,container,operational_today,"vaccinations",{"animal_id":("animal_id",),"vaccine":("vaccine","vaccine_name"),"schedule_status":("status","schedule_status")})
@@ -353,7 +333,7 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
     if payload.report_id=="whole-farm-snapshot":
         selected=payload.snapshot_date
         if selected is None: raise HTTPException(status_code=422,detail="snapshot_date is required for Complete Farm Snapshot.")
-        section_specs=(("animal-population","ANIMALS","CURRENT_HERD"),("daily-milk","MILK","OPERATIONAL_DATE"),("milk-quality-log","MILK_QUALITY","OPERATIONAL_DATE"),("current-tmr","FEED","OPERATIONAL_DATE"),("finance-ledger","FINANCE","DATE_RANGE"),("breeding-cycle","BREEDING","AS_OF_DATE"),("semen-stock","SEMEN","AS_OF_DATE"),("health-cases","HEALTH","AS_OF_DATE"),("vaccination-schedule","VACCINATION","OPERATIONAL_DATE"),("coml-period","COML","MONTH"))
+        section_specs=(("animal-population","ANIMALS","CURRENT_HERD"),("daily-milk","MILK","OPERATIONAL_DATE"),("milk-quality-log","MILK_QUALITY","OPERATIONAL_DATE"),("current-tmr","FEED","OPERATIONAL_DATE"),("finance-ledger","FINANCE","DATE_RANGE"),("breeding-cycle","BREEDING","AS_OF_DATE"),("health-cases","HEALTH","AS_OF_DATE"),("vaccination-schedule","VACCINATION","OPERATIONAL_DATE"),("coml-period","COML","MONTH"))
         sections=[]
         for report_id,domain,mode in section_specs:
             child=_snapshot_child(report_id,domain,mode,selected); result=_canonical_dataset(child,container=container,operational_today=selected)
