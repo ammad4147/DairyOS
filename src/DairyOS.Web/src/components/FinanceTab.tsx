@@ -15,7 +15,7 @@ const DEFAULT_ANIMAL_PURCHASE_CATEGORIES = [
 ] as const;
 
 type MasterCategory = 'FEED' | 'OPEX';
-type LedgerFilter = 'ALL' | MasterCategory;
+type LedgerFilter = 'ALL' | MasterCategory | 'NON_OPEX';
 type ExploreView = 'COMBINED' | 'REVENUE' | 'EXPENSES';
 type PeriodMode = 'MONTH' | 'CUSTOM';
 type RevenueStatus = 'RECEIVED' | 'RECEIVABLE';
@@ -274,7 +274,7 @@ export default function FinanceTab({
   const [directAmount, setDirectAmount] = useState('');
   const [expenseDate, setExpenseDate, resetExpenseDateToToday] = useFarmDateField();
   const [vendor, setVendor] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('BANK');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -410,7 +410,9 @@ export default function FinanceTab({
     const q = search.trim().toLowerCase();
     const base = ledgerFilter === 'ALL'
       ? currentMonthExpenseRows
-      : currentMonthExpenseRows.filter(t => t.master_category === ledgerFilter);
+      : ledgerFilter === 'NON_OPEX'
+        ? currentMonthExpenseRows.filter(t => String(t.cop_classification || '').toUpperCase() === 'NON_OPEX')
+        : currentMonthExpenseRows.filter(t => t.master_category === ledgerFilter && (ledgerFilter !== 'OPEX' || String(t.cop_classification || '').toUpperCase() !== 'NON_OPEX'));
     return base.filter(t => !q || [
       t.sub_category,
       t.custom_specification,
@@ -1526,7 +1528,7 @@ export default function FinanceTab({
           <section style={card}>
             <div style={{ ...sectionTitle, display: 'flex', justifyContent: 'space-between', gap: 6 }}><span>Accounting Expense Ledger</span><span style={{ fontSize: 8, color: '#64748b' }}>Current month · {currentMonthStart} → {currentMonthEnd}</span></div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 7 }}>
-              {(['ALL', 'FEED', 'OPEX'] as LedgerFilter[]).map(value => <button key={value} type="button" onClick={() => setLedgerFilter(value)} style={{ ...smallButton, background: ledgerFilter === value ? '#0ea5e9' : '#1e293b', color: '#fff' }}>{value}</button>)}
+              {(['ALL', 'FEED', 'OPEX', 'NON_OPEX'] as LedgerFilter[]).map(value => <button key={value} type="button" onClick={() => setLedgerFilter(value)} style={{ ...smallButton, background: ledgerFilter === value ? '#0ea5e9' : '#1e293b', color: '#fff' }}>{value === 'NON_OPEX' ? 'Non-OPEX' : value}</button>)}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 150, background: '#1e293b', border: '1px solid #334155', padding: '4px 6px', borderRadius: 4 }}><Search size={11} color="#94a3b8" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search ledger…" style={{ ...inputStyle, border: 0, padding: 0, background: 'transparent' }} /></div>
               <button type="button" onClick={() => saveLedgerCsv(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}>Save CSV</button>
               <button type="button" onClick={() => printLedger(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}><Printer size={11} /> Print</button>
@@ -1576,7 +1578,7 @@ export default function FinanceTab({
               <input name="amount" type="number" step="0.01" defaultValue={editTarget.amount} style={inputStyle} />
               <input name="counterparty" defaultValue={editTarget.vendor_name || editTarget.counterparty || ''} style={inputStyle} placeholder="Vendor" />
               <input name="reference" defaultValue={editTarget.reference || ''} style={inputStyle} placeholder="Reference" />
-              <select name="payment_method" defaultValue={editTarget.payment_method || 'BANK'} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option>CREDIT</option></select>
+              <select name="payment_method" defaultValue={editTarget.payment_method || 'CASH'} style={inputStyle}><option>BANK</option><option>CASH</option><option>MOBILE</option><option>CREDIT</option></select>
               <select name="status" defaultValue={editTarget.status === 'PAYABLE' ? 'PAYABLE' : 'PAID'} style={inputStyle}><option>PAID</option><option>PAYABLE</option></select>
               <input name="due_date" type="date" defaultValue={editTarget.due_date || ''} style={inputStyle} />
               <select name="cop_classification" defaultValue={editTarget.cop_classification || ''} style={inputStyle}><option value="">COP classification unresolved</option><option value="OPEX">OPEX</option><option value="NON_OPEX">NON-OPEX</option></select>

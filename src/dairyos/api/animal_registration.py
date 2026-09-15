@@ -234,7 +234,7 @@ def register_animal(payload: dict, container=Depends(get_container)):
     allowed_frequency = set(GOVERNED["milking_frequencies"])
 
     if is_milking and not milking_frequency:
-        milking_frequency = "TWICE_DAILY"
+        milking_frequency = "THRICE_DAILY"
 
     if milking_frequency and not is_milking:
         raise HTTPException(

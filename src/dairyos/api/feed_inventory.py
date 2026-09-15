@@ -33,7 +33,7 @@ class FeedInventoryItemEntry(BaseModel):
     category: str = "FEED"
     unit: str = Field(default="kg", min_length=1)
     location: str | None = None
-    reorder_level: float = Field(default=0, ge=0, allow_inf_nan=False)
+    reorder_level: float = Field(default=20, ge=0, allow_inf_nan=False)
     active: bool = True
     notes: str | None = None
 
@@ -617,7 +617,7 @@ def _ensure_tmr_storage_catalog(factory, summary: dict) -> None:
                 item=name,
                 category="FEED",
                 unit="kg",
-                reorder_level=0,
+                reorder_level=20,
                 active=True,
                 notes=(
                     "Established automatically from governed "
@@ -628,6 +628,9 @@ def _ensure_tmr_storage_catalog(factory, summary: dict) -> None:
             continue
 
         changed = False
+        if float(existing.reorder_level or 0) <= 0:
+            existing.reorder_level = 20
+            changed = True
 
         if not bool(getattr(existing, "active", True)):
             existing.active = True
