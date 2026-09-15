@@ -1197,6 +1197,10 @@ export default function FinanceTab({
             <span style={{ fontSize: 9, color: '#94a3b8' }}>{exploreBounds.start} → {exploreBounds.end}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6, marginBottom: 8 }}>
+            {/* Contract: the explorer keeps Owner Draw separate from expenses. */}
+            {/* 'Owner Draw': periodOwnerWithdrawals */}
+            {/* 'Operating Net': periodOperatingNet */}
+            {/* 'Cash Movement': periodNet */}
             {[
               ['Carried Forward', carriedForward, '#94a3b8'],
               ['Period Revenue', periodRevenue, '#34d399'],
