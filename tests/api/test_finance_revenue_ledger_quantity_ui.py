@@ -12,6 +12,14 @@ FINANCE_TAB = (
     / "components"
     / "FinanceTab.tsx"
 )
+REPORTING_TAB = (
+    ROOT
+    / "src"
+    / "DairyOS.Web"
+    / "src"
+    / "components"
+    / "ReportingTab.tsx"
+)
 
 
 class FinanceRevenueLedgerQuantityContractTest(
@@ -21,6 +29,9 @@ class FinanceRevenueLedgerQuantityContractTest(
     @classmethod
     def setUpClass(cls):
         cls.source = FINANCE_TAB.read_text(
+            encoding="utf-8",
+        )
+        cls.reporting = REPORTING_TAB.read_text(
             encoding="utf-8",
         )
 
@@ -76,108 +87,19 @@ class FinanceRevenueLedgerQuantityContractTest(
             self.ledger,
         )
 
-    def test_screen_uses_revenue_specific_exports(self):
-        self.assertIn(
-            "saveRevenueLedgerCsv(",
-            self.ledger,
-        )
+    def test_finance_tab_does_not_offer_report_outputs(self):
+        self.assertNotIn("saveRevenueLedgerCsv(", self.ledger)
+        self.assertNotIn("printRevenueLedger(", self.ledger)
+        self.assertNotIn("Save CSV", self.source)
+        self.assertNotIn("window.print()", self.source)
+        self.assertNotIn("dairyos-ledger-print-surface", self.source)
 
-        self.assertIn(
-            "printRevenueLedger(",
-            self.ledger,
-        )
-
-    def test_csv_has_same_revenue_columns(self):
-        csv_start = self.source.index(
-            "const saveRevenueLedgerCsv="
-        )
-
-        csv_end = self.source.index(
-            "const saveLedgerCsv=",
-            csv_start,
-        )
-
-        csv = self.source[
-            csv_start:csv_end
-        ]
-
-        for label in (
-            "'Transaction #'",
-            "'Date'",
-            "'Item / Category'",
-            "'Quantity'",
-            "'Unit'",
-            "'Unit Rate'",
-            "'Amount'",
-            "'Buyer / Customer'",
-            "'Payment Method'",
-            "'Reference'",
-            "'Status'",
-            "'Due Date'",
-            "'Settled Date'",
-            "'Animal / Other Details'",
-            "'Notes'",
-        ):
-            self.assertIn(
-                label,
-                csv,
-            )
-
-        self.assertNotIn(
-            "'Master Category'",
-            csv,
-        )
-
-        self.assertNotIn(
-            "'Type'",
-            csv,
-        )
-
-    def test_print_has_same_revenue_columns(self):
-        print_start = self.source.index(
-            "const printRevenueLedger="
-        )
-
-        print_end = self.source.index(
-            "const printLedger=",
-            print_start,
-        )
-
-        printable = self.source[
-            print_start:print_end
-        ]
-
-        for label in (
-            "<th>Transaction #</th>",
-            "<th>Date</th>",
-            "<th>Item / Category</th>",
-            "Quantity",
-            "Unit",
-            "Unit Rate",
-            "Amount",
-            "<th>Buyer / Customer</th>",
-            "<th>Payment Method</th>",
-            "<th>Reference</th>",
-            "<th>Status</th>",
-            "<th>Due Date</th>",
-            "<th>Settled Date</th>",
-            "<th>Animal / Other Details</th>",
-            "<th>Notes</th>",
-        ):
-            self.assertIn(
-                label,
-                printable,
-            )
-
-        self.assertNotIn(
-            "<th>Master Category</th>",
-            printable,
-        )
-
-        self.assertNotIn(
-            "<th>Type</th>",
-            printable,
-        )
+    def test_settings_reporting_owns_finance_outputs(self):
+        self.assertIn("Transaction Ledger", self.reporting)
+        self.assertIn("Income and Expense Summary", self.reporting)
+        self.assertIn("Finance", self.reporting)
+        self.assertIn("Save {format}", self.reporting)
+        self.assertIn("Print", self.reporting)
 
     def test_milk_sales_display_quantity_as_litres(self):
         self.assertIn(
@@ -233,34 +155,10 @@ class FinanceRevenueLedgerQuantityContractTest(
             self.ledger,
         )
 
-    def test_generic_exports_are_preserved(self):
-        self.assertIn(
-            "const saveLedgerCsv=",
-            self.source,
-        )
-
-        self.assertIn(
-            "const printLedger=",
-            self.source,
-        )
-
-    def test_ledger_print_does_not_depend_on_popup_permission(self):
-        """Regression for the observed blocked-ledger-print operator message."""
-        self.assertIn("const printLedgerSurface =", self.source)
-        for marker in ("const printRevenueLedger=", "const printLedger="):
-            start = self.source.index(marker)
-            end = self.source.find("\n  const ", start + len(marker))
-            printable = self.source[start:] if end == -1 else self.source[start:end]
-            self.assertIn("printLedgerSurface(", printable)
-            self.assertNotIn("printWindow", printable)
-            self.assertNotIn("printFrame", printable)
-            self.assertNotIn("window.open('', '_blank'", printable)
-
-        self.assertIn("window.print()", self.source)
-        self.assertIn("afterprint", self.source)
-        self.assertIn("dairyos-ledger-print-surface", self.source)
-        self.assertNotIn("document.createElement('iframe')", self.source)
-        self.assertNotIn("printWindow.print()", self.source)
+    def test_finance_reporting_does_not_depend_on_popup_permission(self):
+        self.assertIn("const printReport = () =>", self.reporting)
+        self.assertIn("window.print()", self.reporting)
+        self.assertNotIn("window.open('', '_blank'", self.reporting)
 
     def test_expense_and_explorer_show_complete_financial_fields(self):
         for label in (

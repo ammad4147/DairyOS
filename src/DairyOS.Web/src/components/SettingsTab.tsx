@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, Mail, Plus, Save, Trash2 } from 'lucide-react';
+import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, FileText, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { readApiPayload } from '../api/response';
 import { getNavigationAccessToken } from '../auth';
@@ -7,6 +7,7 @@ import type { NavigationTabId } from '../navigation';
 import { formatFarmDateTime } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
 import AIAssistant from './AIAssistant';
+import ReportingTab from './ReportingTab';
 
 interface SettingsTabProps {
   onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
@@ -89,7 +90,7 @@ export default function SettingsTab({
   hiddenNavigationTabs = [],
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
-  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'ASSISTANT'>('FARM');
+  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'REPORTING' | 'ASSISTANT'>('FARM');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
@@ -387,6 +388,7 @@ export default function SettingsTab({
         <button onClick={() => setActiveTab('FARM')} style={tab(activeTab === 'FARM')}><Building size={13} />Farm & System</button>
         <button onClick={() => setActiveTab('SYSTEM')} style={tab(activeTab === 'SYSTEM')}><Activity size={13} />System Health</button>
         <button onClick={() => setActiveTab('EMAIL')} style={tab(activeTab === 'EMAIL')}><Mail size={13} />Email & Notifications</button>
+        <button type="button" onClick={() => setActiveTab('REPORTING')} style={tab(activeTab === 'REPORTING')}><FileText size={13} />Reporting</button>
         <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><Bot size={13} />AI Assistant</button>
       </div>
       {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{error}</div>}
@@ -519,6 +521,7 @@ export default function SettingsTab({
           </div>}
         </section></div>
       )}
+      {activeTab === 'REPORTING' && <ReportingTab />}
       {activeTab === 'ASSISTANT' && <AIAssistant />}
     </div>
   );

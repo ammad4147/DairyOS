@@ -143,6 +143,14 @@ def test_ui_and_api_contracts_are_present():
         / "components"
         / "MilkTab.tsx"
     ).read_text(encoding="utf-8")
+    reporting = (
+        root
+        / "src"
+        / "DairyOS.Web"
+        / "src"
+        / "components"
+        / "ReportingTab.tsx"
+    ).read_text(encoding="utf-8")
     animals = (
         root
         / "src"
@@ -190,8 +198,12 @@ def test_ui_and_api_contracts_are_present():
     ).read_text(encoding="utf-8")
 
     assert "Milk Quality Log" in milk
-    assert "Save CSV" in milk
-    assert "Print" in milk
+    assert "Save CSV" not in milk
+    assert "printQualityLog" not in milk
+    assert "window.open(\n      '',\n      '_blank'" not in milk
+    assert "Milk Quality Log" in reporting
+    assert "Save {format}" in reporting
+    assert "Print" in reporting
     assert "Missed Milking — Action Required" in milk
     assert "MISSED_MILK_REJECTED:" in milk
     assert "Closing Milk Balance" in milk

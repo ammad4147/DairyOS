@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Ban, Edit3, Printer, Search, WalletCards } from 'lucide-react';
+import { Ban, Edit3, Search, WalletCards } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { farmToday } from '../utils/farmDate';
 import { useFarmDateField } from '../utils/farmDate';
@@ -273,9 +273,6 @@ const activeAmount = (t: Transaction) =>
 
 const money = (value: number) =>
   `PKR ${Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
-
-const csvCell = (value: unknown) =>
-  `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 const voidReasonFromNotes = (notes?: string | null) => {
   const matches = Array.from(String(notes ?? '').matchAll(/REASON=([^\n\r]*)/g));
@@ -730,284 +727,6 @@ export default function FinanceTab({
   };
   const ledgerNotes = (t: Transaction) => String(t.notes || '').trim() || '—';
 
-  const ledgerCommonCsvValues = (t: Transaction, particulars: string) => [
-    String(t.id),
-    ledgerDate(t),
-    particulars,
-    ledgerQuantityValue(t),
-    ledgerUnit(t),
-    ledgerRateValue(t),
-    Number(t.amount || 0).toFixed(2),
-    ledgerCounterparty(t),
-    ledgerPayment(t),
-    ledgerReference(t),
-    ledgerStatus(t),
-    ledgerDueDate(t),
-    ledgerSettledDate(t),
-    ledgerCop(t),
-    ledgerDomainDetails(t),
-    ledgerNotes(t),
-  ];
-  const ledgerSummaryRow = (
-    labelText: string,
-    value: number,
-    amountIndex: number,
-    columnCount: number,
-  ) => {
-    const row = Array.from({ length: columnCount }, () => '');
-    row[0] = labelText;
-    row[amountIndex] = Number(value || 0).toFixed(2);
-    return row;
-  };
-
-  const saveRevenueLedgerCsv=(
-    rows: Transaction[],
-    start: string,
-    end: string,
-    summary: Record<string, number> = {},
-  ) => {
-    const header = ['Transaction #', 'Date', 'Item / Category', 'Quantity', 'Unit', 'Unit Rate', 'Amount', 'Buyer / Customer', 'Payment Method', 'Reference', 'Status', 'Due Date', 'Settled Date', 'Animal / Other Details', 'Notes'];
-    const detailRows = rows.map(t => ledgerCommonCsvValues(t, revenueParticulars(t)));
-    const summaryRows = [
-      [],
-      ...Object.entries(summary).map(([labelText, value]) => ledgerSummaryRow(labelText, value, 6, header.length)),
-    ];
-    const csv = [
-      ['DairyOS — Revenue Ledger'],
-      ['Reporting Period', `${start} to ${end}`],
-      [],
-      header,
-      ...detailRows,
-      ...summaryRows,
-    ]
-      .map(line => line.map(csvCell).join(','))
-      .join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `DairyOS-Revenue-Ledger-${start}-to-${end}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const saveLedgerCsv=(
-    title: string,
-    rows: Transaction[],
-    start: string,
-    end: string,
-    summary: Record<string, number> = {},
-  ) => {
-    const header = ['Transaction #', 'Date', 'Type', 'Item / Specification', 'Master Category', 'Quantity', 'Unit', 'Unit Rate', 'Amount', 'Counterparty', 'Payment Method', 'Reference', 'Status', 'Due Date', 'Settled Date', 'COP / Attribution', 'Animal / Other Details', 'Notes'];
-    const detailRows = rows.map(t => {
-      const common = ledgerCommonCsvValues(t, ledgerItem(t));
-      return [
-        common[0],
-        common[1],
-        ledgerType(t),
-        common[2],
-        t.master_category || '',
-        ...common.slice(3),
-      ];
-    });
-    const summaryRows = [
-      [],
-      ...Object.entries(summary).map(([labelText, value]) => ledgerSummaryRow(labelText, value, 8, header.length)),
-    ];
-    const csv = [
-      [title],
-      ['Reporting Period', `${start} to ${end}`],
-      [],
-      header,
-      ...detailRows,
-      ...summaryRows,
-    ]
-      .map(line => line.map(csvCell).join(','))
-      .join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const safeTitle = title.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    link.href = url;
-    link.download = `DairyOS-${safeTitle}-${start}-to-${end}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const saveExploredLedger = () => {
-    saveLedgerCsv('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, {
-      'Carried Forward': carriedForward,
-      'Period Revenue': periodRevenue,
-      'Capital Added': periodCapitalInflow,
-      'Period Expenses': periodExpenses,
-      'Owner Draw': periodOwnerWithdrawals,
-      'Operating Net': periodOperatingNet,
-      'Cash Movement': periodNet,
-      'Closing Balance': closingBalance,
-    });
-  };
-
-  const printLedgerSurface = (title: string, content: string) => {
-    document.getElementById('dairyos-ledger-print-surface')?.remove();
-    document.getElementById('dairyos-ledger-print-style')?.remove();
-
-    const surface = document.createElement('div');
-    surface.id = 'dairyos-ledger-print-surface';
-    surface.innerHTML = content;
-
-    const style = document.createElement('style');
-    style.id = 'dairyos-ledger-print-style';
-    style.textContent = `
-      #dairyos-ledger-print-surface { display: none; }
-      @media print {
-        @page { size: A4 landscape; margin: 10mm; }
-        body > *:not(#dairyos-ledger-print-surface) { display: none !important; }
-        body { margin: 0; color: #111827; background: #fff; font-family: Arial, Helvetica, sans-serif; }
-        #dairyos-ledger-print-surface { display: block !important; color: #111827; font-size: 8px; }
-        #dairyos-ledger-print-surface h1 { margin: 0 0 4px; font-size: 17px; }
-        #dairyos-ledger-print-surface .period { margin-bottom: 10px; color: #475569; }
-        #dairyos-ledger-print-surface table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        #dairyos-ledger-print-surface th, #dairyos-ledger-print-surface td { padding: 4px 5px; border-bottom: 1px solid #cbd5e1; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
-        #dairyos-ledger-print-surface th { background: #f1f5f9; font-size: 7px; text-transform: uppercase; }
-        #dairyos-ledger-print-surface .numeric { text-align: right; white-space: nowrap; }
-        #dairyos-ledger-print-surface .notes, #dairyos-ledger-print-surface .details { font-size: 7px; }
-        #dairyos-ledger-print-surface tr.void td { color: #b91c1c; background: #fef2f2; text-decoration: line-through; }
-        #dairyos-ledger-print-surface tr.void .void-reason { text-decoration: none; color: #b91c1c; font-weight: bold; }
-        #dairyos-ledger-print-surface .void-reason { margin-top: 2px; }
-        #dairyos-ledger-print-surface .summary { width: 340px; margin-top: 12px; margin-left: auto; border-top: 2px solid #334155; }
-        #dairyos-ledger-print-surface .summary-row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; }
-        #dairyos-ledger-print-surface .footer { margin-top: 10px; color: #64748b; font-size: 7px; }
-      }
-    `;
-    document.head.appendChild(style);
-    document.body.appendChild(surface);
-
-    let fallbackTimer: number | undefined;
-    const cleanup = () => {
-      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
-      window.removeEventListener('afterprint', cleanup);
-      surface.remove();
-      style.remove();
-    };
-    window.addEventListener('afterprint', cleanup, { once: true });
-    fallbackTimer = window.setTimeout(cleanup, 300000);
-    window.setTimeout(() => {
-      try {
-        window.print();
-      } catch {
-        cleanup();
-        setError(`${title} print view could not be prepared. Please try again.`);
-      }
-    }, 50);
-  };
-
-  const printRevenueLedger=(
-    rows: Transaction[],
-    start: string,
-    end: string,
-    summary: Record<string, number> = {},
-  ) => {
-    const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    } as Record<string, string>)[ch] || ch);
-    const tableRows = rows.map(t => {
-      const isVoid = String(t.status || '').toUpperCase() === 'VOID';
-      const reason = isVoid ? voidReasonFromNotes(t.notes) : '';
-      const animalId = revenueAnimalId(t);
-      const particulars = animalId
-        ? `${revenueParticulars(t)} — Animal ${animalId}`
-        : revenueParticulars(t);
-
-      return `
-        <tr class="${isVoid ? 'void' : ''}">
-          <td>${esc(String(t.id))}</td>
-          <td>${esc(ledgerDate(t))}</td>
-          <td>${esc(particulars)}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
-          <td class="numeric">${esc(ledgerQuantityValue(t))}</td>
-          <td>${esc(ledgerUnit(t))}</td>
-          <td class="numeric">${esc(ledgerRateValue(t) ? money(Number(ledgerRateValue(t))) : '—')}</td>
-          <td class="numeric">${esc(money(Number(t.amount || 0)))}</td>
-          <td>${esc(ledgerCounterparty(t))}</td>
-          <td>${esc(ledgerPayment(t))}</td>
-          <td>${esc(ledgerReference(t))}</td>
-          <td>${esc(ledgerStatus(t))}</td>
-          <td>${esc(ledgerDueDate(t))}</td>
-          <td>${esc(ledgerSettledDate(t))}</td>
-          <td class="details">${esc(ledgerDomainDetails(t))}</td>
-          <td class="notes">${esc(ledgerNotes(t))}</td>
-        </tr>`;
-    }).join('');
-    const summaryHtml = Object.keys(summary).length
-      ? `<div class="summary">${Object.entries(summary).map(([labelText, value]) => `
-          <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
-      : '';
-
-    printLedgerSurface('Revenue Ledger', `<h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Item / Category</th><th class="numeric">Quantity</th><th>Unit</th><th class="numeric">Unit Rate</th><th class="numeric">Amount</th><th>Buyer / Customer</th><th>Payment Method</th><th>Reference</th><th>Status</th><th>Due Date</th><th>Settled Date</th><th>Animal / Other Details</th><th>Notes</th></tr></thead><tbody>${tableRows || '<tr><td colspan="15">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div>`);
-  };
-
-  const printLedger=(
-    title: string,
-    rows: Transaction[],
-    start: string,
-    end: string,
-    summary: Record<string, number> = {},
-  ) => {
-    const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    } as Record<string, string>)[ch] || ch);
-    const tableRows = rows.map(t => {
-      const isVoid = String(t.status || '').toUpperCase() === 'VOID';
-      const reason = isVoid ? voidReasonFromNotes(t.notes) : '';
-      return `
-        <tr class="${isVoid ? 'void' : ''}">
-          <td>${esc(String(t.id))}</td>
-          <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
-          <td>${esc(
-            isCapitalInflow(t)
-              ? 'Capital Inflow'
-              : isOwnerWithdrawal(t)
-                ? 'Owner Draw'
-                : isRevenue(t)
-                  ? 'Revenue'
-                  : 'Expense'
-          )}</td>
-          <td>${esc(ledgerItem(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
-          <td>${esc(t.master_category || '—')}</td>
-          <td class="numeric">${esc(ledgerQuantityValue(t))}</td>
-          <td>${esc(ledgerUnit(t))}</td>
-          <td class="numeric">${esc(ledgerRateValue(t) ? money(Number(ledgerRateValue(t))) : '—')}</td>
-          <td class="numeric">${esc(money(Number(t.amount || 0)))}</td>
-          <td>${esc(ledgerCounterparty(t))}</td>
-          <td>${esc(ledgerPayment(t))}</td>
-          <td>${esc(ledgerReference(t))}</td>
-          <td>${esc(ledgerStatus(t))}</td>
-          <td>${esc(ledgerDueDate(t))}</td>
-          <td>${esc(ledgerSettledDate(t))}</td>
-          <td>${esc(ledgerCop(t))}</td>
-          <td class="details">${esc(ledgerDomainDetails(t))}</td>
-          <td class="notes">${esc(ledgerNotes(t))}</td>
-        </tr>`;
-    }).join('');
-    const summaryHtml = Object.keys(summary).length
-      ? `<div class="summary">${Object.entries(summary).map(([labelText, value]) => `
-          <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
-      : '';
-    printLedgerSurface(title, `<h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Type</th><th>Item / Specification</th><th>Master Category</th><th class="numeric">Quantity</th><th>Unit</th><th class="numeric">Unit Rate</th><th class="numeric">Amount</th><th>Counterparty</th><th>Payment Method</th><th>Reference</th><th>Status</th><th>Due Date</th><th>Settled Date</th><th>COP / Attribution</th><th>Animal / Other Details</th><th>Notes</th></tr></thead><tbody>${tableRows || '<tr><td colspan="18">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div>`);
-  };
-
-
   const saveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -1450,10 +1169,6 @@ export default function FinanceTab({
               <div style={{ fontSize: 12, fontWeight: 900, color: '#c4b5fd' }}>Ledger Explorer</div>
               <div style={{ fontSize: 9, color: '#94a3b8' }}>Historical accounting view. VOID rows remain visible but are excluded from balances.</div>
             </div>
-            <div style={{ display: 'flex', gap: 5 }}>
-              <button type="button" onClick={saveExploredLedger} style={smallButton}>Save CSV</button>
-              <button type="button" onClick={() => printLedger('Finance Ledger Explorer', exploredRows, exploreBounds.start, exploreBounds.end, { 'Carried Forward': carriedForward, 'Period Revenue': periodRevenue, 'Capital Added': periodCapitalInflow, 'Period Expenses': periodExpenses, 'Owner Draw': periodOwnerWithdrawals, 'Operating Net': periodOperatingNet, 'Cash Movement': periodNet, 'Closing Balance': closingBalance })} style={smallButton}><Printer size={11} /> Print</button>
-            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -1634,8 +1349,6 @@ export default function FinanceTab({
               <span>Revenue Ledger</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 8, color: '#64748b' }}>Current month: {currentMonthStart} → {currentMonthEnd}</span>
-                <button type="button" onClick={() => saveRevenueLedgerCsv(currentMonthRevenueRows, currentMonthStart, currentMonthEnd, { 'Active Revenue Total': currentMonthRevenueRows.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}>Save CSV</button>
-                <button type="button" onClick={() => printRevenueLedger(currentMonthRevenueRows, currentMonthStart, currentMonthEnd, { 'Active Revenue Total': currentMonthRevenueRows.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}><Printer size={11} /> Print</button>
               </div>
             </div>
             <div style={{ overflowX: 'auto', border: '1px solid #1f2937', borderRadius: 6, background: '#0b1120' }}>
@@ -1767,8 +1480,6 @@ export default function FinanceTab({
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 7 }}>
               {(['ALL', 'FEED', 'OPEX', 'NON_OPEX'] as LedgerFilter[]).map(value => <button key={value} type="button" onClick={() => setLedgerFilter(value)} style={{ ...smallButton, background: ledgerFilter === value ? '#0ea5e9' : '#1e293b', color: '#fff' }}>{value === 'NON_OPEX' ? 'Non-OPEX' : value}</button>)}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 150, background: '#1e293b', border: '1px solid #334155', padding: '4px 6px', borderRadius: 4 }}><Search size={11} color="#94a3b8" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search ledger…" style={{ ...inputStyle, border: 0, padding: 0, background: 'transparent' }} /></div>
-              <button type="button" onClick={() => saveLedgerCsv(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}>Save CSV</button>
-              <button type="button" onClick={() => printLedger(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}><Printer size={11} /> Print</button>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <div style={{ ...ledgerLine, minWidth: 2100, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px', alignItems: 'flex-start' }}><span style={{ width: 62, flex: '0 0 62px' }}>Transaction #</span><span style={{ width: 88, flex: '0 0 88px' }}>Date</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Item / Specification</span><span style={{ width: 86, flex: '0 0 86px' }}>Master Category</span><span style={{ width: 78, flex: '0 0 78px' }}>Quantity</span><span style={{ width: 70, flex: '0 0 70px' }}>Unit</span><span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>Unit Rate</span><span style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>Amount</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>Counterparty</span><span style={{ width: 95, flex: '0 0 95px' }}>Payment Method</span><span style={{ ...ledgerEllipsis, flexBasis: 120 }}>Reference</span><span style={{ width: 94, flex: '0 0 94px' }}>Status</span><span style={{ width: 95, flex: '0 0 95px' }}>Due Date</span><span style={{ width: 95, flex: '0 0 95px' }}>Settled Date</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>COP / Attribution</span><span style={{ ...ledgerEllipsis, flexBasis: 250 }}>Animal / Other Details</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Notes</span><span style={{ width: 130, flex: '0 0 130px', textAlign: 'right' }}>Actions</span></div>
