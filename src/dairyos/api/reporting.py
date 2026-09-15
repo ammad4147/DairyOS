@@ -12,9 +12,11 @@ from enum import Enum
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
@@ -50,22 +52,8 @@ class ReportDefinition(BaseModel):
     historical_capability: Literal["CURRENT_ONLY", "HISTORICAL", "SNAPSHOT"]
 
 
-def _report(
-    report_id: str,
-    domain: DomainKey,
-    name: str,
-    authority: str,
-    period_modes: tuple[PeriodMode, ...],
-    filters: tuple[str, ...],
-    permissions: tuple[str, ...],
-    historical: Literal["CURRENT_ONLY", "HISTORICAL", "SNAPSHOT"] = "HISTORICAL",
-    scope: str = "Uses governed DairyOS persistence authority.",
-) -> ReportDefinition:
-    return ReportDefinition(
-        id=report_id, domain=domain, name=name, authority=authority,
-        period_modes=period_modes, filters=filters, scope_note=scope,
-        required_permissions=permissions, historical_capability=historical,
-    )
+def _report(report_id: str, domain: DomainKey, name: str, authority: str, period_modes: tuple[PeriodMode, ...], filters: tuple[str, ...], permissions: tuple[str, ...], historical: Literal["CURRENT_ONLY", "HISTORICAL", "SNAPSHOT"] = "HISTORICAL", scope: str = "Uses governed DairyOS persistence authority.") -> ReportDefinition:
+    return ReportDefinition(id=report_id, domain=domain, name=name, authority=authority, period_modes=period_modes, filters=filters, scope_note=scope, required_permissions=permissions, historical_capability=historical)
 
 
 REPORTS: tuple[ReportDefinition, ...] = (
@@ -145,29 +133,20 @@ def reporting_permission_for_request(report_id: str | None) -> str | None:
 
 
 def _resolved_period(request: ReportingRequest, *, operational_today: date) -> dict[str, str | None]:
-    if request.period_mode == "TODAY":
-        start = end = operational_today
-    elif request.period_mode == "YESTERDAY":
-        start = end = operational_today - timedelta(days=1)
-    elif request.period_mode == "OPERATIONAL_DATE":
-        start = end = request.operational_date
-    elif request.period_mode in {"DATE_RANGE", "CUSTOM_PERIOD"}:
-        start, end = request.start_date, request.end_date
-    elif request.period_mode == "AS_OF_DATE":
-        start, end = None, request.as_of_date
-    elif request.period_mode == "SNAPSHOT_DATE":
-        start, end = None, request.snapshot_date
-    elif request.period_mode == "CURRENT_HERD":
-        start, end = None, operational_today
+    if request.period_mode == "TODAY": start = end = operational_today
+    elif request.period_mode == "YESTERDAY": start = end = operational_today - timedelta(days=1)
+    elif request.period_mode == "OPERATIONAL_DATE": start = end = request.operational_date
+    elif request.period_mode in {"DATE_RANGE", "CUSTOM_PERIOD"}: start, end = request.start_date, request.end_date
+    elif request.period_mode == "AS_OF_DATE": start, end = None, request.as_of_date
+    elif request.period_mode == "SNAPSHOT_DATE": start, end = None, request.snapshot_date
+    elif request.period_mode == "CURRENT_HERD": start, end = None, operational_today
     elif request.period_mode == "MONTH":
         selected = request.as_of_date or request.operational_date or operational_today
         start = selected.replace(day=1)
         next_month = date(selected.year + 1, 1, 1) if selected.month == 12 else date(selected.year, selected.month + 1, 1)
         end = next_month - timedelta(days=1)
-    elif request.period_mode == "CURRENT_YEAR":
-        start, end = date(operational_today.year, 1, 1), date(operational_today.year, 12, 31)
-    else:
-        raise HTTPException(status_code=422, detail="Unsupported Reporting period mode.")
+    elif request.period_mode == "CURRENT_YEAR": start, end = date(operational_today.year, 1, 1), date(operational_today.year, 12, 31)
+    else: raise HTTPException(status_code=422, detail="Unsupported Reporting period mode.")
     as_of = end or operational_today
     return {"start_date": start.isoformat() if start else None, "end_date": end.isoformat() if end else None, "as_of_date": as_of.isoformat()}
 
@@ -179,40 +158,30 @@ ANIMAL_CATEGORY_FILTER_ALIASES = {"MILKING": "Milking", "MILKING COW": "Milking"
 
 
 def _text_or_none(value: Any) -> str | None:
-    if value is None:
-        return None
+    if value is None: return None
     text = str(value).strip()
     return text or None
 
 
 def _plain_date(value: Any) -> date | None:
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
+    if isinstance(value, datetime): return value.date()
+    if isinstance(value, date): return value
     if isinstance(value, str):
-        try:
-            return date.fromisoformat(value[:10])
-        except ValueError:
-            return None
+        try: return date.fromisoformat(value[:10])
+        except ValueError: return None
     return None
 
 
 def _json_value(value: Any) -> Any:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, Decimal):
-        return float(value)
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
+    if value is None or isinstance(value, (str, int, float, bool)): return value
+    if isinstance(value, Decimal): return float(value)
+    if isinstance(value, Enum): return value.value
+    if isinstance(value, (date, datetime)): return value.isoformat()
     return str(value)
 
 
 def _row(record: Any) -> dict[str, Any]:
-    if isinstance(record, dict):
-        return {str(key): _json_value(value) for key, value in record.items() if not str(key).startswith("_")}
+    if isinstance(record, dict): return {str(key): _json_value(value) for key, value in record.items() if not str(key).startswith("_")}
     values = vars(record) if hasattr(record, "__dict__") else {}
     return {str(key): _json_value(value) for key, value in values.items() if not str(key).startswith("_")}
 
@@ -220,8 +189,7 @@ def _row(record: Any) -> dict[str, Any]:
 def _record_date(record: Any) -> date | None:
     for field in ("production_date", "transaction_date", "effective_date", "operational_date", "event_date", "date", "timestamp", "recorded_at", "sample_date", "month_start", "treated_at", "administered_date", "due_date", "next_due_date", "created_at", "updated_at"):
         selected = _plain_date(getattr(record, field, None))
-        if selected is not None:
-            return selected
+        if selected is not None: return selected
     return None
 
 
@@ -232,36 +200,30 @@ def _period_dates(payload: ReportingRequest, operational_today: date) -> tuple[d
 
 def _in_period(record: Any, start: date | None, end: date | None) -> bool:
     selected = _record_date(record)
-    if selected is None:
-        return start is None and end is None
-    if start is not None and selected < start:
-        return False
-    if end is not None and selected > end:
-        return False
+    if selected is None: return start is None and end is None
+    if start is not None and selected < start: return False
+    if end is not None and selected > end: return False
     return True
 
 
 def _matches(record: Any, aliases: dict[str, tuple[str, ...]], filters: dict[str, Any]) -> bool:
     for filter_name, fields in aliases.items():
         wanted = filters.get(filter_name)
-        if wanted is None or str(wanted).strip().upper() == "ALL":
-            continue
+        if wanted is None or str(wanted).strip().upper() == "ALL": continue
         actual = None
         for field in fields:
             candidate = getattr(record, field, None)
             if candidate is not None:
                 actual = candidate
                 break
-        if str(actual or "").strip().upper() != str(wanted).strip().upper():
-            return False
+        if str(actual or "").strip().upper() != str(wanted).strip().upper(): return False
     return True
 
 
 def _repo(container: Any, name: str) -> Any:
     factory = getattr(container, "repository_factory", None)
     getter = getattr(factory, name, None) if factory is not None else None
-    if callable(getter):
-        return getter()
+    if callable(getter): return getter()
     return getattr(container, name, None)
 
 
@@ -277,17 +239,14 @@ def _dataset(rows: list[dict[str, Any]], *, summary: dict[str, Any] | None = Non
     columns: list[str] = []
     for row in rows:
         for key in row:
-            if key not in columns:
-                columns.append(key)
+            if key not in columns: columns.append(key)
     return {"dataset_status": status, "authority_status": "AUTHORITY_AVAILABLE", "columns": columns, "rows": rows, "summary": summary or {}, "warnings": warnings or []}
 
 
 def _classify_current_animal(animal: Any) -> str | None:
     lifecycle = _text_or_none(getattr(animal, "lifecycle_status", None))
-    if lifecycle and lifecycle.upper() in TERMINAL_ANIMAL_LIFECYCLE_STATUSES:
-        return None
-    try:
-        classification = AnimalClassificationService.classify(lifecycle, getattr(animal, "sex", None))
+    if lifecycle and lifecycle.upper() in TERMINAL_ANIMAL_LIFECYCLE_STATUSES: return None
+    try: classification = AnimalClassificationService.classify(lifecycle, getattr(animal, "sex", None))
     except AnimalClassificationError as exc:
         raise HTTPException(status_code=409, detail={"code": "ANIMAL_REPORTING_AUTHORITY_INTEGRITY_ERROR", "animal_id": _text_or_none(getattr(animal, "animal_id", None)) or "<unknown>", "message": str(exc)}) from exc
     category = classification.category.value
@@ -297,25 +256,19 @@ def _classify_current_animal(animal: Any) -> str | None:
 def _current_animal_rows(payload: ReportingRequest, *, container: Any) -> list[dict[str, Any]]:
     repository = getattr(container, "animal_repository", None) or _repo(container, "animal")
     getter = getattr(repository, "get_all", None)
-    if not callable(getter):
-        raise HTTPException(status_code=503, detail="Authoritative Animal repository cannot list animals.")
+    if not callable(getter): raise HTTPException(status_code=503, detail="Authoritative Animal repository cannot list animals.")
     category_filter = payload.filters.get("category")
     canonical_filter = None
     if category_filter is not None:
         canonical_filter = ANIMAL_CATEGORY_FILTER_ALIASES.get(str(category_filter).strip().upper())
-        if canonical_filter is None:
-            raise HTTPException(status_code=422, detail="Unsupported Animal Reporting category filter.")
+        if canonical_filter is None: raise HTTPException(status_code=422, detail="Unsupported Animal Reporting category filter.")
     rows: list[dict[str, Any]] = []
     for animal in list(getter() or []):
         category = _classify_current_animal(animal)
-        if category is None or (canonical_filter is not None and category != canonical_filter):
-            continue
+        if category is None or (canonical_filter is not None and category != canonical_filter): continue
         wanted_status = payload.filters.get("status")
-        if wanted_status is not None and str(getattr(animal, "status", "")).upper() != str(wanted_status).upper():
-            continue
-        data = _row(animal)
-        data["category"] = category
-        rows.append(data)
+        if wanted_status is not None and str(getattr(animal, "status", "")).upper() != str(wanted_status).upper(): continue
+        data = _row(animal); data["category"] = category; rows.append(data)
     rows.sort(key=lambda item: str(item.get("animal_id") or ""))
     return rows
 
@@ -323,8 +276,7 @@ def _current_animal_rows(payload: ReportingRequest, *, container: Any) -> list[d
 def _animal_dataset(payload: ReportingRequest, container: Any) -> dict[str, Any]:
     rows = _current_animal_rows(payload, container=container)
     counts = {category: 0 for category in ANIMAL_CATEGORY_ORDER}
-    for row in rows:
-        counts[row["category"]] += 1
+    for row in rows: counts[row["category"]] += 1
     herd_totals = {ANIMAL_CATEGORY_TOTAL_LABELS[category]: counts[category] for category in ANIMAL_CATEGORY_ORDER}
     output = [{"category": category, "herd_total_label": ANIMAL_CATEGORY_TOTAL_LABELS[category], "count": counts[category]} for category in ANIMAL_CATEGORY_ORDER] if payload.report_id == "animal-population" else rows
     return _dataset(output, summary={"total_current_animals": len(rows), "category_counts": counts, "herd_totals": herd_totals}, status="AUTHORITATIVE_CURRENT_DATASET", warnings=[] if rows else ["No current Animal Register records match the selected filters."])
@@ -337,158 +289,104 @@ def _generic_repo_dataset(payload: ReportingRequest, container: Any, operational
 
 
 def _milk_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
-    start, end = _period_dates(payload, operational_today)
-    records = _repo_records(container, "milk")
-    animal_filter = payload.filters.get("animal_id")
-    session = str(payload.filters.get("session") or "ALL").strip().upper()
-    session_fields = {"MORNING": "morning_yield", "AFTERNOON": "afternoon_yield", "EVENING": "evening_yield"}
-    rows: list[dict[str, Any]] = []
-    active_total = 0.0
+    start, end = _period_dates(payload, operational_today); records = _repo_records(container, "milk"); animal_filter = payload.filters.get("animal_id"); session = str(payload.filters.get("session") or "ALL").strip().upper(); session_fields = {"MORNING": "morning_yield", "AFTERNOON": "afternoon_yield", "EVENING": "evening_yield"}; rows=[]; active_total=0.0
     for record in records:
-        if not _in_period(record, start, end):
-            continue
-        if animal_filter is not None and str(getattr(record, "animal_id", "")) != str(animal_filter):
-            continue
+        if not _in_period(record, start, end): continue
+        if animal_filter is not None and str(getattr(record, "animal_id", "")) != str(animal_filter): continue
         data = _row(record)
         if session in session_fields:
-            field = session_fields[session]
-            data["selected_session"] = session
-            data["selected_session_yield"] = _json_value(getattr(record, field, None))
-        status = str(getattr(record, "status", "RECORDED") or "RECORDED").upper()
+            field=session_fields[session]; data["selected_session"]=session; data["selected_session_yield"]=_json_value(getattr(record, field, None))
+        status=str(getattr(record,"status","RECORDED") or "RECORDED").upper()
         if status != "VOID":
-            value = getattr(record, session_fields[session], None) if session in session_fields else getattr(record, "total_yield", None)
-            if value is not None:
-                active_total += float(value)
+            value=getattr(record,session_fields[session],None) if session in session_fields else getattr(record,"total_yield",None)
+            if value is not None: active_total += float(value)
         rows.append(data)
-    return _dataset(rows, summary={"active_milk_liters": active_total, "records": len(rows), "session": session})
+    return _dataset(rows, summary={"active_milk_liters":active_total,"records":len(rows),"session":session})
 
 
 def _finance_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
-    start, end = _period_dates(payload, operational_today)
-    aliases = {"transaction_type": ("transaction_type", "type"), "status": ("status",), "category": ("category", "master_category", "sub_category"), "counterparty": ("counterparty",), "payment_state": ("payment_state", "settlement_status")}
-    records = [record for record in _repo_records(container, "finance") if _in_period(record, start, end) and _matches(record, aliases, payload.filters)]
-    income = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_income(record))
-    expense = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_expense(record))
-    active = sum(1 for record in records if finance_is_active(record))
-    summary = {"operating_income": income, "operating_expenses": expense, "operating_net": income - expense, "active_records": active, "audit_records": len(records)}
-    rows = [{"metric": key, "amount": value} for key, value in summary.items() if key in {"operating_income", "operating_expenses", "operating_net"}] if payload.report_id == "financial-summary" else [_row(record) for record in records]
-    return _dataset(rows, summary=summary)
+    start,end=_period_dates(payload,operational_today); aliases={"transaction_type":("transaction_type","type"),"status":("status",),"category":("category","master_category","sub_category"),"counterparty":("counterparty",),"payment_state":("payment_state","settlement_status")}; records=[record for record in _repo_records(container,"finance") if _in_period(record,start,end) and _matches(record,aliases,payload.filters)]; income=sum(float(getattr(record,"amount",0) or 0) for record in records if finance_is_income(record)); expense=sum(float(getattr(record,"amount",0) or 0) for record in records if finance_is_expense(record)); active=sum(1 for record in records if finance_is_active(record)); summary={"operating_income":income,"operating_expenses":expense,"operating_net":income-expense,"active_records":active,"audit_records":len(records)}; rows=[{"metric":key,"amount":value} for key,value in summary.items() if key in {"operating_income","operating_expenses","operating_net"}] if payload.report_id=="financial-summary" else [_row(record) for record in records]; return _dataset(rows,summary=summary)
 
 
 def _semen_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
-    start, end = _period_dates(payload, operational_today)
-    finance = [record for record in _repo_records(container, "finance") if _in_period(record, start, end)]
-    breeding = [record for record in _repo_records(container, "breeding") if _in_period(record, start, end)]
-    purchases: dict[str, dict[str, Any]] = {}
+    start,end=_period_dates(payload,operational_today); finance=[r for r in _repo_records(container,"finance") if _in_period(r,start,end)]; breeding=[r for r in _repo_records(container,"breeding") if _in_period(r,start,end)]; purchases={}
     for record in finance:
-        text = " ".join(str(getattr(record, field, "") or "") for field in ("category", "master_category", "sub_category", "notes")).upper()
-        lot = _text_or_none(getattr(record, "semen_lot_id", None) or getattr(record, "lot", None) or getattr(record, "reference", None))
-        if "SEMEN" not in text or lot is None:
-            continue
-        quantity = float(getattr(record, "quantity", 0) or 0)
-        entry = purchases.setdefault(lot, {"lot": lot, "purchased_quantity": 0.0, "used_quantity": 0, "available_quantity": 0.0, "supplier": _text_or_none(getattr(record, "counterparty", None)), "semen_type": _text_or_none(getattr(record, "semen_type", None))})
-        entry["purchased_quantity"] += quantity
+        text=" ".join(str(getattr(record,f,"") or "") for f in ("category","master_category","sub_category","notes")).upper(); lot=_text_or_none(getattr(record,"semen_lot_id",None) or getattr(record,"lot",None) or getattr(record,"reference",None))
+        if "SEMEN" not in text or lot is None: continue
+        quantity=float(getattr(record,"quantity",0) or 0); entry=purchases.setdefault(lot,{"lot":lot,"purchased_quantity":0.0,"used_quantity":0,"available_quantity":0.0,"supplier":_text_or_none(getattr(record,"counterparty",None)),"semen_type":_text_or_none(getattr(record,"semen_type",None))}); entry["purchased_quantity"] += quantity
     for record in breeding:
-        if str(getattr(record, "event_type", "")).upper() not in {"AI", "INSEMINATION"}:
-            continue
-        lot = _text_or_none(getattr(record, "semen_lot_id", None))
-        if lot is None:
-            continue
-        entry = purchases.setdefault(lot, {"lot": lot, "purchased_quantity": 0.0, "used_quantity": 0, "available_quantity": 0.0, "supplier": _text_or_none(getattr(record, "semen_supplier", None)), "semen_type": None})
-        entry["used_quantity"] += 1
-    rows = []
+        if str(getattr(record,"event_type","")).upper() not in {"AI","INSEMINATION"}: continue
+        lot=_text_or_none(getattr(record,"semen_lot_id",None))
+        if lot is None: continue
+        entry=purchases.setdefault(lot,{"lot":lot,"purchased_quantity":0.0,"used_quantity":0,"available_quantity":0.0,"supplier":_text_or_none(getattr(record,"semen_supplier",None)),"semen_type":None}); entry["used_quantity"] += 1
+    rows=[]
     for entry in purchases.values():
-        entry["available_quantity"] = entry["purchased_quantity"] - entry["used_quantity"]
-        if _matches(type("SemenView", (), entry)(), {"semen_type": ("semen_type",), "lot": ("lot",), "supplier": ("supplier",)}, payload.filters):
-            rows.append(entry)
-    rows.sort(key=lambda item: str(item["lot"]))
-    return _dataset(rows, summary={"lots": len(rows), "purchased_quantity": sum(row["purchased_quantity"] for row in rows), "used_quantity": sum(row["used_quantity"] for row in rows), "available_quantity": sum(row["available_quantity"] for row in rows)})
+        entry["available_quantity"]=entry["purchased_quantity"]-entry["used_quantity"]
+        if _matches(type("SemenView",(),entry)(),{"semen_type":("semen_type",),"lot":("lot",),"supplier":("supplier",)},payload.filters): rows.append(entry)
+    rows.sort(key=lambda item:str(item["lot"])); return _dataset(rows,summary={"lots":len(rows),"purchased_quantity":sum(r["purchased_quantity"] for r in rows),"used_quantity":sum(r["used_quantity"] for r in rows),"available_quantity":sum(r["available_quantity"] for r in rows)})
 
 
 def _snapshot_child(report_id: str, domain: DomainKey, mode: PeriodMode, selected: date) -> ReportingRequest:
-    kwargs: dict[str, Any] = {}
-    if mode == "OPERATIONAL_DATE":
-        kwargs["operational_date"] = selected
-    elif mode == "DATE_RANGE":
-        kwargs["start_date"] = selected
-        kwargs["end_date"] = selected
-    elif mode == "AS_OF_DATE":
-        kwargs["as_of_date"] = selected
-    return ReportingRequest(report_id=report_id, domain=domain, period_mode=mode, **kwargs)
+    kwargs: dict[str,Any]={}
+    if mode=="OPERATIONAL_DATE": kwargs["operational_date"]=selected
+    elif mode=="DATE_RANGE": kwargs["start_date"]=selected; kwargs["end_date"]=selected
+    elif mode=="AS_OF_DATE": kwargs["as_of_date"]=selected
+    return ReportingRequest(report_id=report_id,domain=domain,period_mode=mode,**kwargs)
 
 
 def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational_today: date) -> dict[str, Any] | None:
-    if payload.report_id in {"animal-register", "animal-population"}:
-        return _animal_dataset(payload, container)
-    if payload.report_id in {"daily-milk", "milk-animal"}:
-        return _milk_dataset(payload, container, operational_today)
-    if payload.report_id == "milk-disposition":
-        return _generic_repo_dataset(payload, container, operational_today, "milk_dispositions", {"disposition_type": ("disposition_type", "type"), "status": ("status",)})
-    if payload.report_id in {"milk-quality-log", "quality-summary"}:
-        return _generic_repo_dataset(payload, container, operational_today, "milk_quality", {"sample_type": ("sample_type", "type"), "status": ("status",)})
-    if payload.report_id in {"current-tmr", "historical-tmr"}:
-        return _generic_repo_dataset(payload, container, operational_today, "feed_rations", {"category": ("category", "animal_group", "animal_category"), "ingredient": ("ingredient", "ingredient_name")})
-    if payload.report_id in {"finance-ledger", "financial-summary"}:
-        return _finance_dataset(payload, container, operational_today)
-    if payload.report_id in {"breeding-cycle", "breeding-performance"}:
-        return _generic_repo_dataset(payload, container, operational_today, "breeding", {"animal_id": ("animal_id",), "technician": ("technician",), "event_type": ("event_type",), "semen_type": ("semen_type",), "semen_lot": ("semen_lot_id",)})
-    if payload.report_id == "semen-stock":
-        return _semen_dataset(payload, container, operational_today)
-    if payload.report_id == "health-cases":
-        return _generic_repo_dataset(payload, container, operational_today, "health_cases", {"animal_id": ("animal_id",), "case_status": ("status",), "severity": ("severity",)})
-    if payload.report_id == "withdrawal":
-        return _generic_repo_dataset(payload, container, operational_today, "treatment", {"animal_id": ("animal_id",), "status": ("status",)})
-    if payload.report_id == "vaccination-schedule":
-        return _generic_repo_dataset(payload, container, operational_today, "vaccinations", {"animal_id": ("animal_id",), "vaccine": ("vaccine", "vaccine_name"), "schedule_status": ("status", "schedule_status")})
-    if payload.report_id == "coml-period":
-        return _generic_repo_dataset(payload, container, operational_today, "coml", {"lock_status": ("status",), "cost_component": ("cost_component",)})
-    if payload.report_id == "animal-lifecycle":
-        return _generic_repo_dataset(payload, container, operational_today, "operational_events", {"event_type": ("event_type", "type"), "category": ("category",)})
-    if payload.report_id == "animal-passport":
-        animal_id = payload.filters.get("animal_id")
-        animals = _current_animal_rows(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={}), container=container)
-        rows = [row for row in animals if animal_id is None or str(row.get("animal_id")) == str(animal_id)]
-        return _dataset(rows, summary={"animals": len(rows)})
-    if payload.report_id == "whole-farm-snapshot":
-        selected = payload.snapshot_date
-        if selected is None:
-            raise HTTPException(status_code=422, detail="snapshot_date is required for Complete Farm Snapshot.")
-        section_specs: tuple[tuple[str, DomainKey, PeriodMode], ...] = (
-            ("animal-population", "ANIMALS", "CURRENT_HERD"),
-            ("daily-milk", "MILK", "OPERATIONAL_DATE"),
-            ("milk-quality-log", "MILK_QUALITY", "OPERATIONAL_DATE"),
-            ("current-tmr", "FEED", "OPERATIONAL_DATE"),
-            ("finance-ledger", "FINANCE", "DATE_RANGE"),
-            ("breeding-cycle", "BREEDING", "AS_OF_DATE"),
-            ("semen-stock", "SEMEN", "AS_OF_DATE"),
-            ("health-cases", "HEALTH", "AS_OF_DATE"),
-            ("vaccination-schedule", "VACCINATION", "OPERATIONAL_DATE"),
-            ("coml-period", "COML", "MONTH"),
-        )
-        sections: list[dict[str, Any]] = []
-        for report_id, domain, mode in section_specs:
-            child = _snapshot_child(report_id, domain, mode, selected)
-            result = _canonical_dataset(child, container=container, operational_today=selected)
-            if result is None:
-                raise HTTPException(status_code=503, detail={"code": "REPORTING_SNAPSHOT_SECTION_UNAVAILABLE", "report_id": report_id})
-            sections.append({"report_id": report_id, "record_count": len(result["rows"]), "summary": result["summary"]})
-        return _dataset(sections, summary={"snapshot_date": selected.isoformat(), "sections": len(sections)})
+    if payload.report_id in {"animal-register","animal-population"}: return _animal_dataset(payload,container)
+    if payload.report_id in {"daily-milk","milk-animal"}: return _milk_dataset(payload,container,operational_today)
+    if payload.report_id=="milk-disposition": return _generic_repo_dataset(payload,container,operational_today,"milk_dispositions",{"disposition_type":("disposition_type","type"),"status":("status",)})
+    if payload.report_id in {"milk-quality-log","quality-summary"}: return _generic_repo_dataset(payload,container,operational_today,"milk_quality",{"sample_type":("sample_type","type"),"status":("status",)})
+    if payload.report_id in {"current-tmr","historical-tmr"}: return _generic_repo_dataset(payload,container,operational_today,"feed_rations",{"category":("category","animal_group","animal_category"),"ingredient":("ingredient","ingredient_name")})
+    if payload.report_id in {"finance-ledger","financial-summary"}: return _finance_dataset(payload,container,operational_today)
+    if payload.report_id in {"breeding-cycle","breeding-performance"}: return _generic_repo_dataset(payload,container,operational_today,"breeding",{"animal_id":("animal_id",),"technician":("technician",),"event_type":("event_type",),"semen_type":("semen_type",),"semen_lot":("semen_lot_id",)})
+    if payload.report_id=="semen-stock": return _semen_dataset(payload,container,operational_today)
+    if payload.report_id=="health-cases": return _generic_repo_dataset(payload,container,operational_today,"health_cases",{"animal_id":("animal_id",),"case_status":("status",),"severity":("severity",)})
+    if payload.report_id=="withdrawal": return _generic_repo_dataset(payload,container,operational_today,"treatment",{"animal_id":("animal_id",),"status":("status",)})
+    if payload.report_id=="vaccination-schedule": return _generic_repo_dataset(payload,container,operational_today,"vaccinations",{"animal_id":("animal_id",),"vaccine":("vaccine","vaccine_name"),"schedule_status":("status","schedule_status")})
+    if payload.report_id=="coml-period": return _generic_repo_dataset(payload,container,operational_today,"coml",{"lock_status":("status",),"cost_component":("cost_component",)})
+    if payload.report_id=="animal-lifecycle": return _generic_repo_dataset(payload,container,operational_today,"operational_events",{"event_type":("event_type","type"),"category":("category",)})
+    if payload.report_id=="animal-passport":
+        animal_id=payload.filters.get("animal_id"); animals=_current_animal_rows(ReportingRequest(report_id="animal-register",domain="ANIMALS",period_mode="CURRENT_HERD",filters={}),container=container); rows=[row for row in animals if animal_id is None or str(row.get("animal_id"))==str(animal_id)]; return _dataset(rows,summary={"animals":len(rows)})
+    if payload.report_id=="whole-farm-snapshot":
+        selected=payload.snapshot_date
+        if selected is None: raise HTTPException(status_code=422,detail="snapshot_date is required for Complete Farm Snapshot.")
+        section_specs=(("animal-population","ANIMALS","CURRENT_HERD"),("daily-milk","MILK","OPERATIONAL_DATE"),("milk-quality-log","MILK_QUALITY","OPERATIONAL_DATE"),("current-tmr","FEED","OPERATIONAL_DATE"),("finance-ledger","FINANCE","DATE_RANGE"),("breeding-cycle","BREEDING","AS_OF_DATE"),("semen-stock","SEMEN","AS_OF_DATE"),("health-cases","HEALTH","AS_OF_DATE"),("vaccination-schedule","VACCINATION","OPERATIONAL_DATE"),("coml-period","COML","MONTH"))
+        sections=[]
+        for report_id,domain,mode in section_specs:
+            child=_snapshot_child(report_id,domain,mode,selected); result=_canonical_dataset(child,container=container,operational_today=selected)
+            if result is None: raise HTTPException(status_code=503,detail={"code":"REPORTING_SNAPSHOT_SECTION_UNAVAILABLE","report_id":report_id})
+            sections.append({"report_id":report_id,"record_count":len(result["rows"]),"summary":result["summary"]})
+        return _dataset(sections,summary={"snapshot_date":selected.isoformat(),"sections":len(sections)})
     return None
+
+
+def _reporting_payload(payload: ReportingRequest, container: Any) -> tuple[ReportDefinition, dict[str, Any], date, datetime]:
+    definition=REPORT_BY_ID[payload.report_id]; authority=OperationalDateAuthority(); operational_today=authority.current_date(); generated_at=authority.current_datetime(); dataset=_canonical_dataset(payload,container=container,operational_today=operational_today)
+    if dataset is None: dataset={"dataset_status":"DATASET_NOT_IMPLEMENTED","authority_status":"DATASET_NOT_IMPLEMENTED","columns":[],"rows":[],"summary":{},"warnings":["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."]}
+    return definition,dataset,operational_today,generated_at
 
 
 @router.get("/catalog")
 def reporting_catalog():
-    return {"data_status": "REPORTING_CATALOG", "read_only": True, "reports": [report.model_dump() for report in REPORTS]}
+    return {"data_status":"REPORTING_CATALOG","read_only":True,"reports":[report.model_dump() for report in REPORTS]}
 
 
 @router.post("/preview")
 def reporting_preview(payload: ReportingRequest, container=Depends(get_container)):
-    definition = REPORT_BY_ID[payload.report_id]
-    authority = OperationalDateAuthority()
-    operational_today = authority.current_date()
-    generated_at = authority.current_datetime()
-    period = _resolved_period(payload, operational_today=operational_today)
-    dataset = _canonical_dataset(payload, container=container, operational_today=operational_today)
-    if dataset is None:
-        dataset = {"dataset_status": "DATASET_NOT_IMPLEMENTED", "authority_status": "DATASET_NOT_IMPLEMENTED", "columns": [], "rows": [], "summary": {}, "warnings": ["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."]}
-    return {"data_status": "REPORTING_DATASET", "dataset_status": dataset["dataset_status"], "read_only": True, "report_id": definition.id, "domain": definition.domain, "title": definition.name, "authority": definition.authority, "authority_status": dataset["authority_status"], "historical_capability": definition.historical_capability, "required_permissions": list(definition.required_permissions), "period_mode": payload.period_mode, "period": period, "filters": payload.filters, "generated_at": generated_at.isoformat(), "record_count": len(dataset["rows"]), "columns": dataset["columns"], "rows": dataset["rows"], "summary": dataset["summary"], "warnings": dataset["warnings"]}
+    definition,dataset,operational_today,generated_at=_reporting_payload(payload,container); period=_resolved_period(payload,operational_today=operational_today)
+    return {"data_status":"REPORTING_DATASET","dataset_status":dataset["dataset_status"],"read_only":True,"report_id":definition.id,"domain":definition.domain,"title":definition.name,"authority":definition.authority,"authority_status":dataset["authority_status"],"historical_capability":definition.historical_capability,"required_permissions":list(definition.required_permissions),"period_mode":payload.period_mode,"period":period,"filters":payload.filters,"generated_at":generated_at.isoformat(),"record_count":len(dataset["rows"]),"columns":dataset["columns"],"rows":dataset["rows"],"summary":dataset["summary"],"warnings":dataset["warnings"]}
+
+
+@router.post("/export")
+def reporting_export(payload: ReportingRequest, format: Literal["PDF", "XLSX", "CSV"], container=Depends(get_container)):
+    definition,dataset,_,_=_reporting_payload(payload,container)
+    columns=list(dataset["columns"]); rows=list(dataset["rows"]); summary=dict(dataset["summary"])
+    if format=="CSV": content=csv_bytes(columns,rows); media_type="text/csv; charset=utf-8"; extension="csv"
+    elif format=="XLSX": content=xlsx_bytes(definition.name,columns,rows,summary); media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; extension="xlsx"
+    else: content=pdf_bytes(definition.name,columns,rows,summary); media_type="application/pdf"; extension="pdf"
+    safe_name="-".join(part for part in definition.name.replace("/"," ").split() if part)
+    headers={"Content-Disposition":f'attachment; filename="DairyOS-{safe_name}.{extension}"',"X-DairyOS-Report-Id":definition.id,"X-DairyOS-Record-Count":str(len(rows)),"X-DairyOS-Dataset-Status":str(dataset["dataset_status"])}
+    return Response(content=content,media_type=media_type,headers=headers)
