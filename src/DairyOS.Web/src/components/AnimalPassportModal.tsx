@@ -27,6 +27,7 @@ export default function AnimalPassportModal({animalId,onClose,onSave,onOpenPassp
  const [createdPurchaseAnimalId,setCreatedPurchaseAnimalId]=useState<string|null>(null);
  const [form,setForm]=useState({category:purchaseCategory||'Milking',breed:'',birthDate:'',acquisitionDate:purchaseAcquisitionDate||'',sire:'',dam:'',rfid:'',frequency:'TWICE_DAILY',legacyId:'',earTag:'',location:'',productionGroup:''});
  const [photoData,setPhotoData]=useState<string|null>(null);
+ useEffect(()=>{if(isNew)setForm(current=>({...current,frequency:'THRICE_DAILY'}))},[isNew]);
  const [printing,setPrinting]=useState(false);
  const [exitEffectiveDate,setExitEffectiveDate,resetExitEffectiveDateToToday]=useFarmDateField();
  const [exitForm,setExitForm]=useState({veterinarian:'',cause:'',notes:''});
