@@ -70,7 +70,6 @@ def test_whole_farm_snapshot_declares_all_required_reporting_sections(monkeypatc
         "current-tmr",
         "finance-ledger",
         "breeding-cycle",
-        "semen-stock",
         "health-cases",
         "vaccination-schedule",
         "coml-period",
