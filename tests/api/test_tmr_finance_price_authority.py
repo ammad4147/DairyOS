@@ -37,6 +37,10 @@ class TmrFinancePriceAuthorityContractTest(unittest.TestCase):
     def test_finance_price_requires_positive_rate(self):
         self.assertIn("if rate <= 0:", self.api)
 
+    def test_finance_price_is_derived_from_purchase_total_and_quantity(self):
+        self.assertIn("amount = float(getattr(row, \"amount\", 0.0) or 0.0)", self.api)
+        self.assertIn("rate = amount / quantity if quantity > 0 and amount > 0 else 0.0", self.api)
+
     def test_price_source_is_persisted_with_tmr_version(self):
         self.assertIn('price_source: str = Field(default="FINANCE")', self.api)
         self.assertIn('"price_source": selected_source', self.api)
