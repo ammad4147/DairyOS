@@ -61,7 +61,7 @@ export default function ReportingTab() {
   const [format, setFormat] = useState<Format>('PDF'); const [previewed, setPreviewed] = useState(false); const [preview, setPreview] = useState<Preview | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const snapshot = domain === 'WHOLE_FARM';
 
-  useEffect(() => { setPreview(null); setError(''); }, [reportId]);
+  useEffect(() => { setPreview(null); setPreviewed(false); setError(''); }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId]);
   const selectDomain = (next: DomainKey) => { setDomain(next); setReportId(reports.find(item => item.domain === next)?.id ?? ''); setPreviewed(false); };
   const filename = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g, '-')}-${asOfDate}.${format.toLowerCase()}`;
   const requestBody = () => ({
@@ -87,7 +87,7 @@ export default function ReportingTab() {
   const printReport = async () => {
     setLoading(true); setError('');
     try {
-      const data = preview || await loadDataset(); setPreview(data); setPreviewed(true);
+      const data = await loadDataset(); setPreview(data); setPreviewed(true);
       const frame = document.createElement('iframe'); frame.setAttribute('title', 'DairyOS report print'); frame.style.position = 'fixed'; frame.style.right = '0'; frame.style.bottom = '0'; frame.style.width = '0'; frame.style.height = '0'; frame.style.border = '0';
       document.body.appendChild(frame); const printWindow = frame.contentWindow; const printDocument = frame.contentDocument;
       if (!printWindow || !printDocument) throw new Error('Unable to prepare the report print document.');
@@ -96,20 +96,17 @@ export default function ReportingTab() {
     } catch (printError) { setError(printError instanceof Error ? printError.message : 'Report could not be printed.'); } finally { setLoading(false); }
   };
 
-  const csvValue = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const saveReport = async () => {
     setLoading(true); setError('');
     try {
-      const data = preview || await loadDataset(); setPreview(data); setPreviewed(true); const columns = data.columns || (data.rows?.[0] ? Object.keys(data.rows[0]) : []); const rows = data.rows || [];
-      let blob: Blob;
-      if (format === 'CSV') {
-        const csv = [columns.map(csvValue).join(','), ...rows.map(row => columns.map(column => csvValue(row[column])).join(','))].join('\r\n'); blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' });
-      } else if (format === 'XLSX') {
-        const table = `<table><thead><tr>${columns.map(column => `<th>${htmlEscape(column)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${columns.map(column => `<td>${htmlEscape(row[column])}</td>`).join('')}</tr>`).join('')}</tbody></table>`; blob = new Blob([`<html><head><meta charset="utf-8"></head><body><h2>${htmlEscape(report.name)}</h2>${table}</body></html>`], { type: 'application/vnd.ms-excel;charset=utf-8' });
-      } else {
-        blob = new Blob([printableHtml(data)], { type: 'text/html;charset=utf-8' });
-      }
-      const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+      const data = await loadDataset(); setPreview(data); setPreviewed(true);
+      const response = await fetch(apiUrl(`/farm/reporting/export?format=${encodeURIComponent(format)}`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody()) });
+      if (!response.ok) { const detail = await response.text(); throw new Error(detail || 'Report export could not be generated.'); }
+      const exportedCount = response.headers.get('X-DairyOS-Record-Count');
+      const exportedReport = response.headers.get('X-DairyOS-Report-Id');
+      const exportedStatus = response.headers.get('X-DairyOS-Dataset-Status');
+      if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status) throw new Error('Report export reconciliation failed. Refresh and retry.');
+      const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : 'Report could not be saved.'); } finally { setLoading(false); }
   };
 
