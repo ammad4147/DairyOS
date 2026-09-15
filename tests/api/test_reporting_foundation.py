@@ -20,7 +20,7 @@ EXPECTED_REPORT_IDS = {
     "animal-register", "animal-population", "animal-lifecycle", "animal-passport",
     "daily-milk", "milk-animal", "milk-disposition", "milk-quality-log", "quality-summary",
     "current-tmr", "historical-tmr", "finance-ledger", "financial-summary",
-    "breeding-cycle", "breeding-performance", "semen-stock", "health-cases", "withdrawal",
+    "breeding-cycle", "breeding-performance", "health-cases", "withdrawal",
     "vaccination-schedule", "coml-period", "whole-farm-snapshot",
 }
 
@@ -112,10 +112,11 @@ def test_single_domain_permission_mapping():
     assert reporting_permission_for_request("health-cases") == "health.view"
 
 
-def test_semen_multi_authority_is_not_weakened_to_one_domain():
-    definition = next(report for report in REPORTS if report.id == "semen-stock")
-    assert definition.required_permissions == ("breeding.view", "finance.view")
+def test_semen_stock_is_not_a_reporting_contract():
+    assert all(report.id != "semen-stock" for report in REPORTS)
     assert reporting_permission_for_request("semen-stock") == "settings.view"
+    with pytest.raises(ValidationError):
+        ReportingRequest(report_id="semen-stock", domain="BREEDING", period_mode="AS_OF_DATE", as_of_date=date(2026, 9, 15))
 
 
 def test_whole_farm_requires_all_governed_domain_permissions():
