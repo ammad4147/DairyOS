@@ -5,6 +5,7 @@ from dairyos.app import container
 
 
 SILAGE = "Corn / Maize Silage"
+VANDA = "Commercial Compound Vanda / Cattle Feed"
 
 
 def _stage_payload(summary, *, source: str, manual_rate: float):
@@ -113,3 +114,101 @@ def test_price_source_change_is_shared_and_survives_reload(client):
         assert row["selected_price_source"] == "FINANCE"
         assert row["price_source"] == "FINANCE"
         assert row["price_per_kg"] == 20
+
+
+def test_new_finance_purchase_promotes_only_that_ingredient_and_survives_reload(
+    client,
+):
+    silage_purchase = client.post(
+        "/farm/finance-ledger",
+        json={
+            "transaction_type": "EXPENSE",
+            "master_category": "FEED",
+            "sub_category": SILAGE,
+            "quantity": 1000,
+            "unit": "kg",
+            "unit_rate": 20,
+            "transaction_date": "2026-09-15",
+            "payment_method": "BANK",
+            "counterparty": "Finance preference supplier",
+            "reference": "TMR-AUTO-FINANCE-20",
+        },
+    )
+    assert silage_purchase.status_code == 200, silage_purchase.text
+
+    vanda_purchase = client.post(
+        "/farm/finance-ledger",
+        json={
+            "transaction_type": "EXPENSE",
+            "master_category": "FEED",
+            "sub_category": VANDA,
+            "quantity": 1000,
+            "unit": "kg",
+            "unit_rate": 100,
+            "transaction_date": "2026-09-15",
+            "payment_method": "BANK",
+            "counterparty": "Finance preference supplier",
+            "reference": "TMR-AUTO-FINANCE-VANDA",
+        },
+    )
+    assert vanda_purchase.status_code == 200, vanda_purchase.text
+
+    initial = client.get("/farm/tmr")
+    assert initial.status_code == 200, initial.text
+    manual_payload = _stage_payload(initial.json(), source="MANUAL", manual_rate=35)
+    for row in manual_payload["ingredients"]:
+        if row["catalog_name"] == VANDA:
+            row["fallback_price_per_kg"] = 150
+            row["price_source"] = "MANUAL"
+    manual_payload["shared_price_preferences"].append(
+        {
+            "catalog_name": VANDA,
+            "fallback_price_per_kg": 150,
+            "price_source": "MANUAL",
+        }
+    )
+    manual_save = client.post("/farm/tmr/stages", json=manual_payload)
+    assert manual_save.status_code == 200, manual_save.text
+
+    manual_summary = client.get("/farm/tmr").json()
+    for stage in manual_summary["stages"]:
+        assert _ingredient(manual_summary, stage, SILAGE)["price_source"] == "MANUAL"
+        assert _ingredient(manual_summary, stage, VANDA)["price_source"] == "MANUAL"
+
+    new_silage_purchase = client.post(
+        "/farm/finance-ledger",
+        json={
+            "transaction_type": "EXPENSE",
+            "master_category": "FEED",
+            "sub_category": SILAGE,
+            "quantity": 500,
+            "unit": "kg",
+            "unit_rate": 25,
+            "transaction_date": "2026-09-15",
+            "payment_method": "BANK",
+            "counterparty": "Finance preference supplier",
+            "reference": "TMR-AUTO-FINANCE-25",
+        },
+    )
+    assert new_silage_purchase.status_code == 200, new_silage_purchase.text
+
+    promoted = client.get("/farm/tmr")
+    assert promoted.status_code == 200, promoted.text
+    promoted_summary = promoted.json()
+    assert promoted_summary["shared_price_preferences"][SILAGE] == {
+        "selected_price_source": "FINANCE",
+        "manual_price_per_kg": 35,
+    }
+    assert promoted_summary["shared_price_preferences"][VANDA] == {
+        "selected_price_source": "MANUAL",
+        "manual_price_per_kg": 150,
+    }
+    for stage in promoted_summary["stages"]:
+        silage = _ingredient(promoted_summary, stage, SILAGE)
+        vanda = _ingredient(promoted_summary, stage, VANDA)
+        assert silage["selected_price_source"] == "FINANCE"
+        assert silage["price_source"] == "FINANCE"
+        assert silage["price_per_kg"] == 25
+        assert vanda["selected_price_source"] == "MANUAL"
+        assert vanda["price_source"] == "MANUAL"
+        assert vanda["price_per_kg"] == 150

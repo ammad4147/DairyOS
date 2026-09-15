@@ -20,6 +20,7 @@ from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.api.tmr import (
     is_tmr_catalog_row,
+    promote_tmr_price_source_for_finance_purchase,
     tmr_default_catalog_names,
     tmr_feed_cost_for_period,
 )
@@ -1727,6 +1728,10 @@ def create_finance_ledger_entry(
         _ensure_feed_catalog_authority(
             factory=factory,
             transaction=transaction,
+        )
+        promote_tmr_price_source_for_finance_purchase(
+            factory,
+            transaction,
         )
 
         _sync_milk_sale(

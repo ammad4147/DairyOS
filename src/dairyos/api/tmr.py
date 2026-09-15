@@ -330,6 +330,104 @@ def _shared_price_preferences(factory) -> dict[str, dict]:
     return result
 
 
+def promote_tmr_price_source_for_finance_purchase(
+    factory,
+    transaction,
+    *,
+    operator: str = "FINANCE",
+) -> bool:
+    """Make the purchased TMR ingredient Finance-preferred across all stages.
+
+    Finance purchase rows are the price authority for governed ingredients,
+    while the shared preference record is the authority for whether the
+    operator has selected Finance or Manual.  A new active Finance purchase
+    is an explicit Finance authority event for that ingredient, so it must
+    supersede a prior Manual selection for the same ingredient only.  The
+    manual fallback is retained for a later deliberate switch back to Manual.
+
+    The preference is appended in the same database transaction as the
+    Finance purchase.  No InventoryTransaction is created here: Finance
+    remains the purchase-quantity authority and Feed Storage derives its
+    cumulative purchase balance from active Finance rows.
+    """
+    if not is_active(transaction):
+        return False
+
+    transaction_type = str(
+        getattr(transaction, "transaction_type", "") or ""
+    ).strip().upper()
+    if transaction_type not in {"EXPENSE", "PAYMENT", "PURCHASE"}:
+        return False
+
+    catalog_name = _finance_feed_item_name(transaction)
+    if not catalog_name or catalog_name not in set(
+        governed_tmr_catalog_names(factory)
+    ):
+        return False
+
+    # The caller flushes the Finance row before reaching this helper, so the
+    # newest active purchase is visible through the canonical authority query.
+    if _finance_price_authority(factory).get(catalog_name) is None:
+        return False
+
+    existing = _shared_price_preferences(factory).get(catalog_name)
+    if existing is not None and existing.get("price_source") == "FINANCE":
+        return False
+
+    if existing is not None:
+        manual_rate = float(existing.get("fallback_price_per_kg", 0.0) or 0.0)
+    else:
+        definition = next(
+            (
+                row
+                for row in _ingredient_definitions(factory)
+                if row["catalog_name"] == catalog_name
+            ),
+            None,
+        )
+        manual_rate = float(
+            (definition or {}).get("fallback_price_per_kg", 0.0) or 0.0
+        )
+
+    effective_at = OperationalDateAuthority(
+        repository_factory=factory,
+    ).current_datetime().isoformat()
+    record = FeedRation(
+        name="TMR Shared Ingredient Price Preferences",
+        animal_group=SHARED_PRICE_PREFERENCE_GROUP,
+        ingredients_json=json.dumps(
+            {
+                "kind": SHARED_PRICE_PREFERENCE_GROUP,
+                "preferences": [
+                    {
+                        "catalog_name": catalog_name,
+                        "fallback_price_per_kg": max(0.0, manual_rate),
+                        "price_source": "FINANCE",
+                    }
+                ],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        target_dmi_kg=None,
+        dry_matter_pct=None,
+        crude_protein_pct=None,
+        ndf_pct=None,
+        energy_mcal_kg=None,
+        cost_per_kg=None,
+        effective_date=effective_at,
+        operator=str(operator or "FINANCE").strip() or "FINANCE",
+    )
+
+    session = getattr(factory, "session", None)
+    if session is None:
+        factory.feed_rations().add(record)
+    else:
+        session.add(record)
+        session.flush()
+    return True
+
+
 def _public_shared_price_preferences(
     preferences: dict[str, dict],
 ) -> dict[str, dict]:
