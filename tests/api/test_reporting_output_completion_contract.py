@@ -91,5 +91,15 @@ def test_ui_rejects_export_when_preview_and_export_metadata_diverge():
     source = REPORTING_UI.read_text(encoding="utf-8")
     assert "exportedReport !== report.id" in source
     assert "exportedCount !== String(data.record_count" in source
-    assert "exportedStatus !== data.dataset_status" in source
+    assert "exportedStatus !== data.dataset_status"
     assert "Report export reconciliation failed" in source
+
+
+def test_semen_stock_is_not_exposed_by_reporting():
+    api_source = REPORTING_API.read_text(encoding="utf-8")
+    ui_source = REPORTING_UI.read_text(encoding="utf-8")
+    assert '"SEMEN"' not in api_source
+    assert '"semen-stock"' not in api_source
+    assert "Semen Stock Balance" not in api_source
+    assert "|'SEMEN'" not in ui_source
+    assert "SEMEN:'Semen'" not in ui_source
