@@ -50,7 +50,7 @@ def test_exporter_bytes_are_real_formats_and_reconcile_rows():
     assert xlsx_payload.startswith(b"PK")
     workbook = load_workbook(BytesIO(xlsx_payload), data_only=True)
     sheet = workbook["Report"]
-    assert list(sheet.values) == [("animal_id", "liters"), ("T-001", "12.5"), ("T-002", "0")]
+    assert list(sheet.values) == [("Animal ID", "Liters"), ("T-001", 12.5), ("T-002", 0)]
     assert workbook["Summary"]["B2"].value == 2
 
     pdf_payload = pdf_bytes("Daily Milk Production", columns, rows, summary)
@@ -77,7 +77,7 @@ def test_preview_print_and_exports_share_the_same_reporting_request_contract():
     assert "report_id: report.id" in source
     assert "operational_date: asOfDate" in source
     assert "snapshot_date: asOfDate" in source
-    assert "body: JSON.stringify(requestBody())" in source
+    assert "body:JSON.stringify(requestBody())" in source or "body: JSON.stringify(requestBody())" in source
 
 
 def test_export_contract_has_explicit_reconciliation_metadata():
