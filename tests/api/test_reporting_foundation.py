@@ -17,27 +17,11 @@ from dairyos.api.reporting import (
 
 
 EXPECTED_REPORT_IDS = {
-    "animal-register",
-    "animal-population",
-    "animal-lifecycle",
-    "animal-passport",
-    "daily-milk",
-    "milk-animal",
-    "milk-disposition",
-    "milk-quality-log",
-    "quality-summary",
-    "current-tmr",
-    "historical-tmr",
-    "finance-ledger",
-    "financial-summary",
-    "breeding-cycle",
-    "breeding-performance",
-    "semen-stock",
-    "health-cases",
-    "withdrawal",
-    "vaccination-schedule",
-    "coml-period",
-    "whole-farm-snapshot",
+    "animal-register", "animal-population", "animal-lifecycle", "animal-passport",
+    "daily-milk", "milk-animal", "milk-disposition", "milk-quality-log", "quality-summary",
+    "current-tmr", "historical-tmr", "finance-ledger", "financial-summary",
+    "breeding-cycle", "breeding-performance", "semen-stock", "health-cases", "withdrawal",
+    "vaccination-schedule", "coml-period", "whole-farm-snapshot",
 }
 
 
@@ -136,10 +120,7 @@ def test_semen_multi_authority_is_not_weakened_to_one_domain():
 
 def test_whole_farm_requires_all_governed_domain_permissions():
     definition = next(report for report in REPORTS if report.id == "whole-farm-snapshot")
-    assert set(definition.required_permissions) == {
-        "animals.view", "milk.view", "feed.view", "finance.view", "breeding.view",
-        "health.view", "coml.view", "analytics.view",
-    }
+    assert set(definition.required_permissions) == {"animals.view", "milk.view", "feed.view", "finance.view", "breeding.view", "health.view", "coml.view", "analytics.view"}
 
 
 def test_authorization_routes_reporting_catalog_to_settings_view():
@@ -198,30 +179,31 @@ class _FakeAnimalRepository:
         return list(self.animals)
 
 
+class _FakeEmptyMilkRepository:
+    def get_all(self):
+        return []
+
+
+class _FoundationRepositoryFactory:
+    def milk(self):
+        return _FakeEmptyMilkRepository()
+
+
 def _animal(animal_id, lifecycle_status, sex, *, status="ACTIVE", active=True, is_currently_milking=False, milking_frequency=None):
-    return SimpleNamespace(
-        id=None, animal_id=animal_id, legacy_animal_id=None, ear_tag=f"EAR-{animal_id}",
-        rfid=None, breed="TEST", sex=sex, date_of_birth=date(2024, 1, 1),
-        date_of_acquisition=None, dam_id=None, sire_id=None, lifecycle_status=lifecycle_status,
-        status=status, is_currently_milking=is_currently_milking,
-        milking_frequency=milking_frequency, active=active,
-    )
+    return SimpleNamespace(id=None, animal_id=animal_id, legacy_animal_id=None, ear_tag=f"EAR-{animal_id}", rfid=None, breed="TEST", sex=sex, date_of_birth=date(2024, 1, 1), date_of_acquisition=None, dam_id=None, sire_id=None, lifecycle_status=lifecycle_status, status=status, is_currently_milking=is_currently_milking, milking_frequency=milking_frequency, active=active)
 
 
 def _all_category_animals():
     return [
         _animal("MILK-001", "LACTATING", "FEMALE", is_currently_milking=True, milking_frequency="THRICE"),
-        _animal("DRY-001", "DRY", "FEMALE"),
-        _animal("HEIFER-001", "HEIFER", "FEMALE"),
-        _animal("FC-001", "CALF", "FEMALE"),
-        _animal("MC-001", "CALF", "MALE"),
-        _animal("BULL-001", "BULL", "MALE"),
+        _animal("DRY-001", "DRY", "FEMALE"), _animal("HEIFER-001", "HEIFER", "FEMALE"),
+        _animal("FC-001", "CALF", "FEMALE"), _animal("MC-001", "CALF", "MALE"), _animal("BULL-001", "BULL", "MALE"),
     ]
 
 
 def _container(animals):
     repository = _FakeAnimalRepository(animals)
-    return SimpleNamespace(animal_repository=repository), repository
+    return SimpleNamespace(animal_repository=repository, repository_factory=_FoundationRepositoryFactory()), repository
 
 
 class _FixedOperationalDateAuthority:
@@ -235,52 +217,34 @@ class _FixedOperationalDateAuthority:
 def test_animal_register_uses_all_six_canonical_categories(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, repository = _container(_all_category_animals())
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"), container=container)
     assert repository.get_all_calls == 1
     assert result["dataset_status"] == "AUTHORITATIVE_CURRENT_DATASET"
     assert result["authority_status"] == "AUTHORITY_AVAILABLE"
     assert result["read_only"] is True
     assert result["record_count"] == 6
     assert {row["category"] for row in result["rows"]} == set(ANIMAL_CATEGORY_ORDER)
-    assert result["summary"]["category_counts"] == {
-        "Milking": 1, "Dry": 1, "Heifer": 1, "Female Calf": 1, "Male Calf": 1, "Bull": 1,
-    }
-    assert result["summary"]["herd_totals"] == {
-        "Milking Cows": 1, "Dry Cows": 1, "Heifers": 1,
-        "Female Calves": 1, "Male Calves": 1, "Bulls": 1,
-    }
+    assert result["summary"]["category_counts"] == {"Milking": 1, "Dry": 1, "Heifer": 1, "Female Calf": 1, "Male Calf": 1, "Bull": 1}
+    assert result["summary"]["herd_totals"] == {"Milking Cows": 1, "Dry Cows": 1, "Heifers": 1, "Female Calves": 1, "Male Calves": 1, "Bulls": 1}
 
 
 def test_animal_population_uses_plural_herd_labels(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container(_all_category_animals())
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-population", domain="ANIMALS", period_mode="CURRENT_HERD"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-population", domain="ANIMALS", period_mode="CURRENT_HERD"), container=container)
     assert result["rows"] == [
-        {"category": "Milking", "herd_total_label": "Milking Cows", "count": 1},
-        {"category": "Dry", "herd_total_label": "Dry Cows", "count": 1},
-        {"category": "Heifer", "herd_total_label": "Heifers", "count": 1},
-        {"category": "Female Calf", "herd_total_label": "Female Calves", "count": 1},
-        {"category": "Male Calf", "herd_total_label": "Male Calves", "count": 1},
-        {"category": "Bull", "herd_total_label": "Bulls", "count": 1},
+        {"category": "Milking", "herd_total_label": "Milking Cows", "count": 1}, {"category": "Dry", "herd_total_label": "Dry Cows", "count": 1},
+        {"category": "Heifer", "herd_total_label": "Heifers", "count": 1}, {"category": "Female Calf", "herd_total_label": "Female Calves", "count": 1},
+        {"category": "Male Calf", "herd_total_label": "Male Calves", "count": 1}, {"category": "Bull", "herd_total_label": "Bulls", "count": 1},
     ]
 
 
 @pytest.mark.parametrize("terminal_status", ["SOLD", "CULLED", "DECEASED"])
 def test_terminal_animals_are_excluded_from_current_herd(monkeypatch, terminal_status):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
-    animals = _all_category_animals()
-    animals.append(_animal(f"EXIT-{terminal_status}", terminal_status, "FEMALE", status="INACTIVE", active=False))
+    animals = _all_category_animals(); animals.append(_animal(f"EXIT-{terminal_status}", terminal_status, "FEMALE", status="INACTIVE", active=False))
     container, _ = _container(animals)
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"), container=container)
     assert result["record_count"] == 6
     assert not any(row["animal_id"] == f"EXIT-{terminal_status}" for row in result["rows"])
 
@@ -288,10 +252,7 @@ def test_terminal_animals_are_excluded_from_current_herd(monkeypatch, terminal_s
 def test_animal_register_category_filter_is_canonical(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container(_all_category_animals())
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"category": "Dry Cows"}),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"category": "Dry Cows"}), container=container)
     assert result["record_count"] == 1
     assert result["rows"][0]["animal_id"] == "DRY-001"
     assert result["rows"][0]["category"] == "Dry"
@@ -299,13 +260,9 @@ def test_animal_register_category_filter_is_canonical(monkeypatch):
 
 def test_animal_register_status_filter(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
-    animals = _all_category_animals()
-    animals[1].status = "MONITORED"
+    animals = _all_category_animals(); animals[1].status = "MONITORED"
     container, _ = _container(animals)
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"status": "MONITORED"}),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"status": "MONITORED"}), container=container)
     assert result["record_count"] == 1
     assert result["rows"][0]["animal_id"] == "DRY-001"
 
@@ -313,10 +270,7 @@ def test_animal_register_status_filter(monkeypatch):
 def test_animal_population_empty_state_keeps_six_zero_categories(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container([])
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-population", domain="ANIMALS", period_mode="CURRENT_HERD"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-population", domain="ANIMALS", period_mode="CURRENT_HERD"), container=container)
     assert result["record_count"] == 6
     assert result["summary"]["total_current_animals"] == 0
     assert all(row["count"] == 0 for row in result["rows"])
@@ -326,10 +280,7 @@ def test_animal_population_empty_state_keeps_six_zero_categories(monkeypatch):
 def test_animal_register_empty_state_does_not_broaden_query(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, repository = _container(_all_category_animals())
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"status": "DOES-NOT-EXIST"}),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"status": "DOES-NOT-EXIST"}), container=container)
     assert repository.get_all_calls == 1
     assert result["record_count"] == 0
     assert result["rows"] == []
@@ -340,20 +291,14 @@ def test_invalid_animal_category_filter_is_rejected(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container(_all_category_animals())
     with pytest.raises(Exception) as exc_info:
-        reporting_preview(
-            ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"category": "Exited"}),
-            container=container,
-        )
+        reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={"category": "Exited"}), container=container)
     assert getattr(exc_info.value, "status_code", None) == 422
 
 
 def test_preview_generated_at_uses_timezone_aware_farm_authority(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container([])
-    result = reporting_preview(
-        ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD"), container=container)
     generated = datetime.fromisoformat(result["generated_at"])
     assert generated.tzinfo is not None
     assert generated.utcoffset() == timedelta(hours=5)
@@ -363,10 +308,7 @@ def test_preview_generated_at_uses_timezone_aware_farm_authority(monkeypatch):
 def test_daily_milk_is_now_linked_to_authoritative_reporting_dataset(monkeypatch):
     monkeypatch.setattr("dairyos.api.reporting.OperationalDateAuthority", _FixedOperationalDateAuthority)
     container, _ = _container([])
-    result = reporting_preview(
-        ReportingRequest(report_id="daily-milk", domain="MILK", period_mode="TODAY"),
-        container=container,
-    )
+    result = reporting_preview(ReportingRequest(report_id="daily-milk", domain="MILK", period_mode="TODAY"), container=container)
     assert result["dataset_status"] == "AUTHORITATIVE_DATASET"
     assert result["authority_status"] == "AUTHORITY_AVAILABLE"
     assert result["record_count"] == 0
