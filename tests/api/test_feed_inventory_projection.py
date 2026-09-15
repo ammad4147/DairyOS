@@ -84,5 +84,7 @@ def test_authoritative_projection_exposes_backend_owned_stock_metrics():
     row = body["items"][0]
 
     assert row["balance"] == 750
+    assert row["reorder_level"] == 200
+    assert row["reorder_level_percent"] == 20
     assert row["manual_override_net"] == -250
     assert row["used_from_operations"] == 0

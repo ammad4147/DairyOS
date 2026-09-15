@@ -20,6 +20,25 @@ type ExploreView = 'COMBINED' | 'REVENUE' | 'EXPENSES';
 type PeriodMode = 'MONTH' | 'CUSTOM';
 type RevenueStatus = 'RECEIVED' | 'RECEIVABLE';
 
+type FinanceFieldContract = {
+  visible: readonly string[];
+  required: readonly string[];
+  clearsOnExit: readonly string[];
+};
+
+const REVENUE_FIELD_CONTRACTS: Record<string, FinanceFieldContract> = {
+  'Milk Sales': { visible: ['quantity', 'rate', 'amount'], required: ['quantity', 'rate'], clearsOnExit: ['animalId', 'amount'] },
+  'Milking Animal Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Dry Animal Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Heifer Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Female Calf Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Male Calf Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Bull Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
+  'Organic Manure / Dung': { visible: ['amount'], required: ['amount'], clearsOnExit: ['animalId', 'quantity', 'rate'] },
+  'Owner Investment / Add Money': { visible: ['amount'], required: ['amount'], clearsOnExit: ['animalId', 'quantity', 'rate'] },
+  'Owner Draw / Withdraw Money': { visible: ['amount'], required: ['amount'], clearsOnExit: ['animalId', 'quantity', 'rate'] },
+};
+
 type TaxonomyResponse = {
   master_categories: MasterCategory[];
   taxonomies: Record<MasterCategory, Record<string, string[]>>;
@@ -553,6 +572,18 @@ export default function FinanceTab({
     }
   }, [isAnimalPurchase, animalPurchaseCategories, animalPurchaseCategory]);
 
+  useEffect(() => {
+    if (isSemenPurchase) return;
+    setSemenType('');
+    setSemenSireCode('');
+    setSemenBullName('');
+    setSemenBreed('');
+    setSemenBatch('');
+    setSemenExpiry('');
+    setSemenStorage('');
+    setSemenCountry('');
+  }, [isSemenPurchase]);
+
   const ledgerParticulars = (t: Transaction) => t.sub_category || t.category || '—';
   const ledgerCounterparty = (t: Transaction) => t.counterparty || t.vendor_name || '—';
   const ledgerReference = (t: Transaction) => t.reference || '—';
@@ -941,6 +972,18 @@ export default function FinanceTab({
     ? Number(revQty) * Number(revRate)
     : 0;
   const isAnimalSale = Boolean(animalSaleCategories[revCategory]);
+  const revenueContract = REVENUE_FIELD_CONTRACTS[revCategory] ?? REVENUE_FIELD_CONTRACTS['Organic Manure / Dung'];
+
+  // A hidden field is not merely invisible: leaving its state populated would
+  // allow an old intent to leak into a later canonical payload.
+  useEffect(() => {
+    const clears = new Set(revenueContract.clearsOnExit);
+    if (clears.has('animalId')) setRevAnimalId('');
+    if (clears.has('quantity')) setRevQty('');
+    if (clears.has('rate')) setRevRate('');
+    if (clears.has('amount')) setRevAmount('');
+  }, [revCategory]);
+
   const saleEligibleAnimals = useMemo(() => {
     if (!isAnimalSale) return [];
     const wantedCategory: Record<string, string> = {

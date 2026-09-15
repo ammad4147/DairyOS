@@ -33,6 +33,8 @@ class FeedInventoryItemEntry(BaseModel):
     category: str = "FEED"
     unit: str = Field(default="kg", min_length=1)
     location: str | None = None
+    # 0..100 is a percentage threshold; values above 100 retain legacy
+    # absolute-unit semantics for existing catalog records.
     reorder_level: float = Field(default=20, ge=0, allow_inf_nan=False)
     active: bool = True
     notes: str | None = None
@@ -64,6 +66,14 @@ def _catalog_row(row: FeedInventoryItem) -> dict:
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
+
+
+def _threshold_quantity(reorder_level: float, purchased: float, balance: float) -> tuple[float, float | None]:
+    level = max(0.0, float(reorder_level or 0.0))
+    if 0 < level <= 100:
+        baseline = max(0.0, float(purchased or 0.0))
+        return baseline * (level / 100.0), level
+    return level, None
 
 
 def _movement_row(row: InventoryTransaction) -> dict:
@@ -412,7 +422,10 @@ def feed_inventory_dashboard(container=Depends(get_container)):
         raw_balance = _feed_raw_balance(factory, row.item, row.unit)
         balance = max(0.0, raw_balance)
         shortage = max(0.0, -raw_balance)
-        threshold = float(row.reorder_level or 0.0)
+        movement_rows = [movement for movement in factory.inventory().get_all() if movement.item == row.item]
+        purchased = _finance_purchased_quantity(factory, row.item, row.unit)
+        inbound_baseline = max(purchased, sum(max(0.0, float(m.signed_quantity or 0.0)) for m in movement_rows))
+        threshold, threshold_percent = _threshold_quantity(row.reorder_level, inbound_baseline, balance)
         status = (
             "SHORTAGE"
             if shortage > 0
@@ -422,7 +435,6 @@ def feed_inventory_dashboard(container=Depends(get_container)):
                 else ("LOW" if balance <= threshold else "OK")
             )
         )
-        movement_rows = [movement for movement in factory.inventory().get_all() if movement.item == row.item]
         movement_breakdown = _storage_movement_breakdown(movement_rows)
         record = {
             **_catalog_row(row),
@@ -430,6 +442,7 @@ def feed_inventory_dashboard(container=Depends(get_container)):
             "projected_balance": round(raw_balance, 3),
             "shortage": round(shortage, 3),
             "purchased_from_finance": _finance_purchased_quantity(factory, row.item, row.unit),
+            "reorder_level_percent": threshold_percent,
             "auto_consumed_from_tmr": movement_breakdown["auto_consumed_from_tmr"],
             "manual_override_net": movement_breakdown["manual_override_net"],
             "legacy_manual_usage": movement_breakdown["legacy_manual_usage"],

@@ -8,6 +8,7 @@ from dairyos.api.feed_inventory import (
     _finance_purchased_quantity,
     _latest_finance_purchase,
     _latest_finance_unit_rate,
+    _threshold_quantity,
     _storage_movement_breakdown,
 )
 
@@ -100,8 +101,12 @@ def authoritative_feed_inventory(
             )
         )
 
-        threshold = float(
-            catalog.reorder_level or 0
+        inbound_baseline = max(
+            purchased,
+            sum(max(0.0, float(m.signed_quantity or 0.0)) for m in movements),
+        )
+        threshold, threshold_percent = _threshold_quantity(
+            catalog.reorder_level, inbound_baseline, balance
         )
 
         status = (
@@ -127,6 +132,7 @@ def authoritative_feed_inventory(
                 "unit": catalog.unit,
                 "location": catalog.location,
                 "reorder_level": threshold,
+                "reorder_level_percent": threshold_percent,
                 "active": bool(catalog.active),
 
                 "purchased_from_finance": round(
