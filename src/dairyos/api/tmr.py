@@ -23,6 +23,7 @@ TMR_CATALOG_MARKER = "TMR_CATALOG_JSON="
 STAGE_GROUP_PREFIX = "TMR_STAGE:"
 ENDORSEMENT_GROUP = "TMR_WEEKLY_ENDORSEMENT"
 DAILY_COST_SNAPSHOT_GROUP = "TMR_DAILY_COST_SNAPSHOT"
+SHARED_PRICE_PREFERENCE_GROUP = "TMR_SHARED_PRICE_PREFERENCES"
 AUTO_CONNECTED_HERD_CATEGORIES = ("Milking",)
 
 DEFAULT_INGREDIENTS = [
@@ -137,10 +138,19 @@ class TMRStageIngredient(BaseModel):
     price_source: str = Field(default="FINANCE")
 
 
+class TMRPricePreference(BaseModel):
+    catalog_name: str = Field(min_length=1)
+    fallback_price_per_kg: float = Field(default=0, ge=0)
+    price_source: str = Field(default="FINANCE")
+
+
 class TMRStageUpdate(BaseModel):
     stage: str = Field(min_length=1)
     ingredients: list[TMRStageIngredient]
     operator: str = Field(default="UI Operator", min_length=1)
+    # One stage editor supplies the complete shared ingredient preference map
+    # so the same choice is authoritative for every TMR stage table.
+    shared_price_preferences: list[TMRPricePreference] | None = None
 
 
 class TMRIngredientCreate(BaseModel):
@@ -260,9 +270,119 @@ def _normalize_selected_price_source(value: object) -> str:
     return "MANUAL" if selected == "MANUAL" else "FINANCE"
 
 
-def _stage_ingredients(factory, stage: str) -> list[dict]:
+def _shared_price_preferences(factory) -> dict[str, dict]:
+    """Return the newest shared price choice for each governed ingredient.
+
+    Price choices are stored as append-only FeedRation records so the
+    existing persistence boundary and audit history remain intact. Newest
+    records are considered first; older records fill any missing ingredient
+    preferences for compatibility with partial legacy updates.
+    """
+    result: dict[str, dict] = {}
+    for row in factory.feed_rations().get_active_for_group(
+        SHARED_PRICE_PREFERENCE_GROUP
+    ):
+        try:
+            payload = json.loads(row.ingredients_json)
+        except (TypeError, json.JSONDecodeError):
+            continue
+
+        raw_preferences = (
+            payload.get("preferences")
+            if isinstance(payload, dict)
+            else payload
+        )
+        if isinstance(raw_preferences, dict):
+            raw_preferences = [
+                {
+                    "catalog_name": name,
+                    **value,
+                }
+                for name, value in raw_preferences.items()
+                if isinstance(value, dict)
+            ]
+        if not isinstance(raw_preferences, list):
+            continue
+
+        for preference in raw_preferences:
+            if not isinstance(preference, dict):
+                continue
+            name = str(preference.get("catalog_name") or "").strip()
+            if not name or name in result:
+                continue
+            fallback = preference.get(
+                "fallback_price_per_kg",
+                preference.get("manual_price_per_kg", 0.0),
+            )
+            try:
+                fallback_rate = float(fallback or 0.0)
+            except (TypeError, ValueError):
+                fallback_rate = 0.0
+            result[name] = {
+                "fallback_price_per_kg": max(0.0, fallback_rate),
+                "price_source": _normalize_selected_price_source(
+                    preference.get(
+                        "price_source",
+                        preference.get("selected_price_source"),
+                    )
+                ),
+            }
+    return result
+
+
+def _public_shared_price_preferences(
+    preferences: dict[str, dict],
+) -> dict[str, dict]:
+    return {
+        name: {
+            "selected_price_source": value["price_source"],
+            "manual_price_per_kg": round(
+                float(value["fallback_price_per_kg"]),
+                4,
+            ),
+        }
+        for name, value in preferences.items()
+    }
+
+
+def _normalize_shared_price_preferences(
+    rows: list[TMRPricePreference],
+    allowed: set[str],
+) -> list[dict]:
+    normalized: dict[str, dict] = {}
+    for row in rows:
+        name = row.catalog_name.strip()
+        selected_source = str(
+            row.price_source or "FINANCE"
+        ).strip().upper()
+        if name not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown TMR ingredient: {name}",
+            )
+        if selected_source not in {"FINANCE", "MANUAL"}:
+            raise HTTPException(
+                status_code=422,
+                detail="price_source must be FINANCE or MANUAL.",
+            )
+        normalized[name] = {
+            "catalog_name": name,
+            "fallback_price_per_kg": float(
+                row.fallback_price_per_kg
+            ),
+            "price_source": selected_source,
+        }
+    return list(normalized.values())
+
+
+def _stage_ingredients(
+    factory,
+    stage: str,
+    shared_price_preferences: dict[str, dict] | None = None,
+) -> list[dict]:
     definitions = _ingredient_definitions(factory)
     saved = _saved_stage_ingredients(factory, stage)
+    shared = shared_price_preferences or {}
     saved_by_name = {
         str(row.get("catalog_name") or "").strip(): row
         for row in (saved or [])
@@ -276,6 +396,23 @@ def _stage_ingredients(factory, stage: str) -> list[dict]:
         name = definition["catalog_name"]
         base = defaults_by_name[name]
         prior = saved_by_name.get(name, {})
+        shared_preference = shared.get(name, {})
+        fallback_price = (
+            shared_preference["fallback_price_per_kg"]
+            if "fallback_price_per_kg" in shared_preference
+            else prior.get(
+                "fallback_price_per_kg",
+                definition["fallback_price_per_kg"],
+            )
+        )
+        selected_source = (
+            shared_preference["price_source"]
+            if "price_source" in shared_preference
+            else prior.get(
+                "price_source",
+                base.get("price_source", "FINANCE"),
+            )
+        )
         dose_unit = str(
             prior.get("dose_unit")
             or definition["dose_unit"]
@@ -287,18 +424,10 @@ def _stage_ingredients(factory, stage: str) -> list[dict]:
                 **definition,
                 "quantity": float(prior.get("quantity", base["quantity"]) or 0.0),
                 "dose_unit": dose_unit,
-                "fallback_price_per_kg": float(
-                    prior.get(
-                        "fallback_price_per_kg",
-                        definition["fallback_price_per_kg"],
-                    )
-                    or 0.0
-                ),
+                "fallback_price_per_kg": float(fallback_price or 0.0),
                 # Rows saved before explicit source selection are treated as
                 # Finance-preferred, preserving the historical default.
-                "price_source": _normalize_selected_price_source(
-                    prior.get("price_source", base.get("price_source", "FINANCE"))
-                ),
+                "price_source": _normalize_selected_price_source(selected_source),
             }
         )
     return result
@@ -362,12 +491,17 @@ def _priced_stage(
     factory,
     stage: str,
     price_authority: dict[str, dict],
+    shared_price_preferences: dict[str, dict] | None = None,
 ) -> dict:
     rows = []
     total = 0.0
     total_kg = 0.0
 
-    for ingredient in _stage_ingredients(factory, stage):
+    for ingredient in _stage_ingredients(
+        factory,
+        stage,
+        shared_price_preferences,
+    ):
         name = ingredient["catalog_name"]
         finance = price_authority.get(name)
         manual_rate = float(
@@ -664,8 +798,14 @@ def build_live_tmr_summary(
         repository_factory=factory,
     ).current_date()
     price_authority = _finance_price_authority(factory)
+    shared_price_preferences = _shared_price_preferences(factory)
     stages = {
-        key: _priced_stage(factory, key, price_authority)
+        key: _priced_stage(
+            factory,
+            key,
+            price_authority,
+            shared_price_preferences,
+        )
         for key in STAGE_LABELS
     }
     counts = _active_herd_counts(factory)
@@ -699,6 +839,9 @@ def build_live_tmr_summary(
             else None
         ),
         "feed_cost_basis": "TMR_RATION_X_ACTIVE_HERD",
+        "shared_price_preferences": _public_shared_price_preferences(
+            shared_price_preferences
+        ),
     }
     if include_weekly_review:
         payload["weekly_review"] = _weekly_review(factory, operational_date)
@@ -1143,6 +1286,18 @@ def save_tmr_stage(
         )
 
     factory = container.repository_factory
+    shared_rows = payload.shared_price_preferences or [
+        TMRPricePreference(
+            catalog_name=row["catalog_name"],
+            fallback_price_per_kg=row["fallback_price_per_kg"],
+            price_source=row["price_source"],
+        )
+        for row in normalized
+    ]
+    shared_normalized = _normalize_shared_price_preferences(
+        shared_rows,
+        allowed,
+    )
     effective_at = OperationalDateAuthority(
         repository_factory=factory,
     ).current_datetime().isoformat()
@@ -1163,10 +1318,49 @@ def save_tmr_stage(
         effective_date=effective_at,
         operator=payload.operator.strip(),
     )
-    factory.feed_rations().add(record)
+    shared_record = None
+    if shared_normalized:
+        shared_record = FeedRation(
+            name="TMR Shared Ingredient Price Preferences",
+            animal_group=SHARED_PRICE_PREFERENCE_GROUP,
+            ingredients_json=json.dumps(
+                {
+                    "kind": SHARED_PRICE_PREFERENCE_GROUP,
+                    "preferences": shared_normalized,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            target_dmi_kg=None,
+            dry_matter_pct=None,
+            crude_protein_pct=None,
+            ndf_pct=None,
+            energy_mcal_kg=None,
+            cost_per_kg=None,
+            effective_date=effective_at,
+            operator=payload.operator.strip(),
+        )
+
+    # Persist the stage formulation and its shared price authority together.
+    # A source change must not leave the stage saved while the cross-stage
+    # preference is missing (or vice versa).
+    session = factory.session
+    session.add(record)
+    if shared_record is not None:
+        session.add(shared_record)
+    if session.info.get("operational_write_managed", False):
+        session.flush()
+    else:
+        session.commit()
+        session.refresh(record)
+        if shared_record is not None:
+            session.refresh(shared_record)
     return {
         "saved": True,
         "record_id": record.id,
+        "shared_price_preference_record_id": (
+            shared_record.id if shared_record is not None else None
+        ),
         "stage": stage,
         "summary": build_live_tmr_summary(factory),
     }

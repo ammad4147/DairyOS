@@ -20,6 +20,10 @@ from dairyos.finance.classification.transaction_classifier import is_active
 router = APIRouter(prefix="/farm/feed", tags=["feed-nutrition"])
 
 INACTIVE_OPERATIONAL_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
+# TMR price preferences use the FeedRation persistence boundary for an
+# append-only audit trail, but they are internal authority metadata rather
+# than an operator-facing nutrition formulation.
+INTERNAL_RATION_GROUPS = frozenset({"TMR_SHARED_PRICE_PREFERENCES"})
 
 
 class RationIngredient(BaseModel):
@@ -116,7 +120,11 @@ def create_ration(payload: RationEntry, container=Depends(get_container)):
 def list_rations(animal_group: str | None = None):
     factory = RepositoryFactory.create()
     try:
-        records = factory.feed_rations().get_all()
+        records = [
+            row
+            for row in factory.feed_rations().get_all()
+            if row.animal_group not in INTERNAL_RATION_GROUPS
+        ]
         if animal_group:
             records = [r for r in records if r.animal_group == animal_group]
         return [
@@ -331,7 +339,11 @@ def feed_overview():
             if str(getattr(r, "status", "RECORDED") or "RECORDED").upper()
             not in INACTIVE_OPERATIONAL_STATUSES
         ]
-        rations = factory.feed_rations().get_all()
+        rations = [
+            row
+            for row in factory.feed_rations().get_all()
+            if row.animal_group not in INTERNAL_RATION_GROUPS
+        ]
         priced = [r for r in active_records if getattr(r, "total_feed_cost", None) is not None]
         daily_status = daily_feeding_status(factory)
         return {

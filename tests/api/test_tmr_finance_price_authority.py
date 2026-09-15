@@ -42,6 +42,15 @@ class TmrFinancePriceAuthorityContractTest(unittest.TestCase):
         self.assertIn('"price_source": selected_source', self.api)
         self.assertIn('price_source must be FINANCE or MANUAL', self.api)
 
+    def test_price_preference_is_a_shared_persisted_authority(self):
+        self.assertIn(
+            'SHARED_PRICE_PREFERENCE_GROUP = "TMR_SHARED_PRICE_PREFERENCES"',
+            self.api,
+        )
+        self.assertIn("shared_price_preferences", self.api)
+        self.assertIn("_shared_price_preferences(factory)", self.api)
+        self.assertIn("TMR Shared Ingredient Price Preferences", self.api)
+
     def test_manual_override_can_supersede_available_finance_price(self):
         self.assertIn('if selected_source == "MANUAL":', self.api)
         self.assertIn('effective_source = "MANUAL"', self.api)
@@ -75,6 +84,8 @@ class TmrFinancePriceAuthorityContractTest(unittest.TestCase):
     def test_selected_price_source_is_saved_by_ui(self):
         self.assertIn("price_source:x.selected_price_source", self.ui)
         self.assertIn("fallback_price_per_kg:Number(x.manual_price_per_kg", self.ui)
+        self.assertIn("shared_price_preferences:Object.entries(preferencesToSave)", self.ui)
+        self.assertIn("applySharedPricePreference", self.ui)
 
     def test_finance_provenance_remains_visible_to_operator(self):
         self.assertIn("finance_transaction_id", self.ui)

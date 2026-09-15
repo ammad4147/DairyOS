@@ -634,7 +634,7 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const header = ['Date', 'Particulars', 'Quantity', 'Buyer / Customer', 'Reference', 'Status', 'Amount'];
+    const header = ['Transaction #', 'Date', 'Particulars', 'Quantity', 'Unit Rate', 'Buyer / Customer', 'Reference', 'Status', 'Amount'];
     const detailRows = rows.map(t => {
       const animalId = revenueAnimalId(t);
       const particulars = animalId
@@ -642,9 +642,11 @@ export default function FinanceTab({
         : revenueParticulars(t);
 
       return [
+        String(t.id),
         String(t.date || '').slice(0, 10),
         particulars,
         ledgerQuantity(t),
+        ledgerRate(t) || '',
         ledgerCounterparty(t),
         ledgerReference(t),
         ledgerStatus(t),
@@ -655,6 +657,8 @@ export default function FinanceTab({
       [],
       ...Object.entries(summary).map(([labelText, value]) => [
         labelText,
+        '',
+        '',
         '',
         '',
         '',
@@ -691,8 +695,9 @@ export default function FinanceTab({
     end: string,
     summary: Record<string, number> = {},
   ) => {
-    const header = ['Date', 'Type', 'Particulars', 'Master Category', 'Counterparty', 'Reference', 'Status', 'Amount'];
+    const header = ['Transaction #', 'Date', 'Type', 'Particulars', 'Master Category', 'Quantity', 'Unit Rate', 'Counterparty', 'Reference', 'Status', 'Amount'];
     const detailRows = rows.map(t => [
+      String(t.id),
       String(t.date || '').slice(0, 10),
       isCapitalInflow(t)
         ? 'Capital Inflow'
@@ -703,6 +708,8 @@ export default function FinanceTab({
             : 'Expense',
       ledgerParticulars(t),
       t.master_category || '',
+      ledgerQuantity(t),
+      ledgerRate(t) || '',
       ledgerCounterparty(t),
       ledgerReference(t),
       ledgerStatus(t),
@@ -712,6 +719,9 @@ export default function FinanceTab({
       [],
       ...Object.entries(summary).map(([labelText, value]) => [
         labelText,
+        '',
+        '',
+        '',
         '',
         '',
         '',
@@ -796,9 +806,11 @@ export default function FinanceTab({
 
       return `
         <tr class="${isVoid ? 'void' : ''}">
+          <td>${esc(String(t.id))}</td>
           <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
           <td>${esc(particulars)}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
           <td class="quantity">${esc(ledgerQuantity(t))}</td>
+          <td class="rate">${esc(ledgerRate(t) || '—')}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
           <td>${esc(ledgerReference(t))}</td>
           <td>${esc(ledgerStatus(t))}</td>
@@ -811,8 +823,8 @@ export default function FinanceTab({
       : '';
 
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DairyOS — Revenue Ledger</title><style>
-      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
-    </style></head><body><h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Date</th><th>Particulars</th><th style="text-align:right">Quantity</th><th>Buyer / Customer</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="7">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
+      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.rate,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
+    </style></head><body><h1>DairyOS — Revenue Ledger</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Particulars</th><th style="text-align:right">Quantity</th><th style="text-align:right">Unit Rate</th><th>Buyer / Customer</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="9">No revenue entries in this period.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the DairyOS Revenue Ledger. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
     printWindow.document.close();
     window.setTimeout(() => {
       printWindow.focus();
@@ -856,6 +868,7 @@ export default function FinanceTab({
       const reason = isVoid ? voidReasonFromNotes(t.notes) : '';
       return `
         <tr class="${isVoid ? 'void' : ''}">
+          <td>${esc(String(t.id))}</td>
           <td>${esc(String(t.date || '').slice(0, 10) || '—')}</td>
           <td>${esc(
             isCapitalInflow(t)
@@ -868,6 +881,8 @@ export default function FinanceTab({
           )}</td>
           <td>${esc(ledgerParticulars(t))}${reason ? `<div class="void-reason">VOID: ${esc(reason)}</div>` : ''}</td>
           <td>${esc(t.master_category || '—')}</td>
+          <td class="quantity">${esc(ledgerQuantity(t))}</td>
+          <td class="rate">${esc(ledgerRate(t) || '—')}</td>
           <td>${esc(ledgerCounterparty(t))}</td>
           <td>${esc(ledgerReference(t))}</td>
           <td>${esc(ledgerStatus(t))}</td>
@@ -879,8 +894,8 @@ export default function FinanceTab({
           <div class="summary-row"><span>${esc(labelText)}</span><strong>${esc(money(Number(value || 0)))}</strong></div>`).join('')}</div>`
       : '';
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:6px 7px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
-    </style></head><body><h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Date</th><th>Type</th><th>Particulars</th><th>Master Category</th><th>Counterparty</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="8">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
+      @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11px}h1{margin:0 0 4px;font-size:18px}.period{margin-bottom:14px;color:#475569}table{width:100%;border-collapse:collapse}th,td{padding:6px 7px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.quantity,.rate,.amount{text-align:right;white-space:nowrap}tr.void td{color:#b91c1c;background:#fef2f2;text-decoration:line-through}tr.void .void-reason{text-decoration:none}.void-reason{margin-top:3px;color:#b91c1c;font-size:9px;font-weight:bold}.summary{width:380px;margin-top:16px;margin-left:auto;border-top:2px solid #334155}.summary-row{display:flex;justify-content:space-between;gap:20px;padding:5px 2px;border-bottom:1px solid #e2e8f0}.footer{margin-top:14px;color:#64748b;font-size:9px}
+    </style></head><body><h1>DairyOS — ${esc(title)}</h1><div class="period">Reporting period: ${esc(start)} to ${esc(end)}</div><table><thead><tr><th>Transaction #</th><th>Date</th><th>Type</th><th>Particulars</th><th>Master Category</th><th style="text-align:right">Quantity</th><th style="text-align:right">Unit Rate</th><th>Counterparty</th><th>Reference</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>${tableRows || '<tr><td colspan="11">No ledger entries in this selected view.</td></tr>'}</tbody></table>${summaryHtml}<div class="footer">Generated from the selected DairyOS ledger only. VOID transactions remain visible for audit history and are excluded from active totals.</div></body></html>`);
     printWindow.document.close();
     window.setTimeout(() => {
       printWindow.focus();
@@ -1214,17 +1229,20 @@ export default function FinanceTab({
         key={r.id}
         style={{
           ...row,
+          minWidth: 980,
           color: isVoid ? '#f87171' : '#fff',
           background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent',
           borderLeft: isVoid ? '2px solid #ef4444' : undefined,
         }}
       >
         <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
+          <span style={{ width: 58, flex: '0 0 58px', fontWeight: 800 }}>#{r.id}</span>
           <span style={{ width: 76, flex: '0 0 76px' }}>{r.date?.slice(0, 10) || '—'}</span>
-          <span title={particulars} style={{ ...ledgerEllipsis, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span title={particulars} style={{ ...ledgerEllipsis, flexBasis: 210 }}>
             <span>{particulars}</span>
-            {(ledgerQuantity(r) !== '—' || ledgerRate(r)) && <span style={{ fontSize: 9, color: '#94a3b8', textDecoration: isVoid ? 'line-through' : 'none' }}>{ledgerQuantity(r)}{ledgerRate(r) ? ` · ${ledgerRate(r)}` : ''}</span>}
           </span>
+          <span style={{ width: 92, flex: '0 0 92px' }}>{ledgerQuantity(r)}</span>
+          <span style={{ width: 118, flex: '0 0 118px' }}>{ledgerRate(r) || '—'}</span>
           <span title={r.vendor_name || r.counterparty || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.vendor_name || r.counterparty || '—'}</span>
           <span title={r.reference || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.reference || '—'}</span>
           <span style={{ width: 70, flex: '0 0 70px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
@@ -1462,9 +1480,9 @@ export default function FinanceTab({
               </div>
             </div>
             <div style={{ overflowX: 'auto', border: '1px solid #1f2937', borderRadius: 6, background: '#0b1120' }}>
-              <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 10 }}>
-                <colgroup><col style={{ width: 88 }} /><col style={{ width: 190 }} /><col style={{ width: 82 }} /><col style={{ width: 140 }} /><col style={{ width: 120 }} /><col style={{ width: 94 }} /><col style={{ width: 124 }} /><col style={{ width: 120 }} /></colgroup>
-                <thead><tr><th style={revenueHeaderCell}>Date</th><th style={revenueHeaderCell}>Particulars</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Quantity</th><th style={revenueHeaderCell}>Buyer / Customer</th><th style={revenueHeaderCell}>Reference</th><th style={revenueHeaderCell}>Status</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Amount</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Actions</th></tr></thead>
+                <table style={{ width: '100%', minWidth: 1080, borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 10 }}>
+                <colgroup><col style={{ width: 62 }} /><col style={{ width: 88 }} /><col style={{ width: 190 }} /><col style={{ width: 82 }} /><col style={{ width: 112 }} /><col style={{ width: 140 }} /><col style={{ width: 120 }} /><col style={{ width: 94 }} /><col style={{ width: 124 }} /><col style={{ width: 120 }} /></colgroup>
+                <thead><tr><th style={revenueHeaderCell}>Transaction #</th><th style={revenueHeaderCell}>Date</th><th style={revenueHeaderCell}>Particulars</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Quantity</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Unit Rate</th><th style={revenueHeaderCell}>Buyer / Customer</th><th style={revenueHeaderCell}>Reference</th><th style={revenueHeaderCell}>Status</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Amount</th><th style={{ ...revenueHeaderCell, textAlign: 'right' }}>Actions</th></tr></thead>
                 <tbody>
                   {currentMonthRevenueRows.slice(0, 50).map(r => {
                     const isVoid = String(r.status || '').toUpperCase() === 'VOID';
@@ -1473,12 +1491,14 @@ export default function FinanceTab({
                     return (
                       <React.Fragment key={r.id}>
                         <tr style={{ color: isVoid ? '#f87171' : '#fff', background: isVoid ? 'rgba(239,68,68,.06)' : 'transparent', textDecoration:isVoid?'line-through':'none' }}>
+                          <td style={{ ...revenueCell, fontWeight: 800 }}>#{r.id}</td>
                           <td style={revenueCell}>{r.date?.slice(0, 10) || '—'}</td>
                           <td style={revenueCell} title={r.notes || r.category || ''}>
                             <div style={{ fontWeight: 800, color: isVoid ? '#f87171' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis' }}>{revenueParticulars(r)}</div>
                             {animalId && <div style={{ marginTop: 2, color: '#38bdf8', fontSize: 9, fontWeight: 700 }}>Animal #{animalId}</div>}
                           </td>
                           <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800, color: String(r.category || '').toUpperCase() === 'MILK_SALES' ? '#38bdf8' : '#cbd5e1' }}>{ledgerQuantity(r)}</td>
+                          <td style={{ ...revenueCell, textAlign: 'right', fontWeight: 800 }}>{ledgerRate(r) || '—'}</td>
                           <td style={revenueCell} title={r.counterparty || ''}>{r.counterparty || '—'}</td>
                           <td style={revenueCell} title={r.reference || ''}>{r.reference || '—'}</td>
                           <td style={{ ...revenueCell, fontWeight: 800, color: isVoid ? '#f87171' : r.status === 'RECEIVABLE' ? '#f59e0b' : '#34d399' }}>{r.status || 'RECORDED'}</td>
@@ -1492,7 +1512,7 @@ export default function FinanceTab({
                             )}
                           </td>
                         </tr>
-                        {isVoid && <tr><td colSpan={8} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason||'See audit trail'}</td></tr>}
+                        {isVoid && <tr><td colSpan={10} style={{ padding: '3px 8px 7px', borderBottom: '1px solid #1a2234', color: '#fca5a5', fontSize: 8, fontWeight: 800 }}>VOID: {reason||'See audit trail'}</td></tr>}
                       </React.Fragment>
                     );
                   })}
@@ -1585,9 +1605,11 @@ export default function FinanceTab({
               <button type="button" onClick={() => saveLedgerCsv(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}>Save CSV</button>
               <button type="button" onClick={() => printLedger(`Accounting Expense Ledger — ${ledgerFilter}`, filteredExpenses, currentMonthStart, currentMonthEnd, { 'Active Expense Total': filteredExpenses.reduce((sum, t) => sum + activeAmount(t), 0) })} style={smallButton}><Printer size={11} /> Print</button>
             </div>
-            <div style={{ ...ledgerLine, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px' }}><span style={{ width: 76, flex: '0 0 76px' }}>Date</span><span style={ledgerEllipsis}>Particulars</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Counterparty</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Reference</span><span style={{ width: 76, flex: '0 0 76px' }}>Status</span><span style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>Amount</span></div>
-            {loading ? <div style={empty}>Loading persistent ledger…</div> : filteredExpenses.slice(0, 100).map(renderExpenseLedgerRow)}
-            {!loading && filteredExpenses.length === 0 && <div style={empty}>No expenses match this view.</div>}
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ ...ledgerLine, minWidth: 980, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px' }}><span style={{ width: 58, flex: '0 0 58px' }}>Transaction #</span><span style={{ width: 76, flex: '0 0 76px' }}>Date</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Particulars</span><span style={{ width: 92, flex: '0 0 92px' }}>Quantity</span><span style={{ width: 118, flex: '0 0 118px' }}>Unit Rate</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Counterparty</span><span style={{ ...ledgerEllipsis, flexBasis: 100 }}>Reference</span><span style={{ width: 76, flex: '0 0 76px' }}>Status</span><span style={{ width: 118, flex: '0 0 118px', textAlign: 'right' }}>Amount</span><span style={{ width: 70, flex: '0 0 70px', textAlign: 'right' }}>Actions</span></div>
+              {loading ? <div style={empty}>Loading persistent ledger…</div> : filteredExpenses.slice(0, 100).map(renderExpenseLedgerRow)}
+              {!loading && filteredExpenses.length === 0 && <div style={empty}>No expenses match this view.</div>}
+            </div>
           </section>
         </div>
       </div>

@@ -62,6 +62,16 @@ class FinanceRevenueLedgerQuantityContractTest(
         )
 
         self.assertIn(
+            "Transaction #",
+            self.ledger,
+        )
+
+        self.assertIn(
+            "Unit Rate",
+            self.ledger,
+        )
+
+        self.assertIn(
             "Actions",
             self.ledger,
         )
@@ -92,9 +102,11 @@ class FinanceRevenueLedgerQuantityContractTest(
         ]
 
         for label in (
+            "'Transaction #'",
             "'Date'",
             "'Particulars'",
             "'Quantity'",
+            "'Unit Rate'",
             "'Buyer / Customer'",
             "'Reference'",
             "'Status'",
@@ -130,9 +142,11 @@ class FinanceRevenueLedgerQuantityContractTest(
         ]
 
         for label in (
+            "<th>Transaction #</th>",
             "<th>Date</th>",
             "<th>Particulars</th>",
             "Quantity",
+            "<th style=\"text-align:right\">Unit Rate</th>",
             "<th>Buyer / Customer</th>",
             "<th>Reference</th>",
             "<th>Status</th>",
