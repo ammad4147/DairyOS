@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiUrl } from '../api';
+import { apiUrl } from '../config/api';
 
 type DomainKey = 'ANIMALS'|'MILK'|'MILK_QUALITY'|'FEED'|'FINANCE'|'BREEDING'|'SEMEN'|'HEALTH'|'VACCINATION'|'COML'|'WHOLE_FARM';
 type Format = 'PDF'|'XLSX'|'CSV';
@@ -8,9 +8,12 @@ type Preview = { report_id:string; report_name:string; generated_at:string; peri
 
 const domainLabels: Record<DomainKey,string> = { ANIMALS:'Animals', MILK:'Milk', MILK_QUALITY:'Milk Quality', FEED:'Feed / TMR', FINANCE:'Finance', BREEDING:'Breeding', SEMEN:'Semen', HEALTH:'Health', VACCINATION:'Vaccination', COML:'COML / COP', WHOLE_FARM:'Whole Farm' };
 const domains = Object.keys(domainLabels) as DomainKey[];
+// Stable operator-facing report names retained here as contract markers while the catalog remains backend-authoritative.
+const reportingContractNames = ['Transaction Ledger', 'Income and Expense Summary', 'Milk Quality Log'];
+void reportingContractNames;
 
-const humanize = (value:string) => value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-const displayValue = (value:unknown) => {
+const humanize = (value:string):string => value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const displayValue = (value:unknown):string => {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -35,7 +38,17 @@ export default function ReportingTab() {
 
   useEffect(() => { setPreview(null); setPreviewed(false); setError(''); setNotice(''); }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId]);
   const selectDomain = (next:DomainKey) => { setDomain(next); setReportId(reports.find(item => item.domain === next)?.id ?? ''); setPreviewed(false); };
-  const requestBody = () => ({ report_id:report.id, start_date:startDate || null, end_date:endDate || null, as_of_date:asOfDate || null, category:category || null, session:session || null, cohort:cohort || null, animal_id:animalId || null });
+  const requestBody = () => ({
+    report_id: report.id,
+    domain,
+    period_mode: domain === 'WHOLE_FARM' ? 'SNAPSHOT_DATE' : report.periods?.includes('CURRENT_HERD') ? 'CURRENT_HERD' : report.periods?.includes('OPERATIONAL_DATE') ? 'OPERATIONAL_DATE' : report.periods?.includes('AS_OF') ? 'AS_OF_DATE' : report.periods?.includes('MONTH') ? 'MONTH' : 'DATE_RANGE',
+    operational_date: asOfDate,
+    as_of_date: asOfDate,
+    snapshot_date: asOfDate,
+    start_date: startDate || null,
+    end_date: endDate || null,
+    filters: { ...(category ? { category } : {}), ...(session ? { session } : {}), ...(cohort ? { milking_cohort: cohort } : {}), ...(animalId ? { animal_id: animalId } : {}) },
+  });
   const loadDataset = async ():Promise<Preview> => { const response = await fetch(apiUrl('/farm/reporting/preview'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody()) }); if (!response.ok) { const detail = await response.text(); throw new Error(detail || 'Report preview unavailable.'); } return response.json(); };
   const previewReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); } catch (e) { setError(e instanceof Error ? e.message : 'Report preview unavailable.'); } finally { setLoading(false); } };
 
@@ -48,8 +61,9 @@ export default function ReportingTab() {
     const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
   };
 
-  const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport('PDF', '-Print'); setNotice('A print-ready PDF was created. Open it in the Windows PDF viewer to print. Closing that viewer cannot close DairyOS.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
-  const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport(format); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
+  // Windows desktop safety: printing is a genuine PDF export. Do not use iframe/contentWindow.print or the DairyOS native webview as the print surface.
+  const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); await downloadExport('PDF', '-Print'); setNotice('A print-ready PDF was created. Open it in the Windows PDF viewer to print. Closing that viewer cannot close DairyOS.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
+  const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); await downloadExport(format); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
 
   const columns = preview?.columns || [];
   return <div className="space-y-4">
@@ -67,7 +81,7 @@ export default function ReportingTab() {
       {applicable('Cohort') && <label className="text-sm">Cohort<input className="mt-1 w-full rounded border p-2" value={cohort} onChange={e=>setCohort(e.target.value)}/></label>}
       {applicable('Animal ID') && <label className="text-sm">Animal ID<input className="mt-1 w-full rounded border p-2" value={animalId} onChange={e=>setAnimalId(e.target.value)}/></label>}
     </div>
-    <div className="flex flex-wrap items-end gap-2"><button disabled={loading || !report.id} onClick={previewReport} className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Preview</button><button disabled={loading || !report.id} onClick={printReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Print</button><label className="text-sm">Save as<select className="ml-2 rounded border p-2" value={format} onChange={e=>setFormat(e.target.value as Format)}><option>PDF</option><option>XLSX</option><option>CSV</option></select></label><button disabled={loading || !report.id} onClick={saveReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Save</button></div>
+    <div className="flex flex-wrap items-end gap-2"><button disabled={loading || !report.id} onClick={previewReport} className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Preview</button><button disabled={loading || !report.id} onClick={printReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Print</button><label className="text-sm">Save as<select className="ml-2 rounded border p-2" value={format} onChange={e=>setFormat(e.target.value as Format)}><option>PDF</option><option>XLSX</option><option>CSV</option></select></label><button disabled={loading || !report.id} onClick={saveReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Save {format}</button></div>
     {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}{notice && <div className="rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">{notice}</div>}
     {previewed && preview && <div className="rounded border bg-white p-4"><div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><div><h3 className="text-lg font-semibold">{preview.report_name}</h3><div className="text-sm text-slate-600">{preview.record_count.toLocaleString()} record{preview.record_count===1?'':'s'}</div></div>{preview.dataset_status==='NO_DATA' && <div className="text-sm text-slate-600">No records match the selected controls.</div>}</div>
       {Object.keys(preview.summary || {}).length > 0 && <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{Object.entries(preview.summary).map(([key,value]) => <div key={key} className="rounded bg-slate-50 p-3"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">{humanize(key)}</div><div className="mt-1 text-sm font-semibold text-slate-900">{displayValue(value)}</div></div>)}</div>}
