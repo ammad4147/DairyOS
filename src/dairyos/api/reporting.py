@@ -1,8 +1,14 @@
-"""Governed read-only Reporting API foundation for DairyOS."""
+"""Governed read-only Reporting API for DairyOS.
+
+Reporting is a projection layer only.  It reads the same repositories used by
+operator workflows, preserves audit rows, and never invents missing values.
+"""
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from enum import Enum
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,40 +19,22 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.finance.classification.transaction_classifier import (
+    is_active as finance_is_active,
+    is_expense as finance_is_expense,
+    is_income as finance_is_income,
 )
-
 
 router = APIRouter(prefix="/farm/reporting", tags=["Reporting"])
 
-
 DomainKey = Literal[
-    "ANIMALS",
-    "MILK",
-    "MILK_QUALITY",
-    "FEED",
-    "FINANCE",
-    "BREEDING",
-    "SEMEN",
-    "HEALTH",
-    "VACCINATION",
-    "COML",
-    "WHOLE_FARM",
+    "ANIMALS", "MILK", "MILK_QUALITY", "FEED", "FINANCE", "BREEDING",
+    "SEMEN", "HEALTH", "VACCINATION", "COML", "WHOLE_FARM",
 ]
-
-
 PeriodMode = Literal[
-    "TODAY",
-    "YESTERDAY",
-    "OPERATIONAL_DATE",
-    "CURRENT_HERD",
-    "AS_OF_DATE",
-    "DATE_RANGE",
-    "MONTH",
-    "CUSTOM_PERIOD",
-    "CURRENT_YEAR",
-    "SNAPSHOT_DATE",
+    "TODAY", "YESTERDAY", "OPERATIONAL_DATE", "CURRENT_HERD", "AS_OF_DATE",
+    "DATE_RANGE", "MONTH", "CUSTOM_PERIOD", "CURRENT_YEAR", "SNAPSHOT_DATE",
 ]
 
 
@@ -59,401 +47,51 @@ class ReportDefinition(BaseModel):
     filters: tuple[str, ...]
     scope_note: str
     required_permissions: tuple[str, ...]
-    historical_capability: Literal[
-        "CURRENT_ONLY",
-        "HISTORICAL",
-        "SNAPSHOT",
-    ]
+    historical_capability: Literal["CURRENT_ONLY", "HISTORICAL", "SNAPSHOT"]
+
+
+def _report(
+    report_id: str,
+    domain: DomainKey,
+    name: str,
+    authority: str,
+    period_modes: tuple[PeriodMode, ...],
+    filters: tuple[str, ...],
+    permissions: tuple[str, ...],
+    historical: Literal["CURRENT_ONLY", "HISTORICAL", "SNAPSHOT"] = "HISTORICAL",
+    scope: str = "Uses governed DairyOS persistence authority.",
+) -> ReportDefinition:
+    return ReportDefinition(
+        id=report_id, domain=domain, name=name, authority=authority,
+        period_modes=period_modes, filters=filters, scope_note=scope,
+        required_permissions=permissions, historical_capability=historical,
+    )
 
 
 REPORTS: tuple[ReportDefinition, ...] = (
-    ReportDefinition(
-        id="animal-register",
-        domain="ANIMALS",
-        name="Animal Register",
-        authority=(
-            "Animal master records, lifecycle status, disposition history, "
-            "and governed category mapping."
-        ),
-        period_modes=("CURRENT_HERD",),
-        filters=("category", "status"),
-        scope_note=(
-            "Supports the current herd across all six canonical DairyOS "
-            "categories. Historical herd reconstruction is not currently "
-            "authoritative."
-        ),
-        required_permissions=("animals.view",),
-        historical_capability="CURRENT_ONLY",
-    ),
-    ReportDefinition(
-        id="animal-population",
-        domain="ANIMALS",
-        name="Animal Population by Category",
-        authority=(
-            "Animal category authority with active/inactive disposition "
-            "semantics."
-        ),
-        period_modes=("CURRENT_HERD",),
-        filters=("status",),
-        scope_note=(
-            "Counts the current herd as Milking Cows, Dry Cows, Heifers, "
-            "Female Calves, Male Calves, and Bulls. Historical population "
-            "reconstruction is not currently authoritative."
-        ),
-        required_permissions=("animals.view",),
-        historical_capability="CURRENT_ONLY",
-    ),
-    ReportDefinition(
-        id="animal-lifecycle",
-        domain="ANIMALS",
-        name="Animal Entry / Lifecycle Report",
-        authority=(
-            "Animal registration, acquisition, lifecycle, disposition, "
-            "and operational event records."
-        ),
-        period_modes=("DATE_RANGE", "CUSTOM_PERIOD"),
-        filters=("category", "event_type"),
-        scope_note=(
-            "Shows additions, category transitions, exits, and governed "
-            "lifecycle events where authority exists."
-        ),
-        required_permissions=("animals.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="animal-passport",
-        domain="ANIMALS",
-        name="Individual Animal Passport",
-        authority=(
-            "Lifetime Animal Passport read model and animal-scoped "
-            "operational histories."
-        ),
-        period_modes=("AS_OF_DATE", "CURRENT_HERD"),
-        filters=("animal_id",),
-        scope_note=(
-            "Generates Passport output from the selected animal authority "
-            "rather than modal chrome."
-        ),
-        required_permissions=("animals.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="daily-milk",
-        domain="MILK",
-        name="Daily Milk Production",
-        authority=(
-            "Milk production rows, milking session records, corrections, "
-            "and disposition authority."
-        ),
-        period_modes=(
-            "TODAY",
-            "YESTERDAY",
-            "OPERATIONAL_DATE",
-            "DATE_RANGE",
-        ),
-        filters=(
-            "session",
-            "category",
-            "animal_id",
-            "milking_cohort",
-        ),
-        scope_note=(
-            "Keeps MORNING, AFTERNOON, EVENING, and all-session views "
-            "distinct."
-        ),
-        required_permissions=("milk.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="milk-animal",
-        domain="MILK",
-        name="Milk Production by Animal",
-        authority=(
-            "Per-animal milk production and milking-frequency history."
-        ),
-        period_modes=("DATE_RANGE", "MONTH", "CUSTOM_PERIOD"),
-        filters=("animal_id", "milking_cohort"),
-        scope_note=(
-            "Prevents misleading comparison of twice- and "
-            "thrice-milked animals."
-        ),
-        required_permissions=("milk.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="milk-disposition",
-        domain="MILK",
-        name="Milk Disposition / Reconciliation",
-        authority=(
-            "Milk production, sold/domestic/calf/wastage/withdrawal "
-            "disposition records, and correction history."
-        ),
-        period_modes=("DATE_RANGE", "MONTH"),
-        filters=("disposition_type", "status"),
-        scope_note=(
-            "Separates saleable, withdrawal, wastage, and unaccounted milk."
-        ),
-        required_permissions=("milk.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="milk-quality-log",
-        domain="MILK_QUALITY",
-        name="Milk Quality Log",
-        authority=(
-            "Milk quality samples with recorded status, operator, "
-            "timestamps, and revision history."
-        ),
-        period_modes=("DATE_RANGE", "OPERATIONAL_DATE", "MONTH"),
-        filters=("sample_type", "status"),
-        scope_note=(
-            "Central replacement for the former popup-dependent "
-            "Milk Quality print path."
-        ),
-        required_permissions=("milk.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="quality-summary",
-        domain="MILK_QUALITY",
-        name="Milk Quality Summary",
-        authority=(
-            "Recorded milk quality samples and governed quality thresholds."
-        ),
-        period_modes=("DATE_RANGE", "MONTH"),
-        filters=("sample_type",),
-        scope_note=(
-            "Summarizes available fat, SNF, and quality classification "
-            "fields only."
-        ),
-        required_permissions=("milk.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="current-tmr",
-        domain="FEED",
-        name="Current TMR",
-        authority=(
-            "Governed TMR stage/category authority and Finance-backed "
-            "ingredient pricing where available."
-        ),
-        period_modes=("CURRENT_HERD", "OPERATIONAL_DATE"),
-        filters=("category", "ingredient"),
-        scope_note=(
-            "Distinguishes formulation, ration, cost, consumption, "
-            "and inventory movement."
-        ),
-        required_permissions=("feed.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="historical-tmr",
-        domain="FEED",
-        name="Historical TMR / Feed Cost",
-        authority=(
-            "Daily TMR snapshots, feed records, feed inventory movements, "
-            "and cost basis."
-        ),
-        period_modes=("AS_OF_DATE", "DATE_RANGE"),
-        filters=("category", "ingredient"),
-        scope_note=(
-            "Uses historical TMR/feed authority instead of today's ration "
-            "for old dates."
-        ),
-        required_permissions=("feed.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="finance-ledger",
-        domain="FINANCE",
-        name="Transaction Ledger",
-        authority=(
-            "Finance ledger, classifier, settlement status, VOID rules, "
-            "and COP attribution."
-        ),
-        period_modes=("DATE_RANGE", "MONTH", "CUSTOM_PERIOD"),
-        filters=(
-            "transaction_type",
-            "status",
-            "category",
-            "counterparty",
-        ),
-        scope_note=(
-            "VOID rows remain available for audit while excluded from "
-            "active totals."
-        ),
-        required_permissions=("finance.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="financial-summary",
-        domain="FINANCE",
-        name="Income and Expense Summary",
-        authority=(
-            "Governed Finance calculations and transaction classifier."
-        ),
-        period_modes=("DATE_RANGE", "MONTH", "CURRENT_YEAR"),
-        filters=("category", "payment_state"),
-        scope_note=(
-            "Requires Finance permission and must reconcile independently "
-            "to source rows."
-        ),
-        required_permissions=("finance.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="breeding-cycle",
-        domain="BREEDING",
-        name="Reproductive Cycle History",
-        authority=(
-            "Breeding lifecycle records, cycle attribution, PD results, "
-            "pregnancy loss, and calving events."
-        ),
-        period_modes=("DATE_RANGE", "AS_OF_DATE"),
-        filters=("animal_id", "technician", "event_type"),
-        scope_note=(
-            "Does not merge failed historical cycles into later "
-            "successful cycles."
-        ),
-        required_permissions=("breeding.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="breeding-performance",
-        domain="BREEDING",
-        name="Pregnancy and AI Performance",
-        authority=(
-            "Cycle-aware breeding analytics and semen usage links."
-        ),
-        period_modes=("DATE_RANGE", "CUSTOM_PERIOD"),
-        filters=("technician", "semen_type", "semen_lot"),
-        scope_note=(
-            "Pregnancy ratio must use governed successful-cycle attribution."
-        ),
-        required_permissions=("breeding.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="semen-stock",
-        domain="SEMEN",
-        name="Semen Stock Balance",
-        authority=(
-            "Semen lots, purchases, stock movements, breeding usage, "
-            "and Finance purchase links."
-        ),
-        period_modes=("AS_OF_DATE", "DATE_RANGE"),
-        filters=("semen_type", "lot", "supplier"),
-        scope_note=(
-            "Purchased, used, and available balances reconcile to "
-            "stock movements."
-        ),
-        required_permissions=("breeding.view", "finance.view"),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="health-cases",
-        domain="HEALTH",
-        name="Health Cases and Treatments",
-        authority=(
-            "Health cases, observations, treatments, withdrawal "
-            "references, and animal IDs."
-        ),
-        period_modes=("DATE_RANGE", "AS_OF_DATE"),
-        filters=("animal_id", "case_status", "severity"),
-        scope_note=(
-            "Animal-specific reports include only records attributed "
-            "to the selected animal."
-        ),
-        required_permissions=("health.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="withdrawal",
-        domain="HEALTH",
-        name="Withdrawal Periods",
-        authority=(
-            "Treatment records, withdrawal calculation source, "
-            "and active health state."
-        ),
-        period_modes=("OPERATIONAL_DATE", "DATE_RANGE"),
-        filters=("animal_id", "status"),
-        scope_note=(
-            "Separates active withdrawal from resolved clinical history."
-        ),
-        required_permissions=("health.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="vaccination-schedule",
-        domain="VACCINATION",
-        name="Vaccination Schedule and Due Status",
-        authority=(
-            "Vaccination records, administered state, schedule rows, "
-            "due and overdue dates."
-        ),
-        period_modes=(
-            "OPERATIONAL_DATE",
-            "DATE_RANGE",
-            "CUSTOM_PERIOD",
-        ),
-        filters=("animal_id", "vaccine", "schedule_status"),
-        scope_note=(
-            "Future schedules stay in Reporting and do not alter today's "
-            "Dashboard attention rules."
-        ),
-        required_permissions=("health.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="coml-period",
-        domain="COML",
-        name="Period COML / COP",
-        authority=(
-            "Locked COML records, historical TMR snapshots, milk "
-            "denominator, and Finance OPEX attribution."
-        ),
-        period_modes=("MONTH", "CUSTOM_PERIOD"),
-        filters=("lock_status", "cost_component"),
-        scope_note=(
-            "Missing authority stays incomplete rather than being "
-            "treated as zero."
-        ),
-        required_permissions=("coml.view",),
-        historical_capability="HISTORICAL",
-    ),
-    ReportDefinition(
-        id="whole-farm-snapshot",
-        domain="WHOLE_FARM",
-        name="Complete Farm Snapshot",
-        authority=(
-            "Cross-domain authoritative projections as of the selected "
-            "operational date."
-        ),
-        period_modes=("SNAPSHOT_DATE",),
-        filters=("major_sections",),
-        scope_note=(
-            "Central report: herd, milk, quality, feed, finance, breeding, "
-            "semen, health, vaccination, COML/COP, and operational attention."
-        ),
-        required_permissions=(
-            "animals.view",
-            "milk.view",
-            "feed.view",
-            "finance.view",
-            "breeding.view",
-            "health.view",
-            "coml.view",
-            "analytics.view",
-        ),
-        historical_capability="SNAPSHOT",
-    ),
+    _report("animal-register", "ANIMALS", "Animal Register", "Animal master records, lifecycle status, disposition history, and governed category mapping.", ("CURRENT_HERD",), ("category", "status"), ("animals.view",), "CURRENT_ONLY", "Supports the current herd across all six canonical DairyOS categories."),
+    _report("animal-population", "ANIMALS", "Animal Population by Category", "Animal category authority with active/inactive disposition semantics.", ("CURRENT_HERD",), ("status",), ("animals.view",), "CURRENT_ONLY", "Counts the current herd using canonical singular categories and plural herd totals."),
+    _report("animal-lifecycle", "ANIMALS", "Animal Entry / Lifecycle Report", "Animal registration, acquisition, lifecycle, disposition, and operational event records.", ("DATE_RANGE", "CUSTOM_PERIOD"), ("category", "event_type"), ("animals.view",)),
+    _report("animal-passport", "ANIMALS", "Individual Animal Passport", "Lifetime Animal Passport read model and animal-scoped operational histories.", ("AS_OF_DATE", "CURRENT_HERD"), ("animal_id",), ("animals.view",)),
+    _report("daily-milk", "MILK", "Daily Milk Production", "Milk production rows, milking session records, corrections, and disposition authority.", ("TODAY", "YESTERDAY", "OPERATIONAL_DATE", "DATE_RANGE"), ("session", "category", "animal_id", "milking_cohort"), ("milk.view",), scope="Keeps MORNING, AFTERNOON, EVENING, and all-session views distinct."),
+    _report("milk-animal", "MILK", "Milk Production by Animal", "Per-animal milk production and milking-frequency history.", ("DATE_RANGE", "MONTH", "CUSTOM_PERIOD"), ("animal_id", "milking_cohort"), ("milk.view",), scope="Prevents misleading comparison of twice- and thrice-milked animals."),
+    _report("milk-disposition", "MILK", "Milk Disposition / Reconciliation", "Milk production and sold/domestic/calf/wastage/withdrawal disposition authority.", ("DATE_RANGE", "MONTH"), ("disposition_type", "status"), ("milk.view",)),
+    _report("milk-quality-log", "MILK_QUALITY", "Milk Quality Log", "Milk quality samples with recorded status, operator, timestamps, and revision history.", ("DATE_RANGE", "OPERATIONAL_DATE", "MONTH"), ("sample_type", "status"), ("milk.view",)),
+    _report("quality-summary", "MILK_QUALITY", "Milk Quality Summary", "Recorded milk quality samples and governed quality thresholds.", ("DATE_RANGE", "MONTH"), ("sample_type",), ("milk.view",)),
+    _report("current-tmr", "FEED", "Current TMR", "Governed TMR ration and feed records with Finance-backed pricing where available.", ("CURRENT_HERD", "OPERATIONAL_DATE"), ("category", "ingredient"), ("feed.view",)),
+    _report("historical-tmr", "FEED", "Historical TMR / Feed Cost", "Historical feed ration and feed-record authority.", ("AS_OF_DATE", "DATE_RANGE"), ("category", "ingredient"), ("feed.view",)),
+    _report("finance-ledger", "FINANCE", "Transaction Ledger", "Finance ledger, canonical classifier, settlement status, VOID rules, and COP attribution.", ("DATE_RANGE", "MONTH", "CUSTOM_PERIOD"), ("transaction_type", "status", "category", "counterparty"), ("finance.view",), scope="VOID rows remain available for audit while excluded from active totals."),
+    _report("financial-summary", "FINANCE", "Income and Expense Summary", "Governed Finance calculations and canonical transaction classifier.", ("DATE_RANGE", "MONTH", "CURRENT_YEAR"), ("category", "payment_state"), ("finance.view",)),
+    _report("breeding-cycle", "BREEDING", "Reproductive Cycle History", "Breeding lifecycle records, cycle attribution, PD results, pregnancy loss, and calving events.", ("DATE_RANGE", "AS_OF_DATE"), ("animal_id", "technician", "event_type"), ("breeding.view",)),
+    _report("breeding-performance", "BREEDING", "Pregnancy and AI Performance", "Cycle-aware breeding records and semen usage links.", ("DATE_RANGE", "CUSTOM_PERIOD"), ("technician", "semen_type", "semen_lot"), ("breeding.view",), scope="Does not infer pregnancy success when cycle attribution is absent."),
+    _report("semen-stock", "SEMEN", "Semen Stock Balance", "Purchased semen Finance rows reconciled with breeding semen-lot usage.", ("AS_OF_DATE", "DATE_RANGE"), ("semen_type", "lot", "supplier"), ("breeding.view", "finance.view")),
+    _report("health-cases", "HEALTH", "Health Cases and Treatments", "Health cases, observations, treatments, withdrawal references, and animal IDs.", ("DATE_RANGE", "AS_OF_DATE"), ("animal_id", "case_status", "severity"), ("health.view",)),
+    _report("withdrawal", "HEALTH", "Withdrawal Periods", "Treatment records and persisted milk-withdrawal authority.", ("OPERATIONAL_DATE", "DATE_RANGE"), ("animal_id", "status"), ("health.view",)),
+    _report("vaccination-schedule", "VACCINATION", "Vaccination Schedule and Due Status", "Vaccination records, administered state, schedule rows, due and overdue dates.", ("OPERATIONAL_DATE", "DATE_RANGE", "CUSTOM_PERIOD"), ("animal_id", "vaccine", "schedule_status"), ("health.view",)),
+    _report("coml-period", "COML", "Period COML / COP", "Locked COML records, historical feed authority, milk denominator, and Finance OPEX attribution.", ("MONTH", "CUSTOM_PERIOD"), ("lock_status", "cost_component"), ("coml.view",)),
+    _report("whole-farm-snapshot", "WHOLE_FARM", "Complete Farm Snapshot", "Cross-domain authoritative projections as of the selected operational date.", ("SNAPSHOT_DATE",), ("major_sections",), ("animals.view", "milk.view", "feed.view", "finance.view", "breeding.view", "health.view", "coml.view", "analytics.view"), "SNAPSHOT"),
 )
-
-
-REPORT_BY_ID = {
-    report.id: report
-    for report in REPORTS
-}
+REPORT_BY_ID = {report.id: report for report in REPORTS}
 
 
 class ReportingRequest(BaseModel):
@@ -465,9 +103,7 @@ class ReportingRequest(BaseModel):
     snapshot_date: date | None = None
     start_date: date | None = None
     end_date: date | None = None
-    filters: dict[str, str | int | float | bool | None] = Field(
-        default_factory=dict
-    )
+    filters: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
     @field_validator("report_id")
     @classmethod
@@ -477,688 +113,417 @@ class ReportingRequest(BaseModel):
     @model_validator(mode="after")
     def validate_report_contract(self):
         definition = REPORT_BY_ID.get(self.report_id)
-
         if definition is None:
-            raise ValueError(
-                f"Unknown report_id: {self.report_id}"
-            )
-
+            raise ValueError(f"Unknown report_id: {self.report_id}")
         if self.domain != definition.domain:
-            raise ValueError(
-                "domain does not match the selected report"
-            )
-
+            raise ValueError("domain does not match the selected report")
         if self.period_mode not in definition.period_modes:
-            raise ValueError(
-                "period_mode is not supported by the selected report"
-            )
-
-        if (
-            self.start_date is not None
-            and self.end_date is not None
-            and self.start_date > self.end_date
-        ):
-            raise ValueError(
-                "start_date must be on or before end_date"
-            )
-
-        range_modes = {
-            "DATE_RANGE",
-            "CUSTOM_PERIOD",
-        }
-
-        if self.period_mode in range_modes:
-            if self.start_date is None or self.end_date is None:
-                raise ValueError(
-                    "start_date and end_date are required "
-                    "for the selected period_mode"
-                )
-
-        if (
-            self.period_mode == "AS_OF_DATE"
-            and self.as_of_date is None
-        ):
-            raise ValueError(
-                "as_of_date is required for AS_OF_DATE"
-            )
-
-        if (
-            self.period_mode == "OPERATIONAL_DATE"
-            and self.operational_date is None
-        ):
-            raise ValueError(
-                "operational_date is required for OPERATIONAL_DATE"
-            )
-
-        if (
-            self.period_mode == "SNAPSHOT_DATE"
-            and self.snapshot_date is None
-        ):
-            raise ValueError(
-                "snapshot_date is required for SNAPSHOT_DATE"
-            )
-
-        unsupported_filters = sorted(
-            set(self.filters) - set(definition.filters)
-        )
-
-        if unsupported_filters:
-            raise ValueError(
-                "Unsupported filter(s) for report: "
-                + ", ".join(unsupported_filters)
-            )
-
+            raise ValueError("period_mode is not supported by the selected report")
+        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
+            raise ValueError("start_date must be on or before end_date")
+        if self.period_mode in {"DATE_RANGE", "CUSTOM_PERIOD"} and (self.start_date is None or self.end_date is None):
+            raise ValueError("start_date and end_date are required for the selected period_mode")
+        if self.period_mode == "AS_OF_DATE" and self.as_of_date is None:
+            raise ValueError("as_of_date is required for AS_OF_DATE")
+        if self.period_mode == "OPERATIONAL_DATE" and self.operational_date is None:
+            raise ValueError("operational_date is required for OPERATIONAL_DATE")
+        if self.period_mode == "SNAPSHOT_DATE" and self.snapshot_date is None:
+            raise ValueError("snapshot_date is required for SNAPSHOT_DATE")
+        unsupported = sorted(set(self.filters) - set(definition.filters))
+        if unsupported:
+            raise ValueError("Unsupported filter(s) for report: " + ", ".join(unsupported))
         return self
 
 
-def reporting_permission_for_request(
-    report_id: str | None,
-) -> str | None:
-    """
-    Return the middleware permission for a Reporting request.
-
-    Reports requiring one permission can be enforced directly by the
-    existing request middleware.
-
-    Multi-authority reports are deliberately not reduced to one weaker
-    permission. Their complete permission set remains part of the report
-    definition and must be enforced when the canonical dataset is enabled.
-    """
+def reporting_permission_for_request(report_id: str | None) -> str | None:
     if not report_id:
         return "settings.view"
-
-    definition = REPORT_BY_ID.get(
-        str(report_id).strip().lower()
-    )
-
-    if definition is None:
+    definition = REPORT_BY_ID.get(str(report_id).strip().lower())
+    if definition is None or len(definition.required_permissions) != 1:
         return "settings.view"
-
-    if len(definition.required_permissions) == 1:
-        return definition.required_permissions[0]
-
-    return "settings.view"
+    return definition.required_permissions[0]
 
 
-def _resolved_period(
-    request: ReportingRequest,
-    *,
-    operational_today: date,
-) -> dict[str, str | None]:
+def _resolved_period(request: ReportingRequest, *, operational_today: date) -> dict[str, str | None]:
     if request.period_mode == "TODAY":
-        return {
-            "start_date": operational_today.isoformat(),
-            "end_date": operational_today.isoformat(),
-            "as_of_date": operational_today.isoformat(),
-        }
-
-    if request.period_mode == "YESTERDAY":
-        from datetime import timedelta
-
-        selected = operational_today - timedelta(days=1)
-
-        return {
-            "start_date": selected.isoformat(),
-            "end_date": selected.isoformat(),
-            "as_of_date": selected.isoformat(),
-        }
-
-    if request.period_mode == "OPERATIONAL_DATE":
-        selected = request.operational_date
-
-        return {
-            "start_date": selected.isoformat(),
-            "end_date": selected.isoformat(),
-            "as_of_date": selected.isoformat(),
-        }
-
-    if request.period_mode == "AS_OF_DATE":
-        return {
-            "start_date": None,
-            "end_date": request.as_of_date.isoformat(),
-            "as_of_date": request.as_of_date.isoformat(),
-        }
-
-    if request.period_mode in {
-        "DATE_RANGE",
-        "CUSTOM_PERIOD",
-    }:
-        return {
-            "start_date": request.start_date.isoformat(),
-            "end_date": request.end_date.isoformat(),
-            "as_of_date": request.end_date.isoformat(),
-        }
-
-    if request.period_mode == "SNAPSHOT_DATE":
-        return {
-            "start_date": None,
-            "end_date": request.snapshot_date.isoformat(),
-            "as_of_date": request.snapshot_date.isoformat(),
-        }
-
-    if request.period_mode == "CURRENT_HERD":
-        return {
-            "start_date": None,
-            "end_date": operational_today.isoformat(),
-            "as_of_date": operational_today.isoformat(),
-        }
-
-    if request.period_mode == "MONTH":
-        selected = (
-            request.as_of_date
-            or request.operational_date
-            or operational_today
-        )
-
-        if selected.month == 12:
-            next_month = date(selected.year + 1, 1, 1)
-        else:
-            next_month = date(
-                selected.year,
-                selected.month + 1,
-                1,
-            )
-
-        from datetime import timedelta
-
-        month_start = selected.replace(day=1)
-        month_end = next_month - timedelta(days=1)
-
-        return {
-            "start_date": month_start.isoformat(),
-            "end_date": month_end.isoformat(),
-            "as_of_date": month_end.isoformat(),
-        }
-
-    if request.period_mode == "CURRENT_YEAR":
-        return {
-            "start_date": date(
-                operational_today.year,
-                1,
-                1,
-            ).isoformat(),
-            "end_date": date(
-                operational_today.year,
-                12,
-                31,
-            ).isoformat(),
-            "as_of_date": operational_today.isoformat(),
-        }
-
-    raise HTTPException(
-        status_code=422,
-        detail="Unsupported Reporting period mode.",
-    )
+        start = end = operational_today
+    elif request.period_mode == "YESTERDAY":
+        start = end = operational_today - timedelta(days=1)
+    elif request.period_mode == "OPERATIONAL_DATE":
+        start = end = request.operational_date
+    elif request.period_mode in {"DATE_RANGE", "CUSTOM_PERIOD"}:
+        start, end = request.start_date, request.end_date
+    elif request.period_mode == "AS_OF_DATE":
+        start, end = None, request.as_of_date
+    elif request.period_mode == "SNAPSHOT_DATE":
+        start, end = None, request.snapshot_date
+    elif request.period_mode == "CURRENT_HERD":
+        start, end = None, operational_today
+    elif request.period_mode == "MONTH":
+        selected = request.as_of_date or request.operational_date or operational_today
+        start = selected.replace(day=1)
+        next_month = date(selected.year + 1, 1, 1) if selected.month == 12 else date(selected.year, selected.month + 1, 1)
+        end = next_month - timedelta(days=1)
+    elif request.period_mode == "CURRENT_YEAR":
+        start, end = date(operational_today.year, 1, 1), date(operational_today.year, 12, 31)
+    else:
+        raise HTTPException(status_code=422, detail="Unsupported Reporting period mode.")
+    as_of = end or operational_today
+    return {
+        "start_date": start.isoformat() if start else None,
+        "end_date": end.isoformat() if end else None,
+        "as_of_date": as_of.isoformat(),
+    }
 
 
-TERMINAL_ANIMAL_LIFECYCLE_STATUSES = {
-    "SOLD",
-    "CULLED",
-    "DECEASED",
-}
-
-ANIMAL_CATEGORY_ORDER = (
-    "Milking",
-    "Dry",
-    "Heifer",
-    "Female Calf",
-    "Male Calf",
-    "Bull",
-)
-
+TERMINAL_ANIMAL_LIFECYCLE_STATUSES = {"SOLD", "CULLED", "DECEASED"}
+ANIMAL_CATEGORY_ORDER = ("Milking", "Dry", "Heifer", "Female Calf", "Male Calf", "Bull")
 ANIMAL_CATEGORY_TOTAL_LABELS = {
-    "Milking": "Milking Cows",
-    "Dry": "Dry Cows",
-    "Heifer": "Heifers",
-    "Female Calf": "Female Calves",
-    "Male Calf": "Male Calves",
-    "Bull": "Bulls",
+    "Milking": "Milking Cows", "Dry": "Dry Cows", "Heifer": "Heifers",
+    "Female Calf": "Female Calves", "Male Calf": "Male Calves", "Bull": "Bulls",
 }
-
 ANIMAL_CATEGORY_FILTER_ALIASES = {
-    "MILKING": "Milking",
-    "MILKING COW": "Milking",
-    "MILKING COWS": "Milking",
-    "DRY": "Dry",
-    "DRY COW": "Dry",
-    "DRY COWS": "Dry",
-    "HEIFER": "Heifer",
-    "HEIFERS": "Heifer",
-    "FEMALE CALF": "Female Calf",
-    "FEMALE CALVES": "Female Calf",
-    "MALE CALF": "Male Calf",
-    "MALE CALVES": "Male Calf",
-    "BULL": "Bull",
-    "BULLS": "Bull",
+    "MILKING": "Milking", "MILKING COW": "Milking", "MILKING COWS": "Milking",
+    "DRY": "Dry", "DRY COW": "Dry", "DRY COWS": "Dry", "HEIFER": "Heifer",
+    "HEIFERS": "Heifer", "FEMALE CALF": "Female Calf", "FEMALE CALVES": "Female Calf",
+    "MALE CALF": "Male Calf", "MALE CALVES": "Male Calf", "BULL": "Bull", "BULLS": "Bull",
 }
 
 
 def _text_or_none(value: Any) -> str | None:
     if value is None:
         return None
-
     text = str(value).strip()
     return text or None
 
 
-def _date_or_none(value: Any) -> str | None:
-    if value is None:
-        return None
+def _plain_date(value: Any) -> date | None:
+    # datetime is a date subclass, so this order is deliberate.
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
 
-    isoformat = getattr(value, "isoformat", None)
-    if callable(isoformat):
-        return isoformat()
 
+def _json_value(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
     return str(value)
 
 
-def _normalise_category_filter(value: Any) -> str:
-    key = str(value).strip().upper()
-
-    category = ANIMAL_CATEGORY_FILTER_ALIASES.get(key)
-    if category is None:
-        allowed = ", ".join(ANIMAL_CATEGORY_ORDER)
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Unsupported Animal Reporting category filter. "
-                f"Allowed canonical categories: {allowed}."
-            ),
-        )
-
-    return category
+def _row(record: Any) -> dict[str, Any]:
+    if isinstance(record, dict):
+        return {str(key): _json_value(value) for key, value in record.items() if not str(key).startswith("_")}
+    values = vars(record) if hasattr(record, "__dict__") else {}
+    return {str(key): _json_value(value) for key, value in values.items() if not str(key).startswith("_")}
 
 
-def _animal_status_matches(animal: Any, requested: Any) -> bool:
-    if requested is None:
+def _record_date(record: Any) -> date | None:
+    for field in (
+        "production_date", "transaction_date", "date", "timestamp", "recorded_at",
+        "sample_date", "month_start", "treated_at", "administered_date", "due_date",
+        "next_due_date", "created_at", "updated_at",
+    ):
+        selected = _plain_date(getattr(record, field, None))
+        if selected is not None:
+            return selected
+    return None
+
+
+def _period_dates(payload: ReportingRequest, operational_today: date) -> tuple[date | None, date | None]:
+    period = _resolved_period(payload, operational_today=operational_today)
+    return _plain_date(period["start_date"]), _plain_date(period["end_date"])
+
+
+def _in_period(record: Any, start: date | None, end: date | None) -> bool:
+    selected = _record_date(record)
+    if selected is None:
         return True
-
-    expected = str(requested).strip().upper()
-    if not expected or expected == "ALL":
-        return True
-
-    actual = _text_or_none(getattr(animal, "status", None))
-    if actual is None:
+    if start is not None and selected < start:
         return False
+    if end is not None and selected > end:
+        return False
+    return True
 
-    return actual.upper() == expected
+
+def _matches(record: Any, aliases: dict[str, tuple[str, ...]], filters: dict[str, Any]) -> bool:
+    for filter_name, fields in aliases.items():
+        wanted = filters.get(filter_name)
+        if wanted is None or str(wanted).strip().upper() == "ALL":
+            continue
+        actual = None
+        for field in fields:
+            candidate = getattr(record, field, None)
+            if candidate is not None:
+                actual = candidate
+                break
+        if str(actual or "").strip().upper() != str(wanted).strip().upper():
+            return False
+    return True
+
+
+def _repo(container: Any, name: str) -> Any:
+    factory = getattr(container, "repository_factory", None)
+    getter = getattr(factory, name, None) if factory is not None else None
+    if callable(getter):
+        return getter()
+    direct = getattr(container, name, None)
+    return direct
+
+
+def _repo_records(container: Any, name: str) -> list[Any]:
+    repository = _repo(container, name)
+    getter = getattr(repository, "get_all", None)
+    if not callable(getter):
+        return []
+    return list(getter() or [])
+
+
+def _dataset(rows: list[dict[str, Any]], *, summary: dict[str, Any] | None = None, status: str = "AUTHORITATIVE_DATASET", warnings: list[str] | None = None) -> dict[str, Any]:
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(key)
+    return {
+        "dataset_status": status,
+        "authority_status": "AUTHORITY_AVAILABLE",
+        "columns": columns,
+        "rows": rows,
+        "summary": summary or {},
+        "warnings": warnings or [],
+    }
 
 
 def _classify_current_animal(animal: Any) -> str | None:
-    lifecycle = _text_or_none(
-        getattr(animal, "lifecycle_status", None)
-    )
-
+    lifecycle = _text_or_none(getattr(animal, "lifecycle_status", None))
     if lifecycle and lifecycle.upper() in TERMINAL_ANIMAL_LIFECYCLE_STATUSES:
         return None
-
     try:
-        classification = AnimalClassificationService.classify(
-            lifecycle,
-            getattr(animal, "sex", None),
-        )
+        classification = AnimalClassificationService.classify(lifecycle, getattr(animal, "sex", None))
     except AnimalClassificationError as exc:
-        animal_id = _text_or_none(
-            getattr(animal, "animal_id", None)
-        ) or "<unknown>"
-
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "ANIMAL_REPORTING_AUTHORITY_INTEGRITY_ERROR",
-                "animal_id": animal_id,
-                "message": str(exc),
-            },
-        ) from exc
-
+        raise HTTPException(status_code=409, detail={"code": "ANIMAL_REPORTING_AUTHORITY_INTEGRITY_ERROR", "animal_id": _text_or_none(getattr(animal, "animal_id", None)) or "<unknown>", "message": str(exc)}) from exc
     category = classification.category.value
-
-    if category == "Exited":
-        return None
-
-    if category not in ANIMAL_CATEGORY_ORDER:
-        animal_id = _text_or_none(
-            getattr(animal, "animal_id", None)
-        ) or "<unknown>"
-
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "ANIMAL_REPORTING_CATEGORY_NOT_GOVERNED",
-                "animal_id": animal_id,
-                "category": category,
-            },
-        )
-
-    return category
+    return category if category in ANIMAL_CATEGORY_ORDER else None
 
 
-def _animal_register_row(
-    animal: Any,
-    *,
-    category: str,
-) -> dict[str, Any]:
-    return {
-        "animal_id": _text_or_none(
-            getattr(animal, "animal_id", None)
-        ),
-        "legacy_animal_id": _text_or_none(
-            getattr(animal, "legacy_animal_id", None)
-        ),
-        "ear_tag": _text_or_none(
-            getattr(animal, "ear_tag", None)
-        ),
-        "rfid": _text_or_none(
-            getattr(animal, "rfid", None)
-        ),
-        "category": category,
-        "lifecycle_status": _text_or_none(
-            getattr(animal, "lifecycle_status", None)
-        ),
-        "status": _text_or_none(
-            getattr(animal, "status", None)
-        ),
-        "sex": _text_or_none(
-            getattr(animal, "sex", None)
-        ),
-        "breed": _text_or_none(
-            getattr(animal, "breed", None)
-        ),
-        "date_of_birth": _date_or_none(
-            getattr(animal, "date_of_birth", None)
-        ),
-        "date_of_acquisition": _date_or_none(
-            getattr(animal, "date_of_acquisition", None)
-        ),
-        "dam_id": _text_or_none(
-            getattr(animal, "dam_id", None)
-        ),
-        "sire_id": _text_or_none(
-            getattr(animal, "sire_id", None)
-        ),
-        "is_currently_milking": bool(
-            getattr(animal, "is_currently_milking", False)
-        ),
-        "milking_frequency": _text_or_none(
-            getattr(animal, "milking_frequency", None)
-        ),
-        "active": bool(
-            getattr(animal, "active", False)
-        ),
-    }
-
-
-def _current_animal_rows(
-    payload: ReportingRequest,
-    *,
-    container: Any,
-) -> list[dict[str, Any]]:
-    repository = getattr(container, "animal_repository", None)
-
-    if repository is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Authoritative Animal repository is not available.",
-        )
-
-    get_all = getattr(repository, "get_all", None)
-
-    if not callable(get_all):
-        raise HTTPException(
-            status_code=503,
-            detail="Authoritative Animal repository cannot list animals.",
-        )
-
-    animals = list(get_all() or [])
-
-    category_filter = None
-    if payload.filters.get("category") is not None:
-        category_filter = _normalise_category_filter(
-            payload.filters["category"]
-        )
-
+def _current_animal_rows(payload: ReportingRequest, *, container: Any) -> list[dict[str, Any]]:
+    repository = getattr(container, "animal_repository", None) or _repo(container, "animal")
+    getter = getattr(repository, "get_all", None)
+    if not callable(getter):
+        raise HTTPException(status_code=503, detail="Authoritative Animal repository cannot list animals.")
+    category_filter = payload.filters.get("category")
+    canonical_filter = None
+    if category_filter is not None:
+        canonical_filter = ANIMAL_CATEGORY_FILTER_ALIASES.get(str(category_filter).strip().upper())
+        if canonical_filter is None:
+            raise HTTPException(status_code=422, detail="Unsupported Animal Reporting category filter.")
     rows: list[dict[str, Any]] = []
-
-    for animal in animals:
+    for animal in list(getter() or []):
         category = _classify_current_animal(animal)
-
-        if category is None:
+        if category is None or (canonical_filter is not None and category != canonical_filter):
             continue
-
-        if category_filter is not None and category != category_filter:
+        wanted_status = payload.filters.get("status")
+        if wanted_status is not None and str(getattr(animal, "status", "")).upper() != str(wanted_status).upper():
             continue
-
-        if not _animal_status_matches(
-            animal,
-            payload.filters.get("status"),
-        ):
-            continue
-
-        rows.append(
-            _animal_register_row(
-                animal,
-                category=category,
-            )
-        )
-
-    rows.sort(
-        key=lambda row: (
-            row["animal_id"] is None,
-            row["animal_id"] or "",
-        )
-    )
-
+        data = _row(animal)
+        data["category"] = category
+        rows.append(data)
+    rows.sort(key=lambda item: str(item.get("animal_id") or ""))
     return rows
 
 
-def _animal_category_counts(
-    rows: list[dict[str, Any]],
-) -> dict[str, int]:
-    counts = {
-        category: 0
-        for category in ANIMAL_CATEGORY_ORDER
-    }
-
+def _animal_dataset(payload: ReportingRequest, container: Any) -> dict[str, Any]:
+    rows = _current_animal_rows(payload, container=container)
+    counts = {category: 0 for category in ANIMAL_CATEGORY_ORDER}
     for row in rows:
-        category = row["category"]
-        counts[category] += 1
-
-    return counts
-
-
-def _animal_register_dataset(
-    payload: ReportingRequest,
-    *,
-    container: Any,
-) -> dict[str, Any]:
-    rows = _current_animal_rows(
-        payload,
-        container=container,
-    )
-
-    counts = _animal_category_counts(rows)
-
-    herd_totals = {
-        ANIMAL_CATEGORY_TOTAL_LABELS[category]: counts[category]
-        for category in ANIMAL_CATEGORY_ORDER
-    }
-
-    return {
-        "dataset_status": "AUTHORITATIVE_CURRENT_DATASET",
-        "authority_status": "CURRENT_AUTHORITY_AVAILABLE",
-        "columns": [
-            "animal_id",
-            "legacy_animal_id",
-            "ear_tag",
-            "rfid",
-            "category",
-            "lifecycle_status",
-            "status",
-            "sex",
-            "breed",
-            "date_of_birth",
-            "date_of_acquisition",
-            "dam_id",
-            "sire_id",
-            "is_currently_milking",
-            "milking_frequency",
-            "active",
-        ],
-        "rows": rows,
-        "summary": {
-            "total_current_animals": len(rows),
-            "category_counts": counts,
-            "herd_totals": herd_totals,
-        },
-        "warnings": (
-            []
-            if rows
-            else [
-                "No current Animal Register records match the selected filters."
-            ]
-        ),
-    }
-
-
-def _animal_population_dataset(
-    payload: ReportingRequest,
-    *,
-    container: Any,
-) -> dict[str, Any]:
-    rows = _current_animal_rows(
-        payload,
-        container=container,
-    )
-
-    counts = _animal_category_counts(rows)
-
-    population_rows = [
-        {
-            "category": category,
-            "herd_total_label": ANIMAL_CATEGORY_TOTAL_LABELS[category],
-            "count": counts[category],
-        }
-        for category in ANIMAL_CATEGORY_ORDER
-    ]
-
-    return {
-        "dataset_status": "AUTHORITATIVE_CURRENT_DATASET",
-        "authority_status": "CURRENT_AUTHORITY_AVAILABLE",
-        "columns": [
-            "category",
-            "herd_total_label",
-            "count",
-        ],
-        "rows": population_rows,
-        "summary": {
-            "total_current_animals": len(rows),
-            "category_counts": counts,
-            "herd_totals": {
-                ANIMAL_CATEGORY_TOTAL_LABELS[category]: counts[category]
-                for category in ANIMAL_CATEGORY_ORDER
-            },
-        },
-        "warnings": (
-            []
-            if rows
-            else [
-                "No current Animal Register records match the selected filters."
-            ]
-        ),
-    }
-
-
-def _canonical_dataset(
-    payload: ReportingRequest,
-    *,
-    container: Any,
-) -> dict[str, Any] | None:
-    if payload.report_id == "animal-register":
-        return _animal_register_dataset(
-            payload,
-            container=container,
-        )
-
+        counts[row["category"]] += 1
+    herd_totals = {ANIMAL_CATEGORY_TOTAL_LABELS[category]: counts[category] for category in ANIMAL_CATEGORY_ORDER}
     if payload.report_id == "animal-population":
-        return _animal_population_dataset(
-            payload,
-            container=container,
-        )
+        output = [{"category": category, "herd_total_label": ANIMAL_CATEGORY_TOTAL_LABELS[category], "count": counts[category]} for category in ANIMAL_CATEGORY_ORDER]
+    else:
+        output = rows
+    return _dataset(output, summary={"total_current_animals": len(rows), "category_counts": counts, "herd_totals": herd_totals}, status="AUTHORITATIVE_CURRENT_DATASET", warnings=[] if rows else ["No current Animal Register records match the selected filters."])
 
+
+def _generic_repo_dataset(payload: ReportingRequest, container: Any, operational_today: date, repo_name: str, aliases: dict[str, tuple[str, ...]]) -> dict[str, Any]:
+    start, end = _period_dates(payload, operational_today)
+    records = [record for record in _repo_records(container, repo_name) if _in_period(record, start, end) and _matches(record, aliases, payload.filters)]
+    return _dataset([_row(record) for record in records], summary={"records": len(records)})
+
+
+def _milk_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
+    start, end = _period_dates(payload, operational_today)
+    records = _repo_records(container, "milk")
+    animal_filter = payload.filters.get("animal_id")
+    session = str(payload.filters.get("session") or "ALL").strip().upper()
+    session_fields = {"MORNING": "morning_yield", "AFTERNOON": "afternoon_yield", "EVENING": "evening_yield"}
+    rows: list[dict[str, Any]] = []
+    active_total = 0.0
+    for record in records:
+        if not _in_period(record, start, end):
+            continue
+        if animal_filter is not None and str(getattr(record, "animal_id", "")) != str(animal_filter):
+            continue
+        data = _row(record)
+        if session in session_fields:
+            field = session_fields[session]
+            data["selected_session"] = session
+            data["selected_session_yield"] = _json_value(getattr(record, field, None))
+        status = str(getattr(record, "status", "RECORDED") or "RECORDED").upper()
+        if status != "VOID":
+            if session in session_fields:
+                value = getattr(record, session_fields[session], None)
+            else:
+                value = getattr(record, "total_yield", None)
+            if value is not None:
+                active_total += float(value)
+        rows.append(data)
+    return _dataset(rows, summary={"active_milk_liters": active_total, "records": len(rows), "session": session})
+
+
+def _finance_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
+    start, end = _period_dates(payload, operational_today)
+    aliases = {
+        "transaction_type": ("transaction_type", "type"), "status": ("status",),
+        "category": ("category", "master_category", "sub_category"), "counterparty": ("counterparty",),
+        "payment_state": ("payment_state", "settlement_status"),
+    }
+    records = [record for record in _repo_records(container, "finance") if _in_period(record, start, end) and _matches(record, aliases, payload.filters)]
+    income = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_income(record))
+    expense = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_expense(record))
+    active = sum(1 for record in records if finance_is_active(record))
+    summary = {"operating_income": income, "operating_expenses": expense, "operating_net": income - expense, "active_records": active, "audit_records": len(records)}
+    if payload.report_id == "financial-summary":
+        rows = [{"metric": key, "amount": value} for key, value in summary.items() if key in {"operating_income", "operating_expenses", "operating_net"}]
+    else:
+        rows = [_row(record) for record in records]
+    return _dataset(rows, summary=summary)
+
+
+def _semen_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
+    start, end = _period_dates(payload, operational_today)
+    finance = [record for record in _repo_records(container, "finance") if _in_period(record, start, end)]
+    breeding = [record for record in _repo_records(container, "breeding") if _in_period(record, start, end)]
+    purchases: dict[str, dict[str, Any]] = {}
+    for record in finance:
+        text = " ".join(str(getattr(record, field, "") or "") for field in ("category", "master_category", "sub_category", "notes")).upper()
+        lot = _text_or_none(getattr(record, "semen_lot_id", None) or getattr(record, "lot", None) or getattr(record, "reference", None))
+        if "SEMEN" not in text or lot is None:
+            continue
+        quantity = float(getattr(record, "quantity", 0) or 0)
+        entry = purchases.setdefault(lot, {"lot": lot, "purchased_quantity": 0.0, "used_quantity": 0, "available_quantity": 0.0, "supplier": _text_or_none(getattr(record, "counterparty", None)), "semen_type": _text_or_none(getattr(record, "semen_type", None))})
+        entry["purchased_quantity"] += quantity
+    for record in breeding:
+        if str(getattr(record, "event_type", "")).upper() not in {"AI", "INSEMINATION"}:
+            continue
+        lot = _text_or_none(getattr(record, "semen_lot_id", None))
+        if lot is None:
+            continue
+        entry = purchases.setdefault(lot, {"lot": lot, "purchased_quantity": 0.0, "used_quantity": 0, "available_quantity": 0.0, "supplier": _text_or_none(getattr(record, "semen_supplier", None)), "semen_type": None})
+        entry["used_quantity"] += 1
+    rows = []
+    for entry in purchases.values():
+        entry["available_quantity"] = entry["purchased_quantity"] - entry["used_quantity"]
+        if _matches(type("SemenView", (), entry)(), {"semen_type": ("semen_type",), "lot": ("lot",), "supplier": ("supplier",)}, payload.filters):
+            rows.append(entry)
+    rows.sort(key=lambda item: str(item["lot"]))
+    return _dataset(rows, summary={"lots": len(rows), "purchased_quantity": sum(row["purchased_quantity"] for row in rows), "used_quantity": sum(row["used_quantity"] for row in rows), "available_quantity": sum(row["available_quantity"] for row in rows)})
+
+
+def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational_today: date) -> dict[str, Any] | None:
+    if payload.report_id in {"animal-register", "animal-population"}:
+        return _animal_dataset(payload, container)
+    if payload.report_id in {"daily-milk", "milk-animal"}:
+        return _milk_dataset(payload, container, operational_today)
+    if payload.report_id == "milk-disposition":
+        return _generic_repo_dataset(payload, container, operational_today, "milk_dispositions", {"disposition_type": ("disposition_type", "type"), "status": ("status",)})
+    if payload.report_id in {"milk-quality-log", "quality-summary"}:
+        return _generic_repo_dataset(payload, container, operational_today, "milk_quality", {"sample_type": ("sample_type", "type"), "status": ("status",)})
+    if payload.report_id in {"current-tmr", "historical-tmr"}:
+        return _generic_repo_dataset(payload, container, operational_today, "feed_rations", {"category": ("category", "animal_category"), "ingredient": ("ingredient", "ingredient_name")})
+    if payload.report_id in {"finance-ledger", "financial-summary"}:
+        return _finance_dataset(payload, container, operational_today)
+    if payload.report_id in {"breeding-cycle", "breeding-performance"}:
+        return _generic_repo_dataset(payload, container, operational_today, "breeding", {"animal_id": ("animal_id",), "technician": ("technician",), "event_type": ("event_type",), "semen_type": ("semen_type",), "semen_lot": ("semen_lot_id",)})
+    if payload.report_id == "semen-stock":
+        return _semen_dataset(payload, container, operational_today)
+    if payload.report_id == "health-cases":
+        return _generic_repo_dataset(payload, container, operational_today, "health_cases", {"animal_id": ("animal_id",), "case_status": ("status",), "severity": ("severity",)})
+    if payload.report_id == "withdrawal":
+        return _generic_repo_dataset(payload, container, operational_today, "treatment", {"animal_id": ("animal_id",), "status": ("status",)})
+    if payload.report_id == "vaccination-schedule":
+        return _generic_repo_dataset(payload, container, operational_today, "vaccinations", {"animal_id": ("animal_id",), "vaccine": ("vaccine", "vaccine_name"), "schedule_status": ("status", "schedule_status")})
+    if payload.report_id == "coml-period":
+        return _generic_repo_dataset(payload, container, operational_today, "coml", {"lock_status": ("status",), "cost_component": ("cost_component",)})
+    if payload.report_id == "animal-lifecycle":
+        return _generic_repo_dataset(payload, container, operational_today, "operational_events", {"event_type": ("event_type", "type"), "category": ("category",)})
+    if payload.report_id == "animal-passport":
+        animal_id = payload.filters.get("animal_id")
+        animals = _current_animal_rows(ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", filters={}), container=container)
+        rows = [row for row in animals if animal_id is None or str(row.get("animal_id")) == str(animal_id)]
+        return _dataset(rows, summary={"animals": len(rows)})
+    if payload.report_id == "whole-farm-snapshot":
+        sections: list[dict[str, Any]] = []
+        for report_id, domain, mode in (
+            ("animal-population", "ANIMALS", "CURRENT_HERD"),
+            ("daily-milk", "MILK", "OPERATIONAL_DATE"),
+            ("finance-ledger", "FINANCE", "DATE_RANGE"),
+            ("vaccination-schedule", "VACCINATION", "OPERATIONAL_DATE"),
+        ):
+            selected = payload.snapshot_date
+            kwargs: dict[str, Any] = {}
+            if mode == "OPERATIONAL_DATE":
+                kwargs["operational_date"] = selected
+            if mode == "DATE_RANGE":
+                kwargs["start_date"] = selected
+                kwargs["end_date"] = selected
+            child = ReportingRequest(report_id=report_id, domain=domain, period_mode=mode, **kwargs)
+            result = _canonical_dataset(child, container=container, operational_today=operational_today)
+            sections.append({"report_id": report_id, "record_count": len(result["rows"]), "summary": result["summary"]})
+        return _dataset(sections, summary={"snapshot_date": payload.snapshot_date.isoformat(), "sections": len(sections)})
     return None
 
 
 @router.get("/catalog")
 def reporting_catalog():
-    return {
-        "data_status": "REPORTING_CATALOG",
-        "read_only": True,
-        "reports": [
-            report.model_dump()
-            for report in REPORTS
-        ],
-    }
+    return {"data_status": "REPORTING_CATALOG", "read_only": True, "reports": [report.model_dump() for report in REPORTS]}
 
 
 @router.post("/preview")
-def reporting_preview(
-    payload: ReportingRequest,
-    container=Depends(get_container),
-):
+def reporting_preview(payload: ReportingRequest, container=Depends(get_container)):
     definition = REPORT_BY_ID[payload.report_id]
-
     authority = OperationalDateAuthority()
     operational_today = authority.current_date()
     generated_at = authority.current_datetime()
-
-    period = _resolved_period(
-        payload,
-        operational_today=operational_today,
-    )
-
-    dataset = _canonical_dataset(
-        payload,
-        container=container,
-    )
-
+    period = _resolved_period(payload, operational_today=operational_today)
+    dataset = _canonical_dataset(payload, container=container, operational_today=operational_today)
     if dataset is None:
         dataset = {
             "dataset_status": "DATASET_NOT_IMPLEMENTED",
             "authority_status": "DATASET_NOT_IMPLEMENTED",
-            "columns": [],
-            "rows": [],
-            "summary": {},
-            "warnings": [
-                (
-                    "Canonical dataset generation is not implemented "
-                    "for this report yet. No farm values have been "
-                    "fabricated."
-                )
-            ],
+            "columns": [], "rows": [], "summary": {},
+            "warnings": ["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."],
         }
-
-    rows = dataset["rows"]
-
     return {
-        "data_status": "REPORTING_DATASET",
-        "dataset_status": dataset["dataset_status"],
-        "read_only": True,
-        "report_id": definition.id,
-        "domain": definition.domain,
-        "title": definition.name,
-        "authority": definition.authority,
-        "authority_status": dataset["authority_status"],
-        "historical_capability": definition.historical_capability,
-        "required_permissions": list(
-            definition.required_permissions
-        ),
-        "period_mode": payload.period_mode,
-        "period": period,
-        "filters": payload.filters,
-        "generated_at": generated_at.isoformat(),
-        "record_count": len(rows),
-        "columns": dataset["columns"],
-        "rows": rows,
-        "summary": dataset["summary"],
-        "warnings": dataset["warnings"],
+        "data_status": "REPORTING_DATASET", "dataset_status": dataset["dataset_status"],
+        "read_only": True, "report_id": definition.id, "domain": definition.domain,
+        "title": definition.name, "authority": definition.authority,
+        "authority_status": dataset["authority_status"], "historical_capability": definition.historical_capability,
+        "required_permissions": list(definition.required_permissions), "period_mode": payload.period_mode,
+        "period": period, "filters": payload.filters, "generated_at": generated_at.isoformat(),
+        "record_count": len(dataset["rows"]), "columns": dataset["columns"], "rows": dataset["rows"],
+        "summary": dataset["summary"], "warnings": dataset["warnings"],
     }
