@@ -1,0 +1,1 @@
+Backend linkage scope: Animals, Milk, Milk Quality, Feed/TMR, Finance, Breeding, Semen, Health, Vaccination, COML/COP, Whole Farm Snapshot.
