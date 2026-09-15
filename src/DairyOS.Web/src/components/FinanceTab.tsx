@@ -598,6 +598,12 @@ export default function FinanceTab({
     const recordedUnit = String(t.unit || '').trim();
     return recordedUnit ? `${formatted} ${recordedUnit}` : formatted;
   };
+  const ledgerRate = (t: Transaction) => {
+    const rate = Number(t.unit_rate || 0);
+    if (!(rate > 0)) return '';
+    const unit = String(t.unit || '').trim();
+    return `Rate: ${money(rate)}${unit ? ` / ${unit}` : ''}`;
+  };
 
   const revenueCategoryLabels: Record<string, string> = {
     MILK_SALES:'Milk Sales',
@@ -1215,7 +1221,10 @@ export default function FinanceTab({
       >
         <div style={{ ...ledgerLine, textDecoration:isVoid?'line-through':'none' }}>
           <span style={{ width: 76, flex: '0 0 76px' }}>{r.date?.slice(0, 10) || '—'}</span>
-          <span title={particulars} style={ledgerEllipsis}>{particulars}</span>
+          <span title={particulars} style={{ ...ledgerEllipsis, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span>{particulars}</span>
+            {(ledgerQuantity(r) !== '—' || ledgerRate(r)) && <span style={{ fontSize: 9, color: '#94a3b8', textDecoration: isVoid ? 'line-through' : 'none' }}>{ledgerQuantity(r)}{ledgerRate(r) ? ` · ${ledgerRate(r)}` : ''}</span>}
+          </span>
           <span title={r.vendor_name || r.counterparty || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.vendor_name || r.counterparty || '—'}</span>
           <span title={r.reference || ''} style={{ ...ledgerEllipsis, flexBasis: 100 }}>{r.reference || '—'}</span>
           <span style={{ width: 70, flex: '0 0 70px', fontWeight: 800 }}>{r.status || 'RECORDED'}</span>
