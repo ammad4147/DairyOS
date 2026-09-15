@@ -1,6 +1,6 @@
 """Governed read-only Reporting API for DairyOS.
 
-Reporting is a projection layer only.  It reads the same repositories used by
+Reporting is a projection layer only. It reads the same repositories used by
 operator workflows, preserves audit rows, and never invents missing values.
 """
 
@@ -169,25 +169,13 @@ def _resolved_period(request: ReportingRequest, *, operational_today: date) -> d
     else:
         raise HTTPException(status_code=422, detail="Unsupported Reporting period mode.")
     as_of = end or operational_today
-    return {
-        "start_date": start.isoformat() if start else None,
-        "end_date": end.isoformat() if end else None,
-        "as_of_date": as_of.isoformat(),
-    }
+    return {"start_date": start.isoformat() if start else None, "end_date": end.isoformat() if end else None, "as_of_date": as_of.isoformat()}
 
 
 TERMINAL_ANIMAL_LIFECYCLE_STATUSES = {"SOLD", "CULLED", "DECEASED"}
 ANIMAL_CATEGORY_ORDER = ("Milking", "Dry", "Heifer", "Female Calf", "Male Calf", "Bull")
-ANIMAL_CATEGORY_TOTAL_LABELS = {
-    "Milking": "Milking Cows", "Dry": "Dry Cows", "Heifer": "Heifers",
-    "Female Calf": "Female Calves", "Male Calf": "Male Calves", "Bull": "Bulls",
-}
-ANIMAL_CATEGORY_FILTER_ALIASES = {
-    "MILKING": "Milking", "MILKING COW": "Milking", "MILKING COWS": "Milking",
-    "DRY": "Dry", "DRY COW": "Dry", "DRY COWS": "Dry", "HEIFER": "Heifer",
-    "HEIFERS": "Heifer", "FEMALE CALF": "Female Calf", "FEMALE CALVES": "Female Calf",
-    "MALE CALF": "Male Calf", "MALE CALVES": "Male Calf", "BULL": "Bull", "BULLS": "Bull",
-}
+ANIMAL_CATEGORY_TOTAL_LABELS = {"Milking": "Milking Cows", "Dry": "Dry Cows", "Heifer": "Heifers", "Female Calf": "Female Calves", "Male Calf": "Male Calves", "Bull": "Bulls"}
+ANIMAL_CATEGORY_FILTER_ALIASES = {"MILKING": "Milking", "MILKING COW": "Milking", "MILKING COWS": "Milking", "DRY": "Dry", "DRY COW": "Dry", "DRY COWS": "Dry", "HEIFER": "Heifer", "HEIFERS": "Heifer", "FEMALE CALF": "Female Calf", "FEMALE CALVES": "Female Calf", "MALE CALF": "Male Calf", "MALE CALVES": "Male Calf", "BULL": "Bull", "BULLS": "Bull"}
 
 
 def _text_or_none(value: Any) -> str | None:
@@ -198,7 +186,6 @@ def _text_or_none(value: Any) -> str | None:
 
 
 def _plain_date(value: Any) -> date | None:
-    # datetime is a date subclass, so this order is deliberate.
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -231,11 +218,7 @@ def _row(record: Any) -> dict[str, Any]:
 
 
 def _record_date(record: Any) -> date | None:
-    for field in (
-        "production_date", "transaction_date", "date", "timestamp", "recorded_at",
-        "sample_date", "month_start", "treated_at", "administered_date", "due_date",
-        "next_due_date", "created_at", "updated_at",
-    ):
+    for field in ("production_date", "transaction_date", "effective_date", "operational_date", "event_date", "date", "timestamp", "recorded_at", "sample_date", "month_start", "treated_at", "administered_date", "due_date", "next_due_date", "created_at", "updated_at"):
         selected = _plain_date(getattr(record, field, None))
         if selected is not None:
             return selected
@@ -250,7 +233,7 @@ def _period_dates(payload: ReportingRequest, operational_today: date) -> tuple[d
 def _in_period(record: Any, start: date | None, end: date | None) -> bool:
     selected = _record_date(record)
     if selected is None:
-        return True
+        return start is None and end is None
     if start is not None and selected < start:
         return False
     if end is not None and selected > end:
@@ -279,15 +262,14 @@ def _repo(container: Any, name: str) -> Any:
     getter = getattr(factory, name, None) if factory is not None else None
     if callable(getter):
         return getter()
-    direct = getattr(container, name, None)
-    return direct
+    return getattr(container, name, None)
 
 
 def _repo_records(container: Any, name: str) -> list[Any]:
     repository = _repo(container, name)
     getter = getattr(repository, "get_all", None)
     if not callable(getter):
-        return []
+        raise HTTPException(status_code=503, detail={"code": "REPORTING_AUTHORITY_UNAVAILABLE", "repository": name, "message": f"Authoritative Reporting repository '{name}' cannot list records."})
     return list(getter() or [])
 
 
@@ -297,14 +279,7 @@ def _dataset(rows: list[dict[str, Any]], *, summary: dict[str, Any] | None = Non
         for key in row:
             if key not in columns:
                 columns.append(key)
-    return {
-        "dataset_status": status,
-        "authority_status": "AUTHORITY_AVAILABLE",
-        "columns": columns,
-        "rows": rows,
-        "summary": summary or {},
-        "warnings": warnings or [],
-    }
+    return {"dataset_status": status, "authority_status": "AUTHORITY_AVAILABLE", "columns": columns, "rows": rows, "summary": summary or {}, "warnings": warnings or []}
 
 
 def _classify_current_animal(animal: Any) -> str | None:
@@ -351,10 +326,7 @@ def _animal_dataset(payload: ReportingRequest, container: Any) -> dict[str, Any]
     for row in rows:
         counts[row["category"]] += 1
     herd_totals = {ANIMAL_CATEGORY_TOTAL_LABELS[category]: counts[category] for category in ANIMAL_CATEGORY_ORDER}
-    if payload.report_id == "animal-population":
-        output = [{"category": category, "herd_total_label": ANIMAL_CATEGORY_TOTAL_LABELS[category], "count": counts[category]} for category in ANIMAL_CATEGORY_ORDER]
-    else:
-        output = rows
+    output = [{"category": category, "herd_total_label": ANIMAL_CATEGORY_TOTAL_LABELS[category], "count": counts[category]} for category in ANIMAL_CATEGORY_ORDER] if payload.report_id == "animal-population" else rows
     return _dataset(output, summary={"total_current_animals": len(rows), "category_counts": counts, "herd_totals": herd_totals}, status="AUTHORITATIVE_CURRENT_DATASET", warnings=[] if rows else ["No current Animal Register records match the selected filters."])
 
 
@@ -384,10 +356,7 @@ def _milk_dataset(payload: ReportingRequest, container: Any, operational_today: 
             data["selected_session_yield"] = _json_value(getattr(record, field, None))
         status = str(getattr(record, "status", "RECORDED") or "RECORDED").upper()
         if status != "VOID":
-            if session in session_fields:
-                value = getattr(record, session_fields[session], None)
-            else:
-                value = getattr(record, "total_yield", None)
+            value = getattr(record, session_fields[session], None) if session in session_fields else getattr(record, "total_yield", None)
             if value is not None:
                 active_total += float(value)
         rows.append(data)
@@ -396,20 +365,13 @@ def _milk_dataset(payload: ReportingRequest, container: Any, operational_today: 
 
 def _finance_dataset(payload: ReportingRequest, container: Any, operational_today: date) -> dict[str, Any]:
     start, end = _period_dates(payload, operational_today)
-    aliases = {
-        "transaction_type": ("transaction_type", "type"), "status": ("status",),
-        "category": ("category", "master_category", "sub_category"), "counterparty": ("counterparty",),
-        "payment_state": ("payment_state", "settlement_status"),
-    }
+    aliases = {"transaction_type": ("transaction_type", "type"), "status": ("status",), "category": ("category", "master_category", "sub_category"), "counterparty": ("counterparty",), "payment_state": ("payment_state", "settlement_status")}
     records = [record for record in _repo_records(container, "finance") if _in_period(record, start, end) and _matches(record, aliases, payload.filters)]
     income = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_income(record))
     expense = sum(float(getattr(record, "amount", 0) or 0) for record in records if finance_is_expense(record))
     active = sum(1 for record in records if finance_is_active(record))
     summary = {"operating_income": income, "operating_expenses": expense, "operating_net": income - expense, "active_records": active, "audit_records": len(records)}
-    if payload.report_id == "financial-summary":
-        rows = [{"metric": key, "amount": value} for key, value in summary.items() if key in {"operating_income", "operating_expenses", "operating_net"}]
-    else:
-        rows = [_row(record) for record in records]
+    rows = [{"metric": key, "amount": value} for key, value in summary.items() if key in {"operating_income", "operating_expenses", "operating_net"}] if payload.report_id == "financial-summary" else [_row(record) for record in records]
     return _dataset(rows, summary=summary)
 
 
@@ -443,6 +405,18 @@ def _semen_dataset(payload: ReportingRequest, container: Any, operational_today:
     return _dataset(rows, summary={"lots": len(rows), "purchased_quantity": sum(row["purchased_quantity"] for row in rows), "used_quantity": sum(row["used_quantity"] for row in rows), "available_quantity": sum(row["available_quantity"] for row in rows)})
 
 
+def _snapshot_child(report_id: str, domain: DomainKey, mode: PeriodMode, selected: date) -> ReportingRequest:
+    kwargs: dict[str, Any] = {}
+    if mode == "OPERATIONAL_DATE":
+        kwargs["operational_date"] = selected
+    elif mode == "DATE_RANGE":
+        kwargs["start_date"] = selected
+        kwargs["end_date"] = selected
+    elif mode == "AS_OF_DATE":
+        kwargs["as_of_date"] = selected
+    return ReportingRequest(report_id=report_id, domain=domain, period_mode=mode, **kwargs)
+
+
 def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational_today: date) -> dict[str, Any] | None:
     if payload.report_id in {"animal-register", "animal-population"}:
         return _animal_dataset(payload, container)
@@ -453,7 +427,7 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
     if payload.report_id in {"milk-quality-log", "quality-summary"}:
         return _generic_repo_dataset(payload, container, operational_today, "milk_quality", {"sample_type": ("sample_type", "type"), "status": ("status",)})
     if payload.report_id in {"current-tmr", "historical-tmr"}:
-        return _generic_repo_dataset(payload, container, operational_today, "feed_rations", {"category": ("category", "animal_category"), "ingredient": ("ingredient", "ingredient_name")})
+        return _generic_repo_dataset(payload, container, operational_today, "feed_rations", {"category": ("category", "animal_group", "animal_category"), "ingredient": ("ingredient", "ingredient_name")})
     if payload.report_id in {"finance-ledger", "financial-summary"}:
         return _finance_dataset(payload, container, operational_today)
     if payload.report_id in {"breeding-cycle", "breeding-performance"}:
@@ -476,24 +450,29 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
         rows = [row for row in animals if animal_id is None or str(row.get("animal_id")) == str(animal_id)]
         return _dataset(rows, summary={"animals": len(rows)})
     if payload.report_id == "whole-farm-snapshot":
-        sections: list[dict[str, Any]] = []
-        for report_id, domain, mode in (
+        selected = payload.snapshot_date
+        if selected is None:
+            raise HTTPException(status_code=422, detail="snapshot_date is required for Complete Farm Snapshot.")
+        section_specs: tuple[tuple[str, DomainKey, PeriodMode], ...] = (
             ("animal-population", "ANIMALS", "CURRENT_HERD"),
             ("daily-milk", "MILK", "OPERATIONAL_DATE"),
+            ("milk-quality-log", "MILK_QUALITY", "OPERATIONAL_DATE"),
+            ("current-tmr", "FEED", "OPERATIONAL_DATE"),
             ("finance-ledger", "FINANCE", "DATE_RANGE"),
+            ("breeding-cycle", "BREEDING", "AS_OF_DATE"),
+            ("semen-stock", "SEMEN", "AS_OF_DATE"),
+            ("health-cases", "HEALTH", "AS_OF_DATE"),
             ("vaccination-schedule", "VACCINATION", "OPERATIONAL_DATE"),
-        ):
-            selected = payload.snapshot_date
-            kwargs: dict[str, Any] = {}
-            if mode == "OPERATIONAL_DATE":
-                kwargs["operational_date"] = selected
-            if mode == "DATE_RANGE":
-                kwargs["start_date"] = selected
-                kwargs["end_date"] = selected
-            child = ReportingRequest(report_id=report_id, domain=domain, period_mode=mode, **kwargs)
-            result = _canonical_dataset(child, container=container, operational_today=operational_today)
+            ("coml-period", "COML", "MONTH"),
+        )
+        sections: list[dict[str, Any]] = []
+        for report_id, domain, mode in section_specs:
+            child = _snapshot_child(report_id, domain, mode, selected)
+            result = _canonical_dataset(child, container=container, operational_today=selected)
+            if result is None:
+                raise HTTPException(status_code=503, detail={"code": "REPORTING_SNAPSHOT_SECTION_UNAVAILABLE", "report_id": report_id})
             sections.append({"report_id": report_id, "record_count": len(result["rows"]), "summary": result["summary"]})
-        return _dataset(sections, summary={"snapshot_date": payload.snapshot_date.isoformat(), "sections": len(sections)})
+        return _dataset(sections, summary={"snapshot_date": selected.isoformat(), "sections": len(sections)})
     return None
 
 
@@ -511,19 +490,5 @@ def reporting_preview(payload: ReportingRequest, container=Depends(get_container
     period = _resolved_period(payload, operational_today=operational_today)
     dataset = _canonical_dataset(payload, container=container, operational_today=operational_today)
     if dataset is None:
-        dataset = {
-            "dataset_status": "DATASET_NOT_IMPLEMENTED",
-            "authority_status": "DATASET_NOT_IMPLEMENTED",
-            "columns": [], "rows": [], "summary": {},
-            "warnings": ["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."],
-        }
-    return {
-        "data_status": "REPORTING_DATASET", "dataset_status": dataset["dataset_status"],
-        "read_only": True, "report_id": definition.id, "domain": definition.domain,
-        "title": definition.name, "authority": definition.authority,
-        "authority_status": dataset["authority_status"], "historical_capability": definition.historical_capability,
-        "required_permissions": list(definition.required_permissions), "period_mode": payload.period_mode,
-        "period": period, "filters": payload.filters, "generated_at": generated_at.isoformat(),
-        "record_count": len(dataset["rows"]), "columns": dataset["columns"], "rows": dataset["rows"],
-        "summary": dataset["summary"], "warnings": dataset["warnings"],
-    }
+        dataset = {"dataset_status": "DATASET_NOT_IMPLEMENTED", "authority_status": "DATASET_NOT_IMPLEMENTED", "columns": [], "rows": [], "summary": {}, "warnings": ["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."]}
+    return {"data_status": "REPORTING_DATASET", "dataset_status": dataset["dataset_status"], "read_only": True, "report_id": definition.id, "domain": definition.domain, "title": definition.name, "authority": definition.authority, "authority_status": dataset["authority_status"], "historical_capability": definition.historical_capability, "required_permissions": list(definition.required_permissions), "period_mode": payload.period_mode, "period": period, "filters": payload.filters, "generated_at": generated_at.isoformat(), "record_count": len(dataset["rows"]), "columns": dataset["columns"], "rows": dataset["rows"], "summary": dataset["summary"], "warnings": dataset["warnings"]}
