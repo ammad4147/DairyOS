@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import { farmToday } from '../utils/farmDate';
+import { apiUrl } from '../config/api';
+import { readApiPayload } from '../api/response';
 
 type DomainKey = 'ANIMALS' | 'MILK' | 'MILK_QUALITY' | 'FEED' | 'FINANCE' | 'BREEDING' | 'SEMEN' | 'HEALTH' | 'VACCINATION' | 'COML' | 'WHOLE_FARM';
 type Format = 'PDF' | 'XLSX' | 'CSV';
@@ -88,6 +90,14 @@ export default function ReportingTab() {
   const [animalId, setAnimalId] = useState('');
   const [format, setFormat] = useState<Format>('PDF');
   const [previewed, setPreviewed] = useState(false);
+  const [preview, setPreview] = useState<{ dataset_status?: string; authority_status?: string; record_count?: number; columns?: string[]; rows?: Record<string, unknown>[]; warnings?: string[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setPreview(null);
+    setError('');
+  }, [reportId]);
 
   const selectDomain = (next: DomainKey) => {
     setDomain(next);
@@ -96,6 +106,41 @@ export default function ReportingTab() {
   };
 
   const filename = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g, '-')}-${asOfDate}.${format.toLowerCase()}`;
+
+  const requestPreview = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(apiUrl('/farm/reporting/preview'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          report_id: report.id,
+          domain,
+          period_mode: snapshot ? 'SNAPSHOT_DATE' : report.periods[0] === 'Current herd' ? 'CURRENT_HERD' : report.periods[0] === 'Today' ? 'TODAY' : report.periods[0] === 'Yesterday' ? 'YESTERDAY' : report.periods[0] === 'Operational Date' ? 'OPERATIONAL_DATE' : report.periods[0] === 'As of date' ? 'AS_OF_DATE' : report.periods[0] === 'Month' ? 'MONTH' : 'DATE_RANGE',
+          operational_date: asOfDate,
+          as_of_date: asOfDate,
+          snapshot_date: asOfDate,
+          start_date: startDate,
+          end_date: endDate,
+          filters: {
+            ...(category !== 'All animals' ? { category } : {}),
+            ...(session !== 'All sessions' ? { session } : {}),
+            ...(cohort !== 'All eligible animals' ? { milking_cohort: cohort } : {}),
+            ...(animalId ? { animal_id: animalId } : {}),
+          },
+        }),
+      });
+      setPreview(await readApiPayload(response, 'Report preview could not be loaded'));
+      setPreviewed(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Report preview could not be loaded.');
+      setPreview(null);
+      setPreviewed(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const printReport = () => {
     setPreviewed(true);
@@ -115,7 +160,8 @@ export default function ReportingTab() {
       `Milking cohort: ${cohort}`,
       `Animal ID: ${animalId || 'All applicable'}`,
       '',
-      'This Settings Reporting export is a read-only governed report request summary. Canonical backend dataset generation and cross-format reconciliation remain the next reporting implementation phase.',
+      preview ? `Dataset status: ${preview.dataset_status || 'UNKNOWN'}` : 'Dataset status: PREVIEW NOT REQUESTED',
+      preview ? `Records: ${preview.record_count ?? 0}` : '',
     ];
     const blob = new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -172,7 +218,7 @@ export default function ReportingTab() {
           {showCohort && <div><label style={label}>Milking Cohort</label><select value={cohort} onChange={event => setCohort(event.target.value)} style={field}>{cohorts.map(item => <option key={item}>{item}</option>)}</select></div>}
           {showAnimal && <div><label style={label}>Animal ID</label><input value={animalId} onChange={event => setAnimalId(event.target.value)} placeholder="All applicable" style={field} /></div>}
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => setPreviewed(true)} style={button('#0369a1')}><Eye size={13} />Preview Report</button>
+            <button type="button" onClick={requestPreview} disabled={loading} style={button('#0369a1')}><Eye size={13} />{loading ? 'Loading...' : 'Preview Report'}</button>
             <button type="button" onClick={printReport} style={button('#475569')}><Printer size={13} />Print</button>
             <button type="button" onClick={saveReport} style={button('#059669')}>{format === 'XLSX' ? <FileSpreadsheet size={13} /> : format === 'CSV' ? <Download size={13} /> : <FileText size={13} />}Save {format}</button>
           </div>
@@ -185,7 +231,7 @@ export default function ReportingTab() {
             <div style={{ color: '#38bdf8', fontWeight: 900, fontSize: 15 }}>{report.name}</div>
             <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 3 }}>{domains.find(item => item.key === domain)?.label} · {snapshot ? `Snapshot date ${asOfDate}` : `${startDate} to ${endDate}`}</div>
           </div>
-          <div style={{ color: previewed ? '#86efac' : '#fde68a', fontSize: 10, fontWeight: 900 }}>{previewed ? 'PREVIEW READY' : 'SELECT PREVIEW'}</div>
+          <div style={{ color: error ? '#fca5a5' : previewed ? '#86efac' : '#fde68a', fontSize: 10, fontWeight: 900 }}>{error || (previewed ? `${preview?.dataset_status || 'PREVIEW READY'} · ${preview?.record_count ?? 0} records` : 'SELECT PREVIEW')}</div>
         </div>
         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 10 }}>
           <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9 }}>
@@ -201,6 +247,8 @@ export default function ReportingTab() {
             <div style={{ color: '#64748b', fontSize: 9, marginTop: 8 }}>Report generation is read-only. Operational record dates and workflow-specific selectors remain in their original tabs.</div>
           </div>
         </div>
+        {preview?.warnings?.map(warning => <div key={warning} style={{ marginTop: 10, color: '#fcd34d', fontSize: 10 }}>{warning}</div>)}
+        {preview && preview.rows && preview.rows.length > 0 && <div style={{ marginTop: 12, overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}><thead><tr>{(preview.columns || Object.keys(preview.rows[0])).map(column => <th key={column} style={{ textAlign: 'left', padding: 7, color: '#94a3b8', borderTop: '1px solid #1f2937' }}>{column}</th>)}</tr></thead><tbody>{preview.rows.slice(0, 100).map((row, index) => <tr key={index}>{(preview.columns || Object.keys(row)).map(column => <td key={column} style={{ padding: 7, color: '#e2e8f0', borderTop: '1px solid #1f2937' }}>{String(row[column] ?? '')}</td>)}</tr>)}</tbody></table></div>}
       </section>
 
       <section style={card}>
