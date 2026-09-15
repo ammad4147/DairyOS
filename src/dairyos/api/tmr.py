@@ -334,13 +334,7 @@ def _finance_price_authority(factory) -> dict[str, dict]:
         unit = str(getattr(row, "unit", "") or "").strip().lower()
         if unit and unit not in {"kg", "kgs", "kilogram", "kilograms"}:
             continue
-        # Finance ``amount`` is the purchase total.  Derive the governed
-        # ingredient price from total / quantity so a legacy or malformed
-        # row that stored the full purchase amount in ``unit_rate`` cannot
-        # inflate the daily TMR cost into the purchase total.
-        quantity = float(getattr(row, "quantity", 0.0) or 0.0)
-        amount = float(getattr(row, "amount", 0.0) or 0.0)
-        rate = amount / quantity if quantity > 0 and amount > 0 else 0.0
+        rate = float(getattr(row, "unit_rate", 0.0) or 0.0)
         if rate <= 0:
             continue
         transaction_date = getattr(row, "transaction_date", None)
