@@ -323,9 +323,15 @@ def test_vaccination_occurrence_rejects_cross_animal_administration(client):
     assert response.status_code == 409, response.text
 
 
-def test_multiple_vaccination_occurrences_are_independent(client):
+def test_multiple_vaccination_occurrences_are_independent(client, monkeypatch):
     animal_id = _animal(client, "DASH-HEALTH-VAX-MULTI-001")
+    # Keep the boundary deterministic when the full CI run crosses midnight.
     today = _operational_today()
+    monkeypatch.setattr(
+        OperationalDateAuthority,
+        "current_date",
+        lambda self: today,
+    )
     future_due = today + timedelta(days=30)
 
     due_today = client.post(
