@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiUrl } from '../config/api';
 
-type DomainKey = 'ANIMALS'|'MILK'|'MILK_QUALITY'|'FEED'|'FINANCE'|'BREEDING'|'SEMEN'|'HEALTH'|'VACCINATION'|'COML'|'WHOLE_FARM';
+type DomainKey = 'ANIMALS'|'MILK'|'MILK_QUALITY'|'FEED'|'FINANCE'|'BREEDING'|'HEALTH'|'VACCINATION'|'COML'|'WHOLE_FARM';
 type Format = 'PDF'|'XLSX'|'CSV';
 type Report = { id:string; domain:DomainKey; name:string; description:string; authority:string; filters:string[]; periods:string[]; outputs:string[]; permission:string; historical_capability:string };
 type Preview = { report_id:string; report_name:string; generated_at:string; period:Record<string,unknown>; filters:Record<string,unknown>; dataset_status:string; columns:string[]; rows:Record<string,unknown>[]; record_count:number; summary:Record<string,unknown> };
 
-const domainLabels: Record<DomainKey,string> = { ANIMALS:'Animals', MILK:'Milk', MILK_QUALITY:'Milk Quality', FEED:'Feed / TMR', FINANCE:'Finance', BREEDING:'Breeding', SEMEN:'Semen', HEALTH:'Health', VACCINATION:'Vaccination', COML:'COML / COP', WHOLE_FARM:'Whole Farm' };
+const domainLabels: Record<DomainKey,string> = { ANIMALS:'Animals', MILK:'Milk', MILK_QUALITY:'Milk Quality', FEED:'Feed / TMR', FINANCE:'Finance', BREEDING:'Breeding', HEALTH:'Health', VACCINATION:'Vaccination', COML:'COML / COP', WHOLE_FARM:'Whole Farm' };
 const domains = Object.keys(domainLabels) as DomainKey[];
 // Stable operator-facing report names retained here as contract markers while the catalog remains backend-authoritative.
 const reportingContractNames = ['Transaction Ledger', 'Income and Expense Summary', 'Milk Quality Log'];
