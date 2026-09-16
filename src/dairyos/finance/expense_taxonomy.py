@@ -81,7 +81,7 @@ OPEX_TAXONOMY = {
         "Payroll Taxes / Benefits",
     ],
     "UTILITIES_ENERGY": [
-        "Grid Electricity (WAPDA)",
+        "Electricity / Power",
         "Generator Fuel (Diesel / Petrol)",
         "Generator Service & Spare Parts",
         "Solar System Maintenance & Inverter Servicing",
@@ -186,6 +186,8 @@ def all_items(master_category: str) -> list[str]:
 
 
 def valid_item(master_category: str, item: str) -> bool:
+    if item == "Grid Electricity (WAPDA)" and master_category == "OPEX":
+        return True
     return item in all_items(master_category)
 
 
@@ -195,6 +197,8 @@ def legacy_category(master_category: str, sub_category: str) -> str:
         return "FEED"
 
     if master_category == "OPEX":
+        if sub_category == "Grid Electricity (WAPDA)":
+            return "UTILITIES"
         for group, items in OPEX_TAXONOMY.items():
             if sub_category in items:
                 return LEGACY_CATEGORY_BY_OPEX_GROUP[group]

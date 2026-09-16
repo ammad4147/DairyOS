@@ -28,6 +28,8 @@ type FinanceFieldContract = {
   clearsOnExit: readonly RevenueFieldName[];
 };
 
+type ExpenseFormBehavior = 'immediate' | 'defined_period' | 'estimated_consumption' | 'authoritative_consumption' | 'non_opex';
+
 const REVENUE_FIELD_CONTRACTS: Record<string, FinanceFieldContract> = {
   'Milk Sales': { visible: ['quantity', 'rate', 'amount'], required: ['quantity', 'rate'], clearsOnExit: ['animalId', 'amount'] },
   'Milking Animal Sale': { visible: ['animalId', 'amount'], required: ['animalId', 'amount'], clearsOnExit: ['quantity', 'rate'] },
@@ -414,7 +416,6 @@ export default function FinanceTab({
   const groupedTaxonomyEntries = Object.entries(taxonomy?.taxonomies?.[masterCategory] ?? {}) as [string, string[]][];
   const expenseGroups = groupedTaxonomyEntries.map(([group]) => group);
   const expenseItems = expenseGroup ? (currentTaxonomy[expenseGroup] ?? []) : [];
-
   const selectExpenseGroup = (nextGroup: string) => {
     setExpenseGroup(nextGroup);
     setSubCategory(currentTaxonomy[nextGroup]?.[0] ?? '');
@@ -616,6 +617,10 @@ export default function FinanceTab({
   const requiresCustomSpecification=subCategory==='Other'||subCategory==='Equipment Purchase';
   const isSemenPurchase = masterCategory === 'OPEX' && subCategory === 'Semen Straws (Sexed / Conventional)';
   const isAnimalPurchase = masterCategory === 'NON_OPEX' && subCategory === 'Animal Purchase';
+  const selectedExpenseDefault = taxonomy?.cop_governance?.defaults?.[subCategory];
+  const expenseFormBehavior: ExpenseFormBehavior = masterCategory === 'NON_OPEX' ? 'non_opex' : masterCategory === 'FEED' ? 'authoritative_consumption' : selectedExpenseDefault?.attribution_method === 'DIRECT' || (!selectedExpenseDefault?.attribution_method && copAttributionMethod === 'DIRECT') ? 'immediate' : selectedExpenseDefault?.attribution_method === 'PERIODIC' || (!selectedExpenseDefault?.attribution_method && copAttributionMethod === 'PERIODIC') ? 'defined_period' : 'estimated_consumption';
+  const requiresOperatorAttribution = masterCategory === 'OPEX' && !selectedExpenseDefault?.attribution_method;
+  const showExpenseQuantity = masterCategory === 'FEED' || isSemenPurchase || expenseFormBehavior === 'estimated_consumption';
   const animalPurchaseCategories = taxonomy?.animal_purchase_categories ?? DEFAULT_ANIMAL_PURCHASE_CATEGORIES;
 
   useEffect(() => {
@@ -1445,7 +1450,7 @@ export default function FinanceTab({
             {isSemenPurchase && <div style={{ marginTop:6, padding:8, border:'1px solid #7c2d12', borderRadius:6, background:'#1c1917' }}><div style={{fontSize:10,fontWeight:900,color:'#fbbf24',marginBottom:6}}>Semen Purchase Details</div><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:6}}><select required value={semenType} onChange={e=>setSemenType(e.target.value as typeof semenType)} style={inputStyle}><option value="">Semen type</option><option value="SEXED">Sexed</option><option value="CONVENTIONAL">Conventional</option></select><input required value={semenSireCode} onChange={e=>setSemenSireCode(e.target.value)} style={inputStyle} placeholder="Sire / Bull Code" /><input value={semenBullName} onChange={e=>setSemenBullName(e.target.value)} style={inputStyle} placeholder="Bull Name" /><input value={semenBreed} onChange={e=>setSemenBreed(e.target.value)} style={inputStyle} placeholder="Breed" /><input required value={semenBatch} onChange={e=>setSemenBatch(e.target.value)} style={inputStyle} placeholder="Batch / Lot Number" /><input type="date" value={semenExpiry} onChange={e=>setSemenExpiry(e.target.value)} style={inputStyle} title="Expiry date" /><input value={semenStorage} onChange={e=>setSemenStorage(e.target.value)} style={inputStyle} placeholder="Storage Tank / Location" /><input value={semenCountry} onChange={e=>setSemenCountry(e.target.value)} style={inputStyle} placeholder="Country / Source" /></div><div style={{fontSize:8,color:'#a8a29e',marginTop:5}}>Quantity below = straws purchased. Unit rate = cost per straw. Supplier is the Vendor / Supplier field.</div></div>}
             {requiresCustomSpecification && <input required value={customSpecification} onChange={event => setCustomSpecification(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder={subCategory === 'Equipment Purchase' ? 'Equipment name' : 'Specification'} />}
             <input value={vendor} onChange={event => setVendor(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Vendor / Supplier" />
-            {isAnimalPurchase ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Purchase amount (PKR)" /> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
+            {isAnimalPurchase ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Purchase amount (PKR)" /> : !showExpenseQuantity ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Amount (PKR)" /> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="number" min="0" step="0.001" value={quantity} onChange={event => setQuantity(event.target.value)} style={inputStyle} placeholder="Quantity" />
               <select value={isSemenPurchase ? 'straw' : unit} onChange={event => setUnit(event.target.value)} disabled={isSemenPurchase} style={inputStyle}><option>straw</option><option>kg</option><option>bag</option><option>ton</option><option>litre</option><option>service</option><option>head</option><option>unit</option></select>
               <input type="number" min="0" step="0.01" value={unitRate} onChange={event => setUnitRate(event.target.value)} style={inputStyle} placeholder="Unit rate" disabled={!quantity} />
@@ -1457,41 +1462,22 @@ export default function FinanceTab({
               {paymentMethod === 'CREDIT' ? <input required type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} style={inputStyle} /> : <input value={reference} onChange={event => setReference(event.target.value)} style={inputStyle} placeholder="Reference" />}
             </div>
             {paymentMethod === 'CREDIT' && <input value={reference} onChange={event => setReference(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Reference" />}
-            {masterCategory === 'OPEX' && !isAnimalPurchase && (
+            {masterCategory === 'OPEX' && !isAnimalPurchase && expenseFormBehavior !== 'non_opex' && (
               <div style={{ marginTop: 6, padding: 8, border: '1px solid #334155', borderRadius: 6, background: '#0f172a' }}>
-                <div style={{ fontSize: 9, fontWeight: 900, color: '#cbd5e1', marginBottom: 6 }}>COP Classification & Attribution</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <select aria-label="COP classification" value={copClassification} onChange={event => setCopClassification(event.target.value)} style={inputStyle}>
-                    <option value="">Select OPEX / Non-OPEX</option><option value="OPEX">OPEX — eligible for Estimated COP</option>
-                    <option value="NON_OPEX">Non-OPEX — excluded from Estimated COP</option>
-                  </select>
-                  {copClassification === 'OPEX' && (
-                    <select aria-label="COP attribution method" value={copAttributionMethod} onChange={event => setCopAttributionMethod(event.target.value)} style={inputStyle}>
-                      <option value="">Attribution unresolved</option>
-                      <option value="DIRECT">Direct</option>
-                      <option value="PERIODIC">Periodic</option>
-                      <option value="CONSUMPTION">Consumption</option>
-                      <option value="ALLOCATED">Allocated / Estimated</option>
-                    </select>
-                  )}
-                </div>
-                {copClassification === 'OPEX' && copAttributionMethod === 'DIRECT' && (
+                <div style={{ fontSize: 9, fontWeight: 900, color: '#cbd5e1', marginBottom: 6 }}>Expense facts</div>
+                {requiresOperatorAttribution && <select aria-label="Attribution method for conditional expense" required value={copAttributionMethod} onChange={event => setCopAttributionMethod(event.target.value)} style={inputStyle}><option value="">Select how this expense is used</option><option value="DIRECT">Immediate service/use</option><option value="PERIODIC">Defined coverage period</option><option value="ALLOCATED">Estimated consumption period</option></select>}
+                {expenseFormBehavior === 'immediate' && (
                   <label style={{ display:'block', marginTop:6, fontSize:8, color:'#94a3b8' }}>Service / Incurred Date
                     <input aria-label="COP service date" type="date" value={copServiceDate} onChange={event => setCopServiceDate(event.target.value)} style={{ ...inputStyle, marginTop: 3 }} />
                   </label>
                 )}
-                {copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) && (
+                {['defined_period', 'estimated_consumption'].includes(expenseFormBehavior) && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
                     <label style={{ fontSize:8, color:'#94a3b8' }}>Coverage Start<input aria-label="COP coverage start" type="date" value={copCoverageStart} onChange={event => setCopCoverageStart(event.target.value)} style={{...inputStyle,marginTop:3}} /></label>
                     <label style={{ fontSize:8, color:'#94a3b8' }}>Coverage End<input aria-label="COP coverage end" type="date" value={copCoverageEnd} onChange={event => setCopCoverageEnd(event.target.value)} style={{...inputStyle,marginTop:3}} /></label>
                   </div>
                 )}
-                {copClassification === 'OPEX' && copAttributionMethod === 'CONSUMPTION' && (
-                  <div style={{ marginTop: 6, fontSize: 8, color: '#fbbf24' }}>Consumption costs enter Estimated COP only when DairyOS has an authoritative usage linkage. Otherwise they remain unattributed until resolved.</div>
-                )}
-                {copClassification === 'OPEX' && !copAttributionMethod && (
-                  <div style={{ marginTop: 6, fontSize: 8, color: '#fbbf24' }}>This expense is excluded from Estimated COP until attribution is resolved.</div>
-                )}
+                {expenseFormBehavior === 'authoritative_consumption' && <div style={{ marginTop: 6, fontSize: 8, color: '#fbbf24' }}>Consumption recognition follows the governed domain authority; no operator allocation is required.</div>}
               </div>
             )}
             {isAnimalPurchase && <div style={{ marginTop: 6, padding: 8, border: '1px solid #334155', borderRadius: 6, background: '#0f172a', color: '#cbd5e1', fontSize: 8 }}>Animal Purchase is capital/non-OPEX and is excluded from Estimated COP. Its standard category is retained until the Passport record is completed.</div>}

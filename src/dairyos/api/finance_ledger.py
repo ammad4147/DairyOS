@@ -1844,6 +1844,13 @@ def finance_taxonomy():
             "classifications": sorted(COP_CLASSIFICATIONS),
             "attribution_methods": sorted(ATTRIBUTION_METHODS),
             "non_opex_items": sorted(NON_OPEX_ITEMS),
+            "dynamic_forms": {
+                "immediate": {"fields": ["service_date"]},
+                "defined_period": {"fields": ["coverage_start", "coverage_end"]},
+                "estimated_consumption": {"fields": ["quantity", "unit", "coverage_start", "coverage_end"]},
+                "authoritative_consumption": {"fields": ["quantity", "unit", "lot_details"]},
+                "non_opex": {"fields": []},
+            },
             "defaults": {
                 item: {
                     "classification": default_cop_classification("OPEX", item),

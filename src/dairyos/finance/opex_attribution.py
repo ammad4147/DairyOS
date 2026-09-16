@@ -33,7 +33,7 @@ PERIODIC_ITEMS = frozenset({
     "Overtime / Bonus Payments",
     "Staff Rations & Living Expenses",
     "Payroll Taxes / Benefits",
-    "Grid Electricity (WAPDA)",
+    "Electricity / Power",
     "Internet / Mobile Communications",
     "Accounting & Banking Fees",
     "Bank Charges",
@@ -43,6 +43,10 @@ PERIODIC_ITEMS = frozenset({
     "Taxes / Local Fees",
     "Farm Land Lease / Rent",
 })
+
+# Historical rows retain their original label but use the same governed
+# treatment as the neutral operator-facing item.
+LEGACY_ITEM_ALIASES = {"Grid Electricity (WAPDA)": "Electricity / Power"}
 
 DIRECT_ITEMS = frozenset({
     "Routine Vet Fees / Consultation",
@@ -114,7 +118,7 @@ def default_cop_classification(master_category: str | None, sub_category: str | 
 
 
 def default_attribution_method(sub_category: str | None) -> str | None:
-    item = str(sub_category or "").strip()
+    item = LEGACY_ITEM_ALIASES.get(str(sub_category or "").strip(), str(sub_category or "").strip())
     if item in NON_OPEX_ITEMS or item in CONDITIONAL_METHOD_ITEMS:
         return None
     if item in DIRECT_ITEMS:

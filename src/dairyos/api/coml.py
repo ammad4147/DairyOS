@@ -329,16 +329,6 @@ def get_integrated_coml(
         or today
     )
 
-    latest_completed_date = today - timedelta(days=1)
-    if requested_end > latest_completed_date and not allow_current_period:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Today's Feed Cost/L is unavailable until the operational "
-                "day is complete. Select the latest completed date or earlier."
-            ),
-        )
-
     if requested_end < start:
         raise HTTPException(
             status_code=422,
@@ -348,8 +338,9 @@ def get_integrated_coml(
             ),
         )
 
-    # Requested period remains visible to the caller, but operational
-    # actuals cannot extend beyond the governed operational date.
+    # Requested period remains visible to the caller, while Milk may include
+    # valid current-day sessions. TMR independently reports incomplete/missing
+    # current-day authority; no feed cost is fabricated here.
     effective_end = (
         min(
             requested_end,

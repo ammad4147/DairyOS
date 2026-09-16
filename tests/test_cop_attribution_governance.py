@@ -180,9 +180,10 @@ def test_finance_persists_source_classification_and_attribution_metadata():
 
 
 def test_finance_ui_exposes_governed_classification_without_cop_screen_clutter():
-    assert "COP Classification & Attribution" in FINANCE_UI
-    assert "OPEX — eligible for Estimated COP" in FINANCE_UI
-    assert "Non-OPEX — excluded from Estimated COP" in FINANCE_UI
+    assert "COP Classification & Attribution" not in FINANCE_UI
+    assert "Expense facts" in FINANCE_UI
+    assert "Service / Incurred Date" in FINANCE_UI
+    assert "Coverage Start" in FINANCE_UI
     assert "Estimated OPEX / L" in COP_UI
     assert "Estimated COP / L" in COP_UI
     assert "Operator-Assessed COP" in COP_UI
