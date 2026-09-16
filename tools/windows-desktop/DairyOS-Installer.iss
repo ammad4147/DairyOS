@@ -78,6 +78,7 @@ var
   CleanConfirmationAccepted: Boolean;
   RestoreChoiceIndex: Integer;
   BackupCandidatePaths: array of String;
+  BackupCandidateTimes: array of String;
   FarmCandidatePaths: array of String;
   SelectedDataRoot: String;
 
@@ -545,7 +546,14 @@ end;
 procedure AddBackupCandidate(const Candidate: String);
 var
   I: Integer;
+  InsertAt: Integer;
   Normalized: String;
+  ManifestPath: String;
+  ManifestText: AnsiString;
+  CreatedAt: String;
+  StartAt: Integer;
+  EndAt: Integer;
+  ManifestLoaded: Boolean;
 begin
   Normalized := Candidate;
   while (Length(Normalized) > 3) and
@@ -559,8 +567,51 @@ begin
     if Lowercase(BackupCandidatePaths[I]) = Lowercase(Normalized) then
       exit;
 
+  { The backup manifest timestamp is the operator-facing identity. ISO-style
+    timestamps sort correctly as text, so the newest recovery point stays at
+    the top without locale-dependent date parsing. }
+  CreatedAt := '';
+  ManifestPath := AddBackslash(Normalized) + 'backup.json';
+  ManifestLoaded := False;
+  if FileExists(ManifestPath) then
+  begin
+    ManifestLoaded := LoadStringFromFile(ManifestPath, ManifestText);
+  end;
+  if ManifestLoaded then
+  begin
+    StartAt := Pos('"created_at"', ManifestText);
+    if StartAt > 0 then
+    begin
+      StartAt := StartAt + 11 + Pos('"', Copy(ManifestText, StartAt + 11, Length(ManifestText)));
+      if StartAt > 0 then
+      begin
+        StartAt := StartAt + 1;
+        EndAt := StartAt - 1 + Pos('"', Copy(ManifestText, StartAt, Length(ManifestText)));
+        if EndAt > StartAt then
+          CreatedAt := Copy(ManifestText, StartAt, EndAt - StartAt);
+      end;
+    end;
+  end;
+  if CreatedAt = '' then
+    CreatedAt := '0000-00-00T00:00:00';
+
+  InsertAt := GetArrayLength(BackupCandidatePaths);
+  for I := 0 to GetArrayLength(BackupCandidateTimes) - 1 do
+    if CreatedAt > BackupCandidateTimes[I] then
+    begin
+      InsertAt := I;
+      break;
+    end;
+
   SetArrayLength(BackupCandidatePaths, GetArrayLength(BackupCandidatePaths) + 1);
-  BackupCandidatePaths[GetArrayLength(BackupCandidatePaths) - 1] := Normalized;
+  SetArrayLength(BackupCandidateTimes, GetArrayLength(BackupCandidateTimes) + 1);
+  for I := GetArrayLength(BackupCandidatePaths) - 1 downto InsertAt + 1 do
+  begin
+    BackupCandidatePaths[I] := BackupCandidatePaths[I - 1];
+    BackupCandidateTimes[I] := BackupCandidateTimes[I - 1];
+  end;
+  BackupCandidatePaths[InsertAt] := Normalized;
+  BackupCandidateTimes[InsertAt] := CreatedAt;
 end;
 
 procedure ScanBackupDirectory(const Directory: String; Depth: Integer);
@@ -615,6 +666,7 @@ var
   I: Integer;
 begin
   SetArrayLength(BackupCandidatePaths, 0);
+  SetArrayLength(BackupCandidateTimes, 0);
 
   { Every validated DairyOS farm may own preserved backups. Enumerate those
     owned roots, then retain the existing explicitly configured mirror and
@@ -662,61 +714,27 @@ begin
   InitialFarmIndex := -1;
   ConfiguredRoot := ConfiguredDairyOSDataRoot();
 
-  if ExistingDataDetected then
-  begin
-    DataChoicePage := CreateInputOptionPage(
-      wpSelectDir,
-      'DairyOS Farm Data',
-      'Choose how this installation should use preserved farm data.',
-      'Keep one selected farm, restore one selected recovery point into a selected farm, or create a separate empty farm.',
-      True,
-      True
-    );
-    DataChoicePage.Add('Keep existing farm data (recommended)');
-    DataChoicePage.Add('Restore from a verified backup');
-    DataChoicePage.Add('Create a separate empty farm (preserve existing data)');
-    DataChoicePage.SelectedValueIndex := 0;
-    SelectedInstallMode := 'keep';
-    RestoreChoiceIndex := 1;
-  end
-  else if GetArrayLength(BackupCandidatePaths) > 0 then
-  begin
-    DataChoicePage := CreateInputOptionPage(
-      wpSelectDir,
-      'DairyOS Farm Data',
-      'No active DairyOS farm was detected, but recovery points are available.',
-      'Restore one selected recovery point or initialize a new empty active farm.',
-      True,
-      True
-    );
-    DataChoicePage.Add('Initialize a new empty farm');
-    DataChoicePage.Add('Restore from a verified backup');
-    DataChoicePage.SelectedValueIndex := 0;
-    SelectedInstallMode := 'new';
-    RestoreChoiceIndex := 1;
-  end
-  else
-  begin
-    DataChoicePage := CreateInputOptionPage(
-      wpSelectDir,
-      'DairyOS Farm Data',
-      'This is a new DairyOS installation.',
-      'DairyOS will initialize an empty active farm. No recovery data is copied.',
-      True,
-      True
-    );
-    DataChoicePage.Add('Initialize a new empty farm');
-    DataChoicePage.SelectedValueIndex := 0;
-    SelectedInstallMode := 'new';
-  end;
+  DataChoicePage := CreateInputOptionPage(
+    wpSelectDir,
+    'DairyOS Installation',
+    'Choose how to start DairyOS.',
+    'Choose New Installation for a fresh farm, or Restore to Verified Backup to bring back saved farm data.',
+    True,
+    True
+  );
+  DataChoicePage.Add('New Installation');
+  DataChoicePage.Add('Restore to Verified Backup');
+  DataChoicePage.SelectedValueIndex := 0;
+  SelectedInstallMode := 'new';
+  RestoreChoiceIndex := 1;
 
   if GetArrayLength(FarmCandidatePaths) > 0 then
   begin
     FarmChoicePage := CreateInputOptionPage(
       DataChoicePage.ID,
       'DairyOS Farm',
-      'Choose the farm data to use.',
-      'Select the exact preserved DairyOS farm. The full data path is shown so multiple preserved farms cannot be confused.',
+      'Choose the farm to restore.',
+      'Select the saved DairyOS farm that should receive the verified backup.',
       True,
       True
     );
@@ -769,18 +787,18 @@ begin
   if FarmChoicePage <> nil then
     BackupChoicePage := CreateInputOptionPage(
       FarmChoicePage.ID,
-      'DairyOS Recovery Point',
-      'Choose one backup to restore.',
-      'Only the selected path will be re-verified by DairyOS immediately before restoration.',
+      'Saved Backups',
+      'Choose a backup by date and time.',
+      'The newest backup is first. DairyOS checks the selected backup again before restoring it.',
       True,
       True
     )
   else
     BackupChoicePage := CreateInputOptionPage(
       DataChoicePage.ID,
-      'DairyOS Recovery Point',
-      'Choose one backup to restore.',
-      'Only the selected path will be re-verified by DairyOS immediately before restoration.',
+      'Saved Backups',
+      'Choose a backup by date and time.',
+      'The newest backup is first. DairyOS checks the selected backup again before restoring it.',
       True,
       True
     );
@@ -793,8 +811,8 @@ begin
   begin
     for I := 0 to GetArrayLength(BackupCandidatePaths) - 1 do
       BackupChoicePage.Add(
-        'Backup candidate (DairyOS verifies before restore): ' +
-        BackupCandidatePaths[I]
+        Copy(BackupCandidateTimes[I], 1, 10) + ' ' +
+        Copy(BackupCandidateTimes[I], 12, 5) + ' - Backup'
       );
     BackupChoicePage.SelectedValueIndex := 0;
   end;
@@ -810,25 +828,6 @@ begin
   begin
     CleanConfirmationAccepted := False;
     SelectedBackupPath := '';
-
-    if ExistingDataDetected then
-    begin
-      if DataChoicePage.SelectedValueIndex = 0 then
-      begin
-        SelectedInstallMode := 'keep';
-        exit;
-      end;
-
-      if DataChoicePage.SelectedValueIndex = 1 then
-      begin
-        SelectedInstallMode := 'restore';
-        exit;
-      end;
-
-      SelectedInstallMode := 'clean';
-      SelectedDataRoot := AllocateNewDairyOSDataRoot();
-      exit;
-    end;
 
     if (RestoreChoiceIndex >= 0) and
        (DataChoicePage.SelectedValueIndex = RestoreChoiceIndex) then
@@ -929,9 +928,7 @@ begin
 
   if (FarmChoicePage <> nil) and (PageID = FarmChoicePage.ID) then
     Result :=
-      (not ExistingDataDetected) or
-      ((DataChoicePage.SelectedValueIndex <> 0) and
-       (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex));
+      (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex);
 
   if PageID = CleanConfirmationPage.ID then
     Result :=

@@ -33,9 +33,8 @@ def test_installer_exposes_explicit_clean_and_restore_choices():
 
     assert "DetectExistingDairyOSData" in source
     assert "CreateInputOptionPage" in source
-    assert "Keep existing farm data (recommended)" in source
-    assert "Restore from a verified backup" in source
-    assert "Create a separate empty farm (preserve existing data)" in source
+    assert "DataChoicePage.Add('New Installation');" in source
+    assert "DataChoicePage.Add('Restore to Verified Backup');" in source
     assert "ScanKnownBackupRoots" in source
     assert "StageInstallationChoice" in source
     assert "TRadioButton" not in source

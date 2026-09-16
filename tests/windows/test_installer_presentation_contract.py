@@ -13,13 +13,12 @@ def test_installer_exposes_explicit_data_and_recovery_choices():
     assert "WizardResizable=" not in source
     assert "WizardSizePercent=140,135" in source
     assert "TInputOptionWizardPage" in source
-    assert "Keep existing farm data (recommended)" in source
-    assert "Restore from a verified backup" in source
-    assert "Create a separate empty farm (preserve existing data)" in source
+    assert "DataChoicePage.Add('New Installation');" in source
+    assert "DataChoicePage.Add('Restore to Verified Backup');" in source
     assert "CLEAN INSTALL DAIRYOS DATA" in source
     assert "Existing DairyOS records, logs and backups will not be deleted or changed." in source
-    assert "Backup candidate (DairyOS verifies before restore)" in source
-    assert "No active DairyOS farm was detected, but recovery points are available." in source
+    assert "Choose a backup by date and time." in source
+    assert "The newest backup is first." in source
     assert "--choice-mode keep" in source
     assert "StageInstallationChoice" in source
     assert "The selected DairyOS installation action could not be recorded." in source

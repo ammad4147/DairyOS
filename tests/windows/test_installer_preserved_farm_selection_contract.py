@@ -181,8 +181,7 @@ def test_farm_page_is_only_shown_for_keep_or_restore():
     )
 
     assert "(FarmChoicePage <> nil)" in skip
-    assert "(not ExistingDataDetected)" in skip
-    assert "DataChoicePage.SelectedValueIndex <> 0" in skip
+    assert "DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex" in skip
     assert "DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex" in skip
 
 

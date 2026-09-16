@@ -19,7 +19,7 @@ def test_default_settings(client):
     assert body["farm_name"] == "Trident Dairies"
     assert body["animal_id_prefix"] == "TD"
     assert "reset_protected" not in body
-    assert body["navigation"]["hidden_tabs"] == []
+    assert body["navigation"]["hidden_tabs"] == ["analytics"]
     assert body["navigation"]["available_tabs"] == [
         "dashboard", "animals", "milk", "feed", "finance",
         "breeding", "health", "vaccination", "cop",

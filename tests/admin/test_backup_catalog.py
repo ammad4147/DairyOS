@@ -134,8 +134,7 @@ def test_installer_owns_explicit_recovery_choice_without_standalone_admin():
     text = source.read_text()
     assert 'Parameters: "--restore-mode"' not in text
     assert "DairyOS-Admin.exe" not in text
-    assert "Restore from a verified backup" in text
-    assert "Create a separate empty farm (preserve existing data)" in text
+    assert "Restore to Verified Backup" in text
     assert "ScanKnownBackupRoots" in text
     assert "StageInstallationChoice" in text
 
