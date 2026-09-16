@@ -69,7 +69,7 @@ class FinanceRevenueLedgerQuantityContractTest(unittest.TestCase):
         self.assertIn("const data = await loadDataset()", self.reporting)
         self.assertNotIn("const data = preview || await loadDataset()", self.reporting)
         self.assertIn("await downloadExport('PDF', '-Print')", self.reporting)
-        self.assertIn("print-ready PDF", self.reporting)
+        self.assertIn("Print-ready PDF saved.", self.reporting)
         self.assertNotIn("document.createElement('iframe')", self.reporting)
         self.assertNotIn("printWindow.print()", self.reporting)
         self.assertNotIn("window.print()", self.reporting)
