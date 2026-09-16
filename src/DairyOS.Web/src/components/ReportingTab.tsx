@@ -11,15 +11,10 @@ const domainLabels: Record<DomainKey,string> = { ANIMALS:'Animals', MILK:'Milk',
 const domains = Object.keys(domainLabels) as DomainKey[];
 const reportingContractNames = ['Transaction Ledger', 'Income and Expense Summary', 'Milk Quality Log'];
 void reportingContractNames;
-
 const columnLabels: Record<string,string> = {
-  animal_id:'Animal ID', ear_tag:'Ear Tag', rfid:'RFID', date_of_birth:'Date of Birth', date_of_acquisition:'Date of Acquisition',
-  dam_id:'Dam ID', sire_id:'Sire ID', lifecycle_status:'Lifecycle Status', is_currently_milking:'Currently Milking', milking_frequency:'Milking Frequency',
-  production_date:'Date', operational_date:'Date', event_date:'Event Date', recorded_at:'Recorded At', sample_date:'Sample Date',
-  herd_total_label:'Herd Group', total_yield:'Total Milk (L)', morning_yield:'Morning (L)', afternoon_yield:'Afternoon (L)', evening_yield:'Evening (L)',
-  selected_session:'Milking Session', selected_session_yield:'Session Milk (L)', quantity_liters:'Quantity (L)', amount:'Amount (PKR)',
-  feed_cost:'Feed Cost (PKR)', total_herd_feed_cost_per_day:'Daily Herd Feed Cost (PKR)', feed_cost_per_litre_today:'Feed Cost / Litre (PKR)',
-  cost_per_head_day:'Cost / Head / Day (PKR)', price_per_kg:'Price / kg (PKR)', record_id:'Record ID', report_id:'Report', record_count:'Records',
+  animal_id:'Animal ID', ear_tag:'Ear Tag', rfid:'RFID', date_of_birth:'Date of Birth', date_of_acquisition:'Date of Acquisition', dam_id:'Dam ID', sire_id:'Sire ID', lifecycle_status:'Lifecycle Status', is_currently_milking:'Currently Milking', milking_frequency:'Milking Frequency',
+  production_date:'Date', operational_date:'Date', event_date:'Event Date', recorded_at:'Recorded At', sample_date:'Sample Date', herd_total_label:'Herd Group', total_yield:'Total Milk (L)', morning_yield:'Morning (L)', afternoon_yield:'Afternoon (L)', evening_yield:'Evening (L)',
+  selected_session:'Milking Session', selected_session_yield:'Session Milk (L)', quantity_liters:'Quantity (L)', amount:'Amount (PKR)', feed_cost:'Feed Cost (PKR)', total_herd_feed_cost_per_day:'Daily Herd Feed Cost (PKR)', feed_cost_per_litre_today:'Feed Cost / Litre (PKR)', cost_per_head_day:'Cost / Head / Day (PKR)', price_per_kg:'Price / kg (PKR)', record_id:'Record ID', report_id:'Report', record_count:'Records',
 };
 const humanize = (value:string):string => value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bId\b/g, 'ID').replace(/\bRfid\b/g, 'RFID').replace(/\bComl\b/g, 'COML').replace(/\bCop\b/g, 'COP').replace(/\bTmr\b/g, 'TMR');
 const labelFor = (value:string):string => columnLabels[value] || humanize(value);
@@ -29,19 +24,9 @@ const displayValue = (value:unknown):string => {
   if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (Array.isArray(value)) return value.length ? value.map(displayValue).join(', ') : '—';
   if (typeof value === 'object') return Object.entries(value as Record<string,unknown>).map(([key, item]) => `${labelFor(key)}: ${displayValue(item)}`).join(' · ');
-  const text = String(value);
-  if (/^[A-Z0-9_ -]+$/.test(text) && text.includes('_')) return humanize(text.toLowerCase());
-  return text;
+  const text = String(value); if (/^[A-Z0-9_ -]+$/.test(text) && text.includes('_')) return humanize(text.toLowerCase()); return text;
 };
-const userMessage = async (response:Response, fallback:string):Promise<string> => {
-  try {
-    const payload = await response.json();
-    const detail = payload?.detail;
-    if (typeof detail === 'string' && detail.trim()) return detail;
-    if (detail && typeof detail.message === 'string' && detail.message.trim()) return detail.message;
-  } catch { /* keep operator-facing fallback */ }
-  return fallback;
-};
+const userMessage = async (response:Response, fallback:string):Promise<string> => { try { const payload = await response.json(); const detail = payload?.detail; if (typeof detail === 'string' && detail.trim()) return detail; if (detail && typeof detail.message === 'string' && detail.message.trim()) return detail.message; } catch { /* keep operator-facing fallback */ } return fallback; };
 
 export default function ReportingTab() {
   const [reports, setReports] = useState<Report[]>([]); const [domain, setDomain] = useState<DomainKey>('ANIMALS'); const [reportId, setReportId] = useState('');
@@ -55,10 +40,11 @@ export default function ReportingTab() {
   const report = reports.find(item => item.id === reportId) || domainReports[0] || ({ id:'', name:'Report', filters:[], period_modes:[] } as unknown as Report);
   const applicable = (name:string) => report.filters?.includes(name) || report.filters?.some(item => item.toLowerCase().replace(/[_ ]/g,'').includes(name.toLowerCase().replace(/[_ ]/g,'')));
   const hasPeriod = (name:PeriodMode) => report.period_modes?.includes(name);
-
   const selectDomain = (next:DomainKey) => { setDomain(next); setReportId(reports.find(item => item.domain === next)?.id ?? ''); setPreviewed(false); };
   const selectedPeriod = ():PeriodMode => {
     if (domain === 'WHOLE_FARM') return 'SNAPSHOT_DATE';
+    if (startDate && endDate && hasPeriod('DATE_RANGE')) return 'DATE_RANGE';
+    if (startDate && endDate && hasPeriod('CUSTOM_PERIOD')) return 'CUSTOM_PERIOD';
     if (hasPeriod('CURRENT_HERD')) return 'CURRENT_HERD';
     if (hasPeriod('OPERATIONAL_DATE')) return 'OPERATIONAL_DATE';
     if (hasPeriod('AS_OF_DATE')) return 'AS_OF_DATE';
@@ -68,10 +54,10 @@ export default function ReportingTab() {
     if (hasPeriod('DATE_RANGE')) return 'DATE_RANGE';
     return report.period_modes?.[0] || 'DATE_RANGE';
   };
-  const periodReady = () => !report.id ? false : ((hasPeriod('DATE_RANGE') || hasPeriod('CUSTOM_PERIOD')) ? Boolean(startDate && endDate) : true);
+  const needsRange = hasPeriod('DATE_RANGE') || hasPeriod('CUSTOM_PERIOD');
+  const periodReady = () => !report.id ? false : (needsRange ? Boolean(startDate && endDate) : true);
   const requestBody = (includeColumns=true) => ({
-    report_id: report.id, domain, period_mode: selectedPeriod(), operational_date: asOfDate, as_of_date: asOfDate, snapshot_date: asOfDate,
-    start_date: startDate || null, end_date: endDate || null,
+    report_id: report.id, domain, period_mode: selectedPeriod(), operational_date: asOfDate, as_of_date: asOfDate, snapshot_date: asOfDate, start_date: startDate || null, end_date: endDate || null,
     filters: { ...(category ? { category } : {}), ...(session ? { session } : {}), ...(cohort ? { milking_cohort: cohort } : {}), ...(animalId ? { animal_id: animalId } : {}) },
     ...(includeColumns && selectedColumns.length ? { selected_columns: selectedColumns } : {}),
   });
@@ -81,16 +67,13 @@ export default function ReportingTab() {
     setPreview(null); setPreviewed(false); setError(''); setNotice(''); setEligibleColumns([]); setSelectedColumns([]);
     if (!periodReady()) return;
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      fetchDataset(false).then(data => { if (!cancelled) { setEligibleColumns(data.columns || []); setSelectedColumns(data.columns || []); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Report fields could not be prepared.'); });
-    }, 200);
+    const timer = window.setTimeout(() => { fetchDataset(false).then(data => { if (!cancelled) { setEligibleColumns(data.columns || []); setSelectedColumns(data.columns || []); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Report fields could not be prepared.'); }); }, 200);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId, domain]);
 
   const loadDataset = async ():Promise<Preview> => fetchDataset(true);
   const previewReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be prepared.'); } finally { setLoading(false); } };
   const toggleColumn = (column:string) => setSelectedColumns(current => current.includes(column) ? current.filter(item => item !== column) : eligibleColumns.filter(item => current.includes(item) || item === column));
-
   const downloadExport = async (exportFormat:Format, suffix='') => {
     const data = await loadDataset(); setPreview(data); setPreviewed(true);
     const response = await fetch(apiUrl(`/farm/reporting/export?format=${encodeURIComponent(exportFormat)}`), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody(true)) });
@@ -99,22 +82,17 @@ export default function ReportingTab() {
     if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status || exportedColumns !== String(data.columns.length)) throw new Error('Report could not be saved. Please try again.');
     const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
   };
-
   const noColumnsSelected = eligibleColumns.length > 0 && selectedColumns.length === 0;
   const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport('PDF', '-Print'); setNotice('Print-ready PDF saved.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
   const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport(format); setNotice(`${format} report saved.`); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
+  const columns = preview?.columns || []; const summaryItems = Object.entries(preview?.summary || {});
 
-  const columns = preview?.columns || [];
-  const summaryItems = Object.entries(preview?.summary || {});
   return <div className="space-y-4">
     <div><h2 className="text-xl font-semibold">Reporting</h2><p className="text-sm text-slate-600">Select a report, choose only the controls that apply, preview the governed data, then print or save it.</p></div>
     <div className="flex flex-wrap gap-2">{domains.map(item => <button key={item} onClick={() => selectDomain(item)} className={`rounded px-3 py-2 text-sm ${domain===item?'bg-slate-900 text-white':'bg-slate-100 text-slate-700'}`}>{domainLabels[item]}</button>)}</div>
-    <div className="grid gap-3 md:grid-cols-2">
-      <label className="text-sm font-medium">Report<select className="mt-1 w-full rounded border p-2" value={reportId} onChange={e => setReportId(e.target.value)}>{domainReports.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <div className="rounded border bg-slate-50 p-3"><div className="font-medium">{report.name}</div>{report.scope_note && <div className="mt-1 text-sm text-slate-600">{report.scope_note}</div>}</div>
-    </div>
+    <div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-medium">Report<select className="mt-1 w-full rounded border p-2" value={reportId} onChange={e => setReportId(e.target.value)}>{domainReports.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="rounded border bg-slate-50 p-3"><div className="font-medium">{report.name}</div>{report.scope_note && <div className="mt-1 text-sm text-slate-600">{report.scope_note}</div>}</div></div>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {(hasPeriod('DATE_RANGE') || hasPeriod('CUSTOM_PERIOD')) && <><label className="text-sm">From<input type="date" className="mt-1 w-full rounded border p-2" value={startDate} onChange={e=>setStartDate(e.target.value)}/></label><label className="text-sm">To<input type="date" className="mt-1 w-full rounded border p-2" value={endDate} onChange={e=>setEndDate(e.target.value)}/></label></>}
+      {needsRange && <><label className="text-sm">From<input type="date" className="mt-1 w-full rounded border p-2" value={startDate} onChange={e=>setStartDate(e.target.value)}/></label><label className="text-sm">To<input type="date" className="mt-1 w-full rounded border p-2" value={endDate} onChange={e=>setEndDate(e.target.value)}/></label></>}
       {(hasPeriod('AS_OF_DATE') || hasPeriod('OPERATIONAL_DATE') || hasPeriod('MONTH') || domain==='WHOLE_FARM') && <label className="text-sm">Date<input type="date" className="mt-1 w-full rounded border p-2" value={asOfDate} onChange={e=>setAsOfDate(e.target.value)}/></label>}
       {applicable('category') && <label className="text-sm">Category<select className="mt-1 w-full rounded border p-2" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All</option>{['MILKING','DRY','HEIFER','FEMALE_CALF','MALE_CALF','BULL'].map(v=><option key={v} value={v}>{humanize(v.toLowerCase())}</option>)}</select></label>}
       {applicable('session') && <label className="text-sm">Milking Session<select className="mt-1 w-full rounded border p-2" value={session} onChange={e=>setSession(e.target.value)}><option value="">All</option>{['MORNING','AFTERNOON','EVENING'].map(v=><option key={v} value={v}>{humanize(v.toLowerCase())}</option>)}</select></label>}
