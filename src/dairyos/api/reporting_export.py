@@ -18,6 +18,10 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
+PDF_MARGIN = 10 * mm
+PDF_LANDSCAPE_COLUMN_THRESHOLD = 6
+
+
 OPERATOR_HEADINGS: dict[str, str] = {
     "animal_id": "Animal ID",
     "ear_tag": "Ear Tag",
@@ -82,6 +86,11 @@ def _xlsx_value(value: Any) -> Any:
     return _cell(value)
 
 
+def _pdf_page_size(columns: list[str]) -> tuple[float, float]:
+    """Return the governed A4 orientation for a Reporting table."""
+    return landscape(A4) if len(columns) > PDF_LANDSCAPE_COLUMN_THRESHOLD else portrait(A4)
+
+
 def csv_bytes(columns: list[str], rows: list[dict[str, Any]]) -> bytes:
     stream = StringIO(newline="")
     writer = csv.writer(stream, lineterminator="\r\n")
@@ -129,10 +138,18 @@ def xlsx_bytes(title: str, columns: list[str], rows: list[dict[str, Any]], summa
 
 
 def pdf_bytes(title: str, columns: list[str], rows: list[dict[str, Any]], summary: dict[str, Any]) -> bytes:
-    wide = len(columns) > 6
-    page_size = landscape(A4) if wide else portrait(A4)
+    page_size = _pdf_page_size(columns)
+    wide = page_size[0] > page_size[1]
     output = BytesIO()
-    document = SimpleDocTemplate(output, pagesize=page_size, leftMargin=10*mm, rightMargin=10*mm, topMargin=10*mm, bottomMargin=10*mm, title=title)
+    document = SimpleDocTemplate(
+        output,
+        pagesize=page_size,
+        leftMargin=PDF_MARGIN,
+        rightMargin=PDF_MARGIN,
+        topMargin=PDF_MARGIN,
+        bottomMargin=PDF_MARGIN,
+        title=title,
+    )
     styles = getSampleStyleSheet()
     story = [Paragraph(f"DairyOS — {title}", styles["Title"]), Spacer(1, 3*mm)]
     if summary:
@@ -147,7 +164,7 @@ def pdf_bytes(title: str, columns: list[str], rows: list[dict[str, Any]], summar
         data = [[Paragraph(_heading(column), header_style) for column in columns]]
         for row in rows:
             data.append([Paragraph(_cell(row.get(column)), body_style) for column in columns])
-        available_width = (landscape(A4)[0] if wide else portrait(A4)[0]) - 20*mm
+        available_width = page_size[0] - (2 * PDF_MARGIN)
         weights = [max(7, min(24, len(_heading(column)))) for column in columns]
         total_weight = sum(weights) or 1
         widths = [available_width * weight / total_weight for weight in weights]
