@@ -13,12 +13,15 @@ def test_operator_reporting_hides_developer_authority_matrix_and_raw_print_windo
     assert "window.print(" not in source
     assert "printWindow.print(" not in source
     assert "document.createElement('iframe')" not in source
-    assert "print-ready PDF" in source
+    assert "await downloadExport('PDF', '-Print')" in source
+    assert "Print-ready PDF saved." in source
 
 
 def test_operator_reporting_has_readable_table_contract():
     source = REPORTING_TAB.read_text(encoding="utf-8")
-    assert "humanize(column)" in source
+    assert "const labelFor =" in source
+    assert "columnLabels[value] || humanize(value)" in source
+    assert "{labelFor(column)}" in source
     assert "displayValue(row[column])" in source
     assert "overflow-x-auto" in source
     assert "whitespace-normal break-words" in source
