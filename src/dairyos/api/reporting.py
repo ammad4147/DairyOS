@@ -95,6 +95,7 @@ class ReportingRequest(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     filters: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    selected_columns: list[str] | None = None
 
     @field_validator("report_id")
     @classmethod
@@ -123,6 +124,12 @@ class ReportingRequest(BaseModel):
         unsupported = sorted(set(self.filters) - set(definition.filters))
         if unsupported:
             raise ValueError("Unsupported filter(s) for report: " + ", ".join(unsupported))
+        if self.selected_columns is not None:
+            self.selected_columns = [str(column).strip() for column in self.selected_columns if str(column).strip()]
+            if not self.selected_columns:
+                raise ValueError("At least one Reporting column must be selected")
+            if len(self.selected_columns) != len(set(self.selected_columns)):
+                raise ValueError("Selected Reporting columns must be unique")
         return self
 
 
@@ -246,6 +253,19 @@ def _dataset(rows: list[dict[str, Any]], *, summary: dict[str, Any] | None = Non
     return {"dataset_status": status, "authority_status": "AUTHORITY_AVAILABLE", "columns": columns, "rows": rows, "summary": summary or {}, "warnings": warnings or []}
 
 
+def _project_dataset(dataset: dict[str, Any], selected_columns: list[str] | None) -> dict[str, Any]:
+    if selected_columns is None:
+        return dataset
+    available = list(dataset.get("columns") or [])
+    unsupported = [column for column in selected_columns if column not in available]
+    if unsupported:
+        raise HTTPException(status_code=422, detail="Unsupported Reporting column(s): " + ", ".join(unsupported))
+    projected = dict(dataset)
+    projected["columns"] = list(selected_columns)
+    projected["rows"] = [{column: row.get(column) for column in selected_columns} for row in dataset.get("rows", [])]
+    return projected
+
+
 def _classify_current_animal(animal: Any) -> str | None:
     lifecycle = _text_or_none(getattr(animal, "lifecycle_status", None))
     if lifecycle and lifecycle.upper() in TERMINAL_ANIMAL_LIFECYCLE_STATUSES: return None
@@ -348,6 +368,7 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
 def _reporting_payload(payload: ReportingRequest, container: Any) -> tuple[ReportDefinition, dict[str, Any], date, datetime]:
     definition=REPORT_BY_ID[payload.report_id]; authority=OperationalDateAuthority(); operational_today=authority.current_date(); generated_at=authority.current_datetime(); dataset=_canonical_dataset(payload,container=container,operational_today=operational_today)
     if dataset is None: dataset={"dataset_status":"DATASET_NOT_IMPLEMENTED","authority_status":"DATASET_NOT_IMPLEMENTED","columns":[],"rows":[],"summary":{},"warnings":["Canonical dataset generation is not implemented for this report yet. No farm values have been fabricated."]}
+    dataset=_project_dataset(dataset,payload.selected_columns)
     return definition,dataset,operational_today,generated_at
 
 
@@ -370,5 +391,5 @@ def reporting_export(payload: ReportingRequest, format: Literal["PDF", "XLSX", "
     elif format=="XLSX": content=xlsx_bytes(definition.name,columns,rows,summary); media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; extension="xlsx"
     else: content=pdf_bytes(definition.name,columns,rows,summary); media_type="application/pdf"; extension="pdf"
     safe_name="-".join(part for part in definition.name.replace("/"," ").split() if part)
-    headers={"Content-Disposition":f'attachment; filename="DairyOS-{safe_name}.{extension}"',"X-DairyOS-Report-Id":definition.id,"X-DairyOS-Record-Count":str(len(rows)),"X-DairyOS-Dataset-Status":str(dataset["dataset_status"])}
+    headers={"Content-Disposition":f'attachment; filename="DairyOS-{safe_name}.{extension}"',"X-DairyOS-Report-Id":definition.id,"X-DairyOS-Record-Count":str(len(rows)),"X-DairyOS-Dataset-Status":str(dataset["dataset_status"]),"X-DairyOS-Column-Count":str(len(columns))}
     return Response(content=content,media_type=media_type,headers=headers)
