@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from dairyos.api.dependencies import get_container
+from dairyos.api.reporting_animal_passport import animal_passport_dataset
 from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
@@ -328,8 +329,7 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
     if payload.report_id=="vaccination-schedule": return _generic_repo_dataset(payload,container,operational_today,"vaccinations",{"animal_id":("animal_id",),"vaccine":("vaccine","vaccine_name"),"schedule_status":("status","schedule_status")})
     if payload.report_id=="coml-period": return _generic_repo_dataset(payload,container,operational_today,"coml",{"lock_status":("status",),"cost_component":("cost_component",)})
     if payload.report_id=="animal-lifecycle": return _generic_repo_dataset(payload,container,operational_today,"operational_events",{"event_type":("event_type","type"),"category":("category",)})
-    if payload.report_id=="animal-passport":
-        animal_id=payload.filters.get("animal_id"); animals=_current_animal_rows(ReportingRequest(report_id="animal-register",domain="ANIMALS",period_mode="CURRENT_HERD",filters={}),container=container); rows=[row for row in animals if animal_id is None or str(row.get("animal_id"))==str(animal_id)]; return _dataset(rows,summary={"animals":len(rows)})
+    if payload.report_id=="animal-passport": return animal_passport_dataset(payload,container,operational_today)
     if payload.report_id=="whole-farm-snapshot":
         selected=payload.snapshot_date
         if selected is None: raise HTTPException(status_code=422,detail="snapshot_date is required for Complete Farm Snapshot.")
