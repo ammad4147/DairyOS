@@ -20,7 +20,7 @@ def _owner_investment_payload(**overrides):
 def _animal_purchase_payload(**overrides):
     payload = {
         "transaction_type": "EXPENSE",
-        "master_category": "OPEX",
+        "master_category": "NON_OPEX",
         "sub_category": "Animal Purchase",
         "animal_category": "Milking",
         "amount": 1500000.0,
@@ -107,6 +107,7 @@ def test_animal_purchase_persists_standard_category_and_is_non_opex(client):
 
     assert response.status_code == 200, response.text
     row = response.json()
+    assert row["master_category"] == "NON_OPEX"
     assert row["sub_category"] == "Animal Purchase"
     assert row["category"] == "ANIMAL_PURCHASE"
     assert row["animal_category"] == "Milking"
@@ -129,8 +130,6 @@ def test_animal_purchase_persists_standard_category_and_is_non_opex(client):
     cop = client.get("/farm/finance/cost-of-production?days=30")
     assert cop.status_code == 200, cop.text
     cop_body = cop.json()
-    # Animal purchase remains NON_OPEX. Aggregate COP itself is
-    # unavailable because this test supplies no governed TMR authority.
     assert cop_body["total_operating_cost"] is None
     assert cop_body["feed_authority_complete"] is False
     assert cop_body["feed_cost_authority"] == "MISSING_TMR_AUTHORITY"
@@ -143,6 +142,14 @@ def test_animal_purchase_persists_standard_category_and_is_non_opex(client):
     assert reconciliation["expenses"] == 1500000.0
     assert reconciliation["opex"] == 0.0
     assert reconciliation["total_operating_cost"] == 0.0
+
+
+def test_animal_purchase_rejects_legacy_opex_master_category(client):
+    response = client.post(
+        "/farm/finance-ledger",
+        json=_animal_purchase_payload(master_category="OPEX"),
+    )
+    assert response.status_code == 422, response.text
 
 
 def test_animal_purchase_link_is_category_checked_and_idempotent(
