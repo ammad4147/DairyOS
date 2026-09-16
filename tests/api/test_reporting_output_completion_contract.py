@@ -92,7 +92,7 @@ def test_ui_rejects_export_when_preview_and_export_metadata_diverge():
     assert "exportedReport !== report.id" in source
     assert "exportedCount !== String(data.record_count" in source
     assert "exportedStatus !== data.dataset_status" in source
-    assert "Report export reconciliation failed" in source
+    assert "throw new Error('Report could not be saved. Please try again.')" in source
 
 
 def test_semen_stock_is_not_exposed_by_reporting():
