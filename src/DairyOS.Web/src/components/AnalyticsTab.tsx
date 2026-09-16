@@ -109,6 +109,7 @@ export default function AnalyticsTab({ refreshVersion = 0 }: Props) {
             <Metric title="Open health cases" value={numberOrDash(payload.kpis?.open_health_cases)} icon={<HeartPulse size={14} />} color="#f87171" />
             <Metric title="Conception rate" value={numberOrDash(payload.kpis?.conception_rate_percent, '%')} icon={<Activity size={14} />} color="#fb923c" />
           </div>
+          {payload.financial?.feed_cost_complete === false && <div style={{ marginTop: 8, padding: 8, border: '1px solid #854d0e', borderRadius: 6, color: '#fde68a', background: '#422006', fontSize: 10 }}>Feed Cost / L and COP / L are unavailable for part of this period because governed daily TMR cost authority is incomplete. No Finance purchase total or zero has been substituted.</div>}
 
           <div style={twoColumnStyle}>
             <Panel title="Herd dynamics">

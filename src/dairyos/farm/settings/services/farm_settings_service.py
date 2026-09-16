@@ -188,12 +188,10 @@ class FarmSettingsService:
         )
 
     def get_navigation_preferences(self) -> dict:
+        stored = self.repository.get("navigation_hidden_tabs")
         requested = {
             str(value)
-            for value in _json_loads(
-                self.repository.get("navigation_hidden_tabs"),
-                [],
-            )
+            for value in _json_loads(stored, ["analytics"] if stored is None else [])
         }
         return {
             "available_tabs": list(NAVIGATION_TAB_IDS),
