@@ -69,7 +69,7 @@ def _dataset(
     rows: list[dict[str, Any]],
     *,
     summary: dict[str, Any],
-    status: str,
+    status: str = "AUTHORITATIVE_DATASET",
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     columns: list[str] = []
@@ -263,13 +263,12 @@ def _production_rows(payload: Any, container: Any, operational_today: date) -> d
             "start_date": start.isoformat(),
             "end_date": end.isoformat(),
             "session": session,
-            "active_milk_litres": round(active_litres, 3),
+            "active_milk_liters": round(active_litres, 3),
             "active_production_records": active_records,
             "correction_records": correction_count,
             "void_excluded_from_active_totals": True,
             "not_milked_excluded_from_active_totals": True,
         },
-        status="AUTHORITATIVE_MILK_PRODUCTION_DATASET",
         warnings=[] if rows else ["No Milk production records match the selected period and filters."],
     )
 
@@ -367,7 +366,6 @@ def _disposition_rows(payload: Any, container: Any, operational_today: date) -> 
             "void_rows_retained_for_audit": True,
             "void_excluded_by_reconciliation_authority": True,
         },
-        status="AUTHORITATIVE_MILK_RECONCILIATION_DATASET",
         warnings=[] if rows else ["No Milk reconciliation or disposition records match the selected period."],
     )
 
