@@ -48,6 +48,7 @@ export default function ReportingTab() {
   const [startDate, setStartDate] = useState(''); const [endDate, setEndDate] = useState(''); const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0,10));
   const [category, setCategory] = useState(''); const [session, setSession] = useState(''); const [cohort, setCohort] = useState(''); const [animalId, setAnimalId] = useState('');
   const [format, setFormat] = useState<Format>('PDF'); const [previewed, setPreviewed] = useState(false); const [preview, setPreview] = useState<Preview | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
+  const [eligibleColumns, setEligibleColumns] = useState<string[]>([]); const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
 
   useEffect(() => { fetch(apiUrl('/farm/reporting/catalog')).then(r => r.ok ? r.json() : Promise.reject(new Error('Reports are unavailable.'))).then(data => { const list = data.reports || []; setReports(list); setReportId(list.find((item:Report) => item.domain === 'ANIMALS')?.id || ''); }).catch(e => setError(e.message)); }, []);
   const domainReports = useMemo(() => reports.filter(item => item.domain === domain), [reports, domain]);
@@ -55,7 +56,6 @@ export default function ReportingTab() {
   const applicable = (name:string) => report.filters?.includes(name) || report.filters?.some(item => item.toLowerCase().replace(/[_ ]/g,'').includes(name.toLowerCase().replace(/[_ ]/g,'')));
   const hasPeriod = (name:PeriodMode) => report.period_modes?.includes(name);
 
-  useEffect(() => { setPreview(null); setPreviewed(false); setError(''); setNotice(''); }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId]);
   const selectDomain = (next:DomainKey) => { setDomain(next); setReportId(reports.find(item => item.domain === next)?.id ?? ''); setPreviewed(false); };
   const selectedPeriod = ():PeriodMode => {
     if (domain === 'WHOLE_FARM') return 'SNAPSHOT_DATE';
@@ -68,23 +68,39 @@ export default function ReportingTab() {
     if (hasPeriod('DATE_RANGE')) return 'DATE_RANGE';
     return report.period_modes?.[0] || 'DATE_RANGE';
   };
-  const requestBody = () => ({
+  const periodReady = () => !report.id ? false : ((hasPeriod('DATE_RANGE') || hasPeriod('CUSTOM_PERIOD')) ? Boolean(startDate && endDate) : true);
+  const requestBody = (includeColumns=true) => ({
     report_id: report.id, domain, period_mode: selectedPeriod(), operational_date: asOfDate, as_of_date: asOfDate, snapshot_date: asOfDate,
     start_date: startDate || null, end_date: endDate || null,
     filters: { ...(category ? { category } : {}), ...(session ? { session } : {}), ...(cohort ? { milking_cohort: cohort } : {}), ...(animalId ? { animal_id: animalId } : {}) },
+    ...(includeColumns && selectedColumns.length ? { selected_columns: selectedColumns } : {}),
   });
-  const loadDataset = async ():Promise<Preview> => { const response = await fetch(apiUrl('/farm/reporting/preview'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody()) }); if (!response.ok) throw new Error(await userMessage(response, 'Report could not be prepared.')); return response.json(); };
+  const fetchDataset = async (includeColumns=true):Promise<Preview> => { const response = await fetch(apiUrl('/farm/reporting/preview'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody(includeColumns)) }); if (!response.ok) throw new Error(await userMessage(response, 'Report could not be prepared.')); return response.json(); };
+
+  useEffect(() => {
+    setPreview(null); setPreviewed(false); setError(''); setNotice(''); setEligibleColumns([]); setSelectedColumns([]);
+    if (!periodReady()) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      fetchDataset(false).then(data => { if (!cancelled) { setEligibleColumns(data.columns || []); setSelectedColumns(data.columns || []); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Report fields could not be prepared.'); });
+    }, 200);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId, domain]);
+
+  const loadDataset = async ():Promise<Preview> => fetchDataset(true);
   const previewReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be prepared.'); } finally { setLoading(false); } };
+  const toggleColumn = (column:string) => setSelectedColumns(current => current.includes(column) ? current.filter(item => item !== column) : eligibleColumns.filter(item => current.includes(item) || item === column));
 
   const downloadExport = async (exportFormat:Format, suffix='') => {
     const data = await loadDataset(); setPreview(data); setPreviewed(true);
-    const response = await fetch(apiUrl(`/farm/reporting/export?format=${encodeURIComponent(exportFormat)}`), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody()) });
+    const response = await fetch(apiUrl(`/farm/reporting/export?format=${encodeURIComponent(exportFormat)}`), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody(true)) });
     if (!response.ok) throw new Error(await userMessage(response, 'Report could not be saved.'));
-    const exportedCount = response.headers.get('X-DairyOS-Record-Count'); const exportedReport = response.headers.get('X-DairyOS-Report-Id'); const exportedStatus = response.headers.get('X-DairyOS-Dataset-Status');
-    if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status) throw new Error('Report could not be saved. Please try again.');
+    const exportedCount = response.headers.get('X-DairyOS-Record-Count'); const exportedReport = response.headers.get('X-DairyOS-Report-Id'); const exportedStatus = response.headers.get('X-DairyOS-Dataset-Status'); const exportedColumns = response.headers.get('X-DairyOS-Column-Count');
+    if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status || exportedColumns !== String(data.columns.length)) throw new Error('Report could not be saved. Please try again.');
     const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
   };
 
+  const noColumnsSelected = eligibleColumns.length > 0 && selectedColumns.length === 0;
   const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport('PDF', '-Print'); setNotice('Print-ready PDF saved.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
   const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport(format); setNotice(`${format} report saved.`); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
 
@@ -105,7 +121,8 @@ export default function ReportingTab() {
       {applicable('milking_cohort') && <label className="text-sm">Milking Group<input className="mt-1 w-full rounded border p-2" value={cohort} onChange={e=>setCohort(e.target.value)}/></label>}
       {applicable('animal_id') && <label className="text-sm">Animal ID<input className="mt-1 w-full rounded border p-2" value={animalId} onChange={e=>setAnimalId(e.target.value)}/></label>}
     </div>
-    <div className="flex flex-wrap items-end gap-2"><button disabled={loading || !report.id} onClick={previewReport} className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Preview</button><button disabled={loading || !report.id} onClick={printReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Print</button><label className="text-sm">Save as<select className="ml-2 rounded border p-2" value={format} onChange={e=>setFormat(e.target.value as Format)}><option>PDF</option><option>XLSX</option><option>CSV</option></select></label><button disabled={loading || !report.id} onClick={saveReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Save {format}</button></div>
+    {eligibleColumns.length > 0 && <div className="rounded border bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-sm font-medium">Fields / Columns</div><div className="flex gap-2"><button type="button" className="text-sm underline" onClick={() => setSelectedColumns(eligibleColumns)}>Select All</button><button type="button" className="text-sm underline" onClick={() => setSelectedColumns([])}>Clear</button></div></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{eligibleColumns.map(column => <label key={column} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedColumns.includes(column)} onChange={() => toggleColumn(column)}/><span>{labelFor(column)}</span></label>)}</div>{noColumnsSelected && <div className="mt-2 text-sm text-red-700">Select at least one field or column.</div>}</div>}
+    <div className="flex flex-wrap items-end gap-2"><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={previewReport} className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Preview</button><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={printReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Print</button><label className="text-sm">Save as<select className="ml-2 rounded border p-2" value={format} onChange={e=>setFormat(e.target.value as Format)}><option>PDF</option><option>XLSX</option><option>CSV</option></select></label><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={saveReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Save {format}</button></div>
     {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}{notice && <div className="rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">{notice}</div>}
     {previewed && preview && <div className="rounded border bg-white p-4"><div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><div><h3 className="text-lg font-semibold">{preview.title || report.name}</h3><div className="text-sm text-slate-600">{preview.record_count.toLocaleString()} record{preview.record_count===1?'':'s'}</div></div>{preview.rows?.length===0 && <div className="text-sm text-slate-600">No records match the selected controls.</div>}</div>
       {summaryItems.length > 0 && <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{summaryItems.map(([key,value]) => <div key={key} className="rounded bg-slate-50 p-3"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">{labelFor(key)}</div><div className="mt-1 text-sm font-semibold text-slate-900">{displayValue(value)}</div></div>)}</div>}
