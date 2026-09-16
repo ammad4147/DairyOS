@@ -100,14 +100,18 @@ ALLOCATED_ITEMS = frozenset({
     "Office / Stationery / Printing",
 })
 
+
 def default_cop_classification(master_category: str | None, sub_category: str | None) -> str | None:
     master = str(master_category or "").strip().upper()
     item = str(sub_category or "").strip()
+    if master == "NON_OPEX":
+        return "NON_OPEX"
     if master != "OPEX":
         return None
     if item in CONDITIONAL_ITEMS:
         return None
     return "NON_OPEX" if item in NON_OPEX_ITEMS else "OPEX"
+
 
 def default_attribution_method(sub_category: str | None) -> str | None:
     item = str(sub_category or "").strip()
@@ -127,11 +131,13 @@ def default_attribution_method(sub_category: str | None) -> str | None:
 def is_operating_expense(row) -> bool:
     """Return whether an expense row belongs in generic operating COP.
 
-    The legacy cost service predates explicit COP metadata, so it must apply
-    the same governed non-OPEX policy as the Finance ledger when it reads old
-    rows.  Explicit metadata wins; otherwise the governed sub-category and
-    legacy category spellings provide a conservative compatibility fallback.
+    Explicit persisted metadata wins. The master-category and legacy fallbacks
+    preserve historical rows written before Finance gained a dedicated
+    NON_OPEX master category.
     """
+    master = str(getattr(row, "master_category", "") or "").strip().upper()
+    if master == "NON_OPEX":
+        return False
 
     classification = str(
         getattr(row, "cop_classification", "") or ""
@@ -155,14 +161,15 @@ def is_operating_expense(row) -> bool:
     }:
         return False
 
-    return default_cop_classification(
-        getattr(row, "master_category", None),
-        item,
-    ) != "NON_OPEX"
+    return default_cop_classification(master, item) != "NON_OPEX"
 
 
 def attributed_amount(row, period_start: date, period_end: date) -> tuple[Decimal, str]:
     """Return amount attributable to the requested inclusive date range and status."""
+    master = str(getattr(row, "master_category", "") or "").strip().upper()
+    if master == "NON_OPEX":
+        return Decimal("0.00"), "NON_OPEX"
+
     classification = str(getattr(row, "cop_classification", "") or "").upper()
     if classification == "NON_OPEX":
         return Decimal("0.00"), "NON_OPEX"
