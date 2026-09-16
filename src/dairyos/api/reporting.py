@@ -20,6 +20,7 @@ from dairyos.api.reporting_animal_passport import animal_passport_dataset
 from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
 from dairyos.api.reporting_milk import milk_reporting_dataset
 from dairyos.api.reporting_milk_quality import milk_quality_reporting_dataset
+from dairyos.api.reporting_tmr import tmr_reporting_dataset
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
@@ -322,7 +323,7 @@ def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational
     if payload.report_id in {"animal-register","animal-population"}: return _animal_dataset(payload,container)
     if payload.report_id in {"daily-milk","milk-animal","milk-disposition"}: return milk_reporting_dataset(payload,container,operational_today)
     if payload.report_id in {"milk-quality-log","quality-summary"}: return milk_quality_reporting_dataset(payload,container,operational_today)
-    if payload.report_id in {"current-tmr","historical-tmr"}: return _generic_repo_dataset(payload,container,operational_today,"feed_rations",{"category":("category","animal_group","animal_category"),"ingredient":("ingredient","ingredient_name")})
+    if payload.report_id in {"current-tmr","historical-tmr"}: return tmr_reporting_dataset(payload,container,operational_today)
     if payload.report_id in {"finance-ledger","financial-summary"}: return _finance_dataset(payload,container,operational_today)
     if payload.report_id in {"breeding-cycle","breeding-performance"}: return _generic_repo_dataset(payload,container,operational_today,"breeding",{"animal_id":("animal_id",),"technician":("technician",),"event_type":("event_type",),"semen_type":("semen_type",),"semen_lot":("semen_lot_id",)})
     if payload.report_id=="health-cases": return _generic_repo_dataset(payload,container,operational_today,"health_cases",{"animal_id":("animal_id",),"case_status":("status",),"severity":("severity",)})
