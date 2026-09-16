@@ -14,6 +14,9 @@ EQUIPMENT = (
     / "src/dairyos/api/feed_equipment.py"
 )
 
+COML = ROOT / "src/dairyos/api/coml.py"
+TAXONOMY = ROOT / "src/dairyos/finance/expense_taxonomy.py"
+ATTRIBUTION = ROOT / "src/dairyos/finance/opex_attribution.py"
 APP = ROOT / "src/dairyos/app.py"
 
 
@@ -26,6 +29,15 @@ class FeedEquipmentFinanceAuthorityContractTest(
             encoding="utf-8",
         )
         cls.equipment = EQUIPMENT.read_text(
+            encoding="utf-8",
+        )
+        cls.coml = COML.read_text(
+            encoding="utf-8",
+        )
+        cls.taxonomy = TAXONOMY.read_text(
+            encoding="utf-8",
+        )
+        cls.attribution = ATTRIBUTION.read_text(
             encoding="utf-8",
         )
         cls.app = APP.read_text(
@@ -48,9 +60,17 @@ class FeedEquipmentFinanceAuthorityContractTest(
             self.finance,
         )
 
-    def test_equipment_purchase_is_exposed_in_opex_taxonomy(self):
+    def test_equipment_purchase_is_exposed_in_non_opex_taxonomy(self):
         self.assertIn(
-            "*all_items(\"OPEX\")",
+            '"CAPITAL_EQUIPMENT"',
+            self.taxonomy,
+        )
+        self.assertIn(
+            '"Equipment Purchase"',
+            self.taxonomy,
+        )
+        self.assertIn(
+            '*all_items("NON_OPEX")',
             self.finance,
         )
         self.assertIn(
@@ -109,18 +129,21 @@ class FeedEquipmentFinanceAuthorityContractTest(
         )
 
     def test_equipment_purchase_is_excluded_from_operating_cop(self):
-        coml = (
-            ROOT
-            / "src/dairyos/api/coml.py"
-        ).read_text(encoding="utf-8")
-
         self.assertIn(
-            "Equipment Purchase",
-            coml,
+            'master == "NON_OPEX"',
+            self.attribution,
         )
         self.assertIn(
-            "continue",
-            coml,
+            'return Decimal("0.00"), "NON_OPEX"',
+            self.attribution,
+        )
+        self.assertIn(
+            "attributed_amount(",
+            self.coml,
+        )
+        self.assertIn(
+            "non_opex_excluded_total",
+            self.coml,
         )
 
     def test_feed_equipment_router_is_registered(self):

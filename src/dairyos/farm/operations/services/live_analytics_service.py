@@ -396,7 +396,7 @@ class LiveAnalyticsService:
             if status == "VOID" or not is_expense(item):
                 continue
             master = str(getattr(item, "master_category", "") or "").strip().upper()
-            if master != "OPEX":
+            if master not in {"OPEX", "NON_OPEX"}:
                 continue
             amount = float(getattr(item, "amount", 0.0) or 0.0)
             if amount <= 0:

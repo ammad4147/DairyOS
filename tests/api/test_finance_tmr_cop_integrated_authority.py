@@ -207,3 +207,100 @@ def test_finance_tmr_cop_chain_uses_active_purchase_snapshot_and_same_denominato
         4,
     )
     assert cop_body["costs"]["source"] == "TMR_HERD_COST+FINANCE_OPEX"
+
+def test_persisted_historical_non_opex_is_excluded_without_reclassification(
+    client,
+    monkeypatch,
+):
+    from decimal import Decimal
+
+    from dairyos.api import coml as coml_api
+    from dairyos.data.models.financial_transaction import FinancialTransaction
+
+    # AUDIT_DATE is intentionally future-dated relative to the real clock.
+    # Establish it as the governed farm operational date, matching the
+    # authority setup used by the deep integration test above.
+    monkeypatch.setattr(
+        OperationalDateAuthority,
+        "current_date",
+        lambda self: AUDIT_DATE,
+    )
+    monkeypatch.setattr(
+        OperationalDateAuthority,
+        "current_datetime",
+        lambda self: datetime.combine(AUDIT_DATE, time(13, 0)),
+    )
+
+    historical = FinancialTransaction(
+        transaction_type="EXPENSE",
+        category="EQUIPMENT",
+        amount=Decimal("750000.00"),
+        transaction_date=datetime.combine(
+            AUDIT_DATE,
+            time.min,
+        ),
+        status="RECORDED",
+        master_category="OPEX",
+        sub_category="Equipment Purchase",
+        cop_classification="NON_OPEX",
+    )
+
+    session = container.repository_factory.session
+    session.add(historical)
+    session.commit()
+    session.refresh(historical)
+
+    historical_id = historical.id
+
+    # Keep this contract focused on persisted Finance compatibility.
+    # The existing test above independently proves the real Milk/TMR/
+    # Finance -> integrated COML chain.
+    monkeypatch.setattr(
+        coml_api,
+        "tmr_feed_cost_for_period",
+        lambda factory, start, end: {
+            "total_feed_cost": 0.0,
+            "complete": True,
+            "locked_days": 1,
+            "missing_days": [],
+            "daily": [],
+        },
+    )
+    monkeypatch.setattr(
+        coml_api,
+        "milk_litres_for_period",
+        lambda factory, start, end: 100.0,
+    )
+
+    response = client.get(
+        "/farm/coml/integrated",
+        params={
+            "period_start": AUDIT_DATE.isoformat(),
+            "period_end": AUDIT_DATE.isoformat(),
+            "allow_current_period": "true",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    costs = response.json()["costs"]
+
+    assert costs["opex_total"] == 0.0
+    assert costs["non_opex_excluded_total"] == 750000.0
+    assert costs["unattributed_opex_total"] == 0.0
+    assert costs["unattributed_opex_count"] == 0
+
+    # Integrated COML must interpret the historical row, not rewrite it.
+    session.expire_all()
+
+    persisted = session.get(
+        FinancialTransaction,
+        historical_id,
+    )
+
+    assert persisted is not None
+    assert persisted.master_category == "OPEX"
+    assert persisted.sub_category == "Equipment Purchase"
+    assert persisted.cop_classification == "NON_OPEX"
+    assert persisted.status == "RECORDED"
+    assert Decimal(str(persisted.amount)) == Decimal("750000.00")

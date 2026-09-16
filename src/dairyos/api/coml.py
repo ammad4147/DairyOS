@@ -426,16 +426,12 @@ def get_integrated_coml(
                     getattr(item, "master_category", "") or ""
                 ).strip()
 
-                # Equipment Purchase is a capital/non-operating item for COP
-                # purposes even if exposed through the broader Finance taxonomy.
-                if master_raw == "Equipment Purchase":
-                    continue
 
                 master = master_raw.upper()
-                # Canonical operating-COP authority:
-                # if master != "OPEX":
-                #     continue
-                if not (master == "OPEX"):
+                # Both governed NON_OPEX rows and historical OPEX rows carrying
+                # persisted NON_OPEX classification must reach the shared
+                # attribution authority. FEED remains governed by TMR above.
+                if master not in {"OPEX", "NON_OPEX"}:
                     continue
 
                 amount = float(getattr(item, "amount", 0.0) or 0.0)

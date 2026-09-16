@@ -12,6 +12,14 @@ FINANCE = (
     / "finance_ledger.py"
 )
 
+TAXONOMY = (
+    ROOT
+    / "src"
+    / "dairyos"
+    / "finance"
+    / "expense_taxonomy.py"
+)
+
 FINANCE_UI = (
     ROOT
     / "src"
@@ -28,6 +36,10 @@ class FinanceTaxonomyUiShapeContractTest(
     @classmethod
     def setUpClass(cls):
         cls.finance = FINANCE.read_text(
+            encoding="utf-8",
+        )
+
+        cls.taxonomy = TAXONOMY.read_text(
             encoding="utf-8",
         )
 
@@ -69,9 +81,19 @@ class FinanceTaxonomyUiShapeContractTest(
             self.finance,
         )
 
-    def test_equipment_purchase_is_retained(self):
+    def test_equipment_purchase_is_retained_as_non_opex(self):
         self.assertIn(
-            'opex_groups["EQUIPMENT"]',
+            '"CAPITAL_EQUIPMENT"',
+            self.taxonomy,
+        )
+
+        self.assertIn(
+            '"Equipment Purchase"',
+            self.taxonomy,
+        )
+
+        self.assertIn(
+            '*all_items("NON_OPEX")',
             self.finance,
         )
 
@@ -83,6 +105,17 @@ class FinanceTaxonomyUiShapeContractTest(
     def test_opex_flat_items_are_retained(self):
         self.assertIn(
             '*all_items("OPEX")',
+            self.finance,
+        )
+
+    def test_non_opex_flat_items_are_retained(self):
+        self.assertIn(
+            '*all_items("NON_OPEX")',
+            self.finance,
+        )
+
+        self.assertIn(
+            '"NON_OPEX": non_opex_items',
             self.finance,
         )
 

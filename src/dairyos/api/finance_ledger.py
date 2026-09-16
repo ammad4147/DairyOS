@@ -359,7 +359,7 @@ def _validate_expense_payload(
     if entry.master_category not in MASTER_CATEGORIES:
         raise HTTPException(
             status_code=422,
-            detail="master_category must be FEED or OPEX.",
+            detail="master_category must be FEED, OPEX or NON_OPEX.",
         )
 
     if not entry.sub_category:
@@ -377,16 +377,9 @@ def _validate_expense_payload(
             or _is_governed_tmr_feed_item(entry.sub_category)
         )
     else:
-        valid_sub_category = (
-            valid_item(
-                entry.master_category,
-                entry.sub_category,
-            )
-            or (
-                entry.master_category == "OPEX"
-                and entry.sub_category
-                == EQUIPMENT_PURCHASE_ITEM
-            )
+        valid_sub_category = valid_item(
+            entry.master_category,
+            entry.sub_category,
         )
 
     if not valid_sub_category:
@@ -495,15 +488,6 @@ def _validate_expense_payload(
             detail="Expense amount must be greater than zero.",
         )
 
-    if (
-        entry.master_category == "OPEX"
-        and entry.sub_category == EQUIPMENT_PURCHASE_ITEM
-    ):
-        return amount, "EQUIPMENT"
-
-    if entry.sub_category == ANIMAL_PURCHASE_ITEM:
-        return amount, "ANIMAL_PURCHASE"
-
     return amount, legacy_category(
         entry.master_category,
         entry.sub_category,
@@ -536,17 +520,46 @@ def _resolve_cop_metadata(
         return None, None, None, None, None
 
     master = str(entry.master_category or "").upper()
-    if master != "OPEX":
+
+    if master == "FEED":
         return None, None, None, None, None
 
-    if entry.sub_category == ANIMAL_PURCHASE_ITEM:
-        requested = str(entry.cop_classification or "").upper()
-        if requested not in {"", "NON_OPEX"}:
+    if master == "NON_OPEX":
+        requested_classification = str(
+            entry.cop_classification or ""
+        ).upper()
+        requested_method = str(
+            entry.cop_attribution_method or ""
+        ).upper()
+
+        if requested_classification not in {"", "NON_OPEX"}:
             raise HTTPException(
                 status_code=422,
-                detail="Animal Purchase must remain classified as NON_OPEX.",
+                detail=(
+                    "NON_OPEX expenses must remain classified as NON_OPEX."
+                ),
             )
+
+        if (
+            requested_method
+            or entry.cop_service_date is not None
+            or entry.cop_coverage_start is not None
+            or entry.cop_coverage_end is not None
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "NON_OPEX expenses cannot carry COP attribution metadata."
+                ),
+            )
+
         return "NON_OPEX", None, None, None, None
+
+    if master != "OPEX":
+        raise HTTPException(
+            status_code=422,
+            detail="Unsupported Finance expense master category.",
+        )
 
     classification = str(
         entry.cop_classification
@@ -1805,30 +1818,13 @@ def finance_taxonomy():
         "TMR_INGREDIENTS": list(feed_items),
     }
 
-    # Preserve existing grouped OPEX taxonomy without mutating
-    # the governed reference-data object.
-    opex_groups = dict(
-        taxonomies.get("OPEX") or {}
-    )
-
-    # Equipment Purchase remains an explicit Finance OPEX action.
-    opex_groups["EQUIPMENT"] = [
-        EQUIPMENT_PURCHASE_ITEM
-    ]
-    opex_groups["LIVESTOCK_CAPITAL"] = [
-        ANIMAL_PURCHASE_ITEM
-    ]
-
-    taxonomies["OPEX"] = opex_groups
-
     opex_items = [
         *all_items("OPEX")
     ]
 
-    if EQUIPMENT_PURCHASE_ITEM not in opex_items:
-        opex_items.append(
-            EQUIPMENT_PURCHASE_ITEM
-        )
+    non_opex_items = [
+        *all_items("NON_OPEX")
+    ]
 
     return {
         "master_categories": sorted(
@@ -1838,6 +1834,7 @@ def finance_taxonomy():
         "items": {
             "FEED": feed_items,
             "OPEX": opex_items,
+            "NON_OPEX": non_opex_items,
         },
         "animal_purchase_categories": [
             dict(option)

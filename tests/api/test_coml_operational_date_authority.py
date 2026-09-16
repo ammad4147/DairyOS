@@ -159,7 +159,23 @@ class ComlOperationalDateAuthorityContractTest(
 
     def test_finance_opex_is_still_authoritative(self):
         self.assertIn(
-            'if master != "OPEX":',
+            'if master not in {"OPEX", "NON_OPEX"}:',
+            self.coml,
+        )
+        self.assertIn(
+            'attributed, attribution_status = attributed_amount(',
+            self.coml,
+        )
+        self.assertIn(
+            'if attribution_status == "ATTRIBUTED":',
+            self.coml,
+        )
+        self.assertIn(
+            'elif attribution_status == "NON_OPEX":',
+            self.coml,
+        )
+        self.assertIn(
+            'non_opex_excluded_total += amount',
             self.coml,
         )
         self.assertIn(

@@ -67,7 +67,6 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn('"category_cost_per_day"', self.tmr)
         self.assertIn('"total_herd_feed_cost_per_day"', self.tmr)
 
-
     def test_active_herd_category_normalization_matches_herd_register(self):
         from dairyos.api.tmr import _normalize_herd_category
 
@@ -156,13 +155,13 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
         self.assertIn('"TMR_HERD_COST+FINANCE_OPEX"', integrated)
         self.assertNotIn("feed_total += amount", integrated)
 
-    def test_coml_still_uses_finance_opex(self):
+    def test_coml_uses_finance_opex_and_explicit_non_opex_exclusion(self):
         integrated = self.coml[
             self.coml.index('@router.get("/integrated")'):
         ]
 
         self.assertIn(
-            'master == "OPEX"',
+            'master not in {"OPEX", "NON_OPEX"}',
             integrated,
         )
 
@@ -185,6 +184,17 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
             "attributed_amount(",
             integrated,
         )
+
+        self.assertIn(
+            'attribution_status == "NON_OPEX"',
+            integrated,
+        )
+
+        self.assertIn(
+            "non_opex_excluded_total",
+            integrated,
+        )
+
         self.assertIn(
             "unattributed_opex_count",
             integrated,

@@ -76,6 +76,78 @@ def test_non_opex_and_unattributed_opex_never_enter_auto_estimate():
     assert amount == Decimal("0.00")
 
 
+def test_historical_and_governed_non_opex_are_equivalent_for_cop_exclusion():
+    period_start = date(2026, 9, 1)
+    period_end = date(2026, 9, 30)
+
+    historical_equipment = row(
+        master_category="OPEX",
+        sub_category="Equipment Purchase",
+        cop_classification="NON_OPEX",
+        amount=Decimal("750000.00"),
+    )
+    historical_animal = row(
+        master_category="OPEX",
+        sub_category="Animal Purchase",
+        cop_classification="NON_OPEX",
+        amount=Decimal("1500000.00"),
+    )
+    governed_equipment = row(
+        master_category="NON_OPEX",
+        sub_category="Equipment Purchase",
+        cop_classification="NON_OPEX",
+        amount=Decimal("750000.00"),
+    )
+    governed_animal = row(
+        master_category="NON_OPEX",
+        sub_category="Animal Purchase",
+        cop_classification="NON_OPEX",
+        amount=Decimal("1500000.00"),
+    )
+
+    for item in (
+        historical_equipment,
+        historical_animal,
+        governed_equipment,
+        governed_animal,
+    ):
+        amount, status = attributed_amount(
+            item,
+            period_start,
+            period_end,
+        )
+        assert status == "NON_OPEX"
+        assert amount == Decimal("0.00")
+
+    # Compatibility is interpretive, not a silent historical migration.
+    assert historical_equipment.master_category == "OPEX"
+    assert historical_equipment.cop_classification == "NON_OPEX"
+    assert historical_animal.master_category == "OPEX"
+    assert historical_animal.cop_classification == "NON_OPEX"
+
+    assert governed_equipment.master_category == "NON_OPEX"
+    assert governed_animal.master_category == "NON_OPEX"
+
+
+def test_genuine_opex_remains_attributed_after_non_opex_compatibility():
+    item = row(
+        master_category="OPEX",
+        sub_category="Routine Vet Fees / Consultation",
+        amount=Decimal("5000.00"),
+        cop_classification="OPEX",
+        cop_attribution_method="DIRECT",
+        cop_service_date=date(2026, 9, 10),
+    )
+
+    amount, status = attributed_amount(
+        item,
+        date(2026, 9, 1),
+        date(2026, 9, 30),
+    )
+
+    assert status == "ATTRIBUTED"
+    assert amount == Decimal("5000.00")
+
 def test_consumption_without_authoritative_usage_link_remains_unattributed():
     amount, status = attributed_amount(
         row(cop_attribution_method="CONSUMPTION"),

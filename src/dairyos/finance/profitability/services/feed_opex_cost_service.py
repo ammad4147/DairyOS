@@ -202,7 +202,7 @@ class FeedOpexCostService:
             if master == "FEED":
                 continue
 
-            if master != "OPEX":
+            if master not in {"OPEX", "NON_OPEX"}:
                 continue
 
             amount = Decimal(

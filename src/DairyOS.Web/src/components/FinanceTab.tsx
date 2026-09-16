@@ -14,7 +14,7 @@ const DEFAULT_ANIMAL_PURCHASE_CATEGORIES = [
   { value: 'Bull', label: 'Bulls' },
 ] as const;
 
-type MasterCategory = 'FEED' | 'OPEX';
+type MasterCategory = 'FEED' | 'OPEX' | 'NON_OPEX';
 type LedgerFilter = 'ALL' | MasterCategory | 'NON_OPEX';
 type ExploreView = 'COMBINED' | 'REVENUE' | 'EXPENSES';
 type PeriodMode = 'MONTH' | 'CUSTOM';
@@ -514,7 +514,26 @@ export default function FinanceTab({
     if (!inRange(t.date, exploreBounds.start, exploreBounds.end)) return false;
     if (exploreView === 'REVENUE' && !isRevenueSide(t)) return false;
     if (exploreView === 'EXPENSES' && !isExpense(t)) return false;
-    if (isExpense(t) && exploreExpenseFilter !== 'ALL' && t.master_category !== exploreExpenseFilter) return false;
+    if (isExpense(t) && exploreExpenseFilter !== 'ALL') {
+      const master = String(t.master_category || '').toUpperCase();
+      const copClassification = String(t.cop_classification || '').toUpperCase();
+
+      if (
+        exploreExpenseFilter === 'NON_OPEX' &&
+        master !== 'NON_OPEX' &&
+        copClassification !== 'NON_OPEX'
+      ) return false;
+
+      if (
+        exploreExpenseFilter === 'OPEX' &&
+        (master !== 'OPEX' || copClassification === 'NON_OPEX')
+      ) return false;
+
+      if (
+        exploreExpenseFilter === 'FEED' &&
+        master !== 'FEED'
+      ) return false;
+    }
     return isRevenueSide(t) || isExpense(t) || isOwnerWithdrawal(t);
   }).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.id - b.id), [transactions, exploreBounds, exploreView, exploreExpenseFilter]);
 
@@ -596,7 +615,7 @@ export default function FinanceTab({
 
   const requiresCustomSpecification=subCategory==='Other'||subCategory==='Equipment Purchase';
   const isSemenPurchase = masterCategory === 'OPEX' && subCategory === 'Semen Straws (Sexed / Conventional)';
-  const isAnimalPurchase = masterCategory === 'OPEX' && subCategory === 'Animal Purchase';
+  const isAnimalPurchase = masterCategory === 'NON_OPEX' && subCategory === 'Animal Purchase';
   const animalPurchaseCategories = taxonomy?.animal_purchase_categories ?? DEFAULT_ANIMAL_PURCHASE_CATEGORIES;
 
   useEffect(() => {
@@ -761,7 +780,7 @@ export default function FinanceTab({
           semen_expiry_date: isSemenPurchase ? semenExpiry || null : null,
           semen_storage_location: isSemenPurchase ? semenStorage || null : null,
           semen_country_source: isSemenPurchase ? semenCountry || null : null,
-          cop_classification: masterCategory === 'OPEX' ? copClassification : null,
+          cop_classification: masterCategory === 'NON_OPEX' ? 'NON_OPEX' : masterCategory === 'OPEX' ? copClassification : null,
           cop_attribution_method: masterCategory === 'OPEX' && copClassification === 'OPEX' ? (copAttributionMethod || null) : null,
           cop_service_date: masterCategory === 'OPEX' && copClassification === 'OPEX' && copAttributionMethod === 'DIRECT' ? (copServiceDate || null) : null,
           cop_coverage_start: masterCategory === 'OPEX' && copClassification === 'OPEX' && ['PERIODIC','ALLOCATED'].includes(copAttributionMethod) ? (copCoverageStart || null) : null,
@@ -1177,8 +1196,8 @@ export default function FinanceTab({
               ))}
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {(['ALL', 'FEED', 'OPEX'] as LedgerFilter[]).map(value => (
-                <button type="button" key={value} onClick={() => setExploreExpenseFilter(value)} disabled={exploreView === 'REVENUE'} style={{ ...smallButton, opacity: exploreView === 'REVENUE' ? .45 : 1, background: exploreExpenseFilter === value ? '#0369a1' : '#1e293b', color: '#fff' }}>{value === 'ALL' ? 'All Expenses' : value === 'FEED' ? 'Feed-only' : 'OPEX-only'}</button>
+              {(['ALL', 'FEED', 'OPEX', 'NON_OPEX'] as LedgerFilter[]).map(value => (
+                <button type="button" key={value} onClick={() => setExploreExpenseFilter(value)} disabled={exploreView === 'REVENUE'} style={{ ...smallButton, opacity: exploreView === 'REVENUE' ? .45 : 1, background: exploreExpenseFilter === value ? '#0369a1' : '#1e293b', color: '#fff' }}>{value === 'ALL' ? 'All Expenses' : value === 'FEED' ? 'Feed-only' : value === 'OPEX' ? 'OPEX-only' : 'Non-OPEX'}</button>
               ))}
             </div>
           </div>
@@ -1412,6 +1431,7 @@ export default function FinanceTab({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button type="button" onClick={() => setMasterCategory('FEED')} style={{ background: masterCategory === 'FEED' ? '#0369a1' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'FEED' ? '#38bdf8' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Feed Expenses</button>
               <button type="button" onClick={() => setMasterCategory('OPEX')} style={{ background: masterCategory === 'OPEX' ? '#92400e' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'OPEX' ? '#f59e0b' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Farm Expenses</button>
+              <button type="button" onClick={() => setMasterCategory('NON_OPEX')} style={{ background: masterCategory === 'NON_OPEX' ? '#475569' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'NON_OPEX' ? '#94a3b8' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Non-OPEX</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 6, marginTop: 6 }}>
               <select aria-label="Expense category group" required value={expenseGroup} onChange={event => selectExpenseGroup(event.target.value)} style={inputStyle}>
