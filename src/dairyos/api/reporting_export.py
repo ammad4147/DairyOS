@@ -46,7 +46,7 @@ OPERATOR_HEADINGS: dict[str, str] = {
     "selected_session": "Milking Session",
     "selected_session_yield": "Session Milk (L)",
     "quantity_liters": "Quantity (L)",
-    "amount": "Amount, PKR",
+    "amount": "Amount (PKR)",
     "feed_cost": "Feed Cost (PKR)",
     "total_herd_feed_cost_per_day": "Daily Herd Feed Cost (PKR)",
     "feed_cost_per_litre_today": "Feed Cost / Litre (PKR)",
