@@ -1,4 +1,7 @@
+from io import BytesIO
 from pathlib import Path
+
+from openpyxl import load_workbook
 
 from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
 
@@ -31,6 +34,18 @@ def test_csv_uses_operator_facing_headings():
     payload = csv_bytes(["animal_id", "event_type"], [{"animal_id": "A-001", "event_type": "CONFIRMED_PREGNANT"}]).decode("utf-8-sig")
     assert payload.splitlines()[0] == "Animal ID,Event Type"
     assert "animal_id" not in payload.splitlines()[0]
+
+
+def test_operator_units_and_currency_headings_match_across_csv_and_xlsx():
+    columns = ["total_yield", "quantity_liters", "amount", "feed_cost_per_litre_today"]
+    row = {"total_yield": 90.0, "quantity_liters": 75.0, "amount": 15000.0, "feed_cost_per_litre_today": 32.5}
+    expected = ["Total Milk (L)", "Quantity (L)", "Amount (PKR)", "Feed Cost / Litre (PKR)"]
+
+    csv_payload = csv_bytes(columns, [row]).decode("utf-8-sig")
+    assert csv_payload.splitlines()[0].split(",") == expected
+
+    workbook = load_workbook(BytesIO(xlsx_bytes("Farm Report", columns, [row], {})), data_only=True)
+    assert list(next(workbook["Report"].values)) == expected
 
 
 def test_pdf_and_xlsx_are_genuine_after_readability_remediation():
