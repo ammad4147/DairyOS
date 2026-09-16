@@ -47,6 +47,12 @@ def _sample_row(row: Any) -> dict[str, Any]:
         "recorded_at": _scalar(getattr(row, "recorded_at", None)),
         "updated_at": _scalar(getattr(row, "updated_at", None)),
         "revision_history": _scalar(getattr(row, "revision_history", None) or []),
+        "somatic_cell_count": _scalar(getattr(row, "somatic_cell_count", None)),
+        "antibiotic_residue_status": _scalar(getattr(row, "antibiotic_residue_status", None)),
+        "cooling_chain_break": _scalar(getattr(row, "cooling_chain_break", None)),
+        "adulteration_test_result": _scalar(getattr(row, "adulteration_test_result", None)),
+        "iso_17025_ref": _scalar(getattr(row, "iso_17025_ref", None)),
+        "analyst_id": _scalar(getattr(row, "analyst_id", None)),
     }
 
 
@@ -102,6 +108,16 @@ def milk_quality_reporting_dataset(payload: Any, container: Any, operational_tod
             continue
         if status not in (None, "", "ALL") and str(getattr(row, "status", "")).upper() != str(status).strip().upper():
             continue
+        try:
+            scc_breach = getattr(row, "somatic_cell_count", None) is not None and float(getattr(row, "somatic_cell_count")) > 400000
+        except (TypeError, ValueError):
+            scc_breach = False
+        checks = {"scc_alert": scc_breach, "antibiotic_flag": str(getattr(row, "antibiotic_residue_status", "")).upper() in {"POSITIVE", "PRESENT", "FLAGGED"}, "temp_breach": bool(getattr(row, "cooling_chain_break", False)), "adulteration_suspect": str(getattr(row, "adulteration_test_result", "")).upper() in {"SUSPECT", "POSITIVE", "FLAGGED"}}
+        threshold = payload.filters.get("milk_quality_threshold")
+        if threshold not in (None, "", "ALL") and not checks.get(str(threshold).strip().lower(), False): continue
+        for key, expected in checks.items():
+            wanted = payload.filters.get(key)
+            if wanted not in (None, "", "ALL") and expected != (str(wanted).upper() in {"TRUE", "YES", "1", "SCC_ALERT", "ANTIBIOTIC_FLAG", "TEMP_BREACH", "ADULTERATION_SUSPECT"}): continue
         selected.append(row)
 
     sample_count = len(selected)

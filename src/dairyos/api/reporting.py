@@ -61,14 +61,14 @@ def _report(report_id: str, domain: DomainKey, name: str, authority: str, period
 
 
 REPORTS: tuple[ReportDefinition, ...] = (
-    _report("animal-register", "ANIMALS", "Animal Register", "Animal master records, lifecycle status, disposition history, and governed category mapping.", ("CURRENT_HERD",), ("category", "status"), ("animals.view",), "CURRENT_ONLY", "Supports the current herd across all six canonical DairyOS categories."),
+    _report("animal-register", "ANIMALS", "Animal Register", "Animal master records, lifecycle status, disposition history, and governed category mapping.", ("CURRENT_HERD",), ("category", "status", "breed_code", "production_phase", "herd_composition"), ("animals.view",), "CURRENT_ONLY", "Supports the current herd across all six canonical DairyOS categories."),
     _report("animal-population", "ANIMALS", "Animal Population by Category", "Animal category authority with active/inactive disposition semantics.", ("CURRENT_HERD",), ("status",), ("animals.view",), "CURRENT_ONLY", "Counts the current herd using canonical singular categories and plural herd totals."),
     _report("animal-lifecycle", "ANIMALS", "Animal Entry / Lifecycle Report", "Animal registration, acquisition, lifecycle, disposition, and operational event records.", ("DATE_RANGE", "CUSTOM_PERIOD"), ("category", "event_type"), ("animals.view",)),
     _report("animal-passport", "ANIMALS", "Individual Animal Passport", "Lifetime Animal Passport read model and animal-scoped operational histories.", ("AS_OF_DATE", "CURRENT_HERD"), ("animal_id",), ("animals.view",)),
     _report("daily-milk", "MILK", "Daily Milk Production", "Milk production rows, milking session records, corrections, and disposition authority.", ("TODAY", "YESTERDAY", "OPERATIONAL_DATE", "DATE_RANGE"), ("session", "category", "animal_id", "milking_cohort"), ("milk.view",), scope="Keeps MORNING, AFTERNOON, EVENING, and all-session views distinct."),
     _report("milk-animal", "MILK", "Milk Production by Animal", "Per-animal milk production and milking-frequency history.", ("DATE_RANGE", "MONTH", "CUSTOM_PERIOD"), ("animal_id", "milking_cohort"), ("milk.view",), scope="Prevents misleading comparison of twice- and thrice-milked animals."),
     _report("milk-disposition", "MILK", "Milk Disposition / Reconciliation", "Milk production and sold/domestic/calf/wastage/withdrawal disposition authority.", ("DATE_RANGE", "MONTH"), ("disposition_type", "status"), ("milk.view",)),
-    _report("milk-quality-log", "MILK_QUALITY", "Milk Quality Log", "Milk quality samples with recorded status, operator, timestamps, and revision history.", ("DATE_RANGE", "OPERATIONAL_DATE", "MONTH"), ("sample_type", "status"), ("milk.view",)),
+    _report("milk-quality-log", "MILK_QUALITY", "Milk Quality Log", "Milk quality samples with recorded status, operator, timestamps, and revision history.", ("DATE_RANGE", "OPERATIONAL_DATE", "MONTH"), ("sample_type", "status", "milk_quality_threshold", "scc_alert", "antibiotic_flag", "temp_breach", "adulteration_suspect"), ("milk.view",)),
     _report("quality-summary", "MILK_QUALITY", "Milk Quality Summary", "Recorded milk quality samples and governed summary calculations.", ("DATE_RANGE", "MONTH"), ("sample_type",), ("milk.view",)),
     _report("current-tmr", "FEED", "Current TMR", "Governed TMR ration and feed records with Finance-backed pricing where available.", ("CURRENT_HERD", "OPERATIONAL_DATE"), ("category", "ingredient"), ("feed.view",)),
     _report("historical-tmr", "FEED", "Historical TMR / Feed Cost", "Historical feed ration and feed-record authority.", ("AS_OF_DATE", "DATE_RANGE"), ("category", "ingredient"), ("feed.view",)),
@@ -291,6 +291,12 @@ def _current_animal_rows(payload: ReportingRequest, *, container: Any) -> list[d
         if category is None or (canonical_filter is not None and category != canonical_filter): continue
         wanted_status = payload.filters.get("status")
         if wanted_status is not None and str(getattr(animal, "status", "")).upper() != str(wanted_status).upper(): continue
+        for filter_name, field_name in (("breed_code", "breed_code"), ("production_phase", "production_phase_dim")):
+            wanted = payload.filters.get(filter_name)
+            if wanted is not None and str(getattr(animal, field_name, "")).upper() != str(wanted).upper(): continue
+        herd = str(payload.filters.get("herd_composition") or "").upper()
+        herd_categories = {"LACTATING_HERD": {"Milking"}, "DRY_ONLY": {"Dry"}, "HEIFER_YOUNG_STOCK": {"Heifer", "Female Calf", "Male Calf"}}
+        if herd in herd_categories and category not in herd_categories[herd]: continue
         data = _row(animal); data["category"] = category; rows.append(data)
     rows.sort(key=lambda item: str(item.get("animal_id") or ""))
     return rows

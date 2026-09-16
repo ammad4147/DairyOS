@@ -46,7 +46,7 @@ OPERATOR_HEADINGS: dict[str, str] = {
     "selected_session": "Milking Session",
     "selected_session_yield": "Session Milk (L)",
     "quantity_liters": "Quantity (L)",
-    "amount": "Amount (PKR)",
+    "amount": "Amount, PKR",
     "feed_cost": "Feed Cost (PKR)",
     "total_herd_feed_cost_per_day": "Daily Herd Feed Cost (PKR)",
     "feed_cost_per_litre_today": "Feed Cost / Litre (PKR)",
@@ -55,6 +55,9 @@ OPERATOR_HEADINGS: dict[str, str] = {
     "record_id": "Record ID",
     "report_id": "Report",
     "record_count": "Records",
+    "batch_id": "Batch ID", "feed_source_lot": "Feed Lot Reference", "breed_code": "Breed Code", "production_phase_dim": "Production Phase (DIM)",
+    "somatic_cell_count": "SCC (cells/mL)", "antibiotic_residue_status": "Antibiotic Status", "cooling_chain_break": "Cooling Chain Break", "adulteration_test_result": "Adulteration Test",
+    "iso_17025_ref": "ISO 17025 Reference", "analyst_id": "Analyst ID", "retention_until": "Retention Until",
 }
 
 
