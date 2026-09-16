@@ -52,7 +52,9 @@ class CopTmrUiLinkageContractTest(unittest.TestCase):
             "To",
         ):
             self.assertIn(text, self.cop_source)
-        self.assertIn("live month-to-date", self.cop_source)
+        self.assertIn("Current-day Milk is included when recorded", self.cop_source)
+        self.assertIn("max={todayIso()}", self.cop_source)
+        self.assertNotIn("max={latestCompletedDate}", self.cop_source)
         self.assertIn("calendarEnd", self.cop_source)
 
     def test_selected_month_official_record_is_loaded(self):
