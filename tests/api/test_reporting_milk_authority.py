@@ -126,9 +126,9 @@ def test_empty_production_without_correction_repository_remains_authoritative():
         date(2026, 9, 16),
     )
 
-    assert result["dataset_status"] == "AUTHORITATIVE_MILK_PRODUCTION_DATASET"
+    assert result["dataset_status"] == "AUTHORITATIVE_DATASET"
     assert result["rows"] == []
-    assert result["summary"]["active_milk_litres"] == 0.0
+    assert result["summary"]["active_milk_liters"] == 0.0
     assert result["summary"]["correction_records"] == 0
 
 
@@ -173,7 +173,7 @@ def test_daily_milk_preserves_three_sessions_and_excludes_void_from_active_total
     assert production_rows[0]["morning_yield"] == 10.0
     assert production_rows[0]["afternoon_yield"] == 8.0
     assert production_rows[0]["evening_yield"] == 9.0
-    assert result["summary"]["active_milk_litres"] == 27.0
+    assert result["summary"]["active_milk_liters"] == 27.0
     assert result["summary"]["void_excluded_from_active_totals"] is True
 
 
@@ -197,7 +197,7 @@ def test_session_view_is_distinct_and_uses_only_selected_session_for_total():
     assert row["session_yield_litres"] == 8.0
     assert "morning_yield" not in row
     assert "evening_yield" not in row
-    assert result["summary"]["active_milk_litres"] == 8.0
+    assert result["summary"]["active_milk_liters"] == 8.0
 
 
 def test_milk_animal_filters_identity_and_effective_milking_cohort():
@@ -253,7 +253,7 @@ def test_corrections_are_retained_as_audit_rows_without_recalculating_current_to
         date(2026, 9, 16),
     )
 
-    assert result["summary"]["active_milk_litres"] == 27.0
+    assert result["summary"]["active_milk_liters"] == 27.0
     assert result["summary"]["correction_records"] == 1
     assert any(row["row_type"] == "CORRECTION" and row["action"] == "CORRECT" for row in result["rows"])
 
@@ -276,7 +276,7 @@ def test_historical_period_uses_production_operational_date_not_recorded_at():
         date(2026, 9, 16),
     )
 
-    assert result["summary"]["active_milk_litres"] == 27.0
+    assert result["summary"]["active_milk_liters"] == 27.0
     assert result["rows"][0]["operational_date"] == "2026-09-10"
 
 
