@@ -2,8 +2,17 @@ from io import BytesIO
 from pathlib import Path
 
 from openpyxl import load_workbook
+from reportlab.lib.pagesizes import A4, landscape, portrait
+from reportlab.lib.units import mm
 
-from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
+from dairyos.api.reporting_export import (
+    PDF_LANDSCAPE_COLUMN_THRESHOLD,
+    PDF_MARGIN,
+    _pdf_page_size,
+    csv_bytes,
+    pdf_bytes,
+    xlsx_bytes,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +55,22 @@ def test_operator_units_and_currency_headings_match_across_csv_and_xlsx():
 
     workbook = load_workbook(BytesIO(xlsx_bytes("Farm Report", columns, [row], {})), data_only=True)
     assert list(next(workbook["Report"].values)) == expected
+
+
+def test_reporting_pdf_page_settings_are_explicit_a4_with_10mm_margins():
+    assert PDF_MARGIN == 10 * mm
+    assert PDF_LANDSCAPE_COLUMN_THRESHOLD == 6
+    assert _pdf_page_size([f"column_{index}" for index in range(6)]) == portrait(A4)
+    assert _pdf_page_size([f"column_{index}" for index in range(7)]) == landscape(A4)
+
+
+def test_reporting_pdf_table_contract_repeats_header_and_fits_printable_width():
+    source = (ROOT / "src" / "dairyos" / "api" / "reporting_export.py").read_text(encoding="utf-8")
+    assert "repeatRows=1" in source
+    assert "available_width = page_size[0] - (2 * PDF_MARGIN)" in source
+    assert "colWidths=widths" in source
+    assert 'Paragraph(_heading(column), header_style)' in source
+    assert 'Paragraph(_cell(row.get(column)), body_style)' in source
 
 
 def test_pdf_and_xlsx_are_genuine_after_readability_remediation():
