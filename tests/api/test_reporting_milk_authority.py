@@ -60,6 +60,18 @@ class Factory:
         return self._animals
 
 
+class FactoryWithoutCorrections:
+    def __init__(self, *, milk, animals=None):
+        self._milk = milk
+        self._animals = AnimalRepo(animals or [])
+
+    def milk(self):
+        return self._milk
+
+    def animal(self):
+        return self._animals
+
+
 def request(report_id, period_mode, **kwargs):
     filters = kwargs.pop("filters", {})
     return SimpleNamespace(
@@ -98,6 +110,46 @@ def animal(animal_id="A-001", frequency="THRICE_DAILY"):
         milking_frequency=frequency,
         non_milking_directive="NONE",
     )
+
+
+def test_empty_production_without_correction_repository_remains_authoritative():
+    factory = FactoryWithoutCorrections(milk=Repo([]))
+    payload = request(
+        "daily-milk",
+        "OPERATIONAL_DATE",
+        operational_date=date(2026, 9, 15),
+    )
+
+    result = reporting_milk.milk_reporting_dataset(
+        payload,
+        SimpleNamespace(repository_factory=factory),
+        date(2026, 9, 16),
+    )
+
+    assert result["dataset_status"] == "AUTHORITATIVE_MILK_PRODUCTION_DATASET"
+    assert result["rows"] == []
+    assert result["summary"]["active_milk_litres"] == 0.0
+    assert result["summary"]["correction_records"] == 0
+
+
+def test_nonempty_production_without_correction_repository_fails_closed():
+    factory = FactoryWithoutCorrections(milk=Repo([production()]), animals=[animal()])
+    payload = request(
+        "daily-milk",
+        "OPERATIONAL_DATE",
+        operational_date=date(2026, 9, 15),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        reporting_milk.milk_reporting_dataset(
+            payload,
+            SimpleNamespace(repository_factory=factory),
+            date(2026, 9, 16),
+        )
+
+    assert exc.value.status_code == 503
+    assert exc.value.detail["code"] == "REPORTING_AUTHORITY_UNAVAILABLE"
+    assert exc.value.detail["authority"] == "MilkCorrections"
 
 
 def test_daily_milk_preserves_three_sessions_and_excludes_void_from_active_total():
