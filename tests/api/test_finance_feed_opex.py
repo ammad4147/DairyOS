@@ -2,12 +2,18 @@ import dairyos.api.finance_ledger as finance_ledger_api
 from dairyos.finance.expense_taxonomy import EXPENSE_TAXONOMIES, MASTER_CATEGORIES, all_items, legacy_category
 
 
-def test_feed_and_opex_taxonomy_is_unique_and_contains_other():
-    assert MASTER_CATEGORIES == {"FEED", "OPEX"}
+def test_finance_expense_taxonomy_is_unique_and_governed():
+    assert MASTER_CATEGORIES == {"FEED", "OPEX", "NON_OPEX"}
     for master, groups in EXPENSE_TAXONOMIES.items():
         items = [item for values in groups.values() for item in values]
         assert len(items) == len(set(items)), master
-        assert "Other" in items
+
+    assert "Other" in all_items("FEED")
+    assert "Other" in all_items("OPEX")
+    assert "Animal Purchase" in all_items("NON_OPEX")
+    assert "Equipment Purchase" in all_items("NON_OPEX")
+    assert "Animal Purchase" not in all_items("OPEX")
+    assert "Equipment Purchase" not in all_items("OPEX")
 
 
 def test_legacy_mapping_keeps_existing_cost_domains():
@@ -16,15 +22,21 @@ def test_legacy_mapping_keeps_existing_cost_domains():
     assert legacy_category("OPEX", "Semen Straws (Sexed / Conventional)") == "BREEDING"
     assert legacy_category("OPEX", "Milker Wages") == "LABOUR"
     assert legacy_category("OPEX", "Grid Electricity (WAPDA)") == "UTILITIES"
+    assert legacy_category("NON_OPEX", "Animal Purchase") == "ANIMAL_PURCHASE"
+    assert legacy_category("NON_OPEX", "Equipment Purchase") == "EQUIPMENT"
 
 
 def test_taxonomy_endpoint_is_governed(client):
     body = client.get("/farm/finance-ledger/taxonomy")
     assert body.status_code == 200, body.text
     data = body.json()
-    assert set(data["master_categories"]) == {"FEED", "OPEX"}
+    assert set(data["master_categories"]) == {"FEED", "OPEX", "NON_OPEX"}
     assert "Corn / Maize Silage" in data["items"]["FEED"]
     assert "Routine Vet Fees / Consultation" in data["items"]["OPEX"]
+    assert "Animal Purchase" in data["items"]["NON_OPEX"]
+    assert "Equipment Purchase" in data["items"]["NON_OPEX"]
+    assert "Animal Purchase" not in data["items"]["OPEX"]
+    assert "Equipment Purchase" not in data["items"]["OPEX"]
     assert "Other" in data["items"]["FEED"]
     assert "Other" in data["items"]["OPEX"]
 
@@ -92,6 +104,25 @@ def test_opex_entry_is_persisted_in_same_ledger(client):
     assert len(rows) == 1
 
 
+def test_equipment_purchase_is_non_opex_and_preserves_legacy_category(client):
+    response = _post_expense(
+        client,
+        master_category="NON_OPEX",
+        sub_category="Equipment Purchase",
+        custom_specification="Milk cooling tank",
+        quantity=1,
+        unit="unit",
+        unit_rate=750000,
+    )
+    assert response.status_code == 200, response.text
+    row = response.json()
+    assert row["master_category"] == "NON_OPEX"
+    assert row["sub_category"] == "Equipment Purchase"
+    assert row["category"] == "EQUIPMENT"
+    assert row["cop_classification"] == "NON_OPEX"
+    assert row["cop_attribution_method"] is None
+
+
 def test_other_requires_custom_specification(client):
     response = _post_expense(client, sub_category="Other", custom_specification=None)
     assert response.status_code == 422, response.text
@@ -131,9 +162,6 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
     )
     assert milk.status_code == 200, milk.text
 
-    # Finance FEED remains purchase/inventory evidence. Deliberately make the
-    # purchase amount differ from governed TMR consumption so authority drift
-    # cannot pass unnoticed.
     assert _post_expense(
         client,
         quantity=100,
@@ -171,7 +199,6 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
     assert body.status_code == 200, body.text
 
     data = body.json()
-
     assert data["milk_litres"] == 100
     assert data["feed_cost"] == 2000
     assert data["opex"] == 500
@@ -221,7 +248,6 @@ def test_voided_finance_feed_purchase_does_not_change_governed_feed_cop(
     assert body.status_code == 200, body.text
 
     data = body.json()
-
     assert data["feed_cost"] == 0
     assert data["opex"] == 0
     assert data["total_operating_cost"] == 0
