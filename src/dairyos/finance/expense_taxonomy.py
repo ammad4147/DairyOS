@@ -1,4 +1,4 @@
-"""Governed Finance expense taxonomy for the Feed/OPEX entry modes.
+"""Governed Finance expense taxonomy for Feed/OPEX/Non-OPEX entry modes.
 
 The taxonomy is intentionally kept in one backend module so the API,
 reference-data endpoint, validation and tests all use the same vocabulary.
@@ -97,7 +97,6 @@ OPEX_TAXONOMY = {
         "Farm Vehicle Fuel & Maintenance",
         "Shed Maintenance & Plumbing Repairs",
         "Fencing / Gate Repairs",
-        "Equipment Purchase",
         "Small Tools & Implements",
     ],
     "DAIRY_CHEMICALS_HYGIENE": [
@@ -135,15 +134,22 @@ OPEX_TAXONOMY = {
         "Land Preparation / Yard Maintenance",
         "Building / Yard Repairs",
     ],
+    "CUSTOM": ["Other"],
+}
+
+NON_OPEX_TAXONOMY = {
     "LIVESTOCK_CAPITAL": [
         "Animal Purchase",
     ],
-    "CUSTOM": ["Other"],
+    "CAPITAL_EQUIPMENT": [
+        "Equipment Purchase",
+    ],
 }
 
 EXPENSE_TAXONOMIES = {
     "FEED": FEED_TAXONOMY,
     "OPEX": OPEX_TAXONOMY,
+    "NON_OPEX": NON_OPEX_TAXONOMY,
 }
 
 MASTER_CATEGORIES = frozenset(EXPENSE_TAXONOMIES)
@@ -151,6 +157,7 @@ MASTER_CATEGORIES = frozenset(EXPENSE_TAXONOMIES)
 LEGACY_CATEGORY_BY_MASTER = {
     "FEED": "FEED",
     "OPEX": "OTHER_OPERATING",
+    "NON_OPEX": "OTHER_OPERATING",
 }
 
 LEGACY_CATEGORY_BY_OPEX_GROUP = {
@@ -163,8 +170,12 @@ LEGACY_CATEGORY_BY_OPEX_GROUP = {
     "BEDDING_HOUSING_WASTE": "OTHER_OPERATING",
     "LOGISTICS_ADMIN_FINANCE": "OTHER_OPERATING",
     "LAND_RENT_CUSTOM_SERVICES": "OTHER_OPERATING",
-    "LIVESTOCK_CAPITAL": "ANIMAL_PURCHASE",
     "CUSTOM": "OTHER_OPERATING",
+}
+
+LEGACY_CATEGORY_BY_NON_OPEX_GROUP = {
+    "LIVESTOCK_CAPITAL": "ANIMAL_PURCHASE",
+    "CAPITAL_EQUIPMENT": "EQUIPMENT",
 }
 
 
@@ -179,12 +190,18 @@ def valid_item(master_category: str, item: str) -> bool:
 
 
 def legacy_category(master_category: str, sub_category: str) -> str:
-    """Map the governed new taxonomy onto the legacy category contract."""
+    """Map the governed taxonomy onto the legacy category contract."""
     if master_category == "FEED":
         return "FEED"
 
-    for group, items in OPEX_TAXONOMY.items():
-        if sub_category in items:
-            return LEGACY_CATEGORY_BY_OPEX_GROUP[group]
+    if master_category == "OPEX":
+        for group, items in OPEX_TAXONOMY.items():
+            if sub_category in items:
+                return LEGACY_CATEGORY_BY_OPEX_GROUP[group]
 
-    return "OTHER_OPERATING"
+    if master_category == "NON_OPEX":
+        for group, items in NON_OPEX_TAXONOMY.items():
+            if sub_category in items:
+                return LEGACY_CATEGORY_BY_NON_OPEX_GROUP[group]
+
+    return LEGACY_CATEGORY_BY_MASTER.get(master_category, "OTHER_OPERATING")
