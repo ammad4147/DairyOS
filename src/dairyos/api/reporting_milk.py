@@ -143,10 +143,27 @@ def _schedule_frequency(factory: Any, animal_id: str, production_day: date) -> s
     )
 
 
+def _correction_repository(factory: Any, *, required: bool) -> Any | None:
+    getter = getattr(factory, "milk_corrections", None)
+    if callable(getter):
+        repository = getter()
+        if repository is not None and callable(getattr(repository, "get_for_production", None)):
+            return repository
+    if required:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "REPORTING_AUTHORITY_UNAVAILABLE",
+                "authority": "MilkCorrections",
+                "message": "Milk correction authority is required when Milk production records are present.",
+            },
+        )
+    return None
+
+
 def _production_rows(payload: Any, container: Any, operational_today: date) -> dict[str, Any]:
     factory = _factory(container)
     production_repository = factory.milk()
-    correction_repository = factory.milk_corrections()
     start, end = _period(payload, operational_today)
 
     session = str(payload.filters.get("session") or "ALL").strip().upper()
@@ -162,21 +179,29 @@ def _production_rows(payload: Any, container: Any, operational_today: date) -> d
             detail="Historical Milk category filtering is not yet backed by an effective-dated category authority; no current-state category has been substituted.",
         )
 
+    records = sorted(
+        list(production_repository.get_all() or []),
+        key=lambda item: (_production_date(item) or date.min, str(getattr(item, "animal_id", "")), int(getattr(item, "id", 0) or 0)),
+    )
+    selected_records = [
+        record
+        for record in records
+        if (
+            (production_day := _production_date(record)) is not None
+            and start <= production_day <= end
+            and (animal_filter is None or str(getattr(record, "animal_id", "")) == str(animal_filter))
+        )
+    ]
+    correction_repository = _correction_repository(factory, required=bool(selected_records))
+
     rows: list[dict[str, Any]] = []
     active_litres = 0.0
     active_records = 0
     correction_count = 0
 
-    records = sorted(
-        list(production_repository.get_all() or []),
-        key=lambda item: (_production_date(item) or date.min, str(getattr(item, "animal_id", "")), int(getattr(item, "id", 0) or 0)),
-    )
-
-    for record in records:
+    for record in selected_records:
         production_day = _production_date(record)
-        if production_day is None or production_day < start or production_day > end:
-            continue
-        if animal_filter is not None and str(getattr(record, "animal_id", "")) != str(animal_filter):
+        if production_day is None:
             continue
 
         frequency = _schedule_frequency(factory, str(getattr(record, "animal_id", "")), production_day)
@@ -223,7 +248,7 @@ def _production_rows(payload: Any, container: Any, operational_today: date) -> d
             active_records += 1
 
         production_id = getattr(record, "id", None)
-        if production_id is not None:
+        if production_id is not None and correction_repository is not None:
             for correction in list(correction_repository.get_for_production(production_id) or []):
                 correction_count += 1
                 correction_row = _row(correction)
