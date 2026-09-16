@@ -36,3 +36,81 @@ def test_owner_cash_movements_are_not_operating_income_or_expense():
     assert reporting.finance_is_expense(investment) is False
     assert reporting.finance_is_income(withdrawal) is False
     assert reporting.finance_is_expense(withdrawal) is False
+
+
+def test_reporting_non_opex_is_excluded_from_operating_expenses():
+    records = [
+        SimpleNamespace(
+            type="INCOME",
+            transaction_type="INCOME",
+            amount=100000.0,
+            status="RECORDED",
+            master_category=None,
+            cop_classification=None,
+            date=date(2026, 9, 16),
+        ),
+        SimpleNamespace(
+            type="EXPENSE",
+            transaction_type="EXPENSE",
+            amount=10000.0,
+            status="RECORDED",
+            master_category="OPEX",
+            cop_classification="OPEX",
+            date=date(2026, 9, 16),
+        ),
+        SimpleNamespace(
+            type="EXPENSE",
+            transaction_type="EXPENSE",
+            amount=500000.0,
+            status="RECORDED",
+            master_category="NON_OPEX",
+            sub_category="Equipment Purchase",
+            cop_classification="NON_OPEX",
+            date=date(2026, 9, 16),
+        ),
+        SimpleNamespace(
+            type="EXPENSE",
+            transaction_type="EXPENSE",
+            amount=250000.0,
+            status="RECORDED",
+            master_category="OPEX",
+            sub_category="Animal Purchase",
+            cop_classification="NON_OPEX",
+            date=date(2026, 9, 16),
+        ),
+    ]
+
+    container = SimpleNamespace(
+        finance=SimpleNamespace(
+            get_all=lambda: records,
+        )
+    )
+
+    payload = reporting.ReportingRequest(
+        report_id="financial-summary",
+        domain="FINANCE",
+        period_mode="DATE_RANGE",
+        start_date=date(2026, 9, 16),
+        end_date=date(2026, 9, 16),
+    )
+
+    result = reporting._finance_dataset(
+        payload,
+        container,
+        date(2026, 9, 16),
+    )
+
+    assert result["summary"]["operating_income"] == 100000.0
+    assert result["summary"]["operating_expenses"] == 10000.0
+    assert result["summary"]["non_operating_expenses"] == 750000.0
+    assert result["summary"]["operating_net"] == 90000.0
+    assert result["summary"]["audit_records"] == 4
+
+    metrics = {
+        row["metric"]: row["amount"]
+        for row in result["rows"]
+    }
+
+    assert metrics["operating_income"] == 100000.0
+    assert metrics["operating_expenses"] == 10000.0
+    assert metrics["operating_net"] == 90000.0
