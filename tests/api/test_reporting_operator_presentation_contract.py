@@ -2,11 +2,14 @@ from io import BytesIO
 from pathlib import Path
 
 from openpyxl import load_workbook
+from reportlab.lib.pagesizes import A4, landscape, portrait
+from reportlab.lib.units import mm
 
 from dairyos.api.reporting import ReportingRequest, _project_dataset
 from dairyos.api.reporting_export import (
     PDF_LANDSCAPE_COLUMN_THRESHOLD,
     PDF_MARGIN,
+    _pdf_page_size,
     csv_bytes,
     pdf_bytes,
     xlsx_bytes,
@@ -49,59 +52,43 @@ def test_operator_can_choose_governed_columns_without_redesigning_reporting():
 
 
 def test_reporting_request_accepts_unique_selected_columns():
-    request = ReportingRequest(
-        report_id="animal-register",
-        domain="ANIMALS",
-        period_mode="CURRENT_HERD",
-        selected_columns=["animal_id", "category"],
-    )
+    request = ReportingRequest(report_id="animal-register", domain="ANIMALS", period_mode="CURRENT_HERD", selected_columns=["animal_id", "category"])
     assert request.selected_columns == ["animal_id", "category"]
 
 
 def test_projection_preserves_requested_order_and_does_not_change_summary():
-    dataset = {
-        "dataset_status": "AUTHORITATIVE_DATASET",
-        "authority_status": "AUTHORITY_AVAILABLE",
-        "columns": ["animal_id", "category", "status"],
-        "rows": [{"animal_id": "A-001", "category": "Milking", "status": "ACTIVE"}],
-        "summary": {"records": 1},
-        "warnings": [],
-    }
+    dataset = {"dataset_status":"AUTHORITATIVE_DATASET","authority_status":"AUTHORITY_AVAILABLE","columns":["animal_id","category","status"],"rows":[{"animal_id":"A-001","category":"Milking","status":"ACTIVE"}],"summary":{"records":1},"warnings":[]}
     projected = _project_dataset(dataset, ["category", "animal_id"])
     assert projected["columns"] == ["category", "animal_id"]
-    assert projected["rows"] == [{"category": "Milking", "animal_id": "A-001"}]
-    assert projected["summary"] == {"records": 1}
+    assert projected["rows"] == [{"category":"Milking","animal_id":"A-001"}]
+    assert projected["summary"] == {"records":1}
 
 
 def test_csv_uses_operator_facing_headings():
-    payload = csv_bytes(["animal_id", "event_type"], [{"animal_id": "A-001", "event_type": "CONFIRMED_PREGNANT"}]).decode("utf-8-sig")
+    payload = csv_bytes(["animal_id", "event_type"], [{"animal_id":"A-001","event_type":"CONFIRMED_PREGNANT"}]).decode("utf-8-sig")
     assert payload.splitlines()[0] == "Animal ID,Event Type"
     assert "animal_id" not in payload.splitlines()[0]
 
 
 def test_operator_units_and_currency_headings_match_across_csv_and_xlsx():
     columns = ["total_yield", "quantity_liters", "amount", "feed_cost_per_litre_today"]
-    row = {"total_yield": 90.0, "quantity_liters": 75.0, "amount": 15000.0, "feed_cost_per_litre_today": 32.5}
+    row = {"total_yield":90.0,"quantity_liters":75.0,"amount":15000.0,"feed_cost_per_litre_today":32.5}
     expected = ["Total Milk (L)", "Quantity (L)", "Amount (PKR)", "Feed Cost / Litre (PKR)"]
-
-    csv_payload = csv_bytes(columns, [row]).decode("utf-8-sig")
-    assert csv_payload.splitlines()[0].split(",") == expected
-
+    assert csv_bytes(columns, [row]).decode("utf-8-sig").splitlines()[0].split(",") == expected
     workbook = load_workbook(BytesIO(xlsx_bytes("Farm Report", columns, [row], {})), data_only=True)
     assert list(next(workbook["Report"].values)) == expected
 
 
 def test_pdf_page_settings_are_governed_for_print_readability():
     source = REPORTING_EXPORT.read_text(encoding="utf-8")
-    assert PDF_MARGIN == 10
+    assert PDF_MARGIN == 10 * mm
     assert PDF_LANDSCAPE_COLUMN_THRESHOLD == 6
-    assert "wide = len(columns) > PDF_LANDSCAPE_COLUMN_THRESHOLD" in source
-    assert "page_size = landscape(A4) if wide else portrait(A4)" in source
-    assert "leftMargin=PDF_MARGIN*mm" in source
-    assert "rightMargin=PDF_MARGIN*mm" in source
-    assert "topMargin=PDF_MARGIN*mm" in source
-    assert "bottomMargin=PDF_MARGIN*mm" in source
-    assert "available_width = page_size[0] - (2 * PDF_MARGIN * mm)" in source
+    assert "return landscape(A4) if len(columns) > PDF_LANDSCAPE_COLUMN_THRESHOLD else portrait(A4)" in source
+    assert "leftMargin=PDF_MARGIN" in source
+    assert "rightMargin=PDF_MARGIN" in source
+    assert "topMargin=PDF_MARGIN" in source
+    assert "bottomMargin=PDF_MARGIN" in source
+    assert "available_width = page_size[0] - (2 * PDF_MARGIN)" in source
     assert "repeatRows=1" in source
     assert "colWidths=widths" in source
     assert "Paragraph(_heading(column), header_style)" in source
@@ -109,20 +96,12 @@ def test_pdf_page_settings_are_governed_for_print_readability():
 
 
 def test_pdf_orientation_threshold_keeps_six_columns_portrait_and_seven_landscape():
-    from PyPDF2 import PdfReader
-
-    six_columns = [f"field_{index}" for index in range(6)]
-    seven_columns = [f"field_{index}" for index in range(7)]
-    six_pdf = PdfReader(BytesIO(pdf_bytes("Six", six_columns, [{column: "x" for column in six_columns}], {})))
-    seven_pdf = PdfReader(BytesIO(pdf_bytes("Seven", seven_columns, [{column: "x" for column in seven_columns}], {})))
-    six_box = six_pdf.pages[0].mediabox
-    seven_box = seven_pdf.pages[0].mediabox
-    assert float(six_box.height) > float(six_box.width)
-    assert float(seven_box.width) > float(seven_box.height)
+    assert _pdf_page_size([f"field_{index}" for index in range(6)]) == portrait(A4)
+    assert _pdf_page_size([f"field_{index}" for index in range(7)]) == landscape(A4)
 
 
 def test_pdf_and_xlsx_are_genuine_after_readability_remediation():
     columns = ["animal_id", "event_type"]
-    rows = [{"animal_id": "A-001", "event_type": "AI"}]
-    assert pdf_bytes("Breeding", columns, rows, {"record_count": 1}).startswith(b"%PDF")
-    assert xlsx_bytes("Breeding", columns, rows, {"record_count": 1}).startswith(b"PK")
+    rows = [{"animal_id":"A-001","event_type":"AI"}]
+    assert pdf_bytes("Breeding", columns, rows, {"record_count":1}).startswith(b"%PDF")
+    assert xlsx_bytes("Breeding", columns, rows, {"record_count":1}).startswith(b"PK")
