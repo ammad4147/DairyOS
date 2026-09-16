@@ -38,21 +38,17 @@ def test_reporting_api_generates_real_csv_xlsx_and_pdf_payloads():
 
 def test_exporter_bytes_are_real_formats_and_reconcile_rows():
     columns = ["animal_id", "liters"]
-    rows = [{"animal_id": "T-001", "liters": 12.5}, {"animal_id": "T-002", "liters": 0}]
-    summary = {"active_milk_liters": 12.5, "records": 2}
-
+    rows = [{"animal_id":"T-001","liters":12.5},{"animal_id":"T-002","liters":0}]
+    summary = {"active_milk_liters":12.5,"records":2}
     csv_payload = csv_bytes(columns, rows)
     assert csv_payload.startswith(b"\xef\xbb\xbf")
     csv_text = csv_payload.decode("utf-8-sig")
     assert "T-001" in csv_text and "12.5" in csv_text and "T-002" in csv_text
-
     xlsx_payload = xlsx_bytes("Daily Milk Production", columns, rows, summary)
     assert xlsx_payload.startswith(b"PK")
     workbook = load_workbook(BytesIO(xlsx_payload), data_only=True)
-    sheet = workbook["Report"]
-    assert list(sheet.values) == [("Animal ID", "Liters"), ("T-001", 12.5), ("T-002", 0)]
+    assert list(workbook["Report"].values) == [("Animal ID", "Liters"), ("T-001", 12.5), ("T-002", 0)]
     assert workbook["Summary"]["B2"].value == 2
-
     pdf_payload = pdf_bytes("Daily Milk Production", columns, rows, summary)
     assert pdf_payload.startswith(b"%PDF-")
     assert len(pdf_payload) > 500
@@ -69,7 +65,8 @@ def test_print_and_save_always_fetch_current_controls_not_cached_preview():
     source = REPORTING_UI.read_text(encoding="utf-8")
     assert "preview || await loadDataset()" not in source
     assert source.count("const data = await loadDataset()") >= 2
-    assert "JSON.stringify(requestBody())" in source
+    assert "JSON.stringify(requestBody(includeColumns))" in source
+    assert "JSON.stringify(requestBody(true))" in source
 
 
 def test_preview_print_and_exports_share_the_same_reporting_request_contract():
@@ -77,7 +74,9 @@ def test_preview_print_and_exports_share_the_same_reporting_request_contract():
     assert "report_id: report.id" in source
     assert "operational_date: asOfDate" in source
     assert "snapshot_date: asOfDate" in source
-    assert "body:JSON.stringify(requestBody())" in source or "body: JSON.stringify(requestBody())" in source
+    assert "body:JSON.stringify(requestBody(includeColumns))" in source or "body: JSON.stringify(requestBody(includeColumns))" in source
+    assert "body:JSON.stringify(requestBody(true))" in source or "body: JSON.stringify(requestBody(true))" in source
+    assert "selected_columns: selectedColumns" in source
 
 
 def test_export_contract_has_explicit_reconciliation_metadata():
@@ -85,6 +84,7 @@ def test_export_contract_has_explicit_reconciliation_metadata():
     assert "X-DairyOS-Report-Id" in source
     assert "X-DairyOS-Record-Count" in source
     assert "X-DairyOS-Dataset-Status" in source
+    assert "X-DairyOS-Column-Count" in source
 
 
 def test_ui_rejects_export_when_preview_and_export_metadata_diverge():
@@ -92,6 +92,7 @@ def test_ui_rejects_export_when_preview_and_export_metadata_diverge():
     assert "exportedReport !== report.id" in source
     assert "exportedCount !== String(data.record_count" in source
     assert "exportedStatus !== data.dataset_status" in source
+    assert "exportedColumns !== String(data.columns.length)" in source
     assert "throw new Error('Report could not be saved. Please try again.')" in source
 
 
