@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from dairyos.api.dependencies import get_container
 from dairyos.api.reporting_animal_passport import animal_passport_dataset
 from dairyos.api.reporting_export import csv_bytes, pdf_bytes, xlsx_bytes
+from dairyos.api.reporting_milk import milk_reporting_dataset
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
@@ -318,8 +319,7 @@ def _snapshot_child(report_id: str, domain: DomainKey, mode: PeriodMode, selecte
 
 def _canonical_dataset(payload: ReportingRequest, *, container: Any, operational_today: date) -> dict[str, Any] | None:
     if payload.report_id in {"animal-register","animal-population"}: return _animal_dataset(payload,container)
-    if payload.report_id in {"daily-milk","milk-animal"}: return _milk_dataset(payload,container,operational_today)
-    if payload.report_id=="milk-disposition": return _generic_repo_dataset(payload,container,operational_today,"milk_dispositions",{"disposition_type":("disposition_type","type"),"status":("status",)})
+    if payload.report_id in {"daily-milk","milk-animal","milk-disposition"}: return milk_reporting_dataset(payload,container,operational_today)
     if payload.report_id in {"milk-quality-log","quality-summary"}: return _generic_repo_dataset(payload,container,operational_today,"milk_quality",{"sample_type":("sample_type","type"),"status":("status",)})
     if payload.report_id in {"current-tmr","historical-tmr"}: return _generic_repo_dataset(payload,container,operational_today,"feed_rations",{"category":("category","animal_group","animal_category"),"ingredient":("ingredient","ingredient_name")})
     if payload.report_id in {"finance-ledger","financial-summary"}: return _finance_dataset(payload,container,operational_today)
