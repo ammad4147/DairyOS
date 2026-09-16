@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import re
 from datetime import date, datetime
 from io import BytesIO, StringIO
@@ -19,9 +18,48 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
+OPERATOR_HEADINGS: dict[str, str] = {
+    "animal_id": "Animal ID",
+    "ear_tag": "Ear Tag",
+    "rfid": "RFID",
+    "date_of_birth": "Date of Birth",
+    "date_of_acquisition": "Date of Acquisition",
+    "dam_id": "Dam ID",
+    "sire_id": "Sire ID",
+    "lifecycle_status": "Lifecycle Status",
+    "is_currently_milking": "Currently Milking",
+    "milking_frequency": "Milking Frequency",
+    "production_date": "Date",
+    "operational_date": "Date",
+    "event_date": "Event Date",
+    "recorded_at": "Recorded At",
+    "sample_date": "Sample Date",
+    "herd_total_label": "Herd Group",
+    "total_yield": "Total Milk (L)",
+    "morning_yield": "Morning (L)",
+    "afternoon_yield": "Afternoon (L)",
+    "evening_yield": "Evening (L)",
+    "selected_session": "Milking Session",
+    "selected_session_yield": "Session Milk (L)",
+    "quantity_liters": "Quantity (L)",
+    "amount": "Amount (PKR)",
+    "feed_cost": "Feed Cost (PKR)",
+    "total_herd_feed_cost_per_day": "Daily Herd Feed Cost (PKR)",
+    "feed_cost_per_litre_today": "Feed Cost / Litre (PKR)",
+    "cost_per_head_day": "Cost / Head / Day (PKR)",
+    "price_per_kg": "Price / kg (PKR)",
+    "record_id": "Record ID",
+    "report_id": "Report",
+    "record_count": "Records",
+}
+
+
 def _heading(value: str) -> str:
-    text = re.sub(r"[_\-]+", " ", str(value or "")).strip()
-    return " ".join(word.upper() if word.upper() in {"ID", "AI", "PD", "TMR", "COP", "COML", "PKR"} else word.capitalize() for word in text.split())
+    key = str(value or "").strip()
+    if key in OPERATOR_HEADINGS:
+        return OPERATOR_HEADINGS[key]
+    text = re.sub(r"[_\-]+", " ", key).strip()
+    return " ".join(word.upper() if word.upper() in {"ID", "AI", "PD", "TMR", "COP", "COML", "PKR", "RFID"} else word.capitalize() for word in text.split())
 
 
 def _cell(value: Any) -> str:
