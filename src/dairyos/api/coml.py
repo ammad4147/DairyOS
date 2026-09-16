@@ -386,7 +386,7 @@ def get_integrated_coml(
     feed_authority_complete = bool(feed_basis.get("complete", True))
     feed_total = (
         float(raw_feed_total)
-        if raw_feed_total is not None and feed_authority_complete
+        if raw_feed_total is not None
         else None
     )
 

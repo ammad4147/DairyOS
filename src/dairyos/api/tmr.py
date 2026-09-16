@@ -1169,11 +1169,29 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         if str(snapshot.get("operational_date") or "")
     }
 
+    # Feed-tab records carry a timestamped persisted cost for days where the
+    # daily whole-herd snapshot has not been materialised yet. Keep this as a
+    # day-level fallback; a governed snapshot always wins for its date.
+    feed_tab_by_date: dict[str, dict[str, float | int]] = defaultdict(
+        lambda: {"cost": 0.0, "records": 0}
+    )
+    for row in factory.feed().get_all() or []:
+        row_date = _as_date(getattr(row, "feeding_date", None))
+        if row_date is None or not (start <= row_date <= effective_end):
+            continue
+        bucket = feed_tab_by_date[row_date.isoformat()]
+        bucket["cost"] += float(getattr(row, "total_feed_cost", 0.0) or 0.0)
+        bucket["records"] += 1
+
     # Today's governed TMR remains the live calculation authority until
     # the pre-summary snapshot is persisted. Once today's snapshot exists, that
     # immutable record replaces the provisional live value automatically.
     live_today = None
-    if start <= today <= effective_end and today.isoformat() not in by_date:
+    if (
+        start <= today <= effective_end
+        and today.isoformat() not in by_date
+        and today.isoformat() not in feed_tab_by_date
+    ):
         live_today = build_live_tmr_summary(
             factory,
             include_weekly_review=False,
@@ -1212,6 +1230,13 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
             record_id = None
             locked_at = None
 
+        elif feed_tab_by_date.get(key, {}).get("records", 0):
+            amount = float(feed_tab_by_date[key]["cost"])
+            total += amount
+            basis = "FEED_TAB_DAILY_LOG"
+            record_id = None
+            locked_at = None
+
         else:
             amount = None
             basis = "DAILY_TMR_SNAPSHOT_MISSING"
@@ -1238,11 +1263,10 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
     complete = not missing_authority_days
 
     return {
-        "total_feed_cost": (
-            round(total, 4)
-            if complete
-            else None
-        ),
+        # Preserve the available numerator for partial periods. Consumers
+        # must use `complete`/`missing_authority_days` to disclose gaps rather
+        # than converting a known partial total into an unexplained blank.
+        "total_feed_cost": round(total, 4) if (daily_rows and total >= 0) else None,
         "daily": daily_rows,
         "locked_days": locked_days,
         "provisional_days": provisional_days,

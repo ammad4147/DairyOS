@@ -1,6 +1,7 @@
 """Deep disposable-database proof for the Finance -> TMR -> COP authority chain."""
 
 from datetime import date, datetime, time
+from types import SimpleNamespace
 
 from dairyos.api import farm_data_entry
 from dairyos.api.tmr import lock_daily_tmr_cost_snapshot, tmr_feed_cost_for_period
@@ -12,6 +13,42 @@ from dairyos.farm.settings.services.operational_date_authority import (
 
 SILAGE = "Corn / Maize Silage"
 AUDIT_DATE = date(2040, 1, 15)
+
+
+def test_period_feed_cost_uses_timestamped_feed_tab_logs_when_snapshot_is_missing(
+    monkeypatch,
+):
+    """Known Feed-tab costs remain usable and gaps stay explicitly partial."""
+
+    monkeypatch.setattr(
+        OperationalDateAuthority,
+        "current_date",
+        lambda self: AUDIT_DATE,
+    )
+    factory = SimpleNamespace(
+        feed=lambda: SimpleNamespace(
+            get_all=lambda: [
+                SimpleNamespace(
+                    feeding_date=datetime(2040, 1, 14, 8, 0),
+                    total_feed_cost=1200,
+                ),
+                SimpleNamespace(
+                    feeding_date=datetime(2040, 1, 15, 8, 0),
+                    total_feed_cost=800,
+                ),
+            ],
+        ),
+        feed_rations=lambda: SimpleNamespace(get_active_for_group=lambda group: []),
+    )
+
+    result = tmr_feed_cost_for_period(factory, date(2040, 1, 14), AUDIT_DATE)
+
+    assert result["total_feed_cost"] == 2000
+    assert result["complete"] is True
+    assert [row["basis"] for row in result["daily"]] == [
+        "FEED_TAB_DAILY_LOG",
+        "FEED_TAB_DAILY_LOG",
+    ]
 
 
 def _feed_purchase(client, *, rate: float, reference: str):
