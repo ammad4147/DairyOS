@@ -718,13 +718,15 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     window = webview.create_window(
         "DairyOS",
         _desktop_url(url),
-        width=1440,
-        height=900,
-        min_size=(1024, 700),
         text_select=True,
         js_api=save_api,
     )
     save_api.window = window
+
+    # Let Windows choose the usable work area for the operator's display.
+    # There is deliberately no fixed size or minimum size: the web app keeps
+    # its existing layout and remains responsible for responsive presentation.
+    window.events.shown += window.maximize
 
     def reload_url(new_url: str) -> None:
         try:

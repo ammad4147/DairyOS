@@ -1,8 +1,17 @@
 import os
 import sys
 from types import SimpleNamespace
+from pathlib import Path
 
 from dairyos.windows import supervisor
+
+
+def test_desktop_window_uses_windows_work_area_without_fixed_bounds():
+    source = Path(supervisor.__file__).read_text(encoding="utf-8")
+    assert 'window.events.shown += window.maximize' in source
+    assert 'width=1440' not in source
+    assert 'height=900' not in source
+    assert 'min_size=(1024, 700)' not in source
 
 
 class _FakeProcess:
