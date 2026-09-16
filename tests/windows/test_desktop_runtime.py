@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from dairyos.frontend import resolve_frontend_dist
 from dairyos.windows.supervisor import (
     BackendWatchdog,
+    ReportingSaveApi,
     SupervisorConfig,
     _url_port,
     choose_port,
@@ -169,3 +172,157 @@ def test_backend_watchdog_clears_transient_restart_failure_after_recovery(monkey
     assert reloads == ["http://127.0.0.1:8123"]
     assert watchdog.process is recovered_process
     assert watchdog.failure is None
+
+def test_reporting_save_api_persists_exact_bytes(tmp_path):
+    destination = tmp_path / "report.pdf"
+    save_dialog_type = object()
+
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            assert dialog_type is save_dialog_type
+            assert save_filename == "report.pdf"
+            return str(destination)
+
+    api = ReportingSaveApi(save_dialog_type)
+    api.window = FakeWindow()
+
+    result = api.save_reporting_export(
+        "report.pdf",
+        "PDF",
+        "JVBERg==",
+    )
+
+    assert result["status"] == "SAVED"
+    assert result["path"] == str(destination.resolve())
+    assert result["bytes"] == 4
+    assert destination.read_bytes() == b"%PDF"
+
+
+def test_reporting_save_api_does_not_write_when_operator_cancels(tmp_path):
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            return None
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+
+    result = api.save_reporting_export(
+        "report.csv",
+        "CSV",
+        "QUJD",
+    )
+
+    assert result == {"status": "CANCELLED"}
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_reporting_save_api_rejects_unsupported_format():
+    api = ReportingSaveApi()
+    api.window = object()
+
+    with pytest.raises(ValueError, match="Unsupported Reporting export format"):
+        api.save_reporting_export(
+            "report.txt",
+            "TXT",
+            "QUJD",
+        )
+
+
+def test_reporting_save_api_rejects_extension_format_mismatch():
+    api = ReportingSaveApi()
+    api.window = object()
+
+    with pytest.raises(
+        ValueError,
+        match="filename extension does not match",
+    ):
+        api.save_reporting_export(
+            "report.csv",
+            "PDF",
+            "JVBERg==",
+        )
+
+
+def test_reporting_save_api_rejects_malformed_base64():
+    api = ReportingSaveApi()
+    api.window = object()
+
+    with pytest.raises(ValueError, match="Invalid report payload"):
+        api.save_reporting_export(
+            "report.pdf",
+            "PDF",
+            "not-valid-base64!",
+        )
+
+
+def test_reporting_save_api_strips_filename_path_components(tmp_path):
+    destination = tmp_path / "report.csv"
+
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            assert save_filename == "report.csv"
+            return str(destination)
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+
+    result = api.save_reporting_export(
+        "../untrusted/report.csv",
+        "CSV",
+        "QUJD",
+    )
+
+    assert result["status"] == "SAVED"
+    assert destination.read_bytes() == b"ABC"
+
+
+def test_reporting_save_api_does_not_report_saved_when_write_fails(
+    tmp_path,
+    monkeypatch,
+):
+    destination = tmp_path / "report.xlsx"
+
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            return str(destination)
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+
+    def fail_write(self, content):
+        raise OSError("simulated write failure")
+
+    monkeypatch.setattr(Path, "write_bytes", fail_write)
+
+    with pytest.raises(OSError, match="simulated write failure"):
+        api.save_reporting_export(
+            "report.xlsx",
+            "XLSX",
+            "UEsDBA==",
+        )
+
+
+def test_reporting_save_api_rejects_selected_destination_extension_mismatch(
+    tmp_path,
+):
+    destination = tmp_path / "report.csv"
+
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            assert save_filename == "report.pdf"
+            return str(destination)
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+
+    with pytest.raises(
+        ValueError,
+        match="Selected report filename extension does not match",
+    ):
+        api.save_reporting_export(
+            "report.pdf",
+            "PDF",
+            "JVBERg==",
+        )
+
+    assert not destination.exists()

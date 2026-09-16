@@ -28,6 +28,37 @@ const displayValue = (value:unknown):string => {
 };
 const userMessage = async (response:Response, fallback:string):Promise<string> => { try { const payload = await response.json(); const detail = payload?.detail; if (typeof detail === 'string' && detail.trim()) return detail; if (detail && typeof detail.message === 'string' && detail.message.trim()) return detail.message; } catch { /* keep operator-facing fallback */ } return fallback; };
 
+type DairyOSDesktopSaveResult = {
+  status: 'SAVED' | 'CANCELLED';
+  path?: string;
+  bytes?: number;
+};
+
+type DairyOSDesktopWindow = Window & {
+  pywebview?: {
+    api?: {
+      save_reporting_export?: (
+        filename: string,
+        exportFormat: Format,
+        payload: string,
+      ) => Promise<DairyOSDesktopSaveResult>;
+    };
+  };
+};
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)),
+    );
+  }
+
+  return btoa(binary);
+}
 export default function ReportingTab() {
   const [reports, setReports] = useState<Report[]>([]); const [domain, setDomain] = useState<DomainKey>('ANIMALS'); const [reportId, setReportId] = useState('');
   const [startDate, setStartDate] = useState(''); const [endDate, setEndDate] = useState(''); const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0,10));
@@ -80,11 +111,33 @@ export default function ReportingTab() {
     if (!response.ok) throw new Error(await userMessage(response, 'Report could not be saved.'));
     const exportedCount = response.headers.get('X-DairyOS-Record-Count'); const exportedReport = response.headers.get('X-DairyOS-Report-Id'); const exportedStatus = response.headers.get('X-DairyOS-Dataset-Status'); const exportedColumns = response.headers.get('X-DairyOS-Column-Count');
     if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status || exportedColumns !== String(data.columns.length)) throw new Error('Report could not be saved. Please try again.');
-    const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+    const blob = await response.blob();
+    const filename = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`;
+    const desktopWindow = window as DairyOSDesktopWindow;
+    const nativeSave = desktopWindow.pywebview?.api?.save_reporting_export;
+    if (nativeSave) {
+      const payload = arrayBufferToBase64(await blob.arrayBuffer());
+      const result = await nativeSave(filename, exportFormat, payload);
+      if (result.status === 'CANCELLED') return false;
+      if (result.status !== 'SAVED' || result.bytes !== blob.size) throw new Error('Report could not be saved. Please try again.');
+      return true;
+    }
+    const url = URL.createObjectURL(blob);
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    return true;
   };
   const noColumnsSelected = eligibleColumns.length > 0 && selectedColumns.length === 0;
-  const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport('PDF', '-Print'); setNotice('Print-ready PDF saved.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
-  const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { await downloadExport(format); setNotice(`${format} report saved.`); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
+  const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { const saved = await downloadExport('PDF', '-Print'); if (saved) setNotice('Print-ready PDF saved.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
+  const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { const saved = await downloadExport(format); if (saved) setNotice(`${format} report saved.`); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
   const columns = preview?.columns || []; const summaryItems = Object.entries(preview?.summary || {});
 
   return <div className="space-y-4">

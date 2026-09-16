@@ -7,6 +7,8 @@ independent Windows Service and is never made a child process of DairyOS.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import ctypes
 import json
 import logging
@@ -624,12 +626,95 @@ def _desktop_url(url: str) -> str:
     return url.rstrip("/") + "/#desktop-session=" + _desktop_session_token()
 
 
+class ReportingSaveApi:
+    """Native persistence for governed DairyOS Reporting exports."""
+
+    _EXTENSIONS = {
+        "PDF": ".pdf",
+        "XLSX": ".xlsx",
+        "CSV": ".csv",
+    }
+
+    def __init__(self, save_dialog_type: object = 30) -> None:
+        self.window = None
+        self.save_dialog_type = save_dialog_type
+
+    def save_reporting_export(
+        self,
+        filename: str,
+        export_format: str,
+        payload: str,
+    ) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+
+        normalized_format = str(export_format).strip().upper()
+        required_extension = self._EXTENSIONS.get(normalized_format)
+        if required_extension is None:
+            raise ValueError("Unsupported Reporting export format.")
+
+        safe_name = Path(filename).name
+        if not safe_name:
+            raise ValueError("A valid report filename is required.")
+
+        if Path(safe_name).suffix.lower() != required_extension:
+            raise ValueError(
+                "Report filename extension does not match the export format."
+            )
+
+        if not isinstance(payload, str):
+            raise ValueError("Invalid report payload.")
+
+        try:
+            content = base64.b64decode(payload, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("Invalid report payload.") from exc
+
+        selected = self.window.create_file_dialog(
+            self.save_dialog_type,
+            save_filename=safe_name,
+        )
+
+        if not selected:
+            return {"status": "CANCELLED"}
+
+        selected_path = (
+            selected[0]
+            if isinstance(selected, (list, tuple))
+            else selected
+        )
+        path = Path(str(selected_path)).expanduser().resolve()
+
+        if path.suffix.lower() != required_extension:
+            raise ValueError(
+                "Selected report filename extension does not match the export format."
+            )
+
+        path.write_bytes(content)
+
+        if not path.is_file():
+            raise RuntimeError("The report file was not created.")
+
+        persisted_size = path.stat().st_size
+        if persisted_size != len(content):
+            raise RuntimeError(
+                "The saved report file did not reconcile with the export payload."
+            )
+
+        return {
+            "status": "SAVED",
+            "path": str(path),
+            "bytes": persisted_size,
+        }
+
+
 def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     try:
         import webview
     except ImportError as exc:
         raise RuntimeError("pywebview is required for the packaged DairyOS desktop shell.") from exc
 
+    save_api = ReportingSaveApi(webview.FileDialog.SAVE)
     window = webview.create_window(
         "DairyOS",
         _desktop_url(url),
@@ -637,7 +722,9 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         height=900,
         min_size=(1024, 700),
         text_select=True,
+        js_api=save_api,
     )
+    save_api.window = window
 
     def reload_url(new_url: str) -> None:
         try:

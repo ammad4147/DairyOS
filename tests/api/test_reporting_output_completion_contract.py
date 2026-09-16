@@ -104,3 +104,23 @@ def test_semen_stock_is_not_exposed_by_reporting():
     assert "Semen Stock Balance" not in api_source
     assert "|'SEMEN'" not in ui_source
     assert "SEMEN:'Semen'" not in ui_source
+
+def test_reporting_uses_native_desktop_save_bridge_with_browser_fallback():
+    source = REPORTING_UI.read_text(encoding="utf-8")
+    assert "desktopWindow.pywebview?.api?.save_reporting_export" in source
+    assert "save_file" not in source
+    assert "await nativeSave(filename, exportFormat, payload)" in source
+    assert "arrayBufferToBase64(await blob.arrayBuffer())" in source
+    assert "result.status === 'CANCELLED') return false" in source
+    assert "result.status !== 'SAVED' || result.bytes !== blob.size" in source
+    assert "URL.createObjectURL(blob)" in source
+    assert "anchor.download = filename" in source
+
+
+def test_reporting_does_not_claim_success_before_native_save_returns():
+    source = REPORTING_UI.read_text(encoding="utf-8")
+    native_call = source.index("await nativeSave(filename, exportFormat, payload)")
+    save_notice = source.index("`${format} report saved.`")
+    print_notice = source.index("Print-ready PDF saved.")
+    assert native_call < save_notice
+    assert native_call < print_notice
