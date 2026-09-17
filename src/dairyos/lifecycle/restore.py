@@ -13,6 +13,7 @@ from .manager import LifecycleError, LifecycleManager
 
 
 _DATABASE_ROOT_NAMES = {"postgres", "postgresql"}
+_RUNTIME_OWNED_FILES = {Path("logs") / "private-postgres.log"}
 
 
 def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
@@ -148,7 +149,7 @@ def _replace_non_database_files(data_root: Path, staged_root: Path) -> None:
     """
 
     data_root.mkdir(parents=True, exist_ok=True)
-    preserved = {"backups", *_DATABASE_ROOT_NAMES}
+    preserved = {"backups", "logs", *_DATABASE_ROOT_NAMES}
 
     for child in data_root.iterdir():
         if child.name.lower() in preserved:
@@ -162,6 +163,8 @@ def _replace_non_database_files(data_root: Path, staged_root: Path) -> None:
         if not source.is_file():
             continue
         relative = source.relative_to(staged_root)
+        if relative in _RUNTIME_OWNED_FILES:
+            continue
         destination = data_root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
