@@ -327,6 +327,16 @@ def _is_port_open(host: str, port: int) -> bool:
             return False
 
 
+def _port_is_bindable(host: str, port: int) -> bool:
+    """Return whether a stopped private cluster can bind this loopback port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind((host, port))
+        except OSError:
+            return False
+        return True
+
+
 def _choose_port(host: str = DEFAULT_HOST) -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind((host, 0))
@@ -661,6 +671,23 @@ def start(
             f"Private PostgreSQL cluster already belongs to port {persisted_port}; "
             f"refusing to silently move it to {port}."
         )
+
+    # A persisted port is durable runtime authority only while it remains
+    # usable by the private cluster. Windows can reserve/exclude a previously
+    # valid ephemeral port while DairyOS is stopped. In that case there is no
+    # database migration or restoration: the same persistent cluster is
+    # restarted on a newly bindable loopback port.
+    #
+    # Never probe-bind an already-running cluster's port: its own PostgreSQL
+    # process correctly owns that socket.
+    if (
+        cluster_exists
+        and port is None
+        and persisted_port is not None
+        and not persisted_cluster_is_running()
+        and not _port_is_bindable(host, persisted_port)
+    ):
+        selected_port = _choose_port(host)
 
     if not data_root.exists() or not any(data_root.iterdir()):
         initialize_cluster(

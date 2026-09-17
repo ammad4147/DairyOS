@@ -355,3 +355,121 @@ def test_start_does_not_replace_identical_persisted_runtime_state(
     assert config.database == "dairyos"
     assert config.user == "dairyos_admin"
     assert state_path.read_text(encoding="utf-8") == before
+
+def test_stopped_existing_cluster_relocates_unbindable_persisted_port(
+    monkeypatch,
+    tmp_path,
+):
+    """A stale Windows port must not strand an otherwise valid farm cluster."""
+    from types import SimpleNamespace
+
+    data_root = tmp_path / "postgres" / "data"
+    data_root.mkdir(parents=True)
+    (data_root / "PG_VERSION").write_text("18\n", encoding="utf-8")
+
+    monkeypatch.setattr(pg, "postgres_data_root", lambda: data_root)
+    monkeypatch.setattr(pg, "detect_installed_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "bundled_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "_configured_port", lambda: 50345)
+    monkeypatch.setattr(pg, "persisted_cluster_is_running", lambda: False)
+    monkeypatch.setattr(
+        pg,
+        "_port_is_bindable",
+        lambda host, port: False if port == 50345 else True,
+    )
+    monkeypatch.setattr(pg, "_choose_port", lambda host=pg.DEFAULT_HOST: 62628)
+    monkeypatch.setattr(pg, "_binary", lambda name: tmp_path / name)
+    monkeypatch.setattr(pg, "_write_postgresql_conf", lambda *args: None)
+    monkeypatch.setattr(pg, "_write_pg_hba_conf", lambda *args: None)
+    monkeypatch.setattr(pg, "_wait_for_server", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pg, "_write_state", lambda payload: written.append(payload))
+    monkeypatch.setattr(
+        pg,
+        "runtime_root",
+        lambda: tmp_path / "runtime" / "PostgreSQL",
+    )
+
+    written = []
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(pg, "_run", fake_run)
+
+    config = pg.start()
+
+    assert config.port == 62628
+    assert written
+    assert written[-1]["port"] == 62628
+
+    start_commands = [
+        command
+        for command in commands
+        if command and command[-1] == "start"
+    ]
+    assert len(start_commands) == 1
+    assert "-p 62628 -h 127.0.0.1" in start_commands[0]
+
+
+def test_running_existing_cluster_preserves_persisted_port_without_bind_probe(
+    monkeypatch,
+    tmp_path,
+):
+    """The private server's own listener must not trigger port relocation."""
+    from types import SimpleNamespace
+
+    data_root = tmp_path / "postgres" / "data"
+    data_root.mkdir(parents=True)
+    (data_root / "PG_VERSION").write_text("18\n", encoding="utf-8")
+    (data_root / "postmaster.pid").write_text("1234\n", encoding="utf-8")
+
+    monkeypatch.setattr(pg, "postgres_data_root", lambda: data_root)
+    monkeypatch.setattr(pg, "detect_installed_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "bundled_version", lambda: "18.6")
+    monkeypatch.setattr(pg, "_configured_port", lambda: 50345)
+    monkeypatch.setattr(pg, "persisted_cluster_is_running", lambda: True)
+    monkeypatch.setattr(pg, "_is_port_open", lambda host, port: True)
+
+    def unexpected_bind_probe(host, port):
+        raise AssertionError(
+            "Running private PostgreSQL port must not be probe-bound."
+        )
+
+    monkeypatch.setattr(pg, "_port_is_bindable", unexpected_bind_probe)
+    monkeypatch.setattr(
+        pg,
+        "_choose_port",
+        lambda host=pg.DEFAULT_HOST: (_ for _ in ()).throw(
+            AssertionError("Running persisted cluster must not choose a new port.")
+        ),
+    )
+    monkeypatch.setattr(pg, "_binary", lambda name: tmp_path / name)
+    monkeypatch.setattr(pg, "_write_postgresql_conf", lambda *args: None)
+    monkeypatch.setattr(pg, "_write_pg_hba_conf", lambda *args: None)
+    monkeypatch.setattr(pg, "_wait_for_server", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pg, "_write_state", lambda payload: written.append(payload))
+    monkeypatch.setattr(
+        pg,
+        "runtime_root",
+        lambda: tmp_path / "runtime" / "PostgreSQL",
+    )
+    monkeypatch.setattr(
+        pg,
+        "_run",
+        lambda command, **kwargs: SimpleNamespace(
+            returncode=0,
+            stdout="",
+            stderr="",
+        ),
+    )
+
+    written = []
+
+    config = pg.start()
+
+    assert config.port == 50345
+    assert written
+    assert written[-1]["port"] == 50345
+

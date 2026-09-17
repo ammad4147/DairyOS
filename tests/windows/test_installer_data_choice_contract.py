@@ -28,17 +28,23 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert '"-dSourceTree=' not in build
 
 
+
 def test_installer_exposes_operator_reachable_new_keep_and_restore_choices():
     source = _source()
 
     assert "DetectExistingDairyOSData" in source
     assert "CreateInputOptionPage" in source
     assert "DataChoicePage.Add('New Installation');" in source
-    assert "if ExistingDataDetected then" in source
     assert "DataChoicePage.Add('Continue with Existing Farm');" in source
-    assert "KeepChoiceIndex := 1;" in source
     assert "DataChoicePage.Add('Restore to Verified Backup');" in source
+    assert "KeepChoiceIndex := 1;" in source
     assert "RestoreChoiceIndex := DataChoicePage.CheckListBox.Items.Count - 1;" in source
+
+    # Continue is authorized only by the exact surviving configured farm,
+    # not merely by discovery of any preserved DairyOS farm.
+    assert "if (ConfiguredRoot <> '') and" in source
+    assert "IsRecognizedDairyOSFarmRoot(ConfiguredRoot) then" in source
+
     assert "ScanKnownBackupRoots" in source
     assert "StageInstallationChoice" in source
     assert "TRadioButton" not in source
@@ -48,7 +54,6 @@ def test_installer_exposes_operator_reachable_new_keep_and_restore_choices():
     assert "--choice-mode new" in source
     assert "--choice-mode keep" in source
     assert "DairyOS-Admin.exe" not in source
-
 
 def test_uninstaller_is_straightforward_and_keeps_programdata_in_place():
     source = _source()

@@ -1,4 +1,4 @@
-; DairyOS Windows release installer
+﻿; DairyOS Windows release installer
 ; Packages the already-built frozen desktop bundle. Farm data lives outside
 ; the application directory and must survive uninstall/reinstall.
 
@@ -69,7 +69,6 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 [Code]
 var
   DataChoicePage: TInputOptionWizardPage;
-  FarmChoicePage: TInputOptionWizardPage;
   CleanConfirmationPage: TInputQueryWizardPage;
   BackupChoicePage: TInputOptionWizardPage;
   ExistingDataDetected: Boolean;
@@ -535,15 +534,6 @@ begin
   end;
 end;
 
-function SelectedFarmCandidate(): String;
-begin
-  Result := '';
-  if (FarmChoicePage <> nil) and
-     (FarmChoicePage.SelectedValueIndex >= 0) and
-     (FarmChoicePage.SelectedValueIndex < GetArrayLength(FarmCandidatePaths)) then
-    Result := FarmCandidatePaths[FarmChoicePage.SelectedValueIndex];
-end;
-
 procedure AddBackupCandidate(const Candidate: String);
 var
   I: Integer;
@@ -716,8 +706,6 @@ procedure InitializeWizard();
 var
   I: Integer;
   ConfiguredRoot: String;
-  CandidateLabel: String;
-  InitialFarmIndex: Integer;
 begin
   ScanKnownFarmRoots();
   ExistingDataDetected := DetectExistingDairyOSData();
@@ -728,7 +716,6 @@ begin
   CleanConfirmationAccepted := False;
   KeepChoiceIndex := -1;
   RestoreChoiceIndex := -1;
-  InitialFarmIndex := -1;
   ConfiguredRoot := ConfiguredDairyOSDataRoot();
 
   DataChoicePage := CreateInputOptionPage(
@@ -741,7 +728,12 @@ begin
   );
   DataChoicePage.Add('New Installation');
 
-  if ExistingDataDetected then
+  { Continue is available only when the previous installation left an
+    explicit machine-level farm pointer and that exact root is still a
+    recognized DairyOS farm. Discovered preserved farms do not authorize
+    Continue and are never guessed as the previous active farm. }
+  if (ConfiguredRoot <> '') and
+     IsRecognizedDairyOSFarmRoot(ConfiguredRoot) then
   begin
     DataChoicePage.Add('Continue with Existing Farm');
     KeepChoiceIndex := 1;
@@ -751,51 +743,6 @@ begin
   RestoreChoiceIndex := DataChoicePage.CheckListBox.Items.Count - 1;
   DataChoicePage.SelectedValueIndex := 0;
   SelectedInstallMode := 'new';
-
-  if GetArrayLength(FarmCandidatePaths) > 0 then
-  begin
-    FarmChoicePage := CreateInputOptionPage(
-      DataChoicePage.ID,
-      'DairyOS Farm',
-      'Choose the existing DairyOS farm.',
-      'Select the exact saved DairyOS farm to continue with or restore.',
-      True,
-      True
-    );
-
-    for I := 0 to GetArrayLength(FarmCandidatePaths) - 1 do
-    begin
-      if Lowercase(FarmCandidatePaths[I]) = Lowercase(ConfiguredRoot) then
-        InitialFarmIndex := I;
-
-      if Lowercase(FarmCandidatePaths[I]) =
-         Lowercase(CanonicalDairyOSDataRoot()) then
-        CandidateLabel :=
-          'Farm data: ' + FarmCandidatePaths[I] + ' [Primary farm]'
-      else
-        CandidateLabel :=
-          'Farm data: ' + FarmCandidatePaths[I] +
-          ' [Preserved separate farm]';
-
-      if (ConfiguredRoot <> '') and
-         (Lowercase(FarmCandidatePaths[I]) = Lowercase(ConfiguredRoot)) then
-        CandidateLabel := CandidateLabel + ' [Currently configured]';
-
-      FarmChoicePage.Add(CandidateLabel);
-    end;
-
-    { A surviving configured pointer identifies an exact active farm.
-      Otherwise one discovered farm is unambiguous. Multiple preserved farms
-      with no surviving pointer require an explicit operator selection. }
-    if InitialFarmIndex >= 0 then
-      FarmChoicePage.SelectedValueIndex := InitialFarmIndex
-    else if GetArrayLength(FarmCandidatePaths) = 1 then
-      FarmChoicePage.SelectedValueIndex := 0
-    else
-      FarmChoicePage.SelectedValueIndex := -1;
-  end
-  else
-    FarmChoicePage := nil;
 
   CleanConfirmationPage := CreateInputQueryPage(
     DataChoicePage.ID,
@@ -808,24 +755,14 @@ begin
     False
   );
 
-  if FarmChoicePage <> nil then
-    BackupChoicePage := CreateInputOptionPage(
-      FarmChoicePage.ID,
-      'Saved Backups',
-      'Choose a backup by date and time.',
-      'The newest backup is first. DairyOS checks the selected backup again before restoring it.',
-      True,
-      True
-    )
-  else
-    BackupChoicePage := CreateInputOptionPage(
-      DataChoicePage.ID,
-      'Saved Backups',
-      'Choose a backup by date and time.',
-      'The newest backup is first. DairyOS checks the selected backup again before restoring it.',
-      True,
-      True
-    );
+  BackupChoicePage := CreateInputOptionPage(
+    DataChoicePage.ID,
+    'Saved Backups',
+    'Choose a backup by date and time.',
+    'The newest backup is first. DairyOS checks the selected backup again before restoring it.',
+    True,
+    True
+  );
 
   if GetArrayLength(BackupCandidatePaths) = 0 then
     BackupChoicePage.Add(
@@ -859,8 +796,22 @@ begin
     if (KeepChoiceIndex >= 0) and
        (DataChoicePage.SelectedValueIndex = KeepChoiceIndex) then
     begin
+      FarmRoot := ConfiguredDairyOSDataRoot();
+
+      if (FarmRoot = '') or
+         (not IsRecognizedDairyOSFarmRoot(FarmRoot)) then
+      begin
+        MsgBox(
+          'The previously configured DairyOS farm is no longer available. Continue cannot guess another farm. Choose New Installation or Restore to Verified Backup.',
+          mbError,
+          MB_OK
+        );
+        Result := False;
+        exit;
+      end;
+
       SelectedInstallMode := 'keep';
-      SelectedDataRoot := '';
+      SelectedDataRoot := FarmRoot;
       exit;
     end;
 
@@ -869,37 +820,15 @@ begin
     begin
       SelectedInstallMode := 'restore';
 
-      { When preserved farms exist, the exact destination is selected on the
-        farm page. Without a preserved destination, Restore targets a newly
-        allocated DairyOS-owned empty root rather than the canonical fallback. }
-      if FarmChoicePage = nil then
-        SelectedDataRoot := SelectNewDairyOSDataRoot()
-      else
-        SelectedDataRoot := '';
+      { Restore never overwrites or guesses an existing farm destination.
+        The operator selects only the verified recovery point. Restore targets
+        a separate newly allocated DairyOS-owned farm root. }
+      SelectedDataRoot := SelectNewDairyOSDataRoot();
       exit;
     end;
 
     SelectedInstallMode := 'new';
     SelectedDataRoot := SelectNewDairyOSDataRoot();
-    exit;
-  end;
-
-  if (FarmChoicePage <> nil) and (CurPageID = FarmChoicePage.ID) then
-  begin
-    FarmRoot := SelectedFarmCandidate();
-
-    if FarmRoot = '' then
-    begin
-      MsgBox(
-        'Select the exact DairyOS farm data path to continue. No farm has been changed.',
-        mbError,
-        MB_OK
-      );
-      Result := False;
-      exit;
-    end;
-
-    SelectedDataRoot := FarmRoot;
     exit;
   end;
 
@@ -964,15 +893,10 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
-  if (FarmChoicePage <> nil) and (PageID = FarmChoicePage.ID) then
-    Result :=
-      (DataChoicePage.SelectedValueIndex <> KeepChoiceIndex) and
-      (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex);
-
   if PageID = CleanConfirmationPage.ID then
     Result :=
       (not ExistingDataDetected) or
-      (SelectedInstallMode <> 'clean');
+      (DataChoicePage.SelectedValueIndex <> 0);
 
   if PageID = BackupChoicePage.ID then
     Result :=
