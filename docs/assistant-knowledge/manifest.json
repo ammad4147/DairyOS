@@ -1,23 +1,30 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.2.0",
-  "generated_at": "2026-09-17T22:43:26+00:00",
+  "corpus_version": "0.3.0",
+  "generated_at": "2026-09-17T22:52:05+00:00",
   "dairyos_source_authority": "45900048a1819e79a26e048e26a1355c4498967b",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 31,
+    "total": 38,
     "by_status": {
-      "IMPLEMENTATION_REVIEW": 27,
+      "IMPLEMENTATION_REVIEW": 34,
       "DRAFT": 1,
       "DEPRECATED": 3
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 31
+      "DAIRYOS_INSTRUCTION": 38
     }
   },
   "files": [
+    {
+      "path": "dairyos/animals-and-herd.json",
+      "class": "DAIRYOS_INSTRUCTION",
+      "domain": "animals-and-herd",
+      "sha256": "9e71bfcbe3f5abdc17ded029fa27c6fb11594dd4b42bde2b4ee3dc964bce5c32",
+      "item_count": 7
+    },
     {
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
@@ -40,5 +47,5 @@
       "item_count": 9
     }
   ],
-  "note": "AA-3 in progress. Three of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
+  "note": "AA-3 in progress. Four of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
 }
