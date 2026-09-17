@@ -37,5 +37,4 @@ def test_system_health_covers_current_clinical_persistence_and_recovery_boundari
     ):
         assert f'"{table}"' in source
     assert '"backup protection"' in source
-    assert '"AI Assistant knowledge"' in source
     assert '"health observation case links"' in source

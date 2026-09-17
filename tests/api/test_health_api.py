@@ -42,7 +42,6 @@ def test_system_health_is_current_read_only_integrity_report(client):
         "health observation case links",
         "backup protection",
         "data layout",
-        "AI Assistant knowledge",
         "application runtime",
     }
     assert all(check["status"] in {"PASS", "WARNING", "FAIL"} for check in payload["checks"])

@@ -118,10 +118,6 @@ from dairyos.data.models.user import (
     User,
 )
 
-from dairyos.data.models.ai_assistant_conversation import (
-    AIAssistantConversationModel,
-    AIAssistantMessageModel,
-)
 
 
 def initialize_database() -> None:

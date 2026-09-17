@@ -62,10 +62,6 @@ from dairyos.data.database.models.breeding_record_model import BreedingRecordMod
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.database.models.operational_event_model import OperationalEventModel
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
-from dairyos.data.models.ai_assistant_conversation import (
-    AIAssistantConversationModel,
-    AIAssistantMessageModel,
-)
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.animal_milking_schedule_history import (
     AnimalMilkingScheduleHistory,
@@ -165,8 +161,6 @@ def _reset_test_persistence() -> None:
         # Dependency order: child/ledger tables first, then primary
         # domain registers and operational projections.
         for model in (
-            AIAssistantMessageModel,
-            AIAssistantConversationModel,
             BreedingPropagationOutbox,
             OperationalProjectionOutbox,
             OperationalWrite,

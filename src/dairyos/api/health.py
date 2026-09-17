@@ -7,7 +7,6 @@ from sqlalchemy import inspect, text
 
 from dairyos.api.dashboard_attention import project_vaccination_schedule
 from dairyos.api.dependencies import get_container
-from dairyos.assistant.knowledge import GroundedAssistant
 from dairyos.data.database.automatic_backups import read_backup_health
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
@@ -302,7 +301,7 @@ def get_system_health(container=Depends(get_container)):  # noqa: B008
                     (
                         "Missing required tables: " + ", ".join(missing)
                         if missing
-                        else "All current DairyOS operational, clinical, event and Assistant-read tables are present."
+                        else "All current DairyOS operational, clinical and event tables are present."
                     ),
                     table_count=len(tables),
                     required_table_count=len(_REQUIRED_TABLES),
@@ -572,34 +571,6 @@ def get_system_health(container=Depends(get_container)):  # noqa: B008
                     "data layout",
                     "FAIL",
                     f"Managed data-root inspection failed ({type(exc).__name__}); storage authority cannot be verified.",
-                )
-            )
-
-        try:
-            coverage = GroundedAssistant().coverage()
-            domains = coverage.get("domains") or []
-            items = int(coverage.get("items") or 0)
-            assistant_status = (
-                "PASS"
-                if items > 0 and "health-and-veterinary" in domains
-                else "FAIL"
-            )
-            checks.append(
-                _health_check(
-                    "AI Assistant knowledge",
-                    assistant_status,
-                    f"Local vector knowledge index loaded {items} item(s); clinical reference domain is {'present' if 'health-and-veterinary' in domains else 'missing'}.",
-                    indexed_items=items,
-                    clinical_domain_present="health-and-veterinary" in domains,
-                    retrieval=coverage.get("retrieval"),
-                )
-            )
-        except Exception as exc:  # noqa: BLE001
-            checks.append(
-                _health_check(
-                    "AI Assistant knowledge",
-                    "FAIL",
-                    f"Local Assistant knowledge index could not be loaded ({type(exc).__name__}).",
                 )
             )
 
