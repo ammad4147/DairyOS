@@ -1,0 +1,815 @@
+{
+  "schema_version": 2,
+  "class": "DAIRYOS_INSTRUCTION",
+  "domain": "breeding-and-reproduction",
+  "corpus_note": "AA-3 pilot domain. Every item's authorities were traced to src/dairyos/farm/reproduction/services/reproductive_state_service.py at DairyOS source b190d1a059141e39df994c2fcc23c1021066986d. Items merged from two prior authorings record both sources in merged_from.",
+  "items": [
+    {
+      "id": "breeding.event",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "breeding-event",
+      "title": "Recording a reproductive event",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "How do I record an insemination or another reproductive event?",
+      "alternatives": [
+        "record insemination",
+        "enter heat service",
+        "breeding entry",
+        "how do I log an AI",
+        "add a breeding record"
+      ],
+      "answer": "Record only an event that actually occurred, giving animal identity, the actual event date, the event type, the responsible operator or technician, and sire or semen details where applicable. Result information is added when it is known.",
+      "explanation": "DairyOS treats a reproductive event as a durable historical fact rather than a status label. Current reproductive state is never stored directly; it is derived from the persisted chronology of events. This is why a reminder or an expected date can never become a recorded event, and why correcting a mistake means recording a further authorised event rather than editing history away.",
+      "scenario": {
+        "given": "Heat has been observed and a service or insemination has actually been carried out.",
+        "steps": [
+          "Select the animal and confirm its identity.",
+          "Choose the supported event type.",
+          "Enter the actual event date and the responsible technician or operator.",
+          "Add semen, sire, heat and notes as applicable.",
+          "Save, then verify the persisted reproductive timeline."
+        ],
+        "expected": "The historical fact stays linked to the permanent animal record, and current state is derived from the chronology rather than set by hand.",
+        "next": "Record the pregnancy diagnosis, a return to heat, a calving, a loss, or a subsequent service when it actually occurs."
+      },
+      "effects": {
+        "persisted": [
+          "reproductive event with its actual date",
+          "animal identity linkage",
+          "technician or operator attribution",
+          "semen or sire details where supplied"
+        ],
+        "derived": [
+          "last_insemination_date",
+          "pd_due_date, being the insemination date plus 35 days",
+          "days_open once a service is successful"
+        ],
+        "projected": [
+          "pregnancy diagnosis reminder",
+          "breeding analytics attribution by technician"
+        ],
+        "audit": [
+          "animal passport reproductive history"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "The event is recorded against the wrong animal.",
+          "behaviour": "Follow correction_path. DairyOS preserves the erroneous record rather than deleting it."
+        },
+        {
+          "condition": "No purchased semen lot is available under DairyOS governance.",
+          "behaviour": "The insemination cannot draw on semen inventory. See breeding.ai for the Finance to Breeding relationship."
+        },
+        {
+          "condition": "Only an expected or reminded service date is known, not an actual one.",
+          "behaviour": "Nothing is recorded. A prediction is not an event."
+        }
+      ],
+      "correction_path": "Record a corrected authorised event through the supported breeding workflow. History is amended by addition, never by erasure, so the original entry remains auditable.",
+      "safety": "Do not infer a completed breeding event from a reminder or a biological prediction.",
+      "perspectives": {
+        "operator": "Enter it only after the service has actually happened, with the real date and the person who did it.",
+        "supervisor": "Check that events carry technician attribution, since breeding analytics are attributed from it.",
+        "finance": "Semen consumed by an insemination traces back to a purchased lot recorded in Finance.",
+        "veterinary_health": "The event record is evidence of a service, not evidence of conception.",
+        "technical": "Written through POST /farm/breeding; state is recomputed by ReproductiveStateService from the event chronology.",
+        "training": "Practise with a fictional animal such as EX-COW-001 and a fictional date.",
+        "troubleshooting": "If the event does not appear in the timeline, confirm the animal identity used at entry and that the save completed."
+      },
+      "anchors": {
+        "components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"],
+        "routes": ["POST /farm/breeding"],
+        "services": [
+          "src/dairyos/farm/reproduction/services/reproduction_management_service.py",
+          "src/dairyos/farm/reproduction/services/reproductive_state_service.py"
+        ],
+        "models": [],
+        "tests": [
+          "tests/api/test_breeding_entered_data_persistence.py",
+          "tests/api/test_breeding_manual_authority_contract.py"
+        ]
+      },
+      "related": ["breeding.ai", "breeding.pregnancy", "breeding.calving", "breeding.chronology", "animals.passport"],
+      "merged_from": [
+        "vaccination-breeding-items.json::breeding.event",
+        "veterinary-items.json::breeding.event"
+      ],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.ai",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "ai",
+      "title": "Artificial insemination and semen inventory",
+      "status": "DRAFT",
+      "question": "How does artificial insemination work in DairyOS, and how does semen inventory relate to it?",
+      "alternatives": [
+        "AI in DairyOS",
+        "use semen for breeding",
+        "sexed semen",
+        "semen stock for insemination",
+        "which semen lot did we use"
+      ],
+      "answer": "An insemination is recorded as a reproductive event that draws on an available purchased semen lot under DairyOS governance. The lot originates as a Finance semen purchase, so Finance and Breeding are linked through inventory rather than duplicated.",
+      "explanation": "DairyOS distinguishes the purchase of semen, which is a financial transaction, from the consumption of semen, which is a breeding event. The purchase establishes a batch or lot in inventory; the insemination consumes from it and attributes the service to a technician. Conventional and sexed semen are tracked distinctly because they differ in cost and in expected outcome, and breeding analytics attribute results by technician and by lot.",
+      "scenario": {
+        "given": "A fictional farm has purchased a conventional semen lot and a cow is eligible to breed.",
+        "steps": [
+          "Confirm the semen lot exists in inventory from its Finance purchase.",
+          "Record the insemination as a reproductive event against the animal.",
+          "Attribute the service to the technician who performed it.",
+          "Record which lot was consumed.",
+          "Verify the persisted timeline and the resulting inventory position."
+        ],
+        "expected": "The service is attributable to a technician and to a specific lot, and inventory reflects the consumption.",
+        "next": "Pregnancy diagnosis becomes due 35 days after the insemination date."
+      },
+      "effects": {
+        "persisted": [
+          "insemination event",
+          "technician attribution",
+          "semen lot consumption"
+        ],
+        "derived": [
+          "pd_due_date, being the insemination date plus 35 days",
+          "remaining semen inventory position"
+        ],
+        "projected": [
+          "breeding analytics by technician and by lot"
+        ],
+        "audit": [
+          "animal passport reproductive history",
+          "inventory movement traceable to the Finance purchase"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "No purchased lot is available.",
+          "behaviour": "The insemination cannot be attributed to inventory. Record the Finance purchase first."
+        }
+      ],
+      "correction_path": "Record a corrected authorised event. Do not adjust inventory by editing a breeding record.",
+      "safety": "The Assistant explains the workflow only. It cannot report current semen stock, and it cannot tell you which lot a particular animal received.",
+      "perspectives": {
+        "operator": "Record the insemination against the animal and say which lot you used.",
+        "supervisor": "Technician and lot attribution is what makes breeding performance analysable.",
+        "finance": "The semen purchase is the financial event; the insemination is its consumption.",
+        "veterinary_health": "Sexed and conventional semen differ in expected conception outcome.",
+        "technical": "Consumption links the breeding event to the inventory lot established by the Finance purchase.",
+        "training": "Practise with a fictional lot reference such as EX-LOT-001.",
+        "troubleshooting": "If a lot cannot be selected, confirm the purchase was recorded and that stock remains."
+      },
+      "anchors": {
+        "components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"],
+        "routes": ["POST /farm/breeding"],
+        "services": ["src/dairyos/farm/reproduction/services/reproduction_management_service.py"],
+        "models": [],
+        "tests": ["tests/api/test_breeding_entered_data_persistence.py"]
+      },
+      "related": ["breeding.event", "breeding.pregnancy", "finance.expense-entry"],
+      "authoring_note": "NEW ITEM. The catalogue lists capability 'ai' under breeding-and-reproduction but no item documented it. Held at DRAFT rather than IMPLEMENTATION_REVIEW because the semen inventory and consumption surface has not yet been traced to a specific service and migration in the way the other items in this domain have. It must not be promoted until those anchors are verified. It also cannot reach DOMAIN_REVIEW until the finance domain carries a semen-purchase and semen-inventory item: no such item exists anywhere in the corpus today, which is a content gap against section 15 of the project brief. This item currently points at finance.expense-entry as the nearest existing anchor, which is a placeholder rather than the correct target.",
+      "verified_against_source": null,
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.pregnancy",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "pregnancy",
+      "title": "Recording pregnancy diagnosis",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "How should pregnancy diagnosis and reproductive status be recorded?",
+      "alternatives": [
+        "pregnancy check",
+        "PD",
+        "when is PD due",
+        "pregnant cow",
+        "reproductive state",
+        "confirm pregnancy"
+      ],
+      "answer": "Record the actual authorised diagnostic event and its result. DairyOS derives current state from the persisted chronology and never treats a forecast or reminder as a confirmed diagnosis.",
+      "explanation": "Pregnancy diagnosis becomes due 35 days after the insemination date. A positive result establishes a confirmed pregnancy, from which DairyOS derives days pregnant from the insemination date and an expected calving date. Where the pregnancy record carries an explicitly configured expected calving date, that configured value takes precedence; otherwise the expected calving date is the insemination date plus the DairyOS gestation authority of 283 days. Confirmed evidence is always kept distinct from expected dates, reminders and calculated state, so a later event can supersede current state without erasing the history that produced it.",
+      "scenario": {
+        "given": "A fictional cow EX-COW-001 was inseminated on 1 March. A veterinarian performs a pregnancy check.",
+        "steps": [
+          "Locate the animal.",
+          "Record the diagnostic date, the method or result, and the professional attribution.",
+          "Save, then review the reproductive timeline.",
+          "Check the derived state and any follow-up alerts."
+        ],
+        "expected": "PD was due from 5 April, being 1 March plus 35 days. A positive result gives an expected calving date of 9 December, being 1 March plus 283 days. The confirmed result stays traceable and distinct from those derived dates.",
+        "next": "Record a recheck, a return to service, a loss, or the calving when it is observed."
+      },
+      "effects": {
+        "persisted": [
+          "diagnostic event with date, result and professional attribution",
+          "confirmed pregnancy where the result is positive"
+        ],
+        "derived": [
+          "pregnancy_status",
+          "pregnancy_confirmed_date",
+          "days_pregnant, calculated from the insemination date",
+          "expected_calving_date, from a configured value if present, otherwise insemination date plus 283 days",
+          "expected_dry_off_date, being expected calving minus 60 days",
+          "dry_period_status of NOT_DUE or DUE_OR_ACTIVE"
+        ],
+        "projected": [
+          "calving planning",
+          "breeding analytics"
+        ],
+        "audit": [
+          "animal passport reproductive history"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "The diagnosis is negative.",
+          "behaviour": "No pregnancy is established. The animal returns to the open state and a subsequent service may be recorded."
+        },
+        {
+          "condition": "A reminder says PD is due but no check has been performed.",
+          "behaviour": "Nothing is recorded. The reminder is a planning aid, not an event."
+        },
+        {
+          "condition": "A repeat diagnosis contradicts an earlier one.",
+          "behaviour": "Both remain in history. Current state is derived from the chronology, with the later authorised event taking effect."
+        }
+      ],
+      "correction_path": "Record a further authorised diagnostic event. The superseded result stays in history rather than being removed.",
+      "safety": "Only authorised clinical evidence confirms a pregnancy. A prediction is not a diagnosis.",
+      "perspectives": {
+        "operator": "Enter the check that was actually performed, with its real date and result.",
+        "supervisor": "Watch that PD is actually performed near its due date rather than left to the reminder.",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "The recorded result is the diagnostic finding; DairyOS does not infer pregnancy from any other signal.",
+        "technical": "ReproductiveStateService derives pd_due_date, days_pregnant and expected_calving_date from the event chronology and the reproductive policy.",
+        "training": "Work the 35-day and 283-day arithmetic on a fictional insemination date.",
+        "troubleshooting": "If the expected calving date is not what you calculated, check whether the pregnancy record carries a configured expected calving date, which takes precedence over the 283-day derivation."
+      },
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/BreedingTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": [
+          "GET /farm/reproduction/animals/{animal_id}",
+          "POST /farm/breeding"
+        ],
+        "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"],
+        "models": [],
+        "tests": [
+          "tests/farm/reproduction/test_reproductive_state_service.py",
+          "tests/api/test_reproduction_management_v3.py"
+        ]
+      },
+      "related": ["breeding.event", "breeding.calving", "breeding.abortion-or-loss", "breeding.chronology"],
+      "merged_from": [
+        "vaccination-breeding-items.json::breeding.pregnancy",
+        "veterinary-items.json::breeding.pregnancy"
+      ],
+      "fix_note": "The veterinary-items.json authoring referenced a non-existent id 'breeding.abortion'. Corrected here to 'breeding.abortion-or-loss', which is the item that actually exists.",
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.calving",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "calving",
+      "title": "Recording a calving",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "What is the correct calving workflow, and what happens when an animal calves?",
+      "alternatives": [
+        "record calving",
+        "birth event",
+        "cow calved",
+        "calf born",
+        "enter calving"
+      ],
+      "answer": "Record the actual calving event promptly with its outcome, preserve the linkage between dam and offspring, and let the reproductive authority derive the post-calving state. Health, treatment and milk records are entered through their own workflows.",
+      "explanation": "Calving becomes the latest reproductive fact for the dam, and DairyOS derives the post-calving state from it rather than from a status label. The calving date establishes last_calving_date, from which the lactation number, days in milk and the voluntary waiting period end are derived, the last being the calving date plus 60 days. An expected calving date is never treated as an actual calving; only a recorded event changes state.",
+      "scenario": {
+        "given": "A fictional cow EX-COW-001 with an expected calving date of 9 December actually calves on 6 December.",
+        "steps": [
+          "Confirm the dam's identity and the actual calving date.",
+          "Record the calving event and the outcome.",
+          "Record calf identity and details where applicable, preserving dam linkage.",
+          "Review the dam's reproductive state and milking transition.",
+          "Record post-calving health observations separately."
+        ],
+        "expected": "The calving is a persisted fact dated 6 December, not the expected 9 December. The voluntary waiting period ends 4 February, being 6 December plus 60 days, and the dam does not remain incorrectly pregnant.",
+        "next": "Monitor fresh-cow health, milk entry, any withdrawal, and breeding readiness."
+      },
+      "effects": {
+        "persisted": [
+          "calving event with its actual date and outcome",
+          "calf identity and dam linkage where applicable"
+        ],
+        "derived": [
+          "last_calving_date",
+          "lactation_number",
+          "days_in_milk",
+          "voluntary_waiting_period_end, being calving plus 60 days",
+          "eligible_to_breed",
+          "reproductive_status"
+        ],
+        "projected": [
+          "milk session expectations",
+          "breeding readiness"
+        ],
+        "audit": [
+          "animal passport history for dam and calf",
+          "lineage"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "The actual calving date differs from the expected calving date.",
+          "behaviour": "The actual date is authoritative. The expectation is discarded, not reconciled."
+        },
+        {
+          "condition": "Calf details are not yet known at the time of recording.",
+          "behaviour": "Record the calving with what is known. Calf details may be completed subsequently."
+        }
+      ],
+      "correction_path": "Record a corrected authorised event. Prior reproductive history is retained.",
+      "safety": "Do not treat an expected calving date as an actual calving event.",
+      "perspectives": {
+        "operator": "Enter the real calving date, even when it differs from what was expected.",
+        "supervisor": "Confirm the dam and calf linkage was captured, since lineage depends on it.",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "Post-calving health is recorded through the Health workflow, not as part of the calving event.",
+        "technical": "post_calving_return_service derives the post-calving transition from the recorded event.",
+        "training": "Compare a fictional expected date with a fictional actual date to see which one governs.",
+        "troubleshooting": "If the dam still shows as pregnant, confirm the calving event actually saved against the correct animal."
+      },
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/BreedingTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": ["POST /farm/breeding"],
+        "services": [
+          "src/dairyos/farm/reproduction/services/post_calving_return_service.py",
+          "src/dairyos/farm/reproduction/services/reproductive_state_service.py"
+        ],
+        "models": [],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py",
+          "tests/farm/reproduction/test_reproductive_state_service.py",
+          "tests/farm/reproduction/test_reproductive_state_service_cycle_authority.py"
+        ]
+      },
+      "related": ["breeding.pregnancy", "breeding.post-calving-return", "breeding.dry-off", "health.observation-triage", "milk.entry"],
+      "merged_from": [
+        "vaccination-breeding-items.json::breeding.calving",
+        "veterinary-items.json::breeding.calving"
+      ],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.abortion-or-loss",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "abortion",
+      "title": "Recording abortion or pregnancy loss",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "How should an abortion or pregnancy loss be handled?",
+      "alternatives": [
+        "abortion",
+        "miscarriage",
+        "lost the pregnancy",
+        "reproductive loss",
+        "cow aborted",
+        "what happens after abortion"
+      ],
+      "answer": "Record the observed event and its date without guessing a cause. The pregnancy ends and the animal returns to the open state, from which a subsequent reproductive cycle may begin. Escalate clusters or any suspected regulated disease immediately.",
+      "explanation": "A loss is a reproductive event like any other, so it enters the chronology and the derived state follows from it: the confirmed pregnancy ends, derived pregnancy values such as days pregnant and expected calving cease to apply, and the animal becomes open and eligible to breed again subject to the farm's plan. Clinical investigation, treatment and the reproductive record stay linked but distinct, so an investigation never rewrites the reproductive history and the loss never disappears into a generic status change.",
+      "scenario": {
+        "given": "A fictional cow EX-COW-002, confirmed pregnant, is observed to have aborted.",
+        "steps": [
+          "Secure the animal identity and the event date.",
+          "Record the event and the factual observations, without attributing a cause.",
+          "Notify the veterinarian, and the authority where that is required.",
+          "Record tests, treatment or follow-up as separate authorised events."
+        ],
+        "expected": "The loss is auditable, the pregnancy is ended rather than silently dropped, and the animal returns to the open state.",
+        "next": "Review cohort patterns, vaccination, disease, nutrition and breeding records with the veterinarian, then record the next service when it occurs."
+      },
+      "effects": {
+        "persisted": [
+          "loss event with its observed date",
+          "factual observations as recorded"
+        ],
+        "derived": [
+          "pregnancy ended",
+          "return to the open state",
+          "eligible_to_breed per the farm plan",
+          "derived pregnancy values no longer applicable"
+        ],
+        "projected": [
+          "alerts",
+          "cohort pattern review"
+        ],
+        "audit": [
+          "animal passport reproductive history",
+          "investigation trail kept distinct from the reproductive record"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "The cause is unknown.",
+          "behaviour": "Record the event without a cause. Do not guess."
+        },
+        {
+          "condition": "Several losses occur across a cohort.",
+          "behaviour": "Escalate immediately. A cluster may indicate regulated disease."
+        }
+      ],
+      "correction_path": "Record a further authorised event. The loss record itself is never removed.",
+      "safety": "Do not attribute a cause without veterinary diagnosis, and do not delay notifying a veterinarian or the relevant authority in order to complete data entry. Suspected regulated disease is escalated immediately.",
+      "perspectives": {
+        "operator": "Record what you saw and when. Cause is not yours to assign.",
+        "supervisor": "Watch for clusters across a cohort rather than treating each loss in isolation.",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "Investigation, sampling and treatment are separate authorised events; the reproductive record is evidence, not a diagnosis.",
+        "technical": "The event enters the reproductive chronology and the derived state follows from it.",
+        "training": "Use a fictional animal such as EX-COW-002 and a fictional date.",
+        "troubleshooting": "If the animal still shows as pregnant, confirm the loss event saved against the correct animal."
+      },
+      "anchors": {
+        "components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"],
+        "routes": ["POST /farm/breeding"],
+        "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"],
+        "models": [],
+        "tests": [
+          "tests/remediation/test_breeding_modernization_20260901.py",
+          "tests/api/test_breeding_entered_data_persistence.py"
+        ]
+      },
+      "related": ["breeding.pregnancy", "breeding.event", "breeding.chronology", "disease.brucellosis", "disease.bvd", "vaccination.programme-design"],
+      "aliases": ["breeding.abortion"],
+      "authoring_note": "An alias 'breeding.abortion' is declared so the broken reference in the previous veterinary-items.json authoring resolves, and so an operator asking about 'abortion' reaches this item.",
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.dry-off",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "dry-off",
+      "title": "Recording dry-off",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "How should dry-off be handled, and how does it affect breeding and milk operations?",
+      "alternatives": [
+        "dry off cow",
+        "end lactation",
+        "dry period",
+        "when is dry-off due",
+        "stop milking a cow"
+      ],
+      "answer": "Record the actual authorised dry-off event and its date through the governed lifecycle workflow. Do not infer dry-off from a missing milk entry or from a prediction. It changes expected milk activity without erasing historical milk.",
+      "explanation": "DairyOS derives an expected dry-off date as the expected calving date minus 60 days, and reports a dry period status of NOT_DUE before that date or DUE_OR_ACTIVE from it onward. That expectation is a planning aid. The lifecycle state changes only when an actual authorised dry-off event is recorded. Recording it alters future milk session expectations while historical production remains exactly as it was.",
+      "scenario": {
+        "given": "A fictional cow EX-COW-001 has an expected calving date of 9 December.",
+        "steps": [
+          "Confirm the animal identity and the authorised date.",
+          "Record the dry-off event and its reason.",
+          "Review the effective milking schedule and expected sessions.",
+          "Check transition health, treatment and withdrawal instructions.",
+          "Review the expected calving plan."
+        ],
+        "expected": "Expected dry-off falls on 10 October, being 9 December minus 60 days, and dry period status reads DUE_OR_ACTIVE from that date. Future milk expectations change once the actual event is recorded; historical milk is untouched.",
+        "next": "Record the calving and the post-calving return when those events occur."
+      },
+      "effects": {
+        "persisted": [
+          "dry-off event with its authorised date and reason"
+        ],
+        "derived": [
+          "expected_dry_off_date, being expected calving minus 60 days",
+          "dry_period_status of NOT_DUE or DUE_OR_ACTIVE",
+          "effective milking schedule",
+          "lactation context"
+        ],
+        "projected": [
+          "expected milk sessions",
+          "milk completeness expectations",
+          "transition health planning"
+        ],
+        "audit": [
+          "animal passport lifecycle history",
+          "historical milk preserved unchanged"
+        ]
+      },
+      "exceptions": [
+        {
+          "condition": "A milk session is missing but no dry-off has been authorised.",
+          "behaviour": "This is a missing-milk condition, not a dry-off. Do not record dry-off to silence the alert."
+        },
+        {
+          "condition": "The animal is treated with a medication carrying a withdrawal period at dry-off.",
+          "behaviour": "The treatment and its withdrawal are recorded through the Health workflow, separately from the dry-off event."
+        }
+      ],
+      "correction_path": "Record a corrected authorised lifecycle event. Historical milk is never altered to match a corrected dry-off date.",
+      "safety": "Do not backdate dry-off merely to suppress a missing-milk alert. That converts a data-entry gap into a false lifecycle fact.",
+      "perspectives": {
+        "operator": "Record it when the cow has actually been dried off, with the authorised date.",
+        "supervisor": "A dry-off entered to clear a missing-milk alert is a data-integrity problem, not a fix.",
+        "finance": "Dry-off changes expected saleable milk and therefore the milk denominator used in cost calculations.",
+        "veterinary_health": "Transition management and any dry-cow treatment are recorded separately in Health.",
+        "technical": "animal_milking_schedule_service governs the effective schedule; the expectation comes from the reproductive policy.",
+        "training": "Work the expected calving minus 60 days arithmetic on a fictional date.",
+        "troubleshooting": "If sessions are still expected after dry-off, confirm the event saved and check the effective milking schedule."
+      },
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalTab.tsx",
+          "src/DairyOS.Web/src/components/BreedingTab.tsx"
+        ],
+        "routes": ["POST /farm/breeding"],
+        "services": [
+          "src/dairyos/farm/herd/services/animal_milking_schedule_service.py",
+          "src/dairyos/farm/reproduction/services/reproductive_state_service.py"
+        ],
+        "models": [],
+        "tests": [
+          "tests/milk/test_animal_session_authority_remediation.py",
+          "tests/api/test_breeding_manual_lifecycle_contract.py",
+          "tests/farm/reproduction/test_reproductive_state_service.py"
+        ]
+      },
+      "related": ["breeding.calving", "breeding.chronology", "health.observation-triage", "milk.session-plan", "animals.lifecycle"],
+      "merged_from": [
+        "health-reproduction-advanced-items.json::breeding.dry-off",
+        "veterinary-items.json::breeding.dry-off"
+      ],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.chronology",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "chronology",
+      "title": "How reproductive chronology determines state",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "How is current reproductive state determined?",
+      "alternatives": [
+        "reproductive chronology",
+        "how is breeding state calculated",
+        "event history",
+        "why does state say that"
+      ],
+      "answer": "DairyOS derives current state from the persisted chronology of reproductive events. Predictions and reminders never replace actual breeding, pregnancy, calving, loss or dry-off facts.",
+      "explanation": "The reproductive state service resolves state exclusively from persisted farm facts. No benchmark, no default pregnancy, no implicit service and no projected status is permitted to become an operational fact. Because state is derived rather than stored, it is explainable from durable history and it survives a refresh or a restart. It also means any state you disagree with is traceable to the events that produced it.",
+      "scenario": {
+        "given": "Several reproductive events exist for one fictional animal.",
+        "steps": [
+          "Review the persisted event dates and results.",
+          "Confirm the event sequence and its source attribution.",
+          "Inspect the derived current state.",
+          "Record a correction as a new authorised amendment where supported."
+        ],
+        "expected": "Current state is explainable from durable history and survives refresh or restart.",
+        "next": "Investigate any conflict between history and state before relying on alerts."
+      },
+      "effects": {
+        "persisted": ["the reproductive event chronology itself"],
+        "derived": [
+          "reproductive_status",
+          "pregnancy_status",
+          "eligible_to_breed",
+          "days_open",
+          "days_in_milk",
+          "lactation_number"
+        ],
+        "projected": ["breeding analytics", "alerts"],
+        "audit": ["animal passport reproductive history"]
+      },
+      "exceptions": [
+        {
+          "condition": "An event is missing an animal_id, an event_type, or both an event_date and a timestamp.",
+          "behaviour": "The event is rejected. It cannot form a valid state."
+        },
+        {
+          "condition": "History and derived state appear to conflict.",
+          "behaviour": "The chronology is authoritative. Investigate the events before acting on the state or its alerts."
+        }
+      ],
+      "correction_path": "Record a new authorised amendment event. State recomputes from the amended chronology.",
+      "safety": "A derived value is not an event. Do not act on a projection as though it were recorded fact.",
+      "perspectives": {
+        "operator": "If the state looks wrong, look at the events behind it.",
+        "supervisor": "State is auditable by design, so disagreements resolve against the chronology.",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "Derived reproductive values are not clinical findings.",
+        "technical": "ReproductiveStateService rejects events lacking animal_id, event_type, or a date, and derives all state fields from the remainder.",
+        "training": "Build a fictional chronology and predict the derived state before checking it.",
+        "troubleshooting": "An unexpected state almost always traces to a missing, duplicated or misdated event."
+      },
+      "anchors": {
+        "components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"],
+        "routes": ["GET /farm/reproduction/animals/{animal_id}"],
+        "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"],
+        "models": [],
+        "tests": [
+          "tests/farm/reproduction/test_reproductive_state_service.py",
+          "tests/api/test_breeding_propagation_outbox.py"
+        ]
+      },
+      "related": ["breeding.event", "breeding.pregnancy", "breeding.calving", "breeding.current-state"],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.current-state",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "current-state",
+      "title": "Why state can differ from a reminder",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "Why can reproductive state differ from a reminder?",
+      "alternatives": [
+        "reminder disagrees with status",
+        "why is this cow not pregnant",
+        "alert says PD due but state differs",
+        "expected date wrong"
+      ],
+      "answer": "Current state is derived from persisted reproductive facts and the event chronology. Reminders and expected dates are planning aids, not confirmed events, so the two can legitimately disagree.",
+      "explanation": "A reminder is generated from a projection, such as PD becoming due 35 days after insemination or dry-off becoming due 60 days before expected calving. The derived state, by contrast, reflects only what has actually been recorded. When they disagree it usually means an event has occurred but has not been entered, or an event has been entered that the reminder has not yet accounted for. DairyOS deliberately refuses to turn a prediction into a historical fact in order to close that gap.",
+      "scenario": {
+        "given": "A reminder conflicts with the latest recorded event for a fictional animal.",
+        "steps": [
+          "Review the event chronology.",
+          "Confirm the latest actual result, calving or loss event.",
+          "Inspect the derived state.",
+          "Record a correction through the supported event authority."
+        ],
+        "expected": "The system does not turn a prediction into a historical fact; the discrepancy is resolved by recording what actually happened.",
+        "next": "Recheck alerts and the passport after the state refreshes."
+      },
+      "effects": {
+        "persisted": ["any corrective event recorded as a result"],
+        "derived": ["reproductive_status", "pd_due_date", "expected_calving_date", "expected_dry_off_date"],
+        "projected": ["reminders and alerts"],
+        "audit": ["animal passport reproductive history"]
+      },
+      "exceptions": [
+        {
+          "condition": "A reminder fires for an event that has already happened but was not entered.",
+          "behaviour": "Record the actual event. The reminder resolves from the corrected chronology."
+        },
+        {
+          "condition": "A reminder fires for an event that did not happen.",
+          "behaviour": "Record nothing. The reminder is not evidence."
+        }
+      ],
+      "correction_path": "Record the actual event through the supported event authority, then recheck alerts and the passport.",
+      "safety": "Never satisfy a reminder by recording an event that did not occur.",
+      "perspectives": {
+        "operator": "A reminder is a prompt to check, not a fact to enter.",
+        "supervisor": "Persistent disagreement usually means events are being recorded late.",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "A due reminder is not a clinical indication.",
+        "technical": "Reminders derive from policy projections; state derives from the chronology. They are computed from different inputs.",
+        "training": "Create a fictional chronology where a reminder and the state disagree, and resolve it.",
+        "troubleshooting": "Check for an unrecorded event first; that explains most disagreements."
+      },
+      "anchors": {
+        "components": ["src/DairyOS.Web/src/components/BreedingTab.tsx"],
+        "routes": ["GET /farm/reproduction/animals/{animal_id}"],
+        "services": ["src/dairyos/farm/reproduction/services/reproductive_state_service.py"],
+        "models": [],
+        "tests": ["tests/farm/reproduction/test_reproductive_state_service.py"]
+      },
+      "related": ["breeding.chronology", "breeding.post-calving-return", "breeding.pregnancy"],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    },
+    {
+      "id": "breeding.post-calving-return",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "breeding-and-reproduction",
+      "capability": "post-calving-return",
+      "title": "The post-calving return to breeding",
+      "status": "IMPLEMENTATION_REVIEW",
+      "question": "What happens after calving, and when can the cow be bred again?",
+      "alternatives": [
+        "after calving",
+        "fresh cow",
+        "return to milking",
+        "when can I breed her again",
+        "voluntary waiting period"
+      ],
+      "answer": "Calving becomes the latest reproductive fact and DairyOS derives the post-calving state and breeding readiness from the persisted chronology. The voluntary waiting period runs for 60 days from the calving date, after which the animal becomes eligible to breed.",
+      "explanation": "Once calving is recorded, the animal must not remain incorrectly pregnant and must not lose its prior reproductive history. DairyOS derives the voluntary waiting period end as the calving date plus 60 days and uses it to determine eligibility to breed. Days open, once a subsequent service succeeds, is measured from the calving date to that service. Milk, health and breeding events after calving are still recorded by the operator through their own workflows; none of them is inferred.",
+      "scenario": {
+        "given": "A fictional cow EX-COW-001 calves on 6 December.",
+        "steps": [
+          "Record the actual calving event.",
+          "Refresh the reproductive state and the passport.",
+          "Enter milk and health observations through their own workflows.",
+          "Review the next breeding readiness context."
+        ],
+        "expected": "The voluntary waiting period ends 4 February, being 6 December plus 60 days, and the animal becomes eligible to breed from then. Prior reproductive history is retained.",
+        "next": "Follow the fresh-cow plan and the veterinarian-approved breeding plan, recording the next service when it occurs."
+      },
+      "effects": {
+        "persisted": ["calving event", "subsequent milk, health and breeding events as recorded"],
+        "derived": [
+          "voluntary_waiting_period_end, being calving plus 60 days",
+          "eligible_to_breed",
+          "days_in_milk",
+          "lactation_number",
+          "days_open once a subsequent service succeeds"
+        ],
+        "projected": ["breeding readiness", "milk expectations"],
+        "audit": ["animal passport history"]
+      },
+      "exceptions": [
+        {
+          "condition": "The animal is served before the voluntary waiting period has ended.",
+          "behaviour": "The service is recorded as an actual event. Eligibility is a derived planning value, not a hard block on recording fact."
+        },
+        {
+          "condition": "Milk is not entered after calving.",
+          "behaviour": "DairyOS does not infer production. Missing sessions remain a missing-milk condition."
+        }
+      ],
+      "correction_path": "Record a corrected authorised event. The derived post-calving values recompute from the amended chronology.",
+      "safety": "Do not rely on DairyOS to infer post-calving milk or health; those must be recorded as they occur.",
+      "perspectives": {
+        "operator": "After calving, keep recording milk and health as normal; nothing is filled in for you.",
+        "supervisor": "Eligibility at 60 days is a derived planning value; the farm plan decides actual service timing.",
+        "finance": "A new lactation changes expected saleable milk and therefore the cost denominator.",
+        "veterinary_health": "Fresh-cow monitoring is a Health workflow, separate from the reproductive record.",
+        "technical": "post_calving_return_service and ReproductiveStateService derive the transition from the calving event.",
+        "training": "Work the calving plus 60 days arithmetic on a fictional date.",
+        "troubleshooting": "If the animal still reads as pregnant, the calving event has not saved against the right animal."
+      },
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/BreedingTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": ["GET /farm/reproduction/animals/{animal_id}"],
+        "services": [
+          "src/dairyos/farm/reproduction/services/post_calving_return_service.py",
+          "src/dairyos/farm/reproduction/services/reproductive_state_service.py"
+        ],
+        "models": [],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py",
+          "tests/farm/reproduction/test_reproductive_state_service.py"
+        ]
+      },
+      "related": ["breeding.calving", "breeding.chronology", "breeding.current-state", "milk.entry"],
+      "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
+      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "PENDING",
+      "domain_reviewed_at": null
+    }
+  ]
+}

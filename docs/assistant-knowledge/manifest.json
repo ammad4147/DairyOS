@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "corpus_version": "0.1.0",
+  "generated_at": "2026-09-17T22:18:32+00:00",
+  "dairyos_source_authority": "45900048a1819e79a26e048e26a1355c4498967b",
+  "servable_statuses": [
+    "APPROVED"
+  ],
+  "counts": {
+    "total": 22,
+    "by_status": {
+      "IMPLEMENTATION_REVIEW": 18,
+      "DRAFT": 1,
+      "DEPRECATED": 3
+    },
+    "by_class": {
+      "DAIRYOS_INSTRUCTION": 22
+    }
+  },
+  "files": [
+    {
+      "path": "dairyos/breeding-and-reproduction.json",
+      "class": "DAIRYOS_INSTRUCTION",
+      "domain": "breeding-and-reproduction",
+      "sha256": "381eafa8af579d1e9b6fc08c411929e7232b81832331943dd9f8fb15cfa26a2a",
+      "item_count": 9
+    },
+    {
+      "path": "dairyos/health-and-veterinary.json",
+      "class": "DAIRYOS_INSTRUCTION",
+      "domain": "health-and-veterinary",
+      "sha256": "25d64ed5fe1404f85d20adc0e85670df250327626dabb157bb3b9fa79846d466",
+      "item_count": 13
+    }
+  ],
+  "note": "AA-3 in progress. Two of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
+}
