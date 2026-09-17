@@ -14,7 +14,11 @@ def test_installer_exposes_explicit_data_and_recovery_choices():
     assert "WizardSizePercent=140,135" in source
     assert "TInputOptionWizardPage" in source
     assert "DataChoicePage.Add('New Installation');" in source
+    assert "DataChoicePage.Add('Continue with Existing Farm');" in source
     assert "DataChoicePage.Add('Restore to Verified Backup');" in source
+    assert "Choose the existing DairyOS farm." in source
+    assert "Select the exact saved DairyOS farm to continue with or restore." in source
+    assert "Choose the farm to restore." not in source
     assert "CLEAN INSTALL DAIRYOS DATA" in source
     assert "Existing DairyOS records, logs and backups will not be deleted or changed." in source
     assert "Choose a backup by date and time." in source

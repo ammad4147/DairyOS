@@ -171,18 +171,55 @@ def test_keep_and_restore_select_exact_farm_on_farm_page():
     assert "ExistingDairyOSDataRoot()" not in block
 
 
-def test_farm_page_is_only_shown_for_keep_or_restore():
+def test_keep_is_operator_reachable_and_farm_page_is_only_for_keep_or_restore():
     source = _source()
 
+    init = _block(
+        source,
+        "procedure InitializeWizard();",
+        "function NextButtonClick(CurPageID: Integer): Boolean;",
+    )
+    handler = _block(
+        source,
+        "function NextButtonClick(CurPageID: Integer): Boolean;",
+        "function ShouldSkipPage(PageID: Integer): Boolean;",
+    )
     skip = _block(
         source,
         "function ShouldSkipPage(PageID: Integer): Boolean;",
         "function ShouldLaunchDairyOS(): Boolean;",
     )
 
+    assert "KeepChoiceIndex: Integer;" in source
+    assert "KeepChoiceIndex := -1;" in init
+    assert "if ExistingDataDetected then" in init
+    assert "DataChoicePage.Add('Continue with Existing Farm');" in init
+    assert "KeepChoiceIndex := 1;" in init
+    assert "RestoreChoiceIndex := DataChoicePage.CheckListBox.Items.Count - 1;" in init
+
+    assert "DataChoicePage.SelectedValueIndex = KeepChoiceIndex" in handler
+    assert "SelectedInstallMode := 'keep'" in handler
+
+    keep_start = handler.index(
+        "if (KeepChoiceIndex >= 0) and"
+    )
+    restore_start = handler.index(
+        "if (RestoreChoiceIndex >= 0) and",
+        keep_start,
+    )
+    keep_transition = handler[keep_start:restore_start]
+
+    assert "SelectedInstallMode := 'keep'" in keep_transition
+    assert "SelectedDataRoot := ''" in keep_transition
+    assert "SelectNewDairyOSDataRoot()" not in keep_transition
+
     assert "(FarmChoicePage <> nil)" in skip
+    assert "DataChoicePage.SelectedValueIndex <> KeepChoiceIndex" in skip
     assert "DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex" in skip
-    assert "DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex" in skip
+
+    # This contract deliberately fails against the previously certified
+    # implementation where --choice-mode keep existed but no wizard action
+    # could ever select it.
 
 
 def test_restore_without_preserved_farm_uses_new_dairyos_owned_root():
@@ -280,3 +317,84 @@ def test_farm_candidate_display_includes_path_type_and_configured_status():
     assert "' [Currently configured]'" in source
     assert "Lowercase(CanonicalDairyOSDataRoot())" in source
     assert "FarmChoicePage.Add(CandidateLabel);" in source
+
+def test_keep_skips_clean_confirmation_and_backup_but_uses_exact_farm():
+    source = _source()
+
+    handler = _block(
+        source,
+        "function NextButtonClick(CurPageID: Integer): Boolean;",
+        "function ShouldSkipPage(PageID: Integer): Boolean;",
+    )
+    skip = _block(
+        source,
+        "function ShouldSkipPage(PageID: Integer): Boolean;",
+        "function ShouldLaunchDairyOS(): Boolean;",
+    )
+
+    farm_start = handler.index(
+        "if (FarmChoicePage <> nil) and (CurPageID = FarmChoicePage.ID) then"
+    )
+    clean_start = handler.index(
+        "if CurPageID = CleanConfirmationPage.ID then",
+        farm_start,
+    )
+    farm_transition = handler[farm_start:clean_start]
+
+    assert "FarmRoot := SelectedFarmCandidate()" in farm_transition
+    assert "SelectedDataRoot := FarmRoot" in farm_transition
+
+    assert "(SelectedInstallMode <> 'clean')" in skip
+
+    backup_start = skip.index("if PageID = BackupChoicePage.ID then")
+    backup_block = skip[backup_start:]
+    assert "DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex" in backup_block
+    assert "KeepChoiceIndex" not in backup_block
+
+
+def test_keep_staging_never_uses_backup_path():
+    source = _source()
+
+    keep_start = source.index("else if SelectedInstallMode = 'keep' then")
+    new_start = source.index(
+        "else if SelectedInstallMode = 'new' then",
+        keep_start,
+    )
+    keep_block = source[keep_start:new_start]
+
+    assert "--choice-mode keep" in keep_block
+    assert "--data-root" in keep_block
+    assert "--backup-path" not in keep_block
+    assert "SelectedBackupPath" not in keep_block
+
+
+def test_restore_with_existing_farm_defers_destination_to_farm_page():
+    source = _source()
+
+    handler = _block(
+        source,
+        "function NextButtonClick(CurPageID: Integer): Boolean;",
+        "function ShouldSkipPage(PageID: Integer): Boolean;",
+    )
+
+    restore_start = handler.index(
+        "if (RestoreChoiceIndex >= 0) and"
+    )
+    new_start = handler.index(
+        "SelectedInstallMode := 'new';",
+        restore_start,
+    )
+    restore_transition = handler[restore_start:new_start]
+
+    assert "SelectedInstallMode := 'restore'" in restore_transition
+    assert "if FarmChoicePage = nil then" in restore_transition
+    assert "SelectedDataRoot := SelectNewDairyOSDataRoot()" in restore_transition
+    assert "SelectedDataRoot := ''" in restore_transition
+
+
+def test_farm_page_wording_serves_keep_and_restore():
+    source = _source()
+
+    assert "'Choose the existing DairyOS farm.'" in source
+    assert "'Select the exact saved DairyOS farm to continue with or restore.'" in source
+    assert "'Choose the farm to restore.'" not in source

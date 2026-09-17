@@ -28,13 +28,17 @@ def test_release_build_has_one_staged_folder_and_clickable_setup_beside_it():
     assert '"-dSourceTree=' not in build
 
 
-def test_installer_exposes_explicit_clean_and_restore_choices():
+def test_installer_exposes_operator_reachable_new_keep_and_restore_choices():
     source = _source()
 
     assert "DetectExistingDairyOSData" in source
     assert "CreateInputOptionPage" in source
     assert "DataChoicePage.Add('New Installation');" in source
+    assert "if ExistingDataDetected then" in source
+    assert "DataChoicePage.Add('Continue with Existing Farm');" in source
+    assert "KeepChoiceIndex := 1;" in source
     assert "DataChoicePage.Add('Restore to Verified Backup');" in source
+    assert "RestoreChoiceIndex := DataChoicePage.CheckListBox.Items.Count - 1;" in source
     assert "ScanKnownBackupRoots" in source
     assert "StageInstallationChoice" in source
     assert "TRadioButton" not in source

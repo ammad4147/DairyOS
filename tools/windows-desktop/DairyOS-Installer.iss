@@ -76,6 +76,7 @@ var
   SelectedInstallMode: String;
   SelectedBackupPath: String;
   CleanConfirmationAccepted: Boolean;
+  KeepChoiceIndex: Integer;
   RestoreChoiceIndex: Integer;
   BackupCandidatePaths: array of String;
   BackupCandidateTimes: array of String;
@@ -725,6 +726,7 @@ begin
   SelectedBackupPath := '';
   SelectedDataRoot := '';
   CleanConfirmationAccepted := False;
+  KeepChoiceIndex := -1;
   RestoreChoiceIndex := -1;
   InitialFarmIndex := -1;
   ConfiguredRoot := ConfiguredDairyOSDataRoot();
@@ -733,23 +735,30 @@ begin
     wpSelectDir,
     'DairyOS Installation',
     'Choose how to start DairyOS.',
-    'Choose New Installation for a fresh farm, or Restore to Verified Backup to bring back saved farm data.',
+    'Choose New Installation for a fresh farm, Continue with Existing Farm to use saved farm data without restoring it, or Restore to Verified Backup to bring back a saved recovery point.',
     True,
     True
   );
   DataChoicePage.Add('New Installation');
+
+  if ExistingDataDetected then
+  begin
+    DataChoicePage.Add('Continue with Existing Farm');
+    KeepChoiceIndex := 1;
+  end;
+
   DataChoicePage.Add('Restore to Verified Backup');
+  RestoreChoiceIndex := DataChoicePage.CheckListBox.Items.Count - 1;
   DataChoicePage.SelectedValueIndex := 0;
   SelectedInstallMode := 'new';
-  RestoreChoiceIndex := 1;
 
   if GetArrayLength(FarmCandidatePaths) > 0 then
   begin
     FarmChoicePage := CreateInputOptionPage(
       DataChoicePage.ID,
       'DairyOS Farm',
-      'Choose the farm to restore.',
-      'Select the saved DairyOS farm that should receive the verified backup.',
+      'Choose the existing DairyOS farm.',
+      'Select the exact saved DairyOS farm to continue with or restore.',
       True,
       True
     );
@@ -847,15 +856,26 @@ begin
     CleanConfirmationAccepted := False;
     SelectedBackupPath := '';
 
+    if (KeepChoiceIndex >= 0) and
+       (DataChoicePage.SelectedValueIndex = KeepChoiceIndex) then
+    begin
+      SelectedInstallMode := 'keep';
+      SelectedDataRoot := '';
+      exit;
+    end;
+
     if (RestoreChoiceIndex >= 0) and
        (DataChoicePage.SelectedValueIndex = RestoreChoiceIndex) then
     begin
       SelectedInstallMode := 'restore';
 
-      { There is no preserved farm destination to select. Restore therefore
-        targets a newly allocated DairyOS-owned empty root rather than the
-        canonical fallback merely because its path is conventional. }
-      SelectedDataRoot := SelectNewDairyOSDataRoot();
+      { When preserved farms exist, the exact destination is selected on the
+        farm page. Without a preserved destination, Restore targets a newly
+        allocated DairyOS-owned empty root rather than the canonical fallback. }
+      if FarmChoicePage = nil then
+        SelectedDataRoot := SelectNewDairyOSDataRoot()
+      else
+        SelectedDataRoot := '';
       exit;
     end;
 
@@ -946,6 +966,7 @@ begin
 
   if (FarmChoicePage <> nil) and (PageID = FarmChoicePage.ID) then
     Result :=
+      (DataChoicePage.SelectedValueIndex <> KeepChoiceIndex) and
       (DataChoicePage.SelectedValueIndex <> RestoreChoiceIndex);
 
   if PageID = CleanConfirmationPage.ID then
