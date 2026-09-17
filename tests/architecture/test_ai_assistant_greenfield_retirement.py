@@ -87,3 +87,20 @@ def test_legacy_assistant_conversation_orm_is_retired():
     assert "AIAssistantConversationModel" not in database_registration
     assert "AIAssistantMessageModel" not in database_registration
     assert "ai_assistant_conversation" not in database_registration
+
+
+def test_desktop_packaging_does_not_require_retired_assistant_directory():
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "DairyOS.spec").read_text(encoding="utf-8")
+
+    assert 'ROOT / "src" / "dairyos" / "assistant"' not in source
+    assert '"dairyos/assistant"' not in source
+
+
+def test_installer_build_does_not_describe_retired_assistant_as_embedded():
+    root = Path(__file__).resolve().parents[2]
+    source = (
+        root / "scripts" / "Build-DairyOS-Installer.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "the embedded Assistant" not in source
