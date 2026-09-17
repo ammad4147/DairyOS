@@ -20,7 +20,7 @@ export default function AIAssistant() {
         }}
       >
         <Bot size={16} />
-        AI Assistan
+        AI Assistant
       </div>
 
       <div style={{ lineHeight: 1.6 }}>
