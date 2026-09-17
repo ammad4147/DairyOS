@@ -1,20 +1,20 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.1.0",
-  "generated_at": "2026-09-17T22:18:32+00:00",
+  "corpus_version": "0.2.0",
+  "generated_at": "2026-09-17T22:43:26+00:00",
   "dairyos_source_authority": "45900048a1819e79a26e048e26a1355c4498967b",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 22,
+    "total": 31,
     "by_status": {
-      "IMPLEMENTATION_REVIEW": 18,
+      "IMPLEMENTATION_REVIEW": 27,
       "DRAFT": 1,
       "DEPRECATED": 3
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 22
+      "DAIRYOS_INSTRUCTION": 31
     }
   },
   "files": [
@@ -31,7 +31,14 @@
       "domain": "health-and-veterinary",
       "sha256": "25d64ed5fe1404f85d20adc0e85670df250327626dabb157bb3b9fa79846d466",
       "item_count": 13
+    },
+    {
+      "path": "dairyos/milk-production.json",
+      "class": "DAIRYOS_INSTRUCTION",
+      "domain": "milk-production",
+      "sha256": "3fb02171790dfd2752fd4d491fe66d3df1efe075638bd79ec1a48b5d3870319e",
+      "item_count": 9
     }
   ],
-  "note": "AA-3 in progress. Two of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
+  "note": "AA-3 in progress. Three of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
 }
