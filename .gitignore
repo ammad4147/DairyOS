@@ -160,3 +160,6 @@ logs/
 
 # Reporting certification evidence written by tests/reporting
 .certification/
+
+# Cowork mirrors delivered files here; never commit them.
+Claude outputs/
