@@ -52,6 +52,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   >(null);
   const [passportTag, setPassportTag] = useState<string | null>(null);
   const [selectedDropAlert, setSelectedDropAlert] = useState<any | null>(null);
+  const [selectedDropAlertId, setSelectedDropAlertId] = useState<string | null>(null);
   const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
   const [unreconciledMilkLitres, setUnreconciledMilkLitres] = useState<number | null>(null);
   const { alerts, refresh: refreshAlerts } = useAlertAudit();
@@ -210,6 +211,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
     if (alert) {
       setSelectedDropAlert(alert);
+      setSelectedDropAlertId(alert.id);
       return;
     }
 
