@@ -51,7 +51,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     'YIELD_DROP' | 'PRODUCTION_EXTREMES' | null
   >(null);
   const [passportTag, setPassportTag] = useState<string | null>(null);
-  const [selectedDropAlertId, setSelectedDropAlertId] = useState<string | null>(null);
+  const [selectedDropAlert, setSelectedDropAlert] = useState<any | null>(null);
   const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
   const [unreconciledMilkLitres, setUnreconciledMilkLitres] = useState<number | null>(null);
   const { alerts, refresh: refreshAlerts } = useAlertAudit();
@@ -209,7 +209,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     );
 
     if (alert) {
-      setSelectedDropAlertId(alert.id);
+      setSelectedDropAlert(alert);
       return;
     }
 
@@ -379,12 +379,6 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
     ...derivedDropAlerts,
   ];
 
-  const selectedDropAlert =
-    selectedDropAlertId
-      ? alerts.find(
-          a => a.id === selectedDropAlertId
-        ) || null
-      : null;
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0, sickAnimals:[] };
   const sickAnimals = healthData.sickAnimals || [];
   const vaccinationData = data?.vaccination || { dueAnimals:[] };
@@ -436,18 +430,18 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                 : detailMatch ? Math.abs(Number(detailMatch[1])) : null;
               const dropLabel = pct !== null && Number.isFinite(pct) ? `${pct.toFixed(1)}% Drop` : 'Yield Drop';
               return (
-                <div key={item.id} onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{display:'grid',gridTemplateColumns:'55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',gap:8,padding:'9px 10px',borderTop:index===0?'none':'1px solid #1f2937',alignItems:'center',fontSize:10,cursor:item.animalId?'pointer':'default'}}>
+                <div key={item.id} style={{display:'grid',gridTemplateColumns:'55px minmax(110px,.65fr) 90px minmax(240px,2fr) 90px',gap:8,padding:'9px 10px',borderTop:index===0?'none':'1px solid #1f2937',alignItems:'center',fontSize:10}}>
                   <span style={{color:'#64748b'}}>{index + 1}</span>
-                  <span style={{color:'#38bdf8',fontWeight:900}}>#{item.animalId || 'Unavailable'}</span>
+                  <button type="button" onClick={() => item.animalId && openPassportHandler(item.animalId)} style={{background:'none',border:0,padding:0,textAlign:'left',color:'#38bdf8',fontWeight:900,cursor:item.animalId?'pointer':'default'}}>#{item.animalId || 'Unavailable'}</button>
                   <span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:900}}>{item.currentLevel==='RED'?'CRITICAL':'HIGH'}</span>
-                  <span style={{color:'#cbd5e1'}}>{dropLabel}{detailText ? ` — ${detailText}` : ''}</span>
+                  <button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{background:'none',border:0,padding:0,textAlign:'left',color:'#cbd5e1',cursor:item.animalId?'pointer':'default'}}>{dropLabel}{detailText ? ` — ${detailText}` : ''}</button>
                   <span style={{color:'#94a3b8',fontWeight:800}}>{item.derivedLive?'LIVE':item.status}</span>
                 </div>
               );
             })
           )}
         </div>
-        {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
+        {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlert(null)} onOpenPassport={animalId=>{setSelectedDropAlert(null);openPassportHandler(animalId)}} />}
         {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)} />}
       </div>
     );
@@ -510,7 +504,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
               <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}} labelFormatter={(_, payload) => {const point = payload?.[0]?.payload as any; return point?.date || '';}} formatter={(value) => [value===null||value===undefined?'No milk entered':`${Number(value).toFixed(1)} L`,'Milk']}/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span onClick={() => setExpandedMilkList('YIELD_DROP')} title="Open complete Yield Drop Watchlist" style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4,cursor:'pointer',textDecoration:'underline'}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} onClick={()=>item.animalId&&handleOpenDropComparison(item.animalId)} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',cursor:item.animalId?'pointer':'default',fontSize:10}}><span style={{color:'#38bdf8',fontWeight:700}}>#{item.animalId || 'Animal ID unavailable'}</span><span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700}}>{(() => {const directPct=item.dropPercent??item.drop_percent;const detailText=String(item.details??item.detail??'');const detailMatch=detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);const pct=directPct!==undefined&&directPct!==null?Math.abs(Number(directPct)):detailMatch?Math.abs(Number(detailMatch[1])):null;return pct!==null&&Number.isFinite(pct)?`${pct.toFixed(1)}% Drop`:'Yield Drop';})()}</span></div>)}</div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span onClick={() => setExpandedMilkList('YIELD_DROP')} title="Open complete Yield Drop Watchlist" style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4,cursor:'pointer',textDecoration:'underline'}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',fontSize:10}}><button type="button" onClick={() => item.animalId && openPassportHandler(item.animalId)} style={{background:'none',border:0,padding:0,color:'#38bdf8',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>#{item.animalId || 'Animal ID unavailable'}</button><button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{background:'none',border:0,padding:0,color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>{(() => {const directPct=item.dropPercent??item.drop_percent;const detailText=String(item.details??item.detail??'');const detailMatch=detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);const pct=directPct!==undefined&&directPct!==null?Math.abs(Number(directPct)):detailMatch?Math.abs(Number(detailMatch[1])):null;return pct!==null&&Number.isFinite(pct)?`${pct.toFixed(1)}% Drop`:'Yield Drop';})()}</button></div>)}</div></div>
             </div>
           </div>
           <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}>
@@ -547,7 +541,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           </div>
         </div>
       </div>
-      {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlertId(null)} onOpenPassport={animalId=>{setSelectedDropAlertId(null);openPassportHandler(animalId)}} />}
+      {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlert(null)} onOpenPassport={animalId=>{setSelectedDropAlert(null);openPassportHandler(animalId)}} />}
       {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>} 
     </div>
   );

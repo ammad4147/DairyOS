@@ -49,6 +49,10 @@ export default function YieldDropAlertModal({ alert, onClose, onOpenPassport }: 
     const load = async () => {
       setLoading(true);
       setError('');
+      if (alert.id.startsWith('derived-milk-drop-')) {
+        setLoading(false);
+        return;
+      }
       try {
         const response = await fetch(
           apiUrl(`/farm/findings/${encodeURIComponent(alert.id)}/yield-drop-detail`),
