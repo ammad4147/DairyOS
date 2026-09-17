@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from dairyos.data.database.session import SessionLocal
 

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from pathlib import Path
 
 p = Path("src/dairyos/api/milk_production_summary.py")

@@ -1,4 +1,4 @@
-﻿# TA-007 — DairyOS Security Architecture
+# TA-007 — DairyOS Security Architecture
 
 **Document ID:** TA-007
 **Version:** 1.0

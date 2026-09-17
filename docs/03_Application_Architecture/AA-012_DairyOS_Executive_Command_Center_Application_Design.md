@@ -1,4 +1,4 @@
-﻿# AA-012 — DairyOS Executive Command Center Application Design
+# AA-012 — DairyOS Executive Command Center Application Design
 
 **Document ID:** AA-012
 **Version:** 1.0

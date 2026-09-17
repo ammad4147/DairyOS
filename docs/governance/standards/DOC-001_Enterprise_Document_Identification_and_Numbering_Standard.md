@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DOC-001
 Title: Enterprise Document Identification and Numbering Standard
 Version: 1.0

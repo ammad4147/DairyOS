@@ -1,4 +1,4 @@
-﻿# DA-004 — DairyOS Herd Data Model Architecture
+# DA-004 — DairyOS Herd Data Model Architecture
 
 **Document ID:** DA-004
 **Version:** 1.0

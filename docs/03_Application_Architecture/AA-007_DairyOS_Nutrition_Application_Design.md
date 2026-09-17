@@ -1,4 +1,4 @@
-﻿# AA-007 — DairyOS Nutrition Application Design
+# AA-007 — DairyOS Nutrition Application Design
 
 **Document ID:** AA-007
 **Version:** 1.0

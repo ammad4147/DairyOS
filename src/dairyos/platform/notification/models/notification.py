@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from dairyos.platform.notification.models.notification_channel import NotificationChannel
 from dairyos.platform.notification.models.notification_status import NotificationStatus

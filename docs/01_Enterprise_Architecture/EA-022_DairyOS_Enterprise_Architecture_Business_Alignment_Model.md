@@ -1,4 +1,4 @@
-﻿# EA-022 — DairyOS Enterprise Architecture Business Alignment Model
+# EA-022 — DairyOS Enterprise Architecture Business Alignment Model
 
 **Document ID:** EA-022  
 **Document Type:** Enterprise Architecture Business Alignment Model  

@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.health.services.farm_health_service import (
+from dairyos.intelligence.operations.health.services.farm_health_service import (
     FarmHealthService,
 )
 

@@ -1,4 +1,4 @@
-﻿# AA-011 — DairyOS Procurement Application Design
+# AA-011 — DairyOS Procurement Application Design
 
 **Document ID:** AA-011
 **Version:** 1.0

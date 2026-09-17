@@ -1,4 +1,4 @@
-﻿# SG-003 — DairyOS Data Governance Framework
+# SG-003 — DairyOS Data Governance Framework
 
 **Document ID:** SG-003
 **Version:** 1.0

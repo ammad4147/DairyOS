@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.rooms.models.intelligence_room import (
+from dairyos.platform.command_center.rooms.models.intelligence_room import (
     IntelligenceRoom,
 )
 

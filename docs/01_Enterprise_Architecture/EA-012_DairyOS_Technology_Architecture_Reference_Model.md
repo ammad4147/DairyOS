@@ -1,4 +1,4 @@
-﻿# EA-012 — DairyOS Technology Architecture Reference Model
+# EA-012 — DairyOS Technology Architecture Reference Model
 
 **Document ID:** EA-012  
 **Document Type:** Enterprise Architecture Reference Model  

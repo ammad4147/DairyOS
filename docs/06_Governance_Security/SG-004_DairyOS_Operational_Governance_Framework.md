@@ -1,4 +1,4 @@
-﻿# SG-004 — DairyOS Operational Governance Framework
+# SG-004 — DairyOS Operational Governance Framework
 
 **Document ID:** SG-004
 **Version:** 1.0

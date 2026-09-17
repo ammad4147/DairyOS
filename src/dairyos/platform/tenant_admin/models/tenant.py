@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from dairyos.platform.tenant_admin.models.tenant_status import (

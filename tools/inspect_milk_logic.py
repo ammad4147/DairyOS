@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from pathlib import Path
 
 for file_path in [Path("src/dairyos/api/farm_data_entry.py"), Path("src/dairyos/farm/operations/milk/production_summary.py")]:

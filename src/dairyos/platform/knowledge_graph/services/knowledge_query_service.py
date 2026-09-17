@@ -1,4 +1,4 @@
-﻿from dairyos.platform.knowledge_graph.graph.query_engine import (
+from dairyos.platform.knowledge_graph.graph.query_engine import (
     KnowledgeQueryEngine,
 )
 

@@ -1,4 +1,4 @@
-﻿"""Create canonical Equipment master and service history.
+"""Create canonical Equipment master and service history.
 
 Revision ID: 20260816_01
 Revises: 20260814_06, 20260815_01

@@ -1,4 +1,4 @@
-﻿# AA-001 — DairyOS Application Architecture Vision and Scope
+# AA-001 — DairyOS Application Architecture Vision and Scope
 
 **Document ID:** AA-001
 **Version:** 1.0

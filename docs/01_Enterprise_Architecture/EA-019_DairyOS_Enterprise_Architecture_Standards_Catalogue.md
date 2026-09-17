@@ -1,4 +1,4 @@
-﻿# EA-019 — DairyOS Enterprise Architecture Standards Catalogue
+# EA-019 — DairyOS Enterprise Architecture Standards Catalogue
 
 **Document ID:** EA-019  
 **Document Type:** Enterprise Architecture Standards Catalogue  

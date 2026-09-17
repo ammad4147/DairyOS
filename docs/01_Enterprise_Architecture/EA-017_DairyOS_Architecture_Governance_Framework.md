@@ -1,4 +1,4 @@
-﻿# EA-017 — DairyOS Architecture Governance Framework
+# EA-017 — DairyOS Architecture Governance Framework
 
 **Document ID:** EA-017  
 **Document Type:** Enterprise Architecture Governance Framework  

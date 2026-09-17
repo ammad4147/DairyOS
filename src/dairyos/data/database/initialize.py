@@ -1,4 +1,4 @@
-﻿"""
+"""
 Database initialization compatibility entry point.
 
 Sprint-038

@@ -1,4 +1,4 @@
-﻿from ..models.operational_health_snapshot import OperationalHealthSnapshot
+from ..models.operational_health_snapshot import OperationalHealthSnapshot
 
 
 class OperationsHealthService:

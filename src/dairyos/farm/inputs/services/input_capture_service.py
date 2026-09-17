@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.models.operational_input_record import (
+from dairyos.farm.inputs.models.operational_input_record import (
     OperationalInputRecord,
 )
 

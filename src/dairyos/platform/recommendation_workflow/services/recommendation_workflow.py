@@ -1,4 +1,4 @@
-﻿from dairyos.platform.recommendation_workflow.models.recommendation_task import (
+from dairyos.platform.recommendation_workflow.models.recommendation_task import (
     RecommendationTask,
 )
 

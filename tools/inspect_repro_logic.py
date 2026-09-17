@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 # Search for reproduction overview / confirmed pregnancies logic
 src_dir = Path("src/dairyos")

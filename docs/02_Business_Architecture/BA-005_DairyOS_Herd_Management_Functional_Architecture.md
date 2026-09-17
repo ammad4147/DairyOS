@@ -1,4 +1,4 @@
-﻿# BA-005 — DairyOS Herd Management Functional Architecture
+# BA-005 — DairyOS Herd Management Functional Architecture
 
 **Document ID:** BA-005
 **Version:** 1.0

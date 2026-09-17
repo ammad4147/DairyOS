@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.dashboard.farm_command_center import (
+from dairyos.farm.operations.dashboard.farm_command_center import (
     FarmCommandCenter,
 )
 

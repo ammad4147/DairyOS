@@ -1,4 +1,4 @@
-﻿# IM-011 — DairyOS Scaling & Expansion Strategy
+# IM-011 — DairyOS Scaling & Expansion Strategy
 
 **Document ID:** IM-011
 **Version:** 1.0

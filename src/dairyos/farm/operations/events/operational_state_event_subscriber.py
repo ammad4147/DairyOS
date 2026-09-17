@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.models.farm_operation_event import (
+from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
 

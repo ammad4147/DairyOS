@@ -1,4 +1,4 @@
-﻿"""
+"""
 Persistent append-only operational event journal.
 
 Sprint-038

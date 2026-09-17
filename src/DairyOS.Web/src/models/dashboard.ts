@@ -1,4 +1,4 @@
-﻿export interface DashboardWidget {
+export interface DashboardWidget {
     widget_id: string;
     title: string;
     subtitle?: string;

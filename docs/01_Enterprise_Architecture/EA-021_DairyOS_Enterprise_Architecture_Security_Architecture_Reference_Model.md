@@ -1,4 +1,4 @@
-﻿# EA-021 — DairyOS Enterprise Architecture Security Architecture Reference Model
+# EA-021 — DairyOS Enterprise Architecture Security Architecture Reference Model
 
 **Document ID:** EA-021  
 **Document Type:** Enterprise Architecture Security Reference Model  

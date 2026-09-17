@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS PostgreSQL database initialization.
 
 Sprint-038

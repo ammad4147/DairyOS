@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from dairyos.app import app
 
 print("=== MILKING SESSION & LEDGER ENDPOINTS ===")

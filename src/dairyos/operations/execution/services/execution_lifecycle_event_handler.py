@@ -1,4 +1,4 @@
-﻿from dairyos.operations.execution.services.operational_execution_service import (
+from dairyos.operations.execution.services.operational_execution_service import (
     OperationalExecutionService,
 )
 

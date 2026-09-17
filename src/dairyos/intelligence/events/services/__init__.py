@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.events.services.enterprise_event_service import (
+from dairyos.intelligence.events.services.enterprise_event_service import (
     EnterpriseEventService,
 )
 

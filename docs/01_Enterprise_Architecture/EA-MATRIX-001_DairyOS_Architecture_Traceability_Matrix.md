@@ -1,4 +1,4 @@
-﻿# EA-MATRIX-001 — DairyOS Architecture Traceability Matrix
+# EA-MATRIX-001 — DairyOS Architecture Traceability Matrix
 
 **Document ID:** EA-MATRIX-001  
 **Version:** 1.0  

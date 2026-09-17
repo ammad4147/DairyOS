@@ -1,4 +1,4 @@
-﻿class AlertService:
+class AlertService:
     """
     Manages Command Center alerts.
     """

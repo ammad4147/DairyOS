@@ -1,4 +1,4 @@
-﻿# BA-001 — DairyOS Business Architecture Vision and Scope
+# BA-001 — DairyOS Business Architecture Vision and Scope
 
 **Document ID:** BA-001  
 **Version:** 1.0  

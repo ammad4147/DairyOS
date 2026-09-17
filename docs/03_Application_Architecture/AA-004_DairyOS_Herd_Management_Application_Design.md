@@ -1,4 +1,4 @@
-﻿# AA-004 — DairyOS Herd Management Application Design
+# AA-004 — DairyOS Herd Management Application Design
 
 **Document ID:** AA-004
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.services.operational_input_projection_bridge import (
+from dairyos.farm.inputs.services.operational_input_projection_bridge import (
     OperationalInputProjectionBridge,
 )
 

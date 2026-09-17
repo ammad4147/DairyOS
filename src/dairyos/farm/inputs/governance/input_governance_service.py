@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.governance.input_audit_record import (
+from dairyos.farm.inputs.governance.input_audit_record import (
     OperationalInputAuditRecord,
 )
 

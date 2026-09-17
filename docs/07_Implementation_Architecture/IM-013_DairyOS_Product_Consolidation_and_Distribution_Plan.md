@@ -1,4 +1,4 @@
-﻿# IM-013 — DairyOS Product Consolidation and Distribution Plan
+# IM-013 — DairyOS Product Consolidation and Distribution Plan
 
 **Document ID:** IM-013
 **Version:** 1.0

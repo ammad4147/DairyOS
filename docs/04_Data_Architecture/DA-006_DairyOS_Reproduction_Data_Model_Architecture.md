@@ -1,4 +1,4 @@
-﻿# DA-006 — DairyOS Reproduction Data Model Architecture
+# DA-006 — DairyOS Reproduction Data Model Architecture
 
 **Document ID:** DA-006
 **Version:** 1.0

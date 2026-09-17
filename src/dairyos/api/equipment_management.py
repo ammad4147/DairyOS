@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException

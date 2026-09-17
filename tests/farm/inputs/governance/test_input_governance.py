@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.governance.input_governance_service import (
+from dairyos.farm.inputs.governance.input_governance_service import (
     InputGovernanceService,
 )
 

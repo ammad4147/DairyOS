@@ -1,4 +1,4 @@
-﻿# TA-004 — DairyOS Frontend Technology Architecture
+# TA-004 — DairyOS Frontend Technology Architecture
 
 **Document ID:** TA-004
 **Version:** 1.0

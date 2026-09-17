@@ -1,4 +1,4 @@
-﻿# IM-001 — DairyOS Implementation Strategy Framework
+# IM-001 — DairyOS Implementation Strategy Framework
 
 **Document ID:** IM-001
 **Version:** 1.0

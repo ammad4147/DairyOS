@@ -1,4 +1,4 @@
-﻿# EA-CLOSURE-001 — DairyOS Enterprise Architecture Foundation Completion Report
+# EA-CLOSURE-001 — DairyOS Enterprise Architecture Foundation Completion Report
 
 **Document ID:** EA-CLOSURE-001  
 **Document Type:** Enterprise Architecture Completion Report  

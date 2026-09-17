@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dairyos.operations.execution.events.execution_event_bridge import (
     ExecutionEventBridge,

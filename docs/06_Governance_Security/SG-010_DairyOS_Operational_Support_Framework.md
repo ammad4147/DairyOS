@@ -1,4 +1,4 @@
-﻿# SG-010 — DairyOS Operational Support Framework
+# SG-010 — DairyOS Operational Support Framework
 
 **Document ID:** SG-010
 **Version:** 1.0

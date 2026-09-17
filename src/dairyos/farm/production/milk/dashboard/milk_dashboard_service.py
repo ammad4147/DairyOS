@@ -1,4 +1,4 @@
-﻿class MilkDashboardService:
+class MilkDashboardService:
     """
     Creates milk production dashboard summaries.
 

@@ -1,4 +1,4 @@
-﻿class AuditConnector:
+class AuditConnector:
     """
     Integration boundary for enterprise components.
     """

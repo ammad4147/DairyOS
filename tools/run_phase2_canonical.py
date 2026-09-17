@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import requests
 import json
 from datetime import datetime, timezone, timedelta

@@ -1,4 +1,4 @@
-﻿class EventAdapter:
+class EventAdapter:
     """
     Enterprise event adapter boundary.
 

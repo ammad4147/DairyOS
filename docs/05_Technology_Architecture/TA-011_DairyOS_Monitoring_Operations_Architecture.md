@@ -1,4 +1,4 @@
-﻿# TA-011 — DairyOS Monitoring & Operations Architecture
+# TA-011 — DairyOS Monitoring & Operations Architecture
 
 **Document ID:** TA-011
 **Version:** 1.0

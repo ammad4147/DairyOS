@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 
 
 from dairyos.farm.herd.models.animal import (

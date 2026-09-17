@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Event Timeline Service
 
 Builds chronological lifecycle views

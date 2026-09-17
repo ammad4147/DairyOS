@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.services import (
+from dairyos.farm.operations.services import (
     FarmDashboardService,
 )
 

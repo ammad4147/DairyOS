@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Enterprise Replay Service
 
 Provides deterministic replay inspection

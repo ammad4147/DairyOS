@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.dashboard import (
+from dairyos.farm.operations.dashboard import (
     FarmCommandCenterService,
 )
 

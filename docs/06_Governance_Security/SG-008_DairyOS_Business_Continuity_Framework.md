@@ -1,4 +1,4 @@
-﻿# SG-008 — DairyOS Business Continuity Framework
+# SG-008 — DairyOS Business Continuity Framework
 
 **Document ID:** SG-008
 **Version:** 1.0

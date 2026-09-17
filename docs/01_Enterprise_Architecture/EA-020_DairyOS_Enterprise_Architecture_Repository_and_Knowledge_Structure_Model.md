@@ -1,4 +1,4 @@
-﻿# EA-020 — DairyOS Enterprise Architecture Repository and Knowledge Structure Model
+# EA-020 — DairyOS Enterprise Architecture Repository and Knowledge Structure Model
 
 **Document ID:** EA-020  
 **Document Type:** Enterprise Architecture Knowledge Model  

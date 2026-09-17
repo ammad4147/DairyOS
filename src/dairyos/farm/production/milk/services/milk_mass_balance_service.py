@@ -1,4 +1,4 @@
-﻿class MilkMassBalanceService:
+class MilkMassBalanceService:
     """
     Reconciles milk production against sales, waste, and inventory change.
 

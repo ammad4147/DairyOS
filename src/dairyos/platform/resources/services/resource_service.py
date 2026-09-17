@@ -1,4 +1,4 @@
-﻿from dairyos.platform.resources.models.resource_limit import (
+from dairyos.platform.resources.models.resource_limit import (
     ResourceLimit,
 )
 

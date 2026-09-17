@@ -1,4 +1,4 @@
-﻿# AA-008 — DairyOS Milk Production Application Design
+# AA-008 — DairyOS Milk Production Application Design
 
 **Document ID:** AA-008
 **Version:** 1.0

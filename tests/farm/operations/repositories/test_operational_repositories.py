@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.models import (
+from dairyos.farm.operations.models import (
     MilkRecord,
     FeedRecord,
     HealthObservation,

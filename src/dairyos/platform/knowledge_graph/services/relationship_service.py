@@ -1,4 +1,4 @@
-﻿from dairyos.platform.knowledge_graph.relationships.relationship import (
+from dairyos.platform.knowledge_graph.relationships.relationship import (
     Relationship,
 )
 

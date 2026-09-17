@@ -1,4 +1,4 @@
-﻿# EA-004 — DairyOS Enterprise Architecture Layers and Reference Model
+# EA-004 — DairyOS Enterprise Architecture Layers and Reference Model
 
 **Document ID:** EA-004  
 **Document Type:** Enterprise Architecture Reference Model  

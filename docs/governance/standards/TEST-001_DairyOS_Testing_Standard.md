@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: TEST-001
 Title: DairyOS Testing Standard
 Version: 1.0

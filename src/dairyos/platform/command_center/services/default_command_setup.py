@@ -1,4 +1,4 @@
-﻿class DefaultCommandSetup:
+class DefaultCommandSetup:
     """
     Creates default command center providers.
     """

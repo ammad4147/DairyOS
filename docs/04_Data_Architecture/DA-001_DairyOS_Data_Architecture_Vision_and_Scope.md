@@ -1,4 +1,4 @@
-﻿# DA-001 — DairyOS Data Architecture Vision and Scope
+# DA-001 — DairyOS Data Architecture Vision and Scope
 
 **Document ID:** DA-001
 **Version:** 1.0

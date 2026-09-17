@@ -1,4 +1,4 @@
-﻿from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from uuid import uuid4
 
 from dairyos.api import health as health_api

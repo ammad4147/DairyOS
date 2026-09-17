@@ -1,4 +1,4 @@
-﻿# EA-018 — DairyOS Enterprise Architecture Roadmap
+# EA-018 — DairyOS Enterprise Architecture Roadmap
 
 **Document ID:** EA-018  
 **Document Type:** Enterprise Architecture Roadmap  

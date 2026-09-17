@@ -1,4 +1,4 @@
-﻿# BA-003 — DairyOS Business Capability Model
+# BA-003 — DairyOS Business Capability Model
 
 **Document ID:** BA-003  
 **Version:** 1.0  

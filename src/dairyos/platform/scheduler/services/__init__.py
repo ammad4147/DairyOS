@@ -1,1 +1,1 @@
-﻿"""Scheduler services."""
+"""Scheduler services."""

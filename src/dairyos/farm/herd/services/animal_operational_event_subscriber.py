@@ -1,4 +1,4 @@
-﻿from dairyos.farm.herd.services.animal_event_projection import (
+from dairyos.farm.herd.services.animal_event_projection import (
     AnimalEventProjection,
 )
 

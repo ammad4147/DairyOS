@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.events.adapters.event_adapter import (
+from dairyos.intelligence.events.adapters.event_adapter import (
     EventAdapter,
 )
 

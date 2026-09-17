@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from pathlib import Path
 
 target_file = Path("src/dairyos/farm/operations/state/farm_operational_state.py")

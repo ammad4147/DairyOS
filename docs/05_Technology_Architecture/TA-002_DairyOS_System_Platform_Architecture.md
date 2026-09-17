@@ -1,4 +1,4 @@
-﻿# TA-002 — DairyOS System Platform Architecture
+# TA-002 — DairyOS System Platform Architecture
 
 **Document ID:** TA-002
 **Version:** 1.0

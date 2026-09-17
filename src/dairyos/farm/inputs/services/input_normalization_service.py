@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.services.input_registry import (
+from dairyos.farm.inputs.services.input_registry import (
     OperationalInputRegistry,
 )
 

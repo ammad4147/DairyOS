@@ -1,1 +1,29 @@
+# Line-ending policy for DairyOS.
+# Text is stored in the repository with LF endings on every machine, so a
+# Windows checkout, the Linux CI runner and any mounted view of the working
+# tree all agree on what "unchanged" means.
+* text=auto eol=lf
+
+# Windows command scripts must be checked out with CRLF to run reliably.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 *.sh text eol=lf
+
+# Bundled third-party PostgreSQL runtime: never rewrite it.
+runtime/** -text
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.docx binary
+*.gguf binary
+*.exe binary
+*.dll binary
+*.zip binary
+*.whl binary

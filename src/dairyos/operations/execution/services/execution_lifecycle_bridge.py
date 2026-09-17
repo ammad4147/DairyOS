@@ -1,4 +1,4 @@
-﻿from dairyos.operations.command_outcome.services.command_outcome_service import (
+from dairyos.operations.command_outcome.services.command_outcome_service import (
     CommandOutcomeService,
 )
 

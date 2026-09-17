@@ -1,4 +1,4 @@
-﻿# TA-012 — DairyOS AI Technology Evolution Architecture
+# TA-012 — DairyOS AI Technology Evolution Architecture
 
 **Document ID:** TA-012
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.decision.models.recommendation import (
+from dairyos.platform.decision.models.recommendation import (
     Recommendation,
 )
 

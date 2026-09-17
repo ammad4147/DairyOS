@@ -1,4 +1,4 @@
-﻿from dairyos.platform.timeline.models.timeline_event import (
+from dairyos.platform.timeline.models.timeline_event import (
     TimelineEvent,
 )
 

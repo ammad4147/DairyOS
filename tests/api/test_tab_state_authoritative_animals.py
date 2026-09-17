@@ -1,4 +1,4 @@
-﻿from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 
 def test_animals_tab_reads_canonical_persisted_animal_register(

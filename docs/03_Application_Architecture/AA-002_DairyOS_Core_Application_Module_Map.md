@@ -1,4 +1,4 @@
-﻿# AA-002 — DairyOS Core Application Module Map
+# AA-002 — DairyOS Core Application Module Map
 
 **Document ID:** AA-002
 **Version:** 1.0

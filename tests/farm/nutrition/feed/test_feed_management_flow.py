@@ -1,4 +1,4 @@
-﻿from dairyos.farm.nutrition.feed.models.feed_record import (
+from dairyos.farm.nutrition.feed.models.feed_record import (
     FeedRecord,
 )
 

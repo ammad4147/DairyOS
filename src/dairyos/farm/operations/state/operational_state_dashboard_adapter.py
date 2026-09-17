@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.state.farm_operational_state import (
+from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
 )
 

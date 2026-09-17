@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: RM-001
 Title: DairyOS Release Management Standard
 Version: 1.0

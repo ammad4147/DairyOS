@@ -1,4 +1,4 @@
-﻿class ProductionDashboardService:
+class ProductionDashboardService:
     """
     Converts production efficiency
     into management dashboard data.

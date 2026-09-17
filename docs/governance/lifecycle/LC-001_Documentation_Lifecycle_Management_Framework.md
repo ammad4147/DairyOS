@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: LC-001
 Title: Documentation Lifecycle Management Framework
 Version: 1.0

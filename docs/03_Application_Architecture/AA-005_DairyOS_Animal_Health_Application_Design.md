@@ -1,4 +1,4 @@
-﻿# AA-005 — DairyOS Animal Health Application Design
+# AA-005 — DairyOS Animal Health Application Design
 
 **Document ID:** AA-005
 **Version:** 1.0

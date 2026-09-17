@@ -1,4 +1,4 @@
-﻿# AA-003 — DairyOS Farm Operations Application Design
+# AA-003 — DairyOS Farm Operations Application Design
 
 **Document ID:** AA-003
 **Version:** 1.0

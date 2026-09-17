@@ -1,4 +1,4 @@
-﻿from dairyos.platform.learning_feedback.models.feedback_signal import (
+from dairyos.platform.learning_feedback.models.feedback_signal import (
     FeedbackSignal,
 )
 

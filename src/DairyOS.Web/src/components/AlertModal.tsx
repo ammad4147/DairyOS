@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useAlertAudit } from '../context/AlertAuditContext';
 import { X, ShieldAlert } from 'lucide-react';
 

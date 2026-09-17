@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Enterprise Platform Layer
 
 Provides enterprise-wide platform capabilities:

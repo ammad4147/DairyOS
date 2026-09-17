@@ -1,4 +1,4 @@
-﻿# IM-009 — DairyOS Deployment Operations Framework
+# IM-009 — DairyOS Deployment Operations Framework
 
 **Document ID:** IM-009
 **Version:** 1.0

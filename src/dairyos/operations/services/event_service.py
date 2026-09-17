@@ -1,4 +1,4 @@
-﻿from dairyos.operations.events.operational_event import (
+from dairyos.operations.events.operational_event import (
     OperationalEvent,
 )
 

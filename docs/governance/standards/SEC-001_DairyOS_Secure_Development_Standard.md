@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: SEC-001
 Title: DairyOS Secure Development Standard
 Version: 1.0

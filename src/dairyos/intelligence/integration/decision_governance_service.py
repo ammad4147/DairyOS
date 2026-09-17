@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.integration.decision_governance import (
+from dairyos.intelligence.integration.decision_governance import (
     GovernanceDecision,
 )
 

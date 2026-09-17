@@ -1,4 +1,4 @@
-﻿class FarmCommandDashboard:
+class FarmCommandDashboard:
     """
     Executive operational dashboard.
 

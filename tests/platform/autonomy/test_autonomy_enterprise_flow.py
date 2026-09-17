@@ -1,4 +1,4 @@
-﻿from dairyos.platform.autonomy.orchestration.services.autonomy_orchestrator import (
+from dairyos.platform.autonomy.orchestration.services.autonomy_orchestrator import (
     AutonomyOrchestrator,
 )
 

@@ -1,4 +1,4 @@
-﻿class InputLearningBridge:
+class InputLearningBridge:
     """
     Converts operational learning signals
     into intelligence indicators.

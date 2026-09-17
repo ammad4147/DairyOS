@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DATA-001
 Title: DairyOS Data Architecture Standard
 Version: 1.0

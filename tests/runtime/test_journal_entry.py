@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from dairyos.domain.events import Event
 from dairyos.domain.events.operational_input_received import (

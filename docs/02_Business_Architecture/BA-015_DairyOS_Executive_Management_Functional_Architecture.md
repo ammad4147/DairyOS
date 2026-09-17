@@ -1,4 +1,4 @@
-﻿# BA-015 — DairyOS Executive Management Functional Architecture
+# BA-015 — DairyOS Executive Management Functional Architecture
 
 **Document ID:** BA-015
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# AA-006 — DairyOS Reproduction Application Design
+# AA-006 — DairyOS Reproduction Application Design
 
 **Document ID:** AA-006
 **Version:** 1.0

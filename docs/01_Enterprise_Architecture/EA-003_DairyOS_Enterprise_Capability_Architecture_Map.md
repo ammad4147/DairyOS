@@ -1,4 +1,4 @@
-﻿# EA-003 — DairyOS Enterprise Capability Architecture Map
+# EA-003 — DairyOS Enterprise Capability Architecture Map
 
 **Document ID:** EA-003  
 **Document Type:** Enterprise Capability Architecture Definition  

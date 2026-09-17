@@ -1,4 +1,4 @@
-﻿from dairyos.platform.knowledge_graph.services.reasoning_service import (
+from dairyos.platform.knowledge_graph.services.reasoning_service import (
     ReasoningService,
 )
 

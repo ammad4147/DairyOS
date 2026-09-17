@@ -1,4 +1,4 @@
-﻿# IM-006 — DairyOS Production Launch Strategy
+# IM-006 — DairyOS Production Launch Strategy
 
 **Document ID:** IM-006
 **Version:** 1.0

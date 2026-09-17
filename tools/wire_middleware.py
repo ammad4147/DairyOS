@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 app_path = Path("src/dairyos/app.py")
 content = app_path.read_text(encoding="utf-8")

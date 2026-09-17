@@ -1,4 +1,4 @@
-﻿class HealthDashboardService:
+class HealthDashboardService:
     """
     Creates health management summary.
     """

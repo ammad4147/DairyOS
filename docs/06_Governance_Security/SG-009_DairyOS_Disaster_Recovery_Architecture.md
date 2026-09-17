@@ -1,4 +1,4 @@
-﻿# SG-009 — DairyOS Disaster Recovery Architecture
+# SG-009 — DairyOS Disaster Recovery Architecture
 
 **Document ID:** SG-009
 **Version:** 1.0

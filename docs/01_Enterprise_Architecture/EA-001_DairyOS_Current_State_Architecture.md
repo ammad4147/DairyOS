@@ -1,4 +1,4 @@
-﻿# EA-001 — DairyOS Current State Architecture
+# EA-001 — DairyOS Current State Architecture
 
 **Document ID:** EA-001
 **Document Type:** Enterprise Architecture Baseline

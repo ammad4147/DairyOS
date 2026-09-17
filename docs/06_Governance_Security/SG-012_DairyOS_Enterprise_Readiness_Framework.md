@@ -1,4 +1,4 @@
-﻿# SG-012 — DairyOS Enterprise Readiness Framework
+# SG-012 — DairyOS Enterprise Readiness Framework
 
 **Document ID:** SG-012
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# IM-002 — DairyOS Development Roadmap Architecture
+# IM-002 — DairyOS Development Roadmap Architecture
 
 **Document ID:** IM-002
 **Version:** 1.0

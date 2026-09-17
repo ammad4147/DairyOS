@@ -1,4 +1,4 @@
-﻿# BA-004 — DairyOS Functional Domain Reference Model
+# BA-004 — DairyOS Functional Domain Reference Model
 
 **Document ID:** BA-004  
 **Version:** 1.0  

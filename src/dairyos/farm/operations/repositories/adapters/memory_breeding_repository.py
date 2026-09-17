@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.repositories.breeding_repository import (
+from dairyos.farm.operations.repositories.breeding_repository import (
     BreedingRepository,
 )
 

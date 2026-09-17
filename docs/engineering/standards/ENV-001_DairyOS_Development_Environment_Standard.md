@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: ENV-001
 Title: DairyOS Development Environment Standard
 Version: 1.0

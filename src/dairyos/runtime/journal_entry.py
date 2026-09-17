@@ -1,4 +1,4 @@
-﻿"""
+"""
 Journal persistence record.
 
 Sprint-038

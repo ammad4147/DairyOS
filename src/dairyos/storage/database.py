@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS storage compatibility facade.
 
 Sprint-038

@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Any

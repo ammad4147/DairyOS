@@ -1,4 +1,4 @@
-﻿class DashboardMapper:
+class DashboardMapper:
     """
     Converts enterprise services into dashboard contracts.
     """

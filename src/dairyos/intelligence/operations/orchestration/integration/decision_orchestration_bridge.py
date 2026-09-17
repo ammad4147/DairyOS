@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.orchestration.gateway.operations_orchestration_gateway import (
+from dairyos.intelligence.operations.orchestration.gateway.operations_orchestration_gateway import (
     OperationsOrchestrationGateway,
 )
 

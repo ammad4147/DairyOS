@@ -1,4 +1,4 @@
-﻿# EA-009 — DairyOS Integration Architecture Reference Model
+# EA-009 — DairyOS Integration Architecture Reference Model
 
 **Document ID:** EA-009  
 **Document Type:** Enterprise Architecture Reference Model  

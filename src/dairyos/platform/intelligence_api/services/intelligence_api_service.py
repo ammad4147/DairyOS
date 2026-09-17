@@ -1,4 +1,4 @@
-﻿class IntelligenceAPIService:
+class IntelligenceAPIService:
     """
     Unified intelligence API facade.
     """

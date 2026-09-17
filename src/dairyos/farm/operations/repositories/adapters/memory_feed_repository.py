@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.repositories.feed_repository import (
+from dairyos.farm.operations.repositories.feed_repository import (
     FeedRepository,
 )
 

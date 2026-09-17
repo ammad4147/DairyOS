@@ -1,4 +1,4 @@
-﻿# AA-014 — DairyOS Cost of Milk Production Design
+# AA-014 — DairyOS Cost of Milk Production Design
 
 **Document ID:** AA-014
 **Version:** 1.0

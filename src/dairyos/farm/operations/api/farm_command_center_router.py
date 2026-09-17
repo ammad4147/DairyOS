@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends
 
 
 from dairyos.farm.operations.dashboard.farm_command_center_service import (

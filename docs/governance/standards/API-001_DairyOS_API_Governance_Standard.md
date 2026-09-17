@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: API-001
 Title: DairyOS API Governance Standard
 Version: 1.0

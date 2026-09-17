@@ -1,4 +1,4 @@
-﻿# IM-007 — DairyOS Delivery Governance Framework
+# IM-007 — DairyOS Delivery Governance Framework
 
 **Document ID:** IM-007
 **Version:** 1.0

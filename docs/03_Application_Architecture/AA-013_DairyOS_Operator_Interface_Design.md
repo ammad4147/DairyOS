@@ -1,4 +1,4 @@
-﻿# AA-013 — DairyOS Operator Interface Design
+# AA-013 — DairyOS Operator Interface Design
 
 **Document ID:** AA-013
 **Version:** 1.3

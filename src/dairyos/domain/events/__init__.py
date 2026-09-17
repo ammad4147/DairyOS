@@ -1,4 +1,4 @@
-﻿"""DairyOS domain event package."""
+"""DairyOS domain event package."""
 
 from dataclasses import dataclass
 from typing import Any, Dict

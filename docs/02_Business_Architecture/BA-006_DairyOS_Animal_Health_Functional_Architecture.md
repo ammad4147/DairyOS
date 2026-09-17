@@ -1,4 +1,4 @@
-﻿# BA-006 — DairyOS Animal Health Functional Architecture
+# BA-006 — DairyOS Animal Health Functional Architecture
 
 **Document ID:** BA-006
 **Version:** 1.0

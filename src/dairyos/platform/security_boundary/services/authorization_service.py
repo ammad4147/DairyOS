@@ -1,4 +1,4 @@
-﻿from dairyos.platform.security_boundary.models.access_result import (
+from dairyos.platform.security_boundary.models.access_result import (
     AccessResult,
 )
 

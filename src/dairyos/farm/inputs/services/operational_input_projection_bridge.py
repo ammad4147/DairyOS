@@ -1,4 +1,4 @@
-﻿from dairyos.domain.events.operational_input_received import (
+from dairyos.domain.events.operational_input_received import (
     OperationalInputReceived,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.autonomy.copilot.models.copilot_response import (
+from dairyos.platform.autonomy.copilot.models.copilot_response import (
     CopilotResponse,
 )
 

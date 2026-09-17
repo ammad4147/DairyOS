@@ -1,4 +1,4 @@
-﻿# AA-010 — DairyOS Inventory Management Application Design
+# AA-010 — DairyOS Inventory Management Application Design
 
 **Document ID:** AA-010
 **Version:** 1.0

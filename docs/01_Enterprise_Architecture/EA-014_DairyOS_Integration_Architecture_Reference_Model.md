@@ -1,4 +1,4 @@
-﻿# EA-014 — DairyOS Integration Architecture Reference Model
+# EA-014 — DairyOS Integration Architecture Reference Model
 
 **Document ID:** EA-014  
 **Document Type:** Enterprise Architecture Reference Model  

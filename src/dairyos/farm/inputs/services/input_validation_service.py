@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.models.input_definition import (
+from dairyos.farm.inputs.models.input_definition import (
     OperationalInputDefinition,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.readiness.models.capability_status import (
+from dairyos.platform.readiness.models.capability_status import (
     CapabilityStatus,
 )
 

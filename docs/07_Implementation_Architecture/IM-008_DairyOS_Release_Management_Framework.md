@@ -1,4 +1,4 @@
-﻿# IM-008 — DairyOS Release Management Framework
+# IM-008 — DairyOS Release Management Framework
 
 **Document ID:** IM-008
 **Version:** 1.0

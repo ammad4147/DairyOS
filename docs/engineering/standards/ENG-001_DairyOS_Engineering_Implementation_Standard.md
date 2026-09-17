@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: ENG-001
 Title: DairyOS Engineering Implementation Standard
 Version: 1.0

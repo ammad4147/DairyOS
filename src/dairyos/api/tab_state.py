@@ -1,4 +1,4 @@
-﻿"""Authoritative operational read contract for the S-09D operator tabs.
+"""Authoritative operational read contract for the S-09D operator tabs.
 
 FarmOperationalState remains the authoritative operational-state projection.
 

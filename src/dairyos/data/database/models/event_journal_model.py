@@ -1,4 +1,4 @@
-﻿"""
+"""
 Persistent operational event journal model.
 
 Sprint-038

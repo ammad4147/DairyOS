@@ -1,4 +1,4 @@
-﻿from dairyos.operations.execution.services.execution_lifecycle_event_handler import (
+from dairyos.operations.execution.services.execution_lifecycle_event_handler import (
     ExecutionLifecycleEventHandler,
 )
 

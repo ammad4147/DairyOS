@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: QG-001
 Title: Documentation Quality Gate Framework
 Version: 1.0

@@ -1,4 +1,4 @@
-﻿# DA-007 — DairyOS Nutrition Data Model Architecture
+# DA-007 — DairyOS Nutrition Data Model Architecture
 
 **Document ID:** DA-007
 **Version:** 1.0

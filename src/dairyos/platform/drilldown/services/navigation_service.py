@@ -1,4 +1,4 @@
-﻿from dairyos.platform.drilldown.models.navigation_context import (
+from dairyos.platform.drilldown.models.navigation_context import (
     NavigationContext,
 )
 

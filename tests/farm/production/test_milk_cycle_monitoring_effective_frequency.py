@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import date
 
 from dairyos.farm.production.services.milk_cycle_monitoring_service import (

@@ -1,4 +1,4 @@
-﻿# DA-002 — DairyOS Enterprise Data Domain Model
+# DA-002 — DairyOS Enterprise Data Domain Model
 
 **Document ID:** DA-002
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# SG-011 — DairyOS User Training & Adoption Framework
+# SG-011 — DairyOS User Training & Adoption Framework
 
 **Document ID:** SG-011
 **Version:** 1.0

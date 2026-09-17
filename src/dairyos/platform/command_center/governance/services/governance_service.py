@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.governance.models.command_audit_record import (
+from dairyos.platform.command_center.governance.models.command_audit_record import (
     CommandAuditRecord,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.application.application_runtime import (
+from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
 

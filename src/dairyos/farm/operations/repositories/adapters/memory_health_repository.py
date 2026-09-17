@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.repositories.health_repository import (
+from dairyos.farm.operations.repositories.health_repository import (
     HealthRepository,
 )
 

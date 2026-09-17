@@ -1,4 +1,4 @@
-﻿from dairyos.platform.bootstrap.platform_container import (
+from dairyos.platform.bootstrap.platform_container import (
     PlatformContainer,
 )
 

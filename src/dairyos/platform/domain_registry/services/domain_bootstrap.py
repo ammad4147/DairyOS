@@ -1,4 +1,4 @@
-﻿from dairyos.platform.domain_registry.services.default_domains import (
+from dairyos.platform.domain_registry.services.default_domains import (
     DEFAULT_DOMAINS,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.readiness.services.readiness_service import (
+from dairyos.platform.readiness.services.readiness_service import (
     ReadinessService,
 )
 

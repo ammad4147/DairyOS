@@ -1,4 +1,4 @@
-﻿# EA-007 — DairyOS Application Architecture Reference Model
+# EA-007 — DairyOS Application Architecture Reference Model
 
 **Document ID:** EA-007  
 **Document Type:** Enterprise Application Architecture Reference Model  

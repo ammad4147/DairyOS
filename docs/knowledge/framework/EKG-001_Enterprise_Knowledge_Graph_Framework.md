@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: EKG-001
 Title: Enterprise Knowledge Graph Framework
 Version: 1.0

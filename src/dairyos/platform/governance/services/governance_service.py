@@ -1,4 +1,4 @@
-﻿from dairyos.platform.governance.models.governance_policy import GovernancePolicy
+from dairyos.platform.governance.models.governance_policy import GovernancePolicy
 
 
 class GovernanceService:

@@ -1,4 +1,4 @@
-﻿# BA-011 — DairyOS Financial Management Functional Architecture
+# BA-011 — DairyOS Financial Management Functional Architecture
 
 **Document ID:** BA-011
 **Version:** 1.0

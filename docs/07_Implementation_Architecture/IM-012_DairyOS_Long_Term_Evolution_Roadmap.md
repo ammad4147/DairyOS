@@ -1,4 +1,4 @@
-﻿# IM-012 — DairyOS Long-Term Evolution Roadmap
+# IM-012 — DairyOS Long-Term Evolution Roadmap
 
 **Document ID:** IM-012
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 target_file = Path("src/dairyos/farm/operations/state/farm_operational_state.py")
 lines = target_file.read_text(encoding="utf-8").splitlines()

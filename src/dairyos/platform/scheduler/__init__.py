@@ -1,1 +1,1 @@
-﻿"""DairyOS Enterprise Scheduler Platform."""
+"""DairyOS Enterprise Scheduler Platform."""

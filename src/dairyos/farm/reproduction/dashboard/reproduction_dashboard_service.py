@@ -1,4 +1,4 @@
-﻿class ReproductionDashboardService:
+class ReproductionDashboardService:
     """
     Creates reproduction indicators.
     """

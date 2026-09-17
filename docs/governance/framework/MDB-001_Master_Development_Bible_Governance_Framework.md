@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: MDB-001
 Title: Master Development Bible Governance Framework
 Version: 1.0

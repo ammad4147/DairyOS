@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DPL-001
 Title: Decision and Progress Ledger Framework
 Version: 1.0

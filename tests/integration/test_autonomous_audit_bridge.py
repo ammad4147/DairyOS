@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.integration.autonomous_audit_bridge import (
+from dairyos.intelligence.integration.autonomous_audit_bridge import (
     AutonomousAuditBridge,
 )
 

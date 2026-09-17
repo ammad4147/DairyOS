@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.drilldown.models.drilldown_path import (
+from dairyos.platform.command_center.drilldown.models.drilldown_path import (
     DrilldownPath,
 )
 

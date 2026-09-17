@@ -1,4 +1,4 @@
-﻿# BA-016 — DairyOS Decision Support Functional Architecture
+# BA-016 — DairyOS Decision Support Functional Architecture
 
 **Document ID:** BA-016
 **Version:** 1.0

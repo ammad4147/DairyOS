@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DEV-001
 Title: DairyOS Development Standards
 Version: 1.0

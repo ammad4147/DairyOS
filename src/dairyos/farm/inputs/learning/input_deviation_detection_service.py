@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.learning.input_deviation import (
+from dairyos.farm.inputs.learning.input_deviation import (
     OperationalInputDeviation,
 )
 

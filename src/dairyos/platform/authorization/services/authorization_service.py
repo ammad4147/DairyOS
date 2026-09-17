@@ -1,4 +1,4 @@
-﻿from dairyos.platform.authorization.models.access_decision import (
+from dairyos.platform.authorization.models.access_decision import (
     AccessDecision,
     AuthorizationResult,
 )

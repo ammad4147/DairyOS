@@ -1,4 +1,4 @@
-﻿# BA-014 — DairyOS Workforce Management Functional Architecture
+# BA-014 — DairyOS Workforce Management Functional Architecture
 
 **Document ID:** BA-014
 **Version:** 1.0

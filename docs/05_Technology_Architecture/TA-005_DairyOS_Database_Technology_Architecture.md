@@ -1,4 +1,4 @@
-﻿# TA-005 — DairyOS Database Technology Architecture
+# TA-005 — DairyOS Database Technology Architecture
 
 **Document ID:** TA-005
 **Version:** 1.0

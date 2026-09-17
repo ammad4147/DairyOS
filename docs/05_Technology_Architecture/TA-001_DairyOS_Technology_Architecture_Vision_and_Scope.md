@@ -1,4 +1,4 @@
-﻿# TA-001 — DairyOS Technology Architecture Vision and Scope
+# TA-001 — DairyOS Technology Architecture Vision and Scope
 
 **Document ID:** TA-001
 **Version:** 1.0

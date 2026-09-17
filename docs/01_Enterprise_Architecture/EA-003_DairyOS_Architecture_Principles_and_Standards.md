@@ -1,4 +1,4 @@
-﻿# EA-003 — DairyOS Architecture Principles and Standards
+# EA-003 — DairyOS Architecture Principles and Standards
 
 **Document ID:** EA-003  
 **Document Type:** Enterprise Architecture Principles Standard  

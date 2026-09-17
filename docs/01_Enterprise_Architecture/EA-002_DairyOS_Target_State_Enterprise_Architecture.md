@@ -1,4 +1,4 @@
-﻿# EA-002 — DairyOS Target State Enterprise Architecture
+# EA-002 — DairyOS Target State Enterprise Architecture
 
 **Document ID:** EA-002  
 **Document Type:** Target Enterprise Architecture Definition  

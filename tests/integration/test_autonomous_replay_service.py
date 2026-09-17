@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.integration.autonomous_replay_service import (
+from dairyos.intelligence.integration.autonomous_replay_service import (
     AutonomousReplayService,
 )
 

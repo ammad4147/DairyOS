@@ -1,4 +1,4 @@
-﻿from dairyos.platform.notification.models.notification import Notification
+from dairyos.platform.notification.models.notification import Notification
 from dairyos.platform.notification.models.notification_status import NotificationStatus
 
 

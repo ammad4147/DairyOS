@@ -1,4 +1,4 @@
-﻿# BA-010 — DairyOS Farm Operations Functional Architecture
+# BA-010 — DairyOS Farm Operations Functional Architecture
 
 **Document ID:** BA-010
 **Version:** 1.0

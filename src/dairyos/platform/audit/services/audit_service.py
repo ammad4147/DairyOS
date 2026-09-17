@@ -1,4 +1,4 @@
-﻿from dairyos.platform.audit.models.audit_record import (
+from dairyos.platform.audit.models.audit_record import (
     AuditRecord,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.domain_health.models.domain_health_status import (
+from dairyos.platform.domain_health.models.domain_health_status import (
     DomainHealthStatus,
 )
 

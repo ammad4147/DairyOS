@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DR-001
 Title: DairyOS Decision Record Standard
 Version: 1.0

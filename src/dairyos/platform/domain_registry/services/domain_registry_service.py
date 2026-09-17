@@ -1,4 +1,4 @@
-﻿from dairyos.platform.domain_registry.models.domain import Domain
+from dairyos.platform.domain_registry.models.domain import Domain
 
 
 

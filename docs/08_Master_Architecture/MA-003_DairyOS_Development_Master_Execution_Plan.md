@@ -1,4 +1,4 @@
-﻿# MA-003 — DairyOS Development Master Execution Plan
+# MA-003 — DairyOS Development Master Execution Plan
 
 **Document ID:** MA-003
 **Version:** 1.0

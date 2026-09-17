@@ -1,4 +1,4 @@
-﻿# TA-010 — DairyOS DevOps & Engineering Architecture
+# TA-010 — DairyOS DevOps & Engineering Architecture
 
 **Document ID:** TA-010
 **Version:** 1.0

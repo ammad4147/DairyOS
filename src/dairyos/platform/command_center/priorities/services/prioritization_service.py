@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.priorities.models.priority_score import (
+from dairyos.platform.command_center.priorities.models.priority_score import (
     PriorityScore,
 )
 

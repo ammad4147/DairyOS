@@ -1,4 +1,4 @@
-﻿# TA-008 — DairyOS Integration Architecture
+# TA-008 — DairyOS Integration Architecture
 
 **Document ID:** TA-008
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# SG-006 — DairyOS Risk Management Framework
+# SG-006 — DairyOS Risk Management Framework
 
 **Document ID:** SG-006
 **Version:** 1.0

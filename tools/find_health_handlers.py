@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 for p in Path("src/dairyos").rglob("*.py"):
     try:

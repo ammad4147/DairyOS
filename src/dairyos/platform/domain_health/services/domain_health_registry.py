@@ -1,4 +1,4 @@
-﻿class DomainHealthRegistry:
+class DomainHealthRegistry:
     """
     Stores domain health reports.
     """

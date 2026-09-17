@@ -1,4 +1,4 @@
-﻿from dairyos.farm.reproduction.models.pregnancy_record import (
+from dairyos.farm.reproduction.models.pregnancy_record import (
     PregnancyRecord,
 )
 

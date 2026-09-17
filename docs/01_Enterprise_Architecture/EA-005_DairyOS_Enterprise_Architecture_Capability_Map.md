@@ -1,4 +1,4 @@
-﻿# EA-005 — DairyOS Enterprise Architecture Capability Map
+# EA-005 — DairyOS Enterprise Architecture Capability Map
 
 **Document ID:** EA-005  
 **Document Type:** Enterprise Architecture Capability Model  

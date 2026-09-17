@@ -1,4 +1,4 @@
-﻿# IM-010 — DairyOS User Acceptance Testing Framework
+# IM-010 — DairyOS User Acceptance Testing Framework
 
 **Document ID:** IM-010
 **Version:** 1.0

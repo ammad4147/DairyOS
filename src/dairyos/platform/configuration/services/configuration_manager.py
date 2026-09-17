@@ -1,4 +1,4 @@
-﻿from dairyos.platform.configuration.models.configuration_change import (
+from dairyos.platform.configuration.models.configuration_change import (
     ConfigurationChange,
 )
 

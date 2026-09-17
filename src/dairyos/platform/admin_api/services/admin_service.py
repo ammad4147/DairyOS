@@ -1,4 +1,4 @@
-﻿class AdminService:
+class AdminService:
     """
     Enterprise administration facade.
     """

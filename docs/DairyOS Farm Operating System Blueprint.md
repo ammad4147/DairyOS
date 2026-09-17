@@ -1,4 +1,4 @@
-﻿# DairyOS Farm Operating System Blueprint
+# DairyOS Farm Operating System Blueprint
 
 Version: 1.0
 

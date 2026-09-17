@@ -1,4 +1,4 @@
-﻿# SG-005 — DairyOS Change Management Framework
+# SG-005 — DairyOS Change Management Framework
 
 **Document ID:** SG-005
 **Version:** 1.0

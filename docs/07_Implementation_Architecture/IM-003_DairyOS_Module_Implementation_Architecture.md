@@ -1,4 +1,4 @@
-﻿# IM-003 — DairyOS Module Implementation Architecture
+# IM-003 — DairyOS Module Implementation Architecture
 
 **Document ID:** IM-003
 **Version:** 1.0

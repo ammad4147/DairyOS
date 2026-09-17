@@ -1,4 +1,4 @@
-﻿from dairyos.milk.models.milk_entry import (
+from dairyos.milk.models.milk_entry import (
     MilkEntry,
 )
 

@@ -1,4 +1,4 @@
-﻿import type { DashboardResponse } from "../models/dashboard";
+import type { DashboardResponse } from "../models/dashboard";
 
 import { API_BASE_URL } from "../config/api";
 

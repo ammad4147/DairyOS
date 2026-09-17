@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.repositories.adapters.memory_milk_repository import (
+from dairyos.farm.operations.repositories.adapters.memory_milk_repository import (
     MemoryMilkRepository,
 )
 

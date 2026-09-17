@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.orchestration.models.operational_action import (
+from dairyos.intelligence.operations.orchestration.models.operational_action import (
     OperationalAction,
 )
 

@@ -1,4 +1,4 @@
-﻿# DA-010 — DairyOS Inventory Data Model Architecture
+# DA-010 — DairyOS Inventory Data Model Architecture
 
 **Document ID:** DA-010
 **Version:** 1.0

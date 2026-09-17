@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: CIR-001
 Title: DairyOS Configuration Item Registry Standard
 Version: 1.0

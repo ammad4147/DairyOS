@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: TMP-001
 Title: DairyOS Enterprise Documentation Template Standard
 Version: 1.0

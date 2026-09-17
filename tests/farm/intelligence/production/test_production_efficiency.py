@@ -1,4 +1,4 @@
-﻿from dairyos.farm.intelligence.production.services.production_efficiency_service import (
+from dairyos.farm.intelligence.production.services.production_efficiency_service import (
     ProductionEfficiencyService,
 )
 

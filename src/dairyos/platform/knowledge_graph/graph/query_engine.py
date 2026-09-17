@@ -1,4 +1,4 @@
-﻿class KnowledgeQueryEngine:
+class KnowledgeQueryEngine:
 
 
     def __init__(

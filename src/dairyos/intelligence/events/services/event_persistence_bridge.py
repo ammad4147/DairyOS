@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Event Persistence Bridge
 
 Enterprise boundary between:

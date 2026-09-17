@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.notifications.input_notification_service import (
+from dairyos.farm.inputs.notifications.input_notification_service import (
     InputNotificationService,
 )
 

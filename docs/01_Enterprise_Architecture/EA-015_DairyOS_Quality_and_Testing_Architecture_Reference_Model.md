@@ -1,4 +1,4 @@
-﻿# EA-015 — DairyOS Quality and Testing Architecture Reference Model
+# EA-015 — DairyOS Quality and Testing Architecture Reference Model
 
 **Document ID:** EA-015  
 **Document Type:** Enterprise Architecture Reference Model  

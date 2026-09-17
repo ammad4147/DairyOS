@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: REP-001
 Title: DairyOS Repository Structure Standard
 Version: 1.0

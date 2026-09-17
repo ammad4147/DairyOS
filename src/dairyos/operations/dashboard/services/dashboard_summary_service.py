@@ -1,4 +1,4 @@
-﻿class DashboardSummaryService:
+class DashboardSummaryService:
     """
     Provides dashboard interpretation.
 

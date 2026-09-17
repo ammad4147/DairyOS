@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: SDLC-001
 Title: DairyOS Software Development Lifecycle Standard
 Version: 1.0

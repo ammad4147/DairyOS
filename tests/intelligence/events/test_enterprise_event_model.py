@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from dairyos.intelligence.events.models.enterprise_event import (
     EnterpriseEvent,

@@ -1,4 +1,4 @@
-﻿# DA-009 — DairyOS Financial Data Model Architecture
+# DA-009 — DairyOS Financial Data Model Architecture
 
 **Document ID:** DA-009
 **Version:** 1.0

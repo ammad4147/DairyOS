@@ -1,4 +1,4 @@
-﻿"""
+"""
 PowerShelf‑ready test script – run it from PowerShell:
 
     python dairyos/scripts/verify_factory.py

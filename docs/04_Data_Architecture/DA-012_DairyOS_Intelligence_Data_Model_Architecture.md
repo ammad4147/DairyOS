@@ -1,4 +1,4 @@
-﻿# DA-012 — DairyOS Intelligence Data Model Architecture
+# DA-012 — DairyOS Intelligence Data Model Architecture
 
 **Document ID:** DA-012
 **Version:** 1.0

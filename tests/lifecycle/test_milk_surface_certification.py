@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 
 from tests.lifecycle.test_milk_operational_lifecycle import (

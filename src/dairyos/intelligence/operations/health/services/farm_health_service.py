@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.health.models.farm_health_report import (
+from dairyos.intelligence.operations.health.models.farm_health_report import (
     FarmHealthReport,
 )
 

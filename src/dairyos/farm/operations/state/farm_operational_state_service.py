@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.alerts.operational_heads_up_service import (
+from dairyos.farm.operations.alerts.operational_heads_up_service import (
     OperationalHeadsUpService,
 )
 

@@ -1,4 +1,4 @@
-﻿# BA-013 — DairyOS Procurement Management Functional Architecture
+# BA-013 — DairyOS Procurement Management Functional Architecture
 
 **Document ID:** BA-013
 **Version:** 1.0

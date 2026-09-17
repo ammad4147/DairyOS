@@ -1,4 +1,4 @@
-﻿from dairyos.farm.production.milk.models.milk_record import (
+from dairyos.farm.production.milk.models.milk_record import (
     MilkRecord,
 )
 

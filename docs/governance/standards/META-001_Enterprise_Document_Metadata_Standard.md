@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: META-001
 Title: Enterprise Document Metadata Standard
 Version: 1.0

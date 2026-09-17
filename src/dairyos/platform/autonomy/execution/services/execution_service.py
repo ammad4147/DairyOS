@@ -1,4 +1,4 @@
-﻿from typing import Dict
+from typing import Dict
 
 from dairyos.platform.autonomy.execution.models.action_plan import (
     ActionPlan,

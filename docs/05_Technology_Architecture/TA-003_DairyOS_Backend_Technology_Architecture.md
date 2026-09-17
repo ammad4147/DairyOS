@@ -1,4 +1,4 @@
-﻿# TA-003 — DairyOS Backend Technology Architecture
+# TA-003 — DairyOS Backend Technology Architecture
 
 **Document ID:** TA-003
 **Version:** 1.0

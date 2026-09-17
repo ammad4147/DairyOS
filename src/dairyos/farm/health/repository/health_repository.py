@@ -1,4 +1,4 @@
-﻿class HealthRepository:
+class HealthRepository:
     """
     Temporary health event storage.
 

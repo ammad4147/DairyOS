@@ -1,4 +1,4 @@
-﻿class FeedDashboardService:
+class FeedDashboardService:
     """
     Creates feed management indicators.
     """

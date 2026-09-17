@@ -1,4 +1,4 @@
-﻿# BA-012 — DairyOS Inventory Management Functional Architecture
+# BA-012 — DairyOS Inventory Management Functional Architecture
 
 **Document ID:** BA-012
 **Version:** 1.0

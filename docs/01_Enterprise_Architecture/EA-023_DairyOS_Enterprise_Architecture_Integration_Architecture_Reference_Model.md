@@ -1,4 +1,4 @@
-﻿# EA-023 — DairyOS Enterprise Architecture Integration Architecture Reference Model
+# EA-023 — DairyOS Enterprise Architecture Integration Architecture Reference Model
 
 **Document ID:** EA-023  
 **Document Type:** Enterprise Architecture Integration Reference Model  

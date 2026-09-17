@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: EM-001
 Title: DairyOS Documentation Engineering Methodology
 Version: 1.0

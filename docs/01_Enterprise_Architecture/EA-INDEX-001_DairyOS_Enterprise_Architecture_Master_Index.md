@@ -1,4 +1,4 @@
-﻿# EA-INDEX-001 — DairyOS Enterprise Architecture Master Index
+# EA-INDEX-001 — DairyOS Enterprise Architecture Master Index
 
 **Document ID:** EA-INDEX-001  
 **Version:** 1.0  

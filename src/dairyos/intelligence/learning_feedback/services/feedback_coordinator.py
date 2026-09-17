@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Learning Feedback Coordination Service
 
 Enterprise feedback orchestration boundary.

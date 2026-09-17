@@ -1,4 +1,4 @@
-﻿# IM-005 — DairyOS Data Migration & Initialization Strategy
+# IM-005 — DairyOS Data Migration & Initialization Strategy
 
 **Document ID:** IM-005
 **Version:** 1.0

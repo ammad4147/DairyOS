@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Command Center Platform
 
 Provides:

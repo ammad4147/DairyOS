@@ -1,4 +1,4 @@
-﻿"""S-09D.55 authoritative operational tab read contract tests."""
+"""S-09D.55 authoritative operational tab read contract tests."""
 
 from fastapi.testclient import TestClient
 

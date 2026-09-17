@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 p = Path("src/dairyos/api/farm_data_entry.py")
 code = p.read_text(encoding="utf-8")

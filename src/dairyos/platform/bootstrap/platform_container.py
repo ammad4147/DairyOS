@@ -1,4 +1,4 @@
-﻿from dairyos.platform.configuration.services.configuration_manager import (
+from dairyos.platform.configuration.services.configuration_manager import (
     ConfigurationManager,
 )
 

@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: GM-001
 Title: DairyOS Documentation Governance Framework
 Version: 1.0

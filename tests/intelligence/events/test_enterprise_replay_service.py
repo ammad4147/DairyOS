@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
+from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
 )
 

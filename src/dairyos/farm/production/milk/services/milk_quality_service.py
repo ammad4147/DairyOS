@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from dairyos.farm.production.milk.models.milk_quality_record import (
     MilkQualityRecord,

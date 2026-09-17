@@ -1,1 +1,1 @@
-﻿"""Observability domain models."""
+"""Observability domain models."""

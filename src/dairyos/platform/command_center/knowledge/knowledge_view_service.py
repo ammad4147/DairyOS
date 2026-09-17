@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.knowledge.knowledge_summary import (
+from dairyos.platform.command_center.knowledge.knowledge_summary import (
     KnowledgeSummary,
 )
 

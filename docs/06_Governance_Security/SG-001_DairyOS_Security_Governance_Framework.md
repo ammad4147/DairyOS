@@ -1,4 +1,4 @@
-﻿# SG-001 — DairyOS Security Governance Framework
+# SG-001 — DairyOS Security Governance Framework
 
 **Document ID:** SG-001
 **Version:** 1.0

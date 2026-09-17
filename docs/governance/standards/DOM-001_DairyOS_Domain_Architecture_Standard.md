@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: DOM-001
 Title: DairyOS Domain Architecture Standard
 Version: 1.0

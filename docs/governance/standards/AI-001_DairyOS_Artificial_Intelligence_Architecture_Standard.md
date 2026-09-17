@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: AI-001
 Title: DairyOS Artificial Intelligence Architecture Standard
 Version: 1.0

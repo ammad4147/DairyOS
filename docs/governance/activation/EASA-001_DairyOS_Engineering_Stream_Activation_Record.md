@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: EASA-001
 Title: DairyOS Engineering Stream Activation Record
 Version: 1.0

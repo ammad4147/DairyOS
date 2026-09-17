@@ -1,4 +1,4 @@
-﻿# BA-009 — DairyOS Milk Production Functional Architecture
+# BA-009 — DairyOS Milk Production Functional Architecture
 
 **Document ID:** BA-009
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# TA-009 — DairyOS Deployment Architecture
+# TA-009 — DairyOS Deployment Architecture
 
 **Document ID:** TA-009
 **Version:** 1.0

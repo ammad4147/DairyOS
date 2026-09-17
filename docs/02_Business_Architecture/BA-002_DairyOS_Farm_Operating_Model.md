@@ -1,4 +1,4 @@
-﻿# BA-002 — DairyOS Farm Operating Model
+# BA-002 — DairyOS Farm Operating Model
 
 **Document ID:** BA-002  
 **Version:** 1.0  

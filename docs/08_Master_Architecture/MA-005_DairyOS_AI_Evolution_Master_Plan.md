@@ -1,4 +1,4 @@
-﻿# MA-005 — DairyOS AI Evolution Master Plan
+# MA-005 — DairyOS AI Evolution Master Plan
 
 **Document ID:** MA-005
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: ARCH-001
 Title: DairyOS Architecture Standard
 Version: 1.0

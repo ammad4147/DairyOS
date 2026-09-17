@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.knowledge.knowledge_view_service import (
+from dairyos.platform.command_center.knowledge.knowledge_view_service import (
     KnowledgeViewService,
 )
 

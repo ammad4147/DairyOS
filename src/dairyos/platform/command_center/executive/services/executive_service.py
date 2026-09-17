@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.executive.models.executive_summary import (
+from dairyos.platform.command_center.executive.models.executive_summary import (
     ExecutiveSummary,
 )
 

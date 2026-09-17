@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.models.operational_summary import (
+from dairyos.platform.command_center.models.operational_summary import (
     OperationalSummary,
 )
 

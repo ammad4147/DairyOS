@@ -1,4 +1,4 @@
-﻿# SG-007 — DairyOS Compliance & Regulatory Governance Framework
+# SG-007 — DairyOS Compliance & Regulatory Governance Framework
 
 **Document ID:** SG-007
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# EA-010 — DairyOS Security Architecture Reference Model
+# EA-010 — DairyOS Security Architecture Reference Model
 
 **Document ID:** EA-010  
 **Document Type:** Enterprise Architecture Reference Model  

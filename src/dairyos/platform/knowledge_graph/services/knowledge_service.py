@@ -1,4 +1,4 @@
-﻿from dairyos.platform.knowledge_graph.graph.knowledge_graph import (
+from dairyos.platform.knowledge_graph.graph.knowledge_graph import (
     KnowledgeGraph,
 )
 

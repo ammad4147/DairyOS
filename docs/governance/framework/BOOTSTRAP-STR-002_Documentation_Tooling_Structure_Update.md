@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: BOOTSTRAP-STR-002
 Title: Documentation Tooling Structure Update
 Version: 1.0

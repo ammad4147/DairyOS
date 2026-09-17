@@ -1,1 +1,1 @@
-﻿"""DairyOS Enterprise Workflow Platform."""
+"""DairyOS Enterprise Workflow Platform."""

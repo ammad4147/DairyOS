@@ -1,4 +1,4 @@
-﻿class WorkflowConnector:
+class WorkflowConnector:
     """
     Enterprise workflow integration boundary.
     """

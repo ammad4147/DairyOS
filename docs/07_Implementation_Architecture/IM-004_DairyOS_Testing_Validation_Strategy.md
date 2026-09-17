@@ -1,4 +1,4 @@
-﻿# IM-004 — DairyOS Testing & Validation Strategy
+# IM-004 — DairyOS Testing & Validation Strategy
 
 **Document ID:** IM-004
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# TA-006 — DairyOS Infrastructure Architecture
+# TA-006 — DairyOS Infrastructure Architecture
 
 **Document ID:** TA-006
 **Version:** 1.0

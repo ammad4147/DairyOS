@@ -1,4 +1,4 @@
-﻿# MA-002 — DairyOS System Architecture Map
+# MA-002 — DairyOS System Architecture Map
 
 **Document ID:** MA-002
 **Version:** 1.0

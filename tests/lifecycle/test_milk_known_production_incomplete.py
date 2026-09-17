@@ -1,4 +1,4 @@
-﻿from dairyos.farm.production.services.milk_reconciliation_service import (
+from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
 )
 

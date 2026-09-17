@@ -1,1 +1,1 @@
-﻿"""Scheduler domain models."""
+"""Scheduler domain models."""

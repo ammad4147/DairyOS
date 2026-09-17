@@ -1,4 +1,4 @@
-﻿# MA-006 — DairyOS Final Architecture Governance Charter
+# MA-006 — DairyOS Final Architecture Governance Charter
 
 **Document ID:** MA-006
 **Version:** 1.0

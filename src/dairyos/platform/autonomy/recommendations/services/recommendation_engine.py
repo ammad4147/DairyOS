@@ -1,4 +1,4 @@
-﻿from dairyos.platform.autonomy.recommendations.models.recommendation import (
+from dairyos.platform.autonomy.recommendations.models.recommendation import (
     Recommendation,
 )
 

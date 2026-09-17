@@ -1,3 +1,3 @@
-﻿"""Operational input services package."""
+"""Operational input services package."""
 
 __all__ = []

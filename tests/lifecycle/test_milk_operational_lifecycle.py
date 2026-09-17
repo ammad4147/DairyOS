@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Milk operational lifecycle certification.
 
 The test intentionally derives all expected values independently from the

@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.events.models.enterprise_event import (
+from dairyos.intelligence.events.models.enterprise_event import (
     EnterpriseEvent,
 )
 

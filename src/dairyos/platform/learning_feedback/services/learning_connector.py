@@ -1,4 +1,4 @@
-﻿class LearningConnector:
+class LearningConnector:
     """
     Sends operational feedback into intelligence learning systems.
     """

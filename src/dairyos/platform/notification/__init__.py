@@ -1,1 +1,1 @@
-﻿"""DairyOS Enterprise Notification Platform."""
+"""DairyOS Enterprise Notification Platform."""

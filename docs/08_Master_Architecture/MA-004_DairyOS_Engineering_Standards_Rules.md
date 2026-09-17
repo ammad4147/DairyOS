@@ -1,4 +1,4 @@
-﻿# MA-004 — DairyOS Engineering Standards & Rules
+# MA-004 — DairyOS Engineering Standards & Rules
 
 **Document ID:** MA-004
 **Version:** 1.0

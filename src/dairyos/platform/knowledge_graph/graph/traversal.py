@@ -1,4 +1,4 @@
-﻿class GraphTraversal:
+class GraphTraversal:
 
 
     def __init__(self, store):

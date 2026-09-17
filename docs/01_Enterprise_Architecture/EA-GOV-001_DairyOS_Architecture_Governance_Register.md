@@ -1,4 +1,4 @@
-﻿# EA-GOV-001 — DairyOS Architecture Governance Register
+# EA-GOV-001 — DairyOS Architecture Governance Register
 
 **Document ID:** EA-GOV-001  
 **Version:** 1.0  

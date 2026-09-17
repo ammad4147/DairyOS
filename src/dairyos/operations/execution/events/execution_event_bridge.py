@@ -1,4 +1,4 @@
-﻿from dairyos.platform.events.models.operational_event import (
+from dairyos.platform.events.models.operational_event import (
     OperationalEvent,
 )
 

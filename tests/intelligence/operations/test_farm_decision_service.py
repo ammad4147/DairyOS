@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.services.farm_situation_service import (
+from dairyos.intelligence.operations.services.farm_situation_service import (
     FarmSituationService,
 )
 

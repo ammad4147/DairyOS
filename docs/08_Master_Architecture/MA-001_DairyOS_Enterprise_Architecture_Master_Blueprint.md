@@ -1,4 +1,4 @@
-﻿# MA-001 — DairyOS Enterprise Architecture Master Blueprint
+# MA-001 — DairyOS Enterprise Architecture Master Blueprint
 
 **Document ID:** MA-001
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿# AA-009 — DairyOS Financial Management Application Design
+# AA-009 — DairyOS Financial Management Application Design
 
 **Document ID:** AA-009
 **Version:** 1.0

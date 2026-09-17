@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.models.validation_result import (
+from dairyos.farm.inputs.models.validation_result import (
     OperationalInputValidationResult,
 )
 

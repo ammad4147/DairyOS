@@ -1,4 +1,4 @@
-﻿# SG-002 — DairyOS Identity & Access Management Architecture
+# SG-002 — DairyOS Identity & Access Management Architecture
 
 **Document ID:** SG-002
 **Version:** 1.0

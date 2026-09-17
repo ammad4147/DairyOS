@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from ..database.models.operational_event_model import (
     OperationalEventModel,

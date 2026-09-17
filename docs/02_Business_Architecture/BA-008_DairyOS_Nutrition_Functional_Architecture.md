@@ -1,4 +1,4 @@
-﻿# BA-008 — DairyOS Nutrition Functional Architecture
+# BA-008 — DairyOS Nutrition Functional Architecture
 
 **Document ID:** BA-008
 **Version:** 1.0

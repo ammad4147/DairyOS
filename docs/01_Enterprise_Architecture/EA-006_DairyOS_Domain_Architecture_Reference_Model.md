@@ -1,4 +1,4 @@
-﻿# EA-006 — DairyOS Domain Architecture Reference Model
+# EA-006 — DairyOS Domain Architecture Reference Model
 
 **Document ID:** EA-006  
 **Document Type:** Enterprise Domain Architecture Reference Model  

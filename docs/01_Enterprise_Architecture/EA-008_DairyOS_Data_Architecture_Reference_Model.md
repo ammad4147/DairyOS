@@ -1,4 +1,4 @@
-﻿# EA-008 — DairyOS Data Architecture Reference Model
+# EA-008 — DairyOS Data Architecture Reference Model
 
 **Document ID:** EA-008  
 **Document Type:** Enterprise Architecture Reference Model  

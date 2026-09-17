@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: EDI-001
 Title: Enterprise Documentation Index Framework
 Version: 1.0

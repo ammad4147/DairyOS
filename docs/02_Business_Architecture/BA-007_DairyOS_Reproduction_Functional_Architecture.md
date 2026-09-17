@@ -1,4 +1,4 @@
-﻿# BA-007 — DairyOS Reproduction Functional Architecture
+# BA-007 — DairyOS Reproduction Functional Architecture
 
 **Document ID:** BA-007
 **Version:** 1.0

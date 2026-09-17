@@ -1,4 +1,4 @@
-﻿from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 
 from dairyos.farm.operations.models.breeding_record import (
     BreedingRecord,

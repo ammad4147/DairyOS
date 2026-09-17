@@ -1,4 +1,4 @@
-﻿# DA-008 — DairyOS Milk Production Data Model Architecture
+# DA-008 — DairyOS Milk Production Data Model Architecture
 
 **Document ID:** DA-008
 **Version:** 1.0

@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: CM-001
 Title: DairyOS Configuration Management Standard
 Version: 1.0

@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Decision Explainability Service
 
 Creates deterministic explanations

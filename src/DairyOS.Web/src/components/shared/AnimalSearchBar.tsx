@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useAnimalContext } from '../../context/AnimalContext';
 
 export default function AnimalSearchBar() {

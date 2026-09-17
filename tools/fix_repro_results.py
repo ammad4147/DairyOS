@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from dairyos.data.database.session import engine
 from sqlalchemy import text
 

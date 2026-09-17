@@ -1,1 +1,1 @@
-﻿"""Notification domain models."""
+"""Notification domain models."""

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.autonomy.governance.models.safety_check import (
+from dairyos.platform.autonomy.governance.models.safety_check import (
     SafetyCheck,
 )
 

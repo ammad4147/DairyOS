@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.integration.autonomous_feedback_bridge import (
+from dairyos.intelligence.integration.autonomous_feedback_bridge import (
     AutonomousFeedbackBridge,
 )
 

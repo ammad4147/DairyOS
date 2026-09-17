@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Lifecycle Trace Service
 
 Provides high-level intelligence lifecycle

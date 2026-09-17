@@ -1,4 +1,4 @@
-﻿from dairyos.farm.herd.models.animal import (
+from dairyos.farm.herd.models.animal import (
     Animal,
 )
 

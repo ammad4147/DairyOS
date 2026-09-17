@@ -1,4 +1,4 @@
-﻿# DA-005 — DairyOS Health Data Model Architecture
+# DA-005 — DairyOS Health Data Model Architecture
 
 **Document ID:** DA-005
 **Version:** 1.0

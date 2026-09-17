@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Autonomous Feedback Bridge
 
 Connects autonomous intelligence execution

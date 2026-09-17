@@ -1,4 +1,4 @@
-﻿# EA-016 — DairyOS Documentation Architecture Reference Model
+# EA-016 — DairyOS Documentation Architecture Reference Model
 
 **Document ID:** EA-016  
 **Document Type:** Enterprise Architecture Reference Model  

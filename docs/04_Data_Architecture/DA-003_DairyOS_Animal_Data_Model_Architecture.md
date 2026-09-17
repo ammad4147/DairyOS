@@ -1,4 +1,4 @@
-﻿# DA-003 — DairyOS Animal Data Model Architecture
+# DA-003 — DairyOS Animal Data Model Architecture
 
 **Document ID:** DA-003
 **Version:** 1.0

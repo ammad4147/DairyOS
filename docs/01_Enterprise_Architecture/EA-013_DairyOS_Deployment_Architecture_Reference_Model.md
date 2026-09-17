@@ -1,4 +1,4 @@
-﻿# EA-013 — DairyOS Deployment Architecture Reference Model
+# EA-013 — DairyOS Deployment Architecture Reference Model
 
 **Document ID:** EA-013  
 **Document Type:** Enterprise Architecture Reference Model  

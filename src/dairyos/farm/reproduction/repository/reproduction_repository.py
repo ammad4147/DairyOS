@@ -1,4 +1,4 @@
-﻿class ReproductionRepository:
+class ReproductionRepository:
     """
     Temporary reproduction storage.
     """

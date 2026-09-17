@@ -1,4 +1,4 @@
-﻿from dairyos.platform.workflow.models.workflow_definition import WorkflowDefinition
+from dairyos.platform.workflow.models.workflow_definition import WorkflowDefinition
 from dairyos.platform.workflow.models.workflow_instance import WorkflowInstance
 from dairyos.platform.workflow.models.workflow_status import WorkflowStatus
 

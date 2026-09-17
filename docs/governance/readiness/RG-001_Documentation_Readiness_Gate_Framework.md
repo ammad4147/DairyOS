@@ -1,4 +1,4 @@
-﻿---
+---
 DocumentID: RG-001
 Title: Documentation Readiness Gate Framework
 Version: 1.0

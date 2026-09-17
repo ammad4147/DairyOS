@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Autonomous Replay Service
 
 Provides deterministic replay inspection

@@ -1,4 +1,4 @@
-﻿class CommandAPIService:
+class CommandAPIService:
     """
     API facade for command center services.
     """

@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Enterprise Event Query Service
 
 Read boundary for enterprise event history.

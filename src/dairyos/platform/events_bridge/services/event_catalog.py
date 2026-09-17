@@ -1,4 +1,4 @@
-﻿from dairyos.platform.events_bridge.models.domain_event_mapping import (
+from dairyos.platform.events_bridge.models.domain_event_mapping import (
     DomainEventMapping,
 )
 

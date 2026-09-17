@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.learning.models.learning_feedback import (
+from dairyos.platform.command_center.learning.models.learning_feedback import (
     LearningFeedback,
 )
 

@@ -1,4 +1,4 @@
-﻿from dairyos.repositories.milk_repository import MilkRepository
+from dairyos.repositories.milk_repository import MilkRepository
 
 
 

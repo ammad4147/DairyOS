@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 p = Path("src/dairyos/api/reproduction_management.py")
 lines = p.read_text(encoding="utf-8").splitlines()

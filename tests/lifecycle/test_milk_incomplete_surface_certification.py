@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 
 from tests.lifecycle.test_milk_operational_lifecycle import (
     _ledger,

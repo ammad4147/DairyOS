@@ -1,4 +1,4 @@
-﻿class InputQueryService:
+class InputQueryService:
     """
     Read service for operational input history.
     """

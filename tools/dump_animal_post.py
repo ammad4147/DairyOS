@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 # Let's inspect src/dairyos/api/farm_animals.py or wherever animal creation is handled
 for p in Path("src/dairyos").rglob("*.py"):

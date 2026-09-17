@@ -1,4 +1,4 @@
-﻿class InputCommandProjectionService:
+class InputCommandProjectionService:
     """
     Provides command-layer projection
     of operational input intelligence.

@@ -1,4 +1,4 @@
-﻿from dairyos.platform.autonomy.audit.models.autonomy_audit_event import (
+from dairyos.platform.autonomy.audit.models.autonomy_audit_event import (
     AutonomyAuditEvent,
 )
 

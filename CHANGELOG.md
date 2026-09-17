@@ -1,4 +1,4 @@
-﻿# DairyOS Change Log
+# DairyOS Change Log
 
 ## Repository Initialization
 

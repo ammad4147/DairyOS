@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.models.farm_situation import (
+from dairyos.intelligence.operations.models.farm_situation import (
     FarmSituation,
 )
 

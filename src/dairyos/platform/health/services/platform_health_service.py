@@ -1,4 +1,4 @@
-﻿from dairyos.platform.health.models.component_health import (
+from dairyos.platform.health.models.component_health import (
     ComponentHealth,
 )
 

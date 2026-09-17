@@ -1,4 +1,4 @@
-﻿from dairyos.farm.inputs.models.input_command import (
+from dairyos.farm.inputs.models.input_command import (
     OperationalInputCommand,
 )
 

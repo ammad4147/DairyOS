@@ -1,4 +1,4 @@
-﻿from dairyos.platform.tenant_admin.models.tenant import Tenant
+from dairyos.platform.tenant_admin.models.tenant import Tenant
 
 
 

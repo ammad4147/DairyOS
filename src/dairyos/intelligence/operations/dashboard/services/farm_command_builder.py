@@ -1,4 +1,4 @@
-﻿from dairyos.intelligence.operations.dashboard.models.farm_command_view import (
+from dairyos.intelligence.operations.dashboard.models.farm_command_view import (
     FarmCommandView,
 )
 

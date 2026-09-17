@@ -1,4 +1,4 @@
-﻿from dairyos.platform.command_center.alerts.models.command_alert import (
+from dairyos.platform.command_center.alerts.models.command_alert import (
     CommandAlert,
 )
 

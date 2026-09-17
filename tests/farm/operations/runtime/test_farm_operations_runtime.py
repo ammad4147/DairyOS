@@ -1,4 +1,4 @@
-﻿from dairyos.farm.operations.runtime import (
+from dairyos.farm.operations.runtime import (
     FarmOperationsRuntime,
 )
 

@@ -1,4 +1,4 @@
-﻿"""
+"""
 DairyOS Autonomous Audit Bridge
 
 Connects autonomous intelligence runtime

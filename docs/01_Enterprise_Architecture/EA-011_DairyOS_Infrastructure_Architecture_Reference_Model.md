@@ -1,4 +1,4 @@
-﻿# EA-011 — DairyOS Infrastructure Architecture Reference Model
+# EA-011 — DairyOS Infrastructure Architecture Reference Model
 
 **Document ID:** EA-011  
 **Document Type:** Enterprise Architecture Reference Model  

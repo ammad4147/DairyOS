@@ -1,1 +1,1 @@
-﻿"""DairyOS Enterprise Observability Platform."""
+"""DairyOS Enterprise Observability Platform."""

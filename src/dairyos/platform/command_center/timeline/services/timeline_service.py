@@ -1,4 +1,4 @@
-﻿class TimelineService:
+class TimelineService:
     """
     Command Center operational timeline.
     """

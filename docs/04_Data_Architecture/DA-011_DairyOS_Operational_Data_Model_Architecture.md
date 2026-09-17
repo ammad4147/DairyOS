@@ -1,4 +1,4 @@
-﻿# DA-011 — DairyOS Operational Data Model Architecture
+# DA-011 — DairyOS Operational Data Model Architecture
 
 **Document ID:** DA-011
 **Version:** 1.0
