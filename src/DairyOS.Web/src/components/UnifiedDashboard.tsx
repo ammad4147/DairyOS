@@ -201,7 +201,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
 
   const openPassportHandler = (tag: string) => onOpenPassport ? onOpenPassport(tag) : setPassportTag(tag);
 
-  const handleOpenDropComparison = (animalId: string) => {
+  const handleOpenDropComparison = (animalId: string, fallbackAlert?: any) => {
     const alert = alerts.find(
       item =>
         item.source === 'MILK_DROP' &&
@@ -209,9 +209,10 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         item.status !== 'RESOLVED'
     );
 
-    if (alert) {
-      setSelectedDropAlert(alert);
-      setSelectedDropAlertId(alert.id);
+    const triageAlert = alert || fallbackAlert;
+    if (triageAlert) {
+      setSelectedDropAlert(triageAlert);
+      setSelectedDropAlertId(triageAlert.id || null);
       return;
     }
 
@@ -436,7 +437,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
                   <span style={{color:'#64748b'}}>{index + 1}</span>
                   <button type="button" onClick={() => item.animalId && openPassportHandler(item.animalId)} style={{background:'none',border:0,padding:0,textAlign:'left',color:'#38bdf8',fontWeight:900,cursor:item.animalId?'pointer':'default'}}>#{item.animalId || 'Unavailable'}</button>
                   <span style={{color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:900}}>{item.currentLevel==='RED'?'CRITICAL':'HIGH'}</span>
-                  <button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{background:'none',border:0,padding:0,textAlign:'left',color:'#cbd5e1',cursor:item.animalId?'pointer':'default'}}>{dropLabel}{detailText ? ` — ${detailText}` : ''}</button>
+                  <button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId, item)} style={{background:'none',border:0,padding:0,textAlign:'left',color:'#cbd5e1',cursor:item.animalId?'pointer':'default'}}>{dropLabel}{detailText ? ` — ${detailText}` : ''}</button>
                   <span style={{color:'#94a3b8',fontWeight:800}}>{item.derivedLive?'LIVE':item.status}</span>
                 </div>
               );
@@ -506,7 +507,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(0,.95fr)', gap:8, flex:1, minHeight:0, minWidth:0, overflow:'hidden' }}>
               <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}><span style={graphTitle}><Activity size={12}/> Total Farm Yield Trend</span><select value={chartDays} onChange={e=>setChartDays(Number(e.target.value))} style={selectStyle}><option value={7}>7 Days</option><option value={15}>15 Days</option><option value={30}>30 Days</option></select></div><div style={{flex:1,minHeight:0,height:'100%',position:'relative',overflow:'hidden'}}><ResponsiveContainer width="100%" height="100%"><AreaChart data={filteredYieldTrend} margin={{top:2,right:6,left:0,bottom:0}}><XAxis dataKey="dayIndex" hide/><YAxis allowDecimals={false} stroke="#64748b" tick={{fontSize:8}} width={24} domain={['auto','auto']}/><Tooltip contentStyle={{backgroundColor:'#0f172a',borderColor:'#334155',fontSize:'10px'}} labelFormatter={(_, payload) => {const point = payload?.[0]?.payload as any; return point?.date || '';}} formatter={(value) => [value===null||value===undefined?'No milk entered':`${Number(value).toFixed(1)} L`,'Milk']}/><Area type="monotone" dataKey="yield" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="rgba(56,189,248,.18)" isAnimationActive={false} connectNulls={false}/></AreaChart></ResponsiveContainer></div></div>
-              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span onClick={() => setExpandedMilkList('YIELD_DROP')} title="Open complete Yield Drop Watchlist" style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4,cursor:'pointer',textDecoration:'underline'}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',fontSize:10}}><button type="button" onClick={() => item.animalId && openPassportHandler(item.animalId)} style={{background:'none',border:0,padding:0,color:'#38bdf8',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>#{item.animalId || 'Animal ID unavailable'}</button><button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId)} style={{background:'none',border:0,padding:0,color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>{(() => {const directPct=item.dropPercent??item.drop_percent;const detailText=String(item.details??item.detail??'');const detailMatch=detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);const pct=directPct!==undefined&&directPct!==null?Math.abs(Number(directPct)):detailMatch?Math.abs(Number(detailMatch[1])):null;return pct!==null&&Number.isFinite(pct)?`${pct.toFixed(1)}% Drop`:'Yield Drop';})()}</button></div>)}</div></div>
+              <div style={panel}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6}}><span onClick={() => setExpandedMilkList('YIELD_DROP')} title="Open complete Yield Drop Watchlist" style={{fontSize:10,fontWeight:800,color:'#f87171',display:'flex',alignItems:'center',gap:4,cursor:'pointer',textDecoration:'underline'}}><AlertTriangle size={11}/> Yield Drop Watchlist ({activeDropAlerts.length})</span><span style={{fontSize:9,color:'#94a3b8'}}>Click title for full list</span></div><div style={{flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>{activeDropAlerts.length===0 ? <div style={{fontSize:10,color:'#34d399',textAlign:'center',padding:12}}>✓ No active yield drop warnings</div> : activeDropAlerts.map((item:any)=><div key={item.id} style={{background:'#161f30',borderLeft:item.currentLevel==='RED'?'3px solid #ef4444':'3px solid #facc15',padding:'5px 8px',borderRadius:4,display:'flex',justifyContent:'space-between',fontSize:10}}><button type="button" onClick={() => item.animalId && openPassportHandler(item.animalId)} style={{background:'none',border:0,padding:0,color:'#38bdf8',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>#{item.animalId || 'Animal ID unavailable'}</button><button type="button" onClick={() => item.animalId && handleOpenDropComparison(item.animalId, item)} style={{background:'none',border:0,padding:0,color:item.currentLevel==='RED'?'#ef4444':'#facc15',fontWeight:700,cursor:item.animalId?'pointer':'default'}}>{(() => {const directPct=item.dropPercent??item.drop_percent;const detailText=String(item.details??item.detail??'');const detailMatch=detailText.match(/(-?\d+(?:\.\d+)?)%\s*(?:decline|drop)/i);const pct=directPct!==undefined&&directPct!==null?Math.abs(Number(directPct)):detailMatch?Math.abs(Number(detailMatch[1])):null;return pct!==null&&Number.isFinite(pct)?`${pct.toFixed(1)}% Drop`:'Yield Drop';})()}</button></div>)}</div></div>
             </div>
           </div>
           <div style={{ flex:'1 1 0', display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(220px,.7fr)', gap:10, minHeight:0, minWidth:0 }}>
@@ -518,7 +519,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           <div className="cmd-card" role="button" tabIndex={0} aria-label="Open Production Extremes" onClick={()=>setExpandedMilkList('PRODUCTION_EXTREMES')} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setExpandedMilkList('PRODUCTION_EXTREMES')}}} style={{flex:'0.9 1 0',...cardBase,cursor:'pointer'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:6,minWidth:0}}>
               <span onClick={() => setExpandedMilkList('PRODUCTION_EXTREMES')} title="Open complete Production Extremes" style={{display:'flex',alignItems:'center',gap:6,color:'#34d399',fontWeight:800,fontSize:12,cursor:'pointer',textDecoration:'underline',minWidth:0}}><Sparkles size={15}/> Production Extremes</span>
-              <select value={Math.min(extremesCount, Math.max(maximumExtremePopulation, 1))} onChange={e=>setExtremesCount(Number(e.target.value))} disabled={maximumExtremePopulation===0} style={selectStyle}>{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>
+              <select value={Math.min(extremesCount, Math.max(maximumExtremePopulation, 1))} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setExtremesCount(Number(e.target.value))}} disabled={maximumExtremePopulation===0} style={selectStyle}>{extremesOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>
             </div>
             <CohortTabs selected={extremeCohort} onChange={setExtremeCohort} compact />
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flex:1,minHeight:0,overflowY:'auto',marginTop:4}}><ExtremeList title="Highest" rows={displayedTop} color="#34d399" onOpen={openPassportHandler}/><ExtremeList title="Lowest" rows={displayedBottom} color="#f87171" onOpen={openPassportHandler}/></div>
