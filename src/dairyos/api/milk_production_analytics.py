@@ -392,6 +392,18 @@ def record_milk_sale_receipt(sale_id: str, payload: MilkReceiptRequest, containe
         raise HTTPException(status_code=404, detail=f"Unknown milk sale {sale_id}.")
     if str(disposition.disposition_type).upper() != "SOLD":
         raise HTTPException(status_code=422, detail="Only SOLD milk dispositions can receive payment.")
+    if str(sale_id).strip().upper().startswith("FIN-"):
+        # A Finance-originated sale already has its revenue in the primary
+        # INCOME transaction. A RECEIPT posting is classified as revenue too,
+        # so accepting one here would count the same money twice and leave
+        # the Milk record settled while Finance still shows RECEIVABLE.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This milk sale was recorded in Finance. Settle it by marking the "
+                "Finance transaction Received; a separate receipt would count the sale twice."
+            ),
+        )
 
     outstanding = Decimal(disposition.receivable_outstanding)
     tolerance = Decimal("0.01")
