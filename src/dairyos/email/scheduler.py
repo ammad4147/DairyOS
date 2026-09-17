@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, time, timezone, tzinfo
+from datetime import date, datetime, time, timedelta, timezone, tzinfo
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -100,11 +100,25 @@ class NightlyEmailScheduler:
             if not deployed:
                 continue
             now = datetime.now(zone)
-            if now.hour == 23 and now.minute == 0:
-                slot = now.date().isoformat()
-                if slot != self._last_attempted_slot:
-                    self._last_attempted_slot = slot
-                    self._send(now.date())
+            digest_date = self._due_digest_date(now)
+            if digest_date is None:
+                continue
+            slot = digest_date.isoformat()
+            if slot != self._last_attempted_slot:
+                self._last_attempted_slot = slot
+                self._send(digest_date)
+
+    @staticmethod
+    def _due_digest_date(now: datetime) -> date | None:
+        """Return the latest nightly slot that is due in farm-local time.
+
+        The scheduler may wake at any point after 23:00; requiring an exact
+        minute makes delivery depend on thread/process timing.  The persisted
+        EmailDigestRun digest_date remains the idempotency boundary.
+        """
+        if now.time() >= time(23, 0):
+            return now.date()
+        return now.date() - timedelta(days=1)
 
     def _run_catch_up(self, previous: datetime | None, current: datetime) -> None:
         zone = self._zone()
