@@ -40,11 +40,15 @@ class FinanceRevenueLedgerQuantityContractTest(unittest.TestCase):
         self.assertNotIn("dairyos-ledger-print-surface", self.source)
 
     def test_settings_reporting_owns_finance_outputs(self):
-        self.assertIn("Transaction Ledger", self.reporting)
-        self.assertIn("Income and Expense Summary", self.reporting)
-        self.assertIn("Finance", self.reporting)
-        self.assertIn("Save {format}", self.reporting)
-        self.assertIn("Print", self.reporting)
+        # Finance outputs live in Settings -> Reporting. The report titles come
+        # from the backend catalogue, the screen provides Print and exports.
+        from dairyos.reporting.registry import REPORTS
+        titles = {d.title for d in REPORTS if d.area == "finance"}
+        self.assertIn("Transaction Ledger", titles)
+        self.assertIn("Revenue & Expense Reconciliation", titles)
+        self.assertIn("/farm/reports/export", self.reporting)
+        for control in ("Print", "PDF", "Excel", "CSV"):
+            self.assertIn(control, self.reporting)
 
     def test_milk_sales_display_quantity_as_litres(self):
         self.assertIn("const ledgerQuantityValue =", self.source)
@@ -66,10 +70,7 @@ class FinanceRevenueLedgerQuantityContractTest(unittest.TestCase):
 
     def test_finance_reporting_prints_through_isolated_pdf_not_native_webview(self):
         self.assertIn("const printReport = async () =>", self.reporting)
-        self.assertIn("const data = await loadDataset()", self.reporting)
-        self.assertNotIn("const data = preview || await loadDataset()", self.reporting)
-        self.assertIn("await downloadExport('PDF', '-Print')", self.reporting)
-        self.assertIn("Print-ready PDF saved.", self.reporting)
+        self.assertIn("await exportReport('PDF')", self.reporting)
         self.assertNotIn("document.createElement('iframe')", self.reporting)
         self.assertNotIn("printWindow.print()", self.reporting)
         self.assertNotIn("window.print()", self.reporting)

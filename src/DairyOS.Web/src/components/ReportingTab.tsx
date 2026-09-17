@@ -1,168 +1,316 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ChevronDown, ChevronUp, Columns3, FileSpreadsheet, FileText, Printer, RefreshCw, Table2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
+import './Reporting.css';
 
-type DomainKey = 'ANIMALS'|'MILK'|'MILK_QUALITY'|'FEED'|'FINANCE'|'BREEDING'|'HEALTH'|'VACCINATION'|'COML'|'WHOLE_FARM';
-type Format = 'PDF'|'XLSX'|'CSV';
-type PeriodMode = 'TODAY'|'YESTERDAY'|'OPERATIONAL_DATE'|'CURRENT_HERD'|'AS_OF_DATE'|'DATE_RANGE'|'MONTH'|'CUSTOM_PERIOD'|'CURRENT_YEAR'|'SNAPSHOT_DATE';
-type Report = { id:string; domain:DomainKey; name:string; authority:string; period_modes:PeriodMode[]; filters:string[]; scope_note:string; required_permissions:string[]; historical_capability:string };
-type Preview = { report_id:string; title:string; generated_at:string; period:Record<string,unknown>; filters:Record<string,unknown>; dataset_status:string; columns:string[]; rows:Record<string,unknown>[]; record_count:number; summary:Record<string,unknown> };
+/* Reporting workspace: Area -> Report -> Parameters -> Generate -> Analyse -> Export / Print.
+   Every figure, column, filter and total comes from the /farm/reports API. Nothing is calculated here. */
 
-const domainLabels: Record<DomainKey,string> = { ANIMALS:'Animals', MILK:'Milk', MILK_QUALITY:'Milk Quality', FEED:'Feed / TMR', FINANCE:'Finance', BREEDING:'Breeding', HEALTH:'Health', VACCINATION:'Vaccination', COML:'COML / COP', WHOLE_FARM:'Whole Farm' };
-const domains = Object.keys(domainLabels) as DomainKey[];
-const reportingContractNames = ['Transaction Ledger', 'Income and Expense Summary', 'Milk Quality Log'];
-void reportingContractNames;
-const columnLabels: Record<string,string> = {
-  animal_id:'Animal ID', ear_tag:'Ear Tag', rfid:'RFID', date_of_birth:'Date of Birth', date_of_acquisition:'Date of Acquisition', dam_id:'Dam ID', sire_id:'Sire ID', lifecycle_status:'Lifecycle Status', is_currently_milking:'Currently Milking', milking_frequency:'Milking Frequency',
-  production_date:'Date', operational_date:'Date', event_date:'Event Date', recorded_at:'Recorded At', sample_date:'Sample Date', herd_total_label:'Herd Group', total_yield:'Total Milk (L)', morning_yield:'Morning (L)', afternoon_yield:'Afternoon (L)', evening_yield:'Evening (L)', batch_id:'Batch ID', feed_source_lot:'Feed Lot Reference', breed_code:'Breed Code', production_phase_dim:'Production Phase (DIM)', somatic_cell_count:'SCC (cells/mL)', antibiotic_residue_status:'Antibiotic Status', cooling_chain_break:'Cooling Chain Break', adulteration_test_result:'Adulteration Test', iso_17025_ref:'ISO 17025 Reference', analyst_id:'Analyst ID', retention_until:'Retention Until',
-  selected_session:'Milking Session', selected_session_yield:'Session Milk (L)', quantity_liters:'Quantity (L)', amount:'Amount (PKR)', feed_cost:'Feed Cost (PKR)', total_herd_feed_cost_per_day:'Daily Herd Feed Cost (PKR)', feed_cost_per_litre_today:'Feed Cost / Litre (PKR)', cost_per_head_day:'Cost / Head / Day (PKR)', price_per_kg:'Price / kg (PKR)', record_id:'Record ID', report_id:'Report', record_count:'Records',
-};
-const humanize = (value:string):string => value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bId\b/g, 'ID').replace(/\bRfid\b/g, 'RFID').replace(/\bComl\b/g, 'COML').replace(/\bCop\b/g, 'COP').replace(/\bTmr\b/g, 'TMR');
-const labelFor = (value:string):string => columnLabels[value] || humanize(value);
-const displayValue = (value:unknown):string => {
-  if (value === null || value === undefined || value === '') return '—';
+type ColumnType = 'text' | 'integer' | 'number' | 'litres' | 'kg' | 'money' | 'rate' | 'percent' | 'date' | 'datetime' | 'status' | 'days';
+type Column = { key: string; label: string; type: ColumnType; group: string; tier: 'default' | 'optional' | 'advanced'; total: boolean };
+type Option = { value: string; label: string };
+type FilterDef = { key: string; label: string; kind: 'select' | 'text' | 'animal' | 'toggle'; options: Option[]; options_source: string | null; required: boolean; default: string | boolean | null; help: string | null };
+type ReportDef = { id: string; area: string; title: string; purpose: string; authority: string; period: 'none' | 'as_of' | 'range'; default_period: string; filters: FilterDef[]; columns: Column[]; basis: string };
+type Area = { id: string; title: string; description: string; reports: ReportDef[] };
+type Catalog = { operational_today: string; period_modes: Option[]; quarters: { value: number; label: string }[]; option_sources: Record<string, Option[]>; export_formats: string[]; areas: Area[] };
+type Drill = { report_id: string; label: string; filters: Record<string, string>; period?: PeriodSpec };
+type Row = Record<string, unknown> & { _drill?: Drill; _emphasis?: string };
+type Paging = { page: number; page_size: number; pages: number; total_rows: number; sort_key: string | null; sort_dir: 'asc' | 'desc' | null };
+type Section = { id: string; title: string; note: string | null; primary: boolean; columns: Column[]; rows: Row[]; totals: (Record<string, unknown> & { _label?: string }) | null; row_count: number; paging: Paging | null; empty_message: string | null };
+type Metric = { key: string; label: string; value: unknown; type: ColumnType; hint: string | null };
+type Control = { check: string; expected: unknown; actual: unknown; difference: unknown; type: ColumnType; status: string };
+type Result = { report: { id: string; title: string; purpose: string; authority: string }; period: { label: string }; generated_at: string; filters_applied: { label: string; value: string }[]; summary: Metric[]; sections: Section[]; notes: string[]; reconciliation: Control[] };
+type PeriodSpec = { mode?: string; year?: number; month?: number; quarter?: number; start_date?: string; end_date?: string; as_of_date?: string };
+type ExportFormat = 'PDF' | 'XLSX' | 'CSV';
+type DesktopWindow = Window & { pywebview?: { api?: { save_reporting_export?: (filename: string, format: ExportFormat, payload: string) => Promise<{ status: 'SAVED' | 'CANCELLED'; bytes?: number }> } } };
+
+const NUMERIC = new Set<ColumnType>(['integer', 'number', 'litres', 'kg', 'money', 'rate', 'percent', 'days']);
+const DECIMALS: Partial<Record<ColumnType, number>> = { integer: 0, days: 0, number: 2, litres: 2, kg: 3, money: 2, rate: 4, percent: 1 };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const SHORT_MONTHS = MONTHS.map(name => name.slice(0, 3));
+const PAGE_SIZE = 100;
+
+export function formatReportValue(value: unknown, type: ColumnType, withCurrency = false): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (type === 'date') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+    return match ? `${match[3]}-${SHORT_MONTHS[Number(match[2]) - 1]}-${match[1]}` : String(value);
+  }
+  if (type === 'datetime') return String(value).replace('T', ' ').slice(0, 16);
+  if (NUMERIC.has(type)) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return String(value);
+    const digits = DECIMALS[type] ?? 2;
+    const text = number.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    if (type === 'money' && withCurrency) return `PKR ${text}`;
+    return type === 'percent' ? `${text}%` : text;
+  }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (Array.isArray(value)) return value.length ? value.map(displayValue).join(', ') : '—';
-  if (typeof value === 'object') return Object.entries(value as Record<string,unknown>).map(([key, item]) => `${labelFor(key)}: ${displayValue(item)}`).join(' · ');
-  const text = String(value); if (/^[A-Z0-9_ -]+$/.test(text) && text.includes('_')) return humanize(text.toLowerCase()); return text;
-};
-const userMessage = async (response:Response, fallback:string):Promise<string> => { try { const payload = await response.json(); const detail = payload?.detail; if (typeof detail === 'string' && detail.trim()) return detail; if (detail && typeof detail.message === 'string' && detail.message.trim()) return detail.message; } catch { /* keep operator-facing fallback */ } return fallback; };
+  return String(value);
+}
 
-type DairyOSDesktopSaveResult = {
-  status: 'SAVED' | 'CANCELLED';
-  path?: string;
-  bytes?: number;
-};
+async function failure(response: Response, fallback: string): Promise<string> {
+  try {
+    const detail = (await response.json())?.detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg);
+  } catch { /* keep the operator-facing fallback */ }
+  return fallback;
+}
 
-type DairyOSDesktopWindow = Window & {
-  pywebview?: {
-    api?: {
-      save_reporting_export?: (
-        filename: string,
-        exportFormat: Format,
-        payload: string,
-      ) => Promise<DairyOSDesktopSaveResult>;
-    };
-  };
-};
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
   let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  return btoa(binary);
+}
 
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)),
+export default function ReportingTab() {
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [areaId, setAreaId] = useState('herd');
+  const [report, setReport] = useState<ReportDef | null>(null);
+  const [period, setPeriod] = useState<PeriodSpec>({});
+  const [filters, setFilters] = useState<Record<string, string | boolean>>({});
+  const [columns, setColumns] = useState<string[] | null>(null);
+  const [showColumns, setShowColumns] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<Result | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    fetch(apiUrl('/farm/reports/catalog'))
+      .then(response => (response.ok ? response.json() : Promise.reject(new Error('The report catalogue is unavailable.'))))
+      .then((data: Catalog) => setCatalog(data))
+      .catch(e => setError(e instanceof Error ? e.message : 'The report catalogue is unavailable.'));
+  }, []);
+
+  const area = useMemo(() => catalog?.areas.find(item => item.id === areaId) ?? catalog?.areas[0] ?? null, [catalog, areaId]);
+  const today = catalog?.operational_today ?? '';
+  const year = Number(today.slice(0, 4)) || new Date().getFullYear();
+  const years = useMemo(() => Array.from({ length: 8 }, (_, index) => year + 1 - index), [year]);
+
+  const body = useCallback((target: ReportDef, spec: PeriodSpec, values: Record<string, string | boolean>, selected: string[] | null,
+    sorting: { key: string; dir: 'asc' | 'desc' } | null, pageNumber: number) => ({
+    report_id: target.id, period: spec,
+    filters: Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '' && value !== null && value !== undefined)),
+    ...(selected ? { columns: selected } : {}),
+    ...(sorting ? { sort_key: sorting.key, sort_dir: sorting.dir } : {}),
+    page: pageNumber, page_size: PAGE_SIZE,
+  }), []);
+
+  const generate = useCallback(async (target: ReportDef, spec: PeriodSpec, values: Record<string, string | boolean>, selected: string[] | null,
+    sorting: { key: string; dir: 'asc' | 'desc' } | null, pageNumber: number) => {
+    const missing = target.filters.find(item => item.required && !String(values[item.key] ?? '').trim());
+    if (missing) { setResult(null); setError(''); setNotice(`Enter ${missing.label} and select Generate.`); return; }
+    if (spec.mode === 'CUSTOM' && (!spec.start_date || !spec.end_date)) { setResult(null); setNotice('Select both From Date and To Date.'); return; }
+    const sequence = ++requestSeq.current;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch(apiUrl('/farm/reports/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body(target, spec, values, selected, sorting, pageNumber)) });
+      if (!response.ok) throw new Error(await failure(response, 'The report could not be generated.'));
+      const data: Result = await response.json();
+      if (sequence === requestSeq.current) setResult(data);
+    } catch (e) {
+      if (sequence === requestSeq.current) { setResult(null); setError(e instanceof Error ? e.message : 'The report could not be generated.'); }
+    } finally { if (sequence === requestSeq.current) setBusy(false); }
+  }, [body]);
+
+  const openReport = useCallback((target: ReportDef, presetFilters: Record<string, string> = {}, presetPeriod?: PeriodSpec) => {
+    const spec: PeriodSpec = presetPeriod ?? (target.period === 'range' ? { mode: target.default_period, year, month: Number(today.slice(5, 7)) || 1, quarter: Math.floor(((Number(today.slice(5, 7)) || 1) - 1) / 3) + 1 }
+      : target.period === 'as_of' ? { as_of_date: today } : {});
+    const values: Record<string, string | boolean> = {};
+    target.filters.forEach(item => { values[item.key] = item.kind === 'toggle' ? Boolean(item.default) : String(item.default ?? ''); });
+    Object.assign(values, presetFilters);
+    setAreaId(target.area); setReport(target); setPeriod(spec); setFilters(values); setColumns(null); setSort(null); setPage(1);
+    setShowColumns(false); setShowAdvanced(false); setResult(null); setError(''); setNotice('');
+    void generate(target, spec, values, null, null, 1);
+  }, [generate, today, year]);
+
+  const rerun = (next: { spec?: PeriodSpec; values?: Record<string, string | boolean>; selected?: string[] | null; sorting?: { key: string; dir: 'asc' | 'desc' } | null; pageNumber?: number } = {}) => {
+    if (!report) return;
+    void generate(report, next.spec ?? period, next.values ?? filters, next.selected === undefined ? columns : next.selected,
+      next.sorting === undefined ? sort : next.sorting, next.pageNumber ?? page);
+  };
+
+  const changePeriod = (patch: PeriodSpec) => { const spec = { ...period, ...patch }; setPeriod(spec); setPage(1); rerun({ spec, pageNumber: 1 }); };
+  const changeFilter = (key: string, value: string | boolean, immediate: boolean) => {
+    const values = { ...filters, [key]: value }; setFilters(values);
+    if (immediate) { setPage(1); rerun({ values, pageNumber: 1 }); }
+  };
+  const changeSort = (key: string) => {
+    const sorting = sort?.key === key && sort.dir === 'asc' ? { key, dir: 'desc' as const } : { key, dir: 'asc' as const };
+    setSort(sorting); setPage(1); rerun({ sorting, pageNumber: 1 });
+  };
+  const changePage = (pageNumber: number) => { setPage(pageNumber); rerun({ pageNumber }); };
+  const activeColumns = columns ?? report?.columns.filter(item => item.tier === 'default').map(item => item.key) ?? [];
+  const toggleColumn = (key: string) => {
+    if (!report) return;
+    const chosen = activeColumns.includes(key) ? activeColumns.filter(item => item !== key) : [...activeColumns, key];
+    if (chosen.length === 0) { setNotice('A report needs at least one column.'); return; }
+    const ordered = report.columns.map(item => item.key).filter(item => chosen.includes(item));
+    setColumns(ordered); rerun({ selected: ordered });
+  };
+  const resetColumns = () => { setColumns(null); rerun({ selected: null }); };
+
+  const drill = (target: Drill) => {
+    const definition = catalog?.areas.flatMap(item => item.reports).find(item => item.id === target.report_id);
+    if (definition) openReport(definition, target.filters, target.period);
+  };
+
+  const exportReport = async (format: ExportFormat) => {
+    if (!report) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch(apiUrl(`/farm/reports/export?format=${format}`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body(report, period, filters, columns, sort, 1)) });
+      if (!response.ok) throw new Error(await failure(response, 'The report could not be exported.'));
+      const blob = await response.blob();
+      const named = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') || '');
+      const filename = named?.[1] || `DairyOS-${report.title.replace(/[^A-Za-z0-9]+/g, '-')}.${format.toLowerCase()}`;
+      const save = (window as DesktopWindow).pywebview?.api?.save_reporting_export;
+      if (save) {
+        const saved = await save(filename, format, toBase64(await blob.arrayBuffer()));
+        if (saved.status === 'SAVED') setNotice(`${filename} saved.`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        URL.revokeObjectURL(url); setNotice(`${filename} downloaded.`);
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : 'The report could not be exported.'); }
+    finally { setBusy(false); }
+  };
+  /* Print is a print-ready PDF. DairyOS never calls the native webview print
+     dialog: the desktop shell does not support it reliably. */
+  const printReport = async () => { await exportReport('PDF'); };
+
+  if (!catalog) return <div className="rpt"><p className="rpt-muted">{error || 'Loading the report catalogue…'}</p></div>;
+
+  /* ------------------------------------------------------------ catalogue */
+  if (!report) {
+    return (
+      <div className="rpt">
+        <header className="rpt-head"><div><h2>Reporting</h2><p className="rpt-muted">Choose an area, then the report that answers your question. Every report opens with sensible defaults.</p></div></header>
+        <nav className="rpt-areas" aria-label="Reporting areas">
+          {catalog.areas.map(item => <button key={item.id} type="button" className={item.id === area?.id ? 'rpt-area active' : 'rpt-area'} onClick={() => setAreaId(item.id)}>{item.title}<span>{item.reports.length}</span></button>)}
+        </nav>
+        {error && <div className="rpt-error" role="alert">{error}</div>}
+        {area && <>
+          <p className="rpt-area-note">{area.description}</p>
+          <div className="rpt-cards">
+            {area.reports.map(item => <button key={item.id} type="button" className="rpt-card" onClick={() => openReport(item)}>
+              <Table2 size={16} aria-hidden /><strong>{item.title}</strong><span>{item.purpose}</span>
+            </button>)}
+          </div>
+        </>}
+      </div>
     );
   }
 
-  return btoa(binary);
-}
-export default function ReportingTab() {
-  const [reports, setReports] = useState<Report[]>([]); const [domain, setDomain] = useState<DomainKey>('ANIMALS'); const [reportId, setReportId] = useState('');
-  const [startDate, setStartDate] = useState(''); const [endDate, setEndDate] = useState(''); const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0,10));
-  const [category, setCategory] = useState(''); const [session, setSession] = useState(''); const [cohort, setCohort] = useState(''); const [animalId, setAnimalId] = useState(''); const [herdComposition, setHerdComposition] = useState(''); const [qualityCheck, setQualityCheck] = useState(''); const [breedCode, setBreedCode] = useState(''); const [productionPhase, setProductionPhase] = useState(''); const [dispositionType, setDispositionType] = useState('');
-  const [format, setFormat] = useState<Format>('PDF'); const [previewed, setPreviewed] = useState(false); const [preview, setPreview] = useState<Preview | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
-  const [eligibleColumns, setEligibleColumns] = useState<string[]>([]); const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  /* --------------------------------------------------------------- report */
+  const groups = report.columns.reduce<Record<string, Column[]>>((map, item) => { if (item.tier !== 'advanced' || showAdvanced) (map[item.group] ||= []).push(item); return map; }, {});
+  const hasAdvanced = report.columns.some(item => item.tier === 'advanced');
+  const optionsFor = (item: FilterDef): Option[] => (item.options_source ? catalog.option_sources[item.options_source] ?? [] : item.options);
 
-  useEffect(() => { fetch(apiUrl('/farm/reporting/catalog')).then(r => r.ok ? r.json() : Promise.reject(new Error('Reports are unavailable.'))).then(data => { const list = data.reports || []; setReports(list); setReportId(list.find((item:Report) => item.domain === 'ANIMALS')?.id || ''); }).catch(e => setError(e.message)); }, []);
-  const domainReports = useMemo(() => reports.filter(item => item.domain === domain), [reports, domain]);
-  const report = reports.find(item => item.id === reportId) || domainReports[0] || ({ id:'', name:'Report', filters:[], period_modes:[] } as unknown as Report);
-  const applicable = (name:string) => report.filters?.includes(name) || report.filters?.some(item => item.toLowerCase().replace(/[_ ]/g,'').includes(name.toLowerCase().replace(/[_ ]/g,'')));
-  const hasPeriod = (name:PeriodMode) => report.period_modes?.includes(name);
-  const selectDomain = (next:DomainKey) => { setDomain(next); setReportId(reports.find(item => item.domain === next)?.id ?? ''); setPreviewed(false); };
-  const selectedPeriod = ():PeriodMode => {
-    if (domain === 'WHOLE_FARM') return 'SNAPSHOT_DATE';
-    if (startDate && endDate && hasPeriod('DATE_RANGE')) return 'DATE_RANGE';
-    if (startDate && endDate && hasPeriod('CUSTOM_PERIOD')) return 'CUSTOM_PERIOD';
-    if (hasPeriod('CURRENT_HERD')) return 'CURRENT_HERD';
-    if (hasPeriod('OPERATIONAL_DATE')) return 'OPERATIONAL_DATE';
-    if (hasPeriod('AS_OF_DATE')) return 'AS_OF_DATE';
-    if (hasPeriod('MONTH')) return 'MONTH';
-    if (hasPeriod('TODAY')) return 'TODAY';
-    if (hasPeriod('CURRENT_YEAR')) return 'CURRENT_YEAR';
-    if (hasPeriod('DATE_RANGE')) return 'DATE_RANGE';
-    return report.period_modes?.[0] || 'DATE_RANGE';
-  };
-  const needsRange = hasPeriod('DATE_RANGE') || hasPeriod('CUSTOM_PERIOD');
-  const periodReady = () => !report.id ? false : (needsRange ? Boolean(startDate && endDate) : true);
-  const requestBody = (includeColumns=true) => ({
-    report_id: report.id, domain, period_mode: selectedPeriod(), operational_date: asOfDate, as_of_date: asOfDate, snapshot_date: asOfDate, start_date: startDate || null, end_date: endDate || null,
-    filters: { ...(category ? { category } : {}), ...(session ? { session } : {}), ...(cohort ? { milking_cohort: cohort } : {}), ...(animalId ? { animal_id: animalId } : {}), ...(herdComposition ? { herd_composition: herdComposition } : {}), ...(qualityCheck ? { [qualityCheck === 'SCC_ALERT' ? 'scc_alert' : qualityCheck === 'ANTIBIOTIC_FLAG' ? 'antibiotic_flag' : qualityCheck === 'TEMP_BREACH' ? 'temp_breach' : 'adulteration_suspect']: true } : {}), ...(breedCode ? { breed_code: breedCode } : {}), ...(productionPhase ? { production_phase: productionPhase } : {}), ...(dispositionType ? { disposition_type: dispositionType } : {}) },
-    ...(includeColumns && selectedColumns.length ? { selected_columns: selectedColumns } : {}),
-  });
-  const fetchDataset = async (includeColumns=true):Promise<Preview> => { const response = await fetch(apiUrl('/farm/reporting/preview'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody(includeColumns)) }); if (!response.ok) throw new Error(await userMessage(response, 'Report could not be prepared.')); return response.json(); };
+  return (
+    <div className="rpt">
+      <header className="rpt-head rpt-no-print">
+        <div>
+          <button type="button" className="rpt-back" onClick={() => { setReport(null); setResult(null); setError(''); setNotice(''); }}><ArrowLeft size={14} aria-hidden />{area?.title ?? 'Reports'}</button>
+          <h2>{report.title}</h2><p className="rpt-muted">{report.purpose}</p>
+        </div>
+        <div className="rpt-actions">
+          <button type="button" onClick={() => rerun()} disabled={busy}><RefreshCw size={14} aria-hidden />Generate</button>
+          <button type="button" onClick={() => void printReport()} disabled={busy || !result}><Printer size={14} aria-hidden />Print</button>
+          <button type="button" onClick={() => void exportReport('PDF')} disabled={busy || !result}><FileText size={14} aria-hidden />PDF</button>
+          <button type="button" onClick={() => void exportReport('XLSX')} disabled={busy || !result}><FileSpreadsheet size={14} aria-hidden />Excel</button>
+          <button type="button" onClick={() => void exportReport('CSV')} disabled={busy || !result}><FileSpreadsheet size={14} aria-hidden />CSV</button>
+        </div>
+      </header>
 
-  useEffect(() => {
-    setPreview(null); setPreviewed(false); setError(''); setNotice(''); setEligibleColumns([]); setSelectedColumns([]);
-    if (!periodReady()) return;
-    let cancelled = false;
-    const timer = window.setTimeout(() => { fetchDataset(false).then(data => { if (!cancelled) { setEligibleColumns(data.columns || []); setSelectedColumns(data.columns || []); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Report fields could not be prepared.'); }); }, 200);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [reportId, startDate, endDate, asOfDate, category, session, cohort, animalId, herdComposition, qualityCheck, breedCode, productionPhase, dispositionType, domain]);
+      <section className="rpt-params rpt-no-print" aria-label="Report parameters">
+        {report.period === 'range' && <>
+          <label>Period<select value={period.mode ?? report.default_period} onChange={e => changePeriod({ mode: e.target.value })}>{catalog.period_modes.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          {period.mode === 'MONTH' && <label>Month<select value={period.month} onChange={e => changePeriod({ month: Number(e.target.value) })}>{MONTHS.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}</select></label>}
+          {period.mode === 'QUARTER' && <label>Quarter<select value={period.quarter} onChange={e => changePeriod({ quarter: Number(e.target.value) })}>{catalog.quarters.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
+          {(period.mode === 'MONTH' || period.mode === 'QUARTER' || period.mode === 'CALENDAR_YEAR') && <label>Year<select value={period.year} onChange={e => changePeriod({ year: Number(e.target.value) })}>{years.map(item => <option key={item} value={item}>{item}</option>)}</select></label>}
+          {period.mode === 'CUSTOM' && <>
+            <label>From Date<input type="date" value={period.start_date ?? ''} onChange={e => changePeriod({ start_date: e.target.value })} /></label>
+            <label>To Date<input type="date" value={period.end_date ?? ''} onChange={e => changePeriod({ end_date: e.target.value })} /></label>
+          </>}
+        </>}
+        {report.period === 'as_of' && <label>As of Date<input type="date" value={period.as_of_date ?? today} onChange={e => changePeriod({ as_of_date: e.target.value })} /></label>}
+        {report.filters.map(item => item.kind === 'toggle'
+          ? <label key={item.key} className="rpt-toggle"><input type="checkbox" checked={Boolean(filters[item.key])} onChange={e => changeFilter(item.key, e.target.checked, true)} />{item.label}</label>
+          : item.kind === 'select'
+            ? <label key={item.key}>{item.label}<select value={String(filters[item.key] ?? '')} onChange={e => changeFilter(item.key, e.target.value, true)}>{!item.required && item.default === null && <option value="">All</option>}{optionsFor(item).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            : <label key={item.key}>{item.label}{item.required ? ' *' : ''}<input value={String(filters[item.key] ?? '')} placeholder={item.kind === 'animal' ? 'e.g. TD-0001' : ''} onChange={e => changeFilter(item.key, e.target.value, false)} onKeyDown={e => { if (e.key === 'Enter') { setPage(1); rerun({ pageNumber: 1 }); } }} onBlur={() => rerun({ pageNumber: 1 })} /></label>)}
+        {report.columns.length > 0 && <button type="button" className="rpt-columns-button" onClick={() => setShowColumns(open => !open)} aria-expanded={showColumns}><Columns3 size={14} aria-hidden />Customize Columns</button>}
+      </section>
 
-  const loadDataset = async ():Promise<Preview> => fetchDataset(true);
-  const previewReport = async () => { setLoading(true); setError(''); setNotice(''); try { const data = await loadDataset(); setPreview(data); setPreviewed(true); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be prepared.'); } finally { setLoading(false); } };
-  const toggleColumn = (column:string) => setSelectedColumns(current => current.includes(column) ? current.filter(item => item !== column) : eligibleColumns.filter(item => current.includes(item) || item === column));
-  const downloadExport = async (exportFormat:Format, suffix='') => {
-    const data = await loadDataset(); setPreview(data); setPreviewed(true);
-    const response = await fetch(apiUrl(`/farm/reporting/export?format=${encodeURIComponent(exportFormat)}`), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(requestBody(true)) });
-    if (!response.ok) throw new Error(await userMessage(response, 'Report could not be saved.'));
-    const exportedCount = response.headers.get('X-DairyOS-Record-Count'); const exportedReport = response.headers.get('X-DairyOS-Report-Id'); const exportedStatus = response.headers.get('X-DairyOS-Dataset-Status'); const exportedColumns = response.headers.get('X-DairyOS-Column-Count');
-    if (exportedReport !== report.id || exportedCount !== String(data.record_count ?? data.rows?.length ?? 0) || exportedStatus !== data.dataset_status || exportedColumns !== String(data.columns.length)) throw new Error('Report could not be saved. Please try again.');
-    const blob = await response.blob();
-    const filename = `DairyOS-${report.name.replace(/[^A-Za-z0-9]+/g,'-')}${suffix}-${asOfDate}.${exportFormat.toLowerCase()}`;
-    const desktopWindow = window as DairyOSDesktopWindow;
-    const nativeSave = desktopWindow.pywebview?.api?.save_reporting_export;
-    if (nativeSave) {
-      const payload = arrayBufferToBase64(await blob.arrayBuffer());
-      const result = await nativeSave(filename, exportFormat, payload);
-      if (result.status === 'CANCELLED') return false;
-      if (result.status !== 'SAVED' || result.bytes !== blob.size) throw new Error('Report could not be saved. Please try again.');
-      return true;
-    }
-    const url = URL.createObjectURL(blob);
-    try {
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    return true;
-  };
-  const noColumnsSelected = eligibleColumns.length > 0 && selectedColumns.length === 0;
-  const printReport = async () => { setLoading(true); setError(''); setNotice(''); try { const saved = await downloadExport('PDF', '-Print'); if (saved) setNotice('Print-ready PDF saved.'); } catch (e) { setError(e instanceof Error ? e.message : 'Print-ready report could not be prepared.'); } finally { setLoading(false); } };
-  const saveReport = async () => { setLoading(true); setError(''); setNotice(''); try { const saved = await downloadExport(format); if (saved) setNotice(`${format} report saved.`); } catch (e) { setError(e instanceof Error ? e.message : 'Report could not be saved.'); } finally { setLoading(false); } };
-  const columns = preview?.columns || []; const summaryItems = Object.entries(preview?.summary || {});
+      {showColumns && <section className="rpt-columns rpt-no-print" aria-label="Customize columns">
+        {Object.entries(groups).map(([group, items]) => <fieldset key={group}><legend>{group}</legend>{items.map(item => <label key={item.key}><input type="checkbox" checked={activeColumns.includes(item.key)} onChange={() => toggleColumn(item.key)} />{item.label}</label>)}</fieldset>)}
+        <div className="rpt-columns-foot">
+          <button type="button" onClick={resetColumns}>Restore default columns</button>
+          {hasAdvanced && <label className="rpt-toggle"><input type="checkbox" checked={showAdvanced} onChange={e => setShowAdvanced(e.target.checked)} />Show record administration fields</label>}
+        </div>
+      </section>}
 
-  return <div className="space-y-4">
-    <div><h2 className="text-xl font-semibold">Reporting</h2><p className="text-sm text-slate-600">Select a report, choose only the controls that apply, preview the governed data, then print or save it.</p></div>
-    <div className="flex flex-wrap gap-2">{domains.map(item => <button key={item} onClick={() => selectDomain(item)} className={`rounded px-3 py-2 text-sm ${domain===item?'bg-slate-900 text-white':'bg-slate-100 text-slate-700'}`}>{domainLabels[item]}</button>)}</div>
-    <div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-medium">Report<select className="mt-1 w-full rounded border p-2" value={reportId} onChange={e => setReportId(e.target.value)}>{domainReports.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="rounded border bg-slate-50 p-3"><div className="font-medium">{report.name}</div>{report.scope_note && <div className="mt-1 text-sm text-slate-600">{report.scope_note}</div>}</div></div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {needsRange && <><label className="text-sm">From<input type="date" className="mt-1 w-full rounded border p-2" value={startDate} onChange={e=>setStartDate(e.target.value)}/></label><label className="text-sm">To<input type="date" className="mt-1 w-full rounded border p-2" value={endDate} onChange={e=>setEndDate(e.target.value)}/></label></>}
-      {(hasPeriod('AS_OF_DATE') || hasPeriod('OPERATIONAL_DATE') || hasPeriod('MONTH') || domain==='WHOLE_FARM') && <label className="text-sm">Date<input type="date" className="mt-1 w-full rounded border p-2" value={asOfDate} onChange={e=>setAsOfDate(e.target.value)}/></label>}
-      {applicable('category') && <label className="text-sm">Category<select className="mt-1 w-full rounded border p-2" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All</option>{['MILKING','DRY','HEIFER','FEMALE_CALF','MALE_CALF','BULL'].map(v=><option key={v} value={v}>{humanize(v.toLowerCase())}</option>)}</select></label>}
-      {applicable('session') && <label className="text-sm">Milking Session<select className="mt-1 w-full rounded border p-2" value={session} onChange={e=>setSession(e.target.value)}><option value="">All</option>{['MORNING','AFTERNOON','EVENING'].map(v=><option key={v} value={v}>{humanize(v.toLowerCase())}</option>)}</select></label>}
-      {applicable('milking_cohort') && <label className="text-sm">Milking Group<input className="mt-1 w-full rounded border p-2" value={cohort} onChange={e=>setCohort(e.target.value)}/></label>}
-      {applicable('herd_composition') && <label className="text-sm">Herd Composition<select className="mt-1 w-full rounded border p-2" value={herdComposition} onChange={e=>setHerdComposition(e.target.value)}><option value="">All</option><option value="LACTATING_HERD">Lactating Herd</option><option value="DRY_ONLY">Dry Period</option><option value="HEIFER_YOUNG_STOCK">Heifer / Young Stock</option><option value="BREEDING_COHORT">Breeding Cohort</option></select></label>}
-      {applicable('milk_quality_threshold') && <label className="text-sm">Milk Quality Check<select className="mt-1 w-full rounded border p-2" value={qualityCheck} onChange={e=>setQualityCheck(e.target.value)}><option value="">All Records</option><option value="SCC_ALERT">SCC &gt;400K/mL</option><option value="ANTIBIOTIC_FLAG">Antibiotic Residue Positive</option><option value="TEMP_BREACH">Temperature Breach</option><option value="ADULTERATION_SUSPECT">Adulteration Suspect</option></select></label>}
-      {applicable('breed_code') && <label className="text-sm">Breed<select className="mt-1 w-full rounded border p-2" value={breedCode} onChange={e=>setBreedCode(e.target.value)}><option value="">All Breeds</option><option value="HOLSTEIN">Holstein Friesian</option><option value="JERSEY">Jersey</option><option value="CROSS_BREED_F1">Cross-Breed F1</option><option value="LOCAL_DESI">Local / Desi</option></select></label>}
-      {applicable('production_phase') && <label className="text-sm">Production Phase<select className="mt-1 w-full rounded border p-2" value={productionPhase} onChange={e=>setProductionPhase(e.target.value)}><option value="">All Phases</option><option value="EARLY_LACTATION">Early Lactation</option><option value="MID_LACTATION">Mid Lactation</option><option value="LATE_LACTATION">Late Lactation</option><option value="DRY_PERIOD">Dry Period</option></select></label>}
-      {applicable('disposition_type') && <label className="text-sm">Disposition<select className="mt-1 w-full rounded border p-2" value={dispositionType} onChange={e=>setDispositionType(e.target.value)}><option value="">All Dispositions</option><option value="SOLD">Sold</option><option value="DOMESTIC">Domestic Use</option><option value="CALF_FEED">Calf Feed</option><option value="WITHDRAWN">Withdrawn</option><option value="WASTE">Waste / Spoilage</option></select></label>}
-      {applicable('animal_id') && <label className="text-sm">Animal ID<input className="mt-1 w-full rounded border p-2" value={animalId} onChange={e=>setAnimalId(e.target.value)}/></label>}
+      {error && <div className="rpt-error" role="alert">{error}</div>}
+      {notice && <div className="rpt-notice" role="status">{notice}</div>}
+      {busy && !result && <p className="rpt-muted">Generating report…</p>}
+
+      {result && <article className={busy ? 'rpt-result rpt-busy' : 'rpt-result'}>
+        <div className="rpt-title">
+          <h3>{result.report.title}</h3>
+          <p>{result.period.label}{result.filters_applied.map(item => ` · ${item.label}: ${item.value}`).join('')}</p>
+          <p className="rpt-muted">Generated {String(result.generated_at).replace('T', ' ').slice(0, 16)}</p>
+        </div>
+
+        {result.summary.length > 0 && <div className="rpt-tiles">{result.summary.map(item => <div key={item.key} className="rpt-tile" title={item.hint ?? undefined}>
+          <span>{item.label}</span><strong>{formatReportValue(item.value, item.type, true) || 'Not available'}</strong>{item.hint && <em>{item.hint}</em>}
+        </div>)}</div>}
+
+        {result.sections.map(section => <section key={section.id} className="rpt-section">
+          <h4>{section.title}{section.primary && section.paging ? <span>{section.paging.total_rows.toLocaleString()} record{section.paging.total_rows === 1 ? '' : 's'}</span> : null}</h4>
+          {section.note && <p className="rpt-muted">{section.note}</p>}
+          {section.rows.length === 0 ? <p className="rpt-empty">{section.empty_message || 'No records match the selected parameters.'}</p> : <div className="rpt-table-wrap"><table className="rpt-table">
+            <thead><tr>{section.columns.map(column => {
+              const sorted = section.primary && section.paging?.sort_key === column.key ? section.paging.sort_dir : null;
+              return <th key={column.key} className={NUMERIC.has(column.type) ? 'num' : ''} aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}>
+                {section.primary ? <button type="button" onClick={() => changeSort(column.key)}>{column.label}{sorted === 'asc' ? <ChevronUp size={12} aria-hidden /> : sorted === 'desc' ? <ChevronDown size={12} aria-hidden /> : null}</button> : column.label}
+              </th>;
+            })}</tr></thead>
+            <tbody>{section.rows.map((row, index) => <tr key={index} className={[row._emphasis === 'total' ? 'strong' : '', row._drill ? 'drill' : ''].join(' ').trim() || undefined}
+              onClick={row._drill ? () => drill(row._drill as Drill) : undefined} title={row._drill ? `Open supporting detail: ${row._drill.label}` : undefined}>
+              {section.columns.map(column => <td key={column.key} className={NUMERIC.has(column.type) ? 'num' : column.type === 'status' ? 'status' : ''}>{formatReportValue(row[column.key], column.type)}</td>)}
+            </tr>)}</tbody>
+            {section.totals && <tfoot><tr>{section.columns.map((column, index) => {
+              const text = formatReportValue(section.totals?.[column.key], column.type);
+              return <td key={column.key} className={NUMERIC.has(column.type) ? 'num' : ''}>{index === 0 && !text ? section.totals?._label ?? 'Total' : text}</td>;
+            })}</tr></tfoot>}
+          </table></div>}
+          {section.primary && section.paging && section.paging.pages > 1 && <div className="rpt-paging rpt-no-print">
+            <button type="button" disabled={busy || section.paging.page <= 1} onClick={() => changePage(section.paging!.page - 1)}>Previous</button>
+            <span>Page {section.paging.page} of {section.paging.pages}</span>
+            <button type="button" disabled={busy || section.paging.page >= section.paging.pages} onClick={() => changePage(section.paging!.page + 1)}>Next</button>
+            <em>Totals cover every record. Exports include every record.</em>
+          </div>}
+        </section>)}
+
+        {result.reconciliation.length > 0 && <section className="rpt-section">
+          <h4>Reconciliation Controls</h4>
+          <div className="rpt-table-wrap"><table className="rpt-table"><thead><tr><th>Control</th><th className="num">Expected</th><th className="num">Actual</th><th className="num">Difference</th><th>Result</th></tr></thead>
+            <tbody>{result.reconciliation.map(item => <tr key={item.check}><td>{item.check}</td><td className="num">{formatReportValue(item.expected, item.type, true)}</td><td className="num">{formatReportValue(item.actual, item.type, true)}</td><td className="num">{formatReportValue(item.difference, item.type, true)}</td><td className={item.status === 'PASS' ? 'pass' : 'fail'}>{item.status === 'PASS' ? 'Agrees' : 'Difference'}</td></tr>)}</tbody></table></div>
+        </section>}
+
+        {result.notes.length > 0 && <section className="rpt-notes"><h4>Notes</h4><ul>{result.notes.map(note => <li key={note}>{note}</li>)}</ul></section>}
+        <p className="rpt-authority">Source: {result.report.authority}</p>
+      </article>}
     </div>
-    {eligibleColumns.length > 0 && <div className="rounded border bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="text-sm font-medium">Fields / Columns</div><div className="flex gap-2"><button type="button" className="text-sm underline" onClick={() => setSelectedColumns(eligibleColumns)}>Select All</button><button type="button" className="text-sm underline" onClick={() => setSelectedColumns([])}>Clear</button></div></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{eligibleColumns.map(column => <label key={column} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedColumns.includes(column)} onChange={() => toggleColumn(column)}/><span>{labelFor(column)}</span></label>)}</div>{noColumnsSelected && <div className="mt-2 text-sm text-red-700">Select at least one field or column.</div>}</div>}
-    <div className="flex flex-wrap items-end gap-2"><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={previewReport} className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Preview</button><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={printReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Print</button><label className="text-sm">Save as<select className="ml-2 rounded border p-2" value={format} onChange={e=>setFormat(e.target.value as Format)}><option>PDF</option><option>XLSX</option><option>CSV</option></select></label><button disabled={loading || !report.id || !periodReady() || noColumnsSelected} onClick={saveReport} className="rounded border px-4 py-2 text-sm disabled:opacity-50">Save {format}</button></div>
-    {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}{notice && <div className="rounded border border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">{notice}</div>}
-    {previewed && preview && <div className="rounded border bg-white p-4"><div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><div><h3 className="text-lg font-semibold">{preview.title || report.name}</h3><div className="text-sm text-slate-600">{preview.record_count.toLocaleString()} record{preview.record_count===1?'':'s'}</div></div>{preview.rows?.length===0 && <div className="text-sm text-slate-600">No records match the selected controls.</div>}</div>
-      {summaryItems.length > 0 && <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{summaryItems.map(([key,value]) => <div key={key} className="rounded bg-slate-50 p-3"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">{labelFor(key)}</div><div className="mt-1 text-sm font-semibold text-slate-900">{displayValue(value)}</div></div>)}</div>}
-      {preview.rows?.length > 0 && <div className="overflow-x-auto"><table className="min-w-full table-auto border-collapse text-sm"><thead className="bg-slate-100"><tr>{columns.map(column=><th key={column} className="whitespace-nowrap border-b px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">{labelFor(column)}</th>)}</tr></thead><tbody>{preview.rows.map((row,index)=><tr key={index} className="align-top odd:bg-white even:bg-slate-50">{columns.map(column=><td key={column} className="max-w-[24rem] whitespace-normal break-words border-b px-3 py-2 text-slate-800">{displayValue(row[column])}</td>)}</tr>)}</tbody></table></div>}
-    </div>}
-  </div>;
+  );
 }

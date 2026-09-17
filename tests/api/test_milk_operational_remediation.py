@@ -201,8 +201,10 @@ def test_ui_and_api_contracts_are_present():
     assert "Save CSV" not in milk
     assert "printQualityLog" not in milk
     assert "window.open(\n      '',\n      '_blank'" not in milk
-    assert "Milk Quality Log" in reporting
-    assert "Save {format}" in reporting
+    from dairyos.reporting.registry import REPORT_BY_ID
+
+    assert REPORT_BY_ID["milk-quality-log"].title == "Milk Quality Log"
+    assert "/farm/reports/export" in reporting
     assert "Print" in reporting
     assert "Missed Milking — Action Required" in milk
     assert "MISSED_MILK_REJECTED:" in milk

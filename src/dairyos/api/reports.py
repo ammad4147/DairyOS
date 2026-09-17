@@ -4,9 +4,8 @@ Workflow served: Reporting Area -> Report -> Parameters -> Generate ->
 Analyse -> Export / Print. The catalogue, every report and every export are
 produced by ``dairyos.reporting``; this module only adapts HTTP.
 
-Mounted at ``/farm/reports``. The previous ``/farm/reporting`` API stays
-mounted until the Reporting screen is switched over, so the running
-application is never left with a broken Reporting tab.
+Mounted at ``/farm/reports`` and consumed by Settings -> Reporting
+(``ReportingTab.tsx``).
 """
 
 from __future__ import annotations
