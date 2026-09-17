@@ -554,6 +554,7 @@ var
   StartAt: Integer;
   EndAt: Integer;
   ManifestLoaded: Boolean;
+  CandidateName: String;
 begin
   Normalized := Candidate;
   while (Length(Normalized) > 3) and
@@ -567,28 +568,42 @@ begin
     if Lowercase(BackupCandidatePaths[I]) = Lowercase(Normalized) then
       exit;
 
-  { The backup manifest timestamp is the operator-facing identity. ISO-style
-    timestamps sort correctly as text, so the newest recovery point stays at
-    the top without locale-dependent date parsing. }
+  { DairyOS backup folders carry an immutable UTC timestamp in their name.
+    Prefer that operator-safe identity: it avoids locale parsing and remains
+    available even while a manifest is being written. }
+  CandidateName := ExtractFileName(Normalized);
   CreatedAt := '';
+  if (Length(CandidateName) >= 16) and
+     (CandidateName[9] = 'T') and
+     (CandidateName[16] = 'Z') then
+    CreatedAt :=
+      Copy(CandidateName, 1, 4) + '-' +
+      Copy(CandidateName, 5, 2) + '-' +
+      Copy(CandidateName, 7, 2) + 'T' +
+      Copy(CandidateName, 10, 2) + ':' +
+      Copy(CandidateName, 12, 2) + ':' +
+      Copy(CandidateName, 14, 2);
+
+  { File-based recovery points may not have a timestamped folder name. Use
+    their manifest timestamp when available, otherwise sort them last and
+    label them clearly instead of inventing a date. }
   ManifestPath := AddBackslash(Normalized) + 'backup.json';
-  ManifestLoaded := False;
-  if FileExists(ManifestPath) then
+  if (CreatedAt = '') and FileExists(ManifestPath) then
   begin
     ManifestLoaded := LoadStringFromFile(ManifestPath, ManifestText);
-  end;
-  if ManifestLoaded then
-  begin
-    StartAt := Pos('"created_at"', ManifestText);
-    if StartAt > 0 then
+    if ManifestLoaded then
     begin
-      StartAt := StartAt + 11 + Pos('"', Copy(ManifestText, StartAt + 11, Length(ManifestText)));
+      StartAt := Pos('"created_at"', ManifestText);
       if StartAt > 0 then
       begin
-        StartAt := StartAt + 1;
-        EndAt := StartAt - 1 + Pos('"', Copy(ManifestText, StartAt, Length(ManifestText)));
-        if EndAt > StartAt then
-          CreatedAt := Copy(ManifestText, StartAt, EndAt - StartAt);
+        StartAt := StartAt + 11 + Pos('"', Copy(ManifestText, StartAt + 11, Length(ManifestText)));
+        if StartAt > 0 then
+        begin
+          StartAt := StartAt + 1;
+          EndAt := StartAt - 1 + Pos('"', Copy(ManifestText, StartAt, Length(ManifestText)));
+          if EndAt > StartAt then
+            CreatedAt := Copy(ManifestText, StartAt, EndAt - StartAt);
+        end;
       end;
     end;
   end;
@@ -810,10 +825,13 @@ begin
   else
   begin
     for I := 0 to GetArrayLength(BackupCandidatePaths) - 1 do
-      BackupChoicePage.Add(
-        Copy(BackupCandidateTimes[I], 1, 10) + ' ' +
-        Copy(BackupCandidateTimes[I], 12, 5) + ' - Backup'
-      );
+      if BackupCandidateTimes[I] = '0000-00-00T00:00:00' then
+        BackupChoicePage.Add('Date unavailable - Backup')
+      else
+        BackupChoicePage.Add(
+          Copy(BackupCandidateTimes[I], 1, 10) + ' ' +
+          Copy(BackupCandidateTimes[I], 12, 5) + ' - Backup'
+        );
     BackupChoicePage.SelectedValueIndex := 0;
   end;
 end;
