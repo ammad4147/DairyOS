@@ -157,3 +157,6 @@ logs/
 .env
 .env.local
 .env.*.local
+
+# Reporting certification evidence written by tests/reporting
+.certification/

@@ -161,6 +161,7 @@ from dairyos.api.authorization import router as authorization_router
 from dairyos.api.search import router as search_router
 from dairyos.api.assistant import router as assistant_router
 from dairyos.api.reporting import router as reporting_router
+from dairyos.api.reports import router as reports_router
 
 
 def _unmount_duplicate_routes(router, paths: set[str]) -> None:
@@ -232,6 +233,7 @@ app.include_router(authorization_router)
 app.include_router(search_router)
 app.include_router(assistant_router)
 app.include_router(reporting_router)
+app.include_router(reports_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
 

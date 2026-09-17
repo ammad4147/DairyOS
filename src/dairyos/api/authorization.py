@@ -11,6 +11,7 @@ from dairyos.api.auth import _decode_token, get_current_user, require_permission
 from dairyos.auth.permissions import PERMISSIONS, PERMISSION_GROUPS, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS, normalize_permissions, permissions_for_role, permissions_from_json
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.api.reporting import reporting_permission_for_request
+from dairyos.api.reports import report_permission_for_request
 
 router = APIRouter(prefix="/authz", tags=["authorization"])
 
@@ -31,6 +32,10 @@ def permission_for_request(method: str, path: str, payload: dict[str, Any] | Non
     clean = path.rstrip("/") or "/"
     if clean.startswith("/authz") or clean in {"/login", "/me", "/auth/users", "/auth/users/"}:
         return None
+    if clean.startswith("/farm/reports"):
+        if m == "POST":
+            return report_permission_for_request(str((payload or {}).get("report_id") or ""))
+        return "settings.view"
     if clean.startswith("/farm/reporting"):
         if m == "GET":
             return "settings.view"
