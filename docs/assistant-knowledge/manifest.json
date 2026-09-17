@@ -1,20 +1,19 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.3.0",
-  "generated_at": "2026-09-17T22:52:05+00:00",
+  "corpus_version": "0.4.0",
+  "generated_at": "2026-09-17T23:00:47+00:00",
   "dairyos_source_authority": "45900048a1819e79a26e048e26a1355c4498967b",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 38,
+    "total": 47,
     "by_status": {
-      "IMPLEMENTATION_REVIEW": 34,
-      "DRAFT": 1,
+      "IMPLEMENTATION_REVIEW": 44,
       "DEPRECATED": 3
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 38
+      "DAIRYOS_INSTRUCTION": 47
     }
   },
   "files": [
@@ -29,7 +28,14 @@
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "breeding-and-reproduction",
-      "sha256": "381eafa8af579d1e9b6fc08c411929e7232b81832331943dd9f8fb15cfa26a2a",
+      "sha256": "b8bf9a69efad7f8e118113c906eeed78c0168e5546c729c2529a26c8a0b3260b",
+      "item_count": 9
+    },
+    {
+      "path": "dairyos/finance-and-expenses.json",
+      "class": "DAIRYOS_INSTRUCTION",
+      "domain": "finance-and-expenses",
+      "sha256": "babd015d3c21d04bab5c33edf11e2cf6acf4e037e489d91755c6a958ba1fb370",
       "item_count": 9
     },
     {
@@ -47,5 +53,5 @@
       "item_count": 9
     }
   ],
-  "note": "AA-3 in progress. Four of fifteen domains authored. No item is APPROVED yet, so nothing is servable."
+  "note": "AA-3. Five core domains authored of fifteen. No item is APPROVED yet, so nothing is servable."
 }
