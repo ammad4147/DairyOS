@@ -209,10 +209,15 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
         item.status !== 'RESOLVED'
     );
 
-    const triageAlert = alert || fallbackAlert;
-    if (triageAlert) {
-      setSelectedDropAlert(triageAlert);
-      setSelectedDropAlertId(triageAlert.id || null);
+    if (alert) {
+      setSelectedDropAlert(alert);
+      setSelectedDropAlertId(alert.id);
+      return;
+    }
+
+    if (fallbackAlert) {
+      setSelectedDropAlert(fallbackAlert);
+      setSelectedDropAlertId(fallbackAlert.id || null);
       return;
     }
 
