@@ -11,7 +11,7 @@
       "domain": "health-and-veterinary",
       "capability": "observation",
       "title": "Recording and triaging a health observation",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a suspected sick animal be assessed and recorded?",
       "alternatives": [
         "animal looks ill",
@@ -110,8 +110,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.severity",
@@ -120,7 +120,7 @@
       "domain": "health-and-veterinary",
       "capability": "severity",
       "title": "Assigning health severity",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should health severity be recorded?",
       "alternatives": [
         "how urgent is this",
@@ -199,8 +199,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.treatment",
@@ -209,7 +209,7 @@
       "domain": "health-and-veterinary",
       "capability": "treatment",
       "title": "Recording a veterinary treatment",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What must be recorded when a veterinarian treats an animal?",
       "alternatives": [
         "record veterinary treatment",
@@ -306,8 +306,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.withdrawal",
@@ -316,7 +316,7 @@
       "domain": "health-and-veterinary",
       "capability": "withdrawal",
       "title": "How withdrawal keeps treated milk out of sale",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is a withdrawal period, and how does DairyOS keep milk from a treated animal out of sales?",
       "alternatives": [
         "milk withdrawal",
@@ -413,8 +413,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.follow-up",
@@ -423,7 +423,7 @@
       "domain": "health-and-veterinary",
       "capability": "follow-up",
       "title": "Following up an open health case",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When should a health case be followed up?",
       "alternatives": [
         "recheck animal",
@@ -510,8 +510,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.resolution",
@@ -520,7 +520,7 @@
       "domain": "health-and-veterinary",
       "capability": "resolution",
       "title": "Closing a health case",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a health case be closed?",
       "alternatives": [
         "resolve health case",
@@ -603,8 +603,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.summary",
@@ -613,7 +613,7 @@
       "domain": "health-and-veterinary",
       "capability": "health-summary",
       "title": "What the health summary shows",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does the health summary represent?",
       "alternatives": [
         "health dashboard",
@@ -696,8 +696,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "vaccination.event",
@@ -706,7 +706,7 @@
       "domain": "health-and-veterinary",
       "capability": "vaccination",
       "title": "Recording a vaccination",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What must be recorded after a vaccine is given?",
       "alternatives": [
         "record vaccination",
@@ -796,8 +796,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "vaccination.programme-design",
@@ -806,7 +806,7 @@
       "domain": "health-and-veterinary",
       "capability": "vaccination",
       "title": "Designing a herd vaccination programme",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a herd vaccination programme be designed?",
       "alternatives": [
         "vaccination plan",
@@ -889,8 +889,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "vaccination.missed-or-reaction",
@@ -899,7 +899,7 @@
       "domain": "health-and-veterinary",
       "capability": "vaccination",
       "title": "Missed vaccinations and adverse reactions",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should happen when a vaccination is missed or a reaction occurs?",
       "alternatives": [
         "missed vaccine",
@@ -984,8 +984,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "health.treatment-withdrawal",

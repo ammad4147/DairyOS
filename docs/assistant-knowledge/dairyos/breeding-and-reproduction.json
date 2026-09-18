@@ -11,7 +11,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "breeding-event",
       "title": "Recording a reproductive event",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I record an insemination or another reproductive event?",
       "alternatives": [
         "record insemination",
@@ -110,8 +110,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.ai",
@@ -120,7 +120,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "ai",
       "title": "Artificial insemination and semen inventory",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does artificial insemination work in DairyOS, and how does semen inventory relate to it?",
       "alternatives": [
         "AI in DairyOS",
@@ -216,8 +216,8 @@
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.pregnancy",
@@ -226,7 +226,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "pregnancy",
       "title": "Recording pregnancy diagnosis",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should pregnancy diagnosis and reproductive status be recorded?",
       "alternatives": [
         "pregnancy check",
@@ -330,8 +330,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.calving",
@@ -340,7 +340,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "calving",
       "title": "Recording a calving",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is the correct calving workflow, and what happens when an animal calves?",
       "alternatives": [
         "record calving",
@@ -440,8 +440,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.abortion-or-loss",
@@ -450,7 +450,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "abortion",
       "title": "Recording abortion or pregnancy loss",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an abortion or pregnancy loss be handled?",
       "alternatives": [
         "abortion",
@@ -545,8 +545,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.dry-off",
@@ -555,7 +555,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "dry-off",
       "title": "Recording dry-off",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should dry-off be handled, and how does it affect breeding and milk operations?",
       "alternatives": [
         "dry off cow",
@@ -652,8 +652,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.chronology",
@@ -662,7 +662,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "chronology",
       "title": "How reproductive chronology determines state",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is current reproductive state determined?",
       "alternatives": [
         "reproductive chronology",
@@ -749,8 +749,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.current-state",
@@ -759,7 +759,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "current-state",
       "title": "Why state can differ from a reminder",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why can reproductive state differ from a reminder?",
       "alternatives": [
         "reminder disagrees with status",
@@ -841,8 +841,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "breeding.post-calving-return",
@@ -851,7 +851,7 @@
       "domain": "breeding-and-reproduction",
       "capability": "post-calving-return",
       "title": "The post-calving return to breeding",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What happens after calving, and when can the cow be bred again?",
       "alternatives": [
         "after calving",
@@ -941,8 +941,8 @@
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "PENDING",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Dr Umair Shaffi, DVM",
+      "domain_reviewed_at": "2026-09-18"
     }
   ]
 }

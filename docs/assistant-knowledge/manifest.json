@@ -28,7 +28,7 @@
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "breeding-and-reproduction",
-      "sha256": "b3c6555348f649cdb3657ab8ce22d284463c4f347a84e29d7cefc3330001ee65",
+      "sha256": "48b0b7b13f8b39c7c0e9f5aa7c5974149b62a3c1cdcf31e386fad5baf42a7c84",
       "item_count": 9
     },
     {
@@ -42,7 +42,7 @@
       "path": "dairyos/health-and-veterinary.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "health-and-veterinary",
-      "sha256": "25d64ed5fe1404f85d20adc0e85670df250327626dabb157bb3b9fa79846d466",
+      "sha256": "6ab7a963794b4990c7a1d22d8556ec1b093fb9dc0138ec886972b26c390e2f94",
       "item_count": 13
     },
     {

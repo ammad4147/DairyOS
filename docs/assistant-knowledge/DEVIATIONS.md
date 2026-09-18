@@ -71,10 +71,21 @@ agent that authored them.
 items; the operator signs the DairyOS mechanics items, which are traced to
 source and require no clinical judgement.
 
-**Outstanding:** the reviewer's name and credential are still needed before any
-clinical item can move to `APPROVED`. The certification suite rejects
-`domain_reviewed_by` values of "Claude", "Assistant", "AI" or "unknown", so this
-cannot be satisfied by a placeholder.
+**Closed, 18 September 2026.** Dr Umair Shaffi, DVM reviewed the nineteen
+clinical items in `veterinary-review-pack.html` and endorsed them. All nineteen
+now carry his name and that date in `domain_reviewed_by` and
+`domain_reviewed_at`, and are `APPROVED`.
+
+**Consequence, and it is not a small one.** Approving the clinical items alone
+made the corpus more dangerous rather than less. Retrieval serves the best
+approved match, so with the twenty-five mechanics items still unapproved, "How
+do I record milk for a session?" returned `breeding.dry-off` in a certified
+build: a confident answer from the wrong item. A partly approved corpus is
+worse than an unapproved one, because an unapproved one returns nothing.
+
+The pre-release flag therefore stays on until the mechanics items are signed
+too. This is recorded here because it is a trap anyone repeating this sequence
+on a later corpus will walk into.
 
 ## D-004. Elasticsearch is treated as an operational data route
 

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>DairyOS Assistant: veterinary review pack</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 46em; margin: 2em auto;
+         padding: 0 1.5em; line-height: 1.55; color: #111; }
+  h1 { font-size: 1.6em; margin-bottom: 0.2em; }
+  h3 { margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; font-size: 1.1em; }
+  h4 { margin: 1.1em 0 0.3em; font-size: 0.85em; text-transform: uppercase;
+        letter-spacing: 0.06em; color: #555; font-weight: normal; }
+  .id { float: right; font-family: monospace; font-size: 0.7em; color: #888; font-weight: normal; }
+  .intro { background: #f6f6f4; border-left: 3px solid #999; padding: 1em 1.2em; margin: 1.5em 0; }
+  table.verdict { width: 100%; border-collapse: collapse; margin-top: 1.2em; }
+  table.verdict th { text-align: left; width: 11em; vertical-align: top; padding: 0.5em 0.6em;
+                      font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em;
+                      color: #555; font-weight: normal; border: 1px solid #bbb; background: #fafafa; }
+  table.verdict td { padding: 0.5em 0.6em; border: 1px solid #bbb; font-size: 0.9em; }
+  td.write { height: 4.5em; }
+  ul { margin: 0.3em 0 0.3em 1.2em; padding: 0; }
+  section { page-break-inside: avoid; }
+  @media print { body { margin: 0; max-width: none; } }
+</style></head><body>
+
+<h1>DairyOS Assistant: veterinary review</h1>
+<p><b>Reviewer:</b> Dr Umair Shaffi &nbsp;&nbsp;|&nbsp;&nbsp;
+   <b>Corpus version:</b> 0.4.0 &nbsp;&nbsp;|&nbsp;&nbsp;
+   <b>Prepared:</b> 2026-09-18 &nbsp;&nbsp;|&nbsp;&nbsp;
+   <b>Items:</b> 19</p>
+
+<div class="intro">
+<p>This is the clinical content of a knowledge assistant built into DairyOS. The
+assistant teaches farm staff how the software works and what the terms mean. It
+has no access to any farm's records and cannot see a single animal, so nothing
+here is advice about a patient; it is general guidance that will be repeated to
+operators verbatim.</p>
+
+<p>What matters in this review is whether each statement is correct as a general
+statement of dairy practice, and whether anything here could lead an operator to
+act unsafely. Software behaviour, screen names and record-keeping rules have
+already been checked against the source code and are not the subject of this
+review.</p>
+
+<p>Mark each item and return the document. An item is only made available to
+operators once it carries a reviewer's name, so anything left unmarked stays
+withheld rather than being published unreviewed.</p>
+</div>
+
+
+<section>
+  <h3>1. Recording abortion or pregnancy loss
+      <span class="id">breeding.abortion-or-loss</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should an abortion or pregnancy loss be handled?</p><h4>Answer the Assistant gives</h4><p>Record the observed event and its date without guessing a cause. The pregnancy ends and the animal returns to the open state, from which a subsequent reproductive cycle may begin. Escalate clusters or any suspected regulated disease immediately.</p><h4>Explanation</h4><p>A loss is a reproductive event like any other, so it enters the chronology and the derived state follows from it: the confirmed pregnancy ends, derived pregnancy values such as days pregnant and expected calving cease to apply, and the animal becomes open and eligible to breed again subject to the farm&#x27;s plan. Clinical investigation, treatment and the reproductive record stay linked but distinct, so an investigation never rewrites the reproductive history and the loss never disappears into a generic status change.</p><h4>Exceptions</h4><ul><li><b>The cause is unknown.</b> Record the event without a cause. Do not guess.</li><li><b>Several losses occur across a cohort.</b> Escalate immediately. A cluster may indicate regulated disease.</li></ul><h4>How a mistake is corrected</h4><p>Record a further authorised event. The loss record itself is never removed.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>2. Artificial insemination and semen inventory
+      <span class="id">breeding.ai</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How does artificial insemination work in DairyOS, and how does semen inventory relate to it?</p><h4>Answer the Assistant gives</h4><p>An insemination is recorded as a reproductive event that draws a straw from an available purchased semen lot. The lot originates as a Finance expense, so Finance and Breeding are linked through inventory rather than recording the cost twice.</p><h4>Explanation</h4><p>Semen straws are bought as a Finance OPEX expense under the breeding and reproduction group, using the item Semen Straws. That purchase creates a semen lot carrying a lot code, the purchased quantity and a reference back to the financial transaction that paid for it. Each insemination that names a lot writes a consumption movement of one straw against it, and stock on hand for a lot is the sum of its signed movements: purchases add, consumptions subtract. This is also why semen is the one item DairyOS attributes by consumption rather than by date. A batch bought in one month does not load that month&#x27;s cost of production; each straw counts into the period in which it was actually used.</p><h4>Exceptions</h4><ul><li><b>No purchased lot is available.</b> There is no stock to draw from. Record the Finance purchase first, which is what creates the lot.</li><li><b>The insemination names no lot.</b> No consumption movement is written, so the straw is not counted against stock or attributed as cost.</li><li><b>Sexed and conventional straws are mixed.</b> They are separate lots. Stock and performance are tracked per lot.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected authorised event. Do not adjust inventory by editing a breeding record.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>3. Recording a calving
+      <span class="id">breeding.calving</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What is the correct calving workflow, and what happens when an animal calves?</p><h4>Answer the Assistant gives</h4><p>Record the actual calving event promptly with its outcome, preserve the linkage between dam and offspring, and let the reproductive authority derive the post-calving state. Health, treatment and milk records are entered through their own workflows.</p><h4>Explanation</h4><p>Calving becomes the latest reproductive fact for the dam, and DairyOS derives the post-calving state from it rather than from a status label. The calving date establishes last_calving_date, from which the lactation number, days in milk and the voluntary waiting period end are derived, the last being the calving date plus 60 days. An expected calving date is never treated as an actual calving; only a recorded event changes state.</p><h4>Exceptions</h4><ul><li><b>The actual calving date differs from the expected calving date.</b> The actual date is authoritative. The expectation is discarded, not reconciled.</li><li><b>Calf details are not yet known at the time of recording.</b> Record the calving with what is known. Calf details may be completed subsequently.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected authorised event. Prior reproductive history is retained.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>4. How reproductive chronology determines state
+      <span class="id">breeding.chronology</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How is current reproductive state determined?</p><h4>Answer the Assistant gives</h4><p>DairyOS derives current state from the persisted chronology of reproductive events. Predictions and reminders never replace actual breeding, pregnancy, calving, loss or dry-off facts.</p><h4>Explanation</h4><p>The reproductive state service resolves state exclusively from persisted farm facts. No benchmark, no default pregnancy, no implicit service and no projected status is permitted to become an operational fact. Because state is derived rather than stored, it is explainable from durable history and it survives a refresh or a restart. It also means any state you disagree with is traceable to the events that produced it.</p><h4>Exceptions</h4><ul><li><b>An event is missing an animal_id, an event_type, or both an event_date and a timestamp.</b> The event is rejected. It cannot form a valid state.</li><li><b>History and derived state appear to conflict.</b> The chronology is authoritative. Investigate the events before acting on the state or its alerts.</li></ul><h4>How a mistake is corrected</h4><p>Record a new authorised amendment event. State recomputes from the amended chronology.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>5. Why state can differ from a reminder
+      <span class="id">breeding.current-state</span></h3>
+  <h4>Question as an operator would ask it</h4><p>Why can reproductive state differ from a reminder?</p><h4>Answer the Assistant gives</h4><p>Current state is derived from persisted reproductive facts and the event chronology. Reminders and expected dates are planning aids, not confirmed events, so the two can legitimately disagree.</p><h4>Explanation</h4><p>A reminder is generated from a projection, such as PD becoming due 35 days after insemination or dry-off becoming due 60 days before expected calving. The derived state, by contrast, reflects only what has actually been recorded. When they disagree it usually means an event has occurred but has not been entered, or an event has been entered that the reminder has not yet accounted for. DairyOS deliberately refuses to turn a prediction into a historical fact in order to close that gap.</p><h4>Exceptions</h4><ul><li><b>A reminder fires for an event that has already happened but was not entered.</b> Record the actual event. The reminder resolves from the corrected chronology.</li><li><b>A reminder fires for an event that did not happen.</b> Record nothing. The reminder is not evidence.</li></ul><h4>How a mistake is corrected</h4><p>Record the actual event through the supported event authority, then recheck alerts and the passport.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>6. Recording dry-off
+      <span class="id">breeding.dry-off</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should dry-off be handled, and how does it affect breeding and milk operations?</p><h4>Answer the Assistant gives</h4><p>Record the actual authorised dry-off event and its date through the governed lifecycle workflow. Do not infer dry-off from a missing milk entry or from a prediction. It changes expected milk activity without erasing historical milk.</p><h4>Explanation</h4><p>DairyOS derives an expected dry-off date as the expected calving date minus 60 days, and reports a dry period status of NOT_DUE before that date or DUE_OR_ACTIVE from it onward. That expectation is a planning aid. The lifecycle state changes only when an actual authorised dry-off event is recorded. Recording it alters future milk session expectations while historical production remains exactly as it was.</p><h4>Exceptions</h4><ul><li><b>A milk session is missing but no dry-off has been authorised.</b> This is a missing-milk condition, not a dry-off. Do not record dry-off to silence the alert.</li><li><b>The animal is treated with a medication carrying a withdrawal period at dry-off.</b> The treatment and its withdrawal are recorded through the Health workflow, separately from the dry-off event.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected authorised lifecycle event. Historical milk is never altered to match a corrected dry-off date.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>7. Recording a reproductive event
+      <span class="id">breeding.event</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How do I record an insemination or another reproductive event?</p><h4>Answer the Assistant gives</h4><p>Record only an event that actually occurred, giving animal identity, the actual event date, the event type, the responsible operator or technician, and sire or semen details where applicable. Result information is added when it is known.</p><h4>Explanation</h4><p>DairyOS treats a reproductive event as a durable historical fact rather than a status label. Current reproductive state is never stored directly; it is derived from the persisted chronology of events. This is why a reminder or an expected date can never become a recorded event, and why correcting a mistake means recording a further authorised event rather than editing history away.</p><h4>Exceptions</h4><ul><li><b>The event is recorded against the wrong animal.</b> Follow correction_path. DairyOS preserves the erroneous record rather than deleting it.</li><li><b>No purchased semen lot is available under DairyOS governance.</b> The insemination cannot draw on semen inventory. See breeding.ai for the Finance to Breeding relationship.</li><li><b>Only an expected or reminded service date is known, not an actual one.</b> Nothing is recorded. A prediction is not an event.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected authorised event through the supported breeding workflow. History is amended by addition, never by erasure, so the original entry remains auditable.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>8. The post-calving return to breeding
+      <span class="id">breeding.post-calving-return</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What happens after calving, and when can the cow be bred again?</p><h4>Answer the Assistant gives</h4><p>Calving becomes the latest reproductive fact and DairyOS derives the post-calving state and breeding readiness from the persisted chronology. The voluntary waiting period runs for 60 days from the calving date, after which the animal becomes eligible to breed.</p><h4>Explanation</h4><p>Once calving is recorded, the animal must not remain incorrectly pregnant and must not lose its prior reproductive history. DairyOS derives the voluntary waiting period end as the calving date plus 60 days and uses it to determine eligibility to breed. Days open, once a subsequent service succeeds, is measured from the calving date to that service. Milk, health and breeding events after calving are still recorded by the operator through their own workflows; none of them is inferred.</p><h4>Exceptions</h4><ul><li><b>The animal is served before the voluntary waiting period has ended.</b> The service is recorded as an actual event. Eligibility is a derived planning value, not a hard block on recording fact.</li><li><b>Milk is not entered after calving.</b> DairyOS does not infer production. Missing sessions remain a missing-milk condition.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected authorised event. The derived post-calving values recompute from the amended chronology.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>9. Recording pregnancy diagnosis
+      <span class="id">breeding.pregnancy</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should pregnancy diagnosis and reproductive status be recorded?</p><h4>Answer the Assistant gives</h4><p>Record the actual authorised diagnostic event and its result. DairyOS derives current state from the persisted chronology and never treats a forecast or reminder as a confirmed diagnosis.</p><h4>Explanation</h4><p>Pregnancy diagnosis becomes due 35 days after the insemination date. A positive result establishes a confirmed pregnancy, from which DairyOS derives days pregnant from the insemination date and an expected calving date. Where the pregnancy record carries an explicitly configured expected calving date, that configured value takes precedence; otherwise the expected calving date is the insemination date plus the DairyOS gestation authority of 283 days. Confirmed evidence is always kept distinct from expected dates, reminders and calculated state, so a later event can supersede current state without erasing the history that produced it.</p><h4>Exceptions</h4><ul><li><b>The diagnosis is negative.</b> No pregnancy is established. The animal returns to the open state and a subsequent service may be recorded.</li><li><b>A reminder says PD is due but no check has been performed.</b> Nothing is recorded. The reminder is a planning aid, not an event.</li><li><b>A repeat diagnosis contradicts an earlier one.</b> Both remain in history. Current state is derived from the chronology, with the later authorised event taking effect.</li></ul><h4>How a mistake is corrected</h4><p>Record a further authorised diagnostic event. The superseded result stays in history rather than being removed.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>10. Following up an open health case
+      <span class="id">health.follow-up</span></h3>
+  <h4>Question as an operator would ask it</h4><p>When should a health case be followed up?</p><h4>Answer the Assistant gives</h4><p>Follow-up is due according to the recorded clinical plan. Review at the due date, record the outcome and any changed plan, and keep the case open while clinical work remains.</p><h4>Explanation</h4><p>Follow-up exists so that open clinical work stays visible rather than being assumed complete. Recording a treatment does not close a case, and neither does acknowledging an alert. The follow-up record is the evidence that someone actually looked again, which is what separates a case that improved from one that was simply forgotten.</p><h4>Exceptions</h4><ul><li><b>The follow-up is overdue.</b> The case stays open and continues to surface. An overdue prompt is not closed by acknowledging it.</li><li><b>A distinct new problem appears at follow-up.</b> Create a new case rather than extending the existing one.</li></ul><h4>How a mistake is corrected</h4><p>Record a further follow-up observation. Earlier follow-up records are retained.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>11. Recording and triaging a health observation
+      <span class="id">health.observation-triage</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should a suspected sick animal be assessed and recorded?</p><h4>Answer the Assistant gives</h4><p>Observe safely, identify the animal, record objective signs and severity with the actual time and observer, and escalate urgent cases to the veterinarian. A DairyOS entry is evidence capture, not a diagnosis.</p><h4>Explanation</h4><p>DairyOS Health stores an attributable observation record. It does not infer a diagnosis from the signs recorded, and it does not open a withdrawal period. Withdrawal arises only once a treatment carrying a withdrawal interval is recorded. Keeping observation, diagnosis and treatment as separate records is what makes the clinical history auditable and stops a suspicion hardening into a fact.</p><h4>Exceptions</h4><ul><li><b>The animal cannot be safely approached.</b> Record the observation at distance and escalate. Do not force handling to complete a field.</li><li><b>The observation is recorded against the wrong animal.</b> Follow correction_path. DairyOS preserves history rather than deleting it.</li><li><b>Signs suggest a contagious or herd-level problem.</b> Escalate immediately rather than completing data entry first.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected observation against the right animal and annotate the erroneous record. DairyOS preserves history rather than removing it.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>12. Closing a health case
+      <span class="id">health.resolution</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should a health case be closed?</p><h4>Answer the Assistant gives</h4><p>A case is resolved only after the authorised follow-up evidence is recorded. Acknowledging an alert or entering a treatment does not by itself prove recovery.</p><h4>Explanation</h4><p>Resolution is a claim that the underlying problem is finished, so DairyOS requires the evidence that supports it rather than a status change alone. The lifecycle from observation through severity, treatment, withdrawal and follow-up stays auditable after resolution, so a resolved case can still be examined. A resolved status is a record of someone&#x27;s judgement, not a clinical fact in itself.</p><h4>Exceptions</h4><ul><li><b>An active withdrawal is still running.</b> Resolving the case does not end the withdrawal. The withdrawal is a property of the treatment and runs to its end time.</li><li><b>Signs return after resolution.</b> Create a new case. Do not reopen history to absorb a fresh problem.</li></ul><h4>How a mistake is corrected</h4><p>Record a further observation or a new case. A resolution already recorded stays in history.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>13. Assigning health severity
+      <span class="id">health.severity</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should health severity be recorded?</p><h4>Answer the Assistant gives</h4><p>Use objective signs and the approved severity vocabulary. Severity supports triage and prioritisation; it does not establish a diagnosis.</p><h4>Explanation</h4><p>Severity is a triage signal that makes urgency visible to whoever reviews the case next. It is deliberately separate from diagnosis: a severe classification says the animal needs attention soon, not what is wrong with it. Because alerts and findings are driven from severity, a habitually understated severity quietly suppresses the very alerts meant to protect the animal.</p><h4>Exceptions</h4><ul><li><b>Signs are ambiguous.</b> Record the signs and choose severity conservatively. Escalate rather than downgrade.</li><li><b>Severity was assigned incorrectly.</b> Record a corrected observation. The original classification remains in history.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected observation carrying the right severity. The superseded classification stays auditable.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>14. What the health summary shows
+      <span class="id">health.summary</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What does the health summary represent?</p><h4>Answer the Assistant gives</h4><p>It is a projection of recorded health observations, treatments, withdrawals, vaccinations and follow-up status. It is not an independent diagnosis and it is not a separate source of truth.</p><h4>Explanation</h4><p>The summary is derived from the underlying clinical records, so it can only be as complete as they are. When a summary count disagrees with the source histories, the source histories are authoritative and the discrepancy points to a recording problem rather than a display problem. This is why the summary is never edited directly.</p><h4>Exceptions</h4><ul><li><b>A summary count disagrees with the source history.</b> The source history is authoritative. Investigate the recording, do not adjust the summary.</li><li><b>The summary appears empty.</b> Confirm the date and population selected before concluding there are no cases.</li></ul><h4>How a mistake is corrected</h4><p>Correct the underlying clinical record through the Health workflow. The summary recomputes from it.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>15. Recording a veterinary treatment
+      <span class="id">health.treatment</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What must be recorded when a veterinarian treats an animal?</p><h4>Answer the Assistant gives</h4><p>Record the animal, the treatment or product, the actual date and time, the responsible person, the clinical context, and the veterinarian-authorised instructions including any withdrawal interval. Clinical diagnosis and prescription authority remain with the veterinarian.</p><h4>Explanation</h4><p>A treatment is the event that can restrict milk, so it carries the withdrawal instruction. DairyOS does not hold a table of withdrawal periods and does not calculate one: the interval comes from the product label or the veterinarian and is entered with the treatment. DairyOS then stores that interval and enforces it. This is why a treatment recorded without its withdrawal instruction leaves a food-safety gap that no downstream check can close.</p><h4>Exceptions</h4><ul><li><b>The product carries no withdrawal period.</b> Record that explicitly. Do not leave the field empty and assume none applies.</li><li><b>The withdrawal instruction is not known at the time of recording.</b> Obtain it from the label or the veterinarian before milk is dispositioned. Do not guess a value.</li><li><b>The treatment is amended or discontinued.</b> Record the change as a further event. The original treatment fact is retained.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrective or amending treatment event. The original entry is never erased, because withdrawal decisions may already have been taken against it.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>16. How withdrawal keeps treated milk out of sale
+      <span class="id">health.withdrawal</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What is a withdrawal period, and how does DairyOS keep milk from a treated animal out of sales?</p><h4>Answer the Assistant gives</h4><p>A withdrawal period is the interval after a treatment during which the animal&#x27;s milk must not enter the sale stream. DairyOS stores the interval recorded with the treatment and uses it to identify affected animals, so the milk can be handled as non-sale until the period ends.</p><h4>Explanation</h4><p>DairyOS holds a withdrawal as an explicit start time and end time attached to a treatment. It does not derive the length from the product, because no table of withdrawal periods exists in the software; the interval is whatever was entered from the label or veterinary direction. The check is half-open, meaning the animal counts as withdrawn from the start time up to but not including the end time, so it is clear on the end time rather than after it. Affected milk is recorded as a non-sale disposition with its reason, which is what keeps it traceable and out of sold litres and revenue.</p><h4>Exceptions</h4><ul><li><b>The milk looks and tests normal during the withdrawal.</b> It remains withheld. Appearance is not evidence that residue has cleared.</li><li><b>The check falls exactly on the withdrawal end time.</b> The animal is no longer withdrawn, because the interval is end-exclusive.</li><li><b>An animal has more than one active withdrawal.</b> The animal is withdrawn while any one of them is active.</li></ul><h4>How a mistake is corrected</h4><p>Correct the underlying treatment record. A withdrawal is never shortened directly, because it exists only as a property of the treatment that created it.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>17. Recording a vaccination
+      <span class="id">vaccination.event</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What must be recorded after a vaccine is given?</p><h4>Answer the Assistant gives</h4><p>Record the animal or group, the actual administered date, the vaccine or product, the batch or lot where available, the administrator or veterinarian, the next due date, the route or site where the approved programme requires it, and any reaction or note.</p><h4>Explanation</h4><p>Vaccination is a separate DairyOS capability from general Health, and a vaccination event is a preventive record rather than a treatment or a health case. Keeping them distinct matters: a vaccination does not open a health case, does not imply illness, and does not by itself create a withdrawal. The next due date recorded on the event is what drives due and overdue tracking.</p><h4>Exceptions</h4><ul><li><b>The batch or lot is not available.</b> Record the event with what is known. Batch traceability is reduced but the event is still a fact.</li><li><b>The product carries a withdrawal instruction.</b> That instruction is recorded through the treatment and withdrawal workflow, not inferred from the vaccination event.</li></ul><h4>How a mistake is corrected</h4><p>Record a corrected event. Do not delete a vaccination record, since coverage history depends on it.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>18. Missed vaccinations and adverse reactions
+      <span class="id">vaccination.missed-or-reaction</span></h3>
+  <h4>Question as an operator would ask it</h4><p>What should happen when a vaccination is missed or a reaction occurs?</p><h4>Answer the Assistant gives</h4><p>Do not invent a replacement date and do not repeat a dose on the strength of software advice. Record the operational concern, preserve the facts already known, obtain veterinary direction, and record the resulting action and follow-up.</p><h4>Explanation</h4><p>A due reminder is a projection from the last recorded next-due date; it is not evidence that anything happened or failed to happen. Recording a vaccination that was not given in order to clear an overdue flag destroys the coverage record it was meant to protect. An adverse reaction is a clinical observation and is recorded through the Health workflow, which keeps the reaction linked to the animal without turning the vaccination event into a health case.</p><h4>Exceptions</h4><ul><li><b>The vaccination was given but not recorded.</b> Record the actual event with its real date. This is a recording correction, not a new administration.</li><li><b>Several animals react.</b> Escalate as a cohort concern immediately rather than recording individually and waiting.</li></ul><h4>How a mistake is corrected</h4><p>Record the actual facts and the veterinarian-authorised outcome. Never backdate a vaccination that did not occur.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+<section>
+  <h3>19. Designing a herd vaccination programme
+      <span class="id">vaccination.programme-design</span></h3>
+  <h4>Question as an operator would ask it</h4><p>How should a herd vaccination programme be designed?</p><h4>Answer the Assistant gives</h4><p>Start from the veterinarian&#x27;s region- and risk-specific programme. Define target groups, product authority, timing, handling, boosters, exclusions, adverse-reaction escalation and coverage review before recording any administration.</p><h4>Explanation</h4><p>DairyOS holds the programme as an approved plan and the administrations as attributable historical facts, and keeps the two apart. A plan is not evidence that anything was given, and a recorded event is not evidence that the plan was correct. There is no universal schedule: what a herd needs depends on disease prevalence, movement, product authorisation in the jurisdiction and veterinary judgement, so the programme is an input to DairyOS rather than an output from it.</p><h4>Exceptions</h4><ul><li><b>An animal is excluded from the programme.</b> The exclusion is part of the approved plan and should be recorded, not left as a silent gap.</li><li><b>Product authorisation differs by jurisdiction.</b> The programme follows local authorisation and the veterinarian&#x27;s direction.</li></ul><h4>How a mistake is corrected</h4><p>Revise the approved programme with the veterinarian. Historical administrations are never altered to match a revised plan.</p>
+  <table class="verdict">
+    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
+        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
+    <tr><th>Correction or comment</th><td class="write"></td></tr>
+  </table>
+</section>
+
+<section>
+  <h3>Reviewer declaration</h3>
+  <table class="verdict">
+    <tr><th>Name and qualification</th><td class="write"></td></tr>
+    <tr><th>Signature</th><td class="write"></td></tr>
+    <tr><th>Date</th><td class="write"></td></tr>
+  </table>
+</section>
+
+</body></html>
