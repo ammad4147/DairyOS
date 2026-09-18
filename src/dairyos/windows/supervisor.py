@@ -587,6 +587,21 @@ def _desktop_url(url: str) -> str:
     return url.rstrip("/") + "/#desktop-session=" + _desktop_session_token()
 
 
+_DESKTOP_WINDOW = None
+
+
+def _set_desktop_window(window) -> None:
+    """Keep the native pywebview Window outside the JavaScript API object graph."""
+    global _DESKTOP_WINDOW
+    _DESKTOP_WINDOW = window
+
+
+def _require_desktop_window():
+    if _DESKTOP_WINDOW is None:
+        raise RuntimeError("DairyOS desktop window is not ready.")
+    return _DESKTOP_WINDOW
+
+
 class ReportingSaveApi:
     """Native persistence and file selection for governed desktop workflows."""
 
@@ -597,21 +612,22 @@ class ReportingSaveApi:
     }
 
     def __init__(self, save_dialog_type: object = 30) -> None:
-        self.window = None
-        self.save_dialog_type = save_dialog_type
+        # Do not retain the pywebview Window on this js_api instance. pywebview
+        # reflects the API object for JavaScript exposure; making Window reachable
+        # here exposes its native WinForms/WebView2 graph to that traversal.
+        self._save_dialog_type = save_dialog_type
 
     def getDesktopSessionToken(self) -> str:
         """Return the supervisor-owned desktop capability token to pywebview."""
         return _desktop_session_token()
 
     def choose_farm_export_destination(self, suggested_name: str) -> dict[str, object]:
-        if self.window is None:
-            raise RuntimeError("DairyOS desktop window is not ready.")
+        window = _require_desktop_window()
         safe_name = Path(str(suggested_name)).name
         if not safe_name or not safe_name.lower().endswith(".dairypkg"):
             raise ValueError("Farm export name must end with .dairypkg.")
-        selected = self.window.create_file_dialog(
-            self.save_dialog_type,
+        selected = window.create_file_dialog(
+            self._save_dialog_type,
             save_filename=safe_name,
         )
         if not selected:
@@ -623,10 +639,9 @@ class ReportingSaveApi:
         return {"status": "SELECTED", "path": str(path)}
 
     def choose_farm_import_package(self) -> dict[str, object]:
-        if self.window is None:
-            raise RuntimeError("DairyOS desktop window is not ready.")
+        window = _require_desktop_window()
         open_dialog_type = 10
-        selected = self.window.create_file_dialog(
+        selected = window.create_file_dialog(
             open_dialog_type,
             allow_multiple=False,
             file_types=("DairyOS Farm Package (*.dairypkg)",),
@@ -645,8 +660,7 @@ class ReportingSaveApi:
         export_format: str,
         payload: str,
     ) -> dict[str, object]:
-        if self.window is None:
-            raise RuntimeError("DairyOS desktop window is not ready.")
+        window = _require_desktop_window()
 
         normalized_format = str(export_format).strip().upper()
         required_extension = self._EXTENSIONS.get(normalized_format)
@@ -670,8 +684,8 @@ class ReportingSaveApi:
         except (ValueError, binascii.Error) as exc:
             raise ValueError("Invalid report payload.") from exc
 
-        selected = self.window.create_file_dialog(
-            self.save_dialog_type,
+        selected = window.create_file_dialog(
+            self._save_dialog_type,
             save_filename=safe_name,
         )
 
@@ -726,7 +740,7 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         js_api=save_api,
     )
     LOG.info("webview stage=create-window-returned")
-    save_api.window = window
+    _set_desktop_window(window)
 
     # Let Windows choose the usable work area for the operator's display.
     # There is deliberately no fixed size or minimum size: the web app keeps
@@ -761,6 +775,7 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         # Signal the watchdog first so an intentional backend termination
         # cannot be classified as a crash/restart-limit failure.
         watchdog.stop()
+        _set_desktop_window(None)
         on_closed()
 
     window.events.closed += close_application

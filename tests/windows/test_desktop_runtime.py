@@ -11,6 +11,7 @@ from dairyos.windows.supervisor import (
     BackendWatchdog,
     ReportingSaveApi,
     SupervisorConfig,
+    _set_desktop_window,
     _url_port,
     choose_port,
     probe,
@@ -173,6 +174,18 @@ def test_backend_watchdog_clears_transient_restart_failure_after_recovery(monkey
     assert watchdog.process is recovered_process
     assert watchdog.failure is None
 
+def test_reporting_save_api_does_not_retain_pywebview_window_on_js_api():
+    native_window = object()
+    api = ReportingSaveApi()
+
+    _set_desktop_window(native_window)
+    try:
+        assert "window" not in vars(api)
+        assert native_window not in vars(api).values()
+    finally:
+        _set_desktop_window(None)
+
+
 def test_reporting_save_api_exposes_supervisor_owned_desktop_session_token(monkeypatch):
     monkeypatch.setattr(
         "dairyos.windows.supervisor._SESSION_TOKEN",
@@ -292,7 +305,7 @@ def test_reporting_save_api_persists_exact_bytes(tmp_path):
             return str(destination)
 
     api = ReportingSaveApi(save_dialog_type)
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
 
     result = api.save_reporting_export(
         "report.pdf",
@@ -312,7 +325,7 @@ def test_reporting_save_api_does_not_write_when_operator_cancels(tmp_path):
             return None
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
 
     result = api.save_reporting_export(
         "report.csv",
@@ -326,7 +339,7 @@ def test_reporting_save_api_does_not_write_when_operator_cancels(tmp_path):
 
 def test_reporting_save_api_rejects_unsupported_format():
     api = ReportingSaveApi()
-    api.window = object()
+    _set_desktop_window(object())
 
     with pytest.raises(ValueError, match="Unsupported Reporting export format"):
         api.save_reporting_export(
@@ -338,7 +351,7 @@ def test_reporting_save_api_rejects_unsupported_format():
 
 def test_reporting_save_api_rejects_extension_format_mismatch():
     api = ReportingSaveApi()
-    api.window = object()
+    _set_desktop_window(object())
 
     with pytest.raises(
         ValueError,
@@ -353,7 +366,7 @@ def test_reporting_save_api_rejects_extension_format_mismatch():
 
 def test_reporting_save_api_rejects_malformed_base64():
     api = ReportingSaveApi()
-    api.window = object()
+    _set_desktop_window(object())
 
     with pytest.raises(ValueError, match="Invalid report payload"):
         api.save_reporting_export(
@@ -372,7 +385,7 @@ def test_reporting_save_api_strips_filename_path_components(tmp_path):
             return str(destination)
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
 
     result = api.save_reporting_export(
         "../untrusted/report.csv",
@@ -395,7 +408,7 @@ def test_reporting_save_api_does_not_report_saved_when_write_fails(
             return str(destination)
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
 
     def fail_write(self, content):
         raise OSError("simulated write failure")
@@ -421,7 +434,7 @@ def test_reporting_save_api_rejects_selected_destination_extension_mismatch(
             return str(destination)
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
 
     with pytest.raises(
         ValueError,
@@ -442,7 +455,7 @@ def test_farm_export_destination_selection_is_cancel_safe(tmp_path):
             return None
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
     assert api.choose_farm_export_destination("Farm.dairypkg") == {"status": "CANCELLED"}
 
 
@@ -452,7 +465,7 @@ def test_farm_export_destination_requires_package_extension(tmp_path):
             return str(tmp_path / "Farm.txt")
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
     with pytest.raises(ValueError, match="must end with .dairypkg"):
         api.choose_farm_export_destination("Farm.dairypkg")
 
@@ -463,6 +476,6 @@ def test_farm_import_selection_requires_package_extension(tmp_path):
             return str(tmp_path / "Farm.zip")
 
     api = ReportingSaveApi()
-    api.window = FakeWindow()
+    _set_desktop_window(FakeWindow())
     with pytest.raises(ValueError, match="must end with .dairypkg"):
         api.choose_farm_import_package()
