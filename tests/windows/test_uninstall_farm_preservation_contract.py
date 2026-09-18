@@ -37,3 +37,17 @@ def test_clean_installer_still_never_imports_or_discovers_farm_package():
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
     assert "will not overwrite, import, restore, select, or adopt existing" in prepare
+
+
+def test_silent_uninstall_requires_explicit_no_preservation_decision():
+    source = ISS.read_text(encoding="utf-8-sig")
+    assert "function UninstallPreservationChoiceFromCommandLine(): String;" in source
+    assert "'/PRESERVEFARMDATA=NO'" in source
+    assert "if WizardSilent then" in source
+    assert "if CommandChoice = 'NO' then" in source
+    assert "silent mode requires /PRESERVEFARMDATA=NO; uninstall blocked." in source
+
+
+def test_installer_ci_declares_silent_preservation_decision():
+    workflow = (Path(__file__).parents[2] / ".github" / "workflows" / "installer-windows.yml").read_text(encoding="utf-8")
+    assert '"/PRESERVEFARMDATA=NO"' in workflow
