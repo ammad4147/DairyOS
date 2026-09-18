@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from dairyos.knowledge_bridge import bridge
 
@@ -34,6 +34,18 @@ MAX_QUESTION_CHARACTERS = 600
 
 class AssistantQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARACTERS)
+
+    @field_validator("question")
+    @classmethod
+    def _must_not_be_only_whitespace(cls, value: str) -> str:
+        """``min_length`` counts spaces, so "   " satisfied it and travelled all
+        the way to the Assistant as an empty question. Rejected at the boundary
+        instead, where the operator gets a clear answer rather than a blank
+        one."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question must not be empty")
+        return stripped
 
 
 @router.get("/status")

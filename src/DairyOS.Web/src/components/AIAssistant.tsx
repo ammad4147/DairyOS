@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bot } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 type Evidence = { id: string; title: string; unreviewed: boolean };
 
@@ -25,7 +26,15 @@ export default function AIAssistant() {
     setError(null);
     setReply(null);
     try {
-      const response = await fetch('/farm/assistant/ask', {
+      // The Assistant lives outside the /farm namespace on purpose. /farm is
+      // where operational farm data is served, and the Assistant has no route
+      // to any of it, so putting it there would misdescribe the boundary.
+      //
+      // apiUrl, rather than a bare relative path: the UI and the API share an
+      // origin in the packaged application but not under the Vite dev server,
+      // and this helper exists because hand-written paths produced silently
+      // wrong URLs before.
+      const response = await fetch(apiUrl('/assistant/ask'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: asked }),
