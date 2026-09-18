@@ -20,10 +20,13 @@ proves inadequate. That is a decision for evidence, not for taste.
 **Servability.** Only items whose status is in the corpus manifest's
 ``servable_statuses`` are indexed, and that list is ``["APPROVED"]``. A corpus
 whose items have not been reviewed therefore serves nothing at all, which is
-the intended behaviour of the review gate rather than a defect. A caller may
-pass ``servable_statuses`` explicitly to serve unreviewed content for
-pre-release testing; every item retrieved that way is marked ``unreviewed`` so
-the distinction cannot be lost downstream.
+the intended behaviour of the review gate rather than a defect.
+
+Two things widen that, both deliberate and both visible. A caller may pass
+``servable_statuses`` explicitly, and a pre-release build widens it via
+``release.PRE_RELEASE``. In either case every item served below ``APPROVED``
+is marked ``unreviewed`` on the hit itself, so the distinction cannot be lost
+by a downstream layer that forgets to check the build flag.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ from dairyos_assistant.corpus.validation import (
     SERVABLE_STATUSES,
     load_corpus,
 )
+from dairyos_assistant.release import PRE_RELEASE, PRE_RELEASE_STATUSES
 
 
 # Field weights. Question and alternative phrasings carry the most signal
@@ -66,6 +70,29 @@ DEFAULT_MIN_SCORE = 1.0
 DEFAULT_LIMIT = 5
 
 _TOKEN = re.compile(r"[a-z0-9]+")
+
+
+def resolve_servable_statuses(
+    manifest: dict,
+    explicit: Iterable[str] | None = None,
+    *,
+    pre_release: bool = PRE_RELEASE,
+) -> frozenset[str]:
+    """Decide which statuses this index will serve, in precedence order.
+
+    An explicit argument wins, because a caller that names its threshold has
+    said what it means. Otherwise a pre-release build widens the manifest's
+    threshold, and a certified build uses the manifest unchanged.
+
+    Kept as a free function so both branches can be asserted directly, rather
+    than only through whatever the current build constant happens to be.
+    """
+    if explicit is not None:
+        return frozenset(explicit)
+    declared = frozenset(manifest.get("servable_statuses") or SERVABLE_STATUSES)
+    if pre_release:
+        return declared | frozenset(PRE_RELEASE_STATUSES)
+    return declared
 
 # Words carrying no discriminating power in a corpus that is entirely about
 # one product. Deliberately short: over-aggressive stopping loses real signal
@@ -134,10 +161,7 @@ class KnowledgeIndex:
             except (OSError, json.JSONDecodeError):
                 manifest = {}
 
-        if servable_statuses is not None:
-            allowed = frozenset(servable_statuses)
-        else:
-            allowed = frozenset(manifest.get("servable_statuses") or SERVABLE_STATUSES)
+        allowed = resolve_servable_statuses(manifest, servable_statuses)
 
         index = cls(
             corpus_version=str(manifest.get("corpus_version", "")),
@@ -285,6 +309,7 @@ class KnowledgeIndex:
             "servable_items": self.servable_count,
             "excluded_by_status": dict(sorted(self._skipped_by_status.items())),
             "serving_unreviewed": bool(self.servable_statuses - set(SERVABLE_STATUSES)),
+            "pre_release_build": PRE_RELEASE,
         }
 
 

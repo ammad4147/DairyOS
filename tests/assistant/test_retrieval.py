@@ -2,11 +2,12 @@
 
 Two things are asserted here that matter more than ranking quality.
 
-The first is that the review gate is real: with the corpus's own declared
-servable statuses, an unreviewed corpus yields an empty index and every query
-returns nothing. That is the designed behaviour of a knowledge system whose
-content has not been approved, and it is pinned so it cannot be loosened by
-accident.
+The first is that the review gate is real: in a certified build, with the
+corpus's own declared servable statuses, an unreviewed corpus yields an empty
+index and every query returns nothing. That is the designed behaviour of a
+knowledge system whose content has not been approved, and it is pinned so it
+cannot be loosened by accident. This build is a pre-release one, so the gate is
+asserted against the resolution function rather than against the build.
 
 The second is that when a lower threshold is used deliberately for pre-release
 testing, every item retrieved is marked unreviewed, so the distinction survives
@@ -20,9 +21,11 @@ from pathlib import Path
 
 import pytest
 
+from dairyos_assistant.release import PRE_RELEASE
 from dairyos_assistant.retrieval import (
     DEFAULT_MIN_SCORE,
     KnowledgeIndex,
+    resolve_servable_statuses,
     tokenise,
 )
 
@@ -32,7 +35,7 @@ CORPUS = ROOT / "docs" / "assistant-knowledge"
 
 # The corpus is authored but not yet reviewed, so this is the threshold that
 # makes it searchable during development.
-PRE_RELEASE = ["IMPLEMENTATION_REVIEW", "DOMAIN_REVIEW", "APPROVED"]
+PRE_RELEASE_THRESHOLD = ["IMPLEMENTATION_REVIEW", "DOMAIN_REVIEW", "APPROVED"]
 
 
 pytestmark = pytest.mark.skipif(not CORPUS.is_dir(), reason="corpus not present")
@@ -40,7 +43,7 @@ pytestmark = pytest.mark.skipif(not CORPUS.is_dir(), reason="corpus not present"
 
 @pytest.fixture(scope="module")
 def index() -> KnowledgeIndex:
-    return KnowledgeIndex.load(CORPUS, servable_statuses=PRE_RELEASE)
+    return KnowledgeIndex.load(CORPUS, servable_statuses=PRE_RELEASE_THRESHOLD)
 
 
 # ---------------------------------------------------------------------------
@@ -48,19 +51,47 @@ def index() -> KnowledgeIndex:
 # ---------------------------------------------------------------------------
 
 
-def test_default_threshold_serves_only_approved_items():
-    """With the manifest's own setting, an unreviewed corpus serves nothing.
+def test_a_certified_build_serves_only_approved_items():
+    """With the pre-release switch off, an unreviewed corpus serves nothing.
 
-    This is the review gate working, not a failure. If this test ever starts
-    finding items, it means either the corpus has genuinely been approved or
-    the gate has been weakened, and both deserve to be noticed.
+    This is the review gate working, not a failure, and it is asserted against
+    the resolution function directly so that it holds regardless of what the
+    current build constant happens to be.
     """
+    manifest = {"servable_statuses": ["APPROVED"]}
+    assert resolve_servable_statuses(manifest, None, pre_release=False) == frozenset(
+        {"APPROVED"}
+    )
+
+
+def test_a_pre_release_build_widens_the_threshold_and_says_so():
+    manifest = {"servable_statuses": ["APPROVED"]}
+    widened = resolve_servable_statuses(manifest, None, pre_release=True)
+    assert "IMPLEMENTATION_REVIEW" in widened
+    assert "APPROVED" in widened, "widening must never drop approved content"
+
+
+def test_an_explicit_threshold_overrides_both():
+    """A caller that names its threshold has said what it means."""
+    manifest = {"servable_statuses": ["APPROVED"]}
+    for pre_release in (True, False):
+        assert resolve_servable_statuses(
+            manifest, ["DOMAIN_REVIEW"], pre_release=pre_release
+        ) == frozenset({"DOMAIN_REVIEW"})
+
+
+def test_the_current_build_reports_its_own_release_state():
+    """Whatever the constant is set to, the index must report it accurately,
+    because that report is what the diagnostics surface will show."""
     default_index = KnowledgeIndex.load(CORPUS)
-    assert default_index.servable_statuses == frozenset({"APPROVED"})
-    assert default_index.search("how do I record milk") == []
     report = default_index.status_report()
-    assert report["serving_unreviewed"] is False
-    assert report["excluded_by_status"], "the report must say why nothing is servable"
+    assert report["pre_release_build"] is PRE_RELEASE
+    if PRE_RELEASE:
+        assert report["serving_unreviewed"] is True
+        assert default_index.servable_count > 0
+        assert all(h.unreviewed for h in default_index.search("how do I record milk"))
+    else:
+        assert report["serving_unreviewed"] is False
 
 
 def test_pre_release_threshold_marks_every_hit_as_unreviewed(index: KnowledgeIndex):
