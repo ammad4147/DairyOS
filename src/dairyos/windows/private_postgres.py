@@ -548,6 +548,9 @@ def _postgres_is_ready(
 def _wait_for_server(
     host: str,
     port: int,
+    *,
+    user: str = DEFAULT_USER,
+    database: str = DEFAULT_DATABASE,
     timeout: float = 30.0,
 ) -> None:
     deadline = time.monotonic() + timeout
@@ -560,6 +563,8 @@ def _wait_for_server(
         if _postgres_is_ready(
             host,
             port,
+            user=user,
+            database=database,
             timeout=min(5.0, remaining),
         ):
             return
@@ -761,7 +766,13 @@ def start(
             capture=False,
             env=pgctl_env,
         )
-    _wait_for_server(host, selected_port, timeout=timeout)
+    _wait_for_server(
+        host,
+        selected_port,
+        user=cluster_user,
+        database=database,
+        timeout=timeout,
+    )
     security_state_present = (data_root.parent / "security.json").is_file()
     if not security_state_present:
         _ensure_role_and_database(
@@ -809,9 +820,18 @@ def persisted_cluster_is_running() -> bool:
     except (TypeError, ValueError):
         return False
 
+    user = str(state.get("user") or DEFAULT_USER)
+    database = str(state.get("database") or DEFAULT_DATABASE)
+
     return (
         1 <= port <= 65535
-        and _postgres_is_ready(host, port, timeout=2.0)
+        and _postgres_is_ready(
+            host,
+            port,
+            user=user,
+            database=database,
+            timeout=2.0,
+        )
     )
 
 def stop(
@@ -848,6 +868,8 @@ def status(config: PrivatePostgreSQLConfig) -> PrivatePostgreSQLStatus:
         and _postgres_is_ready(
             config.host,
             config.port,
+            user=config.user,
+            database=config.database,
             timeout=2.0,
         )
     )
