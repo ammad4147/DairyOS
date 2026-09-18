@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import shutil
+from importlib.metadata import PackageNotFoundError, version as package_version
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,25 @@ PACKAGE_MANIFEST_FILENAME = "package-manifest.json"
 PACKAGE_DATABASE_FILENAME = "database.dump"
 PACKAGE_FILES_DIRNAME = "files"
 PACKAGE_METADATA_FILENAME = "metadata.json"
+
+
+def _dairyos_version() -> str:
+    try:
+        return package_version("dairyos")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _safe_package_member(package_root: Path, relative_path: str) -> Path:
+    candidate = Path(relative_path)
+    if candidate.is_absolute():
+        raise DataManagementError(f"Package manifest contains an absolute path: {relative_path}")
+    resolved = (package_root / candidate).resolve()
+    try:
+        resolved.relative_to(package_root)
+    except ValueError as exc:
+        raise DataManagementError(f"Package manifest contains an unsafe path: {relative_path}") from exc
+    return resolved
 
 # Persistent directories to include in export.
 _PERSISTENT_DIRS = ("storage", "security")
@@ -129,7 +149,7 @@ def export_farm_data(
             "format_version": PACKAGE_FORMAT_VERSION,
             "farm_instance_id": farm_id,
             "exported_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "dairyos_version": "0.10.0",
+            "dairyos_version": _dairyos_version(),
             "database_file": PACKAGE_DATABASE_FILENAME,
             "semantic_fingerprint": fingerprint,
         }
@@ -199,7 +219,7 @@ def validate_package(package_path: str | Path) -> dict[str, Any]:
     missing = []
     corrupt = []
     for rel_path, expected_sha in files.items():
-        file_path = pkg / rel_path
+        file_path = _safe_package_member(pkg, str(rel_path))
         if not file_path.is_file():
             missing.append(rel_path)
             continue
@@ -214,7 +234,16 @@ def validate_package(package_path: str | Path) -> dict[str, Any]:
 
     # 3. Check metadata
     metadata_path = pkg / PACKAGE_METADATA_FILENAME
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise DataManagementError(f"Package metadata is corrupt: {exc}") from exc
+    if not isinstance(metadata, dict):
+        raise DataManagementError("Package metadata must be a JSON object.")
+    if metadata.get("format_version") != PACKAGE_FORMAT_VERSION:
+        raise DataManagementError(
+            f"Package metadata format version does not match: {metadata.get('format_version')}"
+        )
 
     # 4. Verify database dump archive
     db_path = pkg / PACKAGE_DATABASE_FILENAME
@@ -253,6 +282,8 @@ def import_farm_data(
 
     # Step 2: Create pre-import rollback snapshot
     rollback_dir = resolved_data_root / "backups" / "pre-import-rollback"
+    if rollback_dir.exists():
+        shutil.rmtree(rollback_dir)
     rollback_dir.mkdir(parents=True, exist_ok=True)
     rollback_db_path = rollback_dir / "rollback.dump"
 
@@ -287,6 +318,22 @@ def import_farm_data(
     )
 
     LOG.info("DairyOS pre-import rollback snapshot created: %s", rollback_dir)
+
+    def restore_pre_import_state() -> None:
+        pg_restore_backup(database_url, str(rollback_db_path))
+        for dirname in _PERSISTENT_DIRS:
+            source = rollback_files_dir / dirname
+            target = resolved_data_root / dirname
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            if source.is_dir():
+                shutil.copytree(source, target, dirs_exist_ok=True)
+        if current_farm_id:
+            rollback_session = create_application_session()
+            try:
+                set_farm_instance_id(rollback_session, current_farm_id)
+            finally:
+                rollback_session.close()
 
     # Step 3: Perform import
     try:
@@ -349,40 +396,24 @@ def import_farm_data(
         }
 
     except DataManagementError:
-        # Revert to pre-import state.
         LOG.error("DairyOS import failed; reverting to pre-import state.")
         try:
-            pg_restore_backup(database_url, str(rollback_db_path))
+            restore_pre_import_state()
         except Exception as revert_exc:
-            LOG.critical(
-                "DairyOS CRITICAL: Failed to revert database after import failure: %s",
-                revert_exc,
-            )
-        # Restore persistent files
-        for dirname in _PERSISTENT_DIRS:
-            source = rollback_files_dir / dirname
-            target = resolved_data_root / dirname
-            if source.is_dir():
-                if target.exists():
-                    shutil.rmtree(target, ignore_errors=True)
-                shutil.copytree(source, target, dirs_exist_ok=True)
-        # Restore farm identity
-        if current_farm_id:
-            session = create_application_session()
-            try:
-                set_farm_instance_id(session, current_farm_id)
-            except Exception:
-                LOG.critical("DairyOS CRITICAL: Failed to restore farm identity after import failure.")
-            finally:
-                session.close()
+            LOG.critical("DairyOS CRITICAL: Failed to restore complete pre-import state: %s", revert_exc)
+            raise DataManagementError(
+                "Import failed and automatic rollback could not be completed. "
+                f"Rollback snapshot retained at {rollback_dir}."
+            ) from revert_exc
         raise
     except Exception as exc:
         LOG.error("DairyOS import failed unexpectedly; reverting to pre-import state.")
         try:
-            pg_restore_backup(database_url, str(rollback_db_path))
+            restore_pre_import_state()
         except Exception as revert_exc:
-            LOG.critical(
-                "DairyOS CRITICAL: Failed to revert database after import failure: %s",
-                revert_exc,
-            )
+            LOG.critical("DairyOS CRITICAL: Failed to restore complete pre-import state: %s", revert_exc)
+            raise DataManagementError(
+                "Import failed unexpectedly and automatic rollback could not be completed. "
+                f"Rollback snapshot retained at {rollback_dir}."
+            ) from revert_exc
         raise DataManagementError(f"Import failed: {exc}") from exc
