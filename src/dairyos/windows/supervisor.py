@@ -1020,7 +1020,7 @@ def run(config: SupervisorConfig) -> int:
                 backend, url = start_backend(config, job, port=backend_port)
                 LOG.info(
                     "startup stage=backend-spawned pid=%s url=%s",
-                    backend.pid,
+                    getattr(backend, "pid", "unknown"),
                     url,
                 )
                 wait_for_ready(url, config)
