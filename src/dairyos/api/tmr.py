@@ -622,6 +622,14 @@ def _priced_stage(
             effective_source = "MANUAL_FALLBACK"
             selected_source = "MANUAL"
 
+        # An ingredient with no Finance purchase, no confirmed manual rate and
+        # no catalogue price has no price at all. Costing it at zero would make
+        # the feed appear free and would understate cost of production without
+        # saying so anywhere. It is reported as unpriced instead, and the rest
+        # of the ration still costs normally, so a single missing price never
+        # withholds the whole figure.
+        priced = rate > 0
+
         quantity = float(ingredient["quantity"] or 0.0)
         dose_unit = ingredient["dose_unit"]
         quantity_kg = (
@@ -629,16 +637,21 @@ def _priced_stage(
             if dose_unit == "g"
             else quantity
         )
-        line_cost = quantity_kg * rate
-        total += line_cost
+        if priced:
+            line_cost = quantity_kg * rate
+            total += line_cost
+        else:
+            line_cost = None
+            effective_source = "UNPRICED"
         total_kg += quantity_kg
         rows.append(
             {
                 **ingredient,
-                "price_per_kg": round(rate, 4),
+                "price_per_kg": round(rate, 4) if priced else None,
                 "price_source": (
                     effective_source
                 ),
+                "priced": priced,
                 "selected_price_source": selected_source,
                 "manual_price_per_kg": round(manual_rate, 4),
                 "finance_price_per_kg": (
@@ -658,16 +671,28 @@ def _priced_stage(
                     if finance is not None
                     else None
                 ),
-                "cost_per_head_day": round(line_cost, 4),
+                "cost_per_head_day": (
+                    round(line_cost, 4) if line_cost is not None else None
+                ),
             }
         )
+
+    unpriced = [
+        str(row.get("catalog_name") or row.get("name") or "").strip()
+        for row in rows
+        if not row.get("priced")
+    ]
 
     return {
         "key": stage,
         "label": STAGE_LABELS[stage],
         "ingredients": rows,
         "ration_kg_per_head_day": round(total_kg, 4),
+        # Always a number. It is the cost of the priced part of the ration,
+        # and ``unpriced_ingredients`` says what is missing from it.
         "cost_per_head_day": round(total, 4),
+        "unpriced_ingredients": [name for name in unpriced if name],
+        "costing_complete": not unpriced,
         "source": "GOVERNED_TMR",
     }
 
@@ -930,6 +955,17 @@ def build_live_tmr_summary(
         "categories": categories,
         "herd_counts": counts,
         "total_herd_feed_cost_per_day": round(total_daily, 4),
+        # The cost above always resolves to a number so that no single missing
+        # price blocks Cost of Production. These two fields say how much of the
+        # ration that number actually covers.
+        "unpriced_ingredients": sorted({
+            name
+            for stage in stages.values()
+            for name in stage.get("unpriced_ingredients", [])
+        }),
+        "costing_complete": all(
+            stage.get("costing_complete", True) for stage in stages.values()
+        ),
         "milk_production_today_liters": round(milk_today, 4),
         "feed_cost_per_litre_today": (
             round(feed_per_litre, 4)

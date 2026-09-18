@@ -33,7 +33,8 @@ PERMISSION = "feed.view"
 TMR_AUTHORITY = "Governed TMR rations priced by the TMR authority, populations from the active Animal register"
 
 PRICE_SOURCE_LABELS = {"FINANCE": "Latest Finance purchase", "MANUAL": "Manual price",
-                       "MANUAL_FALLBACK": "Manual price (no Finance purchase)"}
+                       "MANUAL_FALLBACK": "Manual price (no Finance purchase)",
+                       "UNPRICED": "No price recorded"}
 
 
 def _label(value: Any) -> str | None:
@@ -66,6 +67,16 @@ RATION_COLUMNS = column_set(
 )
 
 
+def _money_or_none(value: Any) -> Any:
+    """Money, or nothing at all.
+
+    ``money`` turns ``None`` into zero, which is right for an absent
+    transaction and wrong for an absent price. An ingredient with no recorded
+    price has no cost, and a blank cell says so. Zero would read as free feed.
+    """
+    return None if value is None else money(value)
+
+
 def build_current_tmr(ctx: ReportContext) -> ReportResult:
     from dairyos.reporting.areas.herd import CATEGORY_PLURALS
 
@@ -89,9 +100,10 @@ def build_current_tmr(ctx: ReportContext) -> ReportResult:
                 "quantity_kg": round(quantity / 1000.0 if item.get("dose_unit") == "g" else quantity, 4),
                 "price_per_kg": item.get("price_per_kg"),
                 "price_source": PRICE_SOURCE_LABELS.get(upper(item.get("price_source")), _label(item.get("price_source"))),
-                "cost_per_head_day": money(item.get("cost_per_head_day")),
+                "cost_per_head_day": _money_or_none(item.get("cost_per_head_day")),
                 "finance_purchase_date": to_date(item.get("finance_purchase_date")),
             })
+    unpriced = summary.get("unpriced_ingredients") or []
     return ReportResult(
         sections=[
             Section("categories", "Daily Feed Cost by Herd Category", CATEGORY_COST_COLUMNS, category_rows,
@@ -99,14 +111,20 @@ def build_current_tmr(ctx: ReportContext) -> ReportResult:
                      "category_cost_per_day": money(total), "share": 100.0 if total else None}),
             Section("rations", "Ration Composition and Cost", RATION_COLUMNS, ration_rows,
                     {"_label": "Total (selected stages)", "quantity_kg": round(sum(r["quantity_kg"] for r in ration_rows), 4),
-                     "cost_per_head_day": sum((r["cost_per_head_day"] for r in ration_rows), money(0))}, primary=True),
+                     "cost_per_head_day": sum((r["cost_per_head_day"] for r in ration_rows
+                                               if r["cost_per_head_day"] is not None), money(0))}, primary=True),
         ],
         summary=[Metric("daily", "Herd Feed Cost per Day", money(total), "money"),
                  Metric("milk", "Milk Today", summary.get("milk_production_today_liters"), "litres"),
                  Metric("per_litre", "Feed Cost per Litre Today", summary.get("feed_cost_per_litre_today"), "rate",
                         "Not available until milk is recorded today")],
         notes=["Category cost averages the feeding stages that make up the category, then multiplies by the animals "
-               "currently in that category. This is the TMR authority's own method."],
+               "currently in that category. This is the TMR authority's own method."]
+        + (["Feed cost here covers the priced part of the ration only. "
+            + ", ".join(str(name) for name in unpriced)
+            + " has no Finance purchase price, no confirmed manual rate and no catalogue price, so it is shown as "
+            "unpriced rather than as zero. Record a Finance FEED purchase or a manual rate to bring it into the "
+            "cost."] if unpriced else []),
     )
 
 
