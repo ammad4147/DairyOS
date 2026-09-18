@@ -67,6 +67,10 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 
 
 [Code]
+var
+  PreserveFarmDataOnUninstall: Boolean;
+  PreservedFarmDataPath: String;
+
 function CanonicalDairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
@@ -417,6 +421,65 @@ begin
     Log('DairyOS uninstall: automatic backup task remains; uninstall blocked.');
 end;
 
+function ChoosePreservationDestination(): Boolean;
+var
+  SuggestedName: String;
+begin
+  SuggestedName := 'DairyOS-Farm-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.dairypkg';
+  Result := GetSaveFileName(
+    'Choose where to save the complete DairyOS farm-data package',
+    PreservedFarmDataPath,
+    SuggestedName,
+    'DairyOS Farm Package (*.dairypkg)|*.dairypkg',
+    'dairypkg'
+  );
+  if Result and (CompareText(ExtractFileExt(PreservedFarmDataPath), '.dairypkg') <> 0) then
+    PreservedFarmDataPath := PreservedFarmDataPath + '.dairypkg';
+end;
+
+function ExportFarmDataForUninstall(): Boolean;
+var
+  DairyOSExe: String;
+  Params: String;
+  ResultCode: Integer;
+begin
+  Result := False;
+  DairyOSExe := ExpandConstant('{app}\\DairyOS.exe');
+  if not FileExists(DairyOSExe) then
+  begin
+    MsgBox('DairyOS.exe is missing. Farm data cannot be verified for preservation, so uninstall is blocked.', mbError, MB_OK);
+    exit;
+  end;
+
+  Params := '--farm-data-export "' + PreservedFarmDataPath + '" ' +
+    '--data-root "' + DairyOSDataRoot('') + '"';
+  if (not Exec(DairyOSExe, Params, ExpandConstant('{app}'), SW_HIDE,
+    ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
+  begin
+    MsgBox(
+      'DairyOS could not create and verify the requested farm-data package. ' +
+      'Uninstall is blocked and the installed farm state remains in place.',
+      mbError, MB_OK
+    );
+    exit;
+  end;
+
+  if not DirExists(PreservedFarmDataPath) then
+  begin
+    MsgBox('The verified farm-data package was not found at the selected destination. Uninstall is blocked.', mbError, MB_OK);
+    exit;
+  end;
+
+  MsgBox(
+    'Complete DairyOS farm data was saved and verified at:' + #13#10#13#10 +
+    PreservedFarmDataPath + #13#10#13#10 +
+    'Keep this package safe. It can be imported later from Settings > Data Management.',
+    mbInformation, MB_OK
+  );
+  Log('DairyOS uninstall: verified farm-data preservation package: ' + PreservedFarmDataPath);
+  Result := True;
+end;
+
 function StopInstalledDairyOSForUninstall(): Boolean;
 var
   PgCtl: String;
@@ -512,7 +575,40 @@ begin
 end;
 
 function InitializeUninstall(): Boolean;
+var
+  Choice: Integer;
 begin
-  Log('DairyOS uninstall: beginning straightforward keep-data uninstall.');
+  Result := False;
+  PreserveFarmDataOnUninstall := False;
+  PreservedFarmDataPath := '';
+
+  Choice := MsgBox(
+    'Do you want to preserve the complete DairyOS farm data before uninstalling?' + #13#10#13#10 +
+    'Choose Yes to select a destination and create a verified portable farm-data package.' + #13#10 +
+    'Choose No to uninstall without creating a preservation package.' + #13#10 +
+    'Choose Cancel to leave DairyOS installed.',
+    mbConfirmation, MB_YESNOCANCEL
+  );
+  if Choice = IDCANCEL then
+    exit;
+
+  if Choice = IDYES then
+  begin
+    PreserveFarmDataOnUninstall := True;
+    if not ChoosePreservationDestination() then
+      exit;
+    if not ExportFarmDataForUninstall() then
+      exit;
+  end
+  else
+  begin
+    Choice := MsgBox(
+      'No preservation package will be created. Continue uninstalling DairyOS?',
+      mbConfirmation, MB_YESNO
+    );
+    if Choice <> IDYES then
+      exit;
+  end;
+
   Result := StopInstalledDairyOSForUninstall();
 end;
