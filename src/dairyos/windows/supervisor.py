@@ -515,7 +515,7 @@ def _desktop_url(url: str) -> str:
 
 
 class ReportingSaveApi:
-    """Native persistence for governed DairyOS Reporting exports."""
+    """Native persistence and file selection for governed desktop workflows."""
 
     _EXTENSIONS = {
         "PDF": ".pdf",
@@ -530,6 +530,41 @@ class ReportingSaveApi:
     def getDesktopSessionToken(self) -> str:
         """Return the supervisor-owned desktop capability token to pywebview."""
         return _desktop_session_token()
+
+    def choose_farm_export_destination(self, suggested_name: str) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+        safe_name = Path(str(suggested_name)).name
+        if not safe_name or not safe_name.lower().endswith(".dairypkg"):
+            raise ValueError("Farm export name must end with .dairypkg.")
+        selected = self.window.create_file_dialog(
+            self.save_dialog_type,
+            save_filename=safe_name,
+        )
+        if not selected:
+            return {"status": "CANCELLED"}
+        selected_path = selected[0] if isinstance(selected, (list, tuple)) else selected
+        path = Path(str(selected_path)).expanduser().resolve()
+        if path.suffix.lower() != ".dairypkg":
+            raise ValueError("Farm export destination must end with .dairypkg.")
+        return {"status": "SELECTED", "path": str(path)}
+
+    def choose_farm_import_package(self) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+        open_dialog_type = 10
+        selected = self.window.create_file_dialog(
+            open_dialog_type,
+            allow_multiple=False,
+            file_types=("DairyOS Farm Package (*.dairypkg)",),
+        )
+        if not selected:
+            return {"status": "CANCELLED"}
+        selected_path = selected[0] if isinstance(selected, (list, tuple)) else selected
+        path = Path(str(selected_path)).expanduser().resolve()
+        if path.suffix.lower() != ".dairypkg":
+            raise ValueError("Selected farm package must end with .dairypkg.")
+        return {"status": "SELECTED", "path": str(path)}
 
     def save_reporting_export(
         self,
