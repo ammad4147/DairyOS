@@ -74,24 +74,12 @@ def build_current_tmr(ctx: ReportContext) -> ReportResult:
     from dairyos.reporting.areas.herd import CATEGORY_PLURALS
 
     summary = live_tmr(ctx)
-    # TMR-01: incomplete costing yields None totals — never float(None).
-    raw_total = summary.get("total_herd_feed_cost_per_day")
-    total = float(raw_total) if raw_total is not None else 0.0
-    costing_complete = bool(summary.get("costing_complete", True))
-    category_rows = []
-    for row in summary["categories"]:
-        cat_cost = row.get("category_cost_per_day")
-        category_rows.append({
-            "category": CATEGORY_PLURALS.get(row["category"], row["category"]),
-            "animals": row["animal_count"],
-            "cost_per_head_day": money(row.get("cost_per_head_day")),
-            "category_cost_per_day": money(cat_cost),
-            "share": (
-                ratio(float(cat_cost) * 100, total, 1)
-                if cat_cost is not None and total > 0
-                else None
-            ),
-        })
+    total = float(summary["total_herd_feed_cost_per_day"] or 0)
+    category_rows = [{
+        "category": CATEGORY_PLURALS.get(row["category"], row["category"]), "animals": row["animal_count"],
+        "cost_per_head_day": money(row["cost_per_head_day"]), "category_cost_per_day": money(row["category_cost_per_day"]),
+        "share": ratio(float(row["category_cost_per_day"]) * 100, total, 1),
+    } for row in summary["categories"]]
     stage_filter = ctx.filter("stage")
     ration_rows = []
     for key, stage in summary["stages"].items():
@@ -117,17 +105,12 @@ def build_current_tmr(ctx: ReportContext) -> ReportResult:
                     {"_label": "Total (selected stages)", "quantity_kg": round(sum(r["quantity_kg"] for r in ration_rows), 4),
                      "cost_per_head_day": sum((r["cost_per_head_day"] for r in ration_rows), money(0))}, primary=True),
         ],
-        summary=[Metric("daily", "Herd Feed Cost per Day", money(total) if costing_complete else None, "money",
-                        None if costing_complete else "Incomplete ingredient price authority"),
+        summary=[Metric("daily", "Herd Feed Cost per Day", money(total), "money"),
                  Metric("milk", "Milk Today", summary.get("milk_production_today_liters"), "litres"),
                  Metric("per_litre", "Feed Cost per Litre Today", summary.get("feed_cost_per_litre_today"), "rate",
-                        "Not available until milk is recorded today" if summary.get("feed_cost_per_litre_today") is None else None)],
+                        "Not available until milk is recorded today")],
         notes=["Category cost averages the feeding stages that make up the category, then multiplies by the animals "
-               "currently in that category. This is the TMR authority's own method."]
-               + ([] if costing_complete else [
-                   "One or more ingredients lack Finance or explicit Manual price authority; "
-                   "herd feed cost is not presented as complete."
-               ]),
+               "currently in that category. This is the TMR authority's own method."],
     )
 
 
