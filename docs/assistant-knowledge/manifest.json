@@ -21,35 +21,35 @@
       "path": "dairyos/animals-and-herd.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "animals-and-herd",
-      "sha256": "9e71bfcbe3f5abdc17ded029fa27c6fb11594dd4b42bde2b4ee3dc964bce5c32",
+      "sha256": "c2132a42588e67d789f545ec4fc556b9468374222c540028a38141bf5d944137",
       "item_count": 7
     },
     {
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "breeding-and-reproduction",
-      "sha256": "48b0b7b13f8b39c7c0e9f5aa7c5974149b62a3c1cdcf31e386fad5baf42a7c84",
+      "sha256": "1819ae9d3cb693c148fc509e3922f42c9d9a7b92ce08353d988d049abd1a5a7c",
       "item_count": 9
     },
     {
       "path": "dairyos/finance-and-expenses.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "finance-and-expenses",
-      "sha256": "babd015d3c21d04bab5c33edf11e2cf6acf4e037e489d91755c6a958ba1fb370",
+      "sha256": "e178717fcccdb2a4bd0885f0e5329fa54924dbbab26ac262e885503799eb35dc",
       "item_count": 9
     },
     {
       "path": "dairyos/health-and-veterinary.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "health-and-veterinary",
-      "sha256": "6ab7a963794b4990c7a1d22d8556ec1b093fb9dc0138ec886972b26c390e2f94",
+      "sha256": "ed1809e5d804c3199dea7da8c8c772c57cbcfd1a9abddfabc56ee21db4bbd706",
       "item_count": 13
     },
     {
       "path": "dairyos/milk-production.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "milk-production",
-      "sha256": "3fb02171790dfd2752fd4d491fe66d3df1efe075638bd79ec1a48b5d3870319e",
+      "sha256": "928c3d372169b084ce16eccd0e3dde23271ac772c45ae66d01dcf1a896dae954",
       "item_count": 9
     }
   ],

@@ -94,13 +94,43 @@ def test_the_current_build_reports_its_own_release_state():
         assert report["serving_unreviewed"] is False
 
 
-def test_pre_release_threshold_marks_every_hit_as_unreviewed(index: KnowledgeIndex):
-    hits = index.search("how do I record milk for a session")
-    assert hits, "the pre-release threshold should make the corpus searchable"
-    assert all(h.unreviewed for h in hits), (
-        "content served below APPROVED must be marked unreviewed"
+def test_content_served_below_approved_is_marked_unreviewed(tmp_path: Path):
+    """The guarantee that survives the corpus being approved.
+
+    This was originally asserted against the real corpus, which worked only
+    while that corpus was unreviewed. Once every item reached APPROVED the test
+    began passing for the wrong reason and then failing for the right one. A
+    synthetic corpus pins the behaviour permanently: whenever an item below
+    APPROVED is served, the hit says so, so a future unreviewed item cannot be
+    presented as though it had been reviewed.
+    """
+    root = _synthetic(
+        tmp_path,
+        [
+            _approved(id="x.draft", status="IMPLEMENTATION_REVIEW",
+                      question="How do I record milk for a session?"),
+            _approved(id="x.done", question="How are herd totals calculated?"),
+        ],
+    )
+    index = KnowledgeIndex.load(
+        root, servable_statuses=["IMPLEMENTATION_REVIEW", "APPROVED"]
     )
     assert index.status_report()["serving_unreviewed"] is True
+
+    draft = index.search("record milk session", min_score=0.0, min_matched_terms=1)
+    assert draft and all(h.unreviewed for h in draft if h.knowledge_id == "x.draft")
+
+    done = index.search("herd totals calculated", min_score=0.0, min_matched_terms=1)
+    assert done and not any(h.unreviewed for h in done if h.knowledge_id == "x.done"), (
+        "an approved item must never be flagged unreviewed"
+    )
+
+
+def test_the_real_corpus_is_fully_approved(index: KnowledgeIndex):
+    """Recorded as a fact, not assumed. If an unapproved item is ever added,
+    this fails and the reviewer knows before a build does."""
+    assert index.servable_count > 0
+    assert not any(item.get("status") != "APPROVED" for item in index.documents)
 
 
 def test_deprecated_items_are_never_served(index: KnowledgeIndex):

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 # Set false before AA-16 certification. Nothing else in the package may
 # override this at runtime.
-PRE_RELEASE = True
+PRE_RELEASE = False
 
 # What a pre-release build additionally serves. Domain review is included
 # because an item that has passed it is strictly better evidenced than one that
@@ -41,9 +41,8 @@ PRE_RELEASE_STATUSES: tuple[str, ...] = (
 # The reason, recorded here so that a reader of a pre-release build knows why
 # it is one without having to find the decision in a chat log.
 PRE_RELEASE_REASON = (
-    "Corpus v0.4.0 has passed implementation review against traced DairyOS "
-    "source but has not had domain review. Operator decision of 2026-09-18: "
-    "serve implementation-reviewed content during gates AA-6 to AA-12 so the "
-    "subsystem can be built and tested, with every item flagged unreviewed, "
-    "and require approval before AA-16 certification."
+    "Closed 18 September 2026. All 44 servable items of corpus v0.4.0 are "
+    "APPROVED: the 19 clinical items by Dr Umair Shaffi, DVM, and the 25 "
+    "DairyOS mechanics items by Trident Dairies as operator. The switch is off "
+    "and this build serves only approved knowledge."
 )

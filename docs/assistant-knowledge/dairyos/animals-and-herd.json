@@ -11,9 +11,15 @@
       "domain": "animals-and-herd",
       "capability": "register-animal",
       "title": "Registering a new animal",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I add an animal?",
-      "alternatives": ["register a new animal", "add a cow", "new animal entry", "how do I register a calf", "enter a purchased animal"],
+      "alternatives": [
+        "register a new animal",
+        "add a cow",
+        "new animal entry",
+        "how do I register a calf",
+        "enter a purchased animal"
+      ],
       "answer": "Create one permanent animal identity with the required identity, acquisition, pedigree and operational facts, then verify the saved record before recording any event against it.",
       "explanation": "The permanent identity is the anchor for everything that follows: milk, feed, health, vaccination, breeding, finance and exit all attach to it. DairyOS does not store the herd category directly; it derives the category from the animal's lifecycle status and sex, so those two fields decide how the animal is counted. A milking animal registered without a stated milking frequency defaults to TWICE_DAILY, and supplying a frequency for an animal that is not currently Milking is rejected outright rather than quietly ignored.",
       "scenario": {
@@ -29,15 +35,38 @@
         "next": "Record only events that actually occur."
       },
       "effects": {
-        "persisted": ["permanent animal identity", "identity and acquisition facts", "lifecycle status and sex", "milking frequency where applicable"],
-        "derived": ["herd category", "operational eligibility"],
-        "projected": ["herd totals", "expected milking sessions", "feed category grouping"],
-        "audit": ["animal passport"]
+        "persisted": [
+          "permanent animal identity",
+          "identity and acquisition facts",
+          "lifecycle status and sex",
+          "milking frequency where applicable"
+        ],
+        "derived": [
+          "herd category",
+          "operational eligibility"
+        ],
+        "projected": [
+          "herd totals",
+          "expected milking sessions",
+          "feed category grouping"
+        ],
+        "audit": [
+          "animal passport"
+        ]
       },
       "exceptions": [
-        {"condition": "A milking frequency is supplied for an animal that is not Milking.", "behaviour": "The registration is rejected with HTTP 422. Frequency applies only to an animal currently classified as Milking."},
-        {"condition": "A milking animal is registered with no frequency.", "behaviour": "TWICE_DAILY is applied as the default."},
-        {"condition": "Sex and lifecycle status contradict each other.", "behaviour": "The registration is rejected. See animals.lifecycle for the permitted pairings."}
+        {
+          "condition": "A milking frequency is supplied for an animal that is not Milking.",
+          "behaviour": "The registration is rejected with HTTP 422. Frequency applies only to an animal currently classified as Milking."
+        },
+        {
+          "condition": "A milking animal is registered with no frequency.",
+          "behaviour": "TWICE_DAILY is applied as the default."
+        },
+        {
+          "condition": "Sex and lifecycle status contradict each other.",
+          "behaviour": "The registration is rejected. See animals.lifecycle for the permitted pairings."
+        }
       ],
       "correction_path": "Correct identity fields through the supported edit path, which preserves the permanent identity. Never register a second animal to fix a field on the first.",
       "safety": "Do not register a duplicate to work around a data-entry problem; duplicate identities fragment every downstream history.",
@@ -51,16 +80,33 @@
         "troubleshooting": "If the category is not what you expected, check the lifecycle status rather than looking for a category field."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalTab.tsx", "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"],
-        "routes": ["POST /farm/animals"],
-        "services": ["src/dairyos/api/animal_registration.py", "src/dairyos/farm/herd/services/animal_classification_service.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": [
+          "POST /farm/animals"
+        ],
+        "services": [
+          "src/dairyos/api/animal_registration.py",
+          "src/dairyos/farm/herd/services/animal_classification_service.py"
+        ],
         "models": [],
-        "tests": ["tests/test_animal_passport_reorganization_contract.py"]
+        "tests": [
+          "tests/test_animal_passport_reorganization_contract.py"
+        ]
       },
-      "related": ["animals.identity-and-passport", "animals.lifecycle", "animals.milking-frequency", "animals.groups"],
+      "related": [
+        "animals.identity-and-passport",
+        "animals.lifecycle",
+        "animals.milking-frequency",
+        "animals.groups"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.lifecycle",
@@ -69,9 +115,16 @@
       "domain": "animals-and-herd",
       "capability": "lifecycle",
       "title": "Lifecycle status and how the herd category is derived",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does an animal change operational status, and how is its herd category decided?",
-      "alternatives": ["animal exit", "sold cow", "animal died", "change lifecycle status", "why is this animal a Heifer", "cull an animal"],
+      "alternatives": [
+        "animal exit",
+        "sold cow",
+        "animal died",
+        "change lifecycle status",
+        "why is this animal a Heifer",
+        "cull an animal"
+      ],
       "answer": "Record the actual lifecycle event with its effective date and reason. The permanent identity and all history are retained rather than deleted, and the herd category is derived from the lifecycle status together with the animal's sex.",
       "explanation": "DairyOS recognises nine lifecycle statuses: CALF, HEIFER, CLOSE_UP, LACTATING, DRY, BULL, SOLD, CULLED and DECEASED. The category follows from the status and the sex. LACTATING gives Milking; DRY gives Dry; HEIFER or CLOSE_UP gives Heifer; BULL gives Bull; a CALF gives Male Calf or Female Calf according to sex; and SOLD, CULLED or DECEASED all give the derived category Exited, presented as Sold, Culled or Deceased. Certain pairings are impossible and are rejected rather than silently corrected: a male animal cannot be LACTATING, DRY or CLOSE_UP, and a female animal cannot hold BULL status. One legacy pairing is normalised, since historical records used HEIFER for male animals and that combination resolves to BULL.",
       "scenario": {
@@ -86,16 +139,41 @@
         "next": "Reconcile any milk, sale, treatment or breeding entries around the effective date."
       },
       "effects": {
-        "persisted": ["lifecycle status with its effective date and reason", "disposition facts"],
-        "derived": ["herd category", "operational eligibility", "exit presentation label"],
-        "projected": ["herd totals", "expected milking sessions", "dashboard populations"],
-        "audit": ["animal passport lifecycle history retained in full"]
+        "persisted": [
+          "lifecycle status with its effective date and reason",
+          "disposition facts"
+        ],
+        "derived": [
+          "herd category",
+          "operational eligibility",
+          "exit presentation label"
+        ],
+        "projected": [
+          "herd totals",
+          "expected milking sessions",
+          "dashboard populations"
+        ],
+        "audit": [
+          "animal passport lifecycle history retained in full"
+        ]
       },
       "exceptions": [
-        {"condition": "A male animal is given LACTATING, DRY or CLOSE_UP.", "behaviour": "Rejected. The combination is biologically invalid."},
-        {"condition": "A female animal is given BULL.", "behaviour": "Rejected."},
-        {"condition": "A male animal carries the legacy HEIFER status.", "behaviour": "Normalised to BULL, because historical records used HEIFER for males and that is semantically wrong."},
-        {"condition": "An animal leaves the herd.", "behaviour": "It is never deleted. The identity and every linked history are retained and the animal becomes Exited."}
+        {
+          "condition": "A male animal is given LACTATING, DRY or CLOSE_UP.",
+          "behaviour": "Rejected. The combination is biologically invalid."
+        },
+        {
+          "condition": "A female animal is given BULL.",
+          "behaviour": "Rejected."
+        },
+        {
+          "condition": "A male animal carries the legacy HEIFER status.",
+          "behaviour": "Normalised to BULL, because historical records used HEIFER for males and that is semantically wrong."
+        },
+        {
+          "condition": "An animal leaves the herd.",
+          "behaviour": "It is never deleted. The identity and every linked history are retained and the animal becomes Exited."
+        }
       ],
       "correction_path": "Record a further authorised lifecycle event with its own effective date. An explicit operator-supplied biological fact is never silently overwritten by canonicalisation.",
       "safety": "Never delete an animal to remove it from the herd. Deletion destroys the production, health, breeding and financial evidence attached to it.",
@@ -109,16 +187,32 @@
         "troubleshooting": "If herd totals shift unexpectedly, look for a lifecycle change with an effective date inside the period."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalPassportModal.tsx"],
-        "routes": ["GET /farm/animals/{animal_id}"],
-        "services": ["src/dairyos/farm/herd/services/animal_classification_service.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals/{animal_id}"
+        ],
+        "services": [
+          "src/dairyos/farm/herd/services/animal_classification_service.py"
+        ],
         "models": [],
-        "tests": ["tests/remediation/test_forensic_integrity.py"]
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
       },
-      "related": ["animals.register", "animals.groups", "animals.identity-and-passport", "breeding.calving", "breeding.dry-off"],
+      "related": [
+        "animals.register",
+        "animals.groups",
+        "animals.identity-and-passport",
+        "breeding.calving",
+        "breeding.dry-off"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.groups",
@@ -127,9 +221,16 @@
       "domain": "animals-and-herd",
       "capability": "herd-groups",
       "title": "Herd categories and herd totals",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How are herd totals calculated, and what are the herd categories?",
-      "alternatives": ["herd structure", "how many milking cows", "herd composition", "production groups", "herd strength", "what are the animal categories"],
+      "alternatives": [
+        "herd structure",
+        "how many milking cows",
+        "herd composition",
+        "production groups",
+        "herd strength",
+        "what are the animal categories"
+      ],
       "answer": "Herd totals are derived by classifying every active animal into one of six categories and counting them. Use the governed population for any operational calculation rather than an informal headcount.",
       "explanation": "DairyOS keeps a deliberate distinction between what is stored and what is displayed. The category persisted on an individual animal is singular: Milking, Dry, Heifer, Female Calf, Male Calf or Bull. The plural forms are presentation labels used for aggregate populations, translated at the herd, dashboard and report boundaries: Milking Cows, Dry Cows, Heifers, Female Calves, Male Calves and Bulls. A plural is therefore never a category an individual animal holds, and the singular is never a herd-total heading. Animals whose lifecycle status is SOLD, CULLED or DECEASED fall outside the six and are classified as Exited, so they leave the active totals without leaving the record.",
       "scenario": {
@@ -144,14 +245,31 @@
         "next": "Review TMR cost and production metrics after any change to the population."
       },
       "effects": {
-        "persisted": ["nothing; categories and totals are both derived"],
-        "derived": ["each animal's singular category", "the counted herd totals"],
-        "projected": ["feed category grouping and TMR cost", "milk context", "dashboard populations"],
-        "audit": ["traceable to each animal's lifecycle status and sex"]
+        "persisted": [
+          "nothing; categories and totals are both derived"
+        ],
+        "derived": [
+          "each animal's singular category",
+          "the counted herd totals"
+        ],
+        "projected": [
+          "feed category grouping and TMR cost",
+          "milk context",
+          "dashboard populations"
+        ],
+        "audit": [
+          "traceable to each animal's lifecycle status and sex"
+        ]
       },
       "exceptions": [
-        {"condition": "An informal headcount disagrees with the system total.", "behaviour": "The governed population is authoritative for calculation. Investigate the individual records."},
-        {"condition": "An animal has exited.", "behaviour": "It is categorised as Exited and drops out of the six active totals while its history remains."}
+        {
+          "condition": "An informal headcount disagrees with the system total.",
+          "behaviour": "The governed population is authoritative for calculation. Investigate the individual records."
+        },
+        {
+          "condition": "An animal has exited.",
+          "behaviour": "It is categorised as Exited and drops out of the six active totals while its history remains."
+        }
       ],
       "correction_path": "Correct the animal's lifecycle status or sex. Categories and totals recompute; neither is edited directly.",
       "safety": "Do not substitute an informal headcount for the governed population in a cost or production calculation.",
@@ -165,17 +283,34 @@
         "troubleshooting": "A total that will not reconcile usually contains an animal with an unexpected lifecycle status."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalTab.tsx"],
-        "routes": ["GET /farm/animals"],
-        "services": ["src/dairyos/reporting/areas/herd.py", "src/dairyos/farm/herd/services/animal_classification_service.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals"
+        ],
+        "services": [
+          "src/dairyos/reporting/areas/herd.py",
+          "src/dairyos/farm/herd/services/animal_classification_service.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_cop_tmr_ui_linkage.py"]
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
       },
-      "related": ["animals.lifecycle", "animals.register", "animals.identity-and-passport"],
-      "aliases": ["animals.herd-groups"],
+      "related": [
+        "animals.lifecycle",
+        "animals.register",
+        "animals.identity-and-passport"
+      ],
+      "aliases": [
+        "animals.herd-groups"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.identity-and-passport",
@@ -184,9 +319,15 @@
       "domain": "animals-and-herd",
       "capability": "passport",
       "title": "The animal passport",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is the animal passport and how do I check an animal is correctly linked?",
-      "alternatives": ["animal passport", "animal history", "check an animal's records", "duplicate animal", "is this record linked correctly"],
+      "alternatives": [
+        "animal passport",
+        "animal history",
+        "check an animal's records",
+        "duplicate animal",
+        "is this record linked correctly"
+      ],
       "answer": "The passport is the per-animal view of everything recorded under one permanent identity. Use that identity as the authority, then inspect identity, lifecycle, milk, health, vaccination, breeding, lineage and exit history together.",
       "explanation": "Every operational domain writes back to the passport, which makes it the place where a fragmented or duplicated identity becomes visible. Because the permanent identity is the anchor and mutable labels such as ear tag or name are not, a history that looks incomplete is usually attached to a second identity rather than missing. Merging or deleting records is never the remedy, since both destroy the evidence needed to work out what happened.",
       "scenario": {
@@ -201,14 +342,28 @@
         "next": "Raise a controlled correction with evidence and operator attribution."
       },
       "effects": {
-        "persisted": ["nothing; the passport is a view"],
-        "derived": ["the consolidated per-animal history"],
-        "projected": ["cross-domain linkage checks"],
-        "audit": ["every domain's records remain visible under the identity"]
+        "persisted": [
+          "nothing; the passport is a view"
+        ],
+        "derived": [
+          "the consolidated per-animal history"
+        ],
+        "projected": [
+          "cross-domain linkage checks"
+        ],
+        "audit": [
+          "every domain's records remain visible under the identity"
+        ]
       },
       "exceptions": [
-        {"condition": "History appears to be missing.", "behaviour": "Check for a second identity holding it before concluding records were lost."},
-        {"condition": "Two records appear to be the same animal.", "behaviour": "Escalate. Do not merge them yourself."}
+        {
+          "condition": "History appears to be missing.",
+          "behaviour": "Check for a second identity holding it before concluding records were lost."
+        },
+        {
+          "condition": "Two records appear to be the same animal.",
+          "behaviour": "Escalate. Do not merge them yourself."
+        }
       ],
       "correction_path": "Correct through the workflow that owns the record. The passport reflects the correction and retains what preceded it.",
       "safety": "Never merge or delete animal records to tidy an apparent duplicate. Escalate with evidence instead.",
@@ -222,17 +377,37 @@
         "troubleshooting": "Missing history is far more often a second identity than a lost record."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalPassportModal.tsx", "src/DairyOS.Web/src/components/AnimalTab.tsx"],
-        "routes": ["GET /farm/animals/{animal_id}"],
-        "services": ["src/dairyos/api/animal_passport.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx",
+          "src/DairyOS.Web/src/components/AnimalTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals/{animal_id}"
+        ],
+        "services": [
+          "src/dairyos/api/animal_passport.py"
+        ],
         "models": [],
-        "tests": ["tests/test_animal_passport_reorganization_contract.py"]
+        "tests": [
+          "tests/test_animal_passport_reorganization_contract.py"
+        ]
       },
-      "related": ["animals.search", "animals.edit-identity", "animals.lifecycle", "milk.entry", "health.observation-triage", "breeding.event"],
-      "aliases": ["animals.passport"],
+      "related": [
+        "animals.search",
+        "animals.edit-identity",
+        "animals.lifecycle",
+        "milk.entry",
+        "health.observation-triage",
+        "breeding.event"
+      ],
+      "aliases": [
+        "animals.passport"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.search",
@@ -241,9 +416,14 @@
       "domain": "animals-and-herd",
       "capability": "search-animal",
       "title": "Finding the right animal",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an animal be located safely?",
-      "alternatives": ["find a cow", "search for an animal", "look up by ear tag", "which animal is this"],
+      "alternatives": [
+        "find a cow",
+        "search for an animal",
+        "look up by ear tag",
+        "which animal is this"
+      ],
       "answer": "Search by the permanent identity and corroborating identity fields, then confirm the passport before recording or amending anything.",
       "explanation": "Almost every serious data error in an operational system begins with an event attached to the wrong animal, and that error is expensive because it is invisible at the moment it is made. Confirming the passport before writing costs seconds; unwinding a misattributed treatment, breeding event or milk record afterwards touches every domain that consumed it.",
       "scenario": {
@@ -258,14 +438,28 @@
         "next": "Report conflicting identity evidence before writing any record."
       },
       "effects": {
-        "persisted": ["nothing; searching writes nothing"],
-        "derived": ["the identified animal for the next workflow"],
-        "projected": ["correct cross-domain linkage of whatever is recorded next"],
-        "audit": ["no audit effect"]
+        "persisted": [
+          "nothing; searching writes nothing"
+        ],
+        "derived": [
+          "the identified animal for the next workflow"
+        ],
+        "projected": [
+          "correct cross-domain linkage of whatever is recorded next"
+        ],
+        "audit": [
+          "no audit effect"
+        ]
       },
       "exceptions": [
-        {"condition": "Two animals match the search.", "behaviour": "Stop and resolve the identity before recording anything."},
-        {"condition": "The ear tag matches but other details do not.", "behaviour": "Trust the permanent identity, not the label, and report the conflict."}
+        {
+          "condition": "Two animals match the search.",
+          "behaviour": "Stop and resolve the identity before recording anything."
+        },
+        {
+          "condition": "The ear tag matches but other details do not.",
+          "behaviour": "Trust the permanent identity, not the label, and report the conflict."
+        }
       ],
       "correction_path": "No correction is needed for a search. If an event was recorded against the wrong animal, correct it through that domain's own workflow.",
       "safety": "Confirm the animal before writing. A misattributed record is far harder to undo than to prevent.",
@@ -279,16 +473,31 @@
         "troubleshooting": "If results look wrong, search by permanent identity rather than a mutable label."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalTab.tsx", "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"],
-        "routes": ["GET /farm/animals"],
-        "services": ["src/dairyos/api/animals.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalTab.tsx",
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals"
+        ],
+        "services": [
+          "src/dairyos/api/animals.py"
+        ],
         "models": [],
-        "tests": ["tests/test_animal_passport_reorganization_contract.py"]
+        "tests": [
+          "tests/test_animal_passport_reorganization_contract.py"
+        ]
       },
-      "related": ["animals.register", "animals.identity-and-passport", "animals.edit-identity"],
+      "related": [
+        "animals.register",
+        "animals.identity-and-passport",
+        "animals.edit-identity"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.edit-identity",
@@ -297,9 +506,14 @@
       "domain": "animals-and-herd",
       "capability": "edit-identity",
       "title": "Correcting an animal's identity details",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an animal identity correction be made?",
-      "alternatives": ["change ear tag", "fix animal name", "correct animal details", "wrong breed recorded"],
+      "alternatives": [
+        "change ear tag",
+        "fix animal name",
+        "correct animal details",
+        "wrong breed recorded"
+      ],
       "answer": "Use the supported edit path, keep the permanent identity unchanged, record the reason and who made the change, then verify every linked surface afterwards.",
       "explanation": "Identity fields such as ear tag, name and breed are labels attached to a permanent identity, and correcting them must not create a new one. This matters because every other domain refers to the permanent identity: change that and the histories orphan, while changing only the label leaves them intact. A correction is recorded with its reason so that a later reader can tell a genuine correction from a transcription error repeated.",
       "scenario": {
@@ -314,14 +528,28 @@
         "next": "Escalate if the permanent identity itself appears duplicated."
       },
       "effects": {
-        "persisted": ["the corrected field, its reason and attribution"],
-        "derived": ["updated presentation of the animal across surfaces"],
-        "projected": ["nothing recalculates; only labels change"],
-        "audit": ["prior value retained in the audit trail"]
+        "persisted": [
+          "the corrected field, its reason and attribution"
+        ],
+        "derived": [
+          "updated presentation of the animal across surfaces"
+        ],
+        "projected": [
+          "nothing recalculates; only labels change"
+        ],
+        "audit": [
+          "prior value retained in the audit trail"
+        ]
       },
       "exceptions": [
-        {"condition": "The permanent identity itself is wrong.", "behaviour": "That is not an edit. Escalate, because it may indicate a duplicate."},
-        {"condition": "The change would alter sex or lifecycle status.", "behaviour": "Those are not identity labels. They change the derived category, so use the lifecycle workflow."}
+        {
+          "condition": "The permanent identity itself is wrong.",
+          "behaviour": "That is not an edit. Escalate, because it may indicate a duplicate."
+        },
+        {
+          "condition": "The change would alter sex or lifecycle status.",
+          "behaviour": "Those are not identity labels. They change the derived category, so use the lifecycle workflow."
+        }
       ],
       "correction_path": "Edits are themselves the correction path, and each one is recorded with its reason.",
       "safety": "Never change the permanent identity to fix a label. That orphans every linked history.",
@@ -335,16 +563,30 @@
         "troubleshooting": "If history disappears after an edit, the permanent identity was altered rather than a label."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalPassportModal.tsx"],
-        "routes": ["GET /farm/animals/{animal_id}"],
-        "services": ["src/dairyos/api/animal_registration.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals/{animal_id}"
+        ],
+        "services": [
+          "src/dairyos/api/animal_registration.py"
+        ],
         "models": [],
-        "tests": ["tests/test_animal_passport_reorganization_contract.py"]
+        "tests": [
+          "tests/test_animal_passport_reorganization_contract.py"
+        ]
       },
-      "related": ["animals.search", "animals.identity-and-passport", "animals.lifecycle"],
+      "related": [
+        "animals.search",
+        "animals.identity-and-passport",
+        "animals.lifecycle"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "animals.milking-frequency",
@@ -353,9 +595,14 @@
       "domain": "animals-and-herd",
       "capability": "milking-frequency",
       "title": "Setting an animal's milking frequency",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I set or change how often an animal is milked?",
-      "alternatives": ["change milking frequency", "twice daily to three times", "set milking times", "milking schedule for a cow"],
+      "alternatives": [
+        "change milking frequency",
+        "twice daily to three times",
+        "set milking times",
+        "milking schedule for a cow"
+      ],
       "answer": "Milking frequency is a dated property of the animal and applies only while it is classified as Milking. DairyOS accepts TWICE_DAILY or THRICE_DAILY, and a milking animal registered without one defaults to TWICE_DAILY.",
       "explanation": "Frequency is held as dated history rather than a single current value, so each production date is judged against the frequency effective on that date. Changing it today therefore does not rewrite what was expected last week. Supplying a frequency for an animal that is not currently Milking is rejected with HTTP 422, because the concept has no meaning for a dry cow, a heifer, a calf or a bull. Which sessions the frequency then expects is covered by milk.session-plan.",
       "scenario": {
@@ -370,15 +617,34 @@
         "next": "Enter milk against the sessions the effective frequency expects."
       },
       "effects": {
-        "persisted": ["the dated milking-frequency record"],
-        "derived": ["expected sessions for each production date"],
-        "projected": ["milk completeness", "missing-session alerts", "compliance percentage"],
-        "audit": ["frequency history retained by date"]
+        "persisted": [
+          "the dated milking-frequency record"
+        ],
+        "derived": [
+          "expected sessions for each production date"
+        ],
+        "projected": [
+          "milk completeness",
+          "missing-session alerts",
+          "compliance percentage"
+        ],
+        "audit": [
+          "frequency history retained by date"
+        ]
       },
       "exceptions": [
-        {"condition": "The animal is not classified as Milking.", "behaviour": "Rejected with HTTP 422. Milking frequency applies only to an animal currently classified as Milking."},
-        {"condition": "The value is not a governed frequency.", "behaviour": "Rejected. Only TWICE_DAILY and THRICE_DAILY are accepted."},
-        {"condition": "A Milking animal is registered with no frequency.", "behaviour": "TWICE_DAILY is applied as the default."}
+        {
+          "condition": "The animal is not classified as Milking.",
+          "behaviour": "Rejected with HTTP 422. Milking frequency applies only to an animal currently classified as Milking."
+        },
+        {
+          "condition": "The value is not a governed frequency.",
+          "behaviour": "Rejected. Only TWICE_DAILY and THRICE_DAILY are accepted."
+        },
+        {
+          "condition": "A Milking animal is registered with no frequency.",
+          "behaviour": "TWICE_DAILY is applied as the default."
+        }
       ],
       "correction_path": "Record a further dated frequency change. Earlier dates keep the expectation that was effective for them.",
       "safety": "Do not change frequency to resolve a historical completeness problem; it does not rewrite past expectations, and it should not.",
@@ -392,17 +658,34 @@
         "troubleshooting": "If a past day suddenly looks incomplete, check whether a frequency change was dated too early."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/AnimalTab.tsx"],
-        "routes": ["GET /farm/animals/{animal_id}/milking-frequency/history"],
-        "services": ["src/dairyos/farm/herd/services/animal_milking_schedule_service.py", "src/dairyos/api/animal_registration.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/AnimalTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/animals/{animal_id}/milking-frequency/history"
+        ],
+        "services": [
+          "src/dairyos/farm/herd/services/animal_milking_schedule_service.py",
+          "src/dairyos/api/animal_registration.py"
+        ],
         "models": [],
-        "tests": ["tests/milk/test_animal_milking_schedule_service.py", "tests/milk/test_animal_session_authority_remediation.py"]
+        "tests": [
+          "tests/milk/test_animal_milking_schedule_service.py",
+          "tests/milk/test_animal_session_authority_remediation.py"
+        ]
       },
-      "related": ["animals.register", "animals.lifecycle", "milk.session-plan", "milk.record.session"],
+      "related": [
+        "animals.register",
+        "animals.lifecycle",
+        "milk.session-plan",
+        "milk.record.session"
+      ],
       "authoring_note": "NEW ITEM. The catalogue lists capability 'milking-frequency' under animals-and-herd, but the only entry carrying it was an alias redirecting into the milk domain, so the capability was undocumented here. This item covers setting and changing the frequency on the animal; milk.session-plan covers which sessions the frequency then expects.",
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     }
   ]
 }

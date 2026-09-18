@@ -108,7 +108,7 @@
         "veterinary-items.json::health.observation-triage"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -197,7 +197,7 @@
         "health.resolution"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -304,7 +304,7 @@
         "health-reproduction-advanced-items.json::health.treatment-withdrawal"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -411,7 +411,7 @@
         "health-reproduction-advanced-items.json::health.treatment-withdrawal"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -508,7 +508,7 @@
         "health-reproduction-advanced-items.json::health.follow-up-resolution"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -601,7 +601,7 @@
       ],
       "authoring_note": "NEW ITEM. The catalogue lists capability 'resolution' under health-and-veterinary, but the only item carrying that capability was dashboard.resolution, a Dashboard item. The validator's capability coverage check is domain-blind, so this gap was masked. Content is split out from the previous combined health.follow-up-resolution authoring.",
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -694,7 +694,7 @@
         "vaccination.event"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -794,7 +794,7 @@
         "veterinary-items.json::health.vaccination"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -887,7 +887,7 @@
         "disease.fmd"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -982,7 +982,7 @@
         "health.observation-triage"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"

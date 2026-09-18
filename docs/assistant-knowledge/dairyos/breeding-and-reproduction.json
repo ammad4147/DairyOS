@@ -108,7 +108,7 @@
         "veterinary-items.json::breeding.event"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -214,7 +214,7 @@
       ],
       "authoring_note": "Lifted from DRAFT once the semen authorities were traced to source, closing the content gap recorded as F30. The catalogue has no separate semen capability, so the breeding side lives here under 'ai' and the cost side under finance.attribution.",
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -328,7 +328,7 @@
       ],
       "fix_note": "The veterinary-items.json authoring referenced a non-existent id 'breeding.abortion'. Corrected here to 'breeding.abortion-or-loss', which is the item that actually exists.",
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -438,7 +438,7 @@
         "veterinary-items.json::breeding.calving"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -543,7 +543,7 @@
       ],
       "authoring_note": "An alias 'breeding.abortion' is declared so the broken reference in the previous veterinary-items.json authoring resolves, and so an operator asking about 'abortion' reaches this item.",
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -650,7 +650,7 @@
         "veterinary-items.json::breeding.dry-off"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -747,7 +747,7 @@
         "breeding.current-state"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -839,7 +839,7 @@
         "breeding.pregnancy"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"
@@ -939,7 +939,7 @@
         "milk.entry"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
       "domain_reviewed_by": "Dr Umair Shaffi, DVM",
       "domain_reviewed_at": "2026-09-18"

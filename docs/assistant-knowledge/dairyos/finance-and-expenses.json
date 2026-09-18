@@ -11,9 +11,15 @@
       "domain": "finance-and-expenses",
       "capability": "financial-entry",
       "title": "Recording a finance transaction",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I record a finance transaction?",
-      "alternatives": ["enter an expense", "record income", "add a financial entry", "how do I enter a milk sale", "log a payment"],
+      "alternatives": [
+        "enter an expense",
+        "record income",
+        "add a financial entry",
+        "how do I enter a milk sale",
+        "log a payment"
+      ],
       "answer": "Enter the actual transaction type, amount, date, governed category, payment method, counterparty and operator attribution, then verify the persisted ledger record before relying on any report.",
       "explanation": "DairyOS classifies a transaction by its type. INCOME and RECEIPT are revenue; EXPENSE and PAYMENT are expenses; OWNER_INVESTMENT is a capital inflow; OWNER_WITHDRAWAL and LOAN_PAYMENT are cash movements rather than trading results. That distinction is why an owner drawing money out does not appear as an expense and does not reduce profit. Revenue carries its own governed categories: milk sales, manure, six animal sale categories covering milking animal, dry animal, heifer, female calf, male calf and bull, and other revenue.",
       "scenario": {
@@ -28,14 +34,32 @@
         "next": "Review its payment status, category totals and the relevant cost views."
       },
       "effects": {
-        "persisted": ["the transaction with its type, amount, date, category and counterparty", "operator attribution"],
-        "derived": ["transaction nature of revenue, expense, capital inflow or cash movement", "active or inactive status"],
-        "projected": ["income and expense totals", "cash, payable and receivable positions", "cost attribution where eligible"],
-        "audit": ["financial ledger and audit events"]
+        "persisted": [
+          "the transaction with its type, amount, date, category and counterparty",
+          "operator attribution"
+        ],
+        "derived": [
+          "transaction nature of revenue, expense, capital inflow or cash movement",
+          "active or inactive status"
+        ],
+        "projected": [
+          "income and expense totals",
+          "cash, payable and receivable positions",
+          "cost attribution where eligible"
+        ],
+        "audit": [
+          "financial ledger and audit events"
+        ]
       },
       "exceptions": [
-        {"condition": "The entry does not fit a governed category.", "behaviour": "Escalate for finance review. Do not invent a category spelling that bypasses the taxonomy."},
-        {"condition": "An owner puts money in or takes money out.", "behaviour": "That is a capital inflow or a cash movement, not revenue or expense, and does not affect trading results."}
+        {
+          "condition": "The entry does not fit a governed category.",
+          "behaviour": "Escalate for finance review. Do not invent a category spelling that bypasses the taxonomy."
+        },
+        {
+          "condition": "An owner puts money in or takes money out.",
+          "behaviour": "That is a capital inflow or a cash movement, not revenue or expense, and does not affect trading results."
+        }
       ],
       "correction_path": "Amend through the governed edit path, or void the transaction if it should not exist. Never edit the ledger outside the API.",
       "safety": "Do not use a generic adjustment to conceal an unclassified source transaction.",
@@ -49,18 +73,42 @@
         "troubleshooting": "If a figure is missing from a total, check the transaction's type and its active status first."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["POST /farm/financial", "GET /farm/financial"],
-        "services": ["src/dairyos/api/finance_ledger.py", "src/dairyos/finance/classification/transaction_classifier.py", "src/dairyos/finance/ledger_semantics.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial",
+          "GET /farm/financial"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/finance/classification/transaction_classifier.py",
+          "src/dairyos/finance/ledger_semantics.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_transaction_integrity.py", "tests/api/test_finance_taxonomy_ui_shape.py"]
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py",
+          "tests/api/test_finance_taxonomy_ui_shape.py"
+        ]
       },
-      "related": ["finance.expense-category", "finance.payment-status", "finance.void", "finance.amendment"],
-      "aliases": ["finance.expense-entry"],
-      "merged_from": ["finance-items.json::finance.financial-entry", "finance-analytics-audit-items.json::finance.expense-entry"],
+      "related": [
+        "finance.expense-category",
+        "finance.payment-status",
+        "finance.void",
+        "finance.amendment"
+      ],
+      "aliases": [
+        "finance.expense-entry"
+      ],
+      "merged_from": [
+        "finance-items.json::finance.financial-entry",
+        "finance-analytics-audit-items.json::finance.expense-entry"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.expense-category",
@@ -69,9 +117,14 @@
       "domain": "finance-and-expenses",
       "capability": "expense-category",
       "title": "Choosing an expense category",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Which category should I use for an expense?",
-      "alternatives": ["expense category", "how to categorise a cost", "which category for feed", "why does categorisation matter"],
+      "alternatives": [
+        "expense category",
+        "how to categorise a cost",
+        "which category for feed",
+        "why does categorisation matter"
+      ],
       "answer": "Use the governed taxonomy. Every expense is entered under one of three master categories, Feed, OPEX or Non-OPEX, then a group within it, then a specific item.",
       "explanation": "The taxonomy has exactly three master categories. Feed covers green fodder and silage, dry roughages, commercial feeds and grains, protein meals and cakes, minerals and premixes. OPEX covers ten groups including veterinary and herd health, breeding and reproduction, labour and salaries, utilities, machinery, dairy chemicals, bedding, logistics and admin, and land and rent. Non-OPEX contains only two items in total: Animal Purchase and Equipment Purchase. Categorisation matters because the category decides which attribution rule applies and whether the cost can reach cost of production at all. TMR ingredients must use the shared TMR catalogue identity so that Finance and Feed stay aligned on the same ingredient.",
       "scenario": {
@@ -86,14 +139,31 @@
         "next": "Review the attribution method and whether the item reaches cost of production."
       },
       "effects": {
-        "persisted": ["master category, group and item on the transaction"],
-        "derived": ["default cost-of-production classification", "default attribution method"],
-        "projected": ["expense reports", "OPEX totals", "cost of production"],
-        "audit": ["category recorded with the transaction"]
+        "persisted": [
+          "master category, group and item on the transaction"
+        ],
+        "derived": [
+          "default cost-of-production classification",
+          "default attribution method"
+        ],
+        "projected": [
+          "expense reports",
+          "OPEX totals",
+          "cost of production"
+        ],
+        "audit": [
+          "category recorded with the transaction"
+        ]
       },
       "exceptions": [
-        {"condition": "The item is Other, Small Tools and Implements, Building or Yard Repairs, or Taxes and Local Fees.", "behaviour": "These have no default cost classification. The operator must decide per transaction whether it is OPEX or Non-OPEX."},
-        {"condition": "The expense is a TMR ingredient.", "behaviour": "It must use the shared TMR catalogue identity, or Feed and Finance will disagree about the same ingredient."}
+        {
+          "condition": "The item is Other, Small Tools and Implements, Building or Yard Repairs, or Taxes and Local Fees.",
+          "behaviour": "These have no default cost classification. The operator must decide per transaction whether it is OPEX or Non-OPEX."
+        },
+        {
+          "condition": "The expense is a TMR ingredient.",
+          "behaviour": "It must use the shared TMR catalogue identity, or Feed and Finance will disagree about the same ingredient."
+        }
       ],
       "correction_path": "Amend the transaction through the governed edit path. The original category remains in the audit trail.",
       "safety": "Do not create category spellings that bypass the governed taxonomy; an unrecognised item has no attribution rule.",
@@ -107,18 +177,42 @@
         "troubleshooting": "If a cost never appears in cost of production, check its item against the exclusions."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx", "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"],
-        "routes": ["GET /farm/finance-ledger/taxonomy", "POST /farm/financial"],
-        "services": ["src/dairyos/finance/expense_taxonomy.py", "src/dairyos/api/tmr.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/finance-ledger/taxonomy",
+          "POST /farm/financial"
+        ],
+        "services": [
+          "src/dairyos/finance/expense_taxonomy.py",
+          "src/dairyos/api/tmr.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_tmr_catalog_parity.py", "tests/api/test_finance_taxonomy_ui_shape.py"]
+        "tests": [
+          "tests/api/test_finance_tmr_catalog_parity.py",
+          "tests/api/test_finance_taxonomy_ui_shape.py"
+        ]
       },
-      "related": ["finance.financial-entry", "finance.opex", "finance.attribution", "finance.cost-of-production"],
-      "aliases": ["finance.category"],
-      "merged_from": ["finance-items.json::finance.expense-category", "finance-analytics-audit-items.json::finance.category"],
+      "related": [
+        "finance.financial-entry",
+        "finance.opex",
+        "finance.attribution",
+        "finance.cost-of-production"
+      ],
+      "aliases": [
+        "finance.category"
+      ],
+      "merged_from": [
+        "finance-items.json::finance.expense-category",
+        "finance-analytics-audit-items.json::finance.category"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.payment-status",
@@ -127,9 +221,16 @@
       "domain": "finance-and-expenses",
       "capability": "payment-status",
       "title": "Payment status and settlement",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I record whether a transaction was paid?",
-      "alternatives": ["mark as paid", "payment status", "receivable", "payable", "has this been settled", "part payment"],
+      "alternatives": [
+        "mark as paid",
+        "payment status",
+        "receivable",
+        "payable",
+        "has this been settled",
+        "part payment"
+      ],
       "answer": "Set the governed status from actual settlement evidence. The value incurred and the cash movement are distinct facts, and changing status never rewrites the original amount.",
       "explanation": "A transaction starts as RECORDED and may move to PAYABLE or RECEIVABLE. A payable settles to PAID; a receivable settles to RECEIVED. Every state can be voided. What is not possible is going back: once PAID or RECEIVED, the only remaining move is VOID. There is also no partial settlement anywhere in the model, so a transaction settles once and in full. RECORDED is treated as cash at the time of recording, which is why it is the right status for something paid immediately and the wrong status for something owed.",
       "scenario": {
@@ -144,15 +245,34 @@
         "next": "Follow any remaining outstanding items through the ageing view."
       },
       "effects": {
-        "persisted": ["the status and its transition evidence"],
-        "derived": ["settled or outstanding position"],
-        "projected": ["cash", "payables and receivables", "ageing"],
-        "audit": ["each transition recorded against the transaction"]
+        "persisted": [
+          "the status and its transition evidence"
+        ],
+        "derived": [
+          "settled or outstanding position"
+        ],
+        "projected": [
+          "cash",
+          "payables and receivables",
+          "ageing"
+        ],
+        "audit": [
+          "each transition recorded against the transaction"
+        ]
       },
       "exceptions": [
-        {"condition": "Only part of an amount has been paid.", "behaviour": "DairyOS has no partial settlement. A transaction settles once and in full, so a part payment must be handled as a matter of how the transactions were recorded."},
-        {"condition": "A settled transaction turns out to be wrong.", "behaviour": "PAID and RECEIVED cannot revert. The only onward transition is VOID."},
-        {"condition": "The transaction was paid at the moment of recording.", "behaviour": "RECORDED already represents cash at recording; it does not need to be moved to PAID."}
+        {
+          "condition": "Only part of an amount has been paid.",
+          "behaviour": "DairyOS has no partial settlement. A transaction settles once and in full, so a part payment must be handled as a matter of how the transactions were recorded."
+        },
+        {
+          "condition": "A settled transaction turns out to be wrong.",
+          "behaviour": "PAID and RECEIVED cannot revert. The only onward transition is VOID."
+        },
+        {
+          "condition": "The transaction was paid at the moment of recording.",
+          "behaviour": "RECORDED already represents cash at recording; it does not need to be moved to PAID."
+        }
       ],
       "correction_path": "Void the transaction and record the correct one, since settled states cannot be reversed.",
       "safety": "Never mark something paid because it was entered or approved. Status must follow settlement evidence.",
@@ -166,16 +286,32 @@
         "troubleshooting": "If a status will not change, check the permitted transitions from its current state."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["POST /farm/financial/{transaction_id}/status", "GET /farm/finance-ledger/ageing"],
-        "services": ["src/dairyos/api/finance_ledger.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial/{transaction_id}/status",
+          "GET /farm/finance-ledger/ageing"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_state_transitions.py", "tests/api/test_finance_edit_payables.py"]
+        "tests": [
+          "tests/api/test_finance_state_transitions.py",
+          "tests/api/test_finance_edit_payables.py"
+        ]
       },
-      "related": ["finance.financial-entry", "finance.void", "finance.amendment"],
+      "related": [
+        "finance.financial-entry",
+        "finance.void",
+        "finance.amendment"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.amendment",
@@ -184,9 +320,14 @@
       "domain": "finance-and-expenses",
       "capability": "amendment",
       "title": "Correcting a finance entry",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I correct a finance entry?",
-      "alternatives": ["edit a transaction", "wrong amount entered", "fix a finance record", "change an expense"],
+      "alternatives": [
+        "edit a transaction",
+        "wrong amount entered",
+        "fix a finance record",
+        "change an expense"
+      ],
       "answer": "Use the governed edit path with a reason. Dependent milk, feed, payroll and cost facts must stay synchronised with the correction.",
       "explanation": "A finance transaction is frequently the source of a derived figure elsewhere, so a correction has to carry through. Where a transaction is linked to another domain, such as a milk sale, the amendment applies across both or fails; a half-applied correction would leave production and revenue disagreeing with nothing to explain the gap. The prior value is retained, which is what lets a reviewer distinguish a genuine correction from a repeated error.",
       "scenario": {
@@ -202,14 +343,29 @@
         "next": "Recheck the affected cost of production, OPEX, payable or revenue period."
       },
       "effects": {
-        "persisted": ["the corrected values and the reason"],
-        "derived": ["recomputed category and period totals"],
-        "projected": ["cost attribution", "cash, payable and receivable positions"],
-        "audit": ["prior values retained"]
+        "persisted": [
+          "the corrected values and the reason"
+        ],
+        "derived": [
+          "recomputed category and period totals"
+        ],
+        "projected": [
+          "cost attribution",
+          "cash, payable and receivable positions"
+        ],
+        "audit": [
+          "prior values retained"
+        ]
       },
       "exceptions": [
-        {"condition": "A dependent fact in another domain cannot be synchronised.", "behaviour": "The amendment fails rather than applying partially. Read the error."},
-        {"condition": "The transaction should not exist at all.", "behaviour": "Void it rather than amending it to zero."}
+        {
+          "condition": "A dependent fact in another domain cannot be synchronised.",
+          "behaviour": "The amendment fails rather than applying partially. Read the error."
+        },
+        {
+          "condition": "The transaction should not exist at all.",
+          "behaviour": "Void it rather than amending it to zero."
+        }
       ],
       "correction_path": "Amendments are themselves the correction path, each recorded with its reason.",
       "safety": "Do not edit database rows directly and do not create a compensating entry whose purpose is unexplained.",
@@ -223,16 +379,31 @@
         "troubleshooting": "A rejected amendment names the dependency that could not move."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["PATCH /farm/finance-ledger/{transaction_id}"],
-        "services": ["src/dairyos/api/finance_ledger.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "PATCH /farm/finance-ledger/{transaction_id}"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_edit_payables.py", "tests/api/test_milk_sale_amendment_atomicity.py"]
+        "tests": [
+          "tests/api/test_finance_edit_payables.py",
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
       },
-      "related": ["finance.void", "finance.financial-entry", "finance.payment-status"],
+      "related": [
+        "finance.void",
+        "finance.financial-entry",
+        "finance.payment-status"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.void",
@@ -241,9 +412,15 @@
       "domain": "finance-and-expenses",
       "capability": "void",
       "title": "Voiding a finance transaction",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When should a finance transaction be voided, and what happens to it?",
-      "alternatives": ["cancel a transaction", "delete an expense", "void an invoice", "remove a duplicate entry", "what does VOID mean"],
+      "alternatives": [
+        "cancel a transaction",
+        "delete an expense",
+        "void an invoice",
+        "remove a duplicate entry",
+        "what does VOID mean"
+      ],
       "answer": "Void an invalid or duplicate transaction through the governed status action. It is excluded from every active total while the original record and the reason are retained permanently.",
       "explanation": "Voiding is the one transition available from every state, including settled ones, and it requires a reason. The evidence is written into the transaction's notes as a stamped transition recording when it happened, what it moved from and to, and why. Three statuses mark a row inactive: VOID, CANCELLED and DELETED. None of them removes the row, which is the point. A period total that once reconciled stays explainable, and a reviewer can see both that the entry existed and that it was withdrawn.",
       "scenario": {
@@ -258,15 +435,33 @@
         "next": "Enter a correct replacement only where the evidence supports one."
       },
       "effects": {
-        "persisted": ["void status with its stamped reason in the notes"],
-        "derived": ["active ledger totals that now exclude it"],
-        "projected": ["expense and revenue totals", "cost of production and OPEX"],
-        "audit": ["the original transaction retained permanently"]
+        "persisted": [
+          "void status with its stamped reason in the notes"
+        ],
+        "derived": [
+          "active ledger totals that now exclude it"
+        ],
+        "projected": [
+          "expense and revenue totals",
+          "cost of production and OPEX"
+        ],
+        "audit": [
+          "the original transaction retained permanently"
+        ]
       },
       "exceptions": [
-        {"condition": "The transaction is already settled.", "behaviour": "VOID is still available. It is the only transition out of PAID or RECEIVED."},
-        {"condition": "The amount is merely wrong.", "behaviour": "Amend it. Void is for a transaction that should not exist."},
-        {"condition": "No reason is given.", "behaviour": "The void is not accepted. The reason is the audit evidence."}
+        {
+          "condition": "The transaction is already settled.",
+          "behaviour": "VOID is still available. It is the only transition out of PAID or RECEIVED."
+        },
+        {
+          "condition": "The amount is merely wrong.",
+          "behaviour": "Amend it. Void is for a transaction that should not exist."
+        },
+        {
+          "condition": "No reason is given.",
+          "behaviour": "The void is not accepted. The reason is the audit evidence."
+        }
       ],
       "correction_path": "Record the correct replacement transaction. The voided one stays visible as history.",
       "safety": "Void is not deletion and must not be used to hide a control failure.",
@@ -280,16 +475,32 @@
         "troubleshooting": "If a total is lower than the ledger suggests, look for inactive rows before suspecting a fault."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["POST /farm/financial/{transaction_id}/status"],
-        "services": ["src/dairyos/api/finance_ledger.py", "src/dairyos/finance/classification/transaction_classifier.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial/{transaction_id}/status"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/finance/classification/transaction_classifier.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_state_transitions.py", "tests/api/test_finance_transaction_integrity.py"]
+        "tests": [
+          "tests/api/test_finance_state_transitions.py",
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
       },
-      "related": ["finance.amendment", "finance.payment-status", "milk.void"],
+      "related": [
+        "finance.amendment",
+        "finance.payment-status",
+        "milk.void"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.payroll",
@@ -298,9 +509,14 @@
       "domain": "finance-and-expenses",
       "capability": "payroll",
       "title": "Payroll",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does payroll enter DairyOS finance?",
-      "alternatives": ["pay wages", "staff salary", "payroll entry", "record worker pay"],
+      "alternatives": [
+        "pay wages",
+        "staff salary",
+        "payroll entry",
+        "record worker pay"
+      ],
       "answer": "Create and settle payroll through the governed payroll workflow, so that the payroll record and its corresponding financial and audit events are both retained.",
       "explanation": "Payroll is entered through its own workflow rather than as a free-form expense, because it carries an employee, a period and a liability that must remain linked to the resulting financial fact. Labour costs sit in the OPEX taxonomy under labour and salaries, covering milker wages, feeder and shed worker wages, supervisor and manager salary, daily labour, overtime, staff rations and payroll taxes. Those are periodic costs, so they attribute across the period they cover rather than landing entirely on the day they were paid.",
       "scenario": {
@@ -315,14 +531,29 @@
         "next": "Review OPEX attribution for the period the payroll covers."
       },
       "effects": {
-        "persisted": ["payroll record with employee, period and amount"],
-        "derived": ["payable position until settled"],
-        "projected": ["OPEX attributed across the covered period", "cash"],
-        "audit": ["payroll register linked to the financial ledger"]
+        "persisted": [
+          "payroll record with employee, period and amount"
+        ],
+        "derived": [
+          "payable position until settled"
+        ],
+        "projected": [
+          "OPEX attributed across the covered period",
+          "cash"
+        ],
+        "audit": [
+          "payroll register linked to the financial ledger"
+        ]
       },
       "exceptions": [
-        {"condition": "Payment has not actually been made.", "behaviour": "Leave it payable. Settlement status follows evidence."},
-        {"condition": "The payroll covers a period spanning a reporting boundary.", "behaviour": "It attributes across its coverage dates, not to the payment date."}
+        {
+          "condition": "Payment has not actually been made.",
+          "behaviour": "Leave it payable. Settlement status follows evidence."
+        },
+        {
+          "condition": "The payroll covers a period spanning a reporting boundary.",
+          "behaviour": "It attributes across its coverage dates, not to the payment date."
+        }
       ],
       "correction_path": "Correct through the payroll workflow so the payroll record and the financial fact stay aligned.",
       "safety": "Do not mark payroll paid without settlement evidence.",
@@ -336,16 +567,31 @@
         "troubleshooting": "If labour cost lands in the wrong period, check the coverage dates rather than the payment date."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["POST /farm/payroll", "POST /farm/payroll/{record_id}/pay"],
-        "services": ["src/dairyos/api/payroll.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/payroll",
+          "POST /farm/payroll/{record_id}/pay"
+        ],
+        "services": [
+          "src/dairyos/api/payroll.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_payroll_finance_link.py"]
+        "tests": [
+          "tests/api/test_payroll_finance_link.py"
+        ]
       },
-      "related": ["finance.payment-status", "finance.opex", "finance.attribution"],
+      "related": [
+        "finance.payment-status",
+        "finance.opex",
+        "finance.attribution"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.opex",
@@ -354,9 +600,15 @@
       "domain": "finance-and-expenses",
       "capability": "opex",
       "title": "What counts as OPEX",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Which expenses contribute to OPEX per litre, and why is an equipment purchase excluded?",
-      "alternatives": ["what is OPEX", "why isn't equipment purchase in OPEX", "operating expenses", "which costs count", "is animal purchase an expense"],
+      "alternatives": [
+        "what is OPEX",
+        "why isn't equipment purchase in OPEX",
+        "operating expenses",
+        "which costs count",
+        "is animal purchase an expense"
+      ],
       "answer": "Eligible operating expenses are attributed to the selected period by their governed rule and divided by the period's milk. Three items are classified Non-OPEX and never reach it: Equipment Purchase, Animal Purchase and Loan Interest.",
       "explanation": "There is a distinction here that is easy to miss, and it matters. An expense has an entry category and, separately, a cost-of-production classification. Loan Interest is entered under OPEX, in the logistics, admin and finance group, because that is where it belongs operationally. For cost of production it is classified Non-OPEX and excluded, alongside Equipment Purchase and Animal Purchase. All three are excluded for the same underlying reason: they are capital or financing costs rather than the operating cost of producing this period's milk. Including an equipment purchase would load a single period with an asset that serves many. Four further items have no default classification at all, namely Other, Small Tools and Implements, Building or Yard Repairs, and Taxes and Local Fees, so the operator decides for each transaction whether it is operating or capital in nature.",
       "scenario": {
@@ -371,15 +623,34 @@
         "next": "Review feed cost per litre separately, and combine the two only in cost of production per litre."
       },
       "effects": {
-        "persisted": ["the classification chosen where the item has no default"],
-        "derived": ["attributed OPEX for the period", "OPEX per litre"],
-        "projected": ["cost of production per litre", "profitability views"],
-        "audit": ["exclusions and unattributed amounts shown rather than hidden"]
+        "persisted": [
+          "the classification chosen where the item has no default"
+        ],
+        "derived": [
+          "attributed OPEX for the period",
+          "OPEX per litre"
+        ],
+        "projected": [
+          "cost of production per litre",
+          "profitability views"
+        ],
+        "audit": [
+          "exclusions and unattributed amounts shown rather than hidden"
+        ]
       },
       "exceptions": [
-        {"condition": "The item is Equipment Purchase, Animal Purchase or Loan Interest.", "behaviour": "Classified Non-OPEX and excluded from OPEX per litre, even though the first two are entered under Non-OPEX and the third under OPEX."},
-        {"condition": "The item is one of the four with no default classification.", "behaviour": "The operator must classify it for that transaction."},
-        {"condition": "A cost cannot be attributed.", "behaviour": "It is shown as unattributed rather than silently dropped or silently included."}
+        {
+          "condition": "The item is Equipment Purchase, Animal Purchase or Loan Interest.",
+          "behaviour": "Classified Non-OPEX and excluded from OPEX per litre, even though the first two are entered under Non-OPEX and the third under OPEX."
+        },
+        {
+          "condition": "The item is one of the four with no default classification.",
+          "behaviour": "The operator must classify it for that transaction."
+        },
+        {
+          "condition": "A cost cannot be attributed.",
+          "behaviour": "It is shown as unattributed rather than silently dropped or silently included."
+        }
       ],
       "correction_path": "Correct the transaction's category or classification through the governed edit path; the attributed totals recompute.",
       "safety": "Do not silently include Non-OPEX or unattributed costs in an operating figure.",
@@ -393,16 +664,33 @@
         "troubleshooting": "If a large cost never appears in cost per litre, check whether its item is one of the three exclusions."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/COML.tsx", "src/DairyOS.Web/src/components/FinanceTab.tsx"],
-        "routes": ["GET /farm/coml/integrated"],
-        "services": ["src/dairyos/finance/opex_attribution.py", "src/dairyos/api/coml.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx",
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated"
+        ],
+        "services": [
+          "src/dairyos/finance/opex_attribution.py",
+          "src/dairyos/api/coml.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_finance_feed_opex_profitability.py", "tests/api/test_finance_feed_opex.py"]
+        "tests": [
+          "tests/api/test_finance_feed_opex_profitability.py",
+          "tests/api/test_finance_feed_opex.py"
+        ]
       },
-      "related": ["finance.expense-category", "finance.attribution", "finance.cost-of-production"],
+      "related": [
+        "finance.expense-category",
+        "finance.attribution",
+        "finance.cost-of-production"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.attribution",
@@ -411,9 +699,15 @@
       "domain": "finance-and-expenses",
       "capability": "attribution",
       "title": "How expenses are attributed to a period",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How are expenses attributed to a cost period?",
-      "alternatives": ["cost attribution", "which period does a cost belong to", "why is a cost spread out", "how is semen cost counted", "attribution method"],
+      "alternatives": [
+        "cost attribution",
+        "which period does a cost belong to",
+        "why is a cost spread out",
+        "how is semen cost counted",
+        "attribution method"
+      ],
       "answer": "Each eligible expense carries one of four rules. Direct costs land on their service date, periodic and allocated costs spread across their coverage dates, and consumption costs are counted only as they are actually used.",
       "explanation": "Direct applies to a cost tied to a single dated event, such as a pregnancy diagnosis or a vet consultation. Periodic applies to costs that cover a span, such as wages, rent, insurance and electricity, and spreads them pro rata across that span. Allocated applies to consumables bought in bulk and drawn down over time, such as teat dip, bedding or antibiotics. Consumption is the narrowest rule and currently governs exactly one item, Semen Straws, which is counted as straws are actually drawn from the linked lot rather than when the batch was purchased. Three items have no automatic method and require the operator to choose: tractor diesel and servicing, farm vehicle fuel and maintenance, and water pumping and borehole maintenance, because each may serve either milk production or other farm activity.",
       "scenario": {
@@ -428,15 +722,33 @@
         "next": "Resolve any unattributed item before relying on the result for a management decision."
       },
       "effects": {
-        "persisted": ["the attribution method where the operator must choose it"],
-        "derived": ["the amount attributed to each period"],
-        "projected": ["OPEX per litre", "cost of production per litre"],
-        "audit": ["attributed and unattributed amounts both visible"]
+        "persisted": [
+          "the attribution method where the operator must choose it"
+        ],
+        "derived": [
+          "the amount attributed to each period"
+        ],
+        "projected": [
+          "OPEX per litre",
+          "cost of production per litre"
+        ],
+        "audit": [
+          "attributed and unattributed amounts both visible"
+        ]
       },
       "exceptions": [
-        {"condition": "The item is tractor diesel, farm vehicle fuel or water pumping.", "behaviour": "No method is applied automatically. The operator chooses, because the cost may or may not serve milk production."},
-        {"condition": "The item is classified Non-OPEX.", "behaviour": "No attribution method applies at all, because the cost never reaches operating cost."},
-        {"condition": "An amount cannot be attributed.", "behaviour": "It is reported as unattributed rather than dropped or absorbed silently."}
+        {
+          "condition": "The item is tractor diesel, farm vehicle fuel or water pumping.",
+          "behaviour": "No method is applied automatically. The operator chooses, because the cost may or may not serve milk production."
+        },
+        {
+          "condition": "The item is classified Non-OPEX.",
+          "behaviour": "No attribution method applies at all, because the cost never reaches operating cost."
+        },
+        {
+          "condition": "An amount cannot be attributed.",
+          "behaviour": "It is reported as unattributed rather than dropped or absorbed silently."
+        }
       ],
       "correction_path": "Amend the transaction's method or dates through the governed path; attribution recomputes for the affected periods.",
       "safety": "Do not double-count an expense across periods, and do not omit one silently. Both are visible by design.",
@@ -450,16 +762,32 @@
         "troubleshooting": "If a period's cost looks wrong, check the attribution method before the amount."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/COML.tsx"],
-        "routes": ["GET /farm/coml/integrated"],
-        "services": ["src/dairyos/finance/opex_attribution.py", "src/dairyos/finance/opex_period_attribution.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated"
+        ],
+        "services": [
+          "src/dairyos/finance/opex_attribution.py",
+          "src/dairyos/finance/opex_period_attribution.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_cop_tmr_ui_linkage.py"]
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
       },
-      "related": ["finance.opex", "finance.expense-category", "finance.cost-of-production", "breeding.ai"],
+      "related": [
+        "finance.opex",
+        "finance.expense-category",
+        "finance.cost-of-production",
+        "breeding.ai"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "finance.cost-of-production",
@@ -468,9 +796,15 @@
       "domain": "finance-and-expenses",
       "capability": "cost-of-production",
       "title": "Cost of production per litre",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is cost of production per litre calculated?",
-      "alternatives": ["COP per litre", "cost per litre", "how much does it cost to produce a litre", "COP formula", "what is COP/L"],
+      "alternatives": [
+        "COP per litre",
+        "cost per litre",
+        "how much does it cost to produce a litre",
+        "COP formula",
+        "what is COP/L"
+      ],
       "answer": "Cost of production per litre is feed cost per litre plus attributed OPEX per litre, over the same selected period and the same milk denominator, with exclusions and unavailable inputs shown rather than hidden.",
       "explanation": "The two components come from different places on purpose. Feed cost comes from the daily TMR snapshot, not from feed purchase transactions, so buying feed does not itself move cost of production; feeding it does. Attributed OPEX comes from Finance, after the three Non-OPEX exclusions and each item's attribution rule have been applied. Both are divided by the same milk denominator for the same period, which is why an incomplete milk day inside the period understates the denominator and overstates the result. The figure is explainable rather than final: it is not an accounting close, and it moves when a late milk entry, a void or a correction lands inside the period.",
       "scenario": {
@@ -485,15 +819,34 @@
         "next": "Use the component breakdown to investigate any discrepancy."
       },
       "effects": {
-        "persisted": ["nothing; the figure is derived"],
-        "derived": ["feed cost per litre", "OPEX per litre", "cost of production per litre"],
-        "projected": ["profitability and management views"],
-        "audit": ["traceable to the milk ledger, the TMR snapshots and the attributed transactions"]
+        "persisted": [
+          "nothing; the figure is derived"
+        ],
+        "derived": [
+          "feed cost per litre",
+          "OPEX per litre",
+          "cost of production per litre"
+        ],
+        "projected": [
+          "profitability and management views"
+        ],
+        "audit": [
+          "traceable to the milk ledger, the TMR snapshots and the attributed transactions"
+        ]
       },
       "exceptions": [
-        {"condition": "The period contains no milk.", "behaviour": "There is no denominator, so a per-litre figure cannot be formed. The inputs are shown rather than a misleading result."},
-        {"condition": "A milk day inside the period is incomplete.", "behaviour": "The denominator is understated and cost per litre correspondingly overstated."},
-        {"condition": "A cost could not be attributed.", "behaviour": "It is reported as unattributed and excluded from the figure rather than silently absorbed."}
+        {
+          "condition": "The period contains no milk.",
+          "behaviour": "There is no denominator, so a per-litre figure cannot be formed. The inputs are shown rather than a misleading result."
+        },
+        {
+          "condition": "A milk day inside the period is incomplete.",
+          "behaviour": "The denominator is understated and cost per litre correspondingly overstated."
+        },
+        {
+          "condition": "A cost could not be attributed.",
+          "behaviour": "It is reported as unattributed and excluded from the figure rather than silently absorbed."
+        }
       ],
       "correction_path": "Correct the source milk records, TMR snapshots or transactions. The figure recomputes; it is never edited directly.",
       "safety": "Do not treat this as a closed accounting figure. It is an explainable management estimate that moves when its inputs are corrected.",
@@ -507,16 +860,32 @@
         "troubleshooting": "An unexpectedly high cost per litre is most often an understated denominator, not an overstated cost."
       },
       "anchors": {
-        "components": ["src/DairyOS.Web/src/components/COML.tsx"],
-        "routes": ["GET /farm/coml/integrated"],
-        "services": ["src/dairyos/api/coml.py", "src/dairyos/finance/opex_attribution.py"],
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated"
+        ],
+        "services": [
+          "src/dairyos/api/coml.py",
+          "src/dairyos/finance/opex_attribution.py"
+        ],
         "models": [],
-        "tests": ["tests/api/test_cop_tmr_ui_linkage.py"]
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
       },
-      "related": ["finance.opex", "finance.attribution", "milk.period-total", "finance.expense-category"],
+      "related": [
+        "finance.opex",
+        "finance.attribution",
+        "milk.period-total",
+        "finance.expense-category"
+      ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING", "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING", "domain_reviewed_at": null
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
+      "implementation_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     }
   ]
 }

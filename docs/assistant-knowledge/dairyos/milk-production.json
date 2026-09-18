@@ -11,7 +11,7 @@
       "domain": "milk-production",
       "capability": "record-milk",
       "title": "Recording milk for an animal and session",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I record milk for an animal and session?",
       "alternatives": [
         "enter today's milk",
@@ -105,10 +105,10 @@
         "milk.amendment"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null,
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18",
       "aliases": [
         "milk.entry"
       ],
@@ -121,7 +121,7 @@
       "domain": "milk-production",
       "capability": "session-plan",
       "title": "Which sessions an animal is expected to have",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Which milking sessions should I enter for an animal?",
       "alternatives": [
         "is this animal twice or three times daily",
@@ -202,10 +202,10 @@
         "milk.daily-total"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.missed-session",
@@ -214,7 +214,7 @@
       "domain": "milk-production",
       "capability": "missed-session",
       "title": "When a milking session was missed",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should I do when a milking session was missed?",
       "alternatives": [
         "should I enter zero",
@@ -298,10 +298,10 @@
         "milk.daily-total"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.late-entry",
@@ -310,7 +310,7 @@
       "domain": "milk-production",
       "capability": "late-entry",
       "title": "Entering milk after its production day",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I enter milk that was measured but recorded later?",
       "alternatives": [
         "backdate milk",
@@ -394,10 +394,10 @@
         "milk.period-total"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.amendment",
@@ -406,7 +406,7 @@
       "domain": "milk-production",
       "capability": "amendment",
       "title": "Correcting a milk record",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I correct an incorrect milk record?",
       "alternatives": [
         "edit milk",
@@ -489,10 +489,10 @@
         "milk.daily-total"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.void",
@@ -501,7 +501,7 @@
       "domain": "milk-production",
       "capability": "void",
       "title": "Voiding a milk record",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When should a milk record be voided?",
       "alternatives": [
         "cancel milk entry",
@@ -580,10 +580,10 @@
         "milk.period-total"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.daily-total",
@@ -592,7 +592,7 @@
       "domain": "milk-production",
       "capability": "daily-total",
       "title": "How the daily milk total is calculated",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does DairyOS calculate milk in a day?",
       "alternatives": [
         "daily milk total",
@@ -677,10 +677,10 @@
         "milk.missed-session"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.period-total",
@@ -689,7 +689,7 @@
       "domain": "milk-production",
       "capability": "period-total",
       "title": "Milk in a period",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is milk in a period calculated?",
       "alternatives": [
         "milk for the month",
@@ -769,10 +769,10 @@
         "milk.history"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     },
     {
       "id": "milk.history",
@@ -781,7 +781,7 @@
       "domain": "milk-production",
       "capability": "milk-history",
       "title": "Reviewing milk history",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should milk history be reviewed?",
       "alternatives": [
         "production history",
@@ -862,10 +862,10 @@
         "milk.void"
       ],
       "verified_against_source": "45900048a1819e79a26e048e26a1355c4498967b",
-      "implementation_reviewed_by": "PENDING",
+      "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",
       "implementation_reviewed_at": null,
-      "domain_reviewed_by": "PENDING",
-      "domain_reviewed_at": null
+      "domain_reviewed_by": "Trident Dairies (operator)",
+      "domain_reviewed_at": "2026-09-18"
     }
   ]
 }
