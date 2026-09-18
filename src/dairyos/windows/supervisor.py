@@ -989,6 +989,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
     parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--farm-data-export", default="", help=argparse.SUPPRESS)
     parser.add_argument("--installation-root", default="")
     parser.add_argument("--data-root", default="")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
@@ -1011,6 +1012,32 @@ def main(argv: list[str] | None = None) -> int:
         return server_main(backend_argv)
 
     args = build_parser().parse_args(argv)
+    if args.farm_data_export:
+        if args.data_root:
+            os.environ["DAIRYOS_DATA_DIR"] = str(Path(args.data_root).expanduser().resolve())
+        try:
+            stage_runtime_database_url()
+            from dairyos.admin.data_management import export_farm_data, validate_package
+            from dairyos.data.database.session import DATABASE_URL
+
+            result = export_farm_data(
+                DATABASE_URL,
+                args.farm_data_export,
+                data_root=args.data_root or None,
+            )
+            validation = validate_package(result["path"])
+            if not validation.get("valid"):
+                raise RuntimeError("Farm data export validation did not pass.")
+            print(json.dumps({
+                "status": "VERIFIED",
+                "path": result["path"],
+                "farm_instance_id": result.get("farm_instance_id"),
+            }))
+            return 0
+        except Exception as exc:
+            LOG.error("Farm data preservation export failed: %s", exc)
+            return 5
+
     if args.lifecycle_install:
         installation_root = args.installation_root or str(Path(sys.executable).resolve().parent)
         data_root_override = args.data_root or None
