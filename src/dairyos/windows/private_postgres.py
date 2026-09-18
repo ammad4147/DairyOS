@@ -511,6 +511,8 @@ def _postgres_is_ready(
     host: str,
     port: int,
     *,
+    user: str = DEFAULT_USER,
+    database: str = DEFAULT_DATABASE,
     timeout: float = 5.0,
 ) -> bool:
     """Return only when PostgreSQL itself reports that it accepts connections.
@@ -527,6 +529,10 @@ def _postgres_is_ready(
                 host,
                 "-p",
                 str(port),
+                "-U",
+                user,
+                "-d",
+                database,
                 "-t",
                 str(max(1, int(timeout))),
             ],
