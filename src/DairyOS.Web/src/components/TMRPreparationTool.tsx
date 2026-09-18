@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../config/api';
 
 const API_BASE = API_BASE_URL || 'http' + '://127.0.0.1:8000';
 type PriceSource='FINANCE'|'MANUAL';
-type Ingredient={catalog_name:string;display_name?:string;dose_unit:'kg'|'g';fallback_price_per_kg:number;quantity:number;price_per_kg:number;price_source:'FINANCE'|'MANUAL'|'MANUAL_FALLBACK';selected_price_source?:PriceSource;manual_price_per_kg?:number;finance_price_per_kg?:number|null;finance_transaction_id?:number|null;finance_purchase_date?:string|null;cost_per_head_day:number};
+type Ingredient={catalog_name:string;display_name?:string;dose_unit:'kg'|'g';fallback_price_per_kg:number;quantity:number;price_per_kg:number;price_source:'FINANCE'|'MANUAL'|'UNPRICED'|'MISSING_MANUAL'|string;selected_price_source?:PriceSource;manual_price_per_kg?:number;finance_price_per_kg?:number|null;finance_transaction_id?:number|null;finance_purchase_date?:string|null;cost_per_head_day:number|null;priced?:boolean};
 type Stage={key:string;label:string;ingredients:Ingredient[];ration_kg_per_head_day:number;cost_per_head_day:number;source:string};
 type Category={category:string;stage_keys:string[];animal_count:number;cost_per_head_day:number;category_cost_per_day:number};
 type Weekly={week_start:string;week_end:string;status:string;advisory:string;endorsement?:{reviewer?:string;reviewed_on?:string}|null};

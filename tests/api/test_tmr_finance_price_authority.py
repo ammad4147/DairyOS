@@ -62,8 +62,13 @@ class TmrFinancePriceAuthorityContractTest(unittest.TestCase):
         self.assertIn('"finance_transaction_id"', self.api)
         self.assertIn('"finance_purchase_date"', self.api)
 
-    def test_manual_fallback_remains_when_finance_has_no_price(self):
-        self.assertIn('"MANUAL_FALLBACK"', self.api)
+    def test_catalog_fallback_is_not_costing_authority(self):
+        # TMR-01: catalog/reference defaults must not silently become
+        # locked snapshot or COP authority.
+        self.assertNotIn('"MANUAL_FALLBACK"', self.api)
+        self.assertIn('"UNPRICED"', self.api)
+        self.assertIn('"MISSING_MANUAL"', self.api)
+        self.assertIn("costing_complete", self.api)
         self.assertIn("fallback_price_per_kg", self.api)
 
     def test_tmr_ui_reads_single_governed_summary(self):
