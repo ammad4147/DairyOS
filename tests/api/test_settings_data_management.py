@@ -8,7 +8,7 @@ from dairyos.app import app
 
 
 def _admin_override():
-    return {"sub": "ADMIN", "permissions": ["settings.navigation"]}
+    return {"sub": "ADMIN", "role": "ADMIN"}
 
 
 def test_data_management_export_uses_governed_authority(monkeypatch):
