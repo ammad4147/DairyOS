@@ -235,6 +235,20 @@ def serve(
     """
     source = sys.stdin if stdin is None else stdin
     sink = sys.stdout if stdout is None else stdout
+
+    # A windowed PyInstaller executable can start with no usable standard
+    # streams. Without this the loop would raise immediately, the process would
+    # vanish, and the parent would be left reading a pipe that never produces a
+    # line. Saying so on stderr turns a silent disappearance into something
+    # diagnosable.
+    if source is None or sink is None:
+        print(
+            "DairyOS Assistant: no standard input or output; it must be started "
+            "by DairyOS rather than run directly.",
+            file=sys.stderr,
+        )
+        return
+
     worker = assistant if assistant is not None else Assistant()
 
     for line in source:

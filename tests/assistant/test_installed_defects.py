@@ -205,3 +205,68 @@ def test_every_answerable_question_produces_readable_text(
     assert result["text"], f"{question!r} produced nothing to display"
     assert "No answer" not in result["text"]
     assert len(result["text"]) > 40
+
+
+# ---------------------------------------------------------------------------
+# Defect 4: a wedged child froze the whole application
+# ---------------------------------------------------------------------------
+
+
+def test_a_silent_child_does_not_block_forever():
+    """The freeze mechanism, reproduced.
+
+    ``readline`` on a pipe cannot be interrupted, and it ran while holding the
+    bridge lock. A child that started and never answered blocked that request
+    for ever, and every later one behind the same lock, until the server's
+    worker pool was exhausted and DairyOS stopped responding to anything.
+    """
+    import subprocess
+    import sys
+    import time
+
+    from dairyos.knowledge_bridge import AssistantBridge
+
+    # A child that reads its input and deliberately never replies.
+    silent = [sys.executable, "-c", "import sys; sys.stdin.read()"]
+    bridge = AssistantBridge()
+    bridge._child = subprocess.Popen(
+        silent, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL, text=True,
+    )
+
+    import dairyos.knowledge_bridge as kb
+    original = kb.REQUEST_TIMEOUT
+    kb.REQUEST_TIMEOUT = 2.0
+    try:
+        started = time.monotonic()
+        result = bridge.ask("What is a withdrawal period?")
+        elapsed = time.monotonic() - started
+    finally:
+        kb.REQUEST_TIMEOUT = original
+        bridge.stop()
+
+    assert elapsed < 30, f"the request blocked for {elapsed:.0f}s"
+    assert result["ok"] is False
+    assert "stopped responding" in result["error"]
+
+
+def test_the_lock_is_not_shared_between_bridges():
+    """A dataclass evaluates a plain default once, at class-definition time, so
+    every bridge held the same lock and one wedged instance could stall the
+    singleton."""
+    from dairyos.knowledge_bridge import AssistantBridge
+
+    assert AssistantBridge()._lock is not AssistantBridge()._lock
+
+
+def test_the_service_survives_having_no_standard_streams(monkeypatch, capsys):
+    """A windowed executable can start without usable stdio. Dying silently
+    there is what leaves the parent reading a pipe that never answers."""
+    import sys as _sys
+
+    from dairyos_assistant.service import serve
+
+    monkeypatch.setattr(_sys, "stdin", None)
+    serve(assistant=object())  # must return, not raise
+
+    assert "no standard input" in capsys.readouterr().err

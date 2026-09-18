@@ -28,7 +28,7 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +53,34 @@ REQUEST_TIMEOUT = 90.0
 # has failed, and an operator staring at a spinner is worse served than one
 # told to try again.
 ASSISTANT_START_TIMEOUT = 60.0
+
+
+class _Timeout(Exception):
+    """The child did not answer in time."""
+
+
+def _read_line(child: subprocess.Popen, timeout: float) -> str:
+    """One line from the child, or give up.
+
+    ``readline`` on a pipe blocks indefinitely and cannot be interrupted, so
+    the read happens on a throwaway thread that the caller can abandon. The
+    thread leaks if the child never writes, which is why the caller kills the
+    child: a dead child closes the pipe and the thread ends.
+    """
+    result: list[str] = []
+
+    def reader() -> None:
+        try:
+            result.append(child.stdout.readline())
+        except Exception:  # noqa: BLE001 - reported as a timeout by the caller
+            pass
+
+    thread = threading.Thread(target=reader, daemon=True)
+    thread.start()
+    thread.join(timeout)
+    if thread.is_alive() or not result:
+        raise _Timeout()
+    return result[0]
 
 
 def sanitised_environment() -> dict[str, str]:
@@ -114,7 +142,10 @@ class AssistantBridge:
     model_port: int = MODEL_PORT
     _model: subprocess.Popen | None = None
     _child: subprocess.Popen | None = None
-    _lock: threading.Lock = threading.Lock()
+    # default_factory, not a bare default: a dataclass evaluates a plain
+    # default once at class-definition time, so every bridge shared one
+    # lock and a blocked instance could stall the singleton.
+    _lock: threading.Lock = field(default_factory=threading.Lock)
     _model_awaited: bool = False
     _last_error: str = ""
 
@@ -201,7 +232,17 @@ class AssistantBridge:
             try:
                 child.stdin.write(json.dumps(request) + "\n")
                 child.stdin.flush()
-                line = child.stdout.readline()
+                line = _read_line(child, REQUEST_TIMEOUT)
+            except _Timeout:
+                # A read with no timeout, holding the lock, is how one wedged
+                # child process freezes the whole application: every later
+                # request blocks on the same lock until the server's worker
+                # pool is exhausted and DairyOS stops answering anything.
+                # The child is killed and replaced instead.
+                logger.error("Assistant did not answer within %ss; restarting it", REQUEST_TIMEOUT)
+                child.kill()
+                self._child = None
+                return {"ok": False, "error": "The AI Assistant stopped responding and was restarted."}
             except (BrokenPipeError, OSError) as exc:
                 self._child = None
                 return {"ok": False, "error": f"the Assistant process stopped: {exc}"}
