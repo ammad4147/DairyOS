@@ -311,10 +311,8 @@ begin
   begin
     Result :=
       'DairyOS clean installation cannot continue because the canonical ' +
-      'DairyOS data location already contains existing state:' +
-      #13#10#13#10 +
-      CanonicalDairyOSDataRoot() +
-      #13#10#13#10 +
+      'DairyOS data location already contains existing state:' + #13#10#13#10 +
+      CanonicalDairyOSDataRoot() + #13#10#13#10 +
       'Setup will not overwrite, import, restore, select, or adopt existing ' +
       'farm data. Preserve or remove the existing DairyOS data through the ' +
       'supported DairyOS Data Management or uninstall workflow, then run ' +
