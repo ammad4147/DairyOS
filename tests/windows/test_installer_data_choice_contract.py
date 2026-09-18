@@ -65,11 +65,30 @@ def test_installer_does_not_allocate_alternate_farm_roots():
         "DairyOS-New-",
         "AllocateNewDairyOSDataRoot",
         "SelectNewDairyOSDataRoot",
-        "GetDateTimeString('yyyymmdd-hhnnss'",
     )
 
     for token in forbidden:
         assert token not in source
+
+    # Timestamp generation is valid for operator-selected portable package
+    # filenames. It must never participate in resolving the live farm root.
+    resolver_start = source.index(
+        "function DairyOSDataRoot(Param: String): String;"
+    )
+    resolver_end = source.index(
+        "procedure ProvisionLifecycleState();"
+    )
+    resolver = source[resolver_start:resolver_end]
+    assert "GetDateTimeString(" not in resolver
+
+    guard_start = source.index(
+        "function CanonicalDairyOSDataRootHasExistingState(): Boolean;"
+    )
+    guard_end = source.index(
+        "function PrepareToInstall(var NeedsRestart: Boolean): String;"
+    )
+    guard = source[guard_start:guard_end]
+    assert "GetDateTimeString(" not in guard
 
 
 def test_installer_does_not_discover_or_select_existing_farms():
