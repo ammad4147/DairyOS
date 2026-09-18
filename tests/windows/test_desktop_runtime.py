@@ -434,3 +434,35 @@ def test_reporting_save_api_rejects_selected_destination_extension_mismatch(
         )
 
     assert not destination.exists()
+
+
+def test_farm_export_destination_selection_is_cancel_safe(tmp_path):
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            return None
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+    assert api.choose_farm_export_destination("Farm.dairypkg") == {"status": "CANCELLED"}
+
+
+def test_farm_export_destination_requires_package_extension(tmp_path):
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, save_filename=None):
+            return str(tmp_path / "Farm.txt")
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+    with pytest.raises(ValueError, match="must end with .dairypkg"):
+        api.choose_farm_export_destination("Farm.dairypkg")
+
+
+def test_farm_import_selection_requires_package_extension(tmp_path):
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type, allow_multiple=False, file_types=None):
+            return str(tmp_path / "Farm.zip")
+
+    api = ReportingSaveApi()
+    api.window = FakeWindow()
+    with pytest.raises(ValueError, match="must end with .dairypkg"):
+        api.choose_farm_import_package()
