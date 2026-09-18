@@ -163,3 +163,10 @@ logs/
 
 # Cowork mirrors delivered files here; never commit them.
 Claude outputs/
+
+# Assistant runtime: the local model and the llama.cpp server, downloaded and
+# sha256-verified by scripts/Get-AssistantRuntime.ps1 and bundled into the
+# installer. The model alone is 1.28 GB, well over GitHub's 100 MB file limit,
+# and the surrounding runtime/ tree IS tracked, so this exclusion is what stops
+# it being swept into a commit.
+runtime/assistant/

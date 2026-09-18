@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import Any, Iterable, TextIO
 
 from dairyos_assistant import __version__
+from dairyos_assistant.generation import generate_answer
+from dairyos_assistant.model import ModelProvider, NullProvider
 from dairyos_assistant.policy import (
     Decision,
     REFUSAL_TEXT,
@@ -79,8 +81,13 @@ def corpus_root() -> Path:
 class Assistant:
     """Policy, then retrieval. In that order, always."""
 
-    def __init__(self, index: KnowledgeIndex | None = None) -> None:
+    def __init__(
+        self,
+        index: KnowledgeIndex | None = None,
+        provider: ModelProvider | None = None,
+    ) -> None:
         self.index = index if index is not None else KnowledgeIndex.load(corpus_root())
+        self.provider = provider if provider is not None else NullProvider()
 
     def answer(self, question: str) -> dict[str, Any]:
         verdict = classify(question)
@@ -117,7 +124,7 @@ class Assistant:
             }
             for hit in hits
         ]
-        return {
+        response: dict[str, Any] = {
             "decision": verdict.decision.value,
             "stage": "RETRIEVAL_ONLY",
             "answer": None,
@@ -127,6 +134,37 @@ class Assistant:
             "evidence": evidence,
             "unreviewed": any(item["unreviewed"] for item in evidence),
         }
+
+        calculating = verdict.decision is Decision.CALCULATE
+        if not evidence and not calculating:
+            # Nothing retrieved means nothing to be faithful to, so the model
+            # is not consulted at all. Asking it anyway is how a knowledge
+            # system starts answering from its training data.
+            return response
+
+        answer, gate, failure = generate_answer(
+            self.provider,
+            question,
+            [hit.item for hit in hits],
+            allow_derived_numbers=calculating,
+        )
+        if answer is not None:
+            response["answer"] = answer
+            response["stage"] = "ANSWERED"
+            response["text"] = answer
+            response["grounded_in"] = list(gate.checked_against) if gate else []
+        elif gate is not None:
+            # The model produced something the evidence does not support. It is
+            # withheld rather than repaired, and the reason is carried so the
+            # diagnostics surface can show what was caught.
+            response["stage"] = "WITHHELD"
+            response["text"] = failure
+            response["grounding_violations"] = list(gate.violations)
+            response["unsupported_numbers"] = list(gate.unsupported_numbers)
+        else:
+            response["stage"] = "RETRIEVAL_ONLY"
+            response["model_error"] = failure
+        return response
 
     def status(self) -> dict[str, Any]:
         report = dict(self.index.status_report())

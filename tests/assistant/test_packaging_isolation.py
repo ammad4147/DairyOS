@@ -182,6 +182,59 @@ def test_the_assistant_executable_is_actually_shipped():
     )
 
 
+# ---------------------------------------------------------------------------
+# The installed machine must need nothing external
+# ---------------------------------------------------------------------------
+
+
+def test_the_assistant_analysis_carries_the_bundled_runtime():
+    """Operator decision: model and server ship inside the package.
+
+    The datas argument must extend the corpus list with the runtime artefacts,
+    so a build cannot quietly produce a package whose Assistant has no model.
+    """
+    datas = _keyword(_assistant_analysis(), "datas")
+    assert isinstance(datas, ast.BinOp) and isinstance(datas.op, ast.Add), (
+        "the Assistant datas must combine the corpus with the bundled runtime"
+    )
+    assert "assistant_runtime_datas" in _source(datas.right)
+    assert "assistant-knowledge" in _source(datas.left)
+
+
+def test_a_missing_runtime_artefact_fails_the_build():
+    """Silence here would ship a mute Assistant to a farm with no way to fix it
+    on site, which is the whole reason the artefacts are bundled."""
+    source = SPEC.read_text(encoding="utf-8")
+    assert "raise FileNotFoundError" in source
+    assert "Qwen3-1.7B-Q4_K_M.gguf" in source
+    assert "llama-server.exe" in source
+    assert "Get-AssistantRuntime.ps1" in source, (
+        "the build error must tell the developer how to fix it"
+    )
+
+
+def test_the_runtime_is_downloaded_and_verified_against_pinned_hashes():
+    script = ROOT / "scripts" / "Get-AssistantRuntime.ps1"
+    assert script.is_file(), "the runtime fetch script must exist"
+    text = script.read_text(encoding="utf-8")
+    for pin in (
+        "D2387CA2DBFEE2FFABCE7120D3770DADCA0B293052BC2F0E138FDC940D9BC7B5",
+        "B3A37101C241635E5F6183FA88B1286B477FAAA4B573FB00EC484E0C6346B10F",
+        "1282439264",
+    ):
+        assert pin in text, f"pinned value {pin} is missing from the fetch script"
+    assert "Refusing to ship an untested artefact" in text, (
+        "a hash mismatch must stop the build, not warn and continue"
+    )
+
+
+def test_the_model_cannot_be_committed_by_accident():
+    """runtime/ is a tracked directory holding the bundled PostgreSQL, so
+    without this exclusion a 1.28 GB model sits inside version control's reach."""
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "runtime/assistant/" in ignore
+
+
 def test_the_assistant_executable_has_its_own_name():
     """A distinct binary is what lets the installer ship or omit it, and what
     makes the running process identifiable in Task Manager."""

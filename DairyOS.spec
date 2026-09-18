@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
@@ -47,6 +48,14 @@ PRODUCTION_EXCLUDES = [
     "pytest",
     "tests",
 ]
+
+# A release build must carry the Assistant runtime. This escape hatch exists so
+# a developer can build the application without a 1.28 GB download, and it is
+# deliberately loud: the resulting package ships an Assistant that cannot
+# answer, and the release certification at AA-13 rejects it.
+ALLOW_ASSISTANT_WITHOUT_RUNTIME = os.environ.get(
+    "DAIRYOS_ALLOW_ASSISTANT_WITHOUT_RUNTIME", ""
+).strip().lower() in {"1", "true", "yes"}
 
 
 a = Analysis(
@@ -153,6 +162,32 @@ ASSISTANT_FORBIDDEN = [
     "uvicorn",
 ]
 
+# Operator decision of 2026-09-18: the installed machine must need nothing
+# external. The model weights and the llama.cpp server are therefore carried
+# inside the package rather than fetched after installation, which takes the
+# installer from roughly 98 MiB to roughly 1.4 GB.
+#
+# They still have to be downloaded once on the BUILD machine, because a 1.28 GB
+# file cannot live in git. Build-DairyOS-Desktop.ps1 fetches them and verifies
+# the pinned sha256 values before this spec runs. The two are different
+# problems: a build machine has a network, a farm does not.
+ASSISTANT_RUNTIME = ROOT / "runtime" / "assistant"
+ASSISTANT_MODEL = ASSISTANT_RUNTIME / "model" / "Qwen3-1.7B-Q4_K_M.gguf"
+ASSISTANT_SERVER = ASSISTANT_RUNTIME / "llama" / "llama-server.exe"
+
+assistant_runtime_datas = []
+for _path, _dest in ((ASSISTANT_MODEL, "assistant-runtime/model"),
+                     (ASSISTANT_SERVER, "assistant-runtime/llama")):
+    if _path.is_file():
+        assistant_runtime_datas.append((str(_path), _dest))
+    elif not ALLOW_ASSISTANT_WITHOUT_RUNTIME:
+        raise FileNotFoundError(
+            f"Assistant runtime artefact missing: {_path}. "
+            "Run scripts/Get-AssistantRuntime.ps1 to download and verify it, or set "
+            "DAIRYOS_ALLOW_ASSISTANT_WITHOUT_RUNTIME=1 to build a package whose "
+            "Assistant cannot answer."
+        )
+
 assistant_a = Analysis(
     [str(ROOT / "src" / "dairyos_assistant" / "service.py")],
     pathex=[str(ROOT / "src")],
@@ -161,7 +196,7 @@ assistant_a = Analysis(
         # The corpus is the Assistant's entire subject matter. It is resolved
         # at runtime from sys._MEIPASS by dairyos_assistant.service.corpus_root.
         (str(ROOT / "docs" / "assistant-knowledge"), "assistant-knowledge"),
-    ],
+    ] + assistant_runtime_datas,
     hiddenimports=collect_submodules("dairyos_assistant"),
     hookspath=[],
     hooksconfig={},

@@ -170,6 +170,37 @@ def test_an_authority_claim_is_labelled_as_one(question: str):
     )
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Walk me through example EX-MILK-001.",
+        "What does EX-BREED-0012 show?",
+        "Explain the worked example EX-FIN-001 step by step.",
+    ],
+)
+def test_the_reserved_example_namespace_is_not_a_record_identifier(question: str):
+    """Regression.
+
+    The identifier pattern used to match the "MILK-001" inside "EX-MILK-001",
+    because a word boundary falls after the hyphen and the "not EX-" lookahead
+    only guarded the start of the match. An operator asking about the
+    Assistant's own teaching examples was refused as though they had asked for
+    a record.
+    """
+    result = classify(question)
+    assert result.decision is Decision.ANSWER, (
+        f"{question!r} -> {result.decision} (signals={result.signals})"
+    )
+    assert "record-identifier" not in result.signals
+
+
+def test_a_real_record_identifier_is_still_caught():
+    """The fix must not have opened a hole."""
+    result = classify("Why is TD-001 on the watchlist?")
+    assert result.refused
+    assert "record-identifier" in result.signals
+
+
 def test_policy_consults_nothing_external():
     """The classifier must not import the corpus, a model, or the application."""
     import ast

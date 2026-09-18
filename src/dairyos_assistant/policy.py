@@ -76,7 +76,14 @@ _RETRIEVE_VERB = r"\b(?:show|list|display|fetch|retrieve|pull\s+up|give\s+me|tel
 _ANALYSE_MINE = r"\b(?:analyse|analyze|review|audit|summarise|summarize|check)\b[^.?!]{0,30}\b(?:my|our|the)\s+" + _OPERATIONAL_NOUNS
 
 # A concrete record identifier that is not in the reserved fictional namespace.
-_REAL_IDENTIFIER = re.compile(r"\b(?!EX-)[A-Z]{2,4}-\d{1,5}\b")
+#
+# The leading lookbehind is load-bearing. Without it the pattern matches the
+# "MILK-001" inside "EX-MILK-001", because a word boundary falls after the
+# hyphen and the "not EX-" lookahead only guards the start of the match. The
+# effect was that an operator asking about the Assistant's own worked examples
+# had the question refused as a request for a record.
+REAL_IDENTIFIER = re.compile(r"(?<![A-Z0-9-])(?!EX-)[A-Z]{2,4}-\d{1,5}\b")
+_REAL_IDENTIFIER = REAL_IDENTIFIER
 
 # Attempts to grant the Assistant authority it does not have. These are
 # classified as operational-data requests because that is what they are asking
