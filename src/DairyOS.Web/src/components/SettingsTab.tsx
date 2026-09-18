@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, FileText, Mail, Plus, Save, Trash2 } from 'lucide-react';
+import { Activity, AlertTriangle, Bot, Building, DatabaseBackup, FileText, FolderOpen, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { readApiPayload } from '../api/response';
 import { getNavigationAccessToken } from '../auth';
@@ -90,7 +90,7 @@ export default function SettingsTab({
   hiddenNavigationTabs = [],
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
-  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'REPORTING' | 'ASSISTANT'>('FARM');
+  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'DATA' | 'REPORTING' | 'ASSISTANT'>('FARM');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
@@ -113,6 +113,10 @@ export default function SettingsTab({
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [dataBusy, setDataBusy] = useState(false);
+  const [dataPackagePath, setDataPackagePath] = useState('');
+  const [dataValidation, setDataValidation] = useState<Record<string, unknown> | null>(null);
+  const [importConfirm, setImportConfirm] = useState('');
   const [backupHealth, setBackupHealth] = useState<BackupHealth>({
     status: 'NEVER_RUN', last_successful_backup: null, physically_redundant: false,
   });
@@ -376,6 +380,75 @@ export default function SettingsTab({
     } finally { setResetLoading(false); }
   };
 
+  const nativeApi = () => (window as any).pywebview?.api;
+
+  const chooseExportDestination = async () => {
+    setError(''); setMessage('');
+    const api = nativeApi();
+    if (!api?.choose_farm_export_destination) {
+      setError('Farm data export destination selection is available in the installed DairyOS desktop application.');
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    const selected = await api.choose_farm_export_destination(`DairyOS-Farm-${stamp}.dairypkg`);
+    if (selected?.status !== 'SELECTED') return;
+    setDataBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/export`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: selected.path }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Farm data export failed.');
+      setDataPackagePath(String(data.path || selected.path));
+      setMessage(`Verified farm data package saved to ${data.path || selected.path}.`);
+    } catch (operationError) {
+      setError(operationError instanceof Error ? operationError.message : 'Farm data export failed.');
+    } finally { setDataBusy(false); }
+  };
+
+  const chooseImportPackage = async () => {
+    setError(''); setMessage(''); setDataValidation(null); setImportConfirm('');
+    const api = nativeApi();
+    if (!api?.choose_farm_import_package) {
+      setError('Farm data package selection is available in the installed DairyOS desktop application.');
+      return;
+    }
+    const selected = await api.choose_farm_import_package();
+    if (selected?.status !== 'SELECTED') return;
+    setDataBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/validate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: selected.path }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Farm data package validation failed.');
+      setDataPackagePath(String(selected.path));
+      setDataValidation(data);
+      setMessage('Farm data package validation passed. Review the package identity before importing.');
+    } catch (operationError) {
+      setError(operationError instanceof Error ? operationError.message : 'Farm data package validation failed.');
+    } finally { setDataBusy(false); }
+  };
+
+  const importVerifiedPackage = async () => {
+    if (!dataValidation || !dataPackagePath) return;
+    setError(''); setMessage(''); setDataBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: dataPackagePath, confirm: importConfirm }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Farm data import failed.');
+      setMessage(`Farm data imported and verified from ${data.source || dataPackagePath}. Restart DairyOS before further operation.`);
+      setDataValidation(null); setImportConfirm('');
+    } catch (operationError) {
+      setError(operationError instanceof Error ? operationError.message : 'Farm data import failed.');
+    } finally { setDataBusy(false); }
+  };
+
   const protectionStatus = String(backupHealth.status || 'NEVER_RUN').toUpperCase();
   const protectionColor = protectionStatus === 'HEALTHY'
     ? '#86efac'
@@ -388,6 +461,7 @@ export default function SettingsTab({
         <button onClick={() => setActiveTab('FARM')} style={tab(activeTab === 'FARM')}><Building size={13} />Farm & System</button>
         <button onClick={() => setActiveTab('SYSTEM')} style={tab(activeTab === 'SYSTEM')}><Activity size={13} />System Health</button>
         <button onClick={() => setActiveTab('EMAIL')} style={tab(activeTab === 'EMAIL')}><Mail size={13} />Email & Notifications</button>
+        <button type="button" onClick={() => setActiveTab('DATA')} style={tab(activeTab === 'DATA')}><DatabaseBackup size={13} />Data Management</button>
         <button type="button" onClick={() => setActiveTab('REPORTING')} style={tab(activeTab === 'REPORTING')}><FileText size={13} />Reporting</button>
         <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><Bot size={13} />AI Assistant</button>
       </div>
@@ -520,6 +594,28 @@ export default function SettingsTab({
             <div style={{ display: 'grid', gap: 6, marginTop: 9 }}>{(systemHealth.checks || []).map(check => <div key={check.name} style={{ borderTop: '1px solid #1f2937', paddingTop: 6, fontSize: 10 }}><strong style={{ color: check.status === 'PASS' ? '#86efac' : check.status === 'WARNING' ? '#fde68a' : '#fca5a5' }}>{check.status}</strong> · {check.name}<div style={{ color: '#94a3b8', marginTop: 2 }}>{check.detail}</div></div>)}</div>
           </div>}
         </section></div>
+      )}
+      {activeTab === 'DATA' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12, alignItems: 'start' }}>
+          <section style={card}>
+            <strong style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><DatabaseBackup size={14} />Export Complete Farm Data</strong>
+            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Creates a verified portable DairyOS farm package containing the database, farm identity and governed persistent files. Choose the destination yourself and retain the package outside the DairyOS data folder.</div>
+            <button type="button" disabled={dataBusy} onClick={() => void chooseExportDestination()} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}><FolderOpen size={13} />Choose Destination & Export</button>
+          </section>
+          <section style={card}>
+            <strong style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><FolderOpen size={14} />Import Farm Data</strong>
+            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Select a DairyOS farm package. DairyOS validates its manifest, file hashes and PostgreSQL archive before import is enabled. A pre-import rollback snapshot is created automatically.</div>
+            <button type="button" disabled={dataBusy} onClick={() => void chooseImportPackage()} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}>Select & Validate Package</button>
+            {dataValidation && <div style={{ marginTop: 12, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
+              <div style={{ color: '#86efac', fontWeight: 900, fontSize: 11 }}>VALIDATION PASS</div>
+              <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>Farm ID: {String(dataValidation.farm_instance_id || '—')}</div>
+              <div style={{ color: '#94a3b8', fontSize: 9, marginTop: 3 }}>Exported: {String(dataValidation.exported_at || '—')} · DairyOS: {String(dataValidation.dairyos_version || '—')} · Files: {String(dataValidation.total_files || '—')}</div>
+              <label style={{ ...label, marginTop: 10 }}>Type IMPORT VERIFIED FARM DATA to authorize replacement of the current farm state.</label>
+              <input value={importConfirm} onChange={event => setImportConfirm(event.target.value)} style={field} />
+              <button type="button" disabled={dataBusy || importConfirm !== 'IMPORT VERIFIED FARM DATA'} onClick={() => void importVerifiedPackage()} style={{ ...button, background: '#b91c1c', opacity: dataBusy || importConfirm !== 'IMPORT VERIFIED FARM DATA' ? 0.5 : 1 }}>Import Verified Farm Data</button>
+            </div>}
+          </section>
+        </div>
       )}
       {activeTab === 'REPORTING' && <ReportingTab />}
       {activeTab === 'ASSISTANT' && <AIAssistant />}
