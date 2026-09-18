@@ -473,3 +473,37 @@ def test_running_existing_cluster_preserves_persisted_port_without_bind_probe(
     assert written
     assert written[-1]["port"] == 50345
 
+
+
+def test_postgres_readiness_probe_uses_explicit_private_identity(monkeypatch):
+    captured = {}
+
+    class Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(pg, "_binary", lambda name: Path(name))
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return Result()
+
+    monkeypatch.setattr(pg, "_run", fake_run)
+
+    assert pg._postgres_is_ready(
+        "127.0.0.1",
+        55432,
+        user="dairyos_admin",
+        database="dairyos",
+        timeout=2,
+    )
+
+    command = captured["command"]
+    assert command[0] == "pg_isready.exe"
+    assert command[command.index("-h") + 1] == "127.0.0.1"
+    assert command[command.index("-p") + 1] == "55432"
+    assert command[command.index("-U") + 1] == "dairyos_admin"
+    assert command[command.index("-d") + 1] == "dairyos"
+    assert "ammad" not in command
