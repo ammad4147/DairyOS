@@ -221,6 +221,133 @@ class AssistantBridge:
         payload["model_ready"] = self.model_ready()
         return payload
 
+    def probe(self) -> dict[str, Any]:
+        """Report readiness without starting anything.
+
+        Deliberately distinct from ``status()``. Asking the Assistant for its
+        status starts it if it is not running, which loads 1.28 GB of model
+        weights. A diagnostic screen must never do that as a side effect of
+        being opened, so this reads only what can be known without a
+        conversation: whether the executable is installed, whether the model is
+        bundled beside it, and whether the process happens to be running.
+
+        An Assistant that has not started yet is not a fault. It starts on the
+        first question by design.
+        """
+        command = assistant_command()
+        runtime = model_paths()
+        running = self._child is not None and self._child.poll() is None
+
+        detail: dict[str, Any] = {
+            "installed": command is not None,
+            "model_bundled": runtime is not None,
+            "running": running,
+            "model_running": self.model_ready(),
+        }
+        if running:
+            # Only ask when it is already up, so a probe never becomes a start.
+            response = self._exchange({"type": "status"})
+            if response.get("ok"):
+                inner = response.get("status", {})
+                detail["corpus_version"] = inner.get("corpus_version")
+                detail["servable_items"] = inner.get("servable_items")
+                detail["serving_unreviewed"] = inner.get("serving_unreviewed")
+        return detail
+
+    def self_test(self, timeout: float = 20.0) -> dict[str, Any]:
+        """Exercise the Assistant end to end, without loading the model.
+
+        Every other System Health entry performs a real read against the real
+        database. An entry that merely confirmed a file exists would prove
+        nothing, so this asks the Assistant two questions and checks the
+        answers: one it should find knowledge for, and one it must refuse.
+
+        The model is deliberately not started. Loading 1.28 GB would dominate
+        the check, and it is not what a packaging error breaks. What this does
+        exercise is everything that a bad build does break: the executable
+        runs, the pipe works, the corpus is present and loads, retrieval
+        returns the right item, and the refusal boundary holds.
+
+        A throwaway process is used rather than the long-lived one, so a
+        diagnostic never changes the state of the Assistant the operator is
+        about to use.
+        """
+        result: dict[str, Any] = {
+            "installed": False,
+            "process_starts": False,
+            "corpus_loads": False,
+            "retrieval_works": False,
+            "refuses_operational": False,
+            "model_bundled": model_paths() is not None,
+            "error": "",
+        }
+
+        command = assistant_command()
+        if command is None:
+            result["error"] = "the Assistant executable is not present"
+            return result
+        result["installed"] = True
+
+        probe_requests = (
+            {"type": "status"},
+            {"type": "ask", "question": "What is a withdrawal period?"},
+            {"type": "ask", "question": "How much milk did we produce today?"},
+        )
+        payload = "".join(json.dumps(r) + "\n" for r in probe_requests)
+
+        try:
+            child = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                encoding="utf-8",
+                env=sanitised_environment(),
+            )
+        except OSError as exc:
+            result["error"] = f"the Assistant could not be started: {exc}"
+            return result
+
+        result["process_starts"] = True
+        try:
+            out, _ = child.communicate(payload, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.communicate()
+            result["error"] = f"the Assistant did not answer within {timeout:g}s"
+            return result
+        finally:
+            if child.poll() is None:
+                child.terminate()
+
+        lines = [line for line in (out or "").splitlines() if line.strip()]
+        try:
+            responses = [json.loads(line) for line in lines]
+        except json.JSONDecodeError as exc:
+            result["error"] = f"unreadable response from the Assistant: {exc}"
+            return result
+
+        if len(responses) < 3:
+            result["error"] = "the Assistant stopped before answering"
+            return result
+
+        status, knowledge, operational = responses[0], responses[1], responses[2]
+
+        if status.get("ok"):
+            inner = status.get("status", {})
+            result["corpus_loads"] = bool(inner.get("servable_items"))
+            result["corpus_version"] = inner.get("corpus_version")
+            result["servable_items"] = inner.get("servable_items")
+            result["serving_unreviewed"] = bool(inner.get("serving_unreviewed"))
+
+        result["retrieval_works"] = bool(knowledge.get("ok") and knowledge.get("evidence"))
+        result["refuses_operational"] = (
+            operational.get("ok") is True
+            and operational.get("decision") == "REFUSE_OPERATIONAL_DATA"
+        )
+        return result
+
     def model_ready(self) -> bool:
         return self._model is not None and self._model.poll() is None
 
