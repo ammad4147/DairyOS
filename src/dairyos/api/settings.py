@@ -25,6 +25,13 @@ from dairyos.api.auth import (
     require_permission,
 )
 from dairyos.api.dependencies import get_container
+from dairyos.admin.data_management import (
+    DataManagementError,
+    export_farm_data,
+    import_farm_data,
+    validate_package,
+)
+from dairyos.data.database.session import DATABASE_URL
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.email.digest import DashboardDigestService
 from dairyos.email.service import EmailService
@@ -226,6 +233,14 @@ class SystemResetRequest(BaseModel):
     updated_by: str = Field(default="Settings Operator")
 
 
+class DataManagementPathRequest(BaseModel):
+    path: str = Field(min_length=1)
+
+
+class DataManagementImportRequest(DataManagementPathRequest):
+    confirm: str
+
+
 class DeployRequest(BaseModel):
     confirm: str
     updated_by: str = Field(default="UI Operator")
@@ -424,6 +439,44 @@ def update_navigation_preferences(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
         rf.close()
+
+
+@router.post("/data-management/export")
+def export_farm_package(
+    payload: DataManagementPathRequest,
+    admin=Depends(require_permission("settings.navigation")),
+):
+    try:
+        return export_farm_data(DATABASE_URL, payload.path)
+    except DataManagementError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/data-management/validate")
+def validate_farm_package(
+    payload: DataManagementPathRequest,
+    admin=Depends(require_permission("settings.navigation")),
+):
+    try:
+        return validate_package(payload.path)
+    except DataManagementError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/data-management/import")
+def import_farm_package(
+    payload: DataManagementImportRequest,
+    admin=Depends(require_permission("settings.navigation")),
+):
+    if payload.confirm != "IMPORT VERIFIED FARM DATA":
+        raise HTTPException(
+            status_code=422,
+            detail='confirm must be the literal string "IMPORT VERIFIED FARM DATA"',
+        )
+    try:
+        return import_farm_data(DATABASE_URL, payload.path)
+    except DataManagementError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/deployment")
