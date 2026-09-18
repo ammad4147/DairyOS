@@ -324,10 +324,11 @@ def assign_private_postgres_to_job(job: JobObject, pid: int) -> bool:
 
     PostgreSQL is started and stopped by the private database lifecycle
     authority.  The Job Object is an additional crash-containment mechanism,
-    not a prerequisite for database correctness.  Windows can legitimately
-    reject reassignment of an already-running process with ERROR_ACCESS_DENIED
-    when an existing job hierarchy prevents the requested nesting.  Do not
-    convert that containment limitation into a fatal desktop startup failure.
+    not a prerequisite for database correctness.  A private cluster may
+    already be running under another Windows security context (for example,
+    after adoption by a maintenance process), in which case OpenProcess can
+    fail with ERROR_ACCESS_DENIED before assignment is attempted.  Preserve
+    startup while recording that crash containment could not be established.
     """
 
     try:
@@ -716,17 +717,24 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     save_api = ReportingSaveApi(webview.FileDialog.SAVE)
 
 
+    desktop_url = _desktop_url(url)
+    LOG.info("webview stage=create-window-enter url=%s", url)
     window = webview.create_window(
         "DairyOS",
-        _desktop_url(url),
+        desktop_url,
         text_select=True,
         js_api=save_api,
     )
+    LOG.info("webview stage=create-window-returned")
     save_api.window = window
 
     # Let Windows choose the usable work area for the operator's display.
     # There is deliberately no fixed size or minimum size: the web app keeps
     # its existing layout and remains responsible for responsive presentation.
+    def log_window_shown() -> None:
+        LOG.info("webview stage=window-shown")
+
+    window.events.shown += log_window_shown
     window.events.shown += window.maximize
 
     def backend_recovered(new_url: str) -> None:
@@ -758,8 +766,11 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     window.events.closed += close_application
     watchdog.start()
     try:
+        LOG.info("webview stage=start-enter gui=edgechromium")
         webview.start(gui="edgechromium", debug=False)
+        LOG.info("webview stage=start-returned")
     finally:
+        LOG.info("webview stage=watchdog-stop")
         watchdog.stop()
 
 
