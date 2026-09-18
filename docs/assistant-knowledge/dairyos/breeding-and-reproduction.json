@@ -234,7 +234,10 @@
         "when is PD due",
         "pregnant cow",
         "reproductive state",
-        "confirm pregnancy"
+        "confirm pregnancy",
+        "pending PD",
+        "Inseminated (Pending PD)",
+        "what does Pending PD mean"
       ],
       "answer": "Record the actual authorised diagnostic event and its result. DairyOS derives current state from the persisted chronology and never treats a forecast or reminder as a confirmed diagnosis.",
       "explanation": "Pregnancy diagnosis becomes due 35 days after the insemination date. A positive result establishes a confirmed pregnancy, from which DairyOS derives days pregnant from the insemination date and an expected calving date. Where the pregnancy record carries an explicitly configured expected calving date, that configured value takes precedence; otherwise the expected calving date is the insemination date plus the DairyOS gestation authority of 283 days. Confirmed evidence is always kept distinct from expected dates, reminders and calculated state, so a later event can supersede current state without erasing the history that produced it.",

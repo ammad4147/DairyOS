@@ -60,6 +60,26 @@ if ($LASTEXITCODE -ne 0) {
     throw "pywebview is unavailable in the active build environment."
 }
 
+Write-Host "=== ASSISTANT RUNTIME ===" -ForegroundColor Cyan
+# The installed machine must need nothing external, so the model and
+# llama-server are bundled into the package. They cannot live in git, so the
+# build machine fetches and sha256-verifies them here. Re-running is cheap: an
+# artefact already present and verified is skipped.
+#
+# DAIRYOS_ALLOW_ASSISTANT_WITHOUT_RUNTIME builds a package whose Assistant
+# cannot answer. It exists for a developer iterating on the application without
+# a 1.28 GB download, and the release certification rejects such a package.
+if ($env:DAIRYOS_ALLOW_ASSISTANT_WITHOUT_RUNTIME -in @("1", "true", "yes")) {
+    Write-Warning "DAIRYOS_ALLOW_ASSISTANT_WITHOUT_RUNTIME is set. The Assistant in this package will not be able to answer."
+} else {
+    # Get-AssistantRuntime.ps1 sets ErrorActionPreference Stop and throws on a
+    # failed download or a hash mismatch, so a throw is the signal here.
+    # Checking $LASTEXITCODE instead would read the exit code of whatever
+    # external command happened to run last, which on a cache hit is a command
+    # from an earlier step.
+    & (Join-Path $PSScriptRoot "Get-AssistantRuntime.ps1")
+}
+
 Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
 
 foreach ($legacyOutputRoot in $legacyOutputRoots) {
