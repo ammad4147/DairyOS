@@ -56,7 +56,7 @@ def test_wait_for_server_does_not_return_until_postgres_accepts(monkeypatch):
     outcomes = iter([False, False, True])
     probes: list[tuple[str, int]] = []
 
-    def fake_ready(host, port, *, timeout):
+    def fake_ready(host, port, *, user=pg.DEFAULT_USER, database=pg.DEFAULT_DATABASE, timeout):
         probes.append((host, port))
         return next(outcomes)
 
@@ -91,7 +91,7 @@ def test_wait_for_server_fails_closed_when_postgres_never_accepts(monkeypatch):
     monkeypatch.setattr(
         pg,
         "_postgres_is_ready",
-        lambda host, port, *, timeout: False,
+        lambda host, port, *, user=pg.DEFAULT_USER, database=pg.DEFAULT_DATABASE, timeout: False,
     )
 
     clock = iter(
@@ -129,20 +129,24 @@ def test_persisted_cluster_running_uses_postgres_readiness(
         lambda: {
             "host": "127.0.0.1",
             "port": 55432,
+            "user": "dairyos",
+            "database": "dairyos",
         },
     )
 
     readiness_calls = []
 
-    def fake_ready(host, port, *, timeout):
-        readiness_calls.append((host, port, timeout))
+    def fake_ready(host, port, *, user=pg.DEFAULT_USER, database=pg.DEFAULT_DATABASE, timeout):
+        readiness_calls.append((host, port, user, database, timeout))
         return False
 
     monkeypatch.setattr(pg, "_postgres_is_ready", fake_ready)
     monkeypatch.setattr(pg, "_is_port_open", lambda host, port: True)
 
     assert pg.persisted_cluster_is_running() is False
-    assert readiness_calls == [("127.0.0.1", 55432, 2.0)]
+    assert readiness_calls == [
+        ("127.0.0.1", 55432, "dairyos", "dairyos", 2.0)
+    ]
 
 
 def test_status_uses_postgres_readiness_not_tcp(
@@ -168,7 +172,7 @@ def test_status_uses_postgres_readiness_not_tcp(
     monkeypatch.setattr(
         pg,
         "_postgres_is_ready",
-        lambda host, port, *, timeout: False,
+        lambda host, port, *, user=pg.DEFAULT_USER, database=pg.DEFAULT_DATABASE, timeout: False,
     )
 
     result = pg.status(config)
