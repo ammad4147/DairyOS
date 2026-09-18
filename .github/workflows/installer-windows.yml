@@ -466,7 +466,7 @@ jobs:
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
           $uninstallLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall.log"
           Remove-Item $uninstallLog -Force -ErrorAction SilentlyContinue
-          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$uninstallLog")
+          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=NO","/LOG=$uninstallLog")
           $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) {
             if (Test-Path $uninstallLog -PathType Leaf) {
