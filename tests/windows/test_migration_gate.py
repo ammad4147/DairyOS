@@ -64,6 +64,11 @@ def _patch_migration_environment(monkeypatch, current_heads, target_heads, appli
 
 
 def test_empty_database_uses_explicit_bootstrap(monkeypatch):
+    # This test exercises the ordinary explicit bootstrap path, not the
+    # packaged transient-administrator path. Own the environment
+    # precondition so test order cannot activate private-cluster proof.
+    monkeypatch.delenv(migrations.MIGRATION_DATABASE_URL_ENV, raising=False)
+
     target = ("20260826_01",)
     config = _patch_migration_environment(monkeypatch, (), target, 0)
     calls = []
@@ -83,35 +88,92 @@ def test_empty_database_uses_explicit_bootstrap(monkeypatch):
     assert calls[0][2] == target
 
 
-@pytest.mark.parametrize("mode", ["clean", "new"])
-def test_explicit_new_farm_choice_allows_empty_database_bootstrap(
-    monkeypatch,
-    tmp_path,
-    mode,
-):
-    root = tmp_path / "DairyOS"
-    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(root))
-    from dairyos.windows.installation_choice import write_pending_installation_choice
+def test_packaged_empty_database_requires_private_cluster_provenance(monkeypatch):
+    _patch_migration_environment(monkeypatch, (), ("20260826_01",), 0)
 
-    write_pending_installation_choice(root, mode=mode)
-    target = ("20260826_01",)
-    config = _patch_migration_environment(monkeypatch, target, target, 0)
+    monkeypatch.setenv(
+        migrations.MIGRATION_DATABASE_URL_ENV,
+        "postgresql+psycopg://dairyos_admin:test@127.0.0.1:55432/dairyos",
+    )
+
     calls = []
+
+    def reject_unowned_target(connection, database_url):
+        calls.append((connection, database_url))
+        raise migrations.MigrationGateError(
+            "live PostgreSQL data directory is not the DairyOS-owned private cluster"
+        )
+
+    monkeypatch.setattr(
+        migrations,
+        "_verify_private_bootstrap_target",
+        reject_unowned_target,
+    )
     monkeypatch.setattr(
         migrations,
         "_bootstrap_empty_database",
-        lambda connection, received_config, received_target: calls.append(
-            (connection, received_config, received_target)
+        lambda *_args, **_kwargs: pytest.fail(
+            "Unowned PostgreSQL target must never be bootstrapped."
         ),
+    )
+
+    with pytest.raises(
+        migrations.MigrationGateError,
+        match="not the DairyOS-owned private cluster",
+    ):
+        migrations.migrate_if_needed()
+
+    assert len(calls) == 1
+    assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
+
+
+def test_packaged_empty_database_bootstraps_after_private_cluster_proof(monkeypatch):
+    target = ("20260826_01",)
+    config = _patch_migration_environment(monkeypatch, (), target, 0)
+
+    governed_url = (
+        "postgresql+psycopg://"
+        "dairyos_admin:test@127.0.0.1:55432/dairyos"
+    )
+
+    monkeypatch.setenv(
+        migrations.MIGRATION_DATABASE_URL_ENV,
+        governed_url,
+    )
+
+    proof_calls = []
+    bootstrap_calls = []
+
+    monkeypatch.setattr(
+        migrations,
+        "_verify_private_bootstrap_target",
+        lambda connection, database_url: proof_calls.append(
+            (connection, database_url)
+        ),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "_bootstrap_empty_database",
+        lambda connection, received_config, received_target:
+            bootstrap_calls.append(
+                (connection, received_config, received_target)
+            ),
     )
 
     result = migrations.migrate_if_needed()
 
     assert result.migrated is True
-    assert len(calls) == 1
-    assert calls[0][1] is config
-    assert calls[0][2] == target
+    assert result.current_heads == ()
+    assert result.target_heads == target
 
+    assert len(proof_calls) == 1
+    assert proof_calls[0][1] == governed_url
+
+    assert len(bootstrap_calls) == 1
+    assert bootstrap_calls[0][1] is config
+    assert bootstrap_calls[0][2] == target
+
+    assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
 
 def test_non_empty_database_without_history_is_rejected(monkeypatch):
     _patch_migration_environment(monkeypatch, (), ("20260826_01",), 1)

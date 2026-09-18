@@ -173,6 +173,114 @@ def test_backend_watchdog_clears_transient_restart_failure_after_recovery(monkey
     assert watchdog.process is recovered_process
     assert watchdog.failure is None
 
+def test_reporting_save_api_exposes_supervisor_owned_desktop_session_token(monkeypatch):
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor._SESSION_TOKEN",
+        "supervisor-owned-token",
+    )
+
+    api = ReportingSaveApi()
+
+    assert api.getDesktopSessionToken() == "supervisor-owned-token"
+
+
+def test_desktop_session_token_is_stable_for_supervisor_lifetime(monkeypatch):
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor._SESSION_TOKEN",
+        None,
+    )
+
+    from dairyos.windows import supervisor
+
+    first = supervisor._desktop_session_token()
+    second = supervisor._desktop_session_token()
+
+    assert first
+    assert second == first
+
+
+def test_auth_signing_secret_is_stable_for_supervisor_lifetime(monkeypatch):
+    monkeypatch.delenv("DAIRYOS_AUTH_SECRET", raising=False)
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor._AUTH_SIGNING_SECRET",
+        None,
+    )
+
+    from dairyos.windows import supervisor
+
+    first = supervisor._auth_signing_secret()
+    second = supervisor._auth_signing_secret()
+
+    assert first
+    assert second == first
+
+
+def test_watchdog_waits_for_readiness_before_recovery_callback(monkeypatch):
+    class FakeProcess:
+        def __init__(self, alive: bool):
+            self.alive = alive
+
+        def poll(self):
+            return None if self.alive else 1
+
+        def terminate(self):
+            self.alive = False
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            self.alive = False
+
+    class FakeJob:
+        def assign(self, process):
+            return None
+
+    old_process = FakeProcess(alive=False)
+    recovered_process = FakeProcess(alive=True)
+    events = []
+
+    def fake_start_backend(config, job, port=None):
+        events.append(("start", port))
+        return recovered_process, f"http://127.0.0.1:{port}"
+
+    def fake_wait_for_ready(url, config):
+        events.append(("ready", url))
+
+    def recovered(url):
+        events.append(("callback", url))
+
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor.start_backend",
+        fake_start_backend,
+    )
+    monkeypatch.setattr(
+        "dairyos.windows.supervisor.wait_for_ready",
+        fake_wait_for_ready,
+    )
+
+    watchdog = BackendWatchdog(
+        old_process,
+        "http://127.0.0.1:8123",
+        SupervisorConfig(
+            restart_attempts=1,
+            restart_backoff=0.0,
+        ),
+        FakeJob(),
+        recovered,
+    )
+
+    watchdog.start()
+    watchdog.thread.join(timeout=2)
+    watchdog.stop()
+
+    assert events == [
+        ("start", 8123),
+        ("ready", "http://127.0.0.1:8123"),
+        ("callback", "http://127.0.0.1:8123"),
+    ]
+    assert watchdog.failure is None
+
 def test_reporting_save_api_persists_exact_bytes(tmp_path):
     destination = tmp_path / "report.pdf"
     save_dialog_type = object()

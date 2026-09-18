@@ -43,122 +43,10 @@ from dairyos.windows.system_postgres_admin import (
     stage_runtime_database_url,
 )
 from dairyos.lifecycle.manager import LifecycleManager
-from dairyos.windows.installation_choice import (
-    InstallationChoiceError,
-    clear_pending_installation_choice,
-    read_pending_installation_choice,
-    write_pending_installation_choice,
-)
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
 _AUTH_SIGNING_SECRET: str | None = None
-
-
-def queue_installation_choice(
-    *,
-    data_root: str | Path,
-    mode: str,
-    backup_path: str | Path | None = None,
-) -> Path:
-    """Record an installer choice for the next protected startup boundary."""
-    normalized_mode = str(mode or "").strip().lower()
-    normalized_backup = backup_path
-    if normalized_mode == "restore":
-        if backup_path is None:
-            raise InstallationChoiceError(
-                "Restore installation choice requires an explicit backup path."
-            )
-        # Verify at queue time when PostgreSQL tooling is available, then
-        # re-verify immediately before restoration as well.  This prevents a
-        # stale/tampered candidate from being accepted merely because it was
-        # displayed by the installer.
-        from dairyos.admin.backup_catalog import verify_restore_candidate
-
-        normalized_backup = verify_restore_candidate(backup_path).path
-    return write_pending_installation_choice(
-        data_root,
-        mode=normalized_mode,
-        backup_path=normalized_backup,
-    )
-
-
-def process_pending_installation_choice(
-    *,
-    restore_only: bool = False,
-) -> None:
-    """Apply one explicit installer choice before normal backend startup."""
-    from dairyos.platform.paths import data_root
-
-    root = data_root(create=False)
-    choice = read_pending_installation_choice(root)
-    if choice is None or (restore_only and choice.mode in {"clean", "new"}):
-        return
-
-    from dairyos.admin.database import acquire_admin_database
-    from dairyos.admin.service import AdminService
-
-    try:
-        if choice.mode == "keep":
-            # A Keep/New choice also clears an abandoned one-shot action from
-            # an earlier interrupted installer run. It must happen before the
-            # migration gate so an established empty farm still blocks safely.
-            LOG.info("Installer selected Keep existing DairyOS farm data")
-        elif choice.mode == "restore":
-            if choice.backup_path is None:
-                raise InstallationChoiceError(
-                    "Pending restore choice does not contain an explicit backup path."
-                )
-            from dairyos.admin.backup_catalog import verify_restore_candidate
-
-            candidate = verify_restore_candidate(choice.backup_path)
-            lease = acquire_admin_database(
-                Path(sys.executable).resolve().parent,
-                data_root=root,
-            )
-            try:
-                result = AdminService(lease.manager).restore(candidate.path)
-                LOG.info("Installer-selected DairyOS recovery completed: %s", result.message)
-            finally:
-                lease.close()
-        elif choice.mode in {"clean", "new"}:
-            # ``clean`` is retained only for compatibility with an older
-            # pending request. It is never allowed to delete or rewrite an
-            # existing data root. The current installer uses ``new`` with a
-            # newly allocated root, so migration can bootstrap it safely.
-            LOG.info(
-                "Installer selected a new empty DairyOS farm; existing data was not changed"
-            )
-        else:  # pragma: no cover - read helper rejects unsupported modes
-            raise InstallationChoiceError(
-                f"Unsupported pending DairyOS installation choice: {choice.mode}"
-            )
-    except Exception:
-        # Re-stage a failed one-shot request so the operator can retry or
-        # choose Keep from the installer without losing intent.
-        try:
-            write_pending_installation_choice(
-                root,
-                mode=choice.mode,
-                backup_path=choice.backup_path,
-            )
-        except Exception:
-            LOG.exception("Unable to retain the failed installer choice request")
-        raise
-
-    clear_pending_installation_choice(root)
-
-
-def _installation_choice_data_root(override: str | None = None) -> Path:
-    """Resolve the installer command root without creating farm data."""
-    if override:
-        return Path(override).expanduser().resolve()
-    configured = os.environ.get("DAIRYOS_DATA_DIR", "").strip()
-    if configured:
-        return Path(configured).expanduser().resolve()
-    from dairyos.platform.paths import data_root
-
-    return data_root(create=False).resolve()
 
 
 def process_pending_system_reset() -> None:
@@ -639,6 +527,10 @@ class ReportingSaveApi:
         self.window = None
         self.save_dialog_type = save_dialog_type
 
+    def getDesktopSessionToken(self) -> str:
+        """Return the supervisor-owned desktop capability token to pywebview."""
+        return _desktop_session_token()
+
     def save_reporting_export(
         self,
         filename: str,
@@ -715,6 +607,8 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
         raise RuntimeError("pywebview is required for the packaged DairyOS desktop shell.") from exc
 
     save_api = ReportingSaveApi(webview.FileDialog.SAVE)
+
+
     window = webview.create_window(
         "DairyOS",
         _desktop_url(url),
@@ -728,13 +622,25 @@ def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
     # its existing layout and remains responsible for responsive presentation.
     window.events.shown += window.maximize
 
-    def reload_url(new_url: str) -> None:
-        try:
-            window.load_url(_desktop_url(new_url))
-        except Exception:
-            LOG.exception("Failed to reload the DairyOS WebView after backend recovery")
+    def backend_recovered(new_url: str) -> None:
+        # BackendWatchdog deliberately restarts the backend on the same
+        # loopback port.  The browser origin, supervisor-owned desktop-session
+        # token, and authentication signing secret therefore remain stable.
+        #
+        # Do not call pywebview window methods from the watchdog thread.  The
+        # existing WebView can continue using the same origin once readiness
+        # has been re-established.
+        if _url_port(new_url) != _url_port(url):
+            raise RuntimeError(
+                "DairyOS backend recovery changed the desktop origin: "
+                f"old={url} new={new_url}"
+            )
+        LOG.info(
+            "DairyOS backend recovered on the existing desktop origin; "
+            "WebView reload is not required"
+        )
 
-    watchdog.on_restart = reload_url
+    watchdog.on_restart = backend_recovered
 
     def close_application() -> None:
         # Signal the watchdog first so an intentional backend termination
@@ -935,23 +841,6 @@ def run(config: SupervisorConfig) -> int:
             )
             return 4
 
-        # A restore selected in the installer must repair the database before
-        # the normal migration/startup-integrity gates inspect it. A new-farm
-        # choice is intentionally retained through migration: the migration
-        # gate uses its explicit authorization only to bootstrap an empty
-        # database in the selected data root. No existing farm root is reset,
-        # deleted, or replaced. Requests are cleared only after success.
-        try:
-            process_pending_installation_choice(restore_only=True)
-        except Exception as exc:
-            LOG.exception("DairyOS installer-selected recovery could not be applied")
-            show_startup_error(
-                "DairyOS recovery could not be completed",
-                "The selected recovery point was not applied and the request was retained.\n\n"
-                f"{exc}\n\nChoose a different verified backup or retry the installation.",
-            )
-            return 5
-
         try:
             migration = migrate_if_needed()
             LOG.info(
@@ -972,17 +861,6 @@ def run(config: SupervisorConfig) -> int:
             return 3
 
         try:
-            process_pending_installation_choice()
-        except Exception as exc:
-            LOG.exception("DairyOS installer-selected data action could not be applied")
-            show_startup_error(
-                "DairyOS installation data action could not be completed",
-                "The selected installation data action was not applied and the request was retained.\n\n"
-                f"{exc}\n\nExisting farm data was not intentionally deleted.",
-            )
-            return 5
-
-        try:
             process_pending_system_reset()
         except Exception as exc:
             show_startup_error(
@@ -992,21 +870,24 @@ def run(config: SupervisorConfig) -> int:
             )
             return 5
 
+        # Select the desktop backend origin once for this supervisor lifetime.
+        # Initial startup retries and all watchdog recoveries must reuse this
+        # exact port so the WebView origin and desktop capability remain stable.
+        backend_port = config.port or choose_port(config.host)
         attempts = config.restart_attempts + 1
+        url = None
+
         for attempt in range(attempts):
             try:
-                backend, url = start_backend(config, job)
+                backend, url = start_backend(config, job, port=backend_port)
                 wait_for_ready(url, config)
                 LOG.info("DairyOS backend ready at %s", url)
-                watchdog = BackendWatchdog(backend, url, config, job, lambda _url: None)
-                launch_webview(url, watchdog, lambda: terminate_backend(watchdog.process))
-                return 0 if watchdog.failure is None else 1
+                break
             except Exception as exc:
-                LOG.exception("DairyOS desktop startup/runtime failure")
-                if watchdog is not None:
-                    watchdog.stop()
+                LOG.exception("DairyOS backend startup failure")
                 terminate_backend(backend)
                 backend = None
+
                 if attempt + 1 >= attempts:
                     show_startup_error(
                         "DairyOS could not start",
@@ -1014,8 +895,39 @@ def run(config: SupervisorConfig) -> int:
                         f"{exc}\n\nReview the DairyOS logs for diagnostic details.",
                     )
                     return 1
+
                 time.sleep(config.restart_backoff * (attempt + 1))
-        return 1
+
+        if backend is None or url is None:
+            return 1
+
+        # Startup recovery ends once readiness succeeds.  From this point
+        # BackendWatchdog is the sole backend crash-recovery authority and
+        # preserves the established desktop origin.
+        watchdog = BackendWatchdog(
+            backend,
+            url,
+            config,
+            job,
+            lambda _url: None,
+        )
+
+        try:
+            launch_webview(
+                url,
+                watchdog,
+                lambda: terminate_backend(watchdog.process),
+            )
+        except Exception as exc:
+            LOG.exception("DairyOS desktop runtime failure")
+            show_startup_error(
+                "DairyOS desktop runtime failed",
+                "The DairyOS application window encountered a runtime failure.\n\n"
+                f"{exc}\n\nReview the DairyOS logs for diagnostic details.",
+            )
+            return 1
+
+        return 0 if watchdog.failure is None else 1
     finally:
         if watchdog is not None:
             watchdog.stop()
@@ -1042,14 +954,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
     parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--lifecycle-choice", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--choice-mode",
-        choices=("new", "clean", "restore", "keep"),
-        default=None,
-        help=argparse.SUPPRESS,
-    )
-    parser.add_argument("--backup-path", default="", help=argparse.SUPPRESS)
     parser.add_argument("--installation-root", default="")
     parser.add_argument("--data-root", default="")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
@@ -1080,26 +984,6 @@ def main(argv: list[str] | None = None) -> int:
             data_root=data_root_override,
             database_url=None,
         ).install(application_version="packaged")
-        return 0
-    if args.lifecycle_choice:
-        if not args.choice_mode:
-            raise SystemExit(
-                "--lifecycle-choice requires --choice-mode new, restore or keep"
-            )
-        root = _installation_choice_data_root(args.data_root)
-        try:
-            queue_installation_choice(
-                data_root=root,
-                mode=args.choice_mode,
-                backup_path=args.backup_path or None,
-            )
-        except (InstallationChoiceError, OSError, RuntimeError) as exc:
-            LOG.exception("DairyOS installation choice could not be staged")
-            show_startup_error(
-                "DairyOS installation choice could not be saved",
-                f"{exc}\n\nNo farm data was intentionally deleted.",
-            )
-            return 5
         return 0
     if args.data_root:
         # The installer passes the selected fresh data root explicitly for

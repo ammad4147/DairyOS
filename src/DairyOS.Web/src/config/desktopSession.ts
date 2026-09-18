@@ -8,6 +8,35 @@ export function desktopWindowUrl(value: string): string {
   return target.toString();
 }
 
+/**
+ * Attempt to acquire the desktop session token from the native JS API
+ * provided by pywebview's `window.pywebview.api`.
+ */
+async function acquireTokenFromNativeApi(): Promise<string | null> {
+  const pywebview = (window as any).pywebview;
+  if (!pywebview?.api?.getDesktopSessionToken) return null;
+  try {
+    const token = await pywebview.api.getDesktopSessionToken();
+    if (typeof token === 'string' && token.length > 0) {
+      window.sessionStorage.setItem('dairyos.desktop.session', token);
+      return token;
+    }
+  } catch {
+    // pywebview API call failed — token unavailable from native bridge.
+  }
+  return null;
+}
+
+/**
+ * Return the current desktop session token, trying sessionStorage first
+ * and falling back to the native pywebview API.
+ */
+async function resolveToken(): Promise<string | null> {
+  const cached = window.sessionStorage.getItem('dairyos.desktop.session');
+  if (cached) return cached;
+  return acquireTokenFromNativeApi();
+}
+
 export function installDesktopSession(): void {
   const parameters = new URLSearchParams(window.location.hash.slice(1));
   const incoming = parameters.get('desktop-session');
@@ -16,14 +45,35 @@ export function installDesktopSession(): void {
     window.sessionStorage.setItem(key, incoming);
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }
-  const token = incoming || window.sessionStorage.getItem(key);
-  if (!token) return;
+
+  // Also try acquiring from pywebview native API asynchronously.
+  if (!incoming) {
+    void acquireTokenFromNativeApi();
+  }
+
   const originalFetch = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const target = new URL(input instanceof Request ? input.url : String(input), window.location.href);
     if (target.origin !== window.location.origin) return originalFetch(input, init);
+
+    const token = await resolveToken();
     const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
-    headers.set('X-DairyOS-Desktop-Session', token);
-    return originalFetch(input, { ...init, headers });
+    if (token) {
+      headers.set('X-DairyOS-Desktop-Session', token);
+    }
+
+    const response = await originalFetch(input, { ...init, headers });
+
+    // On 401, attempt one re-acquisition of the desktop session token and retry.
+    if (response.status === 401) {
+      const freshToken = await acquireTokenFromNativeApi();
+      if (freshToken && freshToken !== token) {
+        const retryHeaders = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+        retryHeaders.set('X-DairyOS-Desktop-Session', freshToken);
+        return originalFetch(input, { ...init, headers: retryHeaders });
+      }
+    }
+
+    return response;
   };
 }

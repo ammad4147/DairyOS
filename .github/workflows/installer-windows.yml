@@ -120,15 +120,6 @@ jobs:
             throw "Installer did not provision lifecycle.json."
           }
 
-          # The one-shot installation choice is created by elevated Setup,
-          # then consumed by the ordinary packaged supervisor. Verify that
-          # the runtime can clear/replace this control file without granting
-          # it access to the database or other farm records.
-          $pendingChoicePath = Join-Path $dataRoot "pending-installation-choice.json"
-          if (-not (Test-Path $pendingChoicePath -PathType Leaf)) {
-            throw "Installer did not provision pending installation choice."
-          }
-
           $usersSid = "S-1-5-32-545"
           $modify = [System.Security.AccessControl.FileSystemRights]::Modify
           $lifecycleAllowsModify = $false
@@ -159,35 +150,6 @@ jobs:
           }
 
           Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
-
-          $pendingChoiceAllowsModify = $false
-          foreach ($rule in (Get-Acl $pendingChoicePath).Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate(
-                [System.Security.Principal.SecurityIdentifier]
-              ).Value
-            }
-            catch {
-              continue
-            }
-
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq
-                [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $pendingChoiceAllowsModify = $true
-              break
-            }
-          }
-
-          if (-not $pendingChoiceAllowsModify) {
-            throw "Installed pending installation choice is not modifiable by the built-in Users group."
-          }
-
-          Write-Host "INSTALLATION CHOICE ACL CERTIFICATION: PASS"
-
 
           # Bootstrap the actual ProgramData private cluster before seeding any
           # operational storage fixtures. A non-empty storage tree is rightly
@@ -527,8 +489,108 @@ jobs:
           if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
           if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
 
-          Remove-Item $marker -Force
           Write-Host "INSTALL / UNINSTALL KEEP-DATA CERTIFICATION: PASS"
+
+          # The installer is clean-install-only. The preceding uninstall
+          # deliberately preserves the initialized canonical ProgramData
+          # farm. A subsequent installer invocation must therefore fail
+          # closed without modifying that state or allocating a sibling
+          # DairyOS-New-* data root.
+          if (-not (Test-Path $dataRoot -PathType Container)) {
+            throw "Canonical DairyOS data root disappeared before collision certification."
+          }
+
+          if (-not (Test-Path $marker -PathType Leaf)) {
+            throw "Preserved farm marker missing before collision certification."
+          }
+
+          $markerBeforeCollision = (Get-Content $marker -Raw).Trim()
+          if ($markerBeforeCollision -ne "preserve-me") {
+            throw "Preserved farm marker changed before collision certification."
+          }
+
+          $collisionInstallRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Collision-Rejected"
+          Remove-Item $collisionInstallRoot -Recurse -Force -ErrorAction SilentlyContinue
+
+          $siblingRootsBefore = @(
+            Get-ChildItem `
+              -Path $env:ProgramData `
+              -Directory `
+              -Filter "DairyOS-New-*" `
+              -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+          )
+
+          $collisionLog = Join-Path $env:RUNNER_TEMP "dairyos-collision-install.log"
+          Remove-Item $collisionLog -Force -ErrorAction SilentlyContinue
+
+          $collisionArgs = @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/DIR=$collisionInstallRoot",
+            "/LOG=$collisionLog"
+          )
+
+          $collisionSetup = Start-Process `
+            -FilePath $installer `
+            -ArgumentList $collisionArgs `
+            -PassThru `
+            -Wait
+
+          if ($collisionSetup.ExitCode -eq 0) {
+            if (Test-Path $collisionLog -PathType Leaf) {
+              Write-Host "COLLISION INSTALL LOG:" -ForegroundColor Yellow
+              Get-Content $collisionLog
+            }
+
+            throw "Installer accepted a populated canonical DairyOS data root."
+          }
+
+          if (-not (Test-Path $marker -PathType Leaf)) {
+            throw "Rejected collision install deleted preserved farm state."
+          }
+
+          $markerAfterCollision = (Get-Content $marker -Raw).Trim()
+          if ($markerAfterCollision -ne $markerBeforeCollision) {
+            throw "Rejected collision install altered preserved farm state."
+          }
+
+          $siblingRootsAfter = @(
+            Get-ChildItem `
+              -Path $env:ProgramData `
+              -Directory `
+              -Filter "DairyOS-New-*" `
+              -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+          )
+
+          $newSiblingRoots = @(
+            $siblingRootsAfter |
+            Where-Object { $_ -notin $siblingRootsBefore }
+          )
+
+          if ($newSiblingRoots.Count -ne 0) {
+            throw "Rejected collision install allocated alternate DairyOS data root: $($newSiblingRoots -join ', ')"
+          }
+
+          if (Test-Path $collisionInstallRoot) {
+            $collisionRuntime = @(
+              Get-ChildItem `
+                -Path $collisionInstallRoot `
+                -Force `
+                -ErrorAction SilentlyContinue
+            )
+
+            if ($collisionRuntime.Count -ne 0) {
+              throw "Rejected collision install left application files behind at $collisionInstallRoot"
+            }
+          }
+
+          Write-Host "CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS"
+
+          # Collision certification is complete; remove only the temporary CI sentinel.
+          Remove-Item $marker -Force
           exit 0
 
       - name: Publish installer artifact

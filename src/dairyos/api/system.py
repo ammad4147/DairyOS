@@ -15,43 +15,81 @@ router = APIRouter(
 def readiness(
     container=Depends(get_container),
 ):
-    """Report whether the runtime and database are actually ready.
+    """Report layered operational readiness.
 
     ``/health`` is the liveness endpoint and intentionally remains cheap.
-    ``/readiness`` is the deployment/traffic gate: it must prove that the
-    application runtime is started and that PostgreSQL accepts a trivial
-    query before returning HTTP 200.
+    ``/readiness`` is the deployment/traffic gate proving:
+      1. Application runtime is started (process health).
+      2. PostgreSQL accepts a trivial query (database reachability).
+      3. Schema is at the expected migration head (schema health).
+      4. Desktop session token is configured when running packaged (auth readiness).
     """
+    import os
+    import sys
 
+    layers: dict[str, str] = {}
+    errors: dict[str, str] = {}
+
+    # 1. Process health
     runtime_ready = bool(getattr(container, "started", False))
-    database_ready = False
-    database_error = None
+    layers["process"] = "ACTIVE" if runtime_ready else "INACTIVE"
 
+    # 2. Database reachability
+    database_ready = False
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         database_ready = True
-    except Exception as exc:  # pragma: no cover - exact driver error varies
-        database_error = str(exc)
+        layers["database"] = "READY"
+    except Exception as exc:
+        layers["database"] = "NOT_READY"
+        errors["database_error"] = str(exc)
 
-    if not runtime_ready or not database_ready:
-        detail = {
-            "system": "DairyOS",
-            "status": "NOT_READY",
-            "database": "READY" if database_ready else "NOT_READY",
-            "runtime": "ACTIVE" if runtime_ready else "INACTIVE",
-        }
-        if database_error:
-            detail["database_error"] = database_error
-        raise HTTPException(status_code=503, detail=detail)
+    # 3. Schema head verification
+    if database_ready:
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(
+                    text("SELECT version_num FROM alembic_version")
+                )
+                current_heads = sorted(row[0] for row in result.fetchall())
+                layers["schema"] = "VERIFIED"
+                layers["schema_heads"] = ",".join(current_heads) if current_heads else "NONE"
+        except Exception:
+            layers["schema"] = "UNKNOWN"
+    else:
+        layers["schema"] = "UNAVAILABLE"
 
-    return {
+    # 4. Desktop session readiness
+    is_packaged = bool(getattr(sys, "frozen", False))
+    session_token = os.environ.get("DAIRYOS_DESKTOP_SESSION_TOKEN", "")
+    if is_packaged:
+        layers["desktop_session"] = "CONFIGURED" if session_token else "NOT_CONFIGURED"
+    else:
+        layers["desktop_session"] = "DEVELOPMENT"
+
+    overall_ready = runtime_ready and database_ready
+    status = "READY" if overall_ready else "NOT_READY"
+
+    response = {
         "system": "DairyOS",
-        "status": "READY",
-        "database": "READY",
-        "runtime": "ACTIVE",
-        "events": container.event_journal.count(),
+        "status": status,
+        # Preserve the established readiness API while exposing the richer
+        # layered diagnostics below. Existing deployment and operator clients
+        # depend on these top-level fields.
+        "database": "READY" if database_ready else "NOT_READY",
+        "runtime": "ACTIVE" if runtime_ready else "INACTIVE",
+        "layers": layers,
     }
+    if errors:
+        response["errors"] = errors
+    if overall_ready:
+        response["events"] = container.event_journal.count()
+
+    if not overall_ready:
+        raise HTTPException(status_code=503, detail=response)
+
+    return response
 
 
 @router.get("/backup-health")

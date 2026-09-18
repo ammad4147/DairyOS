@@ -41,13 +41,40 @@ def _pg_environment(database_url: str) -> dict[str, str]:
 
 
 def _require_tool(name: str) -> str:
+    """Resolve PostgreSQL client tooling from DairyOS' bundled runtime, then PATH."""
+    import sys as _sys
+
+    executable_name = name if name.lower().endswith(".exe") else f"{name}.exe"
+    candidates: list[Path] = []
+
+    runtime_override = os.environ.get("DAIRYOS_PRIVATE_POSTGRES_RUNTIME", "").strip()
+    if runtime_override:
+        runtime = Path(runtime_override).expanduser()
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    install_root = os.environ.get("DAIRYOS_INSTALL_ROOT", "").strip()
+    if install_root:
+        runtime = Path(install_root).expanduser() / "runtime" / "PostgreSQL"
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    if getattr(_sys, "frozen", False):
+        runtime = Path(_sys.executable).resolve().parent / "runtime" / "PostgreSQL"
+        candidates.extend((runtime / "bin" / executable_name, runtime / executable_name))
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate.resolve())
+
+    # Fall back to system PATH only when no bundled candidate is available.
     executable = shutil.which(name)
-    if not executable:
-        raise BackupError(
-            f"Required PostgreSQL tool {name!r} was not found on PATH. "
-            "Install the PostgreSQL client tools before running disaster recovery."
-        )
-    return executable
+    if executable:
+        return executable
+
+    searched = ", ".join(str(item) for item in candidates) or "no bundled-runtime candidate"
+    raise BackupError(
+        f"Required PostgreSQL tool {name!r} was not found in the DairyOS bundled runtime "
+        f"({searched}) or on PATH. Install the PostgreSQL client tools before running disaster recovery."
+    )
 
 
 def _checksum(path: Path) -> str:

@@ -204,7 +204,6 @@ class LifecycleManager:
                 # startup.
                 if relative.name in {
                     "pending-system-reset.json",
-                    "pending-installation-choice.json",
                 }:
                     continue
                 target = files_root / relative

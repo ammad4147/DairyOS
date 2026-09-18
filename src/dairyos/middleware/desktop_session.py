@@ -1,4 +1,5 @@
 """A per-launch capability for the login-free desktop, never served by HTTP."""
+import logging
 import os
 import secrets
 import sys
@@ -8,32 +9,73 @@ from starlette.responses import JSONResponse
 SESSION_ENV = "DAIRYOS_DESKTOP_SESSION_TOKEN"
 SESSION_HEADER = "X-DairyOS-Desktop-Session"
 
+LOG = logging.getLogger(__name__)
+
+# Static asset paths that are always publicly readable without a session token.
+_PUBLIC_EXACT = frozenset({
+    "/",
+    "/index.html",
+    "/health",
+    "/readiness",
+    "/favicon.ico",
+    "/manifest.json",
+    "/dairyos-cow.svg",
+    "/serviceWorker.js",
+})
+
+_PUBLIC_PREFIXES = (
+    "/assets/",
+)
+
+_PUBLIC_EXTENSIONS = frozenset({
+    ".js", ".css", ".svg", ".png", ".ico", ".woff", ".woff2", ".ttf", ".map",
+})
+
+
+def _is_public_read(method: str, path: str) -> bool:
+    """Return whether this request targets a publicly readable resource."""
+    if method not in {"GET", "HEAD"}:
+        return False
+    if path in _PUBLIC_EXACT:
+        return True
+    for prefix in _PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    # Allow direct access to static file extensions (fonts, scripts, etc.)
+    dot = path.rfind(".")
+    if dot != -1 and path[dot:].lower() in _PUBLIC_EXTENSIONS:
+        return True
+    return False
+
 
 async def enforce_desktop_session(request, call_next):
     token = os.environ.get(SESSION_ENV, "")
-    production = bool(getattr(sys, "frozen", False)) or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
+    production = bool(getattr(sys, "frozen", False)) or os.getenv(
+        "DAIRYOS_ENV", "development"
+    ).lower() != "development"
     path = request.url.path
-    public_read = request.method in {"GET", "HEAD"} and (
-        path
-        in {
-            "/",
-            "/index.html",
-            "/health",
-            "/readiness",
-            "/favicon.ico",
-            "/manifest.json",
-            "/dairyos-cow.svg",
-            "/serviceWorker.js",
-        }
-        or path.startswith("/assets/")
-    )
-    if public_read or (not token and not production):
+
+    # Public resources never require a session token.
+    if _is_public_read(request.method, path):
         return await call_next(request)
+
+    # In non-production mode with no token configured, allow all requests.
+    if not token and not production:
+        return await call_next(request)
+
     supplied = request.headers.get(SESSION_HEADER, "")
     if token and secrets.compare_digest(supplied, token):
-        # Also prevent a credential-bearing browser request from another origin.
+        # Prevent a credential-bearing browser request from another origin.
         origin = request.headers.get("origin")
         if origin and origin != str(request.base_url).rstrip("/"):
-            return JSONResponse({"detail": "Desktop session origin mismatch."}, status_code=403)
+            return JSONResponse(
+                {"detail": "Desktop session origin mismatch."}, status_code=403
+            )
         return await call_next(request)
-    return JSONResponse({"detail": "Open DairyOS through its desktop application to access this farm."}, status_code=401)
+
+    return JSONResponse(
+        {
+            "detail": "Open DairyOS through its desktop application to access this farm."
+        },
+        status_code=401,
+    )

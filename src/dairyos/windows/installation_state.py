@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 import json
 from pathlib import Path
 from typing import Final
@@ -16,14 +15,6 @@ STATE_FILENAME: Final[str] = "installation_state.json"
 
 class InstallationStateError(RuntimeError):
     """Raised when DairyOS installation state is invalid."""
-
-
-class FarmLaunchMode(str, Enum):
-    """Explicit operator choice when existing DairyOS data is present."""
-
-    EXISTING = "existing"
-    NEW = "new"
-    RESTORE = "restore"
 
 
 @dataclass(frozen=True)
@@ -162,56 +153,3 @@ def write_state(state: InstallationState) -> Path:
         ) from exc
 
     return target
-
-
-def require_explicit_mode(
-    facts: InstallationFacts,
-    mode: FarmLaunchMode | None,
-) -> FarmLaunchMode:
-    if facts.is_new_installation:
-        return FarmLaunchMode.NEW
-
-    if mode is None:
-        raise InstallationStateError(
-            "Existing DairyOS farm data was detected. An explicit launch mode "
-            "is required: existing, new, or restore."
-        )
-
-    return mode
-
-
-def validate_new_installation(facts: InstallationFacts) -> None:
-    if facts.has_existing_data:
-        raise InstallationStateError(
-            "A new DairyOS farm cannot be created automatically because "
-            "existing DairyOS data is present."
-        )
-
-
-def validate_existing_installation(
-    facts: InstallationFacts,
-    mode: FarmLaunchMode,
-) -> None:
-    resolved = require_explicit_mode(facts, mode)
-
-    if resolved is FarmLaunchMode.RESTORE and facts.backup_count == 0:
-        raise InstallationStateError(
-            "Restore was selected, but no DairyOS backups are available."
-        )
-
-
-def choose_existing_backup(facts: InstallationFacts) -> Path:
-    """Reject implicit backup selection.
-
-    Recovery is a data-destructive boundary. Callers must present an
-    explicitly selected, checksum-verified candidate instead of choosing by
-    filesystem order or modification time.
-    """
-    if facts.backup_count == 0:
-        raise InstallationStateError(
-            "No DairyOS backup is available for restoration."
-        )
-    raise InstallationStateError(
-        "DairyOS never selects a backup automatically. Choose an explicit "
-        "verified recovery point before restoring."
-    )

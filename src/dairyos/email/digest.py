@@ -669,7 +669,7 @@ class DashboardDigestService:
                 factory.session.commit()
 
             if delivered == 0 and failed == 0:
-                run.status = "FAILED-NO-RECIPIENT"
+                run.status = "SKIPPED-NO-RECIPIENT"
             else:
                 run.status = "COMPLETED" if failed == 0 else "COMPLETED-WITH-ERRORS"
             run.completed_at = utcnow()

@@ -129,14 +129,20 @@ def test_catalog_honors_configured_external_roots(tmp_path, monkeypatch):
     assert tmp_path / "recovery" in roots
 
 
-def test_installer_owns_explicit_recovery_choice_without_standalone_admin():
+
+def test_installer_does_not_own_farm_recovery_or_restore():
     source = Path(__file__).parents[2] / "tools/windows-desktop/DairyOS-Installer.iss"
-    text = source.read_text()
+    text = source.read_text(encoding="utf-8-sig")
+
     assert 'Parameters: "--restore-mode"' not in text
     assert "DairyOS-Admin.exe" not in text
-    assert "Restore to Verified Backup" in text
-    assert "ScanKnownBackupRoots" in text
-    assert "StageInstallationChoice" in text
+
+    # Farm movement/recovery is no longer installer authority.
+    assert "Restore to Verified Backup" not in text
+    assert "StageInstallationChoice" not in text
+    assert "pending-installation-choice" not in text
+    assert "--backup-path" not in text
+    assert "pg_restore" not in text
 
 
 @pytest.mark.parametrize("inventory", [None, {}, "files", [None], ["file"], [123]])

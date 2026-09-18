@@ -28,10 +28,6 @@ from dairyos.windows.startup_integrity import (
     StartupIntegrityError,
     inspect_startup_integrity,
 )
-from dairyos.windows.installation_choice import (
-    InstallationChoiceError,
-    read_pending_installation_choice,
-)
 from dairyos.windows.private_postgres import isolated_postgres_environment
 
 
@@ -119,6 +115,76 @@ def _public_application_table_count(connection) -> int:
     return int(result.scalar_one())
 
 
+def _verify_private_bootstrap_target(connection, database_url: str) -> None:
+    """Prove that fresh-schema bootstrap targets DairyOS' private PostgreSQL cluster.
+
+    A database name, role name, loopback address, or filesystem marker alone is
+    insufficient authority for destructive first-run initialization.  The live
+    PostgreSQL server must report the exact data directory owned by DairyOS'
+    private runtime, and the connected database/role must match the packaged
+    private-database contract.
+    """
+    from sqlalchemy.engine import make_url
+
+    from dairyos.windows.private_postgres import postgres_data_root
+
+    parsed = make_url(database_url)
+
+    if parsed.get_backend_name() != "postgresql":
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap requires PostgreSQL."
+        )
+
+    if parsed.host not in {"127.0.0.1", "localhost", "::1"}:
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap requires the local private PostgreSQL runtime."
+        )
+
+    expected_data_root = postgres_data_root().resolve()
+
+    row = connection.execute(
+        text(
+            """
+            SELECT
+                current_database(),
+                current_user,
+                current_setting('data_directory'),
+                inet_server_port()
+            """
+        )
+    ).one()
+
+    current_database = str(row[0])
+    current_user = str(row[1])
+    live_data_root = Path(str(row[2])).resolve()
+    live_port = int(row[3]) if row[3] is not None else None
+
+    if current_database != "dairyos":
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap refused: "
+            f"connected database is {current_database!r}, expected 'dairyos'."
+        )
+
+    if current_user != "dairyos_admin":
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap refused: "
+            f"connected role is {current_user!r}, expected 'dairyos_admin'."
+        )
+
+    if live_data_root != expected_data_root:
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap refused because the live PostgreSQL "
+            "data directory is not the DairyOS-owned private cluster. "
+            f"Expected {expected_data_root}; found {live_data_root}."
+        )
+
+    if parsed.port is not None and live_port is not None and parsed.port != live_port:
+        raise MigrationGateError(
+            "Fresh DairyOS database bootstrap refused because the connected "
+            f"PostgreSQL port {live_port} does not match the governed URL port {parsed.port}."
+        )
+
+
 def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...]) -> None:
     """Create and protect the current ORM schema for a genuinely empty database.
 
@@ -144,19 +210,7 @@ def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...
         )
 
 
-def _explicit_clean_install_requested() -> bool:
-    """Return whether the installer explicitly authorized empty bootstrap.
 
-    This authorization only permits bootstrapping a genuinely empty database;
-    it never authorizes deletion or replacement of an existing farm.
-    """
-    try:
-        choice = read_pending_installation_choice(paths.data_root(create=False))
-    except InstallationChoiceError as exc:
-        raise MigrationGateError(
-            f"DairyOS installation choice is invalid; startup is blocked: {exc}"
-        ) from exc
-    return choice is not None and choice.mode in {"clean", "new"}
 
 
 def migrate_if_needed() -> MigrationResult:
@@ -191,13 +245,8 @@ def migrate_if_needed() -> MigrationResult:
                 current = tuple(sorted(migration_context.get_current_heads()))
                 target = tuple(sorted(script.get_heads()))
                 application_tables = _public_application_table_count(connection)
-                explicit_clean_install = _explicit_clean_install_requested()
 
                 if application_tables == 0:
-                    if explicit_clean_install:
-                        _bootstrap_empty_database(connection, config, target)
-                        return MigrationResult(True, current, target, None)
-
                     try:
                         inspect_startup_integrity(application_tables=0)
                     except StartupIntegrityError as exc:
@@ -210,9 +259,15 @@ def migrate_if_needed() -> MigrationResult:
                             "removed or the database is otherwise inconsistent. Data recovery is required."
                         )
 
-                    if not current:
-                        _bootstrap_empty_database(connection, config, target)
-                        return MigrationResult(True, current, target, None)
+                    # Fresh-schema bootstrap is destructive authority.  A packaged
+                    # private deployment supplies the transient administrator URL;
+                    # prove that this live connection terminates at DairyOS' own
+                    # private PostgreSQL cluster before creating/stamping schema.
+                    if transient_admin_url:
+                        _verify_private_bootstrap_target(connection, transient_admin_url)
+
+                    _bootstrap_empty_database(connection, config, target)
+                    return MigrationResult(True, current, target, None)
 
                 if current == target:
                     if transient_admin_url:

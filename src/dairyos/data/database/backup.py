@@ -30,11 +30,7 @@ class PostgreSQLBackupError(RuntimeError):
 
 
 def _tool(name: str) -> str:
-    """Resolve PostgreSQL client tooling from PATH or DairyOS' bundled runtime."""
-
-    path = shutil.which(name)
-    if path is not None:
-        return path
+    """Resolve PostgreSQL client tooling from DairyOS' bundled runtime, then PATH."""
 
     executable_name = name if name.lower().endswith(".exe") else f"{name}.exe"
     candidates: list[Path] = []
@@ -56,6 +52,11 @@ def _tool(name: str) -> str:
     for candidate in candidates:
         if candidate.is_file():
             return str(candidate.resolve())
+
+    # Fall back to system PATH only when no bundled candidate is available.
+    path = shutil.which(name)
+    if path is not None:
+        return path
 
     searched = ", ".join(str(item) for item in candidates) or "no bundled-runtime candidate"
     raise PostgreSQLBackupError(

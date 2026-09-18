@@ -214,7 +214,7 @@ def inspect_startup_integrity(
             "but the application database is empty or unavailable. "
             "DairyOS will not create a new empty farm or hide the existing farm. "
             "Data recovery is required before normal startup. "
-            "Re-run the DairyOS installer to choose an explicit recovery action."
+            "Use DairyOS Settings -> Data Management to import a verified farm-data package."
             + _recovery_hint(root)
         )
 

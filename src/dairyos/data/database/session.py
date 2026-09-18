@@ -107,6 +107,8 @@ DATABASE_URL = _build_database_url()
 
 engine = create_engine(
     DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=1800,
 )
 
 
@@ -149,6 +151,9 @@ def get_session():
 
     try:
         yield session
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
 
