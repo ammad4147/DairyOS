@@ -574,13 +574,49 @@ begin
   Result := True;
 end;
 
+function UninstallPreservationChoiceFromCommandLine(): String;
+var
+  I: Integer;
+  Arg: String;
+begin
+  Result := '';
+  for I := 1 to ParamCount do
+  begin
+    Arg := Uppercase(ParamStr(I));
+    if Arg = '/PRESERVEFARMDATA=NO' then
+      Result := 'NO'
+    else if Arg = '/PRESERVEFARMDATA=YES' then
+      Result := 'YES';
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   Choice: Integer;
+  CommandChoice: String;
 begin
   Result := False;
   PreserveFarmDataOnUninstall := False;
   PreservedFarmDataPath := '';
+  CommandChoice := UninstallPreservationChoiceFromCommandLine();
+
+  { Silent uninstall cannot answer an interactive preservation prompt. Require
+    an explicit command-line decision instead of hanging or silently choosing. }
+  if WizardSilent then
+  begin
+    if CommandChoice = 'NO' then
+    begin
+      Log('DairyOS uninstall: explicit silent decision is not to create a preservation package.');
+      Result := StopInstalledDairyOSForUninstall();
+      exit;
+    end;
+
+    { A silent YES is deliberately rejected until a governed destination is
+      also supplied. This prevents unattended uninstall from inventing a farm
+      preservation path. }
+    Log('DairyOS uninstall: silent mode requires /PRESERVEFARMDATA=NO; uninstall blocked.');
+    exit;
+  end;
 
   Choice := MsgBox(
     'Do you want to preserve the complete DairyOS farm data before uninstalling?' + #13#10#13#10 +
