@@ -100,6 +100,7 @@ def resolve_servable_statuses(
 _STOPWORDS = frozenset(
     """
     a an and are as at be by do does for from how i in is it its of on or
+    dairyos
     should that the their them there these this to was what when where which
     who why will with you your
     """.split()
@@ -215,6 +216,36 @@ class KnowledgeIndex:
         # push a score negative.
         return max(0.0, math.log(1.0 + (n - df + 0.5) / (df + 0.5)))
 
+    # Fields that name what an item is about, as opposed to fields that merely
+    # mention things in passing.
+    SUBJECT_FIELDS = ("question", "alternatives", "title", "capability", "domain")
+
+    def _is_subject_match(self, position: int, terms: Iterable[str]) -> bool:
+        """Whether a single matched term is the item's subject.
+
+        The two-term rule exists because one shared word is not evidence, and
+        it is right for a word buried in an item's prose. It is wrong for a
+        word that names the item itself: "how is health monitored" matched only
+        "health", so it was rejected, while the vaguer "health" was accepted
+        because a one-word query needs only one match. A more specific question
+        failing where a vaguer one succeeds is not a defensible rule.
+
+        So one term suffices when it appears in a field that says what the item
+        is about. "capital" appears only inside a finance item's explanation and
+        still fails, which is the false positive the gate was built for.
+
+        """
+        item = self.documents[position]
+        subject = set()
+        for name in self.SUBJECT_FIELDS:
+            value = item.get(name)
+            if value is None:
+                continue
+            text = " ".join(value) if isinstance(value, list) else str(value)
+            subject.update(tokenise(text))
+
+        return any(term in subject for term in terms)
+
     def search(
         self,
         query: str,
@@ -265,7 +296,11 @@ class KnowledgeIndex:
             (
                 p
                 for p, s in scores.items()
-                if s >= min_score and len(matched.get(p, ())) >= required_terms
+                if s >= min_score
+                and (
+                    len(matched.get(p, ())) >= required_terms
+                    or self._is_subject_match(p, matched.get(p, ()))
+                )
             ),
             key=lambda p: (-scores[p], self.documents[p].get("id", "")),
         )

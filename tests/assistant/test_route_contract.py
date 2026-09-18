@@ -152,8 +152,8 @@ def test_the_panel_has_something_to_render(client: TestClient):
     answer however healthy the transport was."""
     response = client.post(ASK, json={"question": "How do I record milk for a session?"})
     body = response.json()
-    assert body["stage"] in {"ANSWERED", "RETRIEVAL_ONLY"}
-    assert body["text"] or body["evidence"], "nothing would appear in the panel"
+    assert body["stage"] in {"ANSWERED", "APPROVED_TEXT"}
+    assert body["text"], "nothing would appear in the panel"
 
 
 # ---------------------------------------------------------------------------

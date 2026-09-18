@@ -118,20 +118,30 @@ def test_an_unanswerable_question_never_reaches_the_model(assistant):
     assert model.calls == []
 
 
-def test_an_unreachable_model_degrades_to_evidence_not_to_invention(assistant):
+def test_an_unreachable_model_degrades_to_approved_text_not_to_invention(assistant):
+    """Degrading must reach the operator, not stop at the response.
+
+    This previously asserted a bare RETRIEVAL_ONLY with no text, which is what
+    an operator saw as "No answer was produced" while the approved answer sat
+    unused in the retrieved item.
+    """
     model = ScriptedModel(ModelUnavailable("connection refused"))
     result = assistant(model).answer("What is a withdrawal period?")
 
-    assert result["stage"] == "RETRIEVAL_ONLY"
-    assert result["answer"] is None
+    assert result["stage"] == "APPROVED_TEXT"
+    assert result["answer"] is None, "nothing was generated, so nothing is claimed as generated"
     assert result["evidence"], "the retrieved evidence is still worth returning"
+    assert result["text"], "and the operator must be able to read it"
+    assert result["verbatim"] is True
     assert "model unavailable" in result["model_error"]
 
 
-def test_without_a_model_the_service_still_answers_with_evidence():
+def test_without_a_model_the_service_still_answers():
+    """No model configured at all, and the Assistant is still useful."""
     result = Assistant().answer("What is a withdrawal period?")
-    assert result["stage"] == "RETRIEVAL_ONLY"
+    assert result["stage"] == "APPROVED_TEXT"
     assert result["evidence"]
+    assert result["text"]
 
 
 def test_the_protocol_carries_the_stage_end_to_end():

@@ -11,6 +11,7 @@ type AssistantReply = {
   answer: string | null;
   evidence: Evidence[];
   unreviewed: boolean;
+  verbatim?: boolean;
 };
 
 export default function AIAssistant() {
@@ -132,6 +133,13 @@ export default function AIAssistant() {
           <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap', fontSize: 13 }}>
             {reply.text ?? 'No answer was produced.'}
           </div>
+
+          {reply.verbatim && (
+            <div style={{ marginTop: 8, fontSize: 11, color: '#94a3b8' }}>
+              Shown from the approved knowledge base as written, because the
+              language model was not available to tailor it to your question.
+            </div>
+          )}
 
           {reply.unreviewed && (
             <div style={{ marginTop: 8, fontSize: 11, color: '#fbbf24' }}>

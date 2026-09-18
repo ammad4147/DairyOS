@@ -44,6 +44,9 @@ STRIPPED_NAMES = frozenset({
 
 MODEL_PORT = 8477
 MODEL_READY_TIMEOUT = 180.0
+# How long the first question of a session will wait for the model to
+# finish loading before being answered from approved knowledge instead.
+MODEL_FIRST_USE_WAIT = 20.0
 REQUEST_TIMEOUT = 90.0
 
 # Kept deliberately small. A question that has not been answered in this long
@@ -112,6 +115,7 @@ class AssistantBridge:
     _model: subprocess.Popen | None = None
     _child: subprocess.Popen | None = None
     _lock: threading.Lock = threading.Lock()
+    _model_awaited: bool = False
     _last_error: str = ""
 
     # -- lifecycle ----------------------------------------------------------
@@ -182,6 +186,7 @@ class AssistantBridge:
                     process.kill()
             self._child = None
             self._model = None
+            self._model_awaited = False
 
     # -- protocol -----------------------------------------------------------
 
@@ -210,7 +215,35 @@ class AssistantBridge:
                 return {"ok": False, "error": f"unreadable response from the Assistant: {exc}"}
 
     def ask(self, question: str) -> dict[str, Any]:
+        # Start first, then wait. On the very first question the model process
+        # does not exist yet, so waiting before starting would skip the wait
+        # entirely and lose the answer it exists to protect.
+        self.start()
+        self._await_model_once()
         return self._exchange({"type": "ask", "question": question})
+
+    def _await_model_once(self) -> None:
+        """Give the model one bounded chance to finish loading.
+
+        Loading 1.28 GB takes the better part of a minute on a farm machine.
+        Without this, every question asked in that window failed to reach the
+        model and fell back to the approved text, which looked to the operator
+        like an Assistant that simply did not work.
+
+        Bounded, and only on the first use: an operator watching a spinner will
+        wait a little for the first answer of a session and should never wait
+        again. If the model is still not ready when the wait expires, the
+        question is answered from approved knowledge rather than held up.
+        """
+        if self._model_awaited or self._model is None or self._model.poll() is not None:
+            return
+        self._model_awaited = True
+        if not self.wait_for_model(timeout=MODEL_FIRST_USE_WAIT):
+            logger.warning(
+                "Model not ready within %ss; answering from approved knowledge "
+                "until it finishes loading.",
+                MODEL_FIRST_USE_WAIT,
+            )
 
     def status(self) -> dict[str, Any]:
         response = self._exchange({"type": "status"})

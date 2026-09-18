@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Iterable, TextIO
+from typing import Any, Iterable, Sequence, TextIO
 
 from dairyos_assistant import __version__
 from dairyos_assistant.generation import generate_answer
@@ -76,6 +76,31 @@ def corpus_root() -> Path:
     # why. An Assistant that will not start is harder to diagnose on a farm
     # machine than one that starts and says its knowledge is missing.
     return candidates[-1]
+
+
+def approved_text(hits: Sequence[Any]) -> str:
+    """The reviewed answer, as written, for when the model cannot phrase one.
+
+    Every corpus item carries an ``answer`` written for an operator to read and
+    approved by a named reviewer. When the model is unreachable, that text is
+    the best available response and it is strictly safer than a generated one:
+    nothing is composed, so nothing can be invented.
+
+    The explanation of the leading item is included because the answer alone is
+    often a single sentence, and a question worth asking usually deserves the
+    reason as well as the rule.
+    """
+    if not hits:
+        return NO_EVIDENCE_TEXT
+
+    leading = hits[0].item
+    parts = [str(leading.get("answer") or "").strip()]
+    explanation = str(leading.get("explanation") or "").strip()
+    if explanation:
+        parts.append(explanation)
+
+    body = "\n\n".join(part for part in parts if part)
+    return body or NO_EVIDENCE_TEXT
 
 
 class Assistant:
@@ -162,7 +187,17 @@ class Assistant:
             response["grounding_violations"] = list(gate.violations)
             response["unsupported_numbers"] = list(gate.unsupported_numbers)
         else:
-            response["stage"] = "RETRIEVAL_ONLY"
+            # The model could not be reached. The knowledge was found, and it
+            # is reviewed, approved text written to be read by an operator, so
+            # it is shown as it stands rather than withheld.
+            #
+            # This is not a fallback invented to hide a failure. Showing the
+            # approved answer verbatim cannot fabricate anything, because
+            # nothing is composed. The model's contribution is phrasing, and
+            # phrasing is what is lost here, not substance.
+            response["stage"] = "APPROVED_TEXT"
+            response["text"] = approved_text(hits)
+            response["verbatim"] = True
             response["model_error"] = failure
         return response
 
