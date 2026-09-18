@@ -122,13 +122,87 @@ backup_exe = EXE(
     entitlements_file=None,
 )
 
+# ---------------------------------------------------------------------------
+# The Assistant, built as its own executable from its own dependency graph.
+#
+# Everything above shares `binaries` and `hiddenimports`, which carry the whole
+# operational graph: dairyos, SQLAlchemy, Alembic and the Elasticsearch client.
+# The Assistant deliberately shares none of it. Its Analysis is built from
+# nothing but its own package, and the modules that would give it a route to
+# farm data are named as excludes so that an accidental import becomes a build
+# failure rather than a shipped capability.
+#
+# This is why `dairyos_assistant` is a sibling package rather than a subpackage:
+# `collect_submodules("dairyos")` above cannot reach it, so the operational
+# collection and this one cannot bleed into each other.
+#
+# The rule this encodes is the project's first principle. A capability the
+# Assistant must never use should not exist in its runtime, and the cheapest
+# place to enforce that is the build.
+ASSISTANT_FORBIDDEN = [
+    "dairyos",
+    "sqlalchemy",
+    "alembic",
+    "psycopg",
+    "psycopg2",
+    "elasticsearch",
+    "dotenv",
+    "webview",
+    "fastapi",
+    "starlette",
+    "uvicorn",
+]
+
+assistant_a = Analysis(
+    [str(ROOT / "src" / "dairyos_assistant" / "service.py")],
+    pathex=[str(ROOT / "src")],
+    binaries=[],
+    datas=[
+        # The corpus is the Assistant's entire subject matter. It is resolved
+        # at runtime from sys._MEIPASS by dairyos_assistant.service.corpus_root.
+        (str(ROOT / "docs" / "assistant-knowledge"), "assistant-knowledge"),
+    ],
+    hiddenimports=collect_submodules("dairyos_assistant"),
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=PRODUCTION_EXCLUDES + ASSISTANT_FORBIDDEN,
+    noarchive=False,
+    optimize=0,
+)
+assistant_pyz = PYZ(assistant_a.pure)
+assistant_exe = EXE(
+    assistant_pyz,
+    assistant_a.scripts,
+    [],
+    exclude_binaries=True,
+    name="DairyOSAssistant",
+    icon=str(ICON),
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    # The Assistant speaks JSON lines over stdin and stdout and is started by
+    # the DairyOS backend, never by the operator, so it has no console of its
+    # own to show.
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
 coll = COLLECT(
     exe,
     backup_exe,
+    assistant_exe,
     a.binaries,
     a.datas,
     backup_a.binaries,
     backup_a.datas,
+    assistant_a.binaries,
+    assistant_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
