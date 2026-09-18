@@ -222,12 +222,31 @@ def serve(
         sink.flush()
 
 
+def _provider_from(argv: list[str]) -> ModelProvider:
+    """Build the model provider from the command line, or none at all.
+
+    The URL arrives as an argument rather than an environment variable because
+    the Assistant is started with a scrubbed environment on purpose, and
+    reading configuration from it would invite putting other things there.
+    """
+    if "--model-url" not in argv:
+        return NullProvider()
+    url = argv[argv.index("--model-url") + 1]
+    from dairyos_assistant.model import LlamaServerProvider
+
+    # An endpoint that is not loopback raises here, before the service starts,
+    # so a misconfigured Assistant fails at once instead of at the first
+    # question an operator asks.
+    return LlamaServerProvider(base_url=url)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    provider = _provider_from(argv)
     if "--status" in argv:
-        print(json.dumps(Assistant().status(), indent=2))
+        print(json.dumps(Assistant(provider=provider).status(), indent=2))
         return 0
-    serve()
+    serve(assistant=Assistant(provider=provider))
     return 0
 
 
