@@ -272,6 +272,31 @@ class JobObject:
             self.handle = None
 
 
+def assign_private_postgres_to_job(job: JobObject, pid: int) -> bool:
+    """Best-effort Job Object containment for the private PostgreSQL postmaster.
+
+    PostgreSQL is started and stopped by the private database lifecycle
+    authority.  The Job Object is an additional crash-containment mechanism,
+    not a prerequisite for database correctness.  Windows can legitimately
+    reject reassignment of an already-running process with ERROR_ACCESS_DENIED
+    when an existing job hierarchy prevents the requested nesting.  Do not
+    convert that containment limitation into a fatal desktop startup failure.
+    """
+
+    try:
+        job.assign_pid(pid)
+    except PermissionError as exc:
+        if getattr(exc, "winerror", None) != 5:
+            raise
+        LOG.warning(
+            "Windows denied Job Object assignment for private PostgreSQL PID %s; "
+            "continuing under the explicit private PostgreSQL shutdown authority",
+            pid,
+        )
+        return False
+    return True
+
+
 def choose_port(host: str = "127.0.0.1") -> int:
     """Choose an ephemeral loopback port."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -835,12 +860,16 @@ def run(config: SupervisorConfig) -> int:
                         )
 
                     private_pid = int(pid_text[0].strip())
-                    job.assign_pid(private_pid)
-
-                    LOG.info(
-                        "Private PostgreSQL PID %s assigned to DairyOS Job Object",
+                    assigned_to_job = assign_private_postgres_to_job(
+                        job,
                         private_pid,
                     )
+
+                    if assigned_to_job:
+                        LOG.info(
+                            "Private PostgreSQL PID %s assigned to DairyOS Job Object",
+                            private_pid,
+                        )
 
                 apply_database_environment(database)
 
