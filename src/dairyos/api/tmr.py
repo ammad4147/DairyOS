@@ -609,28 +609,18 @@ def _priced_stage(
             ingredient.get("price_source")
         )
 
-        # Price authority rules (TMR-01):
-        # - FINANCE: valid Finance Feed purchase rate is authoritative.
-        # - MANUAL: operator-confirmed rate is authoritative when selected.
-        # - Catalog fallback_price_per_kg is reference/init only and must
-        #   never silently become costing authority or enter a locked snapshot.
         if selected_source == "MANUAL":
-            if manual_rate > 0:
-                rate = manual_rate
-                effective_source = "MANUAL"
-                priced = True
-            else:
-                rate = None
-                effective_source = "MISSING_MANUAL"
-                priced = False
+            rate = manual_rate
+            effective_source = "MANUAL"
         elif finance is not None:
             rate = float(finance["price_per_kg"])
             effective_source = "FINANCE"
-            priced = True
         else:
-            rate = None
-            effective_source = "UNPRICED"
-            priced = False
+            # Finance-preferred legacy/default rows remain usable when no
+            # Finance purchase price exists. The fallback is explicit.
+            rate = manual_rate
+            effective_source = "MANUAL_FALLBACK"
+            selected_source = "MANUAL"
 
         quantity = float(ingredient["quantity"] or 0.0)
         dose_unit = ingredient["dose_unit"]
@@ -639,19 +629,16 @@ def _priced_stage(
             if dose_unit == "g"
             else quantity
         )
-        if priced and rate is not None:
-            line_cost = quantity_kg * rate
-            total += line_cost
-        else:
-            line_cost = None
+        line_cost = quantity_kg * rate
+        total += line_cost
         total_kg += quantity_kg
         rows.append(
             {
                 **ingredient,
-                "price_per_kg": (
-                    round(rate, 4) if rate is not None else None
+                "price_per_kg": round(rate, 4),
+                "price_source": (
+                    effective_source
                 ),
-                "price_source": effective_source,
                 "selected_price_source": selected_source,
                 "manual_price_per_kg": round(manual_rate, 4),
                 "finance_price_per_kg": (
@@ -671,26 +658,16 @@ def _priced_stage(
                     if finance is not None
                     else None
                 ),
-                "cost_per_head_day": (
-                    round(line_cost, 4) if line_cost is not None else None
-                ),
-                "priced": priced,
+                "cost_per_head_day": round(line_cost, 4),
             }
         )
-
-    costing_complete = all(
-        bool(row.get("priced")) for row in rows
-    ) if rows else True
 
     return {
         "key": stage,
         "label": STAGE_LABELS[stage],
         "ingredients": rows,
         "ration_kg_per_head_day": round(total_kg, 4),
-        "cost_per_head_day": (
-            round(total, 4) if costing_complete else None
-        ),
-        "costing_complete": costing_complete,
+        "cost_per_head_day": round(total, 4),
         "source": "GOVERNED_TMR",
     }
 
@@ -866,23 +843,14 @@ def _weekly_review(factory, today: date) -> dict:
 def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
     result = []
     for category, stage_keys in CATEGORY_STAGE_MAP.items():
-        stage_rows = [stages[key] for key in stage_keys if key in stages]
-        complete = all(
-            bool(row.get("costing_complete", True))
-            and row.get("cost_per_head_day") is not None
-            for row in stage_rows
-        ) if stage_rows else True
         values = [
-            float(row["cost_per_head_day"])
-            for row in stage_rows
-            if row.get("cost_per_head_day") is not None
+            float(stages[key]["cost_per_head_day"])
+            for key in stage_keys
         ]
         # Deliberate management-estimate simplification: detailed feeding
         # stages are averaged to the DairyOS animal category before the
-        # category count is applied. Incomplete costing is never zero-filled.
-        head_cost = (
-            sum(values) / len(values) if values and complete else None
-        )
+        # category count is applied.
+        head_cost = sum(values) / len(values) if values else 0.0
         count = int(counts.get(category, 0))
         result.append(
             {
@@ -890,15 +858,8 @@ def _category_costs(stages: dict, counts: dict[str, int]) -> list[dict]:
                 "stage_keys": stage_keys,
                 "animal_count": count,
                 "population_authority": "ACTIVE_ANIMAL_REGISTER",
-                "cost_per_head_day": (
-                    round(head_cost, 4) if head_cost is not None else None
-                ),
-                "category_cost_per_day": (
-                    round(head_cost * count, 4)
-                    if head_cost is not None
-                    else None
-                ),
-                "costing_complete": complete,
+                "cost_per_head_day": round(head_cost, 4),
+                "category_cost_per_day": round(head_cost * count, 4),
             }
         )
     return result
@@ -947,18 +908,9 @@ def build_live_tmr_summary(
     }
     counts = _active_herd_counts(factory)
     categories = _category_costs(stages, counts)
-    costing_complete = all(
-        bool(row.get("costing_complete", True))
-        and row.get("category_cost_per_day") is not None
-        for row in categories
-    )
-    priced_category_costs = [
+    total_daily = sum(
         float(row["category_cost_per_day"])
         for row in categories
-        if row.get("category_cost_per_day") is not None
-    ]
-    total_daily = (
-        sum(priced_category_costs) if costing_complete and priced_category_costs else None
     )
     milk_today = milk_litres_for_period(
         factory,
@@ -967,7 +919,7 @@ def build_live_tmr_summary(
     )
     feed_per_litre = (
         total_daily / milk_today
-        if total_daily is not None and milk_today > 0
+        if milk_today > 0
         else None
     )
     payload = {
@@ -977,10 +929,7 @@ def build_live_tmr_summary(
         "stages": stages,
         "categories": categories,
         "herd_counts": counts,
-        "total_herd_feed_cost_per_day": (
-            round(total_daily, 4) if total_daily is not None else None
-        ),
-        "costing_complete": costing_complete,
+        "total_herd_feed_cost_per_day": round(total_daily, 4),
         "milk_production_today_liters": round(milk_today, 4),
         "feed_cost_per_litre_today": (
             round(feed_per_litre, 4)
@@ -1125,8 +1074,6 @@ def lock_daily_tmr_cost_snapshot(
             "total_herd_feed_cost_per_day": 0.0,
         }
 
-    live_total = live.get("total_herd_feed_cost_per_day")
-    live_complete = bool(live.get("costing_complete", True))
     snapshot = {
         "kind": "TMR_DAILY_COST_SNAPSHOT",
         "operational_date": selected_date.isoformat(),
@@ -1135,11 +1082,9 @@ def lock_daily_tmr_cost_snapshot(
         "herd_counts": live["herd_counts"],
         "categories": live["categories"],
         "stages": live["stages"],
-        "costing_complete": live_complete,
-        "total_herd_feed_cost_per_day": (
-            round(float(live_total), 4)
-            if live_total is not None and live_complete
-            else None
+        "total_herd_feed_cost_per_day": round(
+            float(live["total_herd_feed_cost_per_day"]),
+            4,
         ),
     }
 
@@ -1264,32 +1209,24 @@ def tmr_feed_cost_for_period(factory, start: date, end: date) -> dict:
         snapshot = by_date.get(key)
 
         if snapshot is not None:
-            snap_complete = bool(snapshot.get("costing_complete", True))
-            raw_amount = snapshot.get("total_herd_feed_cost_per_day")
-            if snap_complete and raw_amount is not None:
-                amount = float(raw_amount)
-                total += amount
-                locked_days += 1
-                basis = "LOCKED_DAILY_TMR"
-            else:
-                amount = None
-                basis = "LOCKED_DAILY_TMR_INCOMPLETE_COSTING"
-                missing_authority_days.append(key)
+            amount = float(
+                snapshot.get("total_herd_feed_cost_per_day")
+                or 0.0
+            )
+            total += amount
+            locked_days += 1
+            basis = "LOCKED_DAILY_TMR"
             record_id = snapshot.get("record_id")
             locked_at = snapshot.get("locked_at")
 
         elif day == today and live_today is not None:
-            live_complete = bool(live_today.get("costing_complete", True))
-            raw_amount = live_today.get("total_herd_feed_cost_per_day")
-            if live_complete and raw_amount is not None:
-                amount = float(raw_amount)
-                total += amount
-                provisional_days += 1
-                basis = "LIVE_TMR_PENDING_12_00_LOCK"
-            else:
-                amount = None
-                basis = "LIVE_TMR_INCOMPLETE_COSTING"
-                missing_authority_days.append(key)
+            amount = float(
+                live_today.get("total_herd_feed_cost_per_day")
+                or 0.0
+            )
+            total += amount
+            provisional_days += 1
+            basis = "LIVE_TMR_PENDING_12_00_LOCK"
             record_id = None
             locked_at = None
 

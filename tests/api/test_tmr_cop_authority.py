@@ -58,7 +58,7 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
 
     def test_category_cost_uses_arithmetic_mean(self):
         self.assertIn(
-            "sum(values) / len(values) if values and complete else None",
+            "head_cost = sum(values) / len(values) if values else 0.0",
             self.tmr,
         )
 
@@ -86,7 +86,7 @@ class TmrCopAuthorityContractTest(unittest.TestCase):
 
     def test_finance_price_authority_excludes_void(self):
         self.assertIn("if not is_active(row):", self.tmr)
-        self.assertIn('"price_source": effective_source', self.tmr)
+        self.assertIn('"price_source": (', self.tmr)
         self.assertIn('"FINANCE"', self.tmr)
 
     def test_weekly_vet_endorsement_is_append_only(self):

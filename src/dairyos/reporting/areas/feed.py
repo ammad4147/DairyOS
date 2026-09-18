@@ -32,12 +32,8 @@ AREA = "feed"
 PERMISSION = "feed.view"
 TMR_AUTHORITY = "Governed TMR rations priced by the TMR authority, populations from the active Animal register"
 
-PRICE_SOURCE_LABELS = {
-    "FINANCE": "Latest Finance purchase",
-    "MANUAL": "Manual price",
-    "UNPRICED": "No price authority",
-    "MISSING_MANUAL": "Manual selected but rate missing",
-}
+PRICE_SOURCE_LABELS = {"FINANCE": "Latest Finance purchase", "MANUAL": "Manual price",
+                       "MANUAL_FALLBACK": "Manual price (no Finance purchase)"}
 
 
 def _label(value: Any) -> str | None:
