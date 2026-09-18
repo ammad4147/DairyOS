@@ -170,3 +170,7 @@ Claude outputs/
 # and the surrounding runtime/ tree IS tracked, so this exclusion is what stops
 # it being swept into a commit.
 runtime/assistant/
+
+# Output of tools/assistant_bench.py. The summary that matters is recorded in
+# docs/assistant-knowledge/MEASUREMENTS.md; the raw run is machine-specific.
+assistant_bench.json
