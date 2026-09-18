@@ -1,1 +1,1198 @@
-TEMP
+"""Windows desktop supervisor for the DairyOS local web runtime.
+
+The supervisor owns only the application lifecycle. PostgreSQL is an
+independent Windows Service and is never made a child process of DairyOS.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import binascii
+import ctypes
+import json
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+import secrets
+import socket
+import subprocess
+import sys
+import threading
+import time
+from ctypes import wintypes
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.error import URLError
+from urllib.request import urlopen
+
+from dairyos.windows.appliance_database import (
+    ApplianceDatabaseError,
+    apply_database_environment,
+    prepare_database,
+)
+from dairyos.windows.migrations import MigrationGateError, migrate_if_needed
+from dairyos.windows.postgres_service import (
+    PostgreSQLServiceError,
+    ensure_postgresql_running,
+)
+from dairyos.windows.private_postgres import stop as stop_private_postgres
+from dairyos.windows.system_postgres_admin import (
+    SystemPostgresAdminCredentialError,
+    SystemPostgresRuntimeCredentialError,
+    stage_migration_database_url,
+    stage_runtime_database_url,
+)
+from dairyos.lifecycle.manager import LifecycleManager
+
+LOG = logging.getLogger("dairyos.windows.supervisor")
+RESET_REQUEST_FILENAME = "pending-system-reset.json"
+_AUTH_SIGNING_SECRET: str | None = None
+
+
+def configure_supervisor_logging(level: str) -> Path | None:
+    """Configure console logging plus a durable packaged-runtime log.
+
+    File logging is deliberately best-effort: an ACL, disk, or path failure
+    must never turn diagnostics into a DairyOS startup dependency.
+    """
+    numeric_level = getattr(logging, str(level).upper(), logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
+    )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    if not root_logger.handlers:
+        stream = logging.StreamHandler()
+        stream.setFormatter(formatter)
+        root_logger.addHandler(stream)
+
+    data_dir = os.environ.get("DAIRYOS_DATA_DIR", "").strip()
+    if not data_dir:
+        return None
+
+    log_path = Path(data_dir).expanduser().resolve() / "logs" / "supervisor.log"
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved = str(log_path)
+        already_present = any(
+            isinstance(handler, RotatingFileHandler)
+            and str(getattr(handler, "baseFilename", "")) == resolved
+            for handler in root_logger.handlers
+        )
+        if not already_present:
+            file_handler = RotatingFileHandler(
+                log_path,
+                maxBytes=5 * 1024 * 1024,
+                backupCount=4,
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
+        return log_path
+    except OSError:
+        LOG.exception("Unable to configure DairyOS supervisor file logging")
+        return None
+
+
+def process_pending_system_reset() -> None:
+    """Apply one queued Settings reset before the backend is started."""
+    from dairyos.platform.paths import data_root
+
+    request_path = data_root(create=False) / RESET_REQUEST_FILENAME
+    if not request_path.is_file():
+        return
+    try:
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        if request.get("confirm") != "RESET DAIRYOS TO ZERO STATE":
+            raise RuntimeError("Queued reset confirmation is invalid.")
+        from dairyos.admin.database import acquire_admin_database
+        from dairyos.admin.service import AdminService
+
+        lease = acquire_admin_database(
+            Path(sys.executable).resolve().parent,
+            data_root=data_root(create=False),
+        )
+        try:
+            result = AdminService(lease.manager).reset(
+                "RESET DAIRYOS DATA",
+                backup_before_reset=True,
+                reset_context={
+                    "farm_name": str(request.get("farm_name") or "").strip(),
+                    "requested_by": str(request.get("requested_by") or "Settings Operator"),
+                    "requested_at": str(request.get("requested_at") or ""),
+                    "requested_at_utc": str(request.get("requested_at_utc") or ""),
+                    "requested_at_local": str(request.get("requested_at_local") or ""),
+                    "request_confirmation": str(request.get("confirm") or ""),
+                },
+            )
+            LOG.info("Queued system reset completed: %s", result.message)
+        finally:
+            lease.close()
+        request_path.unlink()
+    except Exception:
+        LOG.exception("Queued system reset failed; request retained for safe retry")
+        raise
+
+
+@dataclass(frozen=True)
+class SupervisorConfig:
+    host: str = "127.0.0.1"
+    port: int = 0
+    health_timeout: float = 60.0
+    health_interval: float = 0.5
+    restart_attempts: int = 2
+    restart_backoff: float = 1.5
+    postgres_timeout: float = 30.0
+
+
+class SingleInstance:
+    """Windows named mutex; a no-op on non-Windows development hosts."""
+
+    ERROR_ALREADY_EXISTS = 183
+
+    def __init__(self, name: str = "Global\\DairyOS.Desktop.SingleInstance"):
+        self.name = name
+        self.handle = None
+
+    def acquire(self) -> bool:
+        if os.name != "nt":
+            return True
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        ctypes.set_last_error(0)
+        self.handle = kernel32.CreateMutexW(None, False, self.name)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        if ctypes.get_last_error() == self.ERROR_ALREADY_EXISTS:
+            kernel32.CloseHandle(self.handle)
+            self.handle = None
+            return False
+        return True
+
+    def release(self) -> None:
+        if self.handle and os.name == "nt":
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(self.handle)
+            self.handle = None
+
+
+class _IOCounters(ctypes.Structure):
+    _fields_ = [
+        ("ReadOperationCount", ctypes.c_ulonglong),
+        ("WriteOperationCount", ctypes.c_ulonglong),
+        ("OtherOperationCount", ctypes.c_ulonglong),
+        ("ReadTransferCount", ctypes.c_ulonglong),
+        ("WriteTransferCount", ctypes.c_ulonglong),
+        ("OtherTransferCount", ctypes.c_ulonglong),
+    ]
+
+
+class _BasicLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("PerProcessUserTimeLimit", ctypes.c_longlong),
+        ("PerJobUserTimeLimit", ctypes.c_longlong),
+        ("LimitFlags", wintypes.DWORD),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", wintypes.DWORD),
+        ("Affinity", ctypes.c_size_t),
+        ("PriorityClass", wintypes.DWORD),
+        ("SchedulingClass", wintypes.DWORD),
+    ]
+
+
+class _ExtendedLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("BasicLimitInformation", _BasicLimitInformation),
+        ("IoInfo", _IOCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
+
+
+class JobObject:
+    """Contain the backend so it cannot survive a dead supervisor."""
+
+    JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+
+    def __init__(self):
+        self.handle = None
+
+    def create(self) -> None:
+        if os.name != "nt":
+            return
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
+        kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        self.handle = kernel32.CreateJobObjectW(None, None)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = _ExtendedLimitInformation()
+        limits.BasicLimitInformation.LimitFlags = self.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.INT,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+        ]
+        kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        if not kernel32.SetInformationJobObject(
+            self.handle,
+            self.JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def assign(self, process: subprocess.Popen) -> None:
+        if os.name != "nt" or not self.handle:
+            return
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+
+        if not kernel32.AssignProcessToJobObject(
+            self.handle,
+            wintypes.HANDLE(process._handle),
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def assign_pid(self, pid: int) -> None:
+        """Assign an already-running Windows process to this Job Object."""
+        if os.name != "nt" or not self.handle:
+            return
+
+        if pid <= 0:
+            raise ValueError("pid must be positive")
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        PROCESS_TERMINATE = 0x0001
+        PROCESS_SET_QUOTA = 0x0100
+
+        kernel32.OpenProcess.argtypes = [
+            wintypes.DWORD,
+            wintypes.BOOL,
+            wintypes.DWORD,
+        ]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        process_handle = kernel32.OpenProcess(
+            PROCESS_TERMINATE | PROCESS_SET_QUOTA,
+            False,
+            pid,
+        )
+
+        if not process_handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        try:
+            if not kernel32.AssignProcessToJobObject(
+                self.handle,
+                process_handle,
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+        finally:
+            kernel32.CloseHandle(process_handle)
+
+    def close(self) -> None:
+        if self.handle and os.name == "nt":
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(self.handle)
+            self.handle = None
+
+
+def assign_private_postgres_to_job(job: JobObject, pid: int) -> bool:
+    """Best-effort Job Object containment for the private PostgreSQL postmaster.
+
+    PostgreSQL is started and stopped by the private database lifecycle
+    authority.  The Job Object is an additional crash-containment mechanism,
+    not a prerequisite for database correctness.  A private cluster may
+    already be running under another Windows security context (for example,
+    after adoption by a maintenance process), in which case OpenProcess can
+    fail with ERROR_ACCESS_DENIED before assignment is attempted.  Preserve
+    startup while recording that crash containment could not be established.
+    """
+
+    try:
+        job.assign_pid(pid)
+    except PermissionError as exc:
+        if getattr(exc, "winerror", None) != 5:
+            raise
+        LOG.warning(
+            "Windows denied Job Object assignment for private PostgreSQL PID %s; "
+            "continuing under the explicit private PostgreSQL shutdown authority",
+            pid,
+        )
+        return False
+    return True
+
+
+def choose_port(host: str = "127.0.0.1") -> int:
+    """Choose an ephemeral loopback port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((host, 0))
+        return int(sock.getsockname()[1])
+
+
+def probe(url: str, timeout: float = 1.0) -> bool:
+    try:
+        with urlopen(url, timeout=timeout) as response:
+            return 200 <= response.status < 300
+    except (OSError, URLError):
+        return False
+
+
+def wait_for_ready(base_url: str, config: SupervisorConfig) -> None:
+    deadline = time.monotonic() + config.health_timeout
+    health_url = f"{base_url}/health"
+    readiness_url = f"{base_url}/readiness"
+    health_seen = False
+    while time.monotonic() < deadline:
+        if probe(health_url):
+            health_seen = True
+            if probe(readiness_url):
+                return
+        time.sleep(config.health_interval)
+    if not health_seen:
+        raise RuntimeError("DairyOS backend did not become healthy before the startup timeout.")
+    raise RuntimeError("DairyOS backend is healthy but did not become ready before the startup timeout.")
+
+
+def backend_command(host: str, port: int) -> list[str]:
+    """Resolve the backend command.
+
+    Frozen Windows builds use a single DairyOS.exe. The same executable is
+    launched in hidden backend mode. Development runs use the normal Python
+    module entry point.
+    """
+    if getattr(sys, "frozen", False):
+        return [
+            sys.executable,
+            "--dairyos-backend",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ]
+
+    configured = os.environ.get("DAIRYOS_BACKEND_EXE")
+    if configured:
+        return [configured, "--host", host, "--port", str(port)]
+
+    return [
+        sys.executable,
+        "-m",
+        "dairyos.server",
+        "--host",
+        host,
+        "--port",
+        str(port),
+    ]
+
+
+def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = None) -> tuple[subprocess.Popen, str]:
+    selected_port = port or config.port or choose_port(config.host)
+    command = backend_command(config.host, selected_port)
+    env = os.environ.copy()
+    env["DAIRYOS_DESKTOP_SESSION_TOKEN"] = _desktop_session_token()
+    # Production authentication deliberately refuses an unsafe built-in
+    # signing secret.  The packaged desktop supervisor is the trusted local
+    # launch boundary, so create one per supervisor lifetime and pass it only
+    # to the hidden backend child.  It never enters the registry, UI URL,
+    # application logs, or the operator's normal workflow.
+    env["DAIRYOS_AUTH_SECRET"] = _auth_signing_secret()
+    env["DAIRYOS_HOST"] = config.host
+    env["DAIRYOS_PORT"] = str(selected_port)
+    # The frozen executable is both the desktop supervisor and the backend
+    # entry point.  Keep the child-mode marker explicit so the backend applies
+    # windowed-process stream handling and disables Uvicorn's console logging
+    # configuration before importing the application.
+    if getattr(sys, "frozen", False):
+        env["DAIRYOS_BACKEND_MODE"] = "1"
+    # Privileged database access is migration-only and must never reach the
+    # restricted backend child, even if an upstream cleanup regresses.
+    env.pop("DAIRYOS_MIGRATION_DATABASE_URL", None)
+    LOG.info("Starting DairyOS backend on %s:%s", config.host, selected_port)
+
+    # The frozen desktop build is windowed, so the backend child has no
+    # visible console. Persist stdout/stderr so a frozen-startup failure
+    # can be diagnosed without changing application behavior.
+    runtime_log_dir = Path(os.environ.get("DAIRYOS_RUNTIME_LOG_DIR", os.environ.get("TEMP", ".")))
+    runtime_log_dir.mkdir(parents=True, exist_ok=True)
+    backend_log_path = runtime_log_dir / "dairyos-backend.log"
+    backend_log = open(backend_log_path, "ab", buffering=0)
+
+    env["DAIRYOS_BACKEND_LOG"] = str(backend_log_path)
+
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        process = subprocess.Popen(
+            command,
+            env=env,
+            creationflags=creationflags,
+            stdout=backend_log,
+            stderr=backend_log,
+        )
+        job.assign(process)
+    finally:
+        # Popen has duplicated/inherited the standard handles for the child;
+        # the supervisor must close its own descriptor or every watchdog
+        # restart leaks another handle to the backend log.
+        backend_log.close()
+
+    LOG.info("DairyOS backend child log: %s", backend_log_path)
+    return process, f"http://{config.host}:{selected_port}"
+
+
+def terminate_backend(process: subprocess.Popen | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    LOG.info("Stopping DairyOS backend")
+    try:
+        process.terminate()
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        LOG.warning("Backend did not stop within the graceful shutdown window; killing it")
+        process.kill()
+        process.wait(timeout=5)
+
+
+class BackendWatchdog:
+    """Monitor the backend while WebView2 is open and recover bounded crashes."""
+
+    def __init__(self, process, url: str, config: SupervisorConfig, job: JobObject, on_restart):
+        self.process = process
+        self.url = url
+        self.config = config
+        self.job = job
+        self.on_restart = on_restart
+        self.stop_event = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.failure: Exception | None = None
+        self._lock = threading.Lock()
+
+    def start(self) -> None:
+        self.thread = threading.Thread(target=self._watch, name="dairyos-backend-watchdog", daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.stop_event.set()
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(timeout=5)
+
+    def _watch(self) -> None:
+        attempts = 0
+        while not self.stop_event.wait(0.25):
+            if self.process.poll() is None:
+                continue
+
+            attempts += 1
+            if attempts > self.config.restart_attempts:
+                self.failure = RuntimeError("DairyOS backend exceeded the automatic restart limit.")
+                LOG.error("DairyOS backend crash-loop limit reached")
+                return
+
+            delay = self.config.restart_backoff * attempts
+            LOG.warning("DairyOS backend exited; restarting attempt %s/%s after %.1fs", attempts, self.config.restart_attempts, delay)
+            if self.stop_event.wait(delay):
+                return
+
+            try:
+                with self._lock:
+                    new_process, new_url = start_backend(self.config, self.job, port=_url_port(self.url))
+                    wait_for_ready(new_url, self.config)
+                    old_process = self.process
+                    self.process = new_process
+                    self.url = new_url
+                terminate_backend(old_process)
+                attempts = 0
+                self.failure = None
+                self.on_restart(new_url)
+                LOG.info("DairyOS backend recovered at %s", new_url)
+            except Exception as exc:
+                LOG.exception("DairyOS backend restart attempt failed")
+                self.failure = exc
+                terminate_backend(locals().get("new_process"))
+                if attempts >= self.config.restart_attempts:
+                    return
+
+
+def _url_port(url: str) -> int:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.port is None:
+        raise RuntimeError(f"DairyOS backend URL has no explicit port: {url}")
+    return parsed.port
+
+
+def show_startup_error(title: str, message: str) -> None:
+    if os.name == "nt":
+        ctypes.windll.user32.MessageBoxW(None, message, title, 0x10)
+    else:
+        LOG.error("%s: %s", title, message)
+
+
+_SESSION_TOKEN = None
+
+
+def _desktop_session_token() -> str:
+    global _SESSION_TOKEN
+    if _SESSION_TOKEN is None:
+        import secrets
+        _SESSION_TOKEN = secrets.token_urlsafe(32)
+    return _SESSION_TOKEN
+
+
+def _auth_signing_secret() -> str:
+    """Return the backend-only signing secret for this desktop lifetime.
+
+    An explicitly configured secret remains authoritative for managed/server
+    deployments.  Packaged Windows launches generate an ephemeral secret so
+    production authentication works without a plaintext registry value,
+    installer prompt, or database password dependency.  Keeping it in the
+    supervisor process also lets the backend watchdog restart without
+    invalidating the current desktop session's bearer tokens.
+    """
+    configured = os.environ.get("DAIRYOS_AUTH_SECRET", "").strip()
+    if configured:
+        return configured
+
+    global _AUTH_SIGNING_SECRET
+    if _AUTH_SIGNING_SECRET is None:
+        _AUTH_SIGNING_SECRET = secrets.token_urlsafe(48)
+    return _AUTH_SIGNING_SECRET
+
+
+def _desktop_url(url: str) -> str:
+    # Fragments never enter HTTP requests or backend access logs.
+    return url.rstrip("/") + "/#desktop-session=" + _desktop_session_token()
+
+
+class ReportingSaveApi:
+    """Native persistence and file selection for governed desktop workflows."""
+
+    _EXTENSIONS = {
+        "PDF": ".pdf",
+        "XLSX": ".xlsx",
+        "CSV": ".csv",
+    }
+
+    def __init__(self, save_dialog_type: object = 30) -> None:
+        self.window = None
+        self.save_dialog_type = save_dialog_type
+
+    def getDesktopSessionToken(self) -> str:
+        """Return the supervisor-owned desktop capability token to pywebview."""
+        return _desktop_session_token()
+
+    def choose_farm_export_destination(self, suggested_name: str) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+        safe_name = Path(str(suggested_name)).name
+        if not safe_name or not safe_name.lower().endswith(".dairypkg"):
+            raise ValueError("Farm export name must end with .dairypkg.")
+        selected = self.window.create_file_dialog(
+            self.save_dialog_type,
+            save_filename=safe_name,
+        )
+        if not selected:
+            return {"status": "CANCELLED"}
+        selected_path = selected[0] if isinstance(selected, (list, tuple)) else selected
+        path = Path(str(selected_path)).expanduser().resolve()
+        if path.suffix.lower() != ".dairypkg":
+            raise ValueError("Farm export destination must end with .dairypkg.")
+        return {"status": "SELECTED", "path": str(path)}
+
+    def choose_farm_import_package(self) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+        open_dialog_type = 10
+        selected = self.window.create_file_dialog(
+            open_dialog_type,
+            allow_multiple=False,
+            file_types=("DairyOS Farm Package (*.dairypkg)",),
+        )
+        if not selected:
+            return {"status": "CANCELLED"}
+        selected_path = selected[0] if isinstance(selected, (list, tuple)) else selected
+        path = Path(str(selected_path)).expanduser().resolve()
+        if path.suffix.lower() != ".dairypkg":
+            raise ValueError("Selected farm package must end with .dairypkg.")
+        return {"status": "SELECTED", "path": str(path)}
+
+    def save_reporting_export(
+        self,
+        filename: str,
+        export_format: str,
+        payload: str,
+    ) -> dict[str, object]:
+        if self.window is None:
+            raise RuntimeError("DairyOS desktop window is not ready.")
+
+        normalized_format = str(export_format).strip().upper()
+        required_extension = self._EXTENSIONS.get(normalized_format)
+        if required_extension is None:
+            raise ValueError("Unsupported Reporting export format.")
+
+        safe_name = Path(filename).name
+        if not safe_name:
+            raise ValueError("A valid report filename is required.")
+
+        if Path(safe_name).suffix.lower() != required_extension:
+            raise ValueError(
+                "Report filename extension does not match the export format."
+            )
+
+        if not isinstance(payload, str):
+            raise ValueError("Invalid report payload.")
+
+        try:
+            content = base64.b64decode(payload, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("Invalid report payload.") from exc
+
+        selected = self.window.create_file_dialog(
+            self.save_dialog_type,
+            save_filename=safe_name,
+        )
+
+        if not selected:
+            return {"status": "CANCELLED"}
+
+        selected_path = (
+            selected[0]
+            if isinstance(selected, (list, tuple))
+            else selected
+        )
+        path = Path(str(selected_path)).expanduser().resolve()
+
+        if path.suffix.lower() != required_extension:
+            raise ValueError(
+                "Selected report filename extension does not match the export format."
+            )
+
+        path.write_bytes(content)
+
+        if not path.is_file():
+            raise RuntimeError("The report file was not created.")
+
+        persisted_size = path.stat().st_size
+        if persisted_size != len(content):
+            raise RuntimeError(
+                "The saved report file did not reconcile with the export payload."
+            )
+
+        return {
+            "status": "SAVED",
+            "path": str(path),
+            "bytes": persisted_size,
+        }
+
+
+def launch_webview(url: str, watchdog: BackendWatchdog, on_closed) -> None:
+    try:
+        import webview
+    except ImportError as exc:
+        raise RuntimeError("pywebview is required for the packaged DairyOS desktop shell.") from exc
+
+    save_api = ReportingSaveApi(webview.FileDialog.SAVE)
+
+
+    desktop_url = _desktop_url(url)
+    LOG.info("webview stage=create-window-enter url=%s", url)
+    window = webview.create_window(
+        "DairyOS",
+        desktop_url,
+        text_select=True,
+        js_api=save_api,
+    )
+    LOG.info("webview stage=create-window-returned")
+    save_api.window = window
+
+    # Let Windows choose the usable work area for the operator's display.
+    # There is deliberately no fixed size or minimum size: the web app keeps
+    # its existing layout and remains responsible for responsive presentation.
+    def log_window_shown() -> None:
+        LOG.info("webview stage=window-shown")
+
+    window.events.shown += log_window_shown
+    window.events.shown += window.maximize
+
+    def backend_recovered(new_url: str) -> None:
+        # BackendWatchdog deliberately restarts the backend on the same
+        # loopback port.  The browser origin, supervisor-owned desktop-session
+        # token, and authentication signing secret therefore remain stable.
+        #
+        # Do not call pywebview window methods from the watchdog thread.  The
+        # existing WebView can continue using the same origin once readiness
+        # has been re-established.
+        if _url_port(new_url) != _url_port(url):
+            raise RuntimeError(
+                "DairyOS backend recovery changed the desktop origin: "
+                f"old={url} new={new_url}"
+            )
+        LOG.info(
+            "DairyOS backend recovered on the existing desktop origin; "
+            "WebView reload is not required"
+        )
+
+    watchdog.on_restart = backend_recovered
+
+    def close_application() -> None:
+        # Signal the watchdog first so an intentional backend termination
+        # cannot be classified as a crash/restart-limit failure.
+        watchdog.stop()
+        on_closed()
+
+    window.events.closed += close_application
+    watchdog.start()
+    try:
+        LOG.info("webview stage=start-enter gui=edgechromium")
+        webview.start(gui="edgechromium", debug=False)
+        LOG.info("webview stage=start-returned")
+    finally:
+        LOG.info("webview stage=watchdog-stop")
+        watchdog.stop()
+
+
+def _write_database_preflight_report(status: str, detail: str) -> None:
+    report = os.environ.get("DAIRYOS_PREFLIGHT_REPORT", "").strip()
+    if not report:
+        return
+
+    path = Path(report).expanduser().resolve()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"status={status}\n{detail.rstrip()}\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        LOG.exception("Unable to write DairyOS database preflight report: %s", path)
+
+
+def _exception_chain(exc: BaseException) -> str:
+    lines = []
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen and len(lines) < 8:
+        seen.add(id(current))
+        lines.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    return "\n".join(lines)
+
+
+def database_preflight(config: SupervisorConfig) -> int:
+    """Exercise the packaged database startup path without opening the UI."""
+    private_database = None
+    exit_code = 4
+    success_detail = ""
+    failure_detail = ""
+    _write_database_preflight_report("RUNNING", "stage=prepare-private-database")
+
+    try:
+        database = prepare_database(
+            postgres_timeout=config.postgres_timeout
+        )
+        private_database = database.private_postgres
+        if private_database is None:
+            raise ApplianceDatabaseError(
+                "Packaged database preflight did not resolve private PostgreSQL."
+            )
+
+        _write_database_preflight_report(
+            "RUNNING",
+            (
+                "stage=apply-database-environment\n"
+                f"host={getattr(database, 'host', '')}\n"
+                f"port={getattr(database, 'port', '')}"
+            ),
+        )
+        apply_database_environment(database)
+
+        _write_database_preflight_report("RUNNING", "stage=migration-gate")
+        migration = migrate_if_needed()
+        LOG.info(
+            "Installed database preflight passed: migrated=%s current=%s "
+            "target=%s backup=%s",
+            migration.migrated,
+            migration.current_heads,
+            migration.target_heads,
+            migration.backup_path,
+        )
+        success_detail = (
+            f"mode={getattr(database, 'mode', '')}\n"
+            f"host={getattr(database, 'host', '')}\n"
+            f"port={getattr(database, 'port', '')}\n"
+            f"migrated={migration.migrated}\n"
+            f"target_heads={migration.target_heads}"
+        )
+        exit_code = 0
+    except (ApplianceDatabaseError, MigrationGateError) as exc:
+        LOG.exception("Installed DairyOS database preflight failed")
+        failure_detail = _exception_chain(exc)
+        exit_code = 4
+    finally:
+        if private_database is not None:
+            try:
+                stop_private_postgres(private_database)
+            except Exception as exc:
+                LOG.exception(
+                    "Failed to stop private PostgreSQL after database preflight"
+                )
+                stop_detail = (
+                    "stage=stop-private-database\n" + _exception_chain(exc)
+                )
+                failure_detail = (
+                    f"{failure_detail.rstrip()}\n{stop_detail}"
+                    if failure_detail
+                    else stop_detail
+                )
+                exit_code = 4
+
+    if exit_code == 0:
+        _write_database_preflight_report("PASS", success_detail)
+    else:
+        _write_database_preflight_report(
+            "FAIL",
+            failure_detail or "Installed database preflight failed without diagnostic detail.",
+        )
+    return exit_code
+
+
+def run(config: SupervisorConfig) -> int:
+    instance = SingleInstance()
+    if not instance.acquire():
+        LOG.warning("Another DairyOS instance is already running")
+        return 2
+
+    LOG.info("startup stage=single-instance-acquired pid=%s", os.getpid())
+    job = JobObject()
+    backend = None
+    watchdog = None
+    private_database = None
+    try:
+        job.create()
+        LOG.info("startup stage=job-created")
+
+        try:
+            if getattr(sys, "frozen", False):
+                LOG.info("startup stage=private-database-prepare-enter")
+                database = prepare_database(
+                    postgres_timeout=config.postgres_timeout
+                )
+                LOG.info(
+                    "startup stage=private-database-ready host=%s port=%s",
+                    database.host,
+                    database.port,
+                )
+                private_database = database.private_postgres
+
+                if private_database is not None and os.name == "nt":
+                    pid_file = private_database.data_root / "postmaster.pid"
+
+                    if not pid_file.is_file():
+                        raise ApplianceDatabaseError(
+                            "Private PostgreSQL started without a postmaster PID file."
+                        )
+
+                    pid_text = pid_file.read_text(
+                        encoding="utf-8",
+                        errors="replace",
+                    ).splitlines()
+
+                    if not pid_text or not pid_text[0].strip().isdigit():
+                        raise ApplianceDatabaseError(
+                            "Private PostgreSQL postmaster PID file is invalid."
+                        )
+
+                    private_pid = int(pid_text[0].strip())
+                    assigned_to_job = assign_private_postgres_to_job(
+                        job,
+                        private_pid,
+                    )
+
+                    if assigned_to_job:
+                        LOG.info(
+                            "Private PostgreSQL PID %s assigned to DairyOS Job Object",
+                            private_pid,
+                        )
+
+                apply_database_environment(database)
+                LOG.info("startup stage=database-environment-applied")
+
+                LOG.info(
+                    "DairyOS packaged database ready: mode=%s host=%s port=%s",
+                    database.mode,
+                    database.host,
+                    database.port,
+                )
+            else:
+                service_name = ensure_postgresql_running(
+                    timeout=config.postgres_timeout
+                )
+                if service_name != "non-windows":
+                    LOG.info(
+                        "PostgreSQL Windows Service is running: %s",
+                        service_name,
+                    )
+                stage_runtime_database_url()
+                stage_migration_database_url()
+        except (
+            PostgreSQLServiceError,
+            ApplianceDatabaseError,
+            SystemPostgresAdminCredentialError,
+            SystemPostgresRuntimeCredentialError,
+        ) as exc:
+            LOG.exception("DairyOS database runtime preflight failed")
+            show_startup_error(
+                "DairyOS database unavailable",
+                "DairyOS could not prepare its database runtime.\n\n"
+                f"{exc}\n\n"
+                "No application window was started. Existing farm data was not intentionally deleted.",
+            )
+            return 4
+
+        try:
+            LOG.info("startup stage=migration-enter")
+            migration = migrate_if_needed()
+            LOG.info("startup stage=migration-ready")
+            LOG.info(
+                "Database migration gate passed: migrated=%s current=%s target=%s backup=%s",
+                migration.migrated,
+                migration.current_heads,
+                migration.target_heads,
+                migration.backup_path,
+            )
+        except MigrationGateError as exc:
+            LOG.exception("DairyOS database startup gate failed")
+            show_startup_error(
+                "DairyOS database startup blocked",
+                "DairyOS could not safely prepare the farm database.\n\n"
+                f"{exc}\n\n"
+                "No application window was started. Existing farm data was not intentionally deleted.",
+            )
+            return 3
+
+        try:
+            process_pending_system_reset()
+        except Exception as exc:
+            show_startup_error(
+                "DairyOS reset could not be completed",
+                "The requested zero-state reset was not applied and the request was retained.\n\n"
+                f"{exc}\n\nExisting farm data was not intentionally deleted.",
+            )
+            return 5
+
+        # Select the desktop backend origin once for this supervisor lifetime.
+        # Initial startup retries and all watchdog recoveries must reuse this
+        # exact port so the WebView origin and desktop capability remain stable.
+        backend_port = config.port or choose_port(config.host)
+        attempts = config.restart_attempts + 1
+        url = None
+
+        for attempt in range(attempts):
+            try:
+                LOG.info(
+                    "startup stage=backend-start-enter attempt=%s port=%s",
+                    attempt + 1,
+                    backend_port,
+                )
+                backend, url = start_backend(config, job, port=backend_port)
+                LOG.info(
+                    "startup stage=backend-spawned pid=%s url=%s",
+                    getattr(backend, "pid", "unknown"),
+                    url,
+                )
+                wait_for_ready(url, config)
+                LOG.info("startup stage=backend-health-ready url=%s", url)
+                break
+            except Exception as exc:
+                LOG.exception("DairyOS backend startup failure")
+                terminate_backend(backend)
+                backend = None
+
+                if attempt + 1 >= attempts:
+                    show_startup_error(
+                        "DairyOS could not start",
+                        "The DairyOS application runtime failed to start or become ready.\n\n"
+                        f"{exc}\n\nReview the DairyOS logs for diagnostic details.",
+                    )
+                    return 1
+
+                time.sleep(config.restart_backoff * (attempt + 1))
+
+        if backend is None or url is None:
+            return 1
+
+        # Startup recovery ends once readiness succeeds.  From this point
+        # BackendWatchdog is the sole backend crash-recovery authority and
+        # preserves the established desktop origin.
+        watchdog = BackendWatchdog(
+            backend,
+            url,
+            config,
+            job,
+            lambda _url: None,
+        )
+
+        try:
+            LOG.info("startup stage=webview-launch-enter url=%s", url)
+            launch_webview(
+                url,
+                watchdog,
+                lambda: terminate_backend(watchdog.process),
+            )
+            LOG.info("startup stage=webview-launch-returned")
+        except Exception as exc:
+            LOG.exception("DairyOS desktop runtime failure")
+            show_startup_error(
+                "DairyOS desktop runtime failed",
+                "The DairyOS application window encountered a runtime failure.\n\n"
+                f"{exc}\n\nReview the DairyOS logs for diagnostic details.",
+            )
+            return 1
+
+        return 0 if watchdog.failure is None else 1
+    finally:
+        if watchdog is not None:
+            watchdog.stop()
+        terminate_backend(watchdog.process if watchdog is not None else backend)
+
+        if private_database is not None:
+            try:
+                stop_private_postgres(private_database)
+            except Exception:
+                LOG.exception(
+                    "Failed to stop private DairyOS PostgreSQL cleanly"
+                )
+
+        job.close()
+        instance.release()
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="dairyos-desktop")
+    parser.add_argument("--host", default=os.environ.get("DAIRYOS_HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("DAIRYOS_PORT", "0")))
+    parser.add_argument("--health-timeout", type=float, default=60.0)
+    parser.add_argument("--restart-attempts", type=int, default=2)
+    parser.add_argument("--postgres-timeout", type=float, default=30.0)
+    parser.add_argument("--database-preflight", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--lifecycle-install", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--farm-data-export", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--installation-root", default="")
+    parser.add_argument("--data-root", default="")
+    parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if "--dairyos-backend" in argv:
+        # Direct backend launches are used by diagnostics and packaged smoke
+        # tests as well as by the supervisor's child process. Mark the mode
+        # before delegating so a windowed PyInstaller process with no console
+        # streams never lets Uvicorn call isatty() on None.
+        os.environ["DAIRYOS_BACKEND_MODE"] = "1"
+        backend_argv = [arg for arg in argv if arg != "--dairyos-backend"]
+        from dairyos.server import main as server_main
+
+        return server_main(backend_argv)
+
+    args = build_parser().parse_args(argv)
+    if args.farm_data_export:
+        if args.data_root:
+            os.environ["DAIRYOS_DATA_DIR"] = str(Path(args.data_root).expanduser().resolve())
+        try:
+            stage_runtime_database_url()
+            from dairyos.admin.data_management import export_farm_data, validate_package
+            from dairyos.data.database.session import DATABASE_URL
+
+            result = export_farm_data(
+                DATABASE_URL,
+                args.farm_data_export,
+                data_root=args.data_root or None,
+            )
+            validation = validate_package(result["path"])
+            if not validation.get("valid"):
+                raise RuntimeError("Farm data export validation did not pass.")
+            print(json.dumps({
+                "status": "VERIFIED",
+                "path": result["path"],
+                "farm_instance_id": result.get("farm_instance_id"),
+            }))
+            return 0
+        except Exception as exc:
+            LOG.error("Farm data preservation export failed: %s", exc)
+            return 5
+
+    if args.lifecycle_install:
+        installation_root = args.installation_root or str(Path(sys.executable).resolve().parent)
+        data_root_override = args.data_root or None
+        LifecycleManager(
+            installation_root,
+            data_root=data_root_override,
+            database_url=None,
+        ).install(application_version="packaged")
+        return 0
+    if args.data_root:
+        # The installer passes the selected fresh data root explicitly for
+        # its immediate post-install launch. This avoids relying on the
+        # parent Setup process having refreshed its inherited environment
+        # after writing the machine-level registry value. Lifecycle helper
+        # commands above use explicit arguments and must not leak their
+        # temporary test/runtime root into the hosting process.
+        os.environ["DAIRYOS_DATA_DIR"] = str(
+            Path(args.data_root).expanduser().resolve()
+        )
+    log_path = configure_supervisor_logging(args.log_level)
+    LOG.info(
+        "supervisor start pid=%s frozen=%s executable=%s data_dir=%s log=%s",
+        os.getpid(),
+        bool(getattr(sys, "frozen", False)),
+        sys.executable,
+        os.environ.get("DAIRYOS_DATA_DIR", ""),
+        log_path or "unavailable",
+    )
+    if os.name != "nt":
+        LOG.warning("Desktop supervisor is running on a non-Windows host; Job Object and WebView2 are unavailable.")
+
+    config = SupervisorConfig(
+        host=args.host,
+        port=args.port,
+        health_timeout=args.health_timeout,
+        restart_attempts=max(0, args.restart_attempts),
+        postgres_timeout=max(1.0, args.postgres_timeout),
+    )
+    if args.database_preflight:
+        if not getattr(sys, "frozen", False):
+            LOG.error("--database-preflight is reserved for the packaged DairyOS executable.")
+            return 64
+        return database_preflight(config)
+    return run(config)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
