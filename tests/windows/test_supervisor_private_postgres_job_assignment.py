@@ -43,3 +43,25 @@ def test_other_job_assignment_permission_failures_remain_fail_closed():
         supervisor.assign_private_postgres_to_job(job, 12345)
 
     assert getattr(exc_info.value, "winerror", None) == 1314
+
+
+def test_supervisor_logging_is_durable_but_not_startup_critical(monkeypatch, tmp_path):
+    monkeypatch.setenv("DAIRYOS_DATA_DIR", str(tmp_path))
+    path = supervisor.configure_supervisor_logging("INFO")
+
+    assert path == tmp_path / "logs" / "supervisor.log"
+    supervisor.LOG.info("synthetic installed-runtime diagnostic")
+    for handler in supervisor.logging.getLogger().handlers:
+        flush = getattr(handler, "flush", None)
+        if flush is not None:
+            flush()
+    assert "synthetic installed-runtime diagnostic" in path.read_text(encoding="utf-8")
+
+
+def test_job_fallback_rationale_identifies_openprocess_security_context():
+    import inspect
+
+    source = inspect.getsource(supervisor.assign_private_postgres_to_job)
+    assert "security context" in source
+    assert "OpenProcess" in source
+    assert "job hierarchy prevents" not in source
