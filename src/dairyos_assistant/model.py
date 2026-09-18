@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -47,6 +48,21 @@ class ModelUnavailable(RuntimeError):
 
 class ForbiddenEndpoint(ValueError):
     """The configured endpoint is one the Assistant may not open."""
+
+
+_REASONING_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def strip_reasoning(text: str) -> str:
+    """Remove a model's visible reasoning block.
+
+    Thinking is disabled by request, but a model can still emit the block if a
+    build ignores the flag or a template changes. Reasoning is working-out, not
+    an answer: it is full of discarded candidate figures, and letting it reach
+    the grounding gate would mean rejecting answers over numbers the model had
+    already decided against.
+    """
+    return _REASONING_BLOCK.sub("", text or "").strip()
 
 
 class ModelProvider(Protocol):
@@ -100,9 +116,19 @@ class LlamaServerProvider:
 
     base_url: str = "http://127.0.0.1:8080"
     timeout: float = DEFAULT_TIMEOUT_SECONDS
+    # "chat" applies the model's own template, which is correct for an
+    # instruction-tuned model. "completion" posts a raw prompt and exists only
+    # for a base model or for comparing the two.
+    endpoint_style: str = "chat"
 
     def __post_init__(self) -> None:
         assert_endpoint_allowed(self.base_url)
+        if self.endpoint_style not in {"chat", "completion"}:
+            raise ValueError(f"unknown endpoint_style: {self.endpoint_style!r}")
+
+    @property
+    def chat_url(self) -> str:
+        return self.base_url.rstrip("/") + "/v1/chat/completions"
 
     @property
     def completion_url(self) -> str:
@@ -115,23 +141,42 @@ class LlamaServerProvider:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
     ) -> str:
-        assert_endpoint_allowed(self.completion_url)
-        payload = json.dumps(
-            {
+        """Ask the model, through its own chat template.
+
+        The chat endpoint is used rather than raw completion because the pinned
+        model is instruction-tuned: llama-server applies the template stored in
+        the GGUF, which is how the model was trained to receive instructions.
+        Posting a raw string to ``/completion`` skips that and measurably
+        degrades instruction-following, which for this subsystem means more
+        work for the grounding gate and more withheld answers.
+        """
+        url = self.chat_url if self.endpoint_style == "chat" else self.completion_url
+        assert_endpoint_allowed(url)
+
+        if self.endpoint_style == "chat":
+            payload: dict[str, object] = {
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": False,
+                # Qwen3 reasons aloud by default. The Assistant restates
+                # reviewed text; there is nothing to reason about, and the
+                # thinking block would be latency spent producing tokens the
+                # operator must never see.
+                "chat_template_kwargs": {"enable_thinking": False},
+            }
+        else:
+            payload = {
                 "prompt": prompt,
                 "n_predict": max_tokens,
                 "temperature": temperature,
                 "cache_prompt": True,
-                # The model is restating reviewed text, so it should stop at
-                # the end of its answer rather than continuing into invented
-                # follow-up questions.
                 "stop": ["\n\nQuestion:", "\n\nOperator:", "<|im_end|>"],
             }
-        ).encode("utf-8")
 
         request = urllib.request.Request(
-            self.completion_url,
-            data=payload,
+            url,
+            data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -143,10 +188,15 @@ class LlamaServerProvider:
         except json.JSONDecodeError as exc:
             raise ModelUnavailable(f"model server returned invalid JSON: {exc}") from exc
 
-        content = body.get("content")
+        if self.endpoint_style == "chat":
+            choices = body.get("choices") or []
+            content = choices[0].get("message", {}).get("content") if choices else None
+        else:
+            content = body.get("content")
+
         if not isinstance(content, str):
             raise ModelUnavailable("model server returned no content")
-        return content.strip()
+        return strip_reasoning(content).strip()
 
     def health(self) -> bool:
         try:

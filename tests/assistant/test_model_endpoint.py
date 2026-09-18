@@ -100,12 +100,23 @@ def test_a_provider_cannot_be_constructed_pointing_somewhere_forbidden():
 
 
 class _FakeLlamaServer(BaseHTTPRequestHandler):
+    """Serves both of llama-server's shapes, and records what it was sent."""
+
     content = "A withdrawal period is recorded with a start and an end time."
+    last_request: dict = {}
 
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler's interface
         length = int(self.headers.get("Content-Length", 0))
-        self.rfile.read(length)
-        body = json.dumps({"content": self.content}).encode("utf-8")
+        raw = self.rfile.read(length)
+        _FakeLlamaServer.last_request = {
+            "path": self.path,
+            "body": json.loads(raw.decode("utf-8")) if raw else {},
+        }
+        if self.path.endswith("/v1/chat/completions"):
+            payload = {"choices": [{"message": {"role": "assistant", "content": self.content}}]}
+        else:
+            payload = {"content": self.content}
+        body = json.dumps(payload).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -139,6 +150,49 @@ def test_the_provider_talks_to_a_loopback_server(fake_server: str):
     assert provider.generate("explain withdrawal") == _FakeLlamaServer.content
 
 
+def test_an_instruction_tuned_model_is_addressed_through_its_chat_template(fake_server: str):
+    """Posting a raw prompt to /completion skips the template the model was
+    trained with, which degrades instruction-following and hands the grounding
+    gate more work than it should have."""
+    LlamaServerProvider(base_url=fake_server).generate("explain withdrawal")
+    sent = _FakeLlamaServer.last_request
+
+    assert sent["path"].endswith("/v1/chat/completions")
+    assert sent["body"]["messages"][0]["content"].startswith("You are the DairyOS Assistant") is False
+    assert sent["body"]["temperature"] == 0.0, "generation must be deterministic"
+    assert sent["body"]["chat_template_kwargs"] == {"enable_thinking": False}, (
+        "Qwen3 reasons aloud by default; the operator must never see working-out"
+    )
+
+
+def test_the_raw_completion_style_remains_available(fake_server: str):
+    provider = LlamaServerProvider(base_url=fake_server, endpoint_style="completion")
+    assert provider.generate("explain withdrawal") == _FakeLlamaServer.content
+    assert _FakeLlamaServer.last_request["path"].endswith("/completion")
+
+
+def test_an_unknown_endpoint_style_is_rejected(fake_server: str):
+    with pytest.raises(ValueError):
+        LlamaServerProvider(base_url=fake_server, endpoint_style="guesswork")
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("<think>maybe 96 hours? no</think>The period is recorded.", "The period is recorded."),
+        ("<THINK>x</THINK>  Answer.  ", "Answer."),
+        ("No reasoning here.", "No reasoning here."),
+    ],
+)
+def test_a_reasoning_block_is_stripped_before_the_gate_sees_it(raw: str, expected: str):
+    """Working-out is full of candidate figures the model has already
+    discarded. Letting it reach the grounding gate would reject good answers
+    over numbers that were never asserted."""
+    from dairyos_assistant.model import strip_reasoning
+
+    assert strip_reasoning(raw) == expected
+
+
 def test_an_unreachable_model_raises_rather_than_returning_nothing():
     """A silent empty answer would be indistinguishable from a model that had
     nothing to say, and the Assistant would show it."""
@@ -165,6 +219,7 @@ def test_the_module_depends_only_on_the_standard_library():
         elif isinstance(node, ast.ImportFrom):
             imported.add((node.module or "").split(".")[0])
     allowed = {
-        "__future__", "ipaddress", "json", "socket", "urllib", "dataclasses", "typing",
+        "__future__", "ipaddress", "json", "re", "socket", "urllib", "dataclasses",
+        "typing",
     }
     assert imported <= allowed, f"model.py gained a dependency: {sorted(imported - allowed)}"
