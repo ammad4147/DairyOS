@@ -39,13 +39,12 @@ def test_clean_installer_still_never_imports_or_discovers_farm_package():
     assert "will not overwrite, import, restore, select, or adopt existing" in prepare
 
 
-def test_silent_uninstall_requires_explicit_no_preservation_decision():
+def test_automation_uninstall_can_declare_no_preservation_without_wizard_state():
     source = ISS.read_text(encoding="utf-8-sig")
     assert "function UninstallPreservationChoiceFromCommandLine(): String;" in source
     assert "'/PRESERVEFARMDATA=NO'" in source
-    assert "if WizardSilent then" in source
     assert "if CommandChoice = 'NO' then" in source
-    assert "silent mode requires /PRESERVEFARMDATA=NO; uninstall blocked." in source
+    assert "WizardSilent" not in source
 
 
 def test_installer_ci_declares_silent_preservation_decision():
