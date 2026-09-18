@@ -67,9 +67,6 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 
 
 [Code]
-var
-
-
 function CanonicalDairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
