@@ -12,6 +12,7 @@ import binascii
 import ctypes
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import secrets
 import socket
@@ -47,6 +48,52 @@ from dairyos.lifecycle.manager import LifecycleManager
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
 _AUTH_SIGNING_SECRET: str | None = None
+
+
+def configure_supervisor_logging(level: str) -> Path | None:
+    """Configure console logging plus a durable packaged-runtime log.
+
+    File logging is deliberately best-effort: an ACL, disk, or path failure
+    must never turn diagnostics into a DairyOS startup dependency.
+    """
+    numeric_level = getattr(logging, str(level).upper(), logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
+    )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    if not root_logger.handlers:
+        stream = logging.StreamHandler()
+        stream.setFormatter(formatter)
+        root_logger.addHandler(stream)
+
+    data_dir = os.environ.get("DAIRYOS_DATA_DIR", "").strip()
+    if not data_dir:
+        return None
+
+    log_path = Path(data_dir).expanduser().resolve() / "logs" / "supervisor.log"
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved = str(log_path)
+        already_present = any(
+            isinstance(handler, RotatingFileHandler)
+            and str(getattr(handler, "baseFilename", "")) == resolved
+            for handler in root_logger.handlers
+        )
+        if not already_present:
+            file_handler = RotatingFileHandler(
+                log_path,
+                maxBytes=5 * 1024 * 1024,
+                backupCount=4,
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
+        return log_path
+    except OSError:
+        LOG.exception("Unable to configure DairyOS supervisor file logging")
+        return None
 
 
 def process_pending_system_reset() -> None:
@@ -827,17 +874,25 @@ def run(config: SupervisorConfig) -> int:
         LOG.warning("Another DairyOS instance is already running")
         return 2
 
+    LOG.info("startup stage=single-instance-acquired pid=%s", os.getpid())
     job = JobObject()
     backend = None
     watchdog = None
     private_database = None
     try:
         job.create()
+        LOG.info("startup stage=job-created")
 
         try:
             if getattr(sys, "frozen", False):
+                LOG.info("startup stage=private-database-prepare-enter")
                 database = prepare_database(
                     postgres_timeout=config.postgres_timeout
+                )
+                LOG.info(
+                    "startup stage=private-database-ready host=%s port=%s",
+                    database.host,
+                    database.port,
                 )
                 private_database = database.private_postgres
 
@@ -872,6 +927,7 @@ def run(config: SupervisorConfig) -> int:
                         )
 
                 apply_database_environment(database)
+                LOG.info("startup stage=database-environment-applied")
 
                 LOG.info(
                     "DairyOS packaged database ready: mode=%s host=%s port=%s",
@@ -906,7 +962,9 @@ def run(config: SupervisorConfig) -> int:
             return 4
 
         try:
+            LOG.info("startup stage=migration-enter")
             migration = migrate_if_needed()
+            LOG.info("startup stage=migration-ready")
             LOG.info(
                 "Database migration gate passed: migrated=%s current=%s target=%s backup=%s",
                 migration.migrated,
@@ -943,9 +1001,19 @@ def run(config: SupervisorConfig) -> int:
 
         for attempt in range(attempts):
             try:
+                LOG.info(
+                    "startup stage=backend-start-enter attempt=%s port=%s",
+                    attempt + 1,
+                    backend_port,
+                )
                 backend, url = start_backend(config, job, port=backend_port)
+                LOG.info(
+                    "startup stage=backend-spawned pid=%s url=%s",
+                    backend.pid,
+                    url,
+                )
                 wait_for_ready(url, config)
-                LOG.info("DairyOS backend ready at %s", url)
+                LOG.info("startup stage=backend-health-ready url=%s", url)
                 break
             except Exception as exc:
                 LOG.exception("DairyOS backend startup failure")
@@ -977,11 +1045,13 @@ def run(config: SupervisorConfig) -> int:
         )
 
         try:
+            LOG.info("startup stage=webview-launch-enter url=%s", url)
             launch_webview(
                 url,
                 watchdog,
                 lambda: terminate_backend(watchdog.process),
             )
+            LOG.info("startup stage=webview-launch-returned")
         except Exception as exc:
             LOG.exception("DairyOS desktop runtime failure")
             show_startup_error(
@@ -1086,9 +1156,14 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["DAIRYOS_DATA_DIR"] = str(
             Path(args.data_root).expanduser().resolve()
         )
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    log_path = configure_supervisor_logging(args.log_level)
+    LOG.info(
+        "supervisor start pid=%s frozen=%s executable=%s data_dir=%s log=%s",
+        os.getpid(),
+        bool(getattr(sys, "frozen", False)),
+        sys.executable,
+        os.environ.get("DAIRYOS_DATA_DIR", ""),
+        log_path or "unavailable",
     )
     if os.name != "nt":
         LOG.warning("Desktop supervisor is running on a non-Windows host; Job Object and WebView2 are unavailable.")
