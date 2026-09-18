@@ -444,7 +444,7 @@ def update_navigation_preferences(
 @router.post("/data-management/export")
 def export_farm_package(
     payload: DataManagementPathRequest,
-    admin=Depends(require_permission("settings.navigation")),
+    admin=Depends(require_permission("settings.data_management")),
 ):
     try:
         return export_farm_data(DATABASE_URL, payload.path)
@@ -455,7 +455,7 @@ def export_farm_package(
 @router.post("/data-management/validate")
 def validate_farm_package(
     payload: DataManagementPathRequest,
-    admin=Depends(require_permission("settings.navigation")),
+    admin=Depends(require_permission("settings.data_management")),
 ):
     try:
         return validate_package(payload.path)
@@ -466,7 +466,7 @@ def validate_farm_package(
 @router.post("/data-management/import")
 def import_farm_package(
     payload: DataManagementImportRequest,
-    admin=Depends(require_permission("settings.navigation")),
+    admin=Depends(require_permission("settings.data_management")),
 ):
     if payload.confirm != "IMPORT VERIFIED FARM DATA":
         raise HTTPException(
