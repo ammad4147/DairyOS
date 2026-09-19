@@ -14,6 +14,8 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from dairyos.core.time_utils import utcnow
+
 LOG = logging.getLogger(__name__)
 
 FARM_INSTANCE_ID_KEY = "farm_instance_id"
@@ -35,12 +37,14 @@ def get_or_create_farm_instance_id(session: Session) -> str:
         return str(result)
 
     farm_id = str(uuid.uuid4())
+    updated_at = utcnow()
     session.execute(
         text(
-            "INSERT INTO app_settings (key, value) VALUES (:key, :value) "
-            "ON CONFLICT (key) DO UPDATE SET value = :value"
+            "INSERT INTO app_settings (key, value, updated_at) "
+            "VALUES (:key, :value, :updated_at) "
+            "ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = :updated_at"
         ),
-        {"key": FARM_INSTANCE_ID_KEY, "value": farm_id},
+        {"key": FARM_INSTANCE_ID_KEY, "value": farm_id, "updated_at": updated_at},
     )
     session.commit()
     LOG.info("DairyOS farm identity initialized: %s", farm_id)
@@ -49,12 +53,14 @@ def get_or_create_farm_instance_id(session: Session) -> str:
 
 def set_farm_instance_id(session: Session, farm_id: str) -> None:
     """Replace the farm identity (used during import to preserve the source farm's ID)."""
+    updated_at = utcnow()
     session.execute(
         text(
-            "INSERT INTO app_settings (key, value) VALUES (:key, :value) "
-            "ON CONFLICT (key) DO UPDATE SET value = :value"
+            "INSERT INTO app_settings (key, value, updated_at) "
+            "VALUES (:key, :value, :updated_at) "
+            "ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = :updated_at"
         ),
-        {"key": FARM_INSTANCE_ID_KEY, "value": farm_id},
+        {"key": FARM_INSTANCE_ID_KEY, "value": farm_id, "updated_at": updated_at},
     )
     session.commit()
     LOG.info("DairyOS farm identity set to: %s", farm_id)
