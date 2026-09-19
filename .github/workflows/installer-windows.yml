@@ -491,8 +491,9 @@ jobs:
 
           Write-Host "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS"
 
-          # The NO path removes the DairyOS-owned state. Collision safety is
-          # exercised separately against a deliberately populated root.
+          # The installer is clean-install-only. The NO path removes the
+          # DairyOS-owned state; collision safety is exercised separately
+          # against a deliberately populated root.
           New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
           "preserve-me" | Set-Content -Path $marker -Encoding ascii
           $markerBeforeCollision = (Get-Content $marker -Raw).Trim()
