@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence, TextIO
 
 from dairyos_assistant import __version__
-from dairyos_assistant.generation import generate_answer
+from dairyos_assistant.generation import generate_answer, generate_general_answer
 from dairyos_assistant.model import ModelProvider, NullProvider
 from dairyos_assistant.policy import (
     Decision,
@@ -161,11 +161,25 @@ class Assistant:
             "unreviewed": any(item["unreviewed"] for item in evidence),
         }
 
+        if evidence:
+            response["route"] = (
+                "CURATED_DAIRY_VETERINARY"
+                if any(item["class"] == "DAIRY_KNOWLEDGE" for item in evidence)
+                else "DAIRYOS_CAPABILITY"
+            )
+        else:
+            response["route"] = "GENERAL_AI"
+
         calculating = verdict.decision is Decision.CALCULATE
         if not evidence and not calculating:
-            # Nothing retrieved means nothing to be faithful to, so the model
-            # is not consulted at all. Asking it anyway is how a knowledge
-            # system starts answering from its training data.
+            answer, failure = generate_general_answer(self.provider, question)
+            if answer is not None:
+                response["stage"] = "GENERAL_ANSWERED"
+                response["text"] = answer
+                response["answer"] = answer
+                response["general_knowledge"] = True
+            else:
+                response["model_error"] = failure
             return response
 
         answer, gate, failure = generate_answer(

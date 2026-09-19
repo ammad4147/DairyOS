@@ -62,11 +62,15 @@ def install(source: Path | None = None) -> dict:
     if package is None or not package.is_file():
         raise FileNotFoundError("No approved Assistant package source is configured.")
     expected = Path(str(package) + ".sha256")
-    if expected.is_file():
-        declared = expected.read_text(encoding="utf-8").strip().split()[0].lower()
-        actual = _sha256(package)
-        if declared != actual:
-            raise ValueError("Assistant package SHA-256 verification failed.")
+    if not expected.is_file():
+        raise ValueError("Assistant package SHA-256 sidecar is required.")
+    fields = expected.read_text(encoding="utf-8").strip().split()
+    declared = fields[0].lower() if fields else ""
+    if len(declared) != 64 or any(ch not in "0123456789abcdef" for ch in declared):
+        raise ValueError("Assistant package SHA-256 sidecar is invalid.")
+    actual = _sha256(package)
+    if declared != actual:
+        raise ValueError("Assistant package SHA-256 verification failed.")
 
     staging_parent = ASSISTANT_ROOT.parent / ".assistant-staging"
     staging_parent.mkdir(parents=True, exist_ok=True)
@@ -81,13 +85,28 @@ def install(source: Path | None = None) -> dict:
         if not isinstance(manifest, dict) or not _compatible(manifest):
             raise ValueError("Assistant package is incompatible with this Core.")
         payload = candidates[0].parent
+        if not (payload / "DairyOSAssistant.exe").is_file():
+            raise ValueError("Assistant package executable is missing.")
         target = ASSISTANT_ROOT.parent / ".assistant-active"
+        backup = ASSISTANT_ROOT.parent / ".assistant-previous"
         if target.exists():
             shutil.rmtree(target)
         shutil.copytree(payload, target)
-        if ASSISTANT_ROOT.exists():
-            shutil.rmtree(ASSISTANT_ROOT)
-        target.replace(ASSISTANT_ROOT)
+        if backup.exists():
+            shutil.rmtree(backup)
+        try:
+            if ASSISTANT_ROOT.exists():
+                ASSISTANT_ROOT.replace(backup)
+            target.replace(ASSISTANT_ROOT)
+        except Exception:
+            if ASSISTANT_ROOT.exists():
+                shutil.rmtree(ASSISTANT_ROOT, ignore_errors=True)
+            if backup.exists():
+                backup.replace(ASSISTANT_ROOT)
+            raise
+        finally:
+            if backup.exists():
+                shutil.rmtree(backup, ignore_errors=True)
         return status()
     finally:
         shutil.rmtree(staging, ignore_errors=True)

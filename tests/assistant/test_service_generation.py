@@ -107,15 +107,16 @@ def test_an_operational_question_never_reaches_the_model(assistant):
     assert model.calls == [], "the model must not be consulted for a refused question"
 
 
-def test_an_unanswerable_question_never_reaches_the_model(assistant):
-    """No evidence means nothing to ground against, so the model is not asked.
-    Asking anyway is how a knowledge system starts answering from training."""
+def test_an_unanswerable_question_uses_the_separate_general_route(assistant):
+    """No DairyOS evidence must not be relabeled as DairyOS authority."""
     model = ScriptedModel(FAITHFUL)
     result = assistant(model).answer("How do I configure a Kubernetes ingress controller?")
 
-    assert result["stage"] == "RETRIEVAL_ONLY"
+    assert result["stage"] == "GENERAL_ANSWERED"
+    assert result["route"] == "GENERAL_AI"
+    assert result["general_knowledge"] is True
     assert result["evidence"] == []
-    assert model.calls == []
+    assert model.calls, "the general route should use the configured local model"
 
 
 def test_an_unreachable_model_degrades_to_approved_text_not_to_invention(assistant):

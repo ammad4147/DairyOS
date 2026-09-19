@@ -24,6 +24,9 @@ def _package(tmp_path: Path) -> Path:
     with zipfile.ZipFile(package, "w") as archive:
         for path in payload.iterdir():
             archive.write(path, path.name)
+    package.with_suffix(package.suffix + ".sha256").write_text(
+        hashlib.sha256(package.read_bytes()).hexdigest(), encoding="utf-8"
+    )
     return package
 
 
@@ -60,6 +63,9 @@ def test_incompatible_package_does_not_replace_existing_assistant(tmp_path, monk
     bad = tmp_path / "bad.zip"
     with zipfile.ZipFile(bad, "w") as archive:
         archive.write(bad_payload / "assistant-manifest.json", "assistant-manifest.json")
+    bad.with_suffix(bad.suffix + ".sha256").write_text(
+        hashlib.sha256(bad.read_bytes()).hexdigest(), encoding="utf-8"
+    )
     monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", root)
 
     with pytest.raises(ValueError, match="incompatible"):
@@ -74,4 +80,13 @@ def test_wrong_package_hash_is_rejected_before_activation(tmp_path, monkeypatch)
     monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
 
     with pytest.raises(ValueError, match="SHA-256"):
+        assistant_package.install(package)
+
+
+def test_missing_package_hash_is_rejected_before_activation(tmp_path, monkeypatch):
+    package = _package(tmp_path)
+    package.with_suffix(package.suffix + ".sha256").unlink()
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
+
+    with pytest.raises(ValueError, match="sidecar is required"):
         assistant_package.install(package)

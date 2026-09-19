@@ -105,3 +105,35 @@ def generate_answer(
     if not verdict.ok:
         return None, verdict, REJECTED_TEXT
     return raw, verdict, None
+
+
+GENERAL_SYSTEM_RULES = """You are the optional local general-purpose assistant.
+Answer the user's ordinary question clearly and briefly.
+You are not DairyOS capability authority, you cannot access Farm records, and
+you must not imply that a general answer describes current DairyOS behavior.
+For medical, veterinary, legal, or safety-sensitive matters, provide general
+educational information and recommend an appropriately qualified professional.
+Do not claim to have inspected files, databases, devices, or live systems.
+"""
+
+
+def generate_general_answer(
+    provider: ModelProvider,
+    question: str,
+) -> tuple[str | None, str | None]:
+    """Use the local model for ordinary questions outside the approved KB.
+
+    This route is intentionally separate from ``generate_answer``: general
+    answers must not be presented as DairyOS-grounded answers, while the same
+    model may still be used for both routes. The Farm-data firewall runs before
+    this function is reachable.
+    """
+    prompt = f"{GENERAL_SYSTEM_RULES}\n\nQuestion: {question.strip()}\nAnswer:"
+    try:
+        answer = provider.generate(prompt)
+    except ModelUnavailable as exc:
+        return None, f"model unavailable: {exc}"
+    answer = answer.strip()
+    if not answer:
+        return None, "general model returned no content"
+    return answer, None
