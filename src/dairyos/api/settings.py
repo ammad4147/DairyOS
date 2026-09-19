@@ -444,8 +444,13 @@ def update_navigation_preferences(
 @router.post("/data-management/export")
 def export_farm_package(
     payload: DataManagementPathRequest,
-    admin=Depends(require_permission("settings.data_management")),
 ):
+    """Export complete farm data from an authorized DairyOS desktop session.
+
+    The desktop-session middleware is the security boundary for the installed
+    application. Export is non-destructive and must not require a second
+    interactive bearer login, administrator password, or navigation unlock.
+    """
     try:
         return export_farm_data(DATABASE_URL, payload.path)
     except DataManagementError as exc:
