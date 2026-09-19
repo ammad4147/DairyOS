@@ -63,6 +63,7 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\DairyOS"
+Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
 
 [Code]
