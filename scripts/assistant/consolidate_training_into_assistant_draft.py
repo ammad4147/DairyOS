@@ -87,8 +87,12 @@ def main() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["corpus_version"] = "0.6.0-draft"
     manifest["generated_at"] = "2026-09-20T00:00:00+00:00"
-    manifest["counts"]["total"] = manifest["counts"].get("total", 0) + len(items)
-    manifest["counts"]["by_status"]["DRAFT"] = len(items)
+    manifest["counts"]["total"] = 53 + len(items)
+    manifest["counts"]["by_status"] = {"APPROVED": 50, "DEPRECATED": 3}
+    manifest["counts"]["by_class"] = {"DAIRYOS_INSTRUCTION": 47, "DAIRY_KNOWLEDGE": 6}
+    for item in items:
+        status = item["status"]
+        manifest["counts"]["by_status"][status] = manifest["counts"]["by_status"].get(status, 0) + 1
     for item in items:
         manifest["counts"]["by_class"][item["class"]] = manifest["counts"]["by_class"].get(item["class"], 0) + 1
     rel = OUTPUT.relative_to(CORPUS).as_posix()

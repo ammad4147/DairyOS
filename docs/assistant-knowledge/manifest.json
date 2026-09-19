@@ -7,15 +7,15 @@
     "APPROVED"
   ],
   "counts": {
-    "total": 235,
+    "total": 144,
     "by_status": {
       "APPROVED": 50,
       "DEPRECATED": 3,
       "DRAFT": 91
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 201,
-      "DAIRY_KNOWLEDGE": 34
+      "DAIRYOS_INSTRUCTION": 124,
+      "DAIRY_KNOWLEDGE": 20
     }
   },
   "files": [
