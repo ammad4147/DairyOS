@@ -1,4 +1,5 @@
 import json
+import hashlib
 import zipfile
 from pathlib import Path
 
@@ -44,3 +45,33 @@ def test_package_install_is_staged_and_manifest_driven(tmp_path, monkeypatch):
         "assistant_version"
     ] == "0.1.0"
     assert (root / "DairyOSAssistant.exe").is_file()
+
+
+def test_incompatible_package_does_not_replace_existing_assistant(tmp_path, monkeypatch):
+    package = _package(tmp_path)
+    root = tmp_path / "assistant"
+    root.mkdir()
+    (root / "sentinel.txt").write_text("working", encoding="utf-8")
+    bad_payload = tmp_path / "bad"
+    bad_payload.mkdir()
+    (bad_payload / "assistant-manifest.json").write_text(
+        json.dumps({"compatible_core": ">=9.0.0 <10.0.0"}), encoding="utf-8"
+    )
+    bad = tmp_path / "bad.zip"
+    with zipfile.ZipFile(bad, "w") as archive:
+        archive.write(bad_payload / "assistant-manifest.json", "assistant-manifest.json")
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", root)
+
+    with pytest.raises(ValueError, match="incompatible"):
+        assistant_package.install(bad)
+
+    assert (root / "sentinel.txt").read_text(encoding="utf-8") == "working"
+
+
+def test_wrong_package_hash_is_rejected_before_activation(tmp_path, monkeypatch):
+    package = _package(tmp_path)
+    package.with_suffix(package.suffix + ".sha256").write_text("0" * 64, encoding="utf-8")
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
+
+    with pytest.raises(ValueError, match="SHA-256"):
+        assistant_package.install(package)

@@ -61,7 +61,7 @@ def install(source: Path | None = None) -> dict:
     package = source or PACKAGE_SOURCE
     if package is None or not package.is_file():
         raise FileNotFoundError("No approved Assistant package source is configured.")
-    expected = package.with_suffix(".sha256")
+    expected = Path(str(package) + ".sha256")
     if expected.is_file():
         declared = expected.read_text(encoding="utf-8").strip().split()[0].lower()
         actual = _sha256(package)
