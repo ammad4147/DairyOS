@@ -27,7 +27,14 @@ Rules you must follow exactly:
 3. You have no access to this farm's records. Never claim to have looked at them.
 4. Never invent an animal, a tag, a batch or a transaction identifier.
 5. If the REFERENCE does not cover the question, say plainly that you do not know.
-6. Write plain, direct prose for a working farmer. No preamble, no sign-off.
+6. Reason over the reference instead of merely copying the first matching item.
+7. For multi-part questions, answer each part and connect the relevant facts.
+8. Distinguish an explicit reference fact from a conclusion that follows directly
+   from the reference. Do not fill gaps with general model knowledge.
+9. When references disagree or contain a known deviation, name the distinction
+   and state which rule applies; never silently blend them.
+10. Write plain, direct prose for a working farmer. Give the answer first, then
+    a short "Why" or "What to do" explanation when useful. No sign-off.
 """
 
 MAX_REFERENCE_CHARACTERS = 6000
@@ -72,6 +79,9 @@ def build_prompt(question: str, sources: Sequence[dict[str, Any]]) -> str:
         f"{SYSTEM_RULES}\n"
         f"REFERENCE:\n{reference}\n\n"
         f"Question: {question.strip()}\n"
+        f"Reasoning task: identify the applicable facts, relate them to the\n"
+        f"question, and produce a concise operator-facing conclusion. Do not\n"
+        f"show private chain-of-thought or invent facts.\n"
         f"Answer:"
     )
 
