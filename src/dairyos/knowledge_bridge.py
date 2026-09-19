@@ -102,12 +102,26 @@ def _bundle_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _assistant_roots() -> list[Path]:
+    """Return approved Core/source and separately managed Assistant roots."""
+    roots = []
+    configured = os.environ.get("DAIRYOS_ASSISTANT_ROOT", "").strip()
+    if configured:
+        roots.append(Path(configured))
+    if os.name == "nt":
+        roots.append(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "DairyOS" / "assistant")
+    roots.append(_bundle_root() / "assistant")
+    roots.append(_bundle_root())
+    return roots
+
+
 def assistant_command() -> list[str] | None:
     """How to start the Assistant, frozen or from source."""
-    root = _bundle_root()
-    frozen = root / ("DairyOSAssistant.exe" if os.name == "nt" else "DairyOSAssistant")
-    if frozen.is_file():
-        return [str(frozen)]
+    executable = "DairyOSAssistant.exe" if os.name == "nt" else "DairyOSAssistant"
+    for root in _assistant_roots():
+        frozen = root / executable
+        if frozen.is_file():
+            return [str(frozen)]
     if getattr(sys, "frozen", False):
         # A frozen DairyOS whose Assistant executable is absent. The build
         # refuses to produce this, so it means a tampered or partial install.
@@ -120,12 +134,15 @@ def assistant_command() -> list[str] | None:
 
 def model_paths() -> tuple[Path, Path] | None:
     """The bundled model and server, wherever this build keeps them."""
-    root = _bundle_root()
-    candidates = [
-        (root / "_internal" / "assistant-runtime", root / "_internal" / "assistant-runtime"),
-        (root / "assistant-runtime", root / "assistant-runtime"),
-        (root / "runtime" / "assistant", root / "runtime" / "assistant"),
-    ]
+    candidates = []
+    for root in _assistant_roots():
+        candidates.extend(
+            [
+                (root / "_internal" / "assistant-runtime", root / "_internal" / "assistant-runtime"),
+                (root / "assistant-runtime", root / "assistant-runtime"),
+                (root / "runtime" / "assistant", root / "runtime" / "assistant"),
+            ]
+        )
     server_name = "llama-server.exe" if os.name == "nt" else "llama-server"
     for base, _ in candidates:
         model = next(iter(sorted((base / "model").glob("*.gguf"))), None) if (base / "model").is_dir() else None

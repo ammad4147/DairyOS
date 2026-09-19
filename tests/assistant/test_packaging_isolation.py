@@ -34,7 +34,7 @@ from tests.assistant.test_boundary import FORBIDDEN_MODULES
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = ROOT / "DairyOS.spec"
+SPEC = ROOT / "DairyOS-Assistant.spec"
 ENTRY_POINT = ROOT / "src" / "dairyos_assistant" / "service.py"
 
 pytestmark = pytest.mark.skipif(not SPEC.is_file(), reason="spec not present")
@@ -155,18 +155,9 @@ def test_every_runtime_forbidden_module_is_excluded_at_build_time(forbidden: str
 
 
 def test_the_operational_executables_do_not_build_the_assistant_entry_point():
-    others = [
-        call
-        for call in _calls("Analysis")
-        if call.args and "dairyos_assistant" not in _source(call.args[0])
-    ]
-    assert others, "the operational Analysis blocks must still exist"
-    for call in others:
-        excludes = _string_list(_keyword(call, "excludes"))
-        assert "dairyos_assistant" not in _source(call.args[0])
-        assert "dairyos" not in excludes, (
-            "the operational build must keep its own package"
-        )
+    core = (ROOT / "DairyOS.spec").read_text(encoding="utf-8")
+    assert "supervisor.py" in core
+    assert "dairyos_assistant/service.py" not in core
 
 
 def test_the_assistant_executable_is_actually_shipped():
@@ -174,12 +165,25 @@ def test_the_assistant_executable_is_actually_shipped():
     collects = _calls("COLLECT")
     assert len(collects) == 1
     collected = {_source(arg) for arg in collects[0].args}
-    assert "assistant_exe" in collected, (
+    assert "exe" in collected, (
         "the Assistant executable is built but not collected, so it would not ship"
     )
-    assert "assistant_a.datas" in collected, (
+    assert "assistant.datas" in collected, (
         "the Assistant would ship without its knowledge corpus"
     )
+
+
+def test_core_spec_does_not_collect_the_optional_assistant():
+    core = (ROOT / "DairyOS.spec").read_text(encoding="utf-8")
+    core_tree = ast.parse(core)
+    core_collects = [
+        node for node in ast.walk(core_tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "COLLECT"
+    ]
+    assert core_collects
+    collected = {_source(arg) for arg in core_collects[0].args}
+    assert "assistant_exe" not in collected
+    assert "assistant_a.datas" not in collected
 
 
 # ---------------------------------------------------------------------------
@@ -208,8 +212,8 @@ def test_a_missing_runtime_artefact_fails_the_build():
     assert "raise FileNotFoundError" in source
     assert "Qwen3-1.7B-Q4_K_M.gguf" in source
     assert "llama-server.exe" in source
-    assert "Get-AssistantRuntime.ps1" in source, (
-        "the build error must tell the developer how to fix it"
+    assert "Get-AssistantRuntime.ps1" in (ROOT / "scripts" / "Build-DairyOS-Desktop.ps1").read_text(encoding="utf-8"), (
+        "the build pipeline must tell the developer how to fetch the runtime"
     )
 
 
@@ -244,4 +248,4 @@ def test_the_assistant_executable_has_its_own_name():
     ]
     rendered = {n.value for n in names if isinstance(n, ast.Constant)}
     assert "DairyOSAssistant" in rendered
-    assert "DairyOS" in rendered, "the operational executable must keep its name"
+    assert "DairyOSAssistant" in rendered

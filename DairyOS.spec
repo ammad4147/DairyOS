@@ -231,13 +231,10 @@ assistant_exe = EXE(
 coll = COLLECT(
     exe,
     backup_exe,
-    assistant_exe,
     a.binaries,
     a.datas,
     backup_a.binaries,
     backup_a.datas,
-    assistant_a.binaries,
-    assistant_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
