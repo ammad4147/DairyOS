@@ -1,21 +1,22 @@
 """Operational lifecycle services for reproduction and nutrition planning."""
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
-)
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from dairyos.core.time_utils import utcnow
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
+from dairyos.data.repositories.operational_state_mutation import (
+    mutate_operational_state,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.reproduction.services.reproductive_state_service import (
     DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateService,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 router = APIRouter(prefix="/farm", tags=["farm-planning"])
@@ -203,25 +204,30 @@ def list_rations(farm_id: str = "DEFAULT"):
 def save_ration(plan: RationPlan):
     factory = RepositoryFactory.create()
     try:
-        model = factory.session.query(OperationalStateModel).filter(
-            OperationalStateModel.farm_id == plan.farm_id
-        ).first()
-        if model is None:
-            model = OperationalStateModel(
-                farm_id=plan.farm_id,
-                operational_date=OperationalDateAuthority(
-                    repository_factory=factory,
-                ).current_date(),
-                state_payload={},
-                created_at=utcnow(),
-            )
-            factory.session.add(model)
-        payload = dict(model.state_payload or {})
-        plans = [p for p in payload.get("ration_plans", []) if p.get("plan_id") != plan.plan_id]
-        plans.append(plan.model_dump())
-        payload["ration_plans"] = plans
-        model.state_payload = payload
+        plan_payload = plan.model_dump()
+
+        def replace_plan(payload):
+            plans = [
+                item
+                for item in payload.get("ration_plans", [])
+                if item.get("plan_id") != plan.plan_id
+            ]
+            plans.append(plan_payload)
+            payload["ration_plans"] = plans
+            return payload
+
+        mutate_operational_state(
+            factory.session,
+            farm_id=plan.farm_id,
+            operational_date=OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date(),
+            mutation=replace_plan,
+        )
         factory.session.commit()
-        return {"data_status": "PERSISTED", "plan": plan.model_dump()}
+        return {"data_status": "PERSISTED", "plan": plan_payload}
+    except Exception:
+        factory.session.rollback()
+        raise
     finally:
         factory.close()

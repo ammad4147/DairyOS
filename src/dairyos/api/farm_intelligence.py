@@ -11,8 +11,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from dairyos.core.time_utils import utcnow
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
+from dairyos.data.repositories.operational_state_mutation import (
+    mutate_operational_state,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -230,18 +232,25 @@ def record_heat_stress(observation: HeatStressObservation):
     risk = "NORMAL" if thi < 68 else "ALERT" if thi < 72 else "HIGH" if thi < 80 else "SEVERE"
     factory = _factory()
     try:
-        model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == observation.farm_id).first()
-        if model is None:
-            model = OperationalStateModel(farm_id=observation.farm_id, operational_date=_operational_date(factory), state_payload={}, created_at=utcnow())
-            factory.session.add(model)
-        payload = dict(model.state_payload or {})
-        history = list(payload.get("heat_stress_observations", []))
         item = {"observed_at": (observation.observed_at or datetime.now(UTC)).isoformat(), "temperature_c": observation.temperature_c, "humidity_pct": observation.humidity_pct, "thi": round(thi, 2), "risk": risk, "recorded_by": observation.recorded_by}
-        history.append(item)
-        payload["heat_stress_observations"] = history[-500:]
-        model.state_payload = payload
+
+        def append_observation(payload):
+            history = list(payload.get("heat_stress_observations", []))
+            history.append(item)
+            payload["heat_stress_observations"] = history[-500:]
+            return payload
+
+        mutate_operational_state(
+            factory.session,
+            farm_id=observation.farm_id,
+            operational_date=_operational_date(factory),
+            mutation=append_observation,
+        )
         factory.session.commit()
         return {"data_status": "PERSISTED", **item}
+    except Exception:
+        factory.session.rollback()
+        raise
     finally:
         factory.close()
 
@@ -293,16 +302,28 @@ def list_sops(farm_id: str = "DEFAULT"):
 def upsert_sop(protocol: SOPProtocol):
     factory = _factory()
     try:
-        model = factory.session.query(OperationalStateModel).filter(OperationalStateModel.farm_id == protocol.farm_id).first()
-        if model is None:
-            model = OperationalStateModel(farm_id=protocol.farm_id, operational_date=_operational_date(factory), state_payload={}, created_at=utcnow())
-            factory.session.add(model)
-        payload = dict(model.state_payload or {})
-        protocols = [p for p in payload.get("sop_protocols", []) if p.get("protocol_id") != protocol.protocol_id]
-        protocols.append(protocol.model_dump())
-        payload["sop_protocols"] = protocols
-        model.state_payload = payload
+        protocol_payload = protocol.model_dump()
+
+        def replace_protocol(payload):
+            protocols = [
+                item
+                for item in payload.get("sop_protocols", [])
+                if item.get("protocol_id") != protocol.protocol_id
+            ]
+            protocols.append(protocol_payload)
+            payload["sop_protocols"] = protocols
+            return payload
+
+        mutate_operational_state(
+            factory.session,
+            farm_id=protocol.farm_id,
+            operational_date=_operational_date(factory),
+            mutation=replace_protocol,
+        )
         factory.session.commit()
-        return {"data_status": "PERSISTED", "protocol": protocol.model_dump()}
+        return {"data_status": "PERSISTED", "protocol": protocol_payload}
+    except Exception:
+        factory.session.rollback()
+        raise
     finally:
         factory.close()

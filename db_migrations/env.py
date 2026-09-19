@@ -1,18 +1,16 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
-from dairyos.data.database.session import Base, DATABASE_URL
-
-from dairyos.data.models.milk_production import MilkProduction
-from dairyos.data.models.feed_record import FeedRecord
-from dairyos.data.models.user import User
+from dairyos.data.database.session import DATABASE_URL, Base
 from dairyos.data.models.app_setting import AppSetting
-from dairyos.data.models.email_sender_setting import EmailSenderSetting
-from dairyos.data.models.email_digest_run import EmailDigestRun
 from dairyos.data.models.email_digest_delivery import EmailDigestDelivery
+from dairyos.data.models.email_digest_run import EmailDigestRun
+from dairyos.data.models.email_sender_setting import EmailSenderSetting
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.milk_production import MilkProduction
+from dairyos.data.models.user import User
 
 _AUTHORITATIVE_MODELS = (
     MilkProduction,
@@ -27,7 +25,12 @@ _AUTHORITATIVE_MODELS = (
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # The packaged supervisor configures durable logging before it invokes the
+    # migration gate. Alembic's default disables every existing named logger,
+    # which silently turns off supervisor diagnostics for the remainder of the
+    # installed process. Apply Alembic's handlers without muting application
+    # loggers that the migration environment does not own.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

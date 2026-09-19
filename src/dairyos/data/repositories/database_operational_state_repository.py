@@ -3,6 +3,9 @@ from datetime import date, datetime, timezone
 from dairyos.data.database.models.operational_state_model import (
     OperationalStateModel,
 )
+from dairyos.data.repositories.operational_state_mutation import (
+    mutate_operational_state,
+)
 from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
 )
@@ -179,51 +182,24 @@ class DatabaseOperationalStateRepository:
     def save(self, state: FarmOperationalState):
         canonical_payload = self._canonical_payload(state)
 
-        existing = (
-            self.session.query(OperationalStateModel)
-            .filter(
-                OperationalStateModel.farm_id == state.farm_id
-            )
-            .first()
-        )
-
-        if existing is not None:
-            existing_payload = dict(
-                existing.state_payload or {}
-            )
-
+        def replace_owned_fields(existing_payload):
             preserved_payload = {
                 key: value
                 for key, value in existing_payload.items()
                 if key not in self._OWNED_PAYLOAD_FIELDS
             }
-
-            merged_payload = {
+            return {
                 **preserved_payload,
                 **canonical_payload,
             }
 
-            existing.operational_date = state.operational_date
-            existing.state_payload = merged_payload
-
-            self.session.commit()
-            self.session.refresh(existing)
-
-            return state
-
-        record = OperationalStateModel(
+        record = mutate_operational_state(
+            self.session,
             farm_id=state.farm_id,
             operational_date=state.operational_date,
-            state_payload=canonical_payload,
-            created_at=datetime.now(
-                timezone.utc
-            ).replace(
-                tzinfo=None
-            ),
+            mutation=replace_owned_fields,
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
-
-        self.session.add(record)
         self.session.commit()
         self.session.refresh(record)
-
         return state

@@ -1,5 +1,7 @@
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
+
+from dairyos.api import heat_stress_intelligence as heat_stress_api
 
 
 def test_heat_stress_intelligence_reports_no_data_without_observations(client):
@@ -69,3 +71,40 @@ def test_heat_stress_intelligence_survives_repository_reload(client):
     assert body["observation_count"] == 1
     assert body["latest"]["temperature_c"] == 33.0
     assert body["latest"]["humidity_pct"] == 80.0
+
+
+def test_heat_stress_intelligence_window_uses_farm_operational_date(
+    client,
+    monkeypatch,
+):
+    class FarmDateAuthority:
+        def __init__(self, *, repository_factory):
+            self.repository_factory = repository_factory
+
+        def current_date(self):
+            return date(2030, 4, 15)
+
+    monkeypatch.setattr(
+        heat_stress_api,
+        "OperationalDateAuthority",
+        FarmDateAuthority,
+    )
+    farm_id = f"HEAT-FARMDATE-{uuid4().hex}"
+
+    response = client.post(
+        "/farm/heat-stress/intelligence/observations",
+        json={
+            "farm_id": farm_id,
+            "temperature_c": 31.0,
+            "humidity_pct": 70.0,
+            "observed_at": "2030-04-15T05:00:00+00:00",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    overview = client.get(
+        f"/farm/heat-stress/intelligence?farm_id={farm_id}&days=1"
+    )
+
+    assert overview.status_code == 200, overview.text
+    assert overview.json()["observation_count"] == 1
