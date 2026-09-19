@@ -10,8 +10,13 @@ from pydantic import BaseModel, Field
 from dairyos.data.database.models.operational_state_model import (
     OperationalStateModel,
 )
+from dairyos.data.repositories.operational_state_mutation import (
+    mutate_operational_state,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(
     prefix="/farm",
@@ -76,38 +81,6 @@ def _action(risk: str) -> str:
     }[risk]
 
 
-def _get_model(
-    factory,
-    farm_id: str,
-) -> OperationalStateModel:
-    model = (
-        factory.session.query(
-            OperationalStateModel
-        )
-        .filter(
-            OperationalStateModel.farm_id == farm_id
-        )
-        .first()
-    )
-
-    if model is None:
-        now = datetime.now(timezone.utc)
-
-        model = OperationalStateModel(
-            farm_id=farm_id,
-            operational_date=now.date(),
-            state_payload={},
-            created_at=now.replace(
-                tzinfo=None
-            ),
-        )
-
-        factory.session.add(model)
-        factory.session.flush()
-
-    return model
-
-
 @router.post(
     "/heat-stress/intelligence/observations"
 )
@@ -146,53 +119,60 @@ def record_observation(
     factory = RepositoryFactory.create()
 
     try:
-        model = _get_model(
-            factory,
-            observation.farm_id,
+        item = {
+            "observed_at": observed_at.isoformat(),
+            "temperature_c": observation.temperature_c,
+            "humidity_pct": observation.humidity_pct,
+            "thi": thi,
+            "risk": risk,
+            "recorded_by": observation.recorded_by,
+        }
+
+        def append_observation(payload):
+            history = list(
+                payload.get(
+                    "heat_stress_observations",
+                    [],
+                )
+            )
+            history.append(item)
+            history.sort(
+                key=lambda history_item: history_item.get(
+                    "observed_at",
+                    "",
+                )
+            )
+            payload[
+                "heat_stress_observations"
+            ] = history[-500:]
+            return payload
+
+        model = mutate_operational_state(
+            factory.session,
+            farm_id=observation.farm_id,
+            operational_date=OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date(),
+            mutation=append_observation,
         )
 
-        payload = dict(
-            model.state_payload or {}
-        )
-
-        history = list(
-            payload.get(
+        factory.session.commit()
+        factory.session.refresh(model)
+        persisted_history = list(
+            (model.state_payload or {}).get(
                 "heat_stress_observations",
                 [],
             )
         )
 
-        history.append(
-            {
-                "observed_at": observed_at.isoformat(),
-                "temperature_c": observation.temperature_c,
-                "humidity_pct": observation.humidity_pct,
-                "thi": thi,
-                "risk": risk,
-                "recorded_by": observation.recorded_by,
-            }
-        )
-
-        history.sort(
-            key=lambda item: item.get(
-                "observed_at",
-                "",
-            )
-        )
-
-        payload[
-            "heat_stress_observations"
-        ] = history[-500:]
-
-        model.state_payload = payload
-
-        factory.session.commit()
-        factory.session.refresh(model)
-
         return {
             "data_status": "PERSISTED",
-            **history[-1],
+            **persisted_history[-1],
         }
+
+    except Exception:
+        factory.session.rollback()
+        raise
 
     finally:
         factory.close()
@@ -209,18 +189,18 @@ def heat_stress_intelligence(
         le=30,
     ),
 ):
-    now = datetime.now(timezone.utc)
-
-    operational_date = now.date()
-
-    cutoff_date = (
-        operational_date
-        - timedelta(days=days)
-    )
-
     factory = RepositoryFactory.create()
 
     try:
+        operational_date = OperationalDateAuthority(
+            repository_factory=factory,
+        ).current_date()
+
+        cutoff_date = (
+            operational_date
+            - timedelta(days=days)
+        )
+
         model = (
             factory.session.query(
                 OperationalStateModel

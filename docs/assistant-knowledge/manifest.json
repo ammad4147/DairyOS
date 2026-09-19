@@ -1,19 +1,20 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.4.0",
-  "generated_at": "2026-09-17T23:00:47+00:00",
-  "dairyos_source_authority": "45900048a1819e79a26e048e26a1355c4498967b",
+  "corpus_version": "0.5.0",
+  "generated_at": "2026-09-19T00:00:00+00:00",
+  "dairyos_source_authority": "15e742364719825ce6f0c5dd800751e3bcfc8b07",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 47,
+    "total": 53,
     "by_status": {
-      "IMPLEMENTATION_REVIEW": 44,
+      "APPROVED": 50,
       "DEPRECATED": 3
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 47
+      "DAIRYOS_INSTRUCTION": 47,
+      "DAIRY_KNOWLEDGE": 6
     }
   },
   "files": [
@@ -51,7 +52,14 @@
       "domain": "milk-production",
       "sha256": "928c3d372169b084ce16eccd0e3dde23271ac772c45ae66d01dcf1a896dae954",
       "item_count": 9
+    },
+    {
+      "path": "dairyos/practical-dairy-management.json",
+      "class": "DAIRY_KNOWLEDGE",
+      "domain": "practical-dairy-management",
+      "sha256": "bd605d6e1ee9d71e3c78a563b863318532416cfb88885720e48c419c8315118a",
+      "item_count": 6
     }
   ],
-  "note": "AA-3. Five core domains authored of fifteen. No item is APPROVED yet, so nothing is servable."
+  "note": "Five DairyOS instruction domains plus curated practical dairy-management knowledge are approved and servable. The Assistant remains isolated from operational farm data."
 }

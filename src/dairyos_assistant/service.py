@@ -95,9 +95,10 @@ def approved_text(hits: Sequence[Any]) -> str:
 
     leading = hits[0].item
     parts = [str(leading.get("answer") or "").strip()]
-    explanation = str(leading.get("explanation") or "").strip()
-    if explanation:
-        parts.append(explanation)
+    for field in ("explanation", "clinical_safety", "safety"):
+        value = str(leading.get(field) or "").strip()
+        if value:
+            parts.append(value)
 
     body = "\n\n".join(part for part in parts if part)
     return body or NO_EVIDENCE_TEXT

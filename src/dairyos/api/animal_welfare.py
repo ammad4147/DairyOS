@@ -8,7 +8,13 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.data.repositories.operational_state_mutation import (
+    mutate_operational_state,
+)
+from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(prefix="/farm", tags=["animal-welfare"])
 
@@ -24,24 +30,6 @@ class AnimalWelfareObservation(BaseModel):
     farm_id: str = "DEFAULT"
 
 
-def _model(factory, farm_id: str) -> OperationalStateModel:
-    model = factory.session.query(OperationalStateModel).filter(
-        OperationalStateModel.farm_id == farm_id
-    ).first()
-    if model is None:
-        model = OperationalStateModel(
-            farm_id=farm_id,
-            operational_date=OperationalDateAuthority(
-                repository_factory=factory,
-            ).current_date(),
-            state_payload={},
-            created_at=datetime.now(timezone.utc),
-        )
-        factory.session.add(model)
-        factory.session.flush()
-    return model
-
-
 def _load(factory, farm_id: str) -> list[dict]:
     model = factory.session.query(OperationalStateModel).filter(
         OperationalStateModel.farm_id == farm_id
@@ -54,35 +42,56 @@ def _load(factory, farm_id: str) -> list[dict]:
 @router.post("/welfare/observations")
 def record_welfare_observation(
     observation: AnimalWelfareObservation,
-    container=Depends(get_container),
+    _container=Depends(get_container),
 ):
     if not observation.animal_id.strip():
         raise HTTPException(status_code=422, detail="animal_id is required")
 
-    animal = container.animal_repository.get_by_animal_id(observation.animal_id)
-    if animal is None:
-        raise HTTPException(status_code=404, detail="Animal not found")
+    factory = RepositoryFactory.create()
+    try:
+        animal = factory.animal().get_by_animal_id(observation.animal_id)
+        if animal is None:
+            raise HTTPException(status_code=404, detail="Animal not found")
 
-    observed_at = observation.observed_at or datetime.now(timezone.utc)
-    factory = container.repository_factory
-    model = _model(factory, observation.farm_id)
-    history = list((model.state_payload or {}).get("animal_welfare_observations", []))
-    item = {
-        "animal_id": observation.animal_id,
-        "welfare_domain": observation.welfare_domain.strip().upper(),
-        "score": float(observation.score),
-        "status": observation.status.strip().upper(),
-        "notes": observation.notes,
-        "observed_at": observed_at.isoformat(),
-        "recorded_by": observation.recorded_by,
-    }
-    history.append(item)
-    history.sort(key=lambda row: row.get("observed_at", ""))
-    payload = dict(model.state_payload or {})
-    payload["animal_welfare_observations"] = history[-1000:]
-    model.state_payload = payload
-    factory.session.commit()
-    return {"data_status": "PERSISTED", "animal_id": animal.animal_id, **item}
+        observed_at = observation.observed_at or datetime.now(timezone.utc)
+        item = {
+            "animal_id": observation.animal_id,
+            "welfare_domain": observation.welfare_domain.strip().upper(),
+            "score": float(observation.score),
+            "status": observation.status.strip().upper(),
+            "notes": observation.notes,
+            "observed_at": observed_at.isoformat(),
+            "recorded_by": observation.recorded_by,
+        }
+
+        def append_observation(payload):
+            history = list(
+                payload.get("animal_welfare_observations", [])
+            )
+            history.append(item)
+            history.sort(key=lambda row: row.get("observed_at", ""))
+            payload["animal_welfare_observations"] = history[-1000:]
+            return payload
+
+        mutate_operational_state(
+            factory.session,
+            farm_id=observation.farm_id,
+            operational_date=OperationalDateAuthority(
+                repository_factory=factory,
+            ).current_date(),
+            mutation=append_observation,
+        )
+        factory.session.commit()
+        return {
+            "data_status": "PERSISTED",
+            "animal_id": animal.animal_id,
+            **item,
+        }
+    except Exception:
+        factory.session.rollback()
+        raise
+    finally:
+        factory.close()
 
 
 @router.get("/welfare/overview")

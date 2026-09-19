@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
+from dairyos.api import payroll as payroll_api
 from dairyos.api.payroll import pay_payroll
 from dairyos.data.models.payroll import PayrollRecord
 
@@ -97,6 +98,30 @@ def test_payroll_payment_posts_one_finance_transaction_and_is_idempotent():
     assert row.cop_attribution_method == "PERIODIC"
     assert row.cop_coverage_start == date(2026, 8, 1)
     assert row.cop_coverage_end == date(2026, 8, 31)
+
+
+def test_payroll_payment_default_date_uses_farm_operational_date(monkeypatch):
+    class FarmDateAuthority:
+        def __init__(self, *, repository_factory):
+            self.repository_factory = repository_factory
+
+        def current_date(self):
+            return date(2030, 4, 15)
+
+    monkeypatch.setattr(
+        payroll_api,
+        "OperationalDateAuthority",
+        FarmDateAuthority,
+    )
+    payroll = _PayrollRepo(_record())
+    finance = _FinanceRepo()
+    container = _Container(_Factory(payroll, finance))
+
+    result = pay_payroll(1, container=container)
+
+    assert result["payment_date"] == "2030-04-15"
+    assert finance.rows[0].transaction_date.date() == date(2030, 4, 15)
+    assert finance.rows[0].settled_date == date(2030, 4, 15)
 
 
 def test_payroll_api_create_satisfies_financial_input_contract(client: TestClient):
