@@ -118,7 +118,7 @@ def test_windows_ci_retires_installation_choice_and_certifies_canonical_collisio
     assert "PROGRAMDATA DATABASE PREFLIGHT: PASS" in workflow
     assert "OPERATIONAL STORAGE ACL CERTIFICATION: PASS" in workflow
     assert "BACKUP TREE ACL CERTIFICATION: PASS" in workflow
-    assert "INSTALL / UNINSTALL KEEP-DATA CERTIFICATION: PASS" in workflow
+    assert "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS" in workflow
 
     assert (
         "CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS"

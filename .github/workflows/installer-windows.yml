@@ -455,8 +455,9 @@ jobs:
             throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
           }
 
-          # Create the keep-data sentinel only after the real ProgramData farm
-          # has been initialized. Uninstall must leave ProgramData untouched.
+          # Create a sentinel inside the DairyOS-owned farm state. The explicit
+          # NO path is destructive for DairyOS-owned state, so it must not be
+          # mistaken for preservation certification.
           "preserve-me" | Set-Content -Path $marker -Encoding ascii
           if (-not (Test-Path $marker -PathType Leaf)) {
             throw "Unable to create ProgramData retention marker before uninstall."
@@ -486,28 +487,15 @@ jobs:
           $task = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
           $taskExit = $LASTEXITCODE
           if ($taskExit -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
-          if (-not (Test-Path $marker -PathType Leaf)) { throw "DairyOS ProgramData marker was deleted by uninstall." }
-          if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") { throw "DairyOS ProgramData marker was altered by uninstall." }
+          if (Test-Path $marker -PathType Leaf) { throw "DairyOS ProgramData marker survived explicit NO uninstall." }
 
-          Write-Host "INSTALL / UNINSTALL KEEP-DATA CERTIFICATION: PASS"
+          Write-Host "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS"
 
-          # The installer is clean-install-only. The preceding uninstall
-          # deliberately preserves the initialized canonical ProgramData
-          # farm. A subsequent installer invocation must therefore fail
-          # closed without modifying that state or allocating a sibling
-          # DairyOS-New-* data root.
-          if (-not (Test-Path $dataRoot -PathType Container)) {
-            throw "Canonical DairyOS data root disappeared before collision certification."
-          }
-
-          if (-not (Test-Path $marker -PathType Leaf)) {
-            throw "Preserved farm marker missing before collision certification."
-          }
-
+          # The NO path removes the DairyOS-owned state. Collision safety is
+          # exercised separately against a deliberately populated root.
+          New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
+          "preserve-me" | Set-Content -Path $marker -Encoding ascii
           $markerBeforeCollision = (Get-Content $marker -Raw).Trim()
-          if ($markerBeforeCollision -ne "preserve-me") {
-            throw "Preserved farm marker changed before collision certification."
-          }
 
           $collisionInstallRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Collision-Rejected"
           Remove-Item $collisionInstallRoot -Recurse -Force -ErrorAction SilentlyContinue
