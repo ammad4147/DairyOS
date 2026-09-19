@@ -36,6 +36,9 @@ jobs:
           cache: npm
           cache-dependency-path: src/DairyOS.Web/package-lock.json
 
+      - name: Use current npm audit client
+        run: npm install --global npm@11
+
       - name: Install frontend dependencies
         working-directory: src/DairyOS.Web
         run: npm ci
