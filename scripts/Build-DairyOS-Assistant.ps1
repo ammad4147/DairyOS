@@ -43,6 +43,7 @@ $hash = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 $size = (Get-Item $package).Length
 $manifest.package_size_bytes = $size
 $manifest.sha256 = $hash
+$hash | Set-Content ($package + ".sha256") -Encoding ascii
 $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $root "DairyOS-Assistant.release.json") -Encoding utf8
 Write-Host "DAIRYOS ASSISTANT PACKAGE BUILD: PASS" -ForegroundColor Green
 Get-Item $package | Select-Object FullName,Length

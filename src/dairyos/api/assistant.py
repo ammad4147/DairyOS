@@ -24,6 +24,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from dairyos.knowledge_bridge import bridge
+from dairyos.assistant_package import install as install_package
+from dairyos.assistant_package import status as package_status
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -62,8 +64,19 @@ def assistant_status() -> dict[str, Any]:
     }
     state = bridge.status()
     payload.update(state)
+    payload["package"] = package_status()
     payload["status"] = "READY" if state.get("running") else "UNAVAILABLE"
     return payload
+
+
+@router.post("/install")
+def install_assistant() -> dict[str, Any]:
+    """Install the pre-approved Assistant package selected by Core policy."""
+    try:
+        result = install_package()
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"status": "INSTALLED", "package": result}
 
 
 @router.post("/ask")
