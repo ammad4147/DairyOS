@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bot } from 'lucide-react';
 import { apiUrl } from '../config/api';
 
@@ -14,11 +14,45 @@ type AssistantReply = {
   verbatim?: boolean;
 };
 
+type AssistantStatus = {
+  status?: string;
+  package?: { status?: string; installed?: boolean };
+};
+
 export default function AIAssistant() {
   const [question, setQuestion] = useState('');
   const [reply, setReply] = useState<AssistantReply | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [packageStatus, setPackageStatus] = useState<AssistantStatus | null>(null);
+  const [installing, setInstalling] = useState(false);
+
+  async function refreshPackageStatus() {
+    try {
+      const response = await fetch(apiUrl('/assistant/status'));
+      if (response.ok) setPackageStatus((await response.json()) as AssistantStatus);
+    } catch {
+      setPackageStatus(null);
+    }
+  }
+
+  async function installAssistant() {
+    if (installing) return;
+    setInstalling(true);
+    setError(null);
+    try {
+      const response = await fetch(apiUrl('/assistant/install'), { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.detail || 'Assistant installation was not completed.');
+      setPackageStatus(body.package ? { package: body.package } : { package: { installed: true, status: 'INSTALLED' } });
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : 'Assistant installation was not completed. DairyOS is unaffected.');
+    } finally {
+      setInstalling(false);
+    }
+  }
+
+  useEffect(() => { void refreshPackageStatus(); }, []);
 
   async function ask() {
     const asked = question.trim();
@@ -77,6 +111,18 @@ export default function AIAssistant() {
 
       <div style={{ lineHeight: 1.6 }}>
         Ask how DairyOS works: a workflow, a term, or how a figure is calculated.
+      </div>
+
+      <div style={{ marginTop: 10, padding: 10, border: '1px solid #334155', borderRadius: 6 }}>
+        <div style={{ fontWeight: 700 }}>AI Assistant</div>
+        <div style={{ marginTop: 4, color: '#cbd5e1' }}>
+          Status: {packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED' ? 'Installed' : 'Not Installed'}
+        </div>
+        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && (
+          <button type="button" onClick={installAssistant} disabled={installing} style={{ marginTop: 8 }}>
+            {installing ? 'Installing Assistant…' : 'Install Assistant'}
+          </button>
+        )}
       </div>
 
       <div style={{ lineHeight: 1.6, marginTop: 8 }}>
