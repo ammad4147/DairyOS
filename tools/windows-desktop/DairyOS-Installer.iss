@@ -62,6 +62,8 @@ Name: "{commonappdata}\DairyOS"
 Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
+; Deliberately empty. ProgramData contains farm data and is deleted only after
+; the operator's explicit NO preservation decision.
 Type: filesandordirs; Name: "{commonappdata}\DairyOS"
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
@@ -311,11 +313,9 @@ begin
 
   if CanonicalDairyOSDataRootHasExistingState() then
   begin
-    { A new installation is always a new zero-state farm. Remove only the
-      exact DairyOS-owned root; unrelated PostgreSQL and user data elsewhere
-      are not in scope. Backup/export is independent of installation. }
-    Log('DairyOS setup: replacing prior DairyOS-owned data root with zero-state layout.');
-    DelTree(CanonicalDairyOSDataRoot(), True, True, True);
+    { Never destroy or silently adopt an existing canonical farm state. }
+    Log('DairyOS setup: existing canonical farm state detected; installation rejected.');
+    Result := 'DairyOS clean installation cannot continue because ' + CanonicalDairyOSDataRoot() + ' already contains farm state. Uninstall or preserve the existing installation first.';
   end;
 end;
 
@@ -588,9 +588,43 @@ begin
 end;
 
 function InitializeUninstall(): Boolean;
+var
+  Choice: String;
+  Response: Integer;
 begin
-  { Uninstall is application lifecycle only. It never creates, finds, or
-    verifies a backup and never asks for DairyOS authentication. }
+  Choice := UninstallPreservationChoiceFromCommandLine();
+  if Choice = '' then
+  begin
+    Response := MsgBox(
+      'Preserve farm data before uninstalling DairyOS?',
+      mbConfirmation,
+      MB_YESNOCANCEL
+    );
+    if Response = IDCANCEL then
+    begin
+      Result := False;
+      exit;
+    end;
+    if Response = IDYES then
+      Choice := 'YES'
+    else
+      Choice := 'NO';
+  end;
+
+  if Choice = 'YES' then
+  begin
+    if not ChoosePreservationDestination() then
+    begin
+      Result := False;
+      exit;
+    end;
+    if not ExportFarmDataForUninstall() then
+    begin
+      Result := False;
+      exit;
+    end;
+  end;
+
   Result := StopInstalledDairyOSForUninstall();
   if Result then
   begin

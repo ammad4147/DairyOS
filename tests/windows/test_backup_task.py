@@ -107,7 +107,7 @@ def test_backup_worker_leaves_preexisting_private_cluster_running(monkeypatch):
     monkeypatch.setattr(
         backup_task,
         "run_automatic_backup",
-        lambda url: SimpleNamespace(
+        lambda url, **kwargs: SimpleNamespace(
             primary="primary",
             mirror="mirror",
             monthly_primary=None,
@@ -132,7 +132,7 @@ def test_backup_worker_stops_only_cluster_it_started(monkeypatch):
     monkeypatch.setattr(
         backup_task,
         "run_automatic_backup",
-        lambda url: SimpleNamespace(
+        lambda url, **kwargs: SimpleNamespace(
             primary="primary",
             mirror="mirror",
             monthly_primary=None,

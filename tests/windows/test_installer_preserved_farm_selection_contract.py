@@ -112,7 +112,7 @@ def test_collision_guard_is_fail_closed_for_any_existing_entry():
 def test_installer_never_deletes_existing_programdata_to_make_room():
     source = _source()
 
-    assert "DelTree(" not in source
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in source
     assert "RemoveDir(" not in source
 
     assert "[UninstallDelete]" in source

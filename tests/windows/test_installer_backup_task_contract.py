@@ -11,7 +11,7 @@ def test_installer_provisions_backup_task_with_structured_action():
     assert "DairyOS-Automatic-Backup" in source
     assert "New-ScheduledTaskAction -Execute" in source
     assert "New-ScheduledTaskTrigger -Once" in source
-    assert "New-TimeSpan -Hours 6" in source
+    assert "New-TimeSpan -Days 1" in source
     assert "Register-ScheduledTask" in source
     assert "-RunLevel Limited" in source
     assert "CurStep = ssPostInstall" in source

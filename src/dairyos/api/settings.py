@@ -472,6 +472,11 @@ def validate_farm_package(
 def import_farm_package(
     payload: DataManagementImportRequest,
 ):
+    if payload.confirm != "IMPORT VERIFIED FARM DATA":
+        raise HTTPException(
+            status_code=422,
+            detail='confirm must be the literal string "IMPORT VERIFIED FARM DATA"',
+        )
     try:
         return import_farm_data(DATABASE_URL, payload.path)
     except DataManagementError as exc:

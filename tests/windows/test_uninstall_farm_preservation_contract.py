@@ -5,10 +5,10 @@ ISS = Path(__file__).parents[2] / "tools" / "windows-desktop" / "DairyOS-Install
 SUPERVISOR = Path(__file__).parents[2] / "src" / "dairyos" / "windows" / "supervisor.py"
 
 
-def test_uninstaller_does_not_require_preservation_choice():
+def test_uninstaller_requires_preservation_choice_for_interactive_uninstall():
     source = ISS.read_text(encoding="utf-8-sig")
-    assert "Uninstall is application lifecycle only" in source
-    assert "MB_YESNOCANCEL" not in source[source.index("function InitializeUninstall(): Boolean;"):]
+    initialize = source[source.index("function InitializeUninstall(): Boolean;"):]
+    assert "MB_YESNOCANCEL" in initialize
 
 
 def test_uninstaller_preservation_uses_verified_data_management_export():
@@ -21,18 +21,18 @@ def test_uninstaller_preservation_uses_verified_data_management_export():
     assert '"status": "VERIFIED"' in supervisor
 
 
-def test_uninstaller_does_not_block_on_preservation():
+def test_uninstaller_blocks_if_preservation_fails():
     source = ISS.read_text(encoding="utf-8-sig")
     initialize = source[source.index("function InitializeUninstall(): Boolean;"):]
-    assert "ExportFarmDataForUninstall" not in initialize
-    assert "Result := StopInstalledDairyOSForUninstall();" in initialize
+    assert "ExportFarmDataForUninstall()" in initialize
+    assert "Result := False;" in initialize
 
 
 def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
-    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in prepare
+    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" not in prepare
 
 
 def test_automation_uninstall_has_no_preservation_wizard_state():
