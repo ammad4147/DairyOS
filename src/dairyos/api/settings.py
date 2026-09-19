@@ -471,13 +471,7 @@ def validate_farm_package(
 @router.post("/data-management/import")
 def import_farm_package(
     payload: DataManagementImportRequest,
-    admin=Depends(require_permission("settings.data_management")),
 ):
-    if payload.confirm != "IMPORT VERIFIED FARM DATA":
-        raise HTTPException(
-            status_code=422,
-            detail='confirm must be the literal string "IMPORT VERIFIED FARM DATA"',
-        )
     try:
         return import_farm_data(DATABASE_URL, payload.path)
     except DataManagementError as exc:

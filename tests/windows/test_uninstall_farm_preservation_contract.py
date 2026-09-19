@@ -5,12 +5,10 @@ ISS = Path(__file__).parents[2] / "tools" / "windows-desktop" / "DairyOS-Install
 SUPERVISOR = Path(__file__).parents[2] / "src" / "dairyos" / "windows" / "supervisor.py"
 
 
-def test_uninstaller_requires_explicit_preservation_choice():
+def test_uninstaller_does_not_require_preservation_choice():
     source = ISS.read_text(encoding="utf-8-sig")
-    assert "Do you want to preserve the complete DairyOS farm data before uninstalling?" in source
-    assert "MB_YESNOCANCEL" in source
-    assert "ChoosePreservationDestination" in source
-    assert "ExportFarmDataForUninstall" in source
+    assert "Uninstall is application lifecycle only" in source
+    assert "MB_YESNOCANCEL" not in source[source.index("function InitializeUninstall(): Boolean;"):]
 
 
 def test_uninstaller_preservation_uses_verified_data_management_export():
@@ -23,12 +21,10 @@ def test_uninstaller_preservation_uses_verified_data_management_export():
     assert '"status": "VERIFIED"' in supervisor
 
 
-def test_uninstaller_blocks_when_preservation_fails_or_is_cancelled():
+def test_uninstaller_does_not_block_on_preservation():
     source = ISS.read_text(encoding="utf-8-sig")
     initialize = source[source.index("function InitializeUninstall(): Boolean;"):]
-    assert "if Choice = IDCANCEL then" in initialize
-    assert "if not ChoosePreservationDestination() then" in initialize
-    assert "if not ExportFarmDataForUninstall() then" in initialize
+    assert "ExportFarmDataForUninstall" not in initialize
     assert "Result := StopInstalledDairyOSForUninstall();" in initialize
 
 
@@ -36,14 +32,14 @@ def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
-    assert "will not overwrite, import, restore, select, or adopt existing" in prepare
+    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in prepare
 
 
-def test_automation_uninstall_can_declare_no_preservation_without_wizard_state():
+def test_automation_uninstall_has_no_preservation_wizard_state():
     source = ISS.read_text(encoding="utf-8-sig")
     assert "function UninstallPreservationChoiceFromCommandLine(): String;" in source
     assert "'/PRESERVEFARMDATA=NO'" in source
-    assert "if CommandChoice = 'NO' then" in source
+    assert "function InitializeUninstall(): Boolean;" in source
     assert "WizardSilent" not in source
 
 

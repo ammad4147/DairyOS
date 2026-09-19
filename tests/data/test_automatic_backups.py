@@ -58,7 +58,7 @@ def test_automatic_backup_creates_primary_mirror_and_monthly_archive(monkeypatch
         now=datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc),
     )
 
-    assert result.primary.name == "DairyOS-Auto-20260902T120000Z.dump"
+    assert result.primary.name == "DairyOS-Backup-2026-09-02.dump"
     assert result.primary.is_file()
     assert result.mirror.is_file()
     assert result.monthly_primary is not None

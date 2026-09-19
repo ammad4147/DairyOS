@@ -139,7 +139,7 @@ def test_installer_no_longer_stages_installation_choice():
         assert token not in source
 
 
-def test_clean_install_fails_closed_when_canonical_root_has_state():
+def test_clean_install_replaces_canonical_root_with_zero_state_layout():
     source = _source()
 
     assert (
@@ -160,12 +160,9 @@ def test_clean_install_fails_closed_when_canonical_root_has_state():
     prepare = source[prepare_start:prepare_end]
 
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
-    assert "DairyOS clean installation cannot continue" in prepare
-    assert (
-        "Setup will not overwrite, import, restore, select, or adopt existing "
-        in prepare
-    )
-    assert "supported DairyOS Data Management or uninstall workflow" in prepare
+    assert "zero-state layout" in prepare
+    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in prepare
+    assert "Backup/export is independent of installation" in prepare
 
 
 def test_canonical_root_guard_checks_entries_not_directory_existence_alone():

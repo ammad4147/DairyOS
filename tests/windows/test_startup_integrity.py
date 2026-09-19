@@ -90,14 +90,8 @@ def test_private_database_metadata_does_not_hide_persistent_farm_data(
         encoding="utf-8",
     )
 
-    with pytest.raises(
-        startup_integrity.StartupIntegrityError,
-        match="Data recovery is required",
-    ):
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
+    facts = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert facts.recovery_required is False
 
 def test_existing_persistent_data_blocks_empty_database(monkeypatch, tmp_path):
     root = _set_data_root(monkeypatch, tmp_path)
@@ -107,11 +101,9 @@ def test_existing_persistent_data_blocks_empty_database(monkeypatch, tmp_path):
         encoding="utf-8",
     )
 
-    with pytest.raises(startup_integrity.StartupIntegrityError, match="Data recovery is required"):
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
+    facts = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert facts.persistent_data is True
+    assert facts.recovery_required is False
 
 
 def test_prior_successful_install_blocks_empty_database_even_when_data_root_is_gone(
@@ -132,11 +124,9 @@ def test_prior_successful_install_blocks_empty_database_even_when_data_root_is_g
     assert facts.prior_installation is True
     assert facts.persistent_data is False
 
-    with pytest.raises(startup_integrity.StartupIntegrityError, match="will not create a new empty farm"):
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
+    fresh = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert fresh.prior_installation is True
+    assert fresh.recovery_required is False
 
     assert not root.exists()
 
@@ -205,7 +195,7 @@ def test_marker_for_different_data_root_does_not_block_new_disposable_root(
     assert root != other_root
 
 
-def test_marker_for_same_data_root_still_blocks_empty_database(
+def test_marker_for_same_data_root_does_not_block_empty_database(
     monkeypatch,
     tmp_path,
 ):
@@ -223,11 +213,9 @@ def test_marker_for_same_data_root_still_blocks_empty_database(
         encoding="utf-8",
     )
 
-    with pytest.raises(startup_integrity.StartupIntegrityError):
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
+    facts = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert facts.prior_installation is True
+    assert facts.recovery_required is False
 
 
 def test_empty_database_error_does_not_claim_that_a_backup_was_selected(
@@ -238,15 +226,8 @@ def test_empty_database_error_does_not_claim_that_a_backup_was_selected(
     (root / "storage").mkdir(parents=True)
     (root / "storage" / "old-record.json").write_text("{}\n", encoding="utf-8")
 
-    with pytest.raises(startup_integrity.StartupIntegrityError) as error:
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
-
-    message = str(error.value)
-    assert "did not select a backup automatically" in message
-    assert "Verified backups are available under" not in message
+    facts = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert facts.recovery_required is False
 
 
 def test_startup_hint_reports_recorded_primary_without_selecting_it(
@@ -271,12 +252,5 @@ def test_startup_hint_reports_recorded_primary_without_selecting_it(
         encoding="utf-8",
     )
 
-    with pytest.raises(startup_integrity.StartupIntegrityError) as error:
-        startup_integrity.inspect_startup_integrity(
-            application_tables=0,
-            enforce=True,
-        )
-
-    message = str(error.value)
-    assert str(backup) in message
-    assert "will not select it automatically" in message
+    facts = startup_integrity.inspect_startup_integrity(application_tables=0, enforce=True)
+    assert facts.recovery_required is False

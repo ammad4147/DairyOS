@@ -1,7 +1,7 @@
 """Automatic, redundant PostgreSQL protection for DairyOS farm data.
 
-The normal backup cadence is every six hours (scheduled by the Windows backup
-worker).  Each run creates and verifies a primary custom-format PostgreSQL dump,
+The Windows task runs once per farm operational day at 00:01 and is configured
+to catch up after a missed run. Each run creates and verifies a primary custom-format PostgreSQL dump,
 then creates an independently checksum-verified mirror copy.  The first
 successful run in each calendar month also creates a separately named monthly
 archive that is outside the rolling backup set.
@@ -15,7 +15,7 @@ pretending that it protects against disk loss.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import ctypes
 import json
 import os
@@ -248,11 +248,17 @@ def run_automatic_backup(
     data_root: Path | None = None,
     mirror_destination: BackupDestination | None = None,
     now: datetime | None = None,
+    operational_date: date | str | None = None,
 ) -> AutomaticBackupResult:
-    """Create, verify, mirror, archive, and record one scheduled backup run."""
+    """Create one verified backup for the current farm operational date.
+
+    A successful date is idempotent; failed attempts only write FAILED health
+    and remain retryable.
+    """
 
     root = (data_root or paths.data_root(create=True)).resolve()
     timestamp = _utc_now(now)
+    farm_day = (operational_date.isoformat() if isinstance(operational_date, date) else str(operational_date or timestamp.date().isoformat()))
     stamp = timestamp.strftime("%Y%m%dT%H%M%SZ")
     month = timestamp.strftime("%Y-%m")
     backup_root = root / "backups"
@@ -269,9 +275,21 @@ def run_automatic_backup(
     mirror_monthly_root.mkdir(parents=True, exist_ok=True)
 
     previous_health = read_backup_health(root)
+    if previous_health.get("status") in {"HEALTHY", "DEGRADED"} and previous_health.get("operational_date") == farm_day:
+        primary = Path(str(previous_health["primary"]))
+        mirror = Path(str(previous_health["mirror"]))
+        return AutomaticBackupResult(
+            primary=primary,
+            mirror=mirror,
+            monthly_primary=Path(str(previous_health["monthly_primary"])) if previous_health.get("monthly_primary") else None,
+            monthly_mirror=Path(str(previous_health["monthly_mirror"])) if previous_health.get("monthly_mirror") else None,
+            sha256=str(previous_health.get("sha256", "")),
+            physically_redundant=bool(previous_health.get("physically_redundant", False)),
+            health_path=health,
+        )
 
     try:
-        primary = primary_root / f"DairyOS-Auto-{stamp}.dump"
+        primary = primary_root / f"DairyOS-Backup-{farm_day}.dump"
         create_backup(database_url, primary)
         metadata = verify_backup_archive(primary)
         sha256 = str(metadata["sha256"])
@@ -342,6 +360,7 @@ def run_automatic_backup(
                 "status": "HEALTHY" if destination.physically_redundant else "DEGRADED",
                 "last_attempt": success,
                 "last_successful_backup": success,
+                "operational_date": farm_day,
                 "primary": str(primary),
                 "mirror": str(mirror),
                 "monthly_primary": str(monthly_primary) if monthly_primary else None,
@@ -374,6 +393,7 @@ def run_automatic_backup(
                 "status": "FAILED",
                 "last_attempt": failed_at,
                 "last_successful_backup": previous_health.get("last_successful_backup"),
+                "operational_date": previous_health.get("operational_date"),
                 "physically_redundant": previous_health.get("physically_redundant", False),
                 "error": f"{type(exc).__name__}: {exc}",
             },

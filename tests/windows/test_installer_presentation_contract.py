@@ -32,22 +32,12 @@ def test_installer_does_not_present_farm_movement_choices():
         assert token not in source
 
 
-def test_existing_canonical_state_produces_clear_fail_closed_message():
+def test_existing_canonical_state_is_replaced_for_zero_state_install():
     source = _source()
 
-    assert "DairyOS clean installation cannot continue" in source
-    assert (
-        "Setup will not overwrite, import, restore, select, or adopt existing "
-        in source
-    )
-    assert (
-        "farm data. Preserve or remove the existing DairyOS data through the "
-        in source
-    )
-    assert (
-        "supported DairyOS Data Management or uninstall workflow"
-        in source
-    )
+    assert "zero-state layout" in source
+    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in source
+    assert "Backup/export is independent of installation" in source
 
 
 def test_installer_does_not_require_clean_install_confirmation_page():

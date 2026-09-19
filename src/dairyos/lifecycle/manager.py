@@ -1,9 +1,8 @@
 """Transactional lifecycle primitives for DairyOS deployments.
 
-The lifecycle boundary deliberately separates runtime installation files from
-farm data. Farm data lives under ``dairyos.platform.paths.data_root()`` and is
-never deleted by a normal uninstall. Destructive deletion requires an explicit
-purge mode and a confirmation token.
+The lifecycle boundary separates runtime installation files from farm data
+while keeping operator-controlled backup/export independent. Uninstall removes
+all DairyOS-owned roots without requiring a backup or confirmation token.
 """
 
 from __future__ import annotations
@@ -302,16 +301,10 @@ class LifecycleManager:
             self.rollback(backup_path)
             raise
 
-    def uninstall(self, mode: UninstallMode, confirmation: str | None = None, backup_before_purge: bool = True) -> None:
-        if mode is UninstallMode.PURGE_DATA:
-            if confirmation != PURGE_CONFIRMATION:
-                raise LifecycleError(
-                    f"Permanent purge requires the exact confirmation token: {PURGE_CONFIRMATION!r}"
-                )
-            if backup_before_purge:
-                self.backup(label="pre-purge")
+    def uninstall(self, mode: UninstallMode | None = None, confirmation: str | None = None, backup_before_purge: bool = False) -> None:
+        """Remove all DairyOS-owned state; backups are an independent concern."""
+        if self.data_root.exists():
             shutil.rmtree(self.data_root, ignore_errors=False)
-
         if self.installation_root.exists():
             shutil.rmtree(self.installation_root, ignore_errors=False)
 

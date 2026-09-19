@@ -62,8 +62,7 @@ Name: "{commonappdata}\DairyOS"
 Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
-; Deliberately empty. ProgramData contains farm data, the private PostgreSQL
-; cluster, backups, logs and protected runtime state and must survive uninstall.
+Type: filesandordirs; Name: "{commonappdata}\DairyOS"
 
 
 [Code]
@@ -236,13 +235,14 @@ begin
   PowerShellCommand :=
     '$ErrorActionPreference = ''Stop''; ' +
     '$action = New-ScheduledTaskAction -Execute ''' + EscapedBackupExe + '''; ' +
-    '$trigger = New-ScheduledTaskTrigger -Once -At ([datetime]::Today) ' +
-      '-RepetitionInterval (New-TimeSpan -Hours 6); ' +
+    '$trigger = New-ScheduledTaskTrigger -Once -At ([datetime]::Today.AddMinutes(1)) ' +
+      '-RepetitionInterval (New-TimeSpan -Days 1); ' +
+    '$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable; ' +
     '$principal = New-ScheduledTaskPrincipal ' +
       '-UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) ' +
       '-LogonType Interactive -RunLevel Limited; ' +
     'Register-ScheduledTask -TaskName ''DairyOS-Automatic-Backup'' ' +
-      '-Action $action -Trigger $trigger -Principal $principal -Force | Out-Null';
+      '-Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null';
 
   TaskCommand :=
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
@@ -310,15 +310,11 @@ begin
 
   if CanonicalDairyOSDataRootHasExistingState() then
   begin
-    Result :=
-      'DairyOS clean installation cannot continue because the canonical ' +
-      'DairyOS data location already contains existing state:' + #13#10#13#10 +
-      CanonicalDairyOSDataRoot() + #13#10#13#10 +
-      'Setup will not overwrite, import, restore, select, or adopt existing ' +
-      'farm data. Preserve or remove the existing DairyOS data through the ' +
-      'supported DairyOS Data Management or uninstall workflow, then run ' +
-      'Setup again.';
-    exit;
+    { A new installation is always a new zero-state farm. Remove only the
+      exact DairyOS-owned root; unrelated PostgreSQL and user data elsewhere
+      are not in scope. Backup/export is independent of installation. }
+    Log('DairyOS setup: replacing prior DairyOS-owned data root with zero-state layout.');
+    DelTree(CanonicalDairyOSDataRoot(), True, True, True);
   end;
 end;
 
@@ -591,51 +587,13 @@ begin
 end;
 
 function InitializeUninstall(): Boolean;
-var
-  Choice: Integer;
-  CommandChoice: String;
 begin
-  Result := False;
-  PreserveFarmDataOnUninstall := False;
-  PreservedFarmDataPath := '';
-  CommandChoice := UninstallPreservationChoiceFromCommandLine();
-
-  { An explicit automation decision may bypass the interactive prompt. Normal
-    operator uninstall remains Yes/No/Cancel. }
-  if CommandChoice = 'NO' then
-  begin
-    Log('DairyOS uninstall: explicit command-line decision is not to create a preservation package.');
-    Result := StopInstalledDairyOSForUninstall();
-    exit;
-  end;
-
-  Choice := MsgBox(
-    'Do you want to preserve the complete DairyOS farm data before uninstalling?' + #13#10#13#10 +
-    'Choose Yes to select a destination and create a verified portable farm-data package.' + #13#10 +
-    'Choose No to uninstall without creating a preservation package.' + #13#10 +
-    'Choose Cancel to leave DairyOS installed.',
-    mbConfirmation, MB_YESNOCANCEL
-  );
-  if Choice = IDCANCEL then
-    exit;
-
-  if Choice = IDYES then
-  begin
-    PreserveFarmDataOnUninstall := True;
-    if not ChoosePreservationDestination() then
-      exit;
-    if not ExportFarmDataForUninstall() then
-      exit;
-  end
-  else
-  begin
-    Choice := MsgBox(
-      'No preservation package will be created. Continue uninstalling DairyOS?',
-      mbConfirmation, MB_YESNO
-    );
-    if Choice <> IDYES then
-      exit;
-  end;
-
+  { Uninstall is application lifecycle only. It never creates, finds, or
+    verifies a backup and never asks for DairyOS authentication. }
   Result := StopInstalledDairyOSForUninstall();
+  if Result then
+  begin
+    DeleteFile(ExpandConstant('{localappdata}\DairyOS-installation-state.json'));
+    RegDeleteValue(HKLM, 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers', ExpandConstant('{app}\DairyOS.exe'));
+  end;
 end;

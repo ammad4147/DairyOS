@@ -24,10 +24,6 @@ from dairyos.data.database.restore_verification import (
 )
 from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.platform import paths
-from dairyos.windows.startup_integrity import (
-    StartupIntegrityError,
-    inspect_startup_integrity,
-)
 from dairyos.windows.private_postgres import isolated_postgres_environment
 
 
@@ -247,11 +243,6 @@ def migrate_if_needed() -> MigrationResult:
                 application_tables = _public_application_table_count(connection)
 
                 if application_tables == 0:
-                    try:
-                        inspect_startup_integrity(application_tables=0)
-                    except StartupIntegrityError as exc:
-                        raise MigrationGateError(str(exc)) from exc
-
                     if current == target:
                         raise MigrationGateError(
                             "DairyOS database reports the packaged migration head but contains no "

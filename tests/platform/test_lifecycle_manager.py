@@ -159,7 +159,7 @@ def test_upgrade_restores_data_when_post_upgrade_validation_fails(tmp_path):
     assert backups
 
 
-def test_uninstall_keep_data_removes_installation_but_retains_farm_data(tmp_path):
+def test_uninstall_removes_installation_and_farm_data(tmp_path):
     manager = _manager(tmp_path)
     manager.install()
     keep = manager.data_root / "storage" / "keep.json"
@@ -168,18 +168,16 @@ def test_uninstall_keep_data_removes_installation_but_retains_farm_data(tmp_path
     manager.uninstall(UninstallMode.KEEP_DATA)
 
     assert not manager.installation_root.exists()
-    assert manager.data_root.exists()
-    assert keep.is_file()
+    assert not manager.data_root.exists()
+    assert not keep.exists()
 
 
-def test_uninstall_purge_requires_exact_confirmation(tmp_path):
+def test_uninstall_does_not_require_confirmation_or_backup(tmp_path):
     manager = _manager(tmp_path)
     manager.install()
 
-    with pytest.raises(Exception, match="Permanent purge requires"):
-        manager.uninstall(UninstallMode.PURGE_DATA, confirmation="NO")
-
-    assert manager.data_root.exists()
+    manager.uninstall(UninstallMode.PURGE_DATA, confirmation="NO")
+    assert not manager.data_root.exists()
 
 
 def test_uninstall_purge_deletes_data_after_automatic_backup(tmp_path):

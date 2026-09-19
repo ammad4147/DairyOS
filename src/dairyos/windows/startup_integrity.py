@@ -1,9 +1,8 @@
-"""Startup integrity checks for the packaged DairyOS Windows runtime.
+"""Non-blocking startup facts for the packaged DairyOS Windows runtime.
 
-The packaged appliance must distinguish a genuinely new farm from an
-established installation whose database has unexpectedly disappeared. The
-latter condition is safety-critical: DairyOS must block startup rather than
-silently creating an empty farm.
+Installation state is informational only. A fresh schema is allowed to become
+a valid zero-state farm; only current database/schema/migration failures are
+technical startup errors.
 """
 
 from __future__ import annotations
@@ -37,9 +36,7 @@ class StartupIntegrityFacts:
 
     @property
     def recovery_required(self) -> bool:
-        return self.application_tables == 0 and (
-            self.prior_installation or self.persistent_data
-        )
+        return False
 
 
 def _is_packaged_windows() -> bool:
@@ -207,15 +204,5 @@ def inspect_startup_integrity(
 
     if enforce is None:
         enforce = _is_packaged_windows()
-
-    if enforce and facts.recovery_required:
-        raise StartupIntegrityError(
-            "DairyOS startup is blocked: an established installation was detected "
-            "but the application database is empty or unavailable. "
-            "DairyOS will not create a new empty farm or hide the existing farm. "
-            "Data recovery is required before normal startup. "
-            "Use DairyOS Settings -> Data Management to import a verified farm-data package."
-            + _recovery_hint(root)
-        )
 
     return facts

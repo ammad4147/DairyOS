@@ -116,7 +116,6 @@ export default function SettingsTab({
   const [dataBusy, setDataBusy] = useState(false);
   const [dataPackagePath, setDataPackagePath] = useState('');
   const [dataValidation, setDataValidation] = useState<Record<string, unknown> | null>(null);
-  const [importConfirm, setImportConfirm] = useState('');
   const [backupHealth, setBackupHealth] = useState<BackupHealth>({
     status: 'NEVER_RUN', last_successful_backup: null, physically_redundant: false,
   });
@@ -408,7 +407,7 @@ export default function SettingsTab({
   };
 
   const chooseImportPackage = async () => {
-    setError(''); setMessage(''); setDataValidation(null); setImportConfirm('');
+    setError(''); setMessage(''); setDataValidation(null);
     const api = nativeApi();
     if (!api?.choose_farm_import_package) {
       setError('Farm data package selection is available in the installed DairyOS desktop application.');
@@ -438,12 +437,12 @@ export default function SettingsTab({
     try {
       const response = await fetch(`${API_BASE}/settings/data-management/import`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: dataPackagePath, confirm: importConfirm }),
+        body: JSON.stringify({ path: dataPackagePath }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Farm data import failed.');
       setMessage(`Farm data imported and verified from ${data.source || dataPackagePath}. Restart DairyOS before further operation.`);
-      setDataValidation(null); setImportConfirm('');
+      setDataValidation(null);
     } catch (operationError) {
       setError(operationError instanceof Error ? operationError.message : 'Farm data import failed.');
     } finally { setDataBusy(false); }
@@ -610,9 +609,7 @@ export default function SettingsTab({
               <div style={{ color: '#86efac', fontWeight: 900, fontSize: 11 }}>VALIDATION PASS</div>
               <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>Farm ID: {String(dataValidation.farm_instance_id || '—')}</div>
               <div style={{ color: '#94a3b8', fontSize: 9, marginTop: 3 }}>Exported: {String(dataValidation.exported_at || '—')} · DairyOS: {String(dataValidation.dairyos_version || '—')} · Files: {String(dataValidation.total_files || '—')}</div>
-              <label style={{ ...label, marginTop: 10 }}>Type IMPORT VERIFIED FARM DATA to authorize replacement of the current farm state.</label>
-              <input value={importConfirm} onChange={event => setImportConfirm(event.target.value)} style={field} />
-              <button type="button" disabled={dataBusy || importConfirm !== 'IMPORT VERIFIED FARM DATA'} onClick={() => void importVerifiedPackage()} style={{ ...button, background: '#b91c1c', opacity: dataBusy || importConfirm !== 'IMPORT VERIFIED FARM DATA' ? 0.5 : 1 }}>Import Verified Farm Data</button>
+              <button type="button" disabled={dataBusy} onClick={() => void importVerifiedPackage()} style={{ ...button, background: '#b91c1c', opacity: dataBusy ? 0.5 : 1 }}>Import Verified Farm Data</button>
             </div>}
           </section>
         </div>

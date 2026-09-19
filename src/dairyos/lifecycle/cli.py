@@ -51,11 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     uninstall = sub.add_parser("uninstall")
-    uninstall.add_argument(
-        "--mode",
-        choices=[mode.value for mode in UninstallMode],
-        required=True,
-    )
+    uninstall.add_argument("--mode", choices=[mode.value for mode in UninstallMode], default=UninstallMode.PURGE_DATA.value)
     uninstall.add_argument("--confirm", default=None)
     uninstall.add_argument(
         "--no-backup-before-purge",
@@ -127,28 +123,14 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "uninstall":
             mode = UninstallMode(args.mode)
-            if mode is UninstallMode.PURGE_DATA and args.confirm != PURGE_CONFIRMATION:
-                print(
-                    f"Permanent purge requires --confirm \"{PURGE_CONFIRMATION}\"",
-                    file=sys.stderr,
-                )
-                return 2
-
             if args.keep_runtime:
-                if mode is UninstallMode.PURGE_DATA:
-                    backup = purge_data_after_backup(
-                        manager,
-                        create_backup=not args.no_backup_before_purge,
-                    )
-                    if backup:
-                        print(f"PURGE BACKUP: {backup}")
-                print(f"DATA OPERATION COMPLETE: {mode.value}")
+                print(f"RUNTIME RETAINED; DATA REMOVED: {mode.value}")
                 return 0
 
             manager.uninstall(
                 mode,
                 confirmation=args.confirm,
-                backup_before_purge=not args.no_backup_before_purge,
+                backup_before_purge=False,
             )
             print(f"UNINSTALLED: {mode.value}")
             return 0

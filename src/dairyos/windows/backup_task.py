@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from sqlalchemy.engine import URL
 
 from dairyos.data.database.automatic_backups import run_automatic_backup
+from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.windows.appliance_database import prepare_database
 from dairyos.windows.private_postgres import (
     persisted_cluster_is_running,
@@ -103,7 +104,7 @@ def scheduled_backup_task_exists() -> bool:
 
 
 def ensure_scheduled_backup_task(*, run_immediately: bool = False) -> None:
-    """Verify the installer-provisioned six-hour backup schedule.
+    """Verify the installer-provisioned daily catch-up backup schedule.
 
     Task creation is an installation-time privileged operation. Normal DairyOS
     startup is intentionally non-elevated and must never attempt task creation.
@@ -173,7 +174,10 @@ def run_backup_once() -> int:
         private = database.private_postgres
         database_url = database.backup_database_url or _ordinary_database_url(database)
 
-        result = run_automatic_backup(database_url)
+        result = run_automatic_backup(
+            database_url,
+            operational_date=OperationalDateAuthority().current_date(),
+        )
         LOG.info(
             "DairyOS automatic backup completed: primary=%s mirror=%s monthly=%s redundant=%s",
             result.primary,
