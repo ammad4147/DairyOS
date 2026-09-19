@@ -139,7 +139,7 @@ def test_installer_no_longer_stages_installation_choice():
         assert token not in source
 
 
-def test_clean_install_replaces_canonical_root_with_zero_state_layout():
+def test_clean_install_rejects_existing_canonical_root():
     source = _source()
 
     assert (
@@ -160,9 +160,9 @@ def test_clean_install_replaces_canonical_root_with_zero_state_layout():
     prepare = source[prepare_start:prepare_end]
 
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
-    assert "zero-state layout" in prepare
-    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in prepare
-    assert "Backup/export is independent of installation" in prepare
+    assert "clean installation cannot continue" in prepare
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in prepare
+    assert "CanonicalDairyOSDataRoot()" in prepare
 
 
 def test_canonical_root_guard_checks_entries_not_directory_existence_alone():

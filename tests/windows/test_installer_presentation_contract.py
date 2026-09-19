@@ -32,12 +32,12 @@ def test_installer_does_not_present_farm_movement_choices():
         assert token not in source
 
 
-def test_existing_canonical_state_is_replaced_for_zero_state_install():
+def test_existing_canonical_state_is_rejected_for_zero_state_install():
     source = _source()
 
-    assert "zero-state layout" in source
-    assert "DelTree(CanonicalDairyOSDataRoot(), True, True, True)" in source
-    assert "Backup/export is independent of installation" in source
+    assert "clean installation cannot continue" in source
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in source
+    assert "CanonicalDairyOSDataRoot()" in source
 
 
 def test_installer_does_not_require_clean_install_confirmation_page():
