@@ -1,20 +1,21 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.5.0",
-  "generated_at": "2026-09-19T00:00:00+00:00",
+  "corpus_version": "0.6.0-draft",
+  "generated_at": "2026-09-20T00:00:00+00:00",
   "dairyos_source_authority": "15e742364719825ce6f0c5dd800751e3bcfc8b07",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 53,
+    "total": 235,
     "by_status": {
       "APPROVED": 50,
-      "DEPRECATED": 3
+      "DEPRECATED": 3,
+      "DRAFT": 91
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 47,
-      "DAIRY_KNOWLEDGE": 6
+      "DAIRYOS_INSTRUCTION": 201,
+      "DAIRY_KNOWLEDGE": 34
     }
   },
   "files": [
@@ -59,7 +60,14 @@
       "domain": "practical-dairy-management",
       "sha256": "2094955ef0629cf718d5e2be43130715c32e650c15cb9fef08ad30885bf9552c",
       "item_count": 6
+    },
+    {
+      "path": "dairyos/how-to-consolidated-draft.json",
+      "class": "MIXED_DRAFT",
+      "domain": "cross-domain-how-to",
+      "sha256": "61c23544ab542f82e6c41c2547ca1eab56fe43d028e313dc9be7efc60947c153",
+      "item_count": 91
     }
   ],
-  "note": "Five DairyOS instruction domains plus curated practical dairy-management knowledge are approved and servable. The Assistant remains isolated from operational farm data."
+  "note": "Existing approved items plus consolidated how-to coverage; new items remain DRAFT until review."
 }

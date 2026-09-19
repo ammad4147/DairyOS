@@ -1,0 +1,4541 @@
+{
+  "schema_version": 2,
+  "status": "DRAFT",
+  "purpose": "Consolidated how-to coverage awaiting implementation and domain review.",
+  "items": [
+    {
+      "id": "access.permissions",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "access",
+      "capability": "permissions",
+      "title": "permissions",
+      "status": "DRAFT",
+      "question": "How should access permissions be assessed?",
+      "alternatives": [
+        "How should access permissions be assessed?",
+        "permissions"
+      ],
+      "answer": "Confirm the user's role and the specific operation's permission. A visible control, hidden tab, or API response must not be treated as permission to bypass the governed workflow.",
+      "scenario": {
+        "given": "An operator requests access to a protected function.",
+        "steps": [
+          "Confirm identity and role.",
+          "Check the function's governed permission.",
+          "Use the supported UI path.",
+          "Escalate an unexpected denial with evidence."
+        ],
+        "expected": "Access is granted or denied consistently without bypassing security.",
+        "next": "Ask an authorised supervisor when the role needs review."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "security",
+          "navigation",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.login-and-visibility",
+        "settings.password-lock"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/access-health-recovery-items.json"
+    },
+    {
+      "id": "recovery.safe-drill",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "recovery",
+      "capability": "recovery",
+      "title": "recovery",
+      "status": "DRAFT",
+      "question": "How can recovery be tested without disturbing the farm?",
+      "alternatives": [
+        "How can recovery be tested without disturbing the farm?",
+        "recovery"
+      ],
+      "answer": "Use an isolated disposable target and identified backup; never restore, replay, or reset against the active database or data root.",
+      "scenario": {
+        "given": "A recovery drill is approved.",
+        "steps": [
+          "Identify the backup and target.",
+          "Confirm the target is isolated and disposable.",
+          "Restore and verify readiness.",
+          "Reconcile representative records and calculations.",
+          "Retain the evidence and clean only the disposable target."
+        ],
+        "expected": "Recoverability is demonstrated without changing live operations.",
+        "next": "Escalate failed recovery before relying on the backup."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "recovery",
+          "backup",
+          "data preservation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.verified-recovery",
+        "installation.automatic-backup"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/access-health-recovery-items.json"
+    },
+    {
+      "id": "runtime.failure",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "runtime",
+      "capability": "runtime-failure",
+      "title": "runtime-failure",
+      "status": "DRAFT",
+      "question": "How should a runtime failure be escalated?",
+      "alternatives": [
+        "How should a runtime failure be escalated?",
+        "runtime-failure"
+      ],
+      "answer": "Capture the exact component, timestamp, build identity, and visible symptom; protect the live dataset and provide evidence to technical support.",
+      "scenario": {
+        "given": "The application or backend stops responding.",
+        "steps": [
+          "Record the user-visible symptom.",
+          "Check read-only health and readiness.",
+          "Avoid reset or manual database edits.",
+          "Collect the supported support package."
+        ],
+        "expected": "The incident is reproducible and no unsafe repair is attempted.",
+        "next": "Resume operations only after readiness is restored and verified."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "runtime",
+          "support",
+          "data safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "startup.failure",
+        "support.health-failure",
+        "support.package"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/access-health-recovery-items.json"
+    },
+    {
+      "id": "support.package",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "support",
+      "capability": "support-package",
+      "title": "support-package",
+      "status": "DRAFT",
+      "question": "What belongs in a DairyOS support package?",
+      "alternatives": [
+        "What belongs in a DairyOS support package?",
+        "support-package"
+      ],
+      "answer": "Include release identity, timestamps, health results, relevant request errors, selected periods, and safe audit identifiers while excluding secrets and unnecessary farm data.",
+      "scenario": {
+        "given": "A technical issue cannot be resolved locally.",
+        "steps": [
+          "Capture the exact failure and time.",
+          "Run read-only health checks.",
+          "Include affected workflow and record identifiers.",
+          "Remove credentials and unrelated personal data.",
+          "Send through the approved support channel."
+        ],
+        "expected": "Support receives actionable evidence without exposing secrets or changing the farm dataset.",
+        "next": "Track the remediation and verify the affected workflow after release."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "support",
+          "security",
+          "incident evidence"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "support.http-errors",
+        "support.health-failure",
+        "runtime.failure"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/access-health-recovery-items.json"
+    },
+    {
+      "id": "analytics.catalog",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "analytics-catalog",
+      "title": "analytics-catalog",
+      "status": "DRAFT",
+      "question": "How should an analytics view be selected?",
+      "alternatives": [
+        "How should an analytics view be selected?",
+        "analytics-catalog"
+      ],
+      "answer": "Choose the view whose definition matches the management question, then confirm period, source, denominator, and completeness before interpreting it.",
+      "scenario": {
+        "given": "A manager wants a production or cost comparison.",
+        "steps": [
+          "Identify the decision and required metric.",
+          "Select the matching analytics view.",
+          "Confirm dates and source authority.",
+          "Inspect warnings and compare with underlying logs."
+        ],
+        "expected": "The chosen metric is not confused with a similarly named but differently defined measure.",
+        "next": "Record the interpretation with its period and caveats."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "analytics",
+          "KPI interpretation",
+          "decision"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.kpis",
+        "analytics.period-and-cop"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/analytics-release-failure-items.json"
+    },
+    {
+      "id": "revenue.sold-litres",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "sold-litres",
+      "title": "sold-litres",
+      "status": "DRAFT",
+      "question": "How are sold litres separated from total milk?",
+      "alternatives": [
+        "How are sold litres separated from total milk?",
+        "sold-litres"
+      ],
+      "answer": "Sold litres come from valid disposition and sale records, not from assuming every produced litre was sold. Non-sale and withheld milk remain separately traceable.",
+      "scenario": {
+        "given": "Production and sale volumes differ.",
+        "steps": [
+          "Review total valid production.",
+          "Review disposition by operational date.",
+          "Reconcile sold, non-sale, and unallocated litres.",
+          "Inspect sale and receipt linkage."
+        ],
+        "expected": "Revenue uses sold volume only and the reconciliation explains every produced litre.",
+        "next": "Correct the disposition or sale workflow when an amount is misclassified."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "revenue",
+          "cash",
+          "receivable",
+          "reconciliation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.disposition",
+        "revenue.reconciliation"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/analytics-release-failure-items.json"
+    },
+    {
+      "id": "startup.failure",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "startup",
+      "capability": "startup",
+      "title": "startup",
+      "status": "DRAFT",
+      "question": "What should be done when DairyOS fails during startup?",
+      "alternatives": [
+        "What should be done when DairyOS fails during startup?",
+        "startup"
+      ],
+      "answer": "Preserve the exact error and environment details, separate desktop packaging from backend/database readiness, and avoid reset or data deletion while diagnosing.",
+      "scenario": {
+        "given": "The application does not reach a usable screen.",
+        "steps": [
+          "Record the timestamp and visible error.",
+          "Check read-only readiness evidence.",
+          "Confirm runtime and database process state.",
+          "Escalate with release identity and logs."
+        ],
+        "expected": "Startup failure is investigated without modifying farm records or backups.",
+        "next": "Retry only after the cause or safe recovery step is identified."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "startup",
+          "support",
+          "data safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "startup.readiness",
+        "support.health-failure"
+      ],
+      "anchors": {
+        "routes": [
+          "GET /health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/analytics-release-failure-items.json"
+    },
+    {
+      "id": "installation.upgrade",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "upgrade",
+      "title": "upgrade",
+      "status": "DRAFT",
+      "question": "How should an upgrade be accepted?",
+      "alternatives": [
+        "How should an upgrade be accepted?",
+        "upgrade"
+      ],
+      "answer": "Accept an upgrade only after exact artifact identity, startup, database readiness, data preservation, and backup protection are separately verified.",
+      "scenario": {
+        "given": "A newer Windows build is available.",
+        "steps": [
+          "Record installer and executable hashes.",
+          "Confirm the intended installation target.",
+          "Start the upgraded application.",
+          "Verify representative pre-existing records and backup evidence."
+        ],
+        "expected": "The release is evaluated for package and operational parity, not installer success alone.",
+        "next": "Perform live operator acceptance only after preservation checks pass."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "release",
+          "data preservation",
+          "backup",
+          "runtime"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.upgrade-and-backup",
+        "installation.automatic-backup"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/analytics-release-failure-items.json"
+    },
+    {
+      "id": "troubleshooting.save-failure",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "troubleshooting",
+      "capability": "save-failure",
+      "title": "save-failure",
+      "status": "DRAFT",
+      "question": "How should a failed save be investigated?",
+      "alternatives": [
+        "How should a failed save be investigated?",
+        "save-failure"
+      ],
+      "answer": "Capture the request context and determine whether the authoritative record was created, rejected, or partially projected before retrying.",
+      "scenario": {
+        "given": "An operator receives a save error.",
+        "steps": [
+          "Record route, status, message, and submitted facts.",
+          "Check the authoritative history once.",
+          "Check audit/projection evidence.",
+          "Retry only when duplicate creation is ruled out."
+        ],
+        "expected": "A failed save does not create duplicate or orphaned records through blind retries.",
+        "next": "Escalate with the evidence package or use the supported correction path."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "persistence",
+          "support",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.authority-and-audit",
+        "support.http-errors"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/analytics-release-failure-items.json"
+    },
+    {
+      "id": "disease.mastitis",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "mastitis",
+      "title": "disease.mastitis",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.metritis-endometritis",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "metritis-endometritis",
+      "title": "disease.metritis-endometritis",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.milk-fever",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "milk-fever",
+      "title": "disease.milk-fever",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.ketosis",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "ketosis",
+      "title": "disease.ketosis",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.brd",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "brd",
+      "title": "disease.brd",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.calves-scours",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "calves-scours",
+      "title": "disease.calves-scours",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.lameness",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "lameness",
+      "title": "disease.lameness",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.bvd",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "bvd",
+      "title": "disease.bvd",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.ibr",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "ibr",
+      "title": "disease.ibr",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.leptospirosis",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "leptospirosis",
+      "title": "disease.leptospirosis",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.brucellosis",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "brucellosis",
+      "title": "disease.brucellosis",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.fmd",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "fmd",
+      "title": "disease.fmd",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.heat-stress",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "heat-stress",
+      "title": "disease.heat-stress",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "disease.parasites",
+      "class": "DAIRY_KNOWLEDGE",
+      "schema_version": 2,
+      "domain": "disease",
+      "capability": "parasites",
+      "title": "disease.parasites",
+      "status": "DRAFT",
+      "question": "",
+      "alternatives": [
+        "",
+        ""
+      ],
+      "answer": "",
+      "scenario": {
+        "given": "",
+        "steps": [],
+        "expected": "",
+        "next": ""
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [],
+        "projected": [],
+        "audit": []
+      },
+      "related": [],
+      "anchors": {},
+      "safety": "",
+      "source_training_file": "docs/training/disease-reference-catalog.json",
+      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+    },
+    {
+      "id": "feed.ingredients",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "ingredients",
+      "title": "ingredients",
+      "status": "DRAFT",
+      "question": "How do I add or identify a TMR ingredient?",
+      "alternatives": [
+        "add feed ingredient",
+        "ingredient catalog",
+        "why is an ingredient unavailable"
+      ],
+      "answer": "Use the governed TMR ingredient catalog; the catalog identity is shared with Finance feed categories.",
+      "scenario": {
+        "given": "A feed ingredient is required by the farm ration.",
+        "steps": [
+          "Open the TMR Preparation Tool.",
+          "Add the ingredient with its unit and fallback price when authorised.",
+          "Confirm its governed catalog name.",
+          "Use that identity consistently in the formulation and Finance."
+        ],
+        "expected": "The ingredient is available to the TMR formula and matching Finance category.",
+        "next": "Set the approved price source before saving a ration."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "TMR formula",
+          "Finance category parity",
+          "cost calculation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.prices",
+        "feed.formula",
+        "finance.expense-category"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/tmr/ingredients"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_finance_tmr_catalog_parity.py"
+        ]
+      },
+      "safety": "Do not create a spelling variant to bypass the governed category.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.prices",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "prices",
+      "title": "prices",
+      "status": "DRAFT",
+      "question": "Which price is used for a TMR ingredient?",
+      "alternatives": [
+        "feed price source",
+        "manual ingredient price",
+        "Finance feed price"
+      ],
+      "answer": "The governed price source is selected per ingredient: Finance authority where available, or an explicitly selected manual fallback.",
+      "scenario": {
+        "given": "A saved ration contains one or more ingredients.",
+        "steps": [
+          "Review each ingredient's selected price source.",
+          "Confirm Finance-linked prices are current where applicable.",
+          "For a manual price, enter the approved price per kg and retain the source choice.",
+          "Save a new governed ration version."
+        ],
+        "expected": "The formula cost reflects the selected source for every ingredient.",
+        "next": "Review category and whole-herd cost before relying on Feed Cost/L."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "ingredient cost/kg",
+          "ration cost/kg",
+          "daily TMR cost",
+          "Finance parity"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.ingredients",
+        "feed.formula",
+        "feed.daily-snapshot"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx",
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr",
+          "POST /farm/tmr/stages"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_finance_feed_opex_profitability.py"
+        ]
+      },
+      "safety": "A purchase is not automatically same-day consumption; do not treat stock purchases as feed consumed.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.formula",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "formula",
+      "title": "formula",
+      "status": "DRAFT",
+      "question": "How do I save a TMR formula?",
+      "alternatives": [
+        "prepare TMR",
+        "change ration",
+        "save feed ration"
+      ],
+      "answer": "Enter the governed ingredient quantities and price choices for the applicable animal stage, then save a new effective ration version.",
+      "scenario": {
+        "given": "A ration needs to be created or changed.",
+        "steps": [
+          "Select the animal stage.",
+          "Enter each governed ingredient and quantity/unit.",
+          "Review nutritional and cost summary.",
+          "Save with operator attribution and effective date.",
+          "Refresh and confirm the persisted version."
+        ],
+        "expected": "A new immutable governed formulation is available for its effective period.",
+        "next": "The daily authority uses the effective formula and active herd categories for future operational days."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "TMR authority",
+          "category feed cost",
+          "daily snapshot",
+          "future COP feed numerator"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.daily-snapshot",
+        "feed.category-cost",
+        "feed.tmr-log"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/tmr/stages",
+          "GET /farm/tmr"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/tmr_daily_cost_scheduler.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_feed_storage_tmr_authority.py"
+        ]
+      },
+      "safety": "Changing a formula must not rewrite historical daily snapshots.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.category-cost",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "category-cost",
+      "title": "category-cost",
+      "status": "DRAFT",
+      "question": "How is TMR cost calculated by animal category?",
+      "alternatives": [
+        "feed cost per category",
+        "milking herd feed cost",
+        "TMR category total"
+      ],
+      "answer": "DairyOS applies the governed category ration and price authority to the corresponding active animal count, then aggregates category costs.",
+      "scenario": {
+        "given": "Several herd categories have active animals and governed rations.",
+        "steps": [
+          "Review category herd counts.",
+          "Review each category ration and cost/kg.",
+          "Confirm the category daily quantity/cost.",
+          "Compare the aggregate with the whole-herd summary."
+        ],
+        "expected": "Each category contributes only its own active population and governed ration.",
+        "next": "Use the aggregate whole-herd cost as the feed numerator for the selected period."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "whole-herd TMR cost",
+          "feed consumption authority",
+          "Feed Cost/L",
+          "TMR log"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.herd-cost",
+        "feed.feed-cost-per-litre",
+        "animals.herd-groups"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "safety": "Do not multiply one current ration by all animals or all days.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.herd-cost",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "herd-cost",
+      "title": "herd-cost",
+      "status": "DRAFT",
+      "question": "How does DairyOS calculate whole-herd TMR cost per day?",
+      "alternatives": [
+        "daily feed cost",
+        "whole herd feed cost",
+        "TMR cost/day"
+      ],
+      "answer": "It aggregates the governed daily category costs for the active herd on the operational date.",
+      "scenario": {
+        "given": "The active herd and effective category rations are known for a day.",
+        "steps": [
+          "Resolve active herd counts.",
+          "Resolve effective category formulas and ingredient prices.",
+          "Calculate category quantities and costs.",
+          "Sum categories and inspect the daily result."
+        ],
+        "expected": "One whole-herd daily cost is produced without using purchase quantity as consumption.",
+        "next": "The daily materialised authority is used by the COP period calculation."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "daily TMR snapshot",
+          "feed cost numerator",
+          "COP/L"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.daily-snapshot",
+        "feed.feed-cost-per-litre",
+        "cop.period"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx",
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr",
+          "GET /farm/coml/integrated"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "safety": "Historical dates use persisted daily authority, not a current formula replay.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.daily-snapshot",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "daily-snapshot",
+      "title": "daily-snapshot",
+      "status": "DRAFT",
+      "question": "Why does DairyOS keep a daily TMR calculation snapshot?",
+      "alternatives": [
+        "historical feed cost",
+        "midnight TMR lock",
+        "why formula changes do not alter history"
+      ],
+      "answer": "The snapshot preserves the formula, prices, herd counts, and resulting whole-herd cost for that operational day so later formula or herd changes do not rewrite history.",
+      "scenario": {
+        "given": "The daily calculation authority is due or a historical log is requested.",
+        "steps": [
+          "Resolve the operational date.",
+          "Check whether a snapshot already exists.",
+          "If absent, materialise it once from the governed current inputs.",
+          "Read the persisted snapshot for later history/COP requests."
+        ],
+        "expected": "Repeated reads remain stable and historical dates retain their original authority.",
+        "next": "Use the snapshot in selected-period feed-cost aggregation."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "immutable daily authority",
+          "TMR calculation log",
+          "historical COP"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.formula",
+        "feed.tmr-log",
+        "cop.period"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/tmr_daily_cost_scheduler.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "safety": "Snapshots must be idempotent per operational day and must not be silently overwritten.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.consumption",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "consumption",
+      "title": "consumption",
+      "status": "DRAFT",
+      "question": "How do I record and verify feed consumed?",
+      "alternatives": [
+        "record feeding",
+        "feed consumed kg",
+        "feeding log"
+      ],
+      "answer": "Record actual consumed quantity against the feeding date and feed type; inventory movement and cost are governed from that persisted record.",
+      "scenario": {
+        "given": "Feed was physically issued or consumed by a group/animal.",
+        "steps": [
+          "Open Feeding or Feed inventory.",
+          "Enter feed type, quantity kg, date, and attribution.",
+          "Save once and confirm the persisted record.",
+          "Review inventory movement and priced cost."
+        ],
+        "expected": "Consumption is recorded separately from purchases and appears in the daily feed log.",
+        "next": "Investigate any unpriced or negative-stock exception before using the cost for analysis."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "feed record",
+          "inventory consumption",
+          "feed cost",
+          "TMR log"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.tmr-log",
+        "feed.inventory-reconciliation",
+        "feed.prices"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FeedTab.tsx",
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/feed/records",
+          "GET /farm/feed/records",
+          "POST /farm/feed-inventory/automatic-consumption/sync"
+        ],
+        "services": [
+          "src/dairyos/api/feed_management.py",
+          "src/dairyos/api/feed_inventory.py"
+        ],
+        "tests": [
+          "tests/api/test_feed_storage_tmr_authority.py",
+          "tests/lifecycle/test_feed_surface_certification.py"
+        ]
+      },
+      "safety": "Do not record a purchase as consumption or silently accept negative stock.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.feed-cost-per-litre",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "feed-cost-per-litre",
+      "title": "feed-cost-per-litre",
+      "status": "DRAFT",
+      "question": "How is Feed Cost/L calculated for a selected period?",
+      "alternatives": [
+        "why feed cost per litre is missing",
+        "TMR cost divided by milk",
+        "feed cost/L"
+      ],
+      "answer": "Feed Cost/L is the selected-period governed daily TMR cost total divided by active milk production litres in the same period; it is unavailable when required authority or milk volume is missing.",
+      "scenario": {
+        "given": "A COP period has selected start/end dates.",
+        "steps": [
+          "Read persisted daily TMR authority for each day in the period.",
+          "Aggregate only the days covered by valid authority.",
+          "Read active milk production for the same dates.",
+          "Divide feed cost by milk litres and report missing/provisional days explicitly."
+        ],
+        "expected": "The numerator and denominator cover the same period and historical formula changes do not rewrite prior days.",
+        "next": "Review the TMR log and milk completeness before treating the result as an operational estimate."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "Estimated COP/L",
+          "COML display",
+          "period log"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.daily-snapshot",
+        "milk.daily-total",
+        "cop.period"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated",
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py",
+          "src/dairyos/api/coml.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_coml.py"
+        ]
+      },
+      "safety": "Never calculate current TMR cost multiplied by number of days as a substitute for daily historical authority.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "feed.tmr-log",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "feed",
+      "capability": "tmr-log",
+      "title": "tmr-log",
+      "status": "DRAFT",
+      "question": "How do I read the Daily TMR Calculation and Feed Consumption Log?",
+      "alternatives": [
+        "TMR history",
+        "daily feed log",
+        "what was feed cost on a date"
+      ],
+      "answer": "Open Calculation Log in the TMR Preparation Tool, choose 7, 30, or 90 days, and load persisted daily calculations alongside consumed kilograms, cost, and status.",
+      "scenario": {
+        "given": "The operator needs historical feed evidence.",
+        "steps": [
+          "Open TMR Preparation Tool.",
+          "Click Calculation Log.",
+          "Choose the duration.",
+          "Load the log.",
+          "Compare calculation status with feed consumed and cost."
+        ],
+        "expected": "Each day shows its TMR cost authority, consumption, feed cost, and whether calculation authority is present.",
+        "next": "Investigate missing status or unexpected cost using the date's formula, herd, milk, and feed records."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "operator auditability",
+          "COP investigation",
+          "feed reconciliation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.daily-snapshot",
+        "feed.consumption",
+        "feed.feed-cost-per-litre"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "safety": "The log is read-only and must not create, alter, or delete feed records.",
+      "source_training_file": "docs/training/feed-tmr-items.json"
+    },
+    {
+      "id": "dashboard.acknowledge",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "acknowledge",
+      "title": "acknowledge",
+      "status": "DRAFT",
+      "question": "When should a dashboard alert be acknowledged?",
+      "alternatives": [
+        "When should a dashboard alert be acknowledged?",
+        "acknowledge"
+      ],
+      "answer": "Acknowledge after reviewing the source facts and assigning responsibility; acknowledgement records review and does not mean the underlying condition is resolved.",
+      "scenario": {
+        "given": "A new alert appears.",
+        "steps": [
+          "Open the alert details.",
+          "Review source date, animal/group, and severity.",
+          "Assign or notify the responsible role.",
+          "Acknowledge the review."
+        ],
+        "expected": "The alert remains traceable while work continues.",
+        "next": "Resolve only after the corrective source event is recorded."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "audit",
+          "workflow ownership"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "dashboard.decisions",
+        "dashboard.alert-lifecycle"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "dashboard.resolution",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "resolution",
+      "title": "resolution",
+      "status": "DRAFT",
+      "question": "When can a finding be resolved?",
+      "alternatives": [
+        "When can a finding be resolved?",
+        "resolution"
+      ],
+      "answer": "Resolve only when the underlying condition has been addressed and the supporting operational record exists; hiding or acknowledging a finding is not resolution.",
+      "scenario": {
+        "given": "A corrective action has been completed.",
+        "steps": [
+          "Verify the source correction or completed event.",
+          "Recheck the finding after refresh.",
+          "Resolve with attribution.",
+          "Confirm it no longer appears as open without losing history."
+        ],
+        "expected": "Resolution reflects evidence, not operator preference.",
+        "next": "Monitor for recurrence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "alerts",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "dashboard.acknowledge",
+        "persistence.audit-trail"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "persistence.amendment-history",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "amendment-history",
+      "title": "amendment-history",
+      "status": "DRAFT",
+      "question": "How are amendments kept explainable?",
+      "alternatives": [
+        "How are amendments kept explainable?",
+        "amendment-history"
+      ],
+      "answer": "An amendment preserves the original fact, reason, actor, time, and resulting value; downstream totals use the governed current state while history remains inspectable.",
+      "scenario": {
+        "given": "A previously saved entry is wrong.",
+        "steps": [
+          "Confirm the original record and evidence.",
+          "Use the supported amendment path.",
+          "Enter the reason and corrected facts.",
+          "Verify history, totals, and projections."
+        ],
+        "expected": "The correction is additive and auditable, without silent overwriting.",
+        "next": "Use the same evidence when reconciling reports."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "audit",
+          "history",
+          "reconciliation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.authority-and-audit",
+        "finance.amendment",
+        "milk.amendment"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py",
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "runtime.database-failure",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "runtime",
+      "capability": "database-failure",
+      "title": "database-failure",
+      "status": "DRAFT",
+      "question": "What is safe when the database is unavailable?",
+      "alternatives": [
+        "What is safe when the database is unavailable?",
+        "database-failure"
+      ],
+      "answer": "Stop repeated writes, capture readiness evidence, protect the live database and backups, and escalate. Do not delete, recreate, or manually edit the database as a first response.",
+      "scenario": {
+        "given": "A database readiness check fails.",
+        "steps": [
+          "Record timestamp and exact error.",
+          "Confirm whether any submitted transaction received an authoritative result.",
+          "Avoid duplicate writes and destructive repair.",
+          "Provide the support package."
+        ],
+        "expected": "The incident is contained without corruption or duplicate records.",
+        "next": "Resume only after readiness and representative reads are verified."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "database safety",
+          "support",
+          "persistence"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "startup.failure",
+        "support.health-failure",
+        "support.package"
+      ],
+      "anchors": {
+        "routes": [
+          "GET /health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "health.heat-stress",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "health",
+      "capability": "heat-stress",
+      "title": "heat-stress",
+      "status": "DRAFT",
+      "question": "How should heat-stress information be used?",
+      "alternatives": [
+        "How should heat-stress information be used?",
+        "heat-stress"
+      ],
+      "answer": "Use environmental and animal observations to support welfare action and trend review; severe signs require immediate farm and veterinary escalation, not automated diagnosis.",
+      "scenario": {
+        "given": "Hot conditions coincide with reduced intake or milk.",
+        "steps": [
+          "Record the environmental and animal observations.",
+          "Check water, shade, airflow, and affected groups.",
+          "Escalate distressed animals promptly.",
+          "Compare production and feed trends after action."
+        ],
+        "expected": "Welfare risk and operational impact are visible without confusing correlation with diagnosis.",
+        "next": "Review the farm heat-stress plan with the veterinarian."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "health",
+          "milk trend",
+          "feed context",
+          "alerts"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "health.observation-triage",
+        "analytics.kpis"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/HealthTab.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "settings.timezone",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "timezone",
+      "title": "timezone",
+      "status": "DRAFT",
+      "question": "Why does timezone matter to DairyOS?",
+      "alternatives": [
+        "Why does timezone matter to DairyOS?",
+        "timezone"
+      ],
+      "answer": "Timezone and operational-date conventions determine which day receives late-night milk, feed, health, and finance events. Confirm them before reconciling daily totals.",
+      "scenario": {
+        "given": "A record appears on the wrong calendar date.",
+        "steps": [
+          "Check farm timezone and operational-date settings.",
+          "Compare event timestamp with operational date.",
+          "Review the daily source record.",
+          "Correct through the supported path only when evidence confirms the error."
+        ],
+        "expected": "All modules use the same governed farm-day boundary.",
+        "next": "Recheck period analytics and audit history."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "daily totals",
+          "period analytics",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.operational-date",
+        "milk.period-total"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "installation.uninstall-keep-data",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "uninstall-keep-data",
+      "title": "uninstall-keep-data",
+      "status": "DRAFT",
+      "question": "What must be protected during uninstall?",
+      "alternatives": [
+        "What must be protected during uninstall?",
+        "uninstall-keep-data"
+      ],
+      "answer": "Uninstalling application components must not be treated as permission to remove the farm data root or backups. Confirm the selected option and preserve data unless a separately authorised reset is intended.",
+      "scenario": {
+        "given": "A release is being removed or replaced.",
+        "steps": [
+          "Identify active data and backup locations.",
+          "Confirm the uninstall scope.",
+          "Preserve farm data and recovery artifacts.",
+          "Verify the next installation can read the preserved dataset."
+        ],
+        "expected": "Application removal and farm-data destruction remain separate decisions.",
+        "next": "Run startup and representative-record checks after reinstall."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "data preservation",
+          "upgrade",
+          "recovery"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.upgrade",
+        "installation.verified-recovery",
+        "settings.zero-state-reset"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/final-operations-gaps-items.json"
+    },
+    {
+      "id": "finance.expense-entry",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "finance",
+      "capability": "financial-entry",
+      "title": "financial-entry",
+      "status": "DRAFT",
+      "question": "How should an expense be entered?",
+      "alternatives": [
+        "How should an expense be entered?",
+        "financial-entry"
+      ],
+      "answer": "Enter the actual transaction with date, amount, category, supplier or payee, payment state, and supporting note; verify the persisted ledger record before relying on reports.",
+      "scenario": {
+        "given": "A farm expense invoice is received.",
+        "steps": [
+          "Confirm date and amount from the source document.",
+          "Select the governed expense category.",
+          "Record payment state and attribution.",
+          "Save and verify the ledger and audit history."
+        ],
+        "expected": "One traceable financial fact feeds the correct category and period without being silently treated as revenue or OPEX.",
+        "next": "Amend or void through the supported audited path if the source document changes."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "finance ledger",
+          "expense category",
+          "OPEX attribution",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "finance.category",
+        "finance.opex",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "finance.category",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "finance",
+      "capability": "expense-category",
+      "title": "expense-category",
+      "status": "DRAFT",
+      "question": "Why does expense categorisation matter?",
+      "alternatives": [
+        "Why does expense categorisation matter?",
+        "expense-category"
+      ],
+      "answer": "Categories determine reporting and cost attribution. Use the governed category vocabulary and preserve the original fact when a correction is needed.",
+      "scenario": {
+        "given": "An expense could fit more than one category.",
+        "steps": [
+          "Review the category definitions.",
+          "Choose the category supported by the transaction evidence.",
+          "Save and inspect its report classification.",
+          "Escalate ambiguous or material items for finance review."
+        ],
+        "expected": "The item is included or excluded from OPEX consistently and remains reviewable.",
+        "next": "Review period COP after approved attribution."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "expense reports",
+          "OPEX",
+          "COP",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "finance.expense-entry",
+        "analytics.period-and-cop"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "analytics.kpis",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "kpis",
+      "title": "kpis",
+      "status": "DRAFT",
+      "question": "How should a KPI be interpreted?",
+      "alternatives": [
+        "How should a KPI be interpreted?",
+        "kpis"
+      ],
+      "answer": "Read the value together with its period, denominator, source, completeness, and status. A KPI is not reliable when its underlying inputs are missing, late, voided, or unattributed.",
+      "scenario": {
+        "given": "A dashboard KPI changes unexpectedly.",
+        "steps": [
+          "Confirm selected period and operational date.",
+          "Inspect source totals and completeness.",
+          "Check amendments, voids, and allocation status.",
+          "Compare the KPI with the underlying log."
+        ],
+        "expected": "The manager can distinguish a real operating change from a data-quality or timing change.",
+        "next": "Use the relevant source workflow to correct facts, not the KPI display."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "KPI interpretation",
+          "decision quality"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "dashboard.alert-lifecycle",
+        "troubleshooting.wrong-calculation"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "analytics.exports",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "exports",
+      "title": "exports",
+      "status": "DRAFT",
+      "question": "What should be checked before sharing an export?",
+      "alternatives": [
+        "What should be checked before sharing an export?",
+        "exports"
+      ],
+      "answer": "Confirm the period, filters, data date, source authority, completeness warnings, and recipient permissions. An export is a view of governed records, not a replacement for the ledger.",
+      "scenario": {
+        "given": "A manager prepares a report for finance or veterinary review.",
+        "steps": [
+          "Set and record the exact period and filters.",
+          "Review totals against the source view.",
+          "Check missing, pending, or excluded records.",
+          "Share only through the approved channel."
+        ],
+        "expected": "The recipient can interpret the report with its scope and caveats.",
+        "next": "Retain the report context for reconciliation."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "reporting",
+          "sharing",
+          "audit context"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.kpis",
+        "analytics.period-and-cop"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "persistence.audit-trail",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "audit-trail",
+      "title": "audit-trail",
+      "status": "DRAFT",
+      "question": "What belongs in an audit trail?",
+      "alternatives": [
+        "What belongs in an audit trail?",
+        "audit-trail"
+      ],
+      "answer": "The actor, timestamp, source facts, operation, resulting identifier, amendment or void relationship, and downstream status should remain inspectable for material entries.",
+      "scenario": {
+        "given": "A record is corrected or voided.",
+        "steps": [
+          "Preserve the original record and reason.",
+          "Use the supported amendment or void action.",
+          "Verify the audit history and projections.",
+          "Reconcile totals after refresh."
+        ],
+        "expected": "Correction history is additive and attributable rather than destructive.",
+        "next": "Use the history when investigating reports or support incidents."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "audit",
+          "amendment history",
+          "reconciliation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.authority-and-audit",
+        "finance.amendment",
+        "milk.amendment"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "persistence.projection-outbox",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "projection-outbox",
+      "title": "projection-outbox",
+      "status": "DRAFT",
+      "question": "What does a projection delay mean?",
+      "alternatives": [
+        "What does a projection delay mean?",
+        "projection-outbox"
+      ],
+      "answer": "A durable source event may be saved before every read model refreshes. Investigate the outbox and projection status; never duplicate the source write to make a screen change.",
+      "scenario": {
+        "given": "The source confirms a save but a dashboard is unchanged.",
+        "steps": [
+          "Capture the source identifier.",
+          "Check refresh and projection status.",
+          "Compare the read model after the normal processing interval.",
+          "Escalate failed delivery with evidence."
+        ],
+        "expected": "Durable source facts are protected while derived surfaces catch up or are safely rebuilt.",
+        "next": "Use controlled replay only in an authorised safe environment."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "event journal",
+          "projection",
+          "dashboard",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.replay",
+        "troubleshooting.stale-view"
+      ],
+      "anchors": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "installation.automatic-backup",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "automatic-backup",
+      "title": "automatic-backup",
+      "status": "DRAFT",
+      "question": "How should automatic backup be verified?",
+      "alternatives": [
+        "How should automatic backup be verified?",
+        "automatic-backup"
+      ],
+      "answer": "Verify that protection is provisioned, the task or service is configured, an execution has succeeded, and the resulting backup is identifiable and recoverable. Configuration alone is not proof of a usable backup.",
+      "scenario": {
+        "given": "A release is ready for operational use.",
+        "steps": [
+          "Inspect backup configuration without changing live data.",
+          "Confirm the last successful execution and artifact identity.",
+          "Check exclusions and retention policy.",
+          "Perform recovery testing only in a disposable or authorised environment."
+        ],
+        "expected": "Backup evidence covers both creation and recovery, with failures visible to the operator.",
+        "next": "Escalate any backup-task error before relying on the release."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "backup",
+          "recovery",
+          "release safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.upgrade-and-backup",
+        "settings.system-health"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "installation.verified-recovery",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "verified-recovery",
+      "title": "verified-recovery",
+      "status": "DRAFT",
+      "question": "What makes a recovery verified?",
+      "alternatives": [
+        "What makes a recovery verified?",
+        "verified-recovery"
+      ],
+      "answer": "A recovery is verified only when a known backup is restored into an isolated target, startup succeeds, representative records reconcile, and the evidence is retained.",
+      "scenario": {
+        "given": "A recovery drill is authorised.",
+        "steps": [
+          "Select and identify the backup artifact.",
+          "Use a disposable target isolated from live data.",
+          "Restore and check schema and readiness.",
+          "Compare representative records and calculations."
+        ],
+        "expected": "The farm can demonstrate recoverability without risking the active dataset.",
+        "next": "Document the result, gaps, and corrective owner."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "recovery",
+          "data preservation",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.automatic-backup",
+        "persistence.replay"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+    },
+    {
+      "id": "troubleshooting.missing-data",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "troubleshooting",
+      "capability": "missing-data",
+      "title": "missing-data",
+      "status": "DRAFT",
+      "question": "What should be checked when a saved entry is missing elsewhere?",
+      "alternatives": [
+        "What should be checked when a saved entry is missing elsewhere?",
+        "missing-data"
+      ],
+      "answer": "Trace the permanent identity, operational date, authoritative record, projection, and refresh path. Do not create a duplicate entry before the original transaction is understood.",
+      "scenario": {
+        "given": "An entry appears in one view but not another.",
+        "steps": [
+          "Capture the visible record and timestamp.",
+          "Refresh the source and destination surfaces.",
+          "Compare the authoritative response, persisted history, and projection.",
+          "Check filters, date convention, void/amendment state, and permissions."
+        ],
+        "expected": "The discrepancy is classified as filter, stale projection, missing persistence, or display linkage.",
+        "next": "Escalate with evidence or apply a narrowly tested correction."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "support",
+          "persistence",
+          "projection",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.authority-and-audit",
+        "troubleshooting.stale-view",
+        "settings.operational-date"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py",
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/health-reproduction-advanced-items.json"
+    },
+    {
+      "id": "troubleshooting.stale-view",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "troubleshooting",
+      "capability": "stale-view",
+      "title": "stale-view",
+      "status": "DRAFT",
+      "question": "How can a stale screen be distinguished from missing data?",
+      "alternatives": [
+        "How can a stale screen be distinguished from missing data?",
+        "stale-view"
+      ],
+      "answer": "Reload the affected projection, compare its timestamp and source facts, and verify the same record through an independent linked surface. A stale view must not be repaired by re-entering the transaction.",
+      "scenario": {
+        "given": "A dashboard or log has not changed after a valid save.",
+        "steps": [
+          "Record the expected new value and source identifier.",
+          "Refresh the relevant view and wait for the normal projection path.",
+          "Inspect the linked passport or history.",
+          "Escalate if the authoritative record exists but the projection remains stale."
+        ],
+        "expected": "No duplicate operational event is created while projection health is investigated.",
+        "next": "Use the approved replay/rebuild procedure only in an authorised safe environment."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "projection",
+          "dashboard",
+          "support",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.replay",
+        "troubleshooting.missing-data"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/health-reproduction-advanced-items.json"
+    },
+    {
+      "id": "settings.operational-date",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "operational-date",
+      "title": "operational-date",
+      "status": "DRAFT",
+      "question": "Which date should an operator use for a record?",
+      "alternatives": [
+        "Which date should an operator use for a record?",
+        "operational-date"
+      ],
+      "answer": "Use DairyOS's operational-date convention and the actual event date. Do not silently use the computer clock when the farm operating day differs from calendar time.",
+      "scenario": {
+        "given": "A late-night or back-entered event is being recorded.",
+        "steps": [
+          "Confirm the displayed operational date and timezone.",
+          "Enter the date the event actually occurred.",
+          "Save and verify daily placement.",
+          "Check downstream period calculations for the same date."
+        ],
+        "expected": "Milk, feed, health, finance, and breeding records align to the farm's governed date convention.",
+        "next": "Escalate any date boundary mismatch before amending records."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "date authority",
+          "daily totals",
+          "period analytics",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "milk.entry",
+        "analytics.period-and-cop"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/herd-lifecycle-items.json"
+    },
+    {
+      "id": "persistence.replay",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "replay",
+      "title": "replay",
+      "status": "DRAFT",
+      "question": "When is projection replay appropriate?",
+      "alternatives": [
+        "When is projection replay appropriate?",
+        "replay"
+      ],
+      "answer": "Replay is a controlled recovery operation for a disposable or explicitly authorised environment. First preserve evidence, stop writes, and verify the target; never experiment against live farm data.",
+      "scenario": {
+        "given": "A projection is suspected to be stale or incomplete.",
+        "steps": [
+          "Capture the source and projection discrepancy.",
+          "Confirm the target environment and recovery authority.",
+          "Stop conflicting writes and run the approved replay process.",
+          "Compare rebuilt projections with authoritative records."
+        ],
+        "expected": "Derived surfaces are rebuilt from durable evidence without inventing or deleting source facts.",
+        "next": "Record the replay result and add a regression test for the failure boundary."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "projection",
+          "recovery",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.authority-and-audit",
+        "troubleshooting.stale-view"
+      ],
+      "anchors": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/herd-lifecycle-items.json"
+    },
+    {
+      "id": "settings.date-convention",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "date-convention",
+      "title": "date-convention",
+      "status": "DRAFT",
+      "question": "What date convention does DairyOS use?",
+      "alternatives": [
+        "What date convention does DairyOS use?",
+        "date-convention"
+      ],
+      "answer": "DairyOS uses the farm's governed operational date and timezone for daily placement. Confirm the convention before reconciling late-night or late-entered records.",
+      "scenario": {
+        "given": "A calendar date and farm operating day differ.",
+        "steps": [
+          "Check the configured farm timezone.",
+          "Confirm the operational-date boundary.",
+          "Review the source record's effective date.",
+          "Reconcile daily and period totals using that authority."
+        ],
+        "expected": "All modules place the fact on the same governed farm day.",
+        "next": "Escalate any cross-module date mismatch."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "daily records",
+          "period totals",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.operational-date",
+        "settings.timezone"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "installation.install",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "install",
+      "title": "install",
+      "status": "DRAFT",
+      "question": "What should be verified after a fresh installation?",
+      "alternatives": [
+        "What should be verified after a fresh installation?",
+        "install"
+      ],
+      "answer": "Verify the exact installer and executable identity, private runtime readiness, initial database state, backup protection, and safe application startup before entering farm data.",
+      "scenario": {
+        "given": "DairyOS is being installed on a deployment machine.",
+        "steps": [
+          "Record installer and executable hashes.",
+          "Confirm the installation and data locations.",
+          "Start the application and check readiness.",
+          "Verify the intended initial state and backup protection."
+        ],
+        "expected": "The installed package is identifiable, starts safely, and has a documented data/recovery posture.",
+        "next": "Perform controlled acceptance before live operation."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "installation",
+          "runtime",
+          "backup",
+          "data safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "installation.upgrade",
+        "installation.automatic-backup"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "settings.lock-unlock",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "lock-unlock",
+      "title": "lock-unlock",
+      "status": "DRAFT",
+      "question": "What is the purpose of lock and unlock?",
+      "alternatives": [
+        "What is the purpose of lock and unlock?",
+        "lock-unlock"
+      ],
+      "answer": "Lock and unlock protect selected settings and actions from casual use. Unlocking does not authorize unrelated data changes and the locked state should be restored after the task.",
+      "scenario": {
+        "given": "A protected Settings function is required.",
+        "steps": [
+          "Authenticate with the supported credential.",
+          "Unlock only for the intended action.",
+          "Complete and verify the action.",
+          "Lock and confirm protected controls are unavailable."
+        ],
+        "expected": "Protected controls have deliberate access boundaries.",
+        "next": "Escalate failed authentication without bypassing protection."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "security",
+          "settings",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.password-lock",
+        "access.permissions"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "dashboard.resolve",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "resolve",
+      "title": "resolve",
+      "status": "DRAFT",
+      "question": "What does resolving an alert mean?",
+      "alternatives": [
+        "What does resolving an alert mean?",
+        "resolve"
+      ],
+      "answer": "Resolution records that the underlying issue was addressed; it is distinct from acknowledgement and must remain supported by the source event or follow-up evidence.",
+      "scenario": {
+        "given": "An alert's corrective work is complete.",
+        "steps": [
+          "Verify the source action.",
+          "Refresh the finding.",
+          "Resolve with attribution.",
+          "Confirm the history remains available."
+        ],
+        "expected": "The open finding closes for an evidence-based reason.",
+        "next": "Monitor for recurrence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "alerts",
+          "dashboard",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "dashboard.acknowledge",
+        "dashboard.resolution"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "revenue.revenue",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "revenue",
+      "title": "revenue",
+      "status": "DRAFT",
+      "question": "How is milk revenue formed?",
+      "alternatives": [
+        "How is milk revenue formed?",
+        "revenue"
+      ],
+      "answer": "Revenue is based on valid sold-litre sale facts and their price/receipt terms; produced, non-sale, withheld, cash, and receivable amounts must remain distinguishable.",
+      "scenario": {
+        "given": "A sale is entered for a production period.",
+        "steps": [
+          "Reconcile produced and sold litres.",
+          "Verify sale price and customer facts.",
+          "Check cash or receivable status.",
+          "Review amendments and voids."
+        ],
+        "expected": "Revenue and collection status reflect valid commercial facts without double counting.",
+        "next": "Reconcile the sale with disposition and finance ledger."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "revenue",
+          "cash",
+          "receivable",
+          "reconciliation"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.sold-litres",
+        "revenue.cash",
+        "revenue.receivable"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_revenue_ledger_quantity_ui.py",
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "analytics.snapshot-sharing",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "snapshot-sharing",
+      "title": "snapshot-sharing",
+      "status": "DRAFT",
+      "question": "How should a report snapshot be shared?",
+      "alternatives": [
+        "How should a report snapshot be shared?",
+        "snapshot-sharing"
+      ],
+      "answer": "Share a dated, scoped snapshot with its source, filters, completeness warnings, and intended audience. A snapshot does not freeze or replace the underlying live records.",
+      "scenario": {
+        "given": "A manager sends a KPI or COP snapshot to another role.",
+        "steps": [
+          "Record period, filters, and generation time.",
+          "Review values and warnings.",
+          "Identify the source authority.",
+          "Share through the approved channel without credentials."
+        ],
+        "expected": "Recipients can reproduce the interpretation and understand that later corrections may change live values.",
+        "next": "Retain the snapshot context for reconciliation."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "analytics",
+          "sharing",
+          "audit context"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.exports",
+        "analytics.trend-periods"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "analytics.email-test",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "email-test",
+      "title": "email-test",
+      "status": "DRAFT",
+      "question": "How should an email delivery test be interpreted?",
+      "alternatives": [
+        "How should an email delivery test be interpreted?",
+        "email-test"
+      ],
+      "answer": "A successful email test confirms the configured delivery path only; it does not prove the report data, recipient permissions, or snapshot calculations are correct.",
+      "scenario": {
+        "given": "An administrator tests report delivery.",
+        "steps": [
+          "Confirm the recipient and configuration.",
+          "Send the test through the supported control.",
+          "Verify receipt and timestamp.",
+          "Separately inspect the report scope and values."
+        ],
+        "expected": "Transport health is distinguished from analytical correctness and data privacy.",
+        "next": "Escalate delivery or content failures with evidence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "email delivery",
+          "reporting",
+          "support"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.snapshot-sharing",
+        "support.package"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/last-capabilities-items.json"
+    },
+    {
+      "id": "milk.reconciliation",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "milk",
+      "capability": "reconciliation",
+      "title": "reconciliation",
+      "status": "DRAFT",
+      "question": "How do I reconcile produced milk to sold and non-sale milk?",
+      "alternatives": [
+        "balance milk",
+        "why is milk unreconciled",
+        "disposition litres"
+      ],
+      "answer": "Select an explicit production date, confirm complete produced litres, then allocate litres to governed sold and non-sale dispositions without exceeding production.",
+      "scenario": {
+        "given": "The day's production facts are recorded or their omissions are explained.",
+        "steps": [
+          "Open Milk Reconciliation for the exact date.",
+          "Review produced, sold, non-sale, and unaccounted litres.",
+          "Create or amend dispositions within the produced balance.",
+          "Save and verify the reconciliation status and audit record."
+        ],
+        "expected": "Sold plus non-sale active dispositions do not exceed produced litres, and the day's balance is explicit.",
+        "next": "Create or amend the associated milk sale only from the governed sold disposition."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "milk disposition ledger",
+          "sale eligibility",
+          "revenue",
+          "receivable/cash facts",
+          "audit trail"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "milk.daily-total",
+        "milk.late-entry",
+        "revenue.sale",
+        "revenue.disposition"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/milk/reconciliation",
+          "POST /farm/milk/dispositions",
+          "PATCH /farm/milk/dispositions/{disposition_id}"
+        ],
+        "services": [
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py",
+          "tests/lifecycle/test_milk_surface_certification.py"
+        ]
+      },
+      "safety": "Never balance a discrepancy by inventing or silently discarding litres.",
+      "source_training_file": "docs/training/milk-production-items.json"
+    },
+    {
+      "id": "revenue.disposition",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "disposition",
+      "title": "disposition",
+      "status": "DRAFT",
+      "question": "How do I allocate produced milk to sold or non-sale use?",
+      "alternatives": [
+        "milk disposition",
+        "wastage",
+        "milk sold allocation"
+      ],
+      "answer": "Allocate active produced litres to a governed disposition such as sold or non-sale, never exceeding the active production balance for that date.",
+      "scenario": {
+        "given": "A production date has persisted milk output.",
+        "steps": [
+          "Open Milk Reconciliation.",
+          "Review produced and already allocated litres.",
+          "Choose the disposition type and enter the actual litres.",
+          "Save and verify the remaining balance."
+        ],
+        "expected": "Active sold plus non-sale litres are explicit and do not exceed production.",
+        "next": "Create or update the sale only from the sold disposition."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "disposition ledger",
+          "reconciliation status",
+          "sale eligibility",
+          "revenue facts"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "milk.reconciliation",
+        "revenue.sale",
+        "revenue.non-sale"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/milk/dispositions",
+          "PATCH /farm/milk/dispositions/{disposition_id}"
+        ],
+        "services": [
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py"
+        ]
+      },
+      "safety": "Do not use a disposition to conceal missing production or create litres.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.sale",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "sale",
+      "title": "sale",
+      "status": "DRAFT",
+      "question": "How does a milk sale become revenue?",
+      "alternatives": [
+        "record milk sale",
+        "sell milk",
+        "invoice sold milk"
+      ],
+      "answer": "A sale must reference governed sold milk; recognised revenue, cash received, and receivable outstanding are separate financial facts.",
+      "scenario": {
+        "given": "Sold disposition litres and buyer/price details are available.",
+        "steps": [
+          "Confirm sold disposition and date.",
+          "Enter buyer, quantity, price, invoice/payment facts.",
+          "Save once.",
+          "Verify the sale, ledger entry, revenue, cash, and receivable status."
+        ],
+        "expected": "Commercial facts are linked to the sold milk without treating unpaid value as cash.",
+        "next": "Review Finance and ageing for unpaid or partially paid amounts."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "milk sale",
+          "financial ledger",
+          "revenue",
+          "cash/receivable",
+          "audit history"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.disposition",
+        "revenue.cash",
+        "revenue.receivable"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial",
+          "GET /farm/milk/reconciliation"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py"
+        ]
+      },
+      "safety": "Never record a sale directly against unaccounted or non-sale litres.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.non-sale",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "non-sale-litres",
+      "title": "non-sale-litres",
+      "status": "DRAFT",
+      "question": "What counts as non-sale milk?",
+      "alternatives": [
+        "wastage disposition",
+        "milk used on farm",
+        "withdrawal milk"
+      ],
+      "answer": "Non-sale litres are explicitly classified from produced milk with a reason; they are not revenue and must remain visible in reconciliation.",
+      "scenario": {
+        "given": "Produced milk was consumed, discarded, withdrawn, or otherwise not sold.",
+        "steps": [
+          "Select the exact production date.",
+          "Choose the governed non-sale reason.",
+          "Enter actual litres and attribution.",
+          "Save and verify sold/non-sale/unaccounted balances."
+        ],
+        "expected": "Non-sale volume is excluded from sales while remaining traceable to production.",
+        "next": "Investigate any remaining unaccounted litres before closing the day."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "reconciliation",
+          "inventory/capacity where applicable",
+          "revenue exclusion",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.disposition",
+        "health.withdrawal",
+        "revenue.reconciliation"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/milk/dispositions",
+          "GET /farm/milk/reconciliation"
+        ],
+        "services": [
+          "src/dairyos/milk/services/milk_recording_intelligence_service.py",
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/milk/test_withdrawal_milk_wastage_service.py",
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "safety": "Do not classify sold milk as non-sale to force a balance.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.cash",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "cash",
+      "title": "cash",
+      "status": "DRAFT",
+      "question": "Why is recognised milk revenue different from cash received?",
+      "alternatives": [
+        "paid milk sale",
+        "receipt versus revenue",
+        "cash received"
+      ],
+      "answer": "Revenue records the commercial earning; cash records what has actually been received. An unpaid sale remains a receivable.",
+      "scenario": {
+        "given": "A sale is invoiced or recorded with payment status.",
+        "steps": [
+          "Review sale amount and invoice date.",
+          "Check payment status and received amount.",
+          "Compare Finance totals for revenue, cash, and receivable."
+        ],
+        "expected": "The three measures reconcile according to payment facts rather than being treated as one number.",
+        "next": "Use ageing to follow up outstanding receivables."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "income totals",
+          "cash movement",
+          "receivable ageing",
+          "profitability"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.sale",
+        "revenue.receivable",
+        "finance.payment-status"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/financial",
+          "POST /farm/financial",
+          "POST /farm/financial/{transaction_id}/status"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py",
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "safety": "Do not mark an invoice paid merely because revenue was recognised.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.receivable",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "receivable",
+      "title": "receivable",
+      "status": "DRAFT",
+      "question": "How do I find unpaid milk sales?",
+      "alternatives": [
+        "customer balances",
+        "receivables ageing",
+        "outstanding milk invoice"
+      ],
+      "answer": "Use Finance ageing and payment status to distinguish unpaid commercial value from cash received.",
+      "scenario": {
+        "given": "Milk sales exist with payment facts.",
+        "steps": [
+          "Open Finance.",
+          "Review ageing by counterparty and due date.",
+          "Inspect the source sale and its active status.",
+          "Record or amend payment through the governed route."
+        ],
+        "expected": "Outstanding amounts remain traceable to their source sale and do not disappear from revenue history.",
+        "next": "Recheck cash and receivable totals after a payment update."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "ageing",
+          "cash/receivable",
+          "customer follow-up",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.cash",
+        "revenue.sale",
+        "persistence.audit-trail"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/finance-ledger/ageing",
+          "GET /farm/financial"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py",
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "safety": "Do not use a generic expense or adjustment to hide a receivable.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.sale-amendment",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "sale-amendment",
+      "title": "sale-amendment",
+      "status": "DRAFT",
+      "question": "How do I correct a milk sale after milk is amended?",
+      "alternatives": [
+        "amend sale",
+        "milk sale correction",
+        "sale synchronization"
+      ],
+      "answer": "Use the atomic amendment path so milk, disposition, sale, revenue, cash, and receivable facts remain synchronized or the operation fails without a partial update.",
+      "scenario": {
+        "given": "A late milk correction changes sold litres or sale value.",
+        "steps": [
+          "Identify the source milk record and sale.",
+          "Submit the governed amendment with reason.",
+          "Verify all synchronized commercial facts and audit events.",
+          "Reconcile the affected production date."
+        ],
+        "expected": "No stale or orphaned commercial fact remains after a successful amendment.",
+        "next": "Review Finance totals and ageing for the affected period."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "milk ledger",
+          "disposition",
+          "sale",
+          "revenue",
+          "receivable",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "milk.late-entry",
+        "milk.amendment",
+        "revenue.sale",
+        "persistence.audit-trail"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx",
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "PATCH /farm/milk/production/{record_id}",
+          "PATCH /farm/milk/dispositions/{disposition_id}",
+          "PATCH /farm/finance-ledger/{transaction_id}"
+        ],
+        "services": [
+          "src/dairyos/api/milk_traceability.py",
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "safety": "Do not edit milk and sale records independently in the database.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "revenue.void",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "revenue",
+      "capability": "void",
+      "title": "void",
+      "status": "DRAFT",
+      "question": "How does voiding affect a milk sale or financial entry?",
+      "alternatives": [
+        "cancel sale",
+        "void revenue",
+        "reverse transaction"
+      ],
+      "answer": "Voiding removes a fact from active calculations while preserving its history and reason; dependent milk/disposition facts must remain consistent.",
+      "scenario": {
+        "given": "An invalid or duplicate commercial record is identified.",
+        "steps": [
+          "Review the source and dependencies.",
+          "Use the governed void/status action.",
+          "Verify active totals and retained audit history.",
+          "Reconcile the affected date and Finance period."
+        ],
+        "expected": "Active revenue/cash/receivable totals reflect the void without deleting evidence.",
+        "next": "Create a corrected fact only when supported by source evidence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "active ledger",
+          "revenue",
+          "cash/receivable",
+          "reconciliation",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "revenue.sale-amendment",
+        "milk.void",
+        "persistence.audit-trail"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial/{transaction_id}/status",
+          "POST /farm/milk/production/{record_id}/void",
+          "POST /farm/milk/dispositions/{disposition_id}/void"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/api/milk_traceability.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "safety": "Void is not deletion and must not be used to conceal errors.",
+      "source_training_file": "docs/training/milk-revenue-items.json"
+    },
+    {
+      "id": "access.login-and-visibility",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "access",
+      "capability": "login",
+      "title": "login",
+      "status": "DRAFT",
+      "question": "Why is a tab hidden or unavailable?",
+      "alternatives": [
+        "Why is a tab hidden or unavailable?",
+        "login"
+      ],
+      "answer": "Confirm the user is authenticated, the role has access, and the tab-visibility setting permits it. Hidden navigation is not proof that the underlying data is absent.",
+      "scenario": {
+        "given": "An operator cannot see a permitted workflow.",
+        "steps": [
+          "Check lock/unlock state and authentication.",
+          "Review role and tab visibility settings.",
+          "Confirm the required route is present in the current build.",
+          "Escalate with timestamp and screenshot if still unavailable."
+        ],
+        "expected": "Access configuration is distinguished from missing data or a backend failure.",
+        "next": "Run the read-only system-health check."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "navigation",
+          "permissions",
+          "support evidence"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.system-health",
+        "troubleshooting.http-errors"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "startup.readiness",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "startup",
+      "capability": "database-readiness",
+      "title": "database-readiness",
+      "status": "DRAFT",
+      "question": "What should be checked when DairyOS does not start correctly?",
+      "alternatives": [
+        "What should be checked when DairyOS does not start correctly?",
+        "database-readiness"
+      ],
+      "answer": "Separate desktop launch, backend readiness, database availability, and UI loading. Capture the exact error and time before restarting; a health response proves availability only, not data correctness.",
+      "scenario": {
+        "given": "The desktop opens but data does not load.",
+        "steps": [
+          "Record the visible error and timestamp.",
+          "Check read-only system health and database readiness.",
+          "Verify the private runtime is running.",
+          "Retry only after identifying whether the failure is transient."
+        ],
+        "expected": "The issue is classified without altering operational records.",
+        "next": "Provide the support evidence package if readiness remains false."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "startup diagnosis",
+          "database safety",
+          "support"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.system-health",
+        "installation.runtime-package"
+      ],
+      "anchors": {
+        "routes": [
+          "GET /health",
+          "GET /farm/system-health"
+        ],
+        "services": [
+          "src/dairyos/api/health.py"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "dashboard.alert-lifecycle",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "alerts",
+      "title": "alerts",
+      "status": "DRAFT",
+      "question": "How should dashboard alerts be handled?",
+      "alternatives": [
+        "How should dashboard alerts be handled?",
+        "alerts"
+      ],
+      "answer": "Treat a dashboard finding as a decision aid, trace it to its underlying record and date, acknowledge only after review, and resolve only when the condition is actually addressed.",
+      "scenario": {
+        "given": "A supervisor sees a new alert.",
+        "steps": [
+          "Open the finding and inspect its source facts.",
+          "Confirm period, animal, category, and severity.",
+          "Acknowledge the review with attribution.",
+          "Resolve after the corrective event is recorded."
+        ],
+        "expected": "Alerts remain evidence-linked and are not hidden merely to clear the dashboard.",
+        "next": "Recheck the source record and trend after the next refresh."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "alerts",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.audit-trail",
+        "troubleshooting.stale-view"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "settings.system-health",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "read-only-health",
+      "title": "read-only-health",
+      "status": "DRAFT",
+      "question": "What does the system-health check do?",
+      "alternatives": [
+        "What does the system-health check do?",
+        "read-only-health"
+      ],
+      "answer": "It reports database responsiveness, current schema and canonical columns, core persistence visibility, event and projection linkage, clinical record links, backup protection, managed data-root separation, AI Assistant knowledge availability, and runtime state using read-only checks. It must not reset, mutate, compact, delete, restore, or overwrite operational, database, or backup data.",
+      "scenario": {
+        "given": "A manager wants confidence before operating.",
+        "steps": [
+          "Open Settings and choose System Health.",
+          "Run the check without changing settings.",
+          "Review the versioned report, component status, timestamp, and warnings.",
+          "Escalate failures with the displayed evidence; do not treat a warning as proof of recoverability."
+        ],
+        "expected": "Health testing is non-destructive and clearly separated from the password-protected zero-state reset, while missing schema, orphan links, stale backup evidence, and unavailable Assistant capability remain visible.",
+        "next": "Do not run reset unless a separately authorised deployment-zero operation is intended."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "settings",
+          "read-only diagnostics",
+          "data integrity",
+          "backup safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.zero-state-reset",
+        "startup.readiness",
+        "installation.automatic-backup"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/system-health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py",
+          "tests/architecture/test_system_health_schema_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "settings.zero-state-reset",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "zero-state-reset",
+      "title": "zero-state-reset",
+      "status": "DRAFT",
+      "question": "When is a zero-state reset appropriate?",
+      "alternatives": [
+        "When is a zero-state reset appropriate?",
+        "zero-state-reset"
+      ],
+      "answer": "Only before deployment or under explicit administrator authorisation. It requires password protection, an unmistakable confirmation, recovery protection, and safe backend-stop processing; it is not a troubleshooting shortcut.",
+      "scenario": {
+        "given": "A farm is being prepared for deployment.",
+        "steps": [
+          "Confirm the target is not an active farm dataset.",
+          "Create and verify the required recovery protection.",
+          "Authenticate with the administrator credential.",
+          "Submit the exact confirmation and wait for the controlled restart processing.",
+          "Verify the resulting zero state from a fresh startup."
+        ],
+        "expected": "Reset intent is explicit and auditable, while an active farm database is protected from accidental destruction.",
+        "next": "Retain the recovery evidence according to the farm policy."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "reset safety",
+          "recovery",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.system-health",
+        "installation.data-preservation"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "POST /settings/system-reset"
+        ],
+        "services": [
+          "src/dairyos/api/settings.py",
+          "src/dairyos/windows/supervisor.py"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "analytics.period-and-cop",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "cop-period",
+      "title": "cop-period",
+      "status": "DRAFT",
+      "question": "How should a period COP result be interpreted?",
+      "alternatives": [
+        "How should a period COP result be interpreted?",
+        "cop-period"
+      ],
+      "answer": "Confirm the selected dates, completed milk records, governed TMR herd cost, attributed OPEX, exclusions, and calculation source. A changing period should recalculate from that period rather than reuse a live or unrelated snapshot.",
+      "scenario": {
+        "given": "A manager compares feed cost per litre between periods.",
+        "steps": [
+          "Select the intended completed-date range.",
+          "Verify milk litres and feed/TMR cost totals.",
+          "Review OPEX attribution and exclusions.",
+          "Compare only like-for-like periods and preserve the displayed source details."
+        ],
+        "expected": "The result is traceable to period inputs and not mistaken for an immutable accounting close.",
+        "next": "Use the daily calculation log to investigate an unexpected day."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "COP",
+          "feed cost/L",
+          "OPEX/L",
+          "management decision"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "feed.tmr-log",
+        "finance.opex"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "persistence.authority-and-audit",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "authoritative-record",
+      "title": "authoritative-record",
+      "status": "DRAFT",
+      "question": "How can a user tell whether an entry was truly saved?",
+      "alternatives": [
+        "How can a user tell whether an entry was truly saved?",
+        "authoritative-record"
+      ],
+      "answer": "Verify the authoritative response, persisted record, audit/event evidence, and refreshed downstream projection. A visible UI value or HTTP success alone is insufficient proof.",
+      "scenario": {
+        "given": "An operator submits an important entry.",
+        "steps": [
+          "Capture the before state and submitted facts.",
+          "Save once and record the response identifier.",
+          "Refresh the relevant view and inspect the linked history.",
+          "Confirm amendments, attribution, and downstream projections."
+        ],
+        "expected": "The transaction is neither orphaned nor silently replaced by a display-only value.",
+        "next": "Escalate mismatches with the exact record and timestamps; do not blind-retry."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "persistence",
+          "event journal",
+          "projection",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "milk.entry",
+        "finance.financial-entry",
+        "troubleshooting.missing-data"
+      ],
+      "anchors": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "installation.upgrade-and-backup",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "installation",
+      "capability": "data-preservation",
+      "title": "data-preservation",
+      "status": "DRAFT",
+      "question": "What must be verified after installation or upgrade?",
+      "alternatives": [
+        "What must be verified after installation or upgrade?",
+        "data-preservation"
+      ],
+      "answer": "Confirm exact artifact identity, startup, database readiness, preservation of existing farm data, and automatic-backup provisioning/execution. Never treat a successful installer exit as proof of runtime parity.",
+      "scenario": {
+        "given": "A new Windows release is installed.",
+        "steps": [
+          "Record installer and executable hashes.",
+          "Verify the intended installation target and existing data location.",
+          "Start DairyOS and check readiness.",
+          "Confirm representative existing records remain available.",
+          "Verify backup protection and capture any task or execution error."
+        ],
+        "expected": "Release evidence covers package, runtime, data preservation, and backup behavior separately.",
+        "next": "Only then perform live acceptance of critical operator paths."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "installation",
+          "upgrade",
+          "backup",
+          "recovery"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.zero-state-reset",
+        "startup.readiness"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "troubleshooting.wrong-calculation",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "troubleshooting",
+      "capability": "wrong-calculation",
+      "title": "wrong-calculation",
+      "status": "DRAFT",
+      "question": "What is the safe response to a wrong calculation?",
+      "alternatives": [
+        "What is the safe response to a wrong calculation?",
+        "wrong-calculation"
+      ],
+      "answer": "Reproduce the exact period and inputs, identify the authoritative source and formula, compare expected versus observed totals, and inspect missing or misclassified records before changing code or data.",
+      "scenario": {
+        "given": "Feed cost/L, revenue, or COP looks wrong.",
+        "steps": [
+          "Record selected dates and displayed values.",
+          "Reconcile source quantities, prices, categories, and milk litres.",
+          "Check late entries, voids, amendments, and attribution.",
+          "Compare UI, API, database, and audit evidence.",
+          "Apply a narrowly tested correction only after the discrepancy is isolated."
+        ],
+        "expected": "The cause is classified as missing input, wrong authority, timing, projection, or arithmetic rather than guessed.",
+        "next": "Add a regression test for the discovered boundary."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "forensic diagnosis",
+          "calculation integrity",
+          "regression prevention"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.period-and-cop",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py",
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/operations-support-items.json"
+    },
+    {
+      "id": "finance.profitability",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "finance",
+      "capability": "profitability",
+      "title": "profitability",
+      "status": "DRAFT",
+      "question": "How should profitability be interpreted?",
+      "alternatives": [
+        "How should profitability be interpreted?",
+        "profitability"
+      ],
+      "answer": "Compare valid revenue, sold volume, cash/receivable status, and attributed operating costs over the same period; do not infer profitability from production alone.",
+      "scenario": {
+        "given": "A manager compares two periods.",
+        "steps": [
+          "Set identical period conventions.",
+          "Review sold litres and valid revenue.",
+          "Review cash and receivable state.",
+          "Review feed and OPEX components.",
+          "Document exclusions and timing differences."
+        ],
+        "expected": "The comparison distinguishes operational margin from collection timing and incomplete data.",
+        "next": "Reconcile source entries before making a financial decision."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "revenue",
+          "receivable",
+          "COP",
+          "decision"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "finance.cost-of-production",
+        "revenue.sold-litres"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_revenue_ledger_quantity_ui.py",
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "dashboard.cards",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "dashboard-cards",
+      "title": "dashboard-cards",
+      "status": "DRAFT",
+      "question": "What does a dashboard card represent?",
+      "alternatives": [
+        "What does a dashboard card represent?",
+        "dashboard-cards"
+      ],
+      "answer": "Each card is a projection of a defined source metric with its own date, denominator, and status. Open the underlying detail before acting on a card.",
+      "scenario": {
+        "given": "A card shows an unexpected value.",
+        "steps": [
+          "Read the card label and period.",
+          "Open its detail or source module.",
+          "Check completeness and status.",
+          "Compare with the authoritative log."
+        ],
+        "expected": "Cards guide action without becoming an untraceable second ledger.",
+        "next": "Use the source workflow for correction."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "KPI",
+          "source traceability"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.kpis",
+        "dashboard.decisions"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "analytics.trend-periods",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "analytics",
+      "capability": "trend-periods",
+      "title": "trend-periods",
+      "status": "DRAFT",
+      "question": "How should trends be compared?",
+      "alternatives": [
+        "How should trends be compared?",
+        "trend-periods"
+      ],
+      "answer": "Use consistent inclusive periods, operational-date boundaries, population definitions, and completeness rules. A trend can change when late entries or amendments are correctly incorporated.",
+      "scenario": {
+        "given": "A user compares weekly or monthly trends.",
+        "steps": [
+          "Record each selected period.",
+          "Confirm the same population and metric definition.",
+          "Check late and amended records.",
+          "Interpret changes with source status and caveats."
+        ],
+        "expected": "Trend movement is not confused with a changed filter or data completeness.",
+        "next": "Investigate outliers through the daily log."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "analytics",
+          "dashboard",
+          "decision quality"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "analytics.kpis",
+        "settings.operational-date"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "access.roles",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "access",
+      "capability": "roles",
+      "title": "roles",
+      "status": "DRAFT",
+      "question": "How do roles affect DairyOS work?",
+      "alternatives": [
+        "How do roles affect DairyOS work?",
+        "roles"
+      ],
+      "answer": "Roles define responsibility and access expectations; they do not change the facts or permit bypassing a controlled workflow.",
+      "scenario": {
+        "given": "A task must be assigned between operator, supervisor, finance, veterinary, and technical roles.",
+        "steps": [
+          "Identify the responsible role.",
+          "Use that role's permitted surface.",
+          "Record attribution.",
+          "Escalate cross-role decisions through the farm process."
+        ],
+        "expected": "Accountability is clear and access remains least-privilege.",
+        "next": "Review permissions when the responsibility changes."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "security",
+          "workflow ownership",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.permissions",
+        "settings.password-lock"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "access.help-navigation",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "access",
+      "capability": "help-navigation",
+      "title": "help-navigation",
+      "status": "DRAFT",
+      "question": "How should an operator find the correct workflow?",
+      "alternatives": [
+        "How should an operator find the correct workflow?",
+        "help-navigation"
+      ],
+      "answer": "Use AI Assistant guidance and visible module labels to locate the source workflow, then confirm the record type before entering data.",
+      "scenario": {
+        "given": "An operator is unsure where to record an event.",
+        "steps": [
+          "Ask AI Assistant for the relevant workflow.",
+          "Identify the source module and record type.",
+          "Check required fields and safety notes.",
+          "Save and verify through the linked history."
+        ],
+        "expected": "The operator records the event once in the correct authority.",
+        "next": "Use support escalation if the guidance and implementation disagree."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "training",
+          "navigation",
+          "correct entry"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.login-and-visibility",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/AIAssistant.tsx",
+          "src/DairyOS.Web/src/App.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "access.hidden-tabs",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "access",
+      "capability": "hidden-tabs",
+      "title": "hidden-tabs",
+      "status": "DRAFT",
+      "question": "What does a hidden tab mean?",
+      "alternatives": [
+        "What does a hidden tab mean?",
+        "hidden-tabs"
+      ],
+      "answer": "A hidden tab reflects navigation or visibility configuration; it does not prove that the corresponding data, route, or history is absent.",
+      "scenario": {
+        "given": "A manager cannot see a module tab.",
+        "steps": [
+          "Check lock state and visibility settings.",
+          "Confirm role access.",
+          "Use the approved visibility control.",
+          "Verify the module after refresh."
+        ],
+        "expected": "Navigation configuration is separated from data integrity.",
+        "next": "Escalate a missing permitted tab with build and role evidence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "navigation",
+          "permissions",
+          "support"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.permissions",
+        "settings.tab-visibility"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_health_vaccination_split_20260901.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "settings.tab-visibility",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "tab-visibility",
+      "title": "tab-visibility",
+      "status": "DRAFT",
+      "question": "How should tab visibility be changed?",
+      "alternatives": [
+        "How should tab visibility be changed?",
+        "tab-visibility"
+      ],
+      "answer": "Use the protected Settings control, change only the intended visibility, and verify the resulting navigation without altering any operational records.",
+      "scenario": {
+        "given": "A permitted module should be shown or hidden.",
+        "steps": [
+          "Authenticate through the supported flow.",
+          "Change the selected visibility setting.",
+          "Reload navigation.",
+          "Confirm data remains unchanged."
+        ],
+        "expected": "Visibility changes affect presentation only and are attributable.",
+        "next": "Restore the intended configuration after temporary troubleshooting."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "navigation",
+          "settings",
+          "security"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.hidden-tabs",
+        "settings.password-lock"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "persistence.event-journal",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "event-journal",
+      "title": "event-journal",
+      "status": "DRAFT",
+      "question": "Why is an event journal useful?",
+      "alternatives": [
+        "Why is an event journal useful?",
+        "event-journal"
+      ],
+      "answer": "It preserves durable operational facts and their provenance so projections, audit, and recovery can be reconciled without relying on a screen value.",
+      "scenario": {
+        "given": "A source write succeeded but a projection is delayed.",
+        "steps": [
+          "Identify the source event.",
+          "Check its durable status and identifier.",
+          "Compare projections against the event.",
+          "Rebuild only through an authorised safe process."
+        ],
+        "expected": "Recovery can use durable evidence rather than guessed or duplicate writes.",
+        "next": "Record the projection outcome."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "persistence",
+          "replay",
+          "audit",
+          "recovery"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "persistence.projection-outbox",
+        "persistence.replay"
+      ],
+      "anchors": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "persistence.orphan-detection",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "persistence",
+      "capability": "orphan-detection",
+      "title": "orphan-detection",
+      "status": "DRAFT",
+      "question": "How are orphaned records investigated?",
+      "alternatives": [
+        "How are orphaned records investigated?",
+        "orphan-detection"
+      ],
+      "answer": "Find records whose foreign identity, source event, or projection linkage is missing; preserve them for investigation and do not delete or reassign them without an authorised correction.",
+      "scenario": {
+        "given": "A history row cannot be reached from the expected passport.",
+        "steps": [
+          "Capture its identifier and source date.",
+          "Check the permanent Animal ID and source event.",
+          "Compare direct history with projections.",
+          "Escalate for controlled repair."
+        ],
+        "expected": "Potential orphaning is visible and no evidence is destroyed during diagnosis.",
+        "next": "Add a regression test after the linkage cause is corrected."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "integrity",
+          "audit",
+          "support"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "animals.identity-and-passport",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "runtime.restart-behavior",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "runtime",
+      "capability": "restart-behavior",
+      "title": "restart-behavior",
+      "status": "DRAFT",
+      "question": "What should survive a DairyOS restart?",
+      "alternatives": [
+        "What should survive a DairyOS restart?",
+        "restart-behavior"
+      ],
+      "answer": "Persisted operational facts, audit history, configuration, and governed projections should reload consistently; transient UI state is not evidence of persistence.",
+      "scenario": {
+        "given": "A restart is required after a save or configuration change.",
+        "steps": [
+          "Capture the before state and saved identifier.",
+          "Close and restart through the supported path.",
+          "Check readiness.",
+          "Reload the record and linked projections."
+        ],
+        "expected": "The durable record and relevant settings survive while unsaved drafts do not become false facts.",
+        "next": "Escalate any post-restart mismatch with before/after evidence."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "persistence",
+          "configuration",
+          "runtime"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "startup.readiness",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py",
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "assistant.answer-contract",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "assistant",
+      "capability": "ai",
+      "title": "ai",
+      "status": "DRAFT",
+      "question": "What should a DairyOS AI assistant do?",
+      "alternatives": [
+        "What should a DairyOS AI assistant do?",
+        "ai"
+      ],
+      "answer": "It should answer from reviewed DairyOS knowledge, identify the relevant source and date, explain next steps and effects, disclose uncertainty, and route clinical, financial, security, or destructive decisions to an authorised person.",
+      "scenario": {
+        "given": "A user asks how to perform or interpret an operation.",
+        "steps": [
+          "Classify the question and user perspective.",
+          "Retrieve only reviewed, implementation-linked content.",
+          "Explain preconditions, action, expected result, and next action.",
+          "State safety limits and escalation requirements."
+        ],
+        "expected": "The assistant teaches and guides without inventing capabilities, granting permissions, diagnosing animals, or performing writes.",
+        "next": "Return an explicit not-yet-supported response when coverage is absent."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "training",
+          "support",
+          "safety",
+          "knowledge governance"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "access.help-navigation",
+        "support.package"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/AIAssistant.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/remaining-capabilities-items.json"
+    },
+    {
+      "id": "settings.farm-profile",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "farm-profile",
+      "title": "farm-profile",
+      "status": "DRAFT",
+      "question": "How should farm profile settings be changed?",
+      "alternatives": [
+        "How should farm profile settings be changed?",
+        "farm-profile"
+      ],
+      "answer": "Change only authorised profile fields, confirm the effective value after saving, and verify that date, timezone, reporting, and identity-dependent screens use the updated configuration.",
+      "scenario": {
+        "given": "The farm name or location is changing.",
+        "steps": [
+          "Review the current setting.",
+          "Enter the authorised new value.",
+          "Save and reload Settings.",
+          "Confirm dependent displays and audit evidence."
+        ],
+        "expected": "The configuration persists and downstream users see the same governed farm context.",
+        "next": "Escalate if close-and-reopen does not preserve the setting."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "farm profile",
+          "configuration",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.operational-date",
+        "settings.system-health"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+    },
+    {
+      "id": "settings.password-lock",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "settings",
+      "capability": "password",
+      "title": "password",
+      "status": "DRAFT",
+      "question": "How should protected settings be accessed?",
+      "alternatives": [
+        "How should protected settings be accessed?",
+        "password"
+      ],
+      "answer": "Use the existing authenticated lock/unlock flow. Password protection controls access to protected actions; it does not grant permission to alter unrelated records.",
+      "scenario": {
+        "given": "An administrator needs a protected action.",
+        "steps": [
+          "Confirm the user and intended action.",
+          "Unlock through the supported UI.",
+          "Perform only the authorised operation.",
+          "Lock again and verify protected controls are hidden."
+        ],
+        "expected": "Protected actions require deliberate authentication and the locked state is visible.",
+        "next": "Record or escalate authentication failures without bypassing the control."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "security",
+          "settings",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.zero-state-reset",
+        "access.login-and-visibility"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+    },
+    {
+      "id": "dashboard.decisions",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "dashboard",
+      "capability": "decisions",
+      "title": "decisions",
+      "status": "DRAFT",
+      "question": "How should a dashboard finding become an action?",
+      "alternatives": [
+        "How should a dashboard finding become an action?",
+        "decisions"
+      ],
+      "answer": "Trace the finding to its source, assess urgency and responsibility, record the authorised operational action in its proper workflow, then recheck the finding after refresh.",
+      "scenario": {
+        "given": "A dashboard identifies a production, health, feed, or finance concern.",
+        "steps": [
+          "Open the finding details.",
+          "Confirm source date, population, and completeness.",
+          "Assign the responsible role.",
+          "Record the corrective action in the source module.",
+          "Acknowledge and resolve only after evidence exists."
+        ],
+        "expected": "The dashboard coordinates work without becoming an alternative write ledger.",
+        "next": "Review the trend and audit trail."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "dashboard",
+          "decision",
+          "source workflow",
+          "audit"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "dashboard.alert-lifecycle",
+        "persistence.audit-trail"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+    },
+    {
+      "id": "support.http-errors",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "support",
+      "capability": "http-errors",
+      "title": "http-errors",
+      "status": "DRAFT",
+      "question": "How should an HTTP error be investigated?",
+      "alternatives": [
+        "How should an HTTP error be investigated?",
+        "http-errors"
+      ],
+      "answer": "Capture method, route, status, response detail, timestamp, user action, and selected period. Classify the failure before retrying and never infer that a failed request was not partially persisted.",
+      "scenario": {
+        "given": "A save or load request returns an error.",
+        "steps": [
+          "Record the exact visible message and status.",
+          "Check whether the source record changed.",
+          "Refresh the relevant view once after classification.",
+          "Escalate with evidence and avoid blind duplicate writes."
+        ],
+        "expected": "Support can distinguish validation, authentication, server, projection, and network failures.",
+        "next": "Use the affected workflow's correction path after the cause is known."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "support",
+          "persistence safety",
+          "audit evidence"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "troubleshooting.missing-data",
+        "persistence.authority-and-audit"
+      ],
+      "anchors": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+    },
+    {
+      "id": "support.health-failure",
+      "class": "DAIRYOS_INSTRUCTION",
+      "schema_version": 2,
+      "domain": "support",
+      "capability": "health-failure",
+      "title": "health-failure",
+      "status": "DRAFT",
+      "question": "What should be done when system health reports a failure?",
+      "alternatives": [
+        "What should be done when system health reports a failure?",
+        "health-failure"
+      ],
+      "answer": "Treat the result as diagnostic evidence, not as permission to reset or repair live data. Capture the failed component and escalate through the support path.",
+      "scenario": {
+        "given": "A read-only health check is partially or wholly red.",
+        "steps": [
+          "Record timestamp and failed checks.",
+          "Confirm whether the operator UI remains usable.",
+          "Avoid reset, restore, or destructive repair actions.",
+          "Provide the health result to technical support."
+        ],
+        "expected": "Operational data and backups remain untouched while the failure is diagnosed.",
+        "next": "Resume normal operation only after readiness is confirmed."
+      },
+      "effects": {
+        "persisted": [],
+        "derived": [
+          "system health",
+          "support",
+          "data safety"
+        ],
+        "projected": [],
+        "audit": []
+      },
+      "related": [
+        "settings.system-health",
+        "startup.readiness"
+      ],
+      "anchors": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/system-health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "safety": "",
+      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+    }
+  ],
+  "review": {
+    "implementation": "REQUIRED",
+    "domain": "REQUIRED",
+    "coverage": "REQUIRED"
+  }
+}
