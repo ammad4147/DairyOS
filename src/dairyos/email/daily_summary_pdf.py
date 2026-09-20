@@ -112,7 +112,7 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         ("HERD", f"{herd['total']} head", f"{milking} milking cows", GREEN),
         ("COST OF PRODUCTION", (f"{_money(cop.get('total_cop_per_liter'))} / L" if cop.get("total_cop_per_liter") is not None else "Unavailable"), (f"Feed {_money(cop.get('feed_cost_per_liter'))} / L" if cop.get("feed_cost_per_liter") is not None else "Feed unavailable"), ORANGE),
         ("CASH MOVEMENT", _money(net_cash) if finance is not None else "Restricted", (f"Receipts {_money(finance.get('revenue_received'))}" if finance is not None else "Finance permission required"), PURPLE),
-        ("ATTENTION", f"{len(attention)} item" + ("" if len(attention) == 1 else "s"), f"Health {health.get('active_exceptions', 0)}", RED),
+        ("ATTENTION", f"{len(attention)} item" + ("" if len(attention) == 1 else "s"), (f"Health {health.get('active_exceptions')}" if health.get("active_exceptions") is not None else "Health unavailable"), RED),
     ]
     card_w = usable / 5
     for i, (label, value, hint, accent) in enumerate(cards):
@@ -155,7 +155,13 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     _box(c, margin, top2 - h2, col_w, h2, "FEED & COST OF PRODUCTION", ORANGE)
     _box(c, margin + col_w + gap, top2 - h2, col_w, h2, "FINANCIAL SNAPSHOT (CASH BASIS)", PURPLE)
     ry = top2 - 18 * mm
-    total_cop = float(cop.get("feed_total") or 0) + float(cop.get("opex_total") or 0)
+    feed_total = cop.get("feed_total")
+    opex_total = cop.get("opex_total")
+    total_cop = (
+        float(feed_total) + float(opex_total)
+        if feed_total is not None and opex_total is not None
+        else None
+    )
     for label, value in [
         ("Feed Cost", _money(cop.get("feed_total"))),
         ("Feed Cost / L", _money(cop.get("feed_cost_per_liter"))),
