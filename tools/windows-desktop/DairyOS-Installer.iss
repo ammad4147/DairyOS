@@ -483,6 +483,7 @@ var
   DataDir: String;
   PidFile: String;
   ResultCode: Integer;
+  StatusCode: Integer;
 begin
   Result := False;
   Log('DairyOS uninstall: stopping the private runtime.');
@@ -516,15 +517,33 @@ begin
       ResultCode
     )) or (ResultCode <> 0) then
     begin
-      Log('DairyOS uninstall: private PostgreSQL stop failed with code ' +
-        IntToStr(ResultCode));
-      MsgBox(
-        'DairyOS private PostgreSQL could not be stopped cleanly. ' +
-        'Uninstall is blocked so the database and application runtime remain intact.',
-        mbError,
-        MB_OK
-      );
-      exit;
+      { An interrupted launch can leave only a stale postmaster.pid. Accept
+        that case only when pg_ctl independently confirms that this exact
+        cluster is stopped; never delete the marker while status is unknown
+        or the cluster is still running. }
+      if Exec(
+        PgCtl,
+        '-D "' + DataDir + '" status',
+        ExpandConstant('{app}'),
+        SW_HIDE,
+        ewWaitUntilTerminated,
+        StatusCode
+      ) and (StatusCode = 3) and DeleteFile(PidFile) then
+      begin
+        Log('DairyOS uninstall: recovered stale stopped-cluster postmaster.pid.');
+      end
+      else
+      begin
+        Log('DairyOS uninstall: private PostgreSQL stop failed with code ' +
+          IntToStr(ResultCode));
+        MsgBox(
+          'DairyOS private PostgreSQL could not be stopped cleanly. ' +
+          'Uninstall is blocked so the database and application runtime remain intact.',
+          mbError,
+          MB_OK
+        );
+        exit;
+      end;
     end;
   end;
 
