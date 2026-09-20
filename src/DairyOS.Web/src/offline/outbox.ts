@@ -3,6 +3,7 @@ import { apiUrl } from '../config/api';
 const DB_NAME = 'DairyOS_Web_Offline';
 const DB_VERSION = 1;
 const STORE = 'mutation-outbox';
+export const OUTBOX_CHANGED = 'dairyos-outbox-changed';
 
 export type QueuedMutation = {
   id: string;
@@ -37,6 +38,7 @@ export async function enqueueMutation(endpoint: string, payload: unknown): Promi
     tx.onerror = () => reject(tx.error);
   });
   db.close();
+  window.dispatchEvent(new Event(OUTBOX_CHANGED));
   return mutation;
 }
 
@@ -58,6 +60,7 @@ async function remove(id: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
   db.close();
+  window.dispatchEvent(new Event(OUTBOX_CHANGED));
 }
 
 async function markFailed(item: QueuedMutation, error: unknown): Promise<void> {
@@ -71,6 +74,11 @@ async function markFailed(item: QueuedMutation, error: unknown): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
   db.close();
+  window.dispatchEvent(new Event(OUTBOX_CHANGED));
+}
+
+export async function pendingMutationCount(): Promise<number> {
+  return (await pending()).length;
 }
 
 export async function flushOutbox(): Promise<{ sent: number; remaining: number }> {
