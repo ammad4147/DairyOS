@@ -256,17 +256,62 @@ class DashboardDigestService:
                 "missing_days": [],
             }
 
-    def _active_warnings(self) -> list[str]:
+    def _active_findings(self) -> list[dict]:
         factory = RepositoryFactory.create()
         try:
             findings = factory.operational_findings().get_open()
             return [
-                str(getattr(item, "title", None) or getattr(item, "detail", None) or "Operational warning")
+                {
+                    "finding_id": getattr(item, "finding_id", None),
+                    "area": str(getattr(item, "source_module", None) or "Operational").title(),
+                    "subject_id": getattr(item, "subject_id", None),
+                    "severity": str(getattr(item, "severity", None) or "INFO").upper(),
+                    "title": str(
+                        getattr(item, "title", None)
+                        or getattr(item, "detail", None)
+                        or "Operational warning"
+                    ),
+                    "detail": getattr(item, "detail", None),
+                    "route": getattr(item, "route", None),
+                }
                 for item in findings
             ]
         finally:
             factory.close()
 
+    def _active_warnings(self) -> list[str]:
+        return [item["title"] for item in self._active_findings()]
+
+    def _reproduction_snapshot(self, digest_date: date) -> dict:
+        factory = RepositoryFactory.create()
+        try:
+            counts = {"ai": 0, "pd": 0, "confirmed": 0, "losses": 0, "calvings": 0}
+            for record in factory.breeding().get_all():
+                timestamp = getattr(record, "timestamp", None)
+                record_date = getattr(timestamp, "date", lambda: None)()
+                if record_date != digest_date:
+                    continue
+                event_type = str(getattr(record, "event_type", "") or "").upper()
+                result = str(getattr(record, "result", "") or "").upper()
+                if event_type in {"AI", "INSEMINATION"}:
+                    counts["ai"] += 1
+                elif event_type in {"PD", "PREGNANCY_DIAGNOSIS"}:
+                    counts["pd"] += 1
+                    if result in {"POSITIVE", "PREGNANT", "CONFIRMED"}:
+                        counts["confirmed"] += 1
+                elif event_type in {"LOSS", "PREGNANCY_LOSS", "ABORTION", "MISCARRIAGE"}:
+                    counts["losses"] += 1
+                elif event_type == "CALVING":
+                    counts["calvings"] += 1
+            due = sum(
+                1
+                for finding in factory.operational_findings().get_open()
+                if str(getattr(finding, "source_module", "") or "").upper() == "BREEDING"
+            )
+            counts["due"] = due
+            return counts
+        finally:
+            factory.close()
 
     def _pdf_payload(self, *, digest_date: date, user_permissions: set[str]) -> dict:
         dashboard = self._dashboard()
@@ -279,11 +324,8 @@ class DashboardDigestService:
             if "finance.view" in user_permissions or "dashboard.view_finance" in user_permissions
             else {}
         )
-        warnings = self._active_warnings()
-        attention = [
-            {"area": "Operational", "title": warning}
-            for warning in warnings
-        ]
+        attention = self._active_findings()
+        reproduction = self._reproduction_snapshot(digest_date)
         return {
             "operational_date": digest_date,
             "milk": milk,
@@ -291,6 +333,7 @@ class DashboardDigestService:
             "cop": cop,
             "finance": finance,
             "health": health,
+            "reproduction": reproduction,
             "attention": attention,
         }
 
