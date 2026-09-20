@@ -845,20 +845,39 @@ def stop(
     if not _pid_file(data_root).is_file():
         return
 
-    _run(
-        [
-            str(_binary("pg_ctl.exe")),
-            "-D",
-            str(data_root),
-            "stop",
-            "-m",
-            "fast",
-            "-w",
-            "-t",
-            str(int(timeout)),
-        ],
-        timeout=timeout + 10,
-    )
+    stop_command = [
+        str(_binary("pg_ctl.exe")),
+        "-D",
+        str(data_root),
+        "stop",
+        "-m",
+        "fast",
+        "-w",
+        "-t",
+        str(int(timeout)),
+    ]
+    try:
+        _run(stop_command, timeout=timeout + 10)
+    except PrivatePostgreSQLError:
+        # An interrupted packaged process can leave postmaster.pid behind even
+        # though the cluster is already stopped.  The uninstaller must be able
+        # to recover that safe, non-running state without asking the operator
+        # to intervene; never remove the marker while pg_ctl still reports a
+        # live server.
+        status_result = _run(
+            [str(_binary("pg_ctl.exe")), "-D", str(data_root), "status"],
+            check=False,
+            timeout=10,
+        )
+        if status_result.returncode != 3:
+            raise
+        try:
+            _pid_file(data_root).unlink()
+        except OSError as exc:
+            raise PrivatePostgreSQLError(
+                "Private PostgreSQL is stopped but its stale postmaster PID "
+                "file could not be removed."
+            ) from exc
 
 
 def status(config: PrivatePostgreSQLConfig) -> PrivatePostgreSQLStatus:
