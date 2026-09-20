@@ -61,10 +61,27 @@ _DAIRYOS_HINTS = frozenset(
     .split()
 )
 
+_GENERAL_DAIRY_EFFECT_WORDS = frozenset(
+    "weather climate heat humidity temperature season".split()
+)
+
 
 def _is_dairyos_question(question: str) -> bool:
     words = set(re.findall(r"[a-z0-9]+", question.lower()))
     return bool(words & _DAIRYOS_HINTS)
+
+
+def _is_general_dairy_effect_question(question: str) -> bool:
+    """Recognise industry questions that mention a DairyOS topic incidentally.
+
+    For example, ``weather effect on milk`` should receive general dairy
+    guidance with related DairyOS context, not be misrepresented as a DairyOS
+    weather capability merely because ``milk`` is in the question.
+    """
+    words = set(re.findall(r"[a-z0-9]+", question.lower()))
+    return bool(words & _GENERAL_DAIRY_EFFECT_WORDS) and not bool(
+        re.search(r"\b(?:dairyos|in\s+dairyos|how\s+do\s+i|where\s+do\s+i)\b", question, re.I)
+    )
 
 
 def corpus_root() -> Path:
@@ -172,6 +189,9 @@ class Assistant:
             and _is_dairyos_question(question)
             and float(evidence[0].get("score", 0.0)) < 2.0
         ):
+            for item in evidence:
+                item["related_only"] = True
+        if evidence and _is_general_dairy_effect_question(question):
             for item in evidence:
                 item["related_only"] = True
         if not evidence and _is_dairyos_question(question):

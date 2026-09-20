@@ -2,7 +2,7 @@
   "schema_version": 2,
   "corpus_version": "0.9.0-assistant-owned-rebuild",
   "generated_at": "2026-09-20T05:00:00+05:00",
-  "dairyos_source_authority": "4696fee49ac7e25de5e358286b13503b3f70b68c",
+  "dairyos_source_authority": "3632a283c1269443716a9906b0bba7d7d53946de",
   "servable_statuses": [
     "APPROVED"
   ],
