@@ -117,6 +117,17 @@ def _assistant_roots() -> list[Path]:
 def assistant_command() -> list[str] | None:
     """How to start the Assistant, frozen or from source."""
     executable = "DairyOSAssistant.exe" if os.name == "nt" else "DairyOSAssistant"
+
+    # Source-mode verification must exercise this checkout, not an older
+    # installed ProgramData package. Frozen production builds intentionally
+    # skip this branch and use the packaged executable below.
+    if not getattr(sys, "frozen", False):
+        configured = os.environ.get("DAIRYOS_ASSISTANT_ROOT", "").strip()
+        source_root = Path(configured).expanduser() if configured else _bundle_root()
+        service = source_root / "src" / "dairyos_assistant" / "service.py"
+        if service.is_file():
+            return [sys.executable, str(service)]
+
     for root in _assistant_roots():
         frozen = root / executable
         if frozen.is_file():

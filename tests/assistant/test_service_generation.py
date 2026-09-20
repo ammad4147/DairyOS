@@ -96,15 +96,15 @@ def test_a_claim_of_data_access_is_withheld(assistant):
 
 
 def test_an_operational_question_never_reaches_the_model(assistant):
-    """Policy runs first. A refused question must not be sent to the model at
-    all, because a prompt containing the question is already a leak of intent
-    and a chance for the model to answer it."""
+    """Operational questions receive guidance, never an invented record."""
     model = ScriptedModel(FAITHFUL)
     result = assistant(model).answer("How much milk did we produce today?")
 
     assert result["decision"] == "REFUSE_OPERATIONAL_DATA"
-    assert result["stage"] == "REFUSED"
-    assert model.calls == [], "the model must not be consulted for a refused question"
+    assert result["stage"] == "GUIDANCE_ANSWERED"
+    assert result["operational_data_access"] == "NONE"
+    assert "farm's records show" not in result["text"].lower()
+    assert model.calls, "the guidance route should still help the operator"
 
 
 def test_an_unanswerable_question_uses_the_separate_general_route(assistant):

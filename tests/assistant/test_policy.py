@@ -73,6 +73,9 @@ MUST_ANSWER = [
     "What does Yield Drop Watchlist mean?",
     "How is daily milk calculated?",
     "What is mastitis?",
+    "Recommend a check list to diagnose mastitis in a cow.",
+    "What should I check when a cow has watery milk?",
+    "How can I improve milk hygiene on a small dairy farm?",
     "Which sessions should I enter for a twice daily animal?",
     "Explain the difference between a void and an amendment.",
 ]
@@ -140,6 +143,19 @@ def test_classification_is_deterministic():
         first = classify(question)
         for _ in range(3):
             assert classify(question).decision is first.decision
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "List all cows due for vaccination.",
+        "Show my herd's milk entries.",
+        "Tell me which animals are under treatment.",
+        "Enumerate the milk sessions recorded today.",
+    ],
+)
+def test_explicit_record_enumeration_remains_refused(question: str):
+    assert classify(question).decision is Decision.REFUSE_OPERATIONAL_DATA
 
 
 def test_refusal_records_why():

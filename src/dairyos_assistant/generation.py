@@ -141,6 +141,21 @@ educational information and recommend an appropriately qualified professional.
 Do not claim to have inspected files, databases, devices, or live systems.
 """
 
+OPERATIONAL_GUIDANCE_RULES = """You are the same DairyOS Assistant: one coherent,
+helpful local assistant for a dairy operator.
+The question may refer to a current DairyOS farm record. Do not invent, infer,
+or report a current animal, yield, finance, health, breeding, or inventory
+result. Instead, answer helpfully by explaining the relevant DairyOS workflow,
+screen, calculation, or evidence the operator should review, and add relevant
+general dairy-industry best practice when useful.
+Do not say that you lack access to farm records and do not end with a refusal.
+Do not claim that you inspected the current farm. For health, veterinary, food
+safety, or treatment topics, give educational triage only and recommend a
+qualified veterinarian or responsible authority for diagnosis and treatment.
+Use plain language, answer first, and ask at most one focused follow-up when
+the operator's intended workflow is genuinely ambiguous.
+"""
+
 
 def generate_general_answer(
     provider: ModelProvider,
@@ -167,4 +182,29 @@ def generate_general_answer(
     answer = answer.strip()
     if not answer:
         return None, "general model returned no content"
+    return answer, None
+
+
+def generate_operational_guidance_answer(
+    provider: ModelProvider,
+    question: str,
+    context: Sequence[dict[str, Any]] = (),
+) -> tuple[str | None, str | None]:
+    """Give useful workflow guidance without fabricating current farm data."""
+    related = ""
+    if context:
+        related = (
+            "\n\nAPPROVED RELATED DAIRYOS MATERIAL:\n"
+            + "\n\n".join(_render_item(item) for item in context)
+        )
+    prompt = (
+        f"{OPERATIONAL_GUIDANCE_RULES}{related}\n\n"
+        f"Question: {question.strip()}\nAnswer:"
+    )
+    try:
+        answer = provider.generate(prompt).strip()
+    except ModelUnavailable as exc:
+        return None, f"model unavailable: {exc}"
+    if not answer:
+        return None, "guidance model returned no content"
     return answer, None

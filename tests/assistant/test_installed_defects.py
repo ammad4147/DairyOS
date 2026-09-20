@@ -91,13 +91,14 @@ def test_no_evidence_still_says_so_plainly(assistant_without_model: Assistant):
     assert "does not cover this" in result["text"]
 
 
-def test_a_refusal_is_never_replaced_by_approved_text(assistant_without_model: Assistant):
-    """The fallback runs after retrieval. A farm-data question never reaches
-    it, and must not acquire an answer because the model happened to be down."""
+def test_operational_question_still_gets_safe_guidance_without_model(assistant_without_model: Assistant):
+    """A farm-data question gets useful approved guidance without inventing a record."""
     result = assistant_without_model.answer("How much milk did we produce today?")
-    assert result["stage"] == "REFUSED"
-    assert result["evidence"] == []
-    assert "do not have access" in result["text"]
+    assert result["stage"] == "RELATED_GUIDANCE"
+    assert result["operational_data_access"] == "NONE"
+    assert result["evidence"]
+    assert result["text"]
+    assert "do not have access" not in result["text"].lower()
 
 
 # ---------------------------------------------------------------------------

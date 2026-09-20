@@ -32,14 +32,13 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from dairyos_assistant import __version__
-from dairyos_assistant.generation import generate_answer, generate_general_answer
-from dairyos_assistant.model import ModelProvider, NullProvider
-from dairyos_assistant.policy import (
-    REFUSAL_TEXT,
-    Decision,
-    classify,
-    is_instructional,
+from dairyos_assistant.generation import (
+    generate_answer,
+    generate_general_answer,
+    generate_operational_guidance_answer,
 )
+from dairyos_assistant.model import ModelProvider, NullProvider
+from dairyos_assistant.policy import Decision, classify, is_instructional
 from dairyos_assistant.retrieval import (
     NO_EVIDENCE_TEXT,
     KnowledgeIndex,
@@ -147,21 +146,55 @@ class Assistant:
         verdict = classify(question)
 
         # The refusal is decided before the corpus is consulted. A question
-        # about this farm's records is refused whether or not the knowledge
-        # base happens to contain something that looks like a match, because
-        # the decision is about what was asked, not about what could be found.
+        # about this farm's records cannot be answered with an invented current
+        # value. It is still routed to useful workflow guidance rather than a
+        # dead-end disclaimer.
         if verdict.decision is Decision.REFUSE_OPERATIONAL_DATA:
-            return {
+            hits = self.index.search(question, limit=EVIDENCE_LIMIT)
+            evidence = [
+                {
+                    "id": hit.knowledge_id,
+                    "title": hit.title,
+                    "domain": hit.domain,
+                    "capability": hit.capability,
+                    "class": hit.item_class,
+                    "status": hit.status,
+                    "score": hit.score,
+                    "matched_terms": list(hit.matched_terms),
+                    "unreviewed": hit.unreviewed,
+                    "related_only": True,
+                }
+                for hit in hits
+            ]
+            answer, failure = generate_operational_guidance_answer(
+                self.provider,
+                question,
+                [hit.item for hit in hits],
+            )
+            response = {
                 "decision": verdict.decision.value,
-                "stage": "REFUSED",
+                "stage": "GUIDANCE_ANSWERED" if answer else "RELATED_GUIDANCE",
                 "answer": None,
-                "text": REFUSAL_TEXT,
+                "text": answer,
                 "reason": verdict.reason,
                 "signals": list(verdict.signals),
                 "instructional_phrasing": is_instructional(question),
-                "evidence": [],
-                "unreviewed": False,
+                "evidence": evidence,
+                "unreviewed": any(item["unreviewed"] for item in evidence),
+                "route": "DAIRYOS_GUIDED_GENERAL",
+                "operational_data_access": "NONE",
+                "general_knowledge": bool(answer),
             }
+            if answer:
+                response["answer"] = answer
+            else:
+                response["text"] = (
+                    approved_text(hits)
+                    if hits
+                    else "Open the relevant DairyOS screen to review the current record, then apply the related dairy best-practice guidance shown there."
+                )
+                response["model_error"] = failure
+            return response
 
         hits = self.index.search(question, limit=EVIDENCE_LIMIT)
         evidence = [

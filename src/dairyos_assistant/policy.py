@@ -70,7 +70,11 @@ _HOW_MUCH = r"\bhow\s+(?:much|many)\b"
 _WHICH_RECORD = r"\bwhich\s+(?:\w+\s+){0,2}(?:cow|cows|animal|animals|heifer|heifers|calf|calves|bull|bulls|one|ones|technician|technicians|supplier|customer|lot|batch)\b"
 
 # Imperative retrieval.
-_RETRIEVE_VERB = r"\b(?:show|list|display|fetch|retrieve|pull\s+up|give\s+me|tell\s+me)\b"
+# Do not treat every occurrence of "list" as a record lookup: operators use
+# "check list" and "checklist" for general guidance. Explicit enumeration
+# forms remain protected below (for example, "list all cows").
+_RETRIEVE_VERB = r"\b(?:show|display|fetch|retrieve|pull\s+up|give\s+me|tell\s+me)\b"
+_ENUMERATE_RECORDS = r"\b(?:list|enumerate)\s+(?:the|all|my|our|of|for|which)\b"
 
 # Analysis of the operator's own data.
 _ANALYSE_MINE = r"\b(?:analyse|analyze|review|audit|summarise|summarize|check)\b[^.?!]{0,30}\b(?:my|our|the)\s+" + _OPERATIONAL_NOUNS
@@ -108,6 +112,7 @@ _PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("how-much+operational", re.compile(_HOW_MUCH + r"[^.?!]{0,40}?" + _OPERATIONAL_NOUNS, re.IGNORECASE)),
     ("which-record", re.compile(_WHICH_RECORD, re.IGNORECASE)),
     ("retrieve+operational", re.compile(_RETRIEVE_VERB + r"[^.?!]{0,30}?" + _OPERATIONAL_NOUNS, re.IGNORECASE)),
+    ("enumerate-records", re.compile(_ENUMERATE_RECORDS + r"[^.?!]{0,30}?" + _OPERATIONAL_NOUNS, re.IGNORECASE)),
     ("analyse-mine", re.compile(_ANALYSE_MINE, re.IGNORECASE)),
 )
 

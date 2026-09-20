@@ -81,9 +81,10 @@ def test_practical_assistant_preserves_operational_data_boundary(
 ):
     result = assistant.answer("Which calves on my farm have scours today?")
 
-    assert result["stage"] == "REFUSED"
-    assert result["evidence"] == []
-    assert "do not have access" in result["text"]
+    assert result["stage"] in {"GUIDANCE_ANSWERED", "RELATED_GUIDANCE"}
+    assert result["operational_data_access"] == "NONE"
+    assert result["text"]
+    assert "do not have access" not in result["text"].lower()
 
 
 def test_practical_answers_do_not_prescribe_treatment_or_doses(

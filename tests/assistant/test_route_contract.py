@@ -250,8 +250,8 @@ def test_an_unavailable_assistant_is_never_answered_from_this_side(client: TestC
 def test_a_farm_data_question_is_refused_over_the_route(client: TestClient, question: str):
     body = client.post(ASK, json={"question": question}).json()
     assert body["decision"] == "REFUSE_OPERATIONAL_DATA"
-    assert body["stage"] == "REFUSED"
-    assert body["evidence"] == []
+    assert body["stage"] in {"GUIDANCE_ANSWERED", "RELATED_GUIDANCE"}
+    assert body["text"]
     assert body["operational_data_access"] == "NONE"
 
 
