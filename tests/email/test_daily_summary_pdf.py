@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from dairyos.email.daily_summary_pdf import daily_summary_pdf
 from dairyos.email.digest import DashboardDigestService
@@ -134,3 +134,75 @@ def test_pdf_accepts_restricted_finance_and_unavailable_authorities():
     payload = daily_summary_pdf(summary)
     assert payload.startswith(b"%PDF-")
     assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
+
+
+class _CompletenessFactory:
+    def __init__(self, sessions, feed_records):
+        self.sessions = sessions
+        self.feed_records = feed_records
+
+    def milking_session_ledger(self):
+        return SimpleNamespace(
+            settled_sessions_on=lambda ignored: set(self.sessions)
+        )
+
+    def feed(self):
+        return SimpleNamespace(get_all=lambda: list(self.feed_records))
+
+    def close(self):
+        return None
+
+
+def test_daily_completeness_requires_three_sessions_five_feeds_and_tmr(monkeypatch):
+    factory = _CompletenessFactory(
+        {"MORNING", "AFTERNOON", "EVENING"},
+        [
+            SimpleNamespace(
+                feeding_date=datetime(2026, 9, 20, hour, tzinfo=UTC)
+            )
+            for hour in (1, 3, 5, 7, 9)
+        ],
+    )
+    monkeypatch.setattr(
+        "dairyos.email.digest.RepositoryFactory.create",
+        lambda: factory,
+    )
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    service._farm_timezone = lambda fallback=None: UTC
+    result = service._daily_completeness(
+        digest_date=date(2026, 9, 20),
+        cop={"feed_complete": True},
+    )
+    assert result["status"] == "COMPLETE"
+    assert result["missing_milk_sessions"] == []
+    assert result["feed_event_count"] == 5
+
+
+def test_daily_completeness_identifies_missing_session_and_feed(monkeypatch):
+    factory = _CompletenessFactory(
+        {"MORNING", "EVENING"},
+        [
+            SimpleNamespace(
+                feeding_date=datetime(2026, 9, 20, hour, tzinfo=UTC)
+            )
+            for hour in (1, 3, 5, 7)
+        ],
+    )
+    monkeypatch.setattr(
+        "dairyos.email.digest.RepositoryFactory.create",
+        lambda: factory,
+    )
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    service._farm_timezone = lambda fallback=None: UTC
+    result = service._daily_completeness(
+        digest_date=date(2026, 9, 20),
+        cop={"feed_complete": False},
+    )
+    assert result["status"] == "INCOMPLETE"
+    assert result["missing_milk_sessions"] == ["AFTERNOON"]
+    assert result["feed_event_count"] == 4
+    assert result["checks"]["tmr_authority"] is False
