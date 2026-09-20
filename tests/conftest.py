@@ -7,6 +7,7 @@ import uuid
 from urllib.parse import unquote, urlsplit
 
 import pytest
+from sqlalchemy import inspect
 from fastapi.testclient import TestClient
 
 
@@ -120,6 +121,12 @@ def _delete_test_rows_one_at_a_time(session, model) -> None:
     the disposable-test gate above. Production guard policy is not weakened and
     no destructive-admin role membership is required by the application role.
     """
+    # Some focused test files intentionally do not initialize the complete
+    # application schema. Teardown must remain safe for those isolated runs;
+    # when the table exists, retain the normal row-by-row cleanup policy.
+    if not inspect(session.bind).has_table(model.__tablename__):
+        return
+
     for row in session.query(model).all():
         session.delete(row)
         # Flush each row separately so PostgreSQL sees a one-row DELETE
