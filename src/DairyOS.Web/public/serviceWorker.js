@@ -1,46 +1,28 @@
-const CACHE_NAME = 'dairyos-v1';
-const DB_NAME = 'DairyOS_OfflineDB';
-const STORE_NAME = 'sync-queue';
+const CACHE_NAME = 'dairyos-web-shell-v2';
+const APP_SHELL = ['/', '/index.html', '/manifest.json', '/dairyos-cow.svg'];
 
-// 1. Initialize the Offline Vault (IndexedDB)
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-            }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+});
 
-// 2. Save Failed Requests to the Vault
-async function saveToVault(requestUrl, payload) {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).add({
-        url: requestUrl,
-        payload: payload,
-        timestamp: new Date().getTime()
-    });
-    console.log('[DairyOS Courier] Network down. Saved to Digital Clipboard.');
-}
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.keys().then((keys) => Promise.all(
+    keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)),
+  )).then(() => self.clients.claim()));
+});
 
-// 3. Interceptor
 self.addEventListener('fetch', (event) => {
-    // Only intercept POST requests (saving data)
-    if (event.request.method === 'POST' && event.request.url.includes('/api/')) {
-        event.respondWith(
-            fetch(event.request.clone()).catch(async () => {
-                const payload = await event.request.clone().json();
-                await saveToVault(event.request.url, payload);
-                return new Response(JSON.stringify({ status: 'offline_queued' }), {
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            })
-        );
-    }
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/farm/') || url.pathname.startsWith('/assistant/')) return;
+  event.respondWith(
+    fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      }
+      return response;
+    }).catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html'))),
+  );
 });
