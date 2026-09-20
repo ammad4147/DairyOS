@@ -1,4 +1,5 @@
 import { apiUrl } from "../config/api";
+import { enqueueMutation } from "../offline/outbox";
 
 export interface OperationalEntry {
     [key: string]: unknown;
@@ -31,11 +32,20 @@ export interface HealthEntryRequest extends OperationalEntry {
 }
 
 export async function postRequest<T>(url: string, payload: unknown): Promise<T> {
-    const response = await fetch(apiUrl(url), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
+    const requestPayload = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? { ...(payload as Record<string, unknown>), request_id: (payload as Record<string, unknown>).request_id || crypto.randomUUID() }
+        : payload;
+    let response: Response;
+    try {
+        response = await fetch(apiUrl(url), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestPayload),
+        });
+    } catch (error) {
+        await enqueueMutation(url, requestPayload);
+        return { status: "offline_queued", offline: true } as T;
+    }
 
     if (!response.ok) {
         let detail = `Request failed: ${response.status}`;
