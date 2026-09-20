@@ -90,3 +90,15 @@ def test_missing_package_hash_is_rejected_before_activation(tmp_path, monkeypatc
 
     with pytest.raises(ValueError, match="sidecar is required"):
         assistant_package.install(package)
+
+
+def test_windows_utf8_manifest_is_reported_as_installed(tmp_path, monkeypatch):
+    package = _package(tmp_path)
+    root = tmp_path / "assistant"
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", root)
+    assistant_package.install(package)
+    manifest = root / "assistant-manifest.json"
+    manifest.write_text(
+        "\ufeff" + manifest.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    assert assistant_package.status()["installed"] is True
