@@ -128,17 +128,15 @@ export default function AIAssistant() {
         <div style={{ marginTop: 4, color: '#cbd5e1' }}>
           Status: {packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED' ? 'Installed' : 'Not Installed'}
         </div>
-        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && (
-          <div>
-            <input type="file" accept=".dairyassistant" onChange={(event) => setPackageFile(event.target.files?.[0] || null)} style={{ marginTop: 8, maxWidth: '100%' }} />
-            <button type="button" onClick={installAssistant} disabled={installing || !packageFile} style={{ marginTop: 8 }}>
-              {installing ? 'Installing Assistant…' : 'Install Selected Assistant Package'}
-            </button>
-            <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 11 }}>
-              Select one approved `.dairyassistant` package file. Integrity is verified internally before activation.
-            </div>
+        <div>
+          <input type="file" accept=".dairyassistant" onChange={(event) => setPackageFile(event.target.files?.[0] || null)} style={{ marginTop: 8, maxWidth: '100%' }} />
+          <button type="button" onClick={installAssistant} disabled={installing || !packageFile} style={{ marginTop: 8 }}>
+            {installing ? 'Installing Assistant…' : (packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED' ? 'Install Assistant Update' : 'Install Selected Assistant Package')}
+          </button>
+          <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 11 }}>
+            Select one approved `.dairyassistant` package file. Installing an update replaces only the Assistant package; DairyOS farm data is preserved.
           </div>
-        )}
+        </div>
         {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && packageStatus?.package && !packageStatus.package.source_configured && (
           <div style={{ marginTop: 8, color: '#fbbf24', fontSize: 12 }}>
             No approved Assistant package source is configured on this computer. Core DairyOS remains usable; an administrator must provide the separately distributed package before it can be installed.
