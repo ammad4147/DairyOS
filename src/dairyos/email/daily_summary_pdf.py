@@ -20,7 +20,9 @@ TEXT = colors.HexColor("#12294A")
 
 
 def _money(value: Any, decimals: int = 2) -> str:
-    return f"PKR {float(value or 0):,.{decimals}f}"
+    if value is None:
+        return "Unavailable"
+    return f"PKR {float(value):,.{decimals}f}"
 
 
 def _num(value: Any, decimals: int = 1) -> str:
@@ -78,13 +80,20 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     milk = summary["milk"]
     herd = summary["herd"]
     cop = summary["cop"]
-    finance = summary.get("finance") or {}
+    finance = summary.get("finance")
     health = summary.get("health") or {}
     attention = summary.get("attention") or []
     milking = int(herd["counts"].get("Milking", 0) or 0)
     yield_l = float(milk.get("total_yield") or 0)
     per_cow = yield_l / milking if milking else 0
-    net_cash = float(finance.get("revenue_received") or 0) - float(finance.get("expenses") or 0)
+    net_cash = (
+        float(finance.get("revenue_received") or 0)
+        - float(finance.get("expenses") or 0)
+        if finance is not None
+        else None
+    )
+    completeness = summary.get("completeness") or {}
+    completeness_status = str(completeness.get("status") or "UNKNOWN").upper()
 
     y = height - 39 * mm
     c.setFillColor(colors.HexColor("#EAF5EC"))
@@ -92,11 +101,17 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     c.setFillColor(TEXT)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(margin + 4 * mm, y - 6 * mm, "TODAY AT A GLANCE")
+    c.setFont("Helvetica-Bold", 7)
+    c.drawRightString(
+        width - margin - 4 * mm,
+        y - 6 * mm,
+        f"DATA {completeness_status}",
+    )
     cards = [
         ("MILK PRODUCED", f"{_num(yield_l)} L", f"{_num(per_cow)} L / milking cow", NAVY),
         ("HERD", f"{herd['total']} head", f"{milking} milking cows", GREEN),
-        ("COST OF PRODUCTION", f"{_money(cop.get('total_cop_per_liter'))} / L", f"Feed {_num(cop.get('feed_cost_per_liter'), 2)} / L", ORANGE),
-        ("CASH MOVEMENT", _money(net_cash), f"Receipts {_money(finance.get('revenue_received'))}", PURPLE),
+        ("COST OF PRODUCTION", (f"{_money(cop.get('total_cop_per_liter'))} / L" if cop.get("total_cop_per_liter") is not None else "Unavailable"), (f"Feed {_money(cop.get('feed_cost_per_liter'))} / L" if cop.get("feed_cost_per_liter") is not None else "Feed unavailable"), ORANGE),
+        ("CASH MOVEMENT", _money(net_cash) if finance is not None else "Restricted", (f"Receipts {_money(finance.get('revenue_received'))}" if finance is not None else "Finance permission required"), PURPLE),
         ("ATTENTION", f"{len(attention)} item" + ("" if len(attention) == 1 else "s"), f"Health {health.get('active_exceptions', 0)}", RED),
     ]
     card_w = usable / 5
@@ -152,12 +167,15 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         _row(c, margin + 4 * mm, ry, label, value, col_w - 8 * mm, label.startswith("Total COP")); ry -= 5.2 * mm
 
     ry = top2 - 18 * mm
-    for label, value in [
-        ("Receipts", _money(finance.get("revenue_received"))),
-        ("Payments / Expenses", _money(finance.get("expenses"))),
-        ("Net Cash Movement", _money(net_cash)),
-    ]:
-        _row(c, margin + col_w + gap + 4 * mm, ry, label, value, col_w - 8 * mm, label == "Net Cash Movement"); ry -= 7 * mm
+    if finance is None:
+        _row(c, margin + col_w + gap + 4 * mm, ry, "Finance", "Restricted", col_w - 8 * mm, True)
+    else:
+        for label, value in [
+            ("Receipts", _money(finance.get("revenue_received"))),
+            ("Payments / Expenses", _money(finance.get("expenses"))),
+            ("Net Cash Movement", _money(net_cash)),
+        ]:
+            _row(c, margin + col_w + gap + 4 * mm, ry, label, value, col_w - 8 * mm, label == "Net Cash Movement"); ry -= 7 * mm
 
     top3 = top2 - h2 - gap
     h3 = 30 * mm
@@ -169,8 +187,10 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         c.drawString(margin + 4 * mm, top3 - 18 * mm, f"AI {reproduction.get('ai', 0)}   PD {reproduction.get('pd', 0)}   Confirmed {reproduction.get('confirmed', 0)}   Losses {reproduction.get('losses', 0)}   Due {reproduction.get('due', 0)}")
     else:
         c.drawString(margin + 4 * mm, top3 - 18 * mm, "Reproductive activity: see governed Breeding records")
-    c.drawString(margin + col_w + gap + 4 * mm, top3 - 18 * mm, f"Active Health Alerts: {health.get('active_exceptions', 0)}")
-    c.drawString(margin + col_w + gap + 4 * mm, top3 - 24 * mm, f"Under Milk Withdrawal: {health.get('withdrawal_count', 0)}")
+    active_health = health.get("active_exceptions")
+    withdrawal_count = health.get("withdrawal_count")
+    c.drawString(margin + col_w + gap + 4 * mm, top3 - 18 * mm, f"Active Health Alerts: {active_health if active_health is not None else 'Unavailable'}")
+    c.drawString(margin + col_w + gap + 4 * mm, top3 - 24 * mm, f"Under Milk Withdrawal: {withdrawal_count if withdrawal_count is not None else 'Unavailable'}")
 
     top4 = top3 - h3 - gap
     h4 = 35 * mm
