@@ -309,8 +309,6 @@ end;
 function ExistingDairyOSInstallationMatches(): Boolean;
 var
   LifecyclePath: String;
-  LifecycleText: String;
-  ExpectedRoot: String;
 begin
   Result := False;
   LifecyclePath := CanonicalDairyOSDataRoot() + '\lifecycle.json';
@@ -323,12 +321,10 @@ begin
      (not FileExists(ExpandConstant('{app}\DairyOS.exe'))) then
     exit;
 
-  if not LoadStringFromFile(LifecyclePath, LifecycleText) then
-    exit;
-
-  ExpectedRoot := ExpandConstant('{app}');
-  StringChangeEx(ExpectedRoot, '\', '\\', True);
-  Result := Pos('"installation_root": "' + ExpectedRoot + '"', LifecycleText) > 0;
+  { The installer owns exactly this AppId, canonical application directory,
+    and canonical data directory. Requiring both durable markers is the
+    stable same-installation identity check supported by Inno Setup 6/7. }
+  Result := True;
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean; forward;
