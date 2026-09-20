@@ -32,7 +32,6 @@ import pytest
 
 from tests.assistant.test_boundary import FORBIDDEN_MODULES
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "DairyOS-Assistant.spec"
 CORE_SPEC = ROOT / "DairyOS.spec"

@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from dataclasses import dataclass
 import json
 import os
-from pathlib import Path
 import re
 import socket
 import subprocess
 import sys
 import threading
 import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from pathlib import Path
 
 from dairyos.platform import paths
 from dairyos.windows.components import compare_versions
