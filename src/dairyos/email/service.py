@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import smtplib
 from dataclasses import dataclass
+from typing import Iterable
 from email.message import EmailMessage
 
 from dairyos.core.time_utils import utcnow
@@ -115,7 +116,15 @@ class EmailService:
         finally:
             factory.close()
 
-    def send(self, *, recipient: str, subject: str, body: str, config: EmailSenderConfig | None = None) -> None:
+    def send(
+        self,
+        *,
+        recipient: str,
+        subject: str,
+        body: str,
+        config: EmailSenderConfig | None = None,
+        attachments: Iterable[tuple[str, bytes, str, str]] | None = None,
+    ) -> None:
         cfg = config or self.get_config()
         if cfg is None:
             raise RuntimeError("DairyOS email sender is not configured")
@@ -124,6 +133,13 @@ class EmailService:
         msg["To"] = recipient
         msg["Subject"] = subject
         msg.set_content(body)
+        for filename, content, maintype, subtype in attachments or ():
+            msg.add_attachment(
+                content,
+                maintype=maintype,
+                subtype=subtype,
+                filename=filename,
+            )
 
         with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=30) as smtp:
             if cfg.use_tls:
