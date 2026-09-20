@@ -35,6 +35,7 @@ from tests.assistant.test_boundary import FORBIDDEN_MODULES
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "DairyOS-Assistant.spec"
+CORE_SPEC = ROOT / "DairyOS.spec"
 ENTRY_POINT = ROOT / "src" / "dairyos_assistant" / "service.py"
 
 pytestmark = pytest.mark.skipif(not SPEC.is_file(), reason="spec not present")
@@ -191,30 +192,20 @@ def test_core_spec_does_not_collect_the_optional_assistant():
 # ---------------------------------------------------------------------------
 
 
-def test_the_assistant_analysis_carries_the_bundled_runtime():
-    """Operator decision: model and server ship inside the package.
+def test_core_spec_does_not_build_or_bundle_the_optional_assistant():
+    """Core packaging must remain independent of the optional Assistant."""
+    source = CORE_SPEC.read_text(encoding="utf-8")
+    assert "assistant_runtime_datas" not in source
+    assert "Get-AssistantRuntime.ps1" not in source
+    assert "DairyOSAssistant" not in source
 
-    The datas argument must extend the corpus list with the runtime artefacts,
-    so a build cannot quietly produce a package whose Assistant has no model.
-    """
-    datas = _keyword(_assistant_analysis(), "datas")
-    assert isinstance(datas, ast.BinOp) and isinstance(datas.op, ast.Add), (
-        "the Assistant datas must combine the corpus with the bundled runtime"
+
+def test_core_build_does_not_fetch_optional_assistant_runtime():
+    source = (ROOT / "scripts" / "Build-DairyOS-Desktop.ps1").read_text(
+        encoding="utf-8"
     )
-    assert "assistant_runtime_datas" in _source(datas.right)
-    assert "assistant-knowledge" in _source(datas.left)
-
-
-def test_a_missing_runtime_artefact_fails_the_build():
-    """Silence here would ship a mute Assistant to a farm with no way to fix it
-    on site, which is the whole reason the artefacts are bundled."""
-    source = SPEC.read_text(encoding="utf-8")
-    assert "raise FileNotFoundError" in source
-    assert "Qwen3-1.7B-Q4_K_M.gguf" in source
-    assert "llama-server.exe" in source
-    assert "Get-AssistantRuntime.ps1" in (ROOT / "scripts" / "Build-DairyOS-Desktop.ps1").read_text(encoding="utf-8"), (
-        "the build pipeline must tell the developer how to fetch the runtime"
-    )
+    assert "Get-AssistantRuntime.ps1" not in source
+    assert "Core build does not download" in source
 
 
 def test_the_runtime_is_downloaded_and_verified_against_pinned_hashes():

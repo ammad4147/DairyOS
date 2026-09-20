@@ -26,7 +26,7 @@ $releaseManifest = Get-Content $releaseManifestPath -Raw | ConvertFrom-Json
 if ([string]$releaseManifest.source_commit -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source commit." }
 if ([string]$releaseManifest.source_tree -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source tree." }
 
-Write-Host "Protected Settings controls remain available; the certified DairyOS AI Assistant is included in this desktop bundle." -ForegroundColor DarkGray
+Write-Host "Protected Settings controls remain available; the optional AI Assistant is installed separately from Core." -ForegroundColor DarkGray
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
 $programFiles = [Environment]::GetFolderPath("ProgramFiles")
