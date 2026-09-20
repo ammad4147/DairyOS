@@ -765,18 +765,23 @@ class DashboardDigestService:
                 if existing_delivery is not None and existing_delivery.status == "SENT":
                     continue
                 try:
-                    subject, body = self.render(
+                    permissions = {"dashboard.view", "dashboard.view_finance"}
+                    summary = self._pdf_payload(
                         digest_date=digest_date,
-                        user_permissions={"dashboard.view", "dashboard.view_finance"},
+                        user_permissions=permissions,
                     )
+                    subject, body = self._delivery_content(summary)
+                    filename = f"DairyOS-Daily-Summary-{digest_date.isoformat()}.pdf"
                     self.mail.send(
                         recipient=email,
                         subject=subject,
                         body=body,
                         config=config,
-                        attachments=[self._email_attachment(
-                            digest_date=digest_date,
-                            user_permissions={"dashboard.view", "dashboard.view_finance"},
+                        attachments=[(
+                            filename,
+                            daily_summary_pdf(summary),
+                            "application",
+                            "pdf",
                         )],
                     )
                     delivery = existing_delivery or EmailDigestDelivery(
@@ -821,15 +826,23 @@ class DashboardDigestService:
                     factory.session.add(delivery)
                     continue
                 try:
-                    subject, body = self.render(digest_date=digest_date, user_permissions=set(permissions))
+                    permission_set = set(permissions)
+                    summary = self._pdf_payload(
+                        digest_date=digest_date,
+                        user_permissions=permission_set,
+                    )
+                    subject, body = self._delivery_content(summary)
+                    filename = f"DairyOS-Daily-Summary-{digest_date.isoformat()}.pdf"
                     self.mail.send(
                         recipient=user.personal_email,
                         subject=subject,
                         body=body,
                         config=config,
-                        attachments=[self._email_attachment(
-                            digest_date=digest_date,
-                            user_permissions=set(permissions),
+                        attachments=[(
+                            filename,
+                            daily_summary_pdf(summary),
+                            "application",
+                            "pdf",
                         )],
                     )
                     if existing is None:
