@@ -1,7 +1,7 @@
 from dairyos.feed.intelligence.models import (
     FeedSignal,
-    FeedSignalType,
     FeedSignalSeverity,
+    FeedSignalType,
 )
 
 

@@ -1,12 +1,9 @@
-from dairyos.platform.knowledge_graph.services.knowledge_service import (
-    KnowledgeService,
-)
-
-
 from dairyos.platform.knowledge_graph.entities.animal_entity import (
     AnimalEntity,
 )
-
+from dairyos.platform.knowledge_graph.services.knowledge_service import (
+    KnowledgeService,
+)
 
 
 def test_knowledge_entity_registration():

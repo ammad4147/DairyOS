@@ -31,7 +31,6 @@ from fastapi.testclient import TestClient
 
 from dairyos.app import app
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "AIAssistant.tsx"
 WEB_SRC = ROOT / "src" / "DairyOS.Web" / "src"

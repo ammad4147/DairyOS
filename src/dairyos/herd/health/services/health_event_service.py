@@ -1,8 +1,7 @@
-from datetime import datetime
 
-from ..models.health_event import HealthEvent
 from dairyos.core.time_utils import utcnow
 
+from ..models.health_event import HealthEvent
 
 
 class HealthEventService:

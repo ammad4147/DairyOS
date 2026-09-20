@@ -1,9 +1,9 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from dairyos.api.authorization import permission_for_request
 from dairyos.auth.permissions import permissions_from_json
 from dairyos.email.digest import expected_digest_date
-from dairyos.api.authorization import permission_for_request
 
 
 def test_custom_permissions_override_role_preset():

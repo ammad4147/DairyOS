@@ -1,7 +1,6 @@
 from ..models.animal_inventory import AnimalInventory
 
 
-
 class AnimalInventoryService:
 
 

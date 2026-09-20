@@ -1,9 +1,8 @@
-from dairyos.intelligence.decision.services import (
-    ConfidenceEngine,
-)
-
 from dairyos.intelligence.decision.models import (
     DecisionRecommendation,
+)
+from dairyos.intelligence.decision.services import (
+    ConfidenceEngine,
 )
 
 

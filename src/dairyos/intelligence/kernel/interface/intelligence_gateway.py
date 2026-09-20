@@ -1,7 +1,6 @@
 from dairyos.intelligence.kernel.context.intelligence_context import (
     IntelligenceContext,
 )
-
 from dairyos.intelligence.kernel.orchestration.intelligence_orchestrator import (
     IntelligenceOrchestrator,
 )

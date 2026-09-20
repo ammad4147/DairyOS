@@ -1,18 +1,14 @@
 from datetime import date
 
-
 from dairyos.farm.herd.models.animal import (
     Animal,
 )
-
 from dairyos.farm.herd.repository.animal_repository import (
     AnimalRepository,
 )
-
 from dairyos.farm.herd.services.animal_registry_service import (
     AnimalRegistryService,
 )
-
 
 
 def test_register_dairy_animal():

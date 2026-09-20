@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class ImpactLevel(str, Enum):
 
     LOW = "low"

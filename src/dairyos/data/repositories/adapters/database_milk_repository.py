@@ -1,11 +1,10 @@
 from math import isfinite
 
-from dairyos.farm.operations.repositories.milk_repository import (
-    MilkRepository,
-)
-
 from dairyos.data.models import (
     MilkProduction,
+)
+from dairyos.farm.operations.repositories.milk_repository import (
+    MilkRepository,
 )
 
 

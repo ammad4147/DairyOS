@@ -1,7 +1,6 @@
 from dairyos.intelligence.persistence.models.intelligence_event import (
     IntelligenceEvent,
 )
-
 from dairyos.intelligence.persistence.repositories.intelligence_event_repository import (
     IntelligenceEventRepository,
 )

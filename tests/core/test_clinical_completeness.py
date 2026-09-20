@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.clinical_completeness_service import (
-    ClinicalCompletenessService
+    ClinicalCompletenessService,
 )
-
 
 
 def test_missing_information_detected():

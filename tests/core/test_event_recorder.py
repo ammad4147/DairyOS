@@ -1,7 +1,6 @@
 from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
 )
-
 from dairyos.intelligence.persistence.services.event_recorder import (
     EventRecorder,
 )

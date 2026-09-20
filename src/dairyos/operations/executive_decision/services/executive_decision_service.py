@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from ..models.executive_decision import ExecutiveDecision
 from ..models.decision_urgency import DecisionUrgency
+from ..models.executive_decision import ExecutiveDecision
 
 
 class ExecutiveDecisionService:

@@ -15,7 +15,6 @@ from dairyos.herd.dashboard.models.executive_report import (
 )
 
 
-
 class ExecutiveReportingBridge:
     """
     Converts executive runtime models

@@ -1,6 +1,5 @@
 from datetime import date
 
-from dairyos.api.farm_data_entry import next_milking_session
 from dairyos.farm.command_center.services.missing_input_detection_service import (
     MissingInputDetectionService,
 )

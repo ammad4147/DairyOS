@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.executive_intelligence_summary_service import ExecutiveIntelligenceSummaryService
-
+from dairyos.herd.dashboard.services.executive_intelligence_summary_service import (
+    ExecutiveIntelligenceSummaryService,
+)
 
 
 def test_summary_creation():

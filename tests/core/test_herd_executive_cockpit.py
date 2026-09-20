@@ -1,7 +1,7 @@
 from dairyos.herd.dashboard.models.herd_command import HerdCommand
-
-from dairyos.herd.dashboard.services.executive_cockpit_service import ExecutiveCockpitService
-
+from dairyos.herd.dashboard.services.executive_cockpit_service import (
+    ExecutiveCockpitService,
+)
 
 
 def command():

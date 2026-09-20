@@ -1,7 +1,6 @@
 from ..models.condition_reference import ConditionReference
 
 
-
 class ClinicalKnowledgeService:
 
 

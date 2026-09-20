@@ -4,7 +4,6 @@ from dairyos.feed import (
 )
 
 
-
 def test_feed_event_creation():
 
     event = FeedEvent(

@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Index, CheckConstraint
+
+from sqlalchemy import CheckConstraint, Column, DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import validates
+
 from dairyos.core.inventory_units import convert_quantity
-from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class InventoryTransaction(Base):

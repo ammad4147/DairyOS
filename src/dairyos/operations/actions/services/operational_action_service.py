@@ -1,8 +1,7 @@
-from typing import List
 
-from ..models.operational_action import OperationalAction
 from ..models.action_assignment import ActionAssignment
 from ..models.action_status import ActionStatus
+from ..models.operational_action import OperationalAction
 
 
 class OperationalActionService:
@@ -14,7 +13,7 @@ class OperationalActionService:
 
     def __init__(self):
 
-        self.actions: List[OperationalAction] = []
+        self.actions: list[OperationalAction] = []
 
 
     def create_action(
@@ -83,6 +82,6 @@ class OperationalActionService:
 
     def get_actions(
         self,
-    ) -> List[OperationalAction]:
+    ) -> list[OperationalAction]:
 
         return self.actions

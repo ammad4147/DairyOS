@@ -1,7 +1,6 @@
 from dairyos.herd.feed.services.feed_management_service import FeedManagementService
 
 
-
 def test_feed_group():
 
     result = FeedManagementService().evaluate(

@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class RoomStatus(str, Enum):
 
     HEALTHY = "healthy"

@@ -1,25 +1,21 @@
-from dairyos.operations.intelligence.models.operational_signal import (
-    OperationalSignal,
+from dairyos.operations.actions.services.operational_action_service import (
+    OperationalActionService,
 )
-from dairyos.operations.intelligence.services.operations_intelligence_service import (
-    OperationsIntelligenceService,
-)
-
 from dairyos.operations.decisions.models.decision_context import (
     DecisionContext,
 )
 from dairyos.operations.decisions.services.operations_decision_service import (
     OperationsDecisionService,
 )
-
-from dairyos.operations.actions.services.operational_action_service import (
-    OperationalActionService,
+from dairyos.operations.intelligence.models.operational_signal import (
+    OperationalSignal,
 )
-
+from dairyos.operations.intelligence.services.operations_intelligence_service import (
+    OperationsIntelligenceService,
+)
 from dairyos.operations.outcomes.services.feedback_service import (
     FeedbackService,
 )
-
 from dairyos.operations.outcomes.services.outcome_record_service import (
     OutcomeRecordService,
 )

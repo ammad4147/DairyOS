@@ -1,7 +1,6 @@
 from ..models.staff_task import StaffTask
 
 
-
 class StaffTaskManagementService:
 
 

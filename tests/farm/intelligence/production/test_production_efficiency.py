@@ -3,7 +3,6 @@ from dairyos.farm.intelligence.production.services.production_efficiency_service
 )
 
 
-
 def test_production_efficiency_calculation():
 
 

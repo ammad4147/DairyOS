@@ -1,7 +1,6 @@
 from ..models.intelligence_brief import IntelligenceBrief
 
 
-
 class IntelligenceOrchestratorService:
 
 

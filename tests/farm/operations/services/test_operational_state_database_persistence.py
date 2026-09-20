@@ -2,19 +2,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from dairyos.data.database.base import Base
-
 from dairyos.data.repositories.database_operational_state_repository import (
     DatabaseOperationalStateRepository,
 )
-
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
-
 
 
 def test_database_operational_state_persistence():

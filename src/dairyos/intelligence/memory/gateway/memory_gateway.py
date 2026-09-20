@@ -6,12 +6,11 @@ class MemoryGateway:
     def __init__(self, service=None):
 
         if service is None:
-            from dairyos.intelligence.memory.services.memory_service import (
-                MemoryService,
-            )
-
             from dairyos.intelligence.memory.repository.adapters.memory_memory_repository import (
                 MemoryMemoryRepository,
+            )
+            from dairyos.intelligence.memory.services.memory_service import (
+                MemoryService,
             )
 
             service = MemoryService(

@@ -1,15 +1,12 @@
-from dairyos.farm.production.milk.models.milk_record import (
-    MilkRecord,
-)
-
-from dairyos.farm.production.milk.repository.milk_repository import (
-    MilkRepository,
-)
-
 from dairyos.farm.production.milk.dashboard.milk_dashboard_service import (
     MilkDashboardService,
 )
-
+from dairyos.farm.production.milk.models.milk_record import (
+    MilkRecord,
+)
+from dairyos.farm.production.milk.repository.milk_repository import (
+    MilkRepository,
+)
 
 
 def test_milk_dashboard_summary():

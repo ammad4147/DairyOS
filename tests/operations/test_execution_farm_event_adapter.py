@@ -2,11 +2,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from dairyos.operations.execution.events.execution_farm_event_adapter import (
-    ExecutionFarmEventAdapter,
-)
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
+)
+from dairyos.operations.execution.events.execution_farm_event_adapter import (
+    ExecutionFarmEventAdapter,
 )
 
 

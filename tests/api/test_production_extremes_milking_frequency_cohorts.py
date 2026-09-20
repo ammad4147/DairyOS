@@ -1,7 +1,6 @@
+import uuid
 from datetime import date
 from pathlib import Path
-import uuid
-
 
 ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD = (

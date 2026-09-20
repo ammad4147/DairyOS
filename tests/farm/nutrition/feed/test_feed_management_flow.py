@@ -1,15 +1,12 @@
 from dairyos.farm.nutrition.feed.models.feed_record import (
     FeedRecord,
 )
-
 from dairyos.farm.nutrition.feed.repository.feed_repository import (
     FeedRepository,
 )
-
 from dairyos.farm.nutrition.feed.services.feed_management_service import (
     FeedManagementService,
 )
-
 
 
 def test_daily_feed_recording():

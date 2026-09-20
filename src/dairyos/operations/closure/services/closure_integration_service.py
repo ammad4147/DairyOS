@@ -1,15 +1,14 @@
-from ..models.closure_status import ClosureStatus
-from ..models.operational_closure import OperationalClosure
-
-from dairyos.operations.command_verification.models.verification_status import (
-    VerificationStatus,
-)
+from datetime import datetime
 
 from dairyos.operations.command_outcome.models.outcome_status import (
     OutcomeStatus,
 )
+from dairyos.operations.command_verification.models.verification_status import (
+    VerificationStatus,
+)
 
-from datetime import datetime
+from ..models.closure_status import ClosureStatus
+from ..models.operational_closure import OperationalClosure
 
 
 class ClosureIntegrationService:

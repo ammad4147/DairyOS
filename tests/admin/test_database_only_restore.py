@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 import uuid
 
 import pytest
@@ -10,7 +9,11 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from dairyos.admin.service import AdminService
-from dairyos.data.database.backup import create_backup, restore_backup, PostgreSQLBackupError
+from dairyos.data.database.backup import (
+    PostgreSQLBackupError,
+    create_backup,
+    restore_backup,
+)
 from dairyos.data.database.session import DATABASE_URL
 from dairyos.lifecycle.manager import LifecycleManager
 

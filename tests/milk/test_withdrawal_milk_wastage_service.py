@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 from dairyos.farm.production.services.withdrawal_milk_wastage_service import (
@@ -41,8 +41,8 @@ def test_withdrawal_overlap_is_date_aware():
     service = _WithdrawalService([
         SimpleNamespace(
             animal_id="TD-001",
-            start_time=datetime(2026, 9, 2, 10, tzinfo=timezone.utc),
-            end_time=datetime(2026, 9, 5, 10, tzinfo=timezone.utc),
+            start_time=datetime(2026, 9, 2, 10, tzinfo=UTC),
+            end_time=datetime(2026, 9, 5, 10, tzinfo=UTC),
         )
     ])
 
@@ -56,8 +56,8 @@ def test_withdrawal_milk_creates_idempotent_wastage_disposition():
     service = _WithdrawalService([
         SimpleNamespace(
             animal_id="TD-001",
-            start_time=datetime(2026, 9, 1, tzinfo=timezone.utc),
-            end_time=datetime(2026, 9, 4, tzinfo=timezone.utc),
+            start_time=datetime(2026, 9, 1, tzinfo=UTC),
+            end_time=datetime(2026, 9, 4, tzinfo=UTC),
         )
     ])
 

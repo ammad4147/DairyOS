@@ -1,7 +1,6 @@
 from dairyos.analytics.services.analytics_service import AnalyticsService
 
 
-
 def test_metric_name():
 
     result = AnalyticsService().evaluate(

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
@@ -23,7 +23,7 @@ def _history():
                 2026,
                 8,
                 20,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
             effective_to=None,
         ),
@@ -33,13 +33,13 @@ def _history():
                 2026,
                 8,
                 15,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
             effective_to=datetime(
                 2026,
                 8,
                 20,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
         ),
     ]
@@ -103,7 +103,7 @@ def test_effective_to_is_exclusive():
                 2026,
                 8,
                 20,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
             effective_to=None,
         ),
@@ -113,13 +113,13 @@ def test_effective_to_is_exclusive():
                 2026,
                 8,
                 15,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
             effective_to=datetime(
                 2026,
                 8,
                 20,
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
         ),
     ]

@@ -1,28 +1,18 @@
-from dairyos.platform.knowledge_graph.services.knowledge_service import (
-    KnowledgeService,
-)
-
-
-from dairyos.platform.knowledge_graph.services.relationship_service import (
-    RelationshipService,
-)
-
-
-from dairyos.platform.knowledge_graph.services.reasoning_service import (
-    ReasoningService,
-)
-
-
-from dairyos.platform.knowledge_graph.reasoning.evidence import (
-    Evidence,
-)
-
-
 from dairyos.platform.knowledge_graph.entities.animal_entity import (
     AnimalEntity,
 )
-
-
+from dairyos.platform.knowledge_graph.reasoning.evidence import (
+    Evidence,
+)
+from dairyos.platform.knowledge_graph.services.knowledge_service import (
+    KnowledgeService,
+)
+from dairyos.platform.knowledge_graph.services.reasoning_service import (
+    ReasoningService,
+)
+from dairyos.platform.knowledge_graph.services.relationship_service import (
+    RelationshipService,
+)
 
 
 def test_complete_knowledge_flow():

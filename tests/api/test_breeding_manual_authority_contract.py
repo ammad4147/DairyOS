@@ -6,9 +6,8 @@ Passport/breeding entries are the controller for insemination and downstream
 workflow progression.
 """
 
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BREEDING_API = ROOT / "src" / "dairyos" / "api" / "breeding_biology.py"

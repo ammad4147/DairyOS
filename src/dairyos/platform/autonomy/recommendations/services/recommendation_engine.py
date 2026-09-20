@@ -3,7 +3,6 @@ from dairyos.platform.autonomy.recommendations.models.recommendation import (
 )
 
 
-
 class RecommendationEngine:
     """
     Converts decision context into recommended actions.

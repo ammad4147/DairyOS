@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.risk_forecast_service import RiskForecastService
 
 
-
 def test_forecast_creation():
 
     forecast = RiskForecastService().generate(

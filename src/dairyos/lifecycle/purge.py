@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from .manager import LifecycleError, LifecycleManager
-
+from .manager import LifecycleManager
 
 PURGE_BACKUP_ROOT_NAME = "DairyOS-PurgeBackups"
 
@@ -26,7 +25,7 @@ def create_external_purge_backup(manager: LifecycleManager) -> Path:
     )
     parent = manager.data_root.parent / PURGE_BACKUP_ROOT_NAME
     parent.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     destination = parent / f"{stamp}-pre-purge"
     shutil.copytree(internal, destination)
     return destination

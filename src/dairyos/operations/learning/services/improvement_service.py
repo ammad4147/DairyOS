@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.improvement_opportunity import ImprovementOpportunity
 from ..models.operational_pattern import OperationalPattern
@@ -11,8 +10,8 @@ class ImprovementService:
 
     def create_opportunities(
         self,
-        patterns: List[OperationalPattern],
-    ) -> List[ImprovementOpportunity]:
+        patterns: list[OperationalPattern],
+    ) -> list[ImprovementOpportunity]:
 
         return [
             ImprovementOpportunity(

@@ -1,11 +1,9 @@
-from dairyos.intelligence.kernel.context.intelligence_context import (
-    IntelligenceContext,
-)
-
 from dairyos.intelligence.kernel.assessment.situation_assessment import (
     SituationAssessment,
 )
-
+from dairyos.intelligence.kernel.context.intelligence_context import (
+    IntelligenceContext,
+)
 from dairyos.intelligence.kernel.models.intelligence_signal import (
     IntelligenceSignal,
 )

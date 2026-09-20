@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.finance.models import (
-
-    AnimalCost,
-
-    MilkRevenue
-
-)
-
-
-from dairyos.herd.finance.services.finance_service import (
-
-    FinanceService
-
-)
-
+from dairyos.herd.finance.models import AnimalCost, MilkRevenue
+from dairyos.herd.finance.services.finance_service import FinanceService
 
 
 def test_animal_cost_calculation():

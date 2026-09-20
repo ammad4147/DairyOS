@@ -1,6 +1,6 @@
 from datetime import datetime
-from dairyos.farm.production.milk.models.milk_record import MilkRecord
 
+from dairyos.farm.production.milk.models.milk_record import MilkRecord
 
 
 class MilkRecordingService:

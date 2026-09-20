@@ -34,9 +34,9 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from dairyos_assistant.corpus.validation import (
     DEPRECATED,
@@ -44,7 +44,6 @@ from dairyos_assistant.corpus.validation import (
     load_corpus,
 )
 from dairyos_assistant.release import PRE_RELEASE, PRE_RELEASE_STATUSES
-
 
 # Field weights. Question and alternative phrasings carry the most signal
 # because they are written in the operator's own words; body text carries the
@@ -98,12 +97,7 @@ def resolve_servable_statuses(
 # one product. Deliberately short: over-aggressive stopping loses real signal
 # in questions as terse as operators actually type them.
 _STOPWORDS = frozenset(
-    """
-    a about an and are as at be by do does for from how i in is it its of on or
-    dairyos
-    should that the their them there these this to was what when where which
-    who why will with you your
-    """.split()
+    ["a", "about", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for", "from", "how", "i", "in", "is", "it", "its", "of", "on", "or", "dairyos", "should", "that", "the", "their", "them", "there", "these", "this", "to", "was", "what", "when", "where", "which", "who", "why", "will", "with", "you", "your"]
 )
 
 
@@ -150,7 +144,7 @@ class KnowledgeIndex:
         corpus_root: Path | str,
         *,
         servable_statuses: Iterable[str] | None = None,
-    ) -> "KnowledgeIndex":
+    ) -> KnowledgeIndex:
         corpus_root = Path(corpus_root)
         loaded = load_corpus(corpus_root)
 

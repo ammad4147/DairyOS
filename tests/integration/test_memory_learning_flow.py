@@ -13,20 +13,17 @@ Learning
 
 def test_memory_learning_components():
 
-    from dairyos.intelligence.memory.gateway.memory_gateway import (
-        MemoryGateway,
-    )
-
-    from dairyos.intelligence.memory.services.memory_service import (
-        MemoryService,
-    )
-
     from dairyos.intelligence.learning.gateway.learning_gateway import (
         LearningGateway,
     )
-
     from dairyos.intelligence.learning.services.learning_service import (
         LearningService,
+    )
+    from dairyos.intelligence.memory.gateway.memory_gateway import (
+        MemoryGateway,
+    )
+    from dairyos.intelligence.memory.services.memory_service import (
+        MemoryService,
     )
 
 

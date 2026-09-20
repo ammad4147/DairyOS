@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.intelligence_orchestration_service import IntelligenceOrchestrationService
-
+from dairyos.herd.dashboard.services.intelligence_orchestration_service import (
+    IntelligenceOrchestrationService,
+)
 
 
 def test_orchestration_creation():

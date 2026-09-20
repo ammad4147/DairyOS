@@ -1,13 +1,11 @@
+from dairyos.operations.memory.services.knowledge_retrieval_service import (
+    KnowledgeRetrievalService,
+)
 from dairyos.operations.memory.services.memory_service import (
     MemoryService,
 )
-
 from dairyos.operations.memory.services.pattern_learning_service import (
     PatternLearningService,
-)
-
-from dairyos.operations.memory.services.knowledge_retrieval_service import (
-    KnowledgeRetrievalService,
 )
 
 

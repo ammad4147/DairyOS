@@ -1,7 +1,6 @@
 from ..models.learning_signal import LearningSignal
 
 
-
 class LearningFeedbackService:
 
 

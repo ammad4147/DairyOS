@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 
 @dataclass
@@ -26,7 +26,7 @@ class OperationalInputRecord:
     )
 
     captured_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     validated: bool = False

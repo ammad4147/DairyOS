@@ -1,4 +1,3 @@
-from datetime import datetime
 
 
 def test_cost_of_production_reads_persisted_milk_and_finance(client, registered_animal):

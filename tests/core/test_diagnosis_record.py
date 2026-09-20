@@ -1,7 +1,4 @@
-from dairyos.herd.health.services.diagnosis_service import (
-    DiagnosisService
-)
-
+from dairyos.herd.health.services.diagnosis_service import DiagnosisService
 
 
 def test_diagnosis_animal():

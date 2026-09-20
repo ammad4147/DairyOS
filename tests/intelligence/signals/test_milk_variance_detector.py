@@ -3,7 +3,6 @@ from dairyos.intelligence.signals.detectors.milk_variance_detector import (
 )
 
 
-
 def test_milk_variance_detector_generates_signal():
 
     detector = MilkVarianceDetector()

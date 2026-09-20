@@ -1,22 +1,17 @@
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 from dairyos.operations.learning.services.operational_learning_bridge import (
     OperationalLearningBridge,
 )
-
 from dairyos.operations.outcomes.models.operational_outcome import (
     OperationalOutcome,
 )
-
-from dairyos.operations.outcomes.models.outcome_rating import (
-    OutcomeRating,
-)
-
 from dairyos.operations.outcomes.models.outcome_feedback import (
     OutcomeFeedback,
 )
-
+from dairyos.operations.outcomes.models.outcome_rating import (
+    OutcomeRating,
+)
 
 
 def create_outcome(
@@ -55,7 +50,7 @@ def create_outcome(
         ),
 
         created_at=datetime.now(
-            timezone.utc
+            UTC
         ),
 
     )

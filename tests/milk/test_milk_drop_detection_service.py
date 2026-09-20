@@ -1,7 +1,9 @@
 from datetime import date
 from types import SimpleNamespace
 
-from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMilkingScheduleService
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
 from dairyos.farm.production.services.milk_drop_detection_service import detect_drop
 
 

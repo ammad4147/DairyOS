@@ -1,6 +1,6 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
-from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -56,7 +56,7 @@ def test_heat_reentry_is_rejected_at_breeding_write_boundary():
 def test_attempt_success_resets_after_calving_and_uses_documented_outcomes():
     from dairyos.api.reproduction_management import _insemination_attempt_success
     def row(record_id, animal, event_type, day, result=None):
-        return SimpleNamespace(record_id=record_id, animal_id=animal, event_type=event_type, timestamp=datetime(2026,1,day,tzinfo=timezone.utc), result=result, technician=None)
+        return SimpleNamespace(record_id=record_id, animal_id=animal, event_type=event_type, timestamp=datetime(2026,1,day,tzinfo=UTC), result=result, technician=None)
     records = [
         row("a1","A","insemination",1),
         row("a1p","A","pregnancy_negative",2,"NEGATIVE"),

@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_action import OperationalAction
 
@@ -26,8 +25,8 @@ class ActionTrackingService:
 
     def active_actions(
         self,
-        actions: List[OperationalAction],
-    ) -> List[OperationalAction]:
+        actions: list[OperationalAction],
+    ) -> list[OperationalAction]:
 
         return [
             action

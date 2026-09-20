@@ -2,13 +2,13 @@
 
 # Importing the application first applies its deliberate compatibility-route
 # unmounting before these router objects are inspected.
-from dairyos.app import app
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.breeding_biology import router as breeding_biology_router
 from dairyos.api.command_center import router as command_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.farm_data_entry import router as farm_router
 from dairyos.api.farm_planning import router as farm_planning_router
+from dairyos.app import app
 
 
 def _router_routes(router, path: str, method: str):

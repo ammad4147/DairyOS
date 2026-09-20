@@ -1,9 +1,6 @@
 from datetime import datetime
 
-from ..models.correlated_health_signal import (
-    CorrelatedHealthSignal
-)
-
+from ..models.correlated_health_signal import CorrelatedHealthSignal
 
 
 class HealthCorrelationService:

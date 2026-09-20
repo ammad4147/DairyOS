@@ -1,9 +1,8 @@
-from dairyos.operations.intelligence.services.operations_intelligence_service import (
-    OperationsIntelligenceService,
-)
-
 from dairyos.operations.health.models.operational_health_snapshot import (
     OperationalHealthSnapshot,
+)
+from dairyos.operations.intelligence.services.operations_intelligence_service import (
+    OperationsIntelligenceService,
 )
 
 

@@ -3,7 +3,6 @@ from dairyos.platform.command_center.learning.models.learning_feedback import (
 )
 
 
-
 class FeedbackService:
     """
     Converts operational outcomes into learning signals.

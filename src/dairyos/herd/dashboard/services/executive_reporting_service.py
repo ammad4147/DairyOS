@@ -1,7 +1,6 @@
 from ..models.executive_report import ExecutiveReport
 
 
-
 class ExecutiveReportingService:
 
 

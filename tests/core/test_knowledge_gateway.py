@@ -1,15 +1,12 @@
 from dairyos.intelligence.knowledge.gateway.knowledge_gateway import (
     KnowledgeGateway,
 )
-
-from dairyos.intelligence.knowledge.services.knowledge_service import (
-    KnowledgeService,
-)
-
 from dairyos.intelligence.knowledge.repository.adapters.memory_knowledge_record_repository import (
     MemoryKnowledgeRecordRepository,
 )
-
+from dairyos.intelligence.knowledge.services.knowledge_service import (
+    KnowledgeService,
+)
 
 
 def test_gateway_create():

@@ -1,9 +1,8 @@
-from dairyos.operations.commands.models.operational_command import (
-    OperationalCommand,
-)
-
 from dairyos.operations.commands.integration.models.command_execution_result import (
     CommandExecutionResult,
+)
+from dairyos.operations.commands.models.operational_command import (
+    OperationalCommand,
 )
 
 

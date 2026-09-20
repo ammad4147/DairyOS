@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from dairyos.herd.reproduction.services.reproduction_kpi_service import (
@@ -11,7 +11,7 @@ def _record(record_id, animal_id, event_type, timestamp, result=None):
         record_id=record_id,
         animal_id=animal_id,
         event_type=event_type,
-        timestamp=datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc),
+        timestamp=datetime.fromisoformat(timestamp).replace(tzinfo=UTC),
         result=result,
     )
 

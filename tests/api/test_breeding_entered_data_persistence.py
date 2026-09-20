@@ -2,8 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from dairyos.api import animal_management
-from dairyos.api import breeding_biology
+from dairyos.api import animal_management, breeding_biology
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.database.session import engine
 from tests.helpers.breeding import post_breeding

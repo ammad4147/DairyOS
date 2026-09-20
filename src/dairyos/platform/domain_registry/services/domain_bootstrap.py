@@ -3,7 +3,6 @@ from dairyos.platform.domain_registry.services.default_domains import (
 )
 
 
-
 class DomainBootstrap:
 
     """

@@ -1,4 +1,3 @@
-from typing import List
 
 from dairyos.platform.configuration.models.configuration_item import ConfigurationItem
 
@@ -12,7 +11,7 @@ class ConfigurationService:
     """
 
     def __init__(self):
-        self.items: List[ConfigurationItem] = []
+        self.items: list[ConfigurationItem] = []
 
     def register(self, item: ConfigurationItem):
         self.items.append(item)

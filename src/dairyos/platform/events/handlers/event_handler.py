@@ -13,4 +13,3 @@ class EventHandler(ABC):
         """
         Process a platform event.
         """
-        pass

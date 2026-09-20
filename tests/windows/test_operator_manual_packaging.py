@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 MANUAL = ROOT / "docs" / "operator" / "DairyOS-Operator-Manual.html"
 MARKDOWN_MANUAL = ROOT / "docs" / "manuals" / "OPERATOR_MANUAL.md"

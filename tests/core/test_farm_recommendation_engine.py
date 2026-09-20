@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.recommendation_service import RecommendationService
 
 
-
 def test_recommendation_creation():
 
     result = RecommendationService().generate(

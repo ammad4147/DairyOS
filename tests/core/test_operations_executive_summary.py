@@ -1,15 +1,12 @@
-from dairyos.operations.executive_summary.services.executive_summary_service import (
-    ExecutiveSummaryService,
-)
-
-from dairyos.operations.executive_summary.services.executive_priority_service import (
-    ExecutivePriorityService,
-)
-
 from dairyos.operations.executive_summary.models.executive_priority import (
     ExecutivePriority,
 )
-
+from dairyos.operations.executive_summary.services.executive_priority_service import (
+    ExecutivePriorityService,
+)
+from dairyos.operations.executive_summary.services.executive_summary_service import (
+    ExecutiveSummaryService,
+)
 
 
 def test_executive_summary_critical():

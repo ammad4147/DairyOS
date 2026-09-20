@@ -1,11 +1,9 @@
 from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
 )
-
 from dairyos.intelligence.context.intelligence_context_builder import (
     IntelligenceContextBuilder,
 )
-
 
 
 def test_context_builder_reads_operational_state():

@@ -5,50 +5,10 @@ This module provides a more comprehensive dashboard renderer
 that integrates with existing modules and data sources.
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-import asyncio
-import json
-
-from src.dairyos.herd.dashboard.components.dashboard import DashboardRenderer, DashboardCard, DashboardSummary
-from src.dairyos.herd.dashboard.models import (
-    HerdDashboard,
-    DailyOperatingBoard,
-    IntelligenceBrief,
-    ExecutiveAlert,
-    AdaptiveLearning,
-    DecisionAssistant,
-    DecisionOptimization,
-    DecisionLearning,
-    Advisory,
-    Escalation,
-    PredictiveSignal,
-    IntelligentAlert,
-    KnowledgeEntry,
-    MonitoringEvent,
-    OwnerAction
-)
-from src.dairyos.herd.dashboard.models.daily_operating_board import DailyOperatingBoard as DailyOperatingBoardModel
-from src.dairyos.herd.dashboard.models.intelligence_brief import IntelligenceBrief as IntelligenceBriefModel
-from src.dairyos.herd.dashboard.models.executive_alert import ExecutiveAlert as ExecutiveAlertModel
-from src.dairyos.herd.dashboard.models.adaptive_learning import AdaptiveLearning as AdaptiveLearningModel
-from src.dairyos.herd.dashboard.models.decision_assistant import DecisionAssistant as DecisionAssistantModel
-from src.dairyos.herd.dashboard.models.decision_optimization import DecisionOptimization as DecisionOptimizationModel
-from src.dairyos.herd.dashboard.models.decision_learning import DecisionLearning as DecisionLearningModel
-from src.dairyos.herd.dashboard.models.advisory import Advisory as AdvisoryModel
-from src.dairyos.herd.dashboard.models.escalation import Escalation as EscalationModel
-from src.dairyos.herd.dashboard.models.predictive_signal import PredictiveSignal as PredictiveSignalModel
-from src.dairyos.herd.dashboard.models.intelligent_alert import IntelligentAlert as IntelligentAlertModel
-from src.dairyos.herd.dashboard.models.knowledge_entry import KnowledgeEntry as KnowledgeEntryModel
-from src.dairyos.herd.dashboard.models.monitoring_event import MonitoringEvent as MonitoringEventModel
-from src.dairyos.herd.dashboard.models.owner_action import OwnerAction as OwnerActionModel
+from typing import Any
 
 from src.dairyos.core.inputs.manager import InputManager
-from src.dairyos.herd.inventory.models.animal_inventory import AnimalInventory
-from src.dairyos.herd.health.models.animal_health import AnimalHealth
-from src.dairyos.herd.production.quality.models.milk_quality import MilkQuality
-from src.dairyos.farm.operations.models.farm_operation_event import FarmOperationEvent
-from src.dairyos.intelligence.models.intelligence_pipeline_result import IntelligencePipelineResult
+from src.dairyos.herd.dashboard.components.dashboard import DashboardRenderer
 
 
 class DashboardService:
@@ -64,7 +24,7 @@ class DashboardService:
         self.input_manager = input_manager
         self.renderer = DashboardRenderer()
     
-    async def generate_dashboard_data(self) -> Dict[str, Any]:
+    async def generate_dashboard_data(self) -> dict[str, Any]:
         """
         Generate complete dashboard data from all available sources.
         
@@ -97,7 +57,7 @@ class DashboardService:
         
         return dashboard_data
     
-    async def _get_farm_data(self) -> Dict[str, Any]:
+    async def _get_farm_data(self) -> dict[str, Any]:
         """Get basic farm data."""
         # This would typically come from inventory, health, and operations modules
         # For now, we'll simulate some data
@@ -111,7 +71,7 @@ class DashboardService:
             'system_health': 'good'
         }
     
-    async def _get_sensor_data(self) -> List[Dict[str, Any]]:
+    async def _get_sensor_data(self) -> list[dict[str, Any]]:
         """Get sensor data from input modules."""
         sensors = []
         
@@ -139,7 +99,7 @@ class DashboardService:
         
         return sensors
     
-    async def _get_alerts(self) -> List[Dict[str, Any]]:
+    async def _get_alerts(self) -> list[dict[str, Any]]:
         """Get recent alerts."""
         # This would typically come from alerting systems
         # For now, we'll simulate some alerts
@@ -168,7 +128,7 @@ class DashboardService:
             }
         ]
     
-    async def _get_production_history(self) -> List[Dict[str, Any]]:
+    async def _get_production_history(self) -> list[dict[str, Any]]:
         """Get milk production history."""
         # Simulate production history data
         return [
@@ -181,7 +141,7 @@ class DashboardService:
             {'date': 'Sun', 'yield': 1250}
         ]
     
-    async def _get_health_history(self) -> List[Dict[str, Any]]:
+    async def _get_health_history(self) -> list[dict[str, Any]]:
         """Get herd health history."""
         # Simulate health history data
         return [
@@ -194,7 +154,7 @@ class DashboardService:
             {'date': 'Sun', 'healthy_count': 118}
         ]
     
-    def render_dashboard(self, dashboard_data: Dict[str, Any]) -> str:
+    def render_dashboard(self, dashboard_data: dict[str, Any]) -> str:
         """
         Render the dashboard as HTML.
         

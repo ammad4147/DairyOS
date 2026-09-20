@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from dairyos.data.database.models.operational_state_model import (
     OperationalStateModel,
@@ -198,7 +198,7 @@ class DatabaseOperationalStateRepository:
             farm_id=state.farm_id,
             operational_date=state.operational_date,
             mutation=replace_owned_fields,
-            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            created_at=datetime.now(UTC).replace(tzinfo=None),
         )
         self.session.commit()
         self.session.refresh(record)

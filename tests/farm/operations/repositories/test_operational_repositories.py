@@ -1,17 +1,15 @@
 from dairyos.farm.operations.models import (
-    MilkRecord,
+    BreedingRecord,
     FeedRecord,
     HealthObservation,
-    BreedingRecord,
+    MilkRecord,
 )
-
 from dairyos.farm.operations.repositories.adapters import (
-    MemoryMilkRepository,
+    MemoryBreedingRepository,
     MemoryFeedRepository,
     MemoryHealthRepository,
-    MemoryBreedingRepository,
+    MemoryMilkRepository,
 )
-
 
 
 def test_milk_repository():

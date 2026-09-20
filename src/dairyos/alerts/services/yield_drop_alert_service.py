@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, List
 
 
 @dataclass
@@ -32,7 +31,7 @@ class YieldDropAlertService:
     def evaluate_cow_yield(
         self,
         animal_id: str,
-        recent_7_day_yields: List[float],
+        recent_7_day_yields: list[float],
         current_yield_litres: float,
     ) -> YieldDropAlert | None:
         prior_three = [

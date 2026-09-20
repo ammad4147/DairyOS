@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Iterable
+from typing import Any
 
 from dairyos.farm.production.models.non_milking_directive import (
     NonMilkingDirective,
 )
-
 
 FREQUENCY_MAP: dict[str, tuple[str, ...]] = {
     "TWICE_DAILY": ("MORNING", "EVENING"),

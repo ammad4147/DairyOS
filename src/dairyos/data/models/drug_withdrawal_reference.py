@@ -17,6 +17,7 @@ for a real withholding decision. Withdrawal periods vary by country,
 manufacturer, dose route and dose rate even for the "same" drug.
 """
 
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -26,10 +27,9 @@ from sqlalchemy import (
     String,
 )
 
-from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class DrugWithdrawalReference(Base):

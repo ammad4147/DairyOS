@@ -1,15 +1,11 @@
 from collections import Counter
 
-
 from dairyos.farm.inputs.analytics.input_metrics import (
     OperationalInputMetrics,
 )
-
-
 from dairyos.farm.inputs.analytics.milk_production_analyzer import (
     MilkProductionAnalyzer,
 )
-
 
 
 class InputAnalysisService:

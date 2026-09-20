@@ -19,278 +19,209 @@ runtime and must not construct a second application graph.
 
 from __future__ import annotations
 
-from dairyos.data.repositories.repository_factory import (
-    RepositoryFactory,
-)
-
-from dairyos.operations.intelligence.services.withdrawal_service import (
-    WithdrawalPeriod,
-    WithdrawalService,
-)
-
+from dairyos.application.file_projection_rebuilder import FileProjectionRebuilder
 from dairyos.dashboard.services.dashboard_projection_service import (
     DashboardProjectionService,
 )
-
-from dairyos.storage.database import initialize_database
-
-from dairyos.runtime.persistent_event_journal import (
-    PersistentEventJournal,
+from dairyos.data.repositories.repository_factory import (
+    RepositoryFactory,
 )
-
-from dairyos.application.file_projection_rebuilder import FileProjectionRebuilder
-
-from dairyos.farm.operations.repositories.adapters import (
-    MemoryBreedingRepository,
+from dairyos.farm.command_center.services.attention_queue_service import (
+    AttentionQueueService,
 )
-
-from dairyos.farm.operations.runtime import (
-    FarmOperationsRuntime,
+from dairyos.farm.command_center.services.command_center_projection_service import (
+    CommandCenterProjectionService,
 )
-
-from dairyos.farm.operations.events.farm_operation_event_bus import (
-    FarmOperationEventBus,
+from dairyos.farm.command_center.services.missing_input_detection_service import (
+    MissingInputDetectionService,
 )
-
-from dairyos.farm.operations.events.operational_state_event_subscriber import (
-    OperationalStateEventSubscriber,
+from dairyos.farm.command_center.services.operational_command_center_service import (
+    OperationalCommandCenterService,
 )
-
-from dairyos.farm.operations.state.farm_operational_state_service import (
-    FarmOperationalStateService,
-)
-
-from dairyos.farm.operations.services.operational_state_query_service import (
-    OperationalStateQueryService,
-)
-
-from dairyos.farm.herd.services.animal_event_projection import (
-    AnimalEventProjection,
-)
-
-from dairyos.farm.herd.services.animal_operational_event_subscriber import (
-    AnimalOperationalEventSubscriber,
-)
-
-from dairyos.farm.herd.repository.animal_operational_state_repository import (
-    AnimalOperationalStateRepository,
-)
-
-from dairyos.farm.herd.services.animal_intelligence_service import (
-    AnimalIntelligenceService,
-)
-
-from dairyos.herd.lifecycle.services.lifecycle_event_publisher import (
-    LifecycleEventPublisher,
-)
-
-from dairyos.herd.lifecycle.services.lifecycle_engine import (
-    LifecycleEngine,
-)
-
-from dairyos.operations.execution.services.operational_execution_service import (
-    OperationalExecutionService,
-)
-
-from dairyos.operations.execution.services.execution_tracking_service import (
-    ExecutionTrackingService,
-)
-
-from dairyos.operations.execution.services.execution_lifecycle_event_handler import (
-    ExecutionLifecycleEventHandler,
-)
-
-from dairyos.operations.execution.services.execution_event_subscriber import (
-    ExecutionEventSubscriber,
-)
-
-from dairyos.operations.execution.services.execution_lifecycle_bridge import (
-    ExecutionLifecycleBridge,
-)
-
-from dairyos.intelligence.services.intelligence_runtime_service import (
-    IntelligenceRuntimeService,
-)
-
-from dairyos.intelligence.services.intelligence_query_service import (
-    IntelligenceQueryService,
-)
-
 from dairyos.farm.day.runtime.farm_day_runtime import (
     FarmDayRuntime,
 )
-
-from dairyos.operations.command.services.operations_command_service import (
-    OperationsCommandService,
+from dairyos.farm.herd.repository.animal_operational_state_repository import (
+    AnimalOperationalStateRepository,
 )
-
-from dairyos.operations.health.services.operations_health_service import (
-    OperationsHealthService,
+from dairyos.farm.herd.services.animal_event_projection import (
+    AnimalEventProjection,
 )
-
-from dairyos.operations.executive.services.executive_operations_service import (
-    ExecutiveOperationsService,
+from dairyos.farm.herd.services.animal_intelligence_service import (
+    AnimalIntelligenceService,
 )
-
-from dairyos.operations.dashboard.services.dashboard_builder_service import (
-    DashboardBuilderService,
+from dairyos.farm.herd.services.animal_operational_event_subscriber import (
+    AnimalOperationalEventSubscriber,
 )
-
-from dairyos.operations.dashboard.services.dashboard_summary_service import (
-    DashboardSummaryService,
-)
-
-from dairyos.farm.operations.alerts.operational_heads_up_service import (
-    OperationalHeadsUpService,
-)
-
-from dairyos.farm.operations.services.operations_timeline_service import (
-    OperationsTimelineService,
-)
-
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
-    MilkProductionTrendIntelligenceService,
-)
-
-from dairyos.farm.operations.services.milk_production_intelligence_service import (
-    MilkProductionIntelligenceService,
-)
-
-from dairyos.farm.operations.services.daily_milk_production_command_view_service import (
-    DailyMilkProductionCommandViewService,
-)
-
-from dairyos.intelligence.decision.services.intelligence_decision_bridge import (
-    IntelligenceDecisionBridge,
-)
-
 from dairyos.farm.herd.services.lifecycle_event_bridge import (
     LifecycleEventBridge,
+)
+from dairyos.farm.inputs.analytics.input_analysis_service import (
+    InputAnalysisService,
+)
+from dairyos.farm.inputs.command.input_command_projection_service import (
+    InputCommandProjectionService,
+)
+from dairyos.farm.inputs.governance.input_governance_service import (
+    InputGovernanceService,
+)
+from dairyos.farm.inputs.intelligence.input_intelligence_service import (
+    InputIntelligenceService,
+)
+from dairyos.farm.inputs.learning.input_deviation_detection_service import (
+    InputDeviationDetectionService,
+)
+from dairyos.farm.inputs.learning.input_learning_bridge import (
+    InputLearningBridge,
+)
+from dairyos.farm.inputs.learning.input_pattern_analyzer_service import (
+    InputPatternAnalyzerService,
+)
+from dairyos.farm.inputs.notifications.input_notification_service import (
+    InputNotificationService,
+)
+from dairyos.farm.inputs.repository.operational_input_repository import (
+    OperationalInputRepository,
+)
+from dairyos.farm.inputs.services.farm_input_gateway import (
+    FarmInputGateway,
+)
+from dairyos.farm.inputs.services.input_catalog import (
+    InputCatalog,
+)
+from dairyos.farm.inputs.services.input_command_service import (
+    OperationalInputCommandService,
+)
+from dairyos.farm.inputs.services.input_ingestion_service import (
+    InputIngestionService,
+)
+from dairyos.farm.inputs.services.input_normalization_service import (
+    InputNormalizationService,
+)
+from dairyos.farm.inputs.services.input_query_service import (
+    InputQueryService,
 )
 
 # ---------------------------------------------------------------------------
 # Operational input subsystem
 # ---------------------------------------------------------------------------
-
 from dairyos.farm.inputs.services.input_registry import (
     OperationalInputRegistry,
 )
-
-from dairyos.farm.inputs.services.input_normalization_service import (
-    InputNormalizationService,
-)
-
-from dairyos.farm.inputs.services.input_catalog import (
-    InputCatalog,
-)
-
-from dairyos.farm.inputs.services.input_ingestion_service import (
-    InputIngestionService,
-)
-
 from dairyos.farm.inputs.services.operational_input_projection_bridge import (
     OperationalInputProjectionBridge,
 )
-
-from dairyos.farm.inputs.learning.input_pattern_analyzer_service import (
-    InputPatternAnalyzerService,
+from dairyos.farm.operations.alerts.operational_heads_up_service import (
+    OperationalHeadsUpService,
 )
-
-from dairyos.farm.inputs.analytics.input_analysis_service import (
-    InputAnalysisService,
+from dairyos.farm.operations.events.farm_operation_event_bus import (
+    FarmOperationEventBus,
 )
-
-from dairyos.farm.inputs.intelligence.input_intelligence_service import (
-    InputIntelligenceService,
+from dairyos.farm.operations.events.operational_state_event_subscriber import (
+    OperationalStateEventSubscriber,
 )
-
-from dairyos.farm.inputs.notifications.input_notification_service import (
-    InputNotificationService,
+from dairyos.farm.operations.runtime import (
+    FarmOperationsRuntime,
 )
-
-from dairyos.farm.inputs.repository.operational_input_repository import (
-    OperationalInputRepository,
+from dairyos.farm.operations.services.daily_milk_production_command_view_service import (
+    DailyMilkProductionCommandViewService,
 )
-
-from dairyos.farm.inputs.services.input_query_service import (
-    InputQueryService,
+from dairyos.farm.operations.services.milk_production_intelligence_service import (
+    MilkProductionIntelligenceService,
 )
-
-from dairyos.farm.inputs.learning.input_deviation_detection_service import (
-    InputDeviationDetectionService,
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
+    MilkProductionTrendIntelligenceService,
 )
-
-from dairyos.farm.inputs.learning.input_learning_bridge import (
-    InputLearningBridge,
+from dairyos.farm.operations.services.operational_state_query_service import (
+    OperationalStateQueryService,
 )
-
-from dairyos.farm.inputs.governance.input_governance_service import (
-    InputGovernanceService,
+from dairyos.farm.operations.services.operations_timeline_service import (
+    OperationsTimelineService,
 )
-
-from dairyos.farm.inputs.command.input_command_projection_service import (
-    InputCommandProjectionService,
-)
-
-from dairyos.farm.inputs.services.input_command_service import (
-    OperationalInputCommandService,
-)
-
-from dairyos.farm.inputs.services.farm_input_gateway import (
-    FarmInputGateway,
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
 )
 
 # ---------------------------------------------------------------------------
 # Decision / command-center subsystem
 # ---------------------------------------------------------------------------
-
 from dairyos.farm.operations.state.operational_decision_service import (
     OperationalDecisionService,
 )
-
-from dairyos.operations.decisions.services.decision_ranking_service import (
-    DecisionRankingService,
+from dairyos.herd.lifecycle.services.lifecycle_engine import (
+    LifecycleEngine,
 )
-
+from dairyos.herd.lifecycle.services.lifecycle_event_publisher import (
+    LifecycleEventPublisher,
+)
+from dairyos.intelligence.decision.services.intelligence_decision_bridge import (
+    IntelligenceDecisionBridge,
+)
+from dairyos.intelligence.services.intelligence_query_service import (
+    IntelligenceQueryService,
+)
+from dairyos.intelligence.services.intelligence_runtime_service import (
+    IntelligenceRuntimeService,
+)
 from dairyos.operations.actions.services.operational_action_service import (
     OperationalActionService,
 )
-
-from dairyos.operations.decisions.services.decision_action_bridge import (
-    DecisionActionBridge,
-)
-
-from dairyos.operations.decisions.services.decision_activation_service import (
-    DecisionActivationService,
-)
-
-from dairyos.operations.integration.services.action_execution_bridge import (
-    ActionExecutionBridge,
-)
-
 from dairyos.operations.closure.services.closure_management_service import (
     ClosureManagementService,
 )
-
+from dairyos.operations.command.services.operations_command_service import (
+    OperationsCommandService,
+)
+from dairyos.operations.dashboard.services.dashboard_builder_service import (
+    DashboardBuilderService,
+)
+from dairyos.operations.dashboard.services.dashboard_summary_service import (
+    DashboardSummaryService,
+)
+from dairyos.operations.decisions.services.decision_action_bridge import (
+    DecisionActionBridge,
+)
+from dairyos.operations.decisions.services.decision_activation_service import (
+    DecisionActivationService,
+)
+from dairyos.operations.decisions.services.decision_ranking_service import (
+    DecisionRankingService,
+)
+from dairyos.operations.execution.services.execution_event_subscriber import (
+    ExecutionEventSubscriber,
+)
+from dairyos.operations.execution.services.execution_lifecycle_bridge import (
+    ExecutionLifecycleBridge,
+)
+from dairyos.operations.execution.services.execution_lifecycle_event_handler import (
+    ExecutionLifecycleEventHandler,
+)
+from dairyos.operations.execution.services.execution_tracking_service import (
+    ExecutionTrackingService,
+)
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
+)
+from dairyos.operations.executive.services.executive_operations_service import (
+    ExecutiveOperationsService,
+)
+from dairyos.operations.health.services.operations_health_service import (
+    OperationsHealthService,
+)
+from dairyos.operations.integration.services.action_execution_bridge import (
+    ActionExecutionBridge,
+)
+from dairyos.operations.intelligence.services.withdrawal_service import (
+    WithdrawalPeriod,
+    WithdrawalService,
+)
 from dairyos.operations.learning.services.operational_learning_bridge import (
     OperationalLearningBridge,
 )
-
-from dairyos.farm.command_center.services.missing_input_detection_service import (
-    MissingInputDetectionService,
+from dairyos.runtime.persistent_event_journal import (
+    PersistentEventJournal,
 )
-
-from dairyos.farm.command_center.services.operational_command_center_service import (
-    OperationalCommandCenterService,
-)
-
-from dairyos.farm.command_center.services.command_center_projection_service import (
-    CommandCenterProjectionService,
-)
-
-from dairyos.farm.command_center.services.attention_queue_service import (
-    AttentionQueueService,
-)
+from dairyos.storage.database import initialize_database
 
 
 class ApplicationRuntime:
@@ -972,7 +903,10 @@ class ApplicationRuntime:
 
             if event.name == "OperationalInputReceived":
                 from datetime import datetime
-                from dairyos.domain.events.operational_input_received import OperationalInputReceived
+
+                from dairyos.domain.events.operational_input_received import (
+                    OperationalInputReceived,
+                )
 
                 try:
                     self._input_ingestion_service.deliver(OperationalInputReceived(
@@ -991,7 +925,7 @@ class ApplicationRuntime:
             if getattr(event, "name", None) != "lifecycle_changed":
                 continue
 
-            from datetime import datetime, UTC
+            from datetime import UTC, datetime
 
             timestamp = event.payload.get("timestamp")
 

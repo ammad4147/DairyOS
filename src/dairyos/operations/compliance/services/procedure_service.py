@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_procedure import OperationalProcedure
 
@@ -9,7 +8,7 @@ class ProcedureService:
     """
 
     def __init__(self):
-        self.procedures: List[OperationalProcedure] = []
+        self.procedures: list[OperationalProcedure] = []
 
 
     def register_procedure(

@@ -2,8 +2,6 @@ from dairyos.platform.events_bridge.models.domain_event_mapping import (
     DomainEventMapping,
 )
 
-
-
 DEFAULT_EVENT_CATALOG = [
 
     DomainEventMapping(

@@ -1,6 +1,5 @@
 import json
 
-
 from tests.lifecycle.test_milk_operational_lifecycle import (
     _ledger,
     _milk,

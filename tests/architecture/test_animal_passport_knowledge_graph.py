@@ -1,4 +1,6 @@
-from dairyos.platform.knowledge_graph.services.animal_passport_graph_service import AnimalPassportGraphService
+from dairyos.platform.knowledge_graph.services.animal_passport_graph_service import (
+    AnimalPassportGraphService,
+)
 
 
 def test_animal_passport_graph_is_rebuildable_and_non_authoritative():

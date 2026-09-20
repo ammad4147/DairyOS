@@ -1,7 +1,6 @@
 from ..models.feed_management import FeedManagement
 
 
-
 class FeedManagementService:
 
 

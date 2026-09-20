@@ -8,16 +8,14 @@ Integration Validation
 
 def test_prediction_decision_command_chain():
 
-    from dairyos.intelligence.prediction.gateway.prediction_gateway import (
-        PredictionGateway,
+    from dairyos.intelligence.command.gateway.command_gateway import (
+        CommandGateway,
     )
-
     from dairyos.intelligence.decision.gateway.decision_gateway import (
         DecisionGateway,
     )
-
-    from dairyos.intelligence.command.gateway.command_gateway import (
-        CommandGateway,
+    from dairyos.intelligence.prediction.gateway.prediction_gateway import (
+        PredictionGateway,
     )
 
 

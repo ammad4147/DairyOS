@@ -1,10 +1,7 @@
-from typing import Dict
-
 
 from dairyos.platform.governance.models.platform_policy import (
     PlatformPolicy,
 )
-
 
 
 class PolicyRegistry:
@@ -15,7 +12,7 @@ class PolicyRegistry:
 
     def __init__(self):
 
-        self._policies: Dict[str, PlatformPolicy] = {}
+        self._policies: dict[str, PlatformPolicy] = {}
 
 
 

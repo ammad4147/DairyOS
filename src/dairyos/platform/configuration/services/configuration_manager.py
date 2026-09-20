@@ -3,7 +3,6 @@ from dairyos.platform.configuration.models.configuration_change import (
 )
 
 
-
 class ConfigurationManager:
     """
     Enterprise runtime configuration manager.

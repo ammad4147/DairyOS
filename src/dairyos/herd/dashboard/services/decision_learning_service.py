@@ -1,7 +1,6 @@
 from ..models.decision_learning import DecisionLearning
 
 
-
 class DecisionLearningService:
 
 

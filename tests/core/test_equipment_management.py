@@ -1,5 +1,6 @@
-from dairyos.equipment.services.equipment_management_service import EquipmentManagementService
-
+from dairyos.equipment.services.equipment_management_service import (
+    EquipmentManagementService,
+)
 
 
 def test_equipment_id():

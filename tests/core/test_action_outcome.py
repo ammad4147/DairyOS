@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.action_outcome_service import ActionOutcomeService
 
 
-
 def test_successful_outcome():
 
     outcome = ActionOutcomeService().evaluate(

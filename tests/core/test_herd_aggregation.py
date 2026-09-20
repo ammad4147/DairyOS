@@ -1,7 +1,5 @@
-from dairyos.herd.intelligence.services.herd_aggregator import HerdAggregator
-
 from dairyos.herd.dashboard.services.herd_command_service import HerdCommandService
-
+from dairyos.herd.intelligence.services.herd_aggregator import HerdAggregator
 
 
 def test_context_creation():

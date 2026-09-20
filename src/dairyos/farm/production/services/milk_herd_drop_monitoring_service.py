@@ -8,7 +8,9 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
     MilkProductionTrendIntelligenceService,
 )
 from dairyos.farm.production.services.milk_finding_service import MilkFindingService
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.deployment_control_service import (
+    DeploymentControlService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
 

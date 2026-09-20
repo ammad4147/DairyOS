@@ -1,5 +1,5 @@
-from datetime import date, datetime, time, timedelta, timezone
 import math
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends
 
@@ -18,15 +18,15 @@ from dairyos.api.tmr import (
     _normalize_herd_category,
     milk_litres_for_period,
 )
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (  # noqa: E501
+from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
-)
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
 )
 from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
     BreedingAnalyticsService,
     BreedingCycleProjectionService,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 router = APIRouter(tags=["Dashboard"])
@@ -175,17 +175,17 @@ def _herd_metrics(
 def _observation_datetime(value) -> datetime:
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
     if isinstance(value, date):
-        return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return datetime.combine(value, time.min, tzinfo=UTC)
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (TypeError, ValueError):
-        return datetime.min.replace(tzinfo=timezone.utc)
+        return datetime.min.replace(tzinfo=UTC)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _latest_high_temperature_animals(

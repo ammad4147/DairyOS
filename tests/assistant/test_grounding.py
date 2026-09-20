@@ -22,7 +22,6 @@ from dairyos_assistant.grounding import (
     numbers_in,
 )
 
-
 WITHDRAWAL_ITEM = {
     "id": "health.withdrawal",
     "title": "Withdrawal periods",

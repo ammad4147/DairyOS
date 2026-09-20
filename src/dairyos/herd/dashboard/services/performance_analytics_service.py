@@ -1,7 +1,6 @@
 from ..models.performance_metric import PerformanceMetric
 
 
-
 class PerformanceAnalyticsService:
 
 

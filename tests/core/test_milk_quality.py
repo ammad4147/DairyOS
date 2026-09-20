@@ -1,5 +1,6 @@
-from dairyos.herd.production.quality.services.milk_quality_service import MilkQualityService
-
+from dairyos.herd.production.quality.services.milk_quality_service import (
+    MilkQualityService,
+)
 
 
 def test_batch_id():

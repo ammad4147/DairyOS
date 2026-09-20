@@ -10,10 +10,10 @@ existing operational history.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from typing import Any, Iterable
+from typing import Any
 
-from dairyos.core.time_utils import utcnow
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
@@ -24,7 +24,6 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-
 
 _REPRODUCTIVE_POLICY = DEFAULT_REPRODUCTIVE_POLICY
 

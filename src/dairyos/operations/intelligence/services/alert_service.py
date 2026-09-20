@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List
+
 from dairyos.core.time_utils import utcnow
+
 
 @dataclass
 class Alert:
@@ -13,7 +14,7 @@ class Alert:
 
 class AlertService:
     def __init__(self):
-        self._alerts: List[Alert] = []
+        self._alerts: list[Alert] = []
 
     def create_alert(self, message: str, severity: str = "info") -> Alert:
         alert = Alert(alert_id=str(len(self._alerts)+1), message=message, severity=severity)
@@ -27,5 +28,5 @@ class AlertService:
                 return True
         return False
 
-    def get_unresolved(self) -> List[Alert]:
+    def get_unresolved(self) -> list[Alert]:
         return [a for a in self._alerts if not a.resolved]

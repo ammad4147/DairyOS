@@ -3,7 +3,6 @@ from dairyos.farm.inputs.intelligence.input_intelligence import (
 )
 
 
-
 class InputIntelligenceService:
     """
     Converts analytical metrics into operational intelligence.

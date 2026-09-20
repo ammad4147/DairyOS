@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_confirmed_pregnancy,
@@ -32,9 +32,9 @@ class ReproductionKpiService:
             return None
         if isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
-        return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
+        return datetime.combine(value, datetime.min.time(), tzinfo=UTC)
 
     @classmethod
     def conception_outcomes(cls, inseminations, pregnancy_checks) -> dict[str, bool]:

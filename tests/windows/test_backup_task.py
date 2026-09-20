@@ -6,7 +6,6 @@ import pytest
 
 from dairyos.windows import backup_task
 
-
 TASK_XML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <Actions Context="Author">

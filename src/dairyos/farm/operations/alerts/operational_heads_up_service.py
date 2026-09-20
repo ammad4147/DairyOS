@@ -1,5 +1,4 @@
-from typing import List
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.farm.operations.alerts.heads_up_notification import (
     HeadsUpNotification,
@@ -37,7 +36,7 @@ class OperationalHeadsUpService:
     def evaluate(
         self,
         state,
-    ) -> List[HeadsUpNotification]:
+    ) -> list[HeadsUpNotification]:
 
         notifications = []
 
@@ -425,7 +424,7 @@ class OperationalHeadsUpService:
         notifications = []
 
         now = datetime.now(
-            timezone.utc
+            UTC
         )
 
 
@@ -466,7 +465,7 @@ class OperationalHeadsUpService:
             if due_date.tzinfo is None:
 
                 due_date = due_date.replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
 
 

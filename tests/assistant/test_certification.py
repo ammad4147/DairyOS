@@ -26,7 +26,6 @@ from dairyos_assistant import release
 from dairyos_assistant.corpus.validation import SERVABLE_STATUSES, load_corpus
 from dairyos_assistant.retrieval import KnowledgeIndex
 
-
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "docs" / "assistant-knowledge"
 

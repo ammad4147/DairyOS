@@ -1,11 +1,9 @@
 from dairyos.operations.control.models.control_attention import (
     ControlAttention,
 )
-
 from dairyos.operations.control.services.operations_control_service import (
     OperationsControlService,
 )
-
 
 
 def test_control_tower_green():

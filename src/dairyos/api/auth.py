@@ -16,7 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from dairyos.api.reference_data import GOVERNED
-from dairyos.auth.permissions import permissions_from_json, permissions_for_role
+from dairyos.auth.permissions import permissions_for_role, permissions_from_json
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 # Authentication endpoints are intentionally namespaced under /auth.  This

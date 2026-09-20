@@ -1,11 +1,9 @@
-from dairyos.intelligence.operations.services.farm_situation_service import (
-    FarmSituationService,
-)
-
 from dairyos.intelligence.operations.health.services.farm_health_service import (
     FarmHealthService,
 )
-
+from dairyos.intelligence.operations.services.farm_situation_service import (
+    FarmSituationService,
+)
 
 
 def test_farm_health_detects_operational_risk():

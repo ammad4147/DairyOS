@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.nutrition.models import (
-
-    FeedPlan,
-
-    FeedConsumption
-
-)
-
-
-from dairyos.herd.nutrition.services.nutrition_service import (
-
-    NutritionService
-
-)
-
+from dairyos.herd.nutrition.models import FeedConsumption, FeedPlan
+from dairyos.herd.nutrition.services.nutrition_service import NutritionService
 
 
 def test_feed_plan_creation():

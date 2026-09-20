@@ -3,7 +3,6 @@ from dairyos.operations.commands.models.operational_command import (
 )
 
 
-
 class CommandDispatcher:
     """
     Executes operational commands.

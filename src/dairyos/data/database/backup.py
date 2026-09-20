@@ -11,7 +11,6 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import create_engine, make_url
 
-
 COMMAND_TIMEOUT_SECONDS = 120
 LOCK_WAIT_TIMEOUT = "15s"
 

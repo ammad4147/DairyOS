@@ -1,7 +1,6 @@
 from ..models.farm_metric import FarmMetric
 
 
-
 class AnalyticsService:
 
 

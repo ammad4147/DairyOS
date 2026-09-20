@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta, timezone
 import json
+from datetime import UTC, datetime, timedelta
 
 from dairyos.data.database import restore_verification
 
@@ -13,12 +13,12 @@ def _write_health(tmp_path, payload):
 def test_restore_verification_is_due_when_never_recorded(tmp_path):
     assert restore_verification.restore_verification_due(
         tmp_path,
-        now=datetime(2026, 9, 2, tzinfo=timezone.utc),
+        now=datetime(2026, 9, 2, tzinfo=UTC),
     ) is True
 
 
 def test_restore_verification_is_not_due_inside_seven_days(tmp_path):
-    now = datetime(2026, 9, 9, 12, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 9, 12, tzinfo=UTC)
     _write_health(
         tmp_path,
         {"last_restore_verification": (now - timedelta(days=6)).isoformat()},
@@ -28,7 +28,7 @@ def test_restore_verification_is_not_due_inside_seven_days(tmp_path):
 
 
 def test_restore_verification_is_due_after_seven_days(tmp_path):
-    now = datetime(2026, 9, 9, 12, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 9, 12, tzinfo=UTC)
     _write_health(
         tmp_path,
         {"last_restore_verification": (now - timedelta(days=7)).isoformat()},

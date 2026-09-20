@@ -2,26 +2,29 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict, replace
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, ConfigDict, Field
 
+from dairyos.api.animal_registration import _animal_id_prefix, _new_animal_id
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
-from dairyos.api.animal_registration import _animal_id_prefix, _new_animal_id
+from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
-from dairyos.data.database.models.event_journal_model import EventJournalModel
-from dairyos.domain.events.operational_input_received import OperationalInputReceived
-from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.domain.events.operational_input_received import OperationalInputReceived
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
+from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
+    BreedingAnalyticsService,
+    BreedingCycleProjectionService,
+)
 from dairyos.farm.reproduction.services.reproductive_state_service import (
     DEFAULT_REPRODUCTIVE_POLICY,
     ReproductiveStateError,
@@ -30,16 +33,12 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
-    BreedingAnalyticsService,
-    BreedingCycleProjectionService,
-)
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving,
-    is_insemination,
     is_negative_pregnancy_check,
     normalize_event_type,
 )
+from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 
 router = APIRouter(tags=["Breeding Biology"])
 
@@ -106,7 +105,7 @@ def _operator(
 
 
 def _event_timestamp(value: str | None) -> datetime:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     text = str(value or "").strip()
     if not text:
         return now.replace(tzinfo=None)
@@ -122,14 +121,14 @@ def _event_timestamp(value: str | None) -> datetime:
                     second=now.second,
                     microsecond=now.microsecond,
                 ),
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
         else:
             parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
             if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
+                parsed = parsed.replace(tzinfo=UTC)
             else:
-                parsed = parsed.astimezone(timezone.utc)
+                parsed = parsed.astimezone(UTC)
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -155,12 +154,12 @@ def _latest_current_event(records):
     def sort_key(record):
         value = getattr(record, "timestamp", None)
         if value is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
+            return datetime.min.replace(tzinfo=UTC)
         if isinstance(value, date) and not isinstance(value, datetime):
             value = datetime.combine(value, time.min)
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     ordered = sorted(list(records or []), key=sort_key)
     if not ordered:
@@ -611,7 +610,7 @@ def _deliver_breeding_propagation(container, propagation_id: str):
                 ), durable=True)
             row.status = "DELIVERED"
             row.last_error = None
-            row.delivered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            row.delivered_at = datetime.now(UTC).replace(tzinfo=None)
         except Exception as exc:
             row.status = "PENDING"
             row.last_error = f"{type(exc).__name__}: {exc}"
@@ -710,7 +709,7 @@ def record_breeding_entry(
         "result": result,
         "technician": technician,
         "operator": operator,
-        "timestamp": event_timestamp.replace(tzinfo=timezone.utc).isoformat(),
+        "timestamp": event_timestamp.replace(tzinfo=UTC).isoformat(),
         "calf_sex": calf_sex,
         "planned_return_to_milking_date": (
             planned_return_date.isoformat()

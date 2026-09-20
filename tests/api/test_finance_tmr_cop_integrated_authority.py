@@ -10,7 +10,6 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-
 SILAGE = "Corn / Maize Silage"
 AUDIT_DATE = date(2040, 1, 15)
 

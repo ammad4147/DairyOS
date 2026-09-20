@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dairyos.platform.knowledge_graph.services.relationship_service import RelationshipService
+from dairyos.platform.knowledge_graph.services.relationship_service import (
+    RelationshipService,
+)
 
 
 class AnimalPassportGraphService:

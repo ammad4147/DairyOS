@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.execution_accountability import (
     ExecutionAccountability,
@@ -14,7 +13,7 @@ class AccountabilityBridge:
 
     def __init__(self):
 
-        self.records: List[
+        self.records: list[
             ExecutionAccountability
         ] = []
 
@@ -46,6 +45,6 @@ class AccountabilityBridge:
 
     def get_records(
         self,
-    ) -> List[ExecutionAccountability]:
+    ) -> list[ExecutionAccountability]:
 
         return self.records

@@ -1,10 +1,7 @@
-from typing import Dict
-
 
 from dairyos.platform.governance.features.models.feature_flag import (
     FeatureFlag,
 )
-
 
 
 class FeatureFlagRegistry:
@@ -16,7 +13,7 @@ class FeatureFlagRegistry:
 
     def __init__(self):
 
-        self._flags: Dict[str, FeatureFlag] = {}
+        self._flags: dict[str, FeatureFlag] = {}
 
 
 

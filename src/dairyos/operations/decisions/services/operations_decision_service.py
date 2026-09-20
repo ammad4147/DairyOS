@@ -1,8 +1,3 @@
-from typing import List
-
-from ..models.operational_decision import OperationalDecision
-from ..models.decision_priority import DecisionPriority
-from ..models.decision_context import DecisionContext
 
 from dairyos.runtime.persistent_event_journal import (
     PersistentEventJournal,
@@ -11,6 +6,9 @@ from dairyos.runtime.persistent_event_journal import (
 from ..events.decision_events import (
     DecisionEvents,
 )
+from ..models.decision_context import DecisionContext
+from ..models.decision_priority import DecisionPriority
+from ..models.operational_decision import OperationalDecision
 
 
 class OperationsDecisionService:
@@ -33,7 +31,7 @@ class OperationsDecisionService:
         event_journal: PersistentEventJournal | None = None,
     ):
 
-        self.decisions: List[OperationalDecision] = []
+        self.decisions: list[OperationalDecision] = []
 
         self.event_journal = (
             event_journal
@@ -114,7 +112,7 @@ class OperationsDecisionService:
 
     def get_decisions(
         self,
-    ) -> List[OperationalDecision]:
+    ) -> list[OperationalDecision]:
 
         return self.decisions
 
@@ -209,7 +207,7 @@ class OperationsDecisionService:
 
     def active_decisions(
         self,
-    ) -> List[OperationalDecision]:
+    ) -> list[OperationalDecision]:
 
         return [
 

@@ -3,7 +3,6 @@ from datetime import datetime
 from ..models.treatment_plan import TreatmentPlan
 
 
-
 class TreatmentPlanService:
 
 

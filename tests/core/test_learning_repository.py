@@ -1,9 +1,8 @@
-from dairyos.intelligence.learning_feedback.repository.adapters.memory_learning_feedback_repository import (
-    MemoryLearningFeedbackRepository,
-)
-
 from dairyos.intelligence.learning_feedback.models.learning_feedback import (
     LearningFeedback,
+)
+from dairyos.intelligence.learning_feedback.repository.adapters.memory_learning_feedback_repository import (
+    MemoryLearningFeedbackRepository,
 )
 
 

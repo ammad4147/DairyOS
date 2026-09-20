@@ -1,22 +1,17 @@
 from datetime import datetime
 
-
-from dairyos.operations.closure.models.operational_closure import (
-    OperationalClosure,
-)
-
 from dairyos.operations.closure.models.closure_status import (
     ClosureStatus,
 )
-
+from dairyos.operations.closure.models.operational_closure import (
+    OperationalClosure,
+)
 from dairyos.operations.closure.services.closure_management_service import (
     ClosureManagementService,
 )
-
 from dairyos.operations.closure.services.closure_review_service import (
     ClosureReviewService,
 )
-
 
 
 def test_create_closure():

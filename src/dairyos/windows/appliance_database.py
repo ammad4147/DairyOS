@@ -2,27 +2,25 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 from dairyos.windows import private_postgres
+from dairyos.windows.postgres_service import (
+    PostgreSQLServiceError,
+    ensure_postgresql_running,
+)
 from dairyos.windows.private_database_security import (
+    admin_database_url,
     application_password,
     application_role,
-    admin_database_url,
     backup_database_url,
     ensure_private_database_security,
     install_steady_state_hba_before_start_if_available,
 )
 from dairyos.windows.private_postgres import (
     PrivatePostgreSQLConfig,
-    PrivatePostgreSQLError,
 )
-from dairyos.windows.postgres_service import (
-    PostgreSQLServiceError,
-    ensure_postgresql_running,
-)
-
 
 # Preserve the established injection seam used by Windows runtime tests while
 # allowing the private_postgres module's HBA writer to be hardened in place.

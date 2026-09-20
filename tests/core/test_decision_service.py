@@ -1,11 +1,9 @@
-from dairyos.intelligence.decision.services import (
-    DecisionService,
-)
-
 from dairyos.intelligence.decision.repository.adapters import (
     MemoryDecisionRepository,
 )
-
+from dairyos.intelligence.decision.services import (
+    DecisionService,
+)
 
 
 class MockPrediction:

@@ -1,5 +1,7 @@
+from dairyos.herd.events.services.event_intelligence_bridge import (
+    EventIntelligenceBridge,
+)
 from dairyos.herd.intelligence.services.decision_service import DecisionService
-from dairyos.herd.events.services.event_intelligence_bridge import EventIntelligenceBridge
 
 
 def test_low_risk_decision():

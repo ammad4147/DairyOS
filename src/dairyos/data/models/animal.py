@@ -10,8 +10,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+from ..database.base import Base
 
 
 class Animal(Base):

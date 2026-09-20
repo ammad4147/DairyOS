@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, Query
 
 from dairyos.farm.operations.services.live_analytics_service import LiveAnalyticsService
 
-
 router = APIRouter(prefix="/farm/analytics-live", tags=["Live Analytics"])
 
 

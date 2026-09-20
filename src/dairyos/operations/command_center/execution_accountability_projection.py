@@ -1,4 +1,3 @@
-from typing import List
 
 
 class ExecutionAccountabilityProjection:
@@ -17,7 +16,7 @@ class ExecutionAccountabilityProjection:
 
     def __init__(
         self,
-        records: List | None = None,
+        records: list | None = None,
     ):
 
         self.records = (

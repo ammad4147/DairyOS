@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -15,7 +15,7 @@ class OperationalInputReceipt:
     actor: str
 
     received_at: datetime = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )
 
     payload_summary: dict | None = None

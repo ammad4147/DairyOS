@@ -1,13 +1,11 @@
 from dairyos.operations.events.operational_event import (
     OperationalEvent,
 )
-
-from dairyos.operations.intelligence.services.operations_intelligence_service import (
-    OperationsIntelligenceService,
-)
-
 from dairyos.operations.intelligence.services.operational_event_signal_service import (
     OperationalEventSignalService,
+)
+from dairyos.operations.intelligence.services.operations_intelligence_service import (
+    OperationsIntelligenceService,
 )
 
 

@@ -1,4 +1,3 @@
-from typing import List
 
 from dairyos.operations.audit.models.operational_traceability import (
     OperationalTraceability,
@@ -39,7 +38,7 @@ class TraceabilityProjectionService:
 
     def __init__(self):
 
-        self.records: List[
+        self.records: list[
             OperationalTraceability
         ] = []
 

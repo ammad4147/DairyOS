@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "src" / "DairyOS.Web" / "src" / "App.tsx"
 NAVIGATION = ROOT / "src" / "DairyOS.Web" / "src" / "navigation.ts"

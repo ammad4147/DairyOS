@@ -1,13 +1,11 @@
 from dairyos.intelligence.kernel.context.intelligence_context import (
     IntelligenceContext,
 )
-
-from dairyos.intelligence.kernel.prioritization.decision_prioritizer import (
-    DecisionPrioritizer,
-)
-
 from dairyos.intelligence.kernel.models.intelligence_signal import (
     IntelligenceSignal,
+)
+from dairyos.intelligence.kernel.prioritization.decision_prioritizer import (
+    DecisionPrioritizer,
 )
 
 

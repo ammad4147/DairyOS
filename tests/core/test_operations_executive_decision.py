@@ -1,15 +1,12 @@
-from dairyos.operations.executive_decision.services.executive_decision_service import (
-    ExecutiveDecisionService,
-)
-
-from dairyos.operations.executive_decision.services.decision_action_service import (
-    DecisionActionService,
-)
-
 from dairyos.operations.executive_decision.models.decision_urgency import (
     DecisionUrgency,
 )
-
+from dairyos.operations.executive_decision.services.decision_action_service import (
+    DecisionActionService,
+)
+from dairyos.operations.executive_decision.services.executive_decision_service import (
+    ExecutiveDecisionService,
+)
 
 
 def test_critical_executive_decision():

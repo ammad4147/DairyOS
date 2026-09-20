@@ -1,7 +1,6 @@
 from dairyos.intelligence.events.models.enterprise_event import (
     EnterpriseEvent,
 )
-
 from dairyos.intelligence.events.services.event_persistence_bridge import (
     EventPersistenceBridge,
 )

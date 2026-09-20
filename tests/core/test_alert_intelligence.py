@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.alert_intelligence_service import AlertIntelligenceService
-
+from dairyos.herd.dashboard.services.alert_intelligence_service import (
+    AlertIntelligenceService,
+)
 
 
 def test_high_alert_creation():

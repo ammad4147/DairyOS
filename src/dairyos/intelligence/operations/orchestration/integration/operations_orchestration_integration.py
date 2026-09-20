@@ -1,13 +1,11 @@
 from dairyos.intelligence.operations.orchestration.models.operational_action import (
     OperationalAction,
 )
-
-from dairyos.intelligence.operations.orchestration.services.operations_orchestration_service import (
-    OperationsOrchestrationService,
-)
-
 from dairyos.intelligence.operations.orchestration.repository.adapters.operations_orchestration_repository import (
     OperationsOrchestrationRepository,
+)
+from dairyos.intelligence.operations.orchestration.services.operations_orchestration_service import (
+    OperationsOrchestrationService,
 )
 
 

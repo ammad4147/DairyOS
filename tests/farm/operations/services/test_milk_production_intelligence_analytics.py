@@ -1,15 +1,12 @@
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
-from dairyos.farm.operations.state.farm_operational_state_service import (
-    FarmOperationalStateService,
-)
-
 from dairyos.farm.operations.services.operational_state_query_service import (
     OperationalStateQueryService,
 )
-
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
+)
 
 
 def test_milk_production_intelligence_analytics_projection():

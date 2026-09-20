@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.automation_rule import AutomationRule
 
@@ -11,7 +10,7 @@ class AutomationRuleService:
 
     def __init__(self):
 
-        self.rules: List[AutomationRule] = []
+        self.rules: list[AutomationRule] = []
 
 
     def register_rule(

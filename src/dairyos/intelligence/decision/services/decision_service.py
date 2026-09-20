@@ -1,13 +1,11 @@
-from dairyos.intelligence.decision.services.recommendation_engine import (
-    RecommendationEngine,
+from dairyos.intelligence.decision.repository.decision_repository import (
+    DecisionRepository,
 )
-
 from dairyos.intelligence.decision.services.confidence_engine import (
     ConfidenceEngine,
 )
-
-from dairyos.intelligence.decision.repository.decision_repository import (
-    DecisionRepository,
+from dairyos.intelligence.decision.services.recommendation_engine import (
+    RecommendationEngine,
 )
 
 

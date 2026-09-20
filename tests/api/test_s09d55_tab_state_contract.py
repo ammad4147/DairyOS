@@ -2,7 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-
 EXPECTED_TABS = {
     "animals",
     "milk",

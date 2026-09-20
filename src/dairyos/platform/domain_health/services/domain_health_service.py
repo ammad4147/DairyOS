@@ -3,7 +3,6 @@ from dairyos.platform.domain_health.models.domain_health_status import (
 )
 
 
-
 class DomainHealthService:
     """
     Enterprise operational domain health federation.

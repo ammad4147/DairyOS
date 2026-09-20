@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.adaptive_learning_service import AdaptiveLearningService
-
+from dairyos.herd.dashboard.services.adaptive_learning_service import (
+    AdaptiveLearningService,
+)
 
 
 def test_learning_creation():

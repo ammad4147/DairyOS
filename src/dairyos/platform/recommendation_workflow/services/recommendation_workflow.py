@@ -3,7 +3,6 @@ from dairyos.platform.recommendation_workflow.models.recommendation_task import 
 )
 
 
-
 class RecommendationWorkflow:
     """
     Converts intelligence recommendations

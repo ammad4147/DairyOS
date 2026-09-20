@@ -1,19 +1,15 @@
-from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
-    MemoryEventRepository,
-)
-
-from dairyos.intelligence.persistence.models.intelligence_event import (
-    IntelligenceEvent,
-)
-
-from dairyos.intelligence.events.services.event_query_service import (
-    EventQueryService,
-)
-
 from dairyos.intelligence.events.services.enterprise_replay_service import (
     EnterpriseReplayService,
 )
-
+from dairyos.intelligence.events.services.event_query_service import (
+    EventQueryService,
+)
+from dairyos.intelligence.persistence.models.intelligence_event import (
+    IntelligenceEvent,
+)
+from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
+    MemoryEventRepository,
+)
 
 
 def test_enterprise_replay_returns_entity_history():

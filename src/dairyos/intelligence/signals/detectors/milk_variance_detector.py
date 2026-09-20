@@ -1,11 +1,9 @@
-from dairyos.intelligence.signals.signal_detector import (
-    SignalDetector,
-)
-
 from dairyos.intelligence.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
+from dairyos.intelligence.signals.signal_detector import (
+    SignalDetector,
+)
 
 
 class MilkVarianceDetector(

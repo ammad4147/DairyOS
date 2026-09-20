@@ -1,7 +1,7 @@
 import os
 import sys
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 from dairyos.windows import supervisor
 

@@ -1,7 +1,6 @@
 from dairyos.intelligence.integration.cross_intelligence_gateway import (
     CrossIntelligenceGateway,
 )
-
 from dairyos.intelligence.integration.intelligence_pipeline import (
     IntelligencePipeline,
 )
@@ -23,12 +22,14 @@ def test_intelligence_pipeline_creation():
 
 def test_intelligence_modules_are_importable():
 
-    from dairyos.intelligence import decision
-    from dairyos.intelligence import execution
-    from dairyos.intelligence import workflow
-    from dairyos.intelligence import learning
-    from dairyos.intelligence import memory
-    from dairyos.intelligence import knowledge
+    from dairyos.intelligence import (
+        decision,
+        execution,
+        knowledge,
+        learning,
+        memory,
+        workflow,
+    )
 
     assert decision is not None
     assert execution is not None

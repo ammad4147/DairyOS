@@ -1,7 +1,6 @@
 from ..models.herd_command import HerdCommand
 
 
-
 class HerdCommandService:
 
 

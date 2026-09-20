@@ -1,7 +1,6 @@
 from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
-
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
 )

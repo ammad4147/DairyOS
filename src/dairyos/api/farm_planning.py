@@ -1,7 +1,7 @@
 """Operational lifecycle services for reproduction and nutrition planning."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -86,7 +86,7 @@ def _resolve_current_reproductive_state(animal_id, records):
         records,
         key=lambda record: (
             getattr(record, "timestamp", None)
-            or datetime.min.replace(tzinfo=timezone.utc)
+            or datetime.min.replace(tzinfo=UTC)
         ),
     )
     events = []
@@ -143,7 +143,7 @@ def reproductive_status(animal_id: str):
         records.sort(
             key=lambda record: (
                 getattr(record, "timestamp", None)
-                or datetime.min.replace(tzinfo=timezone.utc)
+                or datetime.min.replace(tzinfo=UTC)
             )
         )
 

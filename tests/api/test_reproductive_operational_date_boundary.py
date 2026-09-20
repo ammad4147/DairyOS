@@ -1,9 +1,8 @@
 from datetime import datetime
 
 from dairyos.core.time_utils import utcnow
-
-
 from tests.helpers.breeding import post_breeding
+
 
 def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(client, registered_animal):
     """A regression assertion must not depend on the CI runner's wall clock.

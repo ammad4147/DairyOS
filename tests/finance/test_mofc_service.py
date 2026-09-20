@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from dairyos.finance.profitability.services.mofc_service import MOFCService
@@ -8,7 +8,7 @@ def _milk(animal_id, litres, day):
     return SimpleNamespace(
         animal_id=animal_id,
         total_yield=litres,
-        production_date=datetime(day.year, day.month, day.day, tzinfo=timezone.utc),
+        production_date=datetime(day.year, day.month, day.day, tzinfo=UTC),
         status="RECORDED",
     )
 
@@ -19,13 +19,13 @@ def _feed(animal_id, quantity, cost, day, group_or_pen=None):
         group_or_pen=group_or_pen,
         quantity_kg=quantity,
         total_feed_cost=cost,
-        feeding_date=datetime(day.year, day.month, day.day, tzinfo=timezone.utc),
+        feeding_date=datetime(day.year, day.month, day.day, tzinfo=UTC),
     )
 
 
 def test_mofc_uses_persisted_historical_feed_cost():
     service = MOFCService()
-    now = datetime(2026, 8, 26, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 26, tzinfo=UTC)
 
     result = service.evaluate(
         milk_records=[_milk("A-001", 20.0, now.date())],
@@ -44,7 +44,7 @@ def test_mofc_uses_persisted_historical_feed_cost():
 
 def test_mofc_does_not_invent_cost_for_unpriced_feed():
     service = MOFCService()
-    now = datetime(2026, 8, 26, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 26, tzinfo=UTC)
 
     result = service.evaluate(
         milk_records=[_milk("A-001", 20.0, now.date())],
@@ -63,7 +63,7 @@ def test_mofc_does_not_invent_cost_for_unpriced_feed():
 
 def test_mofc_supports_group_feed_records_without_animal_id():
     service = MOFCService()
-    now = datetime(2026, 8, 26, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 26, tzinfo=UTC)
 
     result = service.evaluate(
         milk_records=[_milk("A-001", 20.0, now.date())],

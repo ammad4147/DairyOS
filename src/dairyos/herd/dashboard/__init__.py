@@ -4,43 +4,48 @@ Dashboard package for DairyOS.
 This package contains all dashboard-related functionality.
 """
 
-from .components import DashboardRenderer, DashboardCard, DashboardSummary, DashboardService
+from .components import (
+    DashboardCard,
+    DashboardRenderer,
+    DashboardService,
+    DashboardSummary,
+)
 from .models import (
-    Dashboard,
-    DailyOperatingBoard,
-    IntelligenceBrief,
-    ExecutiveAlert,
     AdaptiveLearning,
-    DecisionAssistant,
-    DecisionOptimization,
-    DecisionLearning,
     Advisory,
+    DailyOperatingBoard,
+    Dashboard,
+    DecisionAssistant,
+    DecisionLearning,
+    DecisionOptimization,
     Escalation,
-    PredictiveSignal,
+    ExecutiveAlert,
+    IntelligenceBrief,
     IntelligentAlert,
     KnowledgeEntry,
     MonitoringEvent,
-    OwnerAction
+    OwnerAction,
+    PredictiveSignal,
 )
 
 __all__ = [
-    'DashboardRenderer',
-    'DashboardCard',
-    'DashboardSummary',
-    'DashboardService',
-    'Dashboard',
-    'DailyOperatingBoard',
-    'IntelligenceBrief',
-    'ExecutiveAlert',
     'AdaptiveLearning',
-    'DecisionAssistant',
-    'DecisionOptimization',
-    'DecisionLearning',
     'Advisory',
+    'DailyOperatingBoard',
+    'Dashboard',
+    'DashboardCard',
+    'DashboardRenderer',
+    'DashboardService',
+    'DashboardSummary',
+    'DecisionAssistant',
+    'DecisionLearning',
+    'DecisionOptimization',
     'Escalation',
-    'PredictiveSignal',
+    'ExecutiveAlert',
+    'IntelligenceBrief',
     'IntelligentAlert',
     'KnowledgeEntry',
     'MonitoringEvent',
-    'OwnerAction'
+    'OwnerAction',
+    'PredictiveSignal'
 ]

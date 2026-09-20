@@ -1,18 +1,10 @@
 from datetime import datetime
 
-
-from dairyos.herd.health.services.animal_timeline_service import (
-    AnimalTimelineService
-)
-
+from dairyos.herd.health.models.animal_health_event import AnimalHealthEvent
 from dairyos.herd.health.services.animal_health_summary_service import (
-    AnimalHealthSummaryService
+    AnimalHealthSummaryService,
 )
-
-from dairyos.herd.health.models.animal_health_event import (
-    AnimalHealthEvent
-)
-
+from dairyos.herd.health.services.animal_timeline_service import AnimalTimelineService
 
 
 def test_event_added():

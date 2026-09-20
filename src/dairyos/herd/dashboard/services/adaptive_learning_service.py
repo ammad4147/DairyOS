@@ -1,7 +1,6 @@
 from ..models.adaptive_learning import AdaptiveLearning
 
 
-
 class AdaptiveLearningService:
 
 

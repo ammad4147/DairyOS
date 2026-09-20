@@ -1,9 +1,8 @@
-from dairyos.farm.command_center.models.operational_command_center import (
-    OperationalCommandCenter,
-)
-
 from dairyos.farm.command_center.models.farm_status_snapshot import (
     FarmStatusSnapshot,
+)
+from dairyos.farm.command_center.models.operational_command_center import (
+    OperationalCommandCenter,
 )
 
 

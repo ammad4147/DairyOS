@@ -13,7 +13,7 @@ import json
 import os
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
@@ -112,7 +112,7 @@ def create_backup(destination: str | Path) -> Path:
 
     manifest = {
         "format": "dairyos-postgresql-custom",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "database": url.database,
         "host": url.host,
         "port": url.port,

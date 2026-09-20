@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from calendar import month_name
 from datetime import date, datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -11,14 +11,18 @@ from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
 from dairyos.api.tmr import (
     _daily_cost_snapshots as _daily_tmr_history_snapshots,
+)
+from dairyos.api.tmr import (
     milk_litres_for_period,
     tmr_feed_cost_for_period,
 )
 from dairyos.core.time_utils import utcnow
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.finance.classification.transaction_classifier import is_expense
 from dairyos.finance.opex_attribution import attributed_amount
-from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 
 router = APIRouter(prefix="/farm/coml", tags=["COML"])
 
@@ -122,8 +126,8 @@ def calculate_coml(payload: COMLCalculationRequest):
     liters = Decimal(payload.milk_produced_liters)
     if liters <= 0:
         raise HTTPException(status_code=422, detail="milk_produced_liters must be greater than zero")
-    feed_total = sum((item.total for item in payload.feed_items), Decimal("0"))
-    opex_total = sum((item.total for item in payload.operating_items), Decimal("0"))
+    feed_total = sum((item.total for item in payload.feed_items), Decimal(0))
+    opex_total = sum((item.total for item in payload.operating_items), Decimal(0))
     return {
         "data_status": "CALCULATED_MANUAL_INPUT",
         "period_start": payload.period_start.isoformat(),

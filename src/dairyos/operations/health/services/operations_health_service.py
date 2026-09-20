@@ -48,10 +48,7 @@ class OperationsHealthService:
         elif any(
             priority in {"HIGH", "MEDIUM", "ELEVATED"}
             for priority in priorities
-        ):
-            status = "AMBER"
-            attention = True
-        elif pending_actions > 0:
+        ) or pending_actions > 0:
             status = "AMBER"
             attention = True
         else:

@@ -27,7 +27,6 @@ from dairyos_assistant.model import (
     assert_endpoint_allowed,
 )
 
-
 # ---------------------------------------------------------------------------
 # The permission rule
 # ---------------------------------------------------------------------------
@@ -105,7 +104,7 @@ class _FakeLlamaServer(BaseHTTPRequestHandler):
     content = "A withdrawal period is recorded with a start and an end time."
     last_request: dict = {}
 
-    def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler's interface
+    def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length)
         _FakeLlamaServer.last_request = {
@@ -123,7 +122,7 @@ class _FakeLlamaServer(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         self.send_response(200)
         self.send_header("Content-Length", "0")
         self.end_headers()

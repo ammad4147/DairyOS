@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.opex_attribution import is_operating_expense
@@ -76,9 +76,9 @@ class CostOfProductionService:
             return None
 
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
 
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     def evaluate(
         self,
@@ -91,7 +91,7 @@ class CostOfProductionService:
             raise ValueError("days must be positive")
 
         now = self._as_utc(
-            now or datetime.now(timezone.utc)
+            now or datetime.now(UTC)
         )
 
         cutoff = now - timedelta(days=days)

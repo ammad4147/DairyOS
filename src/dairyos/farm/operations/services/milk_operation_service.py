@@ -1,9 +1,8 @@
-from dairyos.farm.operations.models.milk_record import (
-    MilkRecord,
-)
-
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
+)
+from dairyos.farm.operations.models.milk_record import (
+    MilkRecord,
 )
 
 

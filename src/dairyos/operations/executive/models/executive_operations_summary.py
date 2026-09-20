@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -10,4 +9,4 @@ class ExecutiveOperationsSummary:
     owner_action_required: bool
     recommended_focus: str
     operational_priority_score: float
-    critical_items: List[str] = field(default_factory=list)
+    critical_items: list[str] = field(default_factory=list)

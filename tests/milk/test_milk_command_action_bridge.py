@@ -1,10 +1,8 @@
-from dairyos.milk.integration import (
-    MilkCommandActionBridge,
-)
-
-
 from dairyos.intelligence.command.models.operational_recommendation import (
     OperationalRecommendation,
+)
+from dairyos.milk.integration import (
+    MilkCommandActionBridge,
 )
 
 

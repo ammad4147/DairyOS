@@ -1,17 +1,10 @@
-from datetime import datetime
 
 from dairyos.core.time_utils import utcnow
-
-from dairyos.herd.health.services.health_risk_assessment_service import (
-    HealthRiskAssessmentService
-)
-
+from dairyos.herd.health.models.clinical_observation import ClinicalObservation
 from dairyos.herd.health.models.health_signal import HealthSignal
-
-from dairyos.herd.health.models.clinical_observation import (
-    ClinicalObservation
+from dairyos.herd.health.services.health_risk_assessment_service import (
+    HealthRiskAssessmentService,
 )
-
 
 
 def test_high_health_risk_detection():

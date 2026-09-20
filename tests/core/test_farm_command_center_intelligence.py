@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.command_center_intelligence_service import CommandCenterIntelligenceService
-
+from dairyos.herd.dashboard.services.command_center_intelligence_service import (
+    CommandCenterIntelligenceService,
+)
 
 
 def test_health_index_calculation():

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -15,6 +14,6 @@ class FeedbackSignal:
     effectiveness_score: float
 
     created_at: datetime = datetime.now(
-        timezone.utc
+        UTC
     )
 

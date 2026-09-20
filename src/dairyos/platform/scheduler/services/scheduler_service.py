@@ -1,5 +1,5 @@
-from dairyos.platform.scheduler.models.scheduled_task import ScheduledTask
 from dairyos.platform.scheduler.models.schedule_status import ScheduleStatus
+from dairyos.platform.scheduler.models.scheduled_task import ScheduledTask
 
 
 class SchedulerService:

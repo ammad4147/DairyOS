@@ -3,7 +3,6 @@ from datetime import datetime
 from ..models.health_signal import HealthSignal
 
 
-
 class HealthSignalService:
 
 

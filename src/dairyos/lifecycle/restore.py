@@ -11,7 +11,6 @@ from dairyos.data.database.backup import restore_backup, verify_backup_archive
 
 from .manager import LifecycleError, LifecycleManager
 
-
 _DATABASE_ROOT_NAMES = {"postgres", "postgresql"}
 _RUNTIME_OWNED_FILES = {Path("logs") / "private-postgres.log"}
 

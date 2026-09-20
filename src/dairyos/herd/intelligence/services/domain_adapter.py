@@ -1,7 +1,6 @@
 from ..models.domain_snapshot import DomainSnapshot
 
 
-
 class DomainIntelligenceAdapter:
 
 

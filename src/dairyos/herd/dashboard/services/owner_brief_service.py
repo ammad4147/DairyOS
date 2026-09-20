@@ -1,7 +1,6 @@
 from ..models.owner_brief import OwnerBrief
 
 
-
 class OwnerBriefService:
 
 

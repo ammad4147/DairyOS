@@ -1,17 +1,14 @@
 from dairyos.intelligence.api.intelligence_api import (
     IntelligenceAPI,
 )
-
+from dairyos.intelligence.kernel.models.intelligence_signal import (
+    IntelligenceSignal,
+)
 from dairyos.intelligence.repository.adapters.memory_repository import (
     InMemoryIntelligenceRepository,
 )
-
 from dairyos.intelligence.services.intelligence_service import (
     IntelligenceService,
-)
-
-from dairyos.intelligence.kernel.models.intelligence_signal import (
-    IntelligenceSignal,
 )
 
 

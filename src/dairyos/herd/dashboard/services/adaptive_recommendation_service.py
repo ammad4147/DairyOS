@@ -1,7 +1,6 @@
 from ..models.adaptive_recommendation import AdaptiveRecommendation
 
 
-
 class AdaptiveRecommendationService:
 
 

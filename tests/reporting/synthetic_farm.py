@@ -10,7 +10,7 @@ are derived by hand from the fixtures below, never from Reporting code.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
@@ -240,7 +240,7 @@ def seed(session) -> dict:
             record_id=record_id, animal_id=animal_id, event_type=event, result=result, technician=technician,
             semen_or_bull="SEXED — HF-777" if event == "insemination" else None, semen_lot_id=lot_id,
             semen_unit_cost=D("2000") if lot_id else None,
-            timestamp=datetime.combine(day, time(8, 0), tzinfo=timezone.utc)))
+            timestamp=datetime.combine(day, time(8, 0), tzinfo=UTC)))
         if lot_id:
             session.add(SemenStockMovement(semen_lot_id=lot_id, movement_type="AI_CONSUMPTION", quantity=1,
                                            signed_quantity=-1, breeding_record_id=record_id,

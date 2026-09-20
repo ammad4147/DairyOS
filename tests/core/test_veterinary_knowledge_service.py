@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.veterinary_knowledge_service import (
-    VeterinaryKnowledgeService
+    VeterinaryKnowledgeService,
 )
-
 
 
 def test_database_loaded():

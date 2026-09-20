@@ -1,9 +1,8 @@
 """Explicit, date-based milking-cycle rules."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class MilkingFrequency(int, Enum):
@@ -48,7 +47,7 @@ class MilkingCycle:
     animal_id: str
     frequency: MilkingFrequency | str | int
     effective_from: date
-    session_times: Dict[str, time] = field(default_factory=lambda: dict(DEFAULT_SESSION_TIMES))
+    session_times: dict[str, time] = field(default_factory=lambda: dict(DEFAULT_SESSION_TIMES))
     active: bool = True
 
     def __post_init__(self):
@@ -68,7 +67,7 @@ class MilkingCycle:
             raise ValueError("session_times must contain exactly the configured 2 or 3 sessions")
 
     @property
-    def sessions(self) -> List[str]:
+    def sessions(self) -> list[str]:
         return sorted(self.session_times, key=lambda name: self.session_times[name])
 
     @property
@@ -78,7 +77,7 @@ class MilkingCycle:
     def applies_to(self, operational_date: date) -> bool:
         return self.active and operational_date >= self.effective_from
 
-    def expected_sessions(self, operational_date: date) -> List[dict]:
+    def expected_sessions(self, operational_date: date) -> list[dict]:
         if not self.applies_to(operational_date):
             return []
         return [
@@ -88,13 +87,13 @@ class MilkingCycle:
                 "milking_frequency": self.frequency.name,
                 "operational_date": operational_date.isoformat(),
                 "shift": session,
-                "scheduled_at": datetime.combine(operational_date, self.session_times[session], tzinfo=timezone.utc).isoformat(),
+                "scheduled_at": datetime.combine(operational_date, self.session_times[session], tzinfo=UTC).isoformat(),
                 "status": "EXPECTED",
             }
             for session in self.sessions
         ]
 
-    def expected_session(self, operational_date: date, session: str) -> Optional[dict]:
+    def expected_session(self, operational_date: date, session: str) -> dict | None:
         return next((item for item in self.expected_sessions(operational_date) if item["shift"] == session.upper()), None)
 
 
@@ -102,5 +101,5 @@ def classify_session_entry(expected_session: dict, recorded_at: datetime) -> dic
     """Return session outcome metadata without creating a milk production record."""
     scheduled_at = datetime.fromisoformat(expected_session["scheduled_at"])
     if recorded_at.tzinfo is None:
-        recorded_at = recorded_at.replace(tzinfo=timezone.utc)
+        recorded_at = recorded_at.replace(tzinfo=UTC)
     return {**expected_session, "recorded_at": recorded_at.isoformat(), "late": recorded_at > scheduled_at, "status": "RECORDED"}

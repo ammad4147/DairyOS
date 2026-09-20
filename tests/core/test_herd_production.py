@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.production.models import (
-
-    MilkRecord,
-
-    ProductionGroup
-
-)
-
-
-from dairyos.herd.production.services.production_service import (
-
-    ProductionService
-
-)
-
+from dairyos.herd.production.models import MilkRecord, ProductionGroup
+from dairyos.herd.production.services.production_service import ProductionService
 
 
 def test_milk_record_total():

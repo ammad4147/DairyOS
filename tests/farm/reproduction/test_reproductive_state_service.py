@@ -8,7 +8,6 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductiveStateService,
 )
 
-
 POLICY = ReproductivePolicy(
     voluntary_waiting_period_days=60,
     gestation_days=280,

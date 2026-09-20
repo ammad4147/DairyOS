@@ -13,14 +13,27 @@ separately:
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.vaccination_record import VaccinationRecord
-from dairyos.reporting.context import ReportContext, ReportParameterError, clean_text, to_date, upper
-from dairyos.reporting.definitions import Column, Filter, Metric, ReportDefinition, ReportResult, Section
+from dairyos.reporting.context import (
+    ReportContext,
+    ReportParameterError,
+    clean_text,
+    to_date,
+    upper,
+)
+from dairyos.reporting.definitions import (
+    Column,
+    Filter,
+    Metric,
+    ReportDefinition,
+    ReportResult,
+    Section,
+)
 from dairyos.reporting.engine import column_set
 
 AREA = "health"
@@ -181,12 +194,11 @@ def _now(ctx: ReportContext) -> datetime:
     """The farm clock as the naive UTC instant DairyOS persists treatment
     times in. Derived from the operational-date authority, never from a
     second clock."""
-    from datetime import timezone
 
     moment = ctx.generated_at
     if moment.tzinfo is None:
         return moment
-    return moment.astimezone(timezone.utc).replace(tzinfo=None)
+    return moment.astimezone(UTC).replace(tzinfo=None)
 
 
 def build_treatments(ctx: ReportContext) -> ReportResult:

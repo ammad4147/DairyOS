@@ -3,7 +3,6 @@ from dairyos.platform.decision.models.recommendation import (
 )
 
 
-
 class DecisionService:
     """
     Enterprise decision recommendation layer.

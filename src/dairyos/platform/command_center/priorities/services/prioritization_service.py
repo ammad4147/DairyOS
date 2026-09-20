@@ -3,7 +3,6 @@ from dairyos.platform.command_center.priorities.models.priority_score import (
 )
 
 
-
 class PrioritizationService:
     """
     Converts operational signals into ranked priorities.

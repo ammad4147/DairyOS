@@ -1,45 +1,41 @@
-from datetime import datetime, timedelta, timezone, date
-import pytest
+from datetime import UTC, date, datetime, timedelta
 
-from dairyos.operations.intelligence.services.withdrawal_service import (
-    WithdrawalService,
-    WithdrawalPeriod,
-)
-from dairyos.milk.services.milk_production_intelligence_service import (
-    MilkProductionIntelligenceService,
-)
-from dairyos.farm.operations.state.farm_operational_state import (
-    FarmOperationalState,
-)
-from dairyos.farm.operations.state.farm_operational_state_service import (
-    FarmOperationalStateService,
-)
-from dairyos.data.models.animal import Animal
-from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.feed.intelligence.models.feed_cost_metric import FeedCostMetric
-from dairyos.herd.reproduction.services.reproduction_kpi_service import (
-    ReproductionKpiService,
-)
-from dairyos.herd.calves.services.calf_management_service import (
-    CalfManagementService,
-)
-from dairyos.farm.intelligence.production.services.production_efficiency_service import (
-    ProductionEfficiencyService,
-)
-from dairyos.herd.services.cow_lifetime_performance_service import (
-    CowLifetimePerformanceService,
-)
-from dairyos.milk.services.milk_traceability_service import (
-    MilkTraceabilityService,
-)
 from dairyos.alerts.services.yield_drop_alert_service import (
     YieldDropAlertService,
 )
 from dairyos.api.animal_management.router import serialize_animal
+from dairyos.data.models.animal import Animal
+from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.farm.intelligence.production.services.production_efficiency_service import (
+    ProductionEfficiencyService,
+)
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
+)
+from dairyos.feed.intelligence.models.feed_cost_metric import FeedCostMetric
+from dairyos.herd.calves.services.calf_management_service import (
+    CalfManagementService,
+)
+from dairyos.herd.reproduction.services.reproduction_kpi_service import (
+    ReproductionKpiService,
+)
+from dairyos.herd.services.cow_lifetime_performance_service import (
+    CowLifetimePerformanceService,
+)
+from dairyos.milk.services.milk_production_intelligence_service import (
+    MilkProductionIntelligenceService,
+)
+from dairyos.milk.services.milk_traceability_service import (
+    MilkTraceabilityService,
+)
+from dairyos.operations.intelligence.services.withdrawal_service import (
+    WithdrawalPeriod,
+    WithdrawalService,
+)
 
 
 def test_withdrawal_service_correct_logic():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     service = WithdrawalService()
 
     # Active treatment window: start 1 hour ago, end in 2 days
@@ -170,7 +166,7 @@ def test_production_efficiency_pkr_service():
     # 45000 / 500 = PKR 90/L <= 100 threshold => normal
     assert eval_result.feed_cost_per_litre == 90.0
     assert eval_result.efficiency_status == "normal"
-    assert getattr(eval_result, "currency") == "PKR"
+    assert eval_result.currency == "PKR"
 
 
 def test_cow_lifetime_performance_service():

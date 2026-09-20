@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.performance_scorecard import PerformanceScorecard
 
@@ -9,7 +8,7 @@ class ScorecardService:
     """
 
     def __init__(self):
-        self.scorecards: List[PerformanceScorecard] = []
+        self.scorecards: list[PerformanceScorecard] = []
 
 
     def create_scorecard(

@@ -1,31 +1,18 @@
-from dairyos.platform.readiness.services.readiness_service import (
-    ReadinessService,
-)
-
-
-
 from dairyos.platform.audit.services.audit_service import (
     AuditService,
 )
-
-
-
-from dairyos.platform.timeline.services.timeline_service import (
-    TimelineService,
-)
-
-
-
-from dairyos.platform.decision.services.decision_service import (
-    DecisionService,
-)
-
-
-
 from dairyos.platform.decision.models.decision_context import (
     DecisionContext,
 )
-
+from dairyos.platform.decision.services.decision_service import (
+    DecisionService,
+)
+from dairyos.platform.readiness.services.readiness_service import (
+    ReadinessService,
+)
+from dairyos.platform.timeline.services.timeline_service import (
+    TimelineService,
+)
 
 
 def test_enterprise_readiness():

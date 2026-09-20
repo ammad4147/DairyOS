@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.reproduction.models import (
-
-    BreedingRecord,
-
-    Pregnancy
-
-)
-
-
-from dairyos.herd.reproduction.services import (
-
-    reproduction_service
-
-)
-
+from dairyos.herd.reproduction.models import BreedingRecord, Pregnancy
+from dairyos.herd.reproduction.services import reproduction_service
 
 
 def test_breeding_record():

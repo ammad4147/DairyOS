@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.adaptive_recommendation_service import AdaptiveRecommendationService
-
+from dairyos.herd.dashboard.services.adaptive_recommendation_service import (
+    AdaptiveRecommendationService,
+)
 
 
 def test_recommendation_creation():

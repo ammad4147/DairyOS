@@ -3,7 +3,6 @@ from dairyos.farm.nutrition.feed.models.feed_record import (
 )
 
 
-
 class FeedManagementService:
     """
     Handles daily feed recording.

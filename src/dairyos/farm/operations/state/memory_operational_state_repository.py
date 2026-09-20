@@ -1,9 +1,8 @@
-from dairyos.farm.operations.state.operational_state_repository import (
-    OperationalStateRepository,
-)
-
 from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
+)
+from dairyos.farm.operations.state.operational_state_repository import (
+    OperationalStateRepository,
 )
 
 

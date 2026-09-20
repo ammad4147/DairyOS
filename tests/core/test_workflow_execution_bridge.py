@@ -1,7 +1,6 @@
 from dairyos.intelligence.execution.integration.workflow_execution_bridge import (
     WorkflowExecutionBridge,
 )
-
 from dairyos.intelligence.execution.services.execution_coordinator import (
     ExecutionCoordinator,
 )

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -17,5 +17,5 @@ class OperationalInputAuditRecord:
     accepted: bool
 
     timestamp: datetime = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )

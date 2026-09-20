@@ -1,7 +1,6 @@
 from dairyos.intelligence.execution.gateway.execution_gateway import (
     ExecutionGateway,
 )
-
 from dairyos.intelligence.execution.services.execution_coordinator import (
     ExecutionCoordinator,
 )

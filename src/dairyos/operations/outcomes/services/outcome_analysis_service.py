@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_outcome import OperationalOutcome
 
@@ -10,8 +9,8 @@ class OutcomeAnalysisService:
 
     def successful_outcomes(
         self,
-        outcomes: List[OperationalOutcome],
-    ) -> List[OperationalOutcome]:
+        outcomes: list[OperationalOutcome],
+    ) -> list[OperationalOutcome]:
 
         return [
             outcome
@@ -25,8 +24,8 @@ class OutcomeAnalysisService:
 
     def failed_outcomes(
         self,
-        outcomes: List[OperationalOutcome],
-    ) -> List[OperationalOutcome]:
+        outcomes: list[OperationalOutcome],
+    ) -> list[OperationalOutcome]:
 
         return [
             outcome

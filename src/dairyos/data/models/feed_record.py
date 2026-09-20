@@ -1,6 +1,7 @@
-from sqlalchemy import Column, DateTime, Float, Integer, String, ForeignKey
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 
 from dairyos.core.time_utils import utcnow
+
 from ..database.base import Base
 
 

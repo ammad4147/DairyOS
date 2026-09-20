@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 from dairyos.windows import private_postgres as pg
 
-
 POISONED = {
     "PGPORT": "",
     "PGHOST": "203.0.113.1",

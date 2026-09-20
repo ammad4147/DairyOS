@@ -1,12 +1,9 @@
 from dairyos.platform.knowledge_graph.graph.query_engine import (
     KnowledgeQueryEngine,
 )
-
-
 from dairyos.platform.knowledge_graph.relationships.relationship_store import (
     RelationshipStore,
 )
-
 
 
 class KnowledgeQueryService:

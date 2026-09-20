@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.autonomous_monitoring_service import AutonomousMonitoringService
-
+from dairyos.herd.dashboard.services.autonomous_monitoring_service import (
+    AutonomousMonitoringService,
+)
 
 
 def test_event_detection():

@@ -1,5 +1,6 @@
-from dairyos.intelligence.production.services.milk_forecast_service import MilkForecastService
-
+from dairyos.intelligence.production.services.milk_forecast_service import (
+    MilkForecastService,
+)
 
 
 def test_group():

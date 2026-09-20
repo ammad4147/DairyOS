@@ -11,12 +11,11 @@ class DecisionGateway:
 
         if service is None:
 
-            from dairyos.intelligence.decision.services.decision_service import (
-                DecisionService,
-            )
-
             from dairyos.intelligence.decision.repository.adapters.memory_decision_repository import (
                 MemoryDecisionRepository,
+            )
+            from dairyos.intelligence.decision.services.decision_service import (
+                DecisionService,
             )
 
             repository = MemoryDecisionRepository()

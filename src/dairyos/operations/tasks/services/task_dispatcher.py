@@ -1,6 +1,3 @@
-from dairyos.operations.tasks.models.task_type import (
-    TaskType,
-)
 
 
 

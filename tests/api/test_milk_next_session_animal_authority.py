@@ -2,7 +2,6 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-
 TODAY = date(2026, 8, 18)
 
 

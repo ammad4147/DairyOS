@@ -2,37 +2,55 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from dairyos.data.database.session import create_application_session
 from dairyos.data.repositories.animal_repository import AnimalRepository
+from dairyos.data.repositories.app_setting_repository import AppSettingRepository
 from dairyos.data.repositories.coml_repository import COMLRepository
+from dairyos.data.repositories.database_operational_state_repository import (
+    DatabaseOperationalStateRepository,
+)
+from dairyos.data.repositories.drug_withdrawal_reference_repository import (
+    DrugWithdrawalReferenceRepository,
+)
+from dairyos.data.repositories.equipment_repository import EquipmentRepository
 from dairyos.data.repositories.farm_repository import FarmRepository
-from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
+from dairyos.data.repositories.feed_inventory_item_repository import (
+    FeedInventoryItemRepository,
+)
+from dairyos.data.repositories.feed_ration_repository import FeedRationRepository
+from dairyos.data.repositories.feed_record_repository import FeedRecordRepository
+from dairyos.data.repositories.financial_repository import FinancialRepository
+from dairyos.data.repositories.health_case_repository import HealthCaseRepository
+from dairyos.data.repositories.health_observation_repository import (
+    HealthObservationRepository,
+)
+from dairyos.data.repositories.inventory_repository import InventoryRepository
+from dairyos.data.repositories.milk_disposition_repository import (
+    MilkDispositionRepository,
+)
 from dairyos.data.repositories.milk_production_correction_repository import (
     MilkProductionCorrectionRepository,
 )
+from dairyos.data.repositories.milk_production_repository import (
+    MilkProductionRepository,
+)
 from dairyos.data.repositories.milk_quality_repository import MilkQualityRepository
-from dairyos.data.repositories.milk_disposition_repository import MilkDispositionRepository
 from dairyos.data.repositories.milking_session_record_repository import (
     MilkingSessionRecordRepository,
 )
-from dairyos.data.repositories.financial_repository import FinancialRepository
+from dairyos.data.repositories.operational_event_repository import (
+    OperationalEventRepository,
+)
+from dairyos.data.repositories.operational_finding_repository import (
+    OperationalFindingRepository,
+)
 from dairyos.data.repositories.payroll_repository import PayrollRepository
-from dairyos.data.repositories.inventory_repository import InventoryRepository
-from dairyos.data.repositories.feed_inventory_item_repository import FeedInventoryItemRepository
-from dairyos.data.repositories.user_repository import UserRepository
-from dairyos.farm.operations.repositories.adapters.database_breeding_repository import DatabaseBreedingRepository
-from dairyos.data.repositories.operational_event_repository import OperationalEventRepository
-from dairyos.data.repositories.feed_record_repository import FeedRecordRepository
-from dairyos.data.repositories.feed_ration_repository import FeedRationRepository
-from dairyos.data.repositories.health_observation_repository import HealthObservationRepository
-from dairyos.data.repositories.health_case_repository import HealthCaseRepository
-from dairyos.data.repositories.operational_finding_repository import OperationalFindingRepository
-from dairyos.data.repositories.app_setting_repository import AppSettingRepository
-from dairyos.data.repositories.database_operational_state_repository import DatabaseOperationalStateRepository
 from dairyos.data.repositories.treatment_repository import TreatmentRepository
-from dairyos.data.repositories.drug_withdrawal_reference_repository import DrugWithdrawalReferenceRepository
-from dairyos.data.repositories.equipment_repository import EquipmentRepository
+from dairyos.data.repositories.user_repository import UserRepository
 from dairyos.data.repositories.vaccination_repository import VaccinationRepository
-from dairyos.data.database.session import create_application_session
+from dairyos.farm.operations.repositories.adapters.database_breeding_repository import (
+    DatabaseBreedingRepository,
+)
 
 
 class RepositoryFactory:
@@ -152,7 +170,7 @@ class RepositoryFactory:
         return create_application_session()
 
     @classmethod
-    def create(cls, session: Session | None = None) -> "RepositoryFactory":
+    def create(cls, session: Session | None = None) -> RepositoryFactory:
         if session is None:
             return cls(session=cls._create_session(), owns_session=True)
         return cls(session=session, owns_session=False)
@@ -168,7 +186,7 @@ class RepositoryFactory:
         self._session.rollback()
 
     @classmethod
-    def _legacy(cls) -> "RepositoryFactory":
+    def _legacy(cls) -> RepositoryFactory:
         return cls.create()
 
     @classmethod

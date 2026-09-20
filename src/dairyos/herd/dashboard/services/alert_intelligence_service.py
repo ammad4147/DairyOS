@@ -1,7 +1,6 @@
 from ..models.intelligent_alert import IntelligentAlert
 
 
-
 class AlertIntelligenceService:
 
 

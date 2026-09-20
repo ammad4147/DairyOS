@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.animal_health_service import AnimalHealthService
 
 
-
 def test_animal_id():
 
     result = AnimalHealthService().evaluate(

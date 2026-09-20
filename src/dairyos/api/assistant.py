@@ -23,8 +23,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from dairyos.knowledge_bridge import bridge
 from dairyos import assistant_package
+from dairyos.knowledge_bridge import bridge
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 

@@ -30,7 +30,15 @@ from dairyos.finance import ledger_semantics as semantics
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.opex_attribution import is_operating_expense
 from dairyos.finance.opex_period_attribution import attribute_opex_for_period
-from dairyos.reporting.context import ZERO, ReportContext, clean_text, money, ratio, to_date, upper
+from dairyos.reporting.context import (
+    ZERO,
+    ReportContext,
+    clean_text,
+    money,
+    ratio,
+    to_date,
+    upper,
+)
 from dairyos.reporting.definitions import (
     Column,
     Filter,
@@ -41,7 +49,12 @@ from dairyos.reporting.definitions import (
     Section,
 )
 from dairyos.reporting.engine import column_set
-from dairyos.reporting.periods import format_date, month_sequence, quarter_of, quarter_sequence
+from dairyos.reporting.periods import (
+    format_date,
+    month_sequence,
+    quarter_of,
+    quarter_sequence,
+)
 
 AREA = "finance"
 PERMISSION = "finance.view"
@@ -317,7 +330,7 @@ def _drill(ctx: ReportContext, label: str, **filters: str) -> dict[str, Any]:
 
 
 def revenue_section(ctx: ReportContext, records: list[FinancialTransaction]) -> tuple[Section, Decimal]:
-    buckets: "OrderedDict[tuple[str, str], dict[str, Any]]" = OrderedDict()
+    buckets: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
     for record in records:
         if not classifier.is_income(record):
             continue
@@ -360,8 +373,8 @@ def revenue_section(ctx: ReportContext, records: list[FinancialTransaction]) -> 
 
 
 def expense_sections(ctx: ReportContext, records: list[FinancialTransaction]) -> tuple[Section, Section, Decimal]:
-    groups: "OrderedDict[tuple[str, str], dict[str, Any]]" = OrderedDict()
-    items: "OrderedDict[tuple[str, str], dict[str, Any]]" = OrderedDict()
+    groups: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
+    items: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
     for record in records:
         if not classifier.is_expense(record):
             continue
@@ -706,9 +719,7 @@ def build_open_position(ctx: ReportContext) -> ReportResult:
         if not wanted(record):
             continue
         status = upper(record.status or "RECORDED")
-        if status == open_status:
-            pass
-        elif status == settled_status and record.settled_date is not None and record.settled_date > as_of:
+        if status == open_status or status == settled_status and record.settled_date is not None and record.settled_date > as_of:
             pass
         else:
             continue

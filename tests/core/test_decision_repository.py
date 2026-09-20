@@ -1,11 +1,9 @@
-from dairyos.intelligence.decision.repository.adapters import (
-    MemoryDecisionRepository,
-)
-
 from dairyos.intelligence.decision.models import (
     DecisionRecommendation,
 )
-
+from dairyos.intelligence.decision.repository.adapters import (
+    MemoryDecisionRepository,
+)
 
 
 def test_memory_decision_repository_save():

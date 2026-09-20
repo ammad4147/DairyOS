@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.models import (
-
-    Animal,
-
-    AnimalStatus
-
-)
-
-
-from dairyos.herd.intelligence.services.herd_metrics import (
-
-    HerdMetricsService
-
-)
-
+from dairyos.herd.intelligence.services.herd_metrics import HerdMetricsService
+from dairyos.herd.models import Animal, AnimalStatus
 
 
 def test_herd_snapshot():

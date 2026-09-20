@@ -32,7 +32,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "src" / "dairyos_assistant"
 SRC = ROOT / "src"

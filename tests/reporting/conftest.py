@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from dairyos.reporting.registry import REPORT_BY_ID
 from tests import conftest as root
 from tests.reporting import synthetic_farm
-from dairyos.reporting.registry import REPORT_BY_ID
 
 
 def _clear_official_coml(container) -> None:
@@ -31,9 +31,11 @@ def farm(tmp_path_factory):
     certification modules stay fast. The root ``client`` fixture resets the
     disposable database again before any later test.
     """
-    from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-    from dairyos.farm.herd.repository.animal_operational_state_repository import AnimalOperationalStateRepository
+    from dairyos.farm.herd.repository.animal_operational_state_repository import (
+        AnimalOperationalStateRepository,
+    )
     from dairyos.farm.herd.services.animal_event_projection import AnimalEventProjection
+    from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
     from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 
     patcher = pytest.MonkeyPatch()

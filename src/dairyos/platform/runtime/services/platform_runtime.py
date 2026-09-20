@@ -1,6 +1,4 @@
-from dairyos.platform.runtime.models.platform_runtime_state import (
-    PlatformRuntimeState
-)
+from dairyos.platform.runtime.models.platform_runtime_state import PlatformRuntimeState
 
 
 class PlatformRuntime:

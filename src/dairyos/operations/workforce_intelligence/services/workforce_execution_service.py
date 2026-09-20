@@ -1,7 +1,6 @@
 from dairyos.operations.workforce_intelligence.models.execution_metric import (
     ExecutionMetric,
 )
-
 from dairyos.operations.workforce_intelligence.models.workforce_execution_snapshot import (
     WorkforceExecutionSnapshot,
 )

@@ -1,11 +1,9 @@
 from dairyos.intelligence.decision.services.intelligence_decision_bridge import (
     IntelligenceDecisionBridge,
 )
-
 from dairyos.intelligence.models.intelligence_recommendation import (
     IntelligenceRecommendation,
 )
-
 
 
 def test_intelligence_recommendation_creates_operational_decision():

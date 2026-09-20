@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 
-
 router = APIRouter(
     prefix="/operations",
     tags=["Operational State"],
@@ -197,9 +196,7 @@ def _tab_payload(
 
         values[key] = safe_value
 
-        if isinstance(safe_value, dict):
-            populated = populated or bool(safe_value)
-        elif isinstance(safe_value, list):
+        if isinstance(safe_value, dict) or isinstance(safe_value, list):
             populated = populated or bool(safe_value)
         elif safe_value not in (None, "", 0, False):
             populated = True

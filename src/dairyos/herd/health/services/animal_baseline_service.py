@@ -1,7 +1,6 @@
 from ..models.animal_health_baseline import AnimalHealthBaseline
 
 
-
 class AnimalBaselineService:
 
 

@@ -1,16 +1,16 @@
 import logging
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
-)
 from dairyos.farm.production.services.milk_daily_semantics import (
     daily_total,
     evaluate_sessions,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 
 if TYPE_CHECKING:
@@ -77,10 +77,10 @@ def _has_entered_yield(record) -> bool:
 
 def resolve_period_range(
     period: str,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    anchor_date: Optional[date] = None,
-) -> Tuple[date, date]:
+    start_date: date | None = None,
+    end_date: date | None = None,
+    anchor_date: date | None = None,
+) -> tuple[date, date]:
     today = (
         anchor_date
         or OperationalDateAuthority().current_date()
@@ -115,7 +115,7 @@ def resolve_period_range(
 class TrendIntelligenceResult(dict):
     """Dict subclass providing .summary() compatibility."""
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return dict(self)
 
 
@@ -302,24 +302,21 @@ class MilkProductionTrendIntelligenceService:
             "morning_yield": (
                 sum(entered["MORNING"])
                 if (
-                    "MORNING" in entered
-                    and entered["MORNING"]
+                    entered.get("MORNING")
                 )
                 else None
             ),
             "afternoon_yield": (
                 sum(entered["AFTERNOON"])
                 if (
-                    "AFTERNOON" in entered
-                    and entered["AFTERNOON"]
+                    entered.get("AFTERNOON")
                 )
                 else None
             ),
             "evening_yield": (
                 sum(entered["EVENING"])
                 if (
-                    "EVENING" in entered
-                    and entered["EVENING"]
+                    entered.get("EVENING")
                 )
                 else None
             ),
@@ -666,7 +663,7 @@ class MilkProductionTrendIntelligenceService:
     def generate(
         self,
         operational_state: Any = None,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
         period_days: int = 7,
         **kwargs: Any,
     ) -> TrendIntelligenceResult:
@@ -907,11 +904,11 @@ class MilkProductionTrendIntelligenceService:
     def get_trend_analysis(
         self,
         period: str = "7d",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        anchor_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        anchor_date: date | None = None,
         factory: Optional["RepositoryFactory"] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         calc_start, calc_end = resolve_period_range(
             period,
             start_date,

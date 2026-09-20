@@ -29,24 +29,20 @@ class IntelligencePipeline:
 
         if gateway is None:
 
-            from dairyos.intelligence.integration.cross_intelligence_gateway import (
-                CrossIntelligenceGateway,
-            )
-
-            from dairyos.intelligence.prediction.gateway.prediction_gateway import (
-                PredictionGateway,
-            )
-
-            from dairyos.intelligence.decision.gateway.decision_gateway import (
-                DecisionGateway,
-            )
-
             from dairyos.intelligence.command.gateway.command_gateway import (
                 CommandGateway,
             )
-
+            from dairyos.intelligence.decision.gateway.decision_gateway import (
+                DecisionGateway,
+            )
             from dairyos.intelligence.execution.gateway.execution_gateway import (
                 ExecutionGateway,
+            )
+            from dairyos.intelligence.integration.cross_intelligence_gateway import (
+                CrossIntelligenceGateway,
+            )
+            from dairyos.intelligence.prediction.gateway.prediction_gateway import (
+                PredictionGateway,
             )
 
 

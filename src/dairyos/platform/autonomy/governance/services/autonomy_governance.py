@@ -3,7 +3,6 @@ from dairyos.platform.autonomy.governance.models.safety_check import (
 )
 
 
-
 class AutonomyGovernance:
     """
     Controls autonomous decision execution.

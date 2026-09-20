@@ -1,10 +1,9 @@
-from typing import List
-
-from ..models.operational_action import OperationalAction
 
 from dairyos.farm.operations.state.farm_operational_state import (
     FarmOperationalState,
 )
+
+from ..models.operational_action import OperationalAction
 
 
 class ActionStateBridge:
@@ -63,7 +62,7 @@ class ActionStateBridge:
     def sync_to_state(
         self,
         state: FarmOperationalState,
-        actions: List[OperationalAction],
+        actions: list[OperationalAction],
     ) -> FarmOperationalState:
 
 

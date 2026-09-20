@@ -1,22 +1,17 @@
 from datetime import datetime
 
-
 from dairyos.operations.resolution.models.operational_resolution import (
     OperationalResolution,
 )
-
 from dairyos.operations.resolution.models.resolution_status import (
     ResolutionStatus,
 )
-
 from dairyos.operations.resolution.services.resolution_management_service import (
     ResolutionManagementService,
 )
-
 from dairyos.operations.resolution.services.resolution_verification_service import (
     ResolutionVerificationService,
 )
-
 
 
 def test_create_resolution():

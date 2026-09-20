@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from ..models.command_request import CommandRequest
 from ..models.command_priority import CommandPriority
+from ..models.command_request import CommandRequest
 
 
 class OperationsCommandAdapter:

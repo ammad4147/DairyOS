@@ -11,7 +11,6 @@ per (date, session) states the same fact once and keeps the per-animal table
 meaning only "milk was measured".
 """
 
-from datetime import datetime
 
 from sqlalchemy import (
     Column,
@@ -22,8 +21,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+from ..database.base import Base
 
 
 class MilkingSessionRecord(Base):

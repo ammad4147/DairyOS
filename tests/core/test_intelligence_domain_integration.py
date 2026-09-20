@@ -1,7 +1,6 @@
 from dairyos.intelligence.kernel.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
 from dairyos.intelligence.kernel.services.domain_integration import (
     IntelligenceDomainIntegration,
 )

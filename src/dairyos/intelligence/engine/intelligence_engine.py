@@ -1,9 +1,8 @@
-from dairyos.intelligence.models.intelligence_signal import (
-    IntelligenceSignal,
-)
-
 from dairyos.intelligence.models.intelligence_recommendation import (
     IntelligenceRecommendation,
+)
+from dairyos.intelligence.models.intelligence_signal import (
+    IntelligenceSignal,
 )
 
 

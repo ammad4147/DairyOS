@@ -1,14 +1,9 @@
-from datetime import datetime
 
-
-from dairyos.herd.health.services.health_signal_service import (
-    HealthSignalService
-)
 
 from dairyos.herd.health.services.health_correlation_service import (
-    HealthCorrelationService
+    HealthCorrelationService,
 )
-
+from dairyos.herd.health.services.health_signal_service import HealthSignalService
 
 
 def test_multiple_signals_create_risk():

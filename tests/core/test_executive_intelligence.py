@@ -1,5 +1,6 @@
-from dairyos.intelligence.executive.services.executive_intelligence_service import ExecutiveIntelligenceService
-
+from dairyos.intelligence.executive.services.executive_intelligence_service import (
+    ExecutiveIntelligenceService,
+)
 
 
 def test_good_status():

@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.decision_optimization_service import DecisionOptimizationService
-
+from dairyos.herd.dashboard.services.decision_optimization_service import (
+    DecisionOptimizationService,
+)
 
 
 def test_selection():

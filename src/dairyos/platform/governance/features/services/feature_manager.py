@@ -3,7 +3,6 @@ from dairyos.platform.governance.features.services.feature_flag_registry import 
 )
 
 
-
 class FeatureManager:
     """
     Runtime feature decision service.

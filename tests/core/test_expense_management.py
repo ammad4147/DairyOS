@@ -1,5 +1,6 @@
-from dairyos.commercial.expenses.services.expense_management_service import ExpenseManagementService
-
+from dairyos.commercial.expenses.services.expense_management_service import (
+    ExpenseManagementService,
+)
 
 
 def test_expense_id():

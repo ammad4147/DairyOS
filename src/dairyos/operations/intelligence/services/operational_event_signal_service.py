@@ -1,10 +1,8 @@
-from datetime import datetime, timezone
-from typing import Dict
+from datetime import UTC, datetime
 
 from dairyos.operations.events.operational_event import (
     OperationalEvent,
 )
-
 from dairyos.operations.intelligence.models.operational_signal import (
     OperationalSignal,
 )
@@ -64,7 +62,7 @@ class OperationalEventSignalService:
                 event.timestamp
                 if event.timestamp
                 else datetime.now(
-                    timezone.utc
+                    UTC
                 )
             ),
         )
@@ -84,7 +82,7 @@ class OperationalEventSignalService:
         event_type: str,
     ) -> tuple[str, str]:
 
-        rules: Dict[str, tuple[str, str]] = {
+        rules: dict[str, tuple[str, str]] = {
 
             "milking": (
                 "PRODUCTION",

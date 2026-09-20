@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.operations_coordination_service import OperationsCoordinationService
-
+from dairyos.herd.dashboard.services.operations_coordination_service import (
+    OperationsCoordinationService,
+)
 
 
 def test_task_creation():

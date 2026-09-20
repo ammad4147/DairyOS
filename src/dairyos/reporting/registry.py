@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from dairyos.reporting.areas import breeding, cost, feed, finance, health, herd, management, milk
+from dairyos.reporting.areas import (
+    breeding,
+    cost,
+    feed,
+    finance,
+    health,
+    herd,
+    management,
+    milk,
+)
 from dairyos.reporting.definitions import Area, ReportDefinition
 
 AREAS: tuple[Area, ...] = (

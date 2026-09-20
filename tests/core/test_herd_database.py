@@ -1,19 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.database.models import (
-
-    AnimalRecord
-
-)
-
-
-from dairyos.herd.database.repositories import (
-
-    DatabaseAnimalRepository
-
-)
-
+from dairyos.herd.database.models import AnimalRecord
+from dairyos.herd.database.repositories import DatabaseAnimalRepository
 
 
 def test_database_record_save():

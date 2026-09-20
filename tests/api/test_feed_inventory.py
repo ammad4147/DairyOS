@@ -1,5 +1,5 @@
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from dairyos.app import app
 from dairyos.data.database.session import SessionLocal

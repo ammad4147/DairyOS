@@ -1,26 +1,35 @@
 from dairyos.middleware.enum_normalizer import PayloadNormalizationMiddleware
+
 """FastAPI application bootstrap for DairyOS."""
-from contextlib import asynccontextmanager
-from datetime import date
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from dairyos.application.application_runtime import ApplicationRuntime
-from dairyos.runtime.container import RuntimeContainer
-from dairyos.farm.production.services.milk_cycle_monitoring_service import MilkCycleMonitoringService
-from dairyos.farm.production.services.milk_herd_drop_monitoring_service import MilkHerdDailyDropMonitoringService
-from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.email.scheduler import NightlyEmailScheduler
+from dairyos.farm.production.services.milk_cycle_monitoring_service import (
+    MilkCycleMonitoringService,
+)
+from dairyos.farm.production.services.milk_herd_drop_monitoring_service import (
+    MilkHerdDailyDropMonitoringService,
+)
+from dairyos.farm.production.services.milk_reconciliation_service import (
+    MilkReconciliationService,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.feed_storage_scheduler import FeedStorageScheduler
-from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
-from dairyos.tmr_daily_cost_scheduler import DailyTMRCostScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
+from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
+from dairyos.runtime.container import RuntimeContainer
+from dairyos.tmr_daily_cost_scheduler import DailyTMRCostScheduler
 from dairyos.windows.startup_integrity import record_successful_start
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -117,50 +126,56 @@ from dairyos.middleware.desktop_session import enforce_desktop_session
 # Register after identity middleware so authentication runs before any farm reads.
 app.middleware("http")(enforce_desktop_session)
 
-from dairyos.api.command_center import router as command_router
-from dairyos.api.dashboard import router as dashboard_router
-from dairyos.api.breeding_biology import router as breeding_biology_router
-from dairyos.api.equipment_management import router as equipment_router
-from dairyos.api.farm_data_entry import router as farm_router
-from dairyos.api.veterinary_non_milking import router as veterinary_non_milking_router
-from dairyos.api.milk_production_analytics import router as milk_production_analytics_router
-from dairyos.api.animal_registration import router as animal_registration_router
-from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.analytics import router as analytics_router
-from dairyos.api.live_analytics import router as live_analytics_router
+from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.animal_passport import router as animal_passport_router
-from dairyos.api.farm_intelligence import router as farm_intelligence_router
-from dairyos.api.heat_stress_intelligence import router as heat_stress_intelligence_router
+from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
-from dairyos.api.financial_intelligence import router as financial_intelligence_router
-from dairyos.api.finance_ledger import router as finance_ledger_router
-from dairyos.api.farm_planning import router as farm_planning_router
-from dairyos.api.health import router as health_router
-from dairyos.api.milk_traceability import router as milk_traceability_router
-from dairyos.api.operations import router as operations_router
-from dairyos.api.tab_state import router as tab_state_router
-from dairyos.api.reference_data import router as reference_data_router
-from dairyos.api.reproduction_management import router as reproduction_management_router
-from dairyos.api.youngstock_management import router as youngstock_management_router
-from dairyos.api.feed_management import router as feed_management_router
-from dairyos.api.feed_inventory import router as feed_inventory_router
-from dairyos.api.feed_inventory_projection import router as feed_inventory_projection_router
-from dairyos.api.feed_equipment import router as feed_equipment_router
-from dairyos.api.dairy_kpi import router as dairy_kpi_router
-from dairyos.api.system import router as system_router
-from dairyos.api.operational_findings import router as operational_findings_router
-from dairyos.api.settings import router as settings_router
-from dairyos.api.milk_production_summary import router as milk_production_summary_router
-from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
-from dairyos.api.milk_quality import router as milk_quality_router
-from dairyos.api.tmr import router as tmr_router
-from dairyos.api.coml import router as coml_router
-from dairyos.api.payroll import router as payroll_router
+from dairyos.api.assistant import router as assistant_router
 from dairyos.api.auth import router as auth_router
 from dairyos.api.authorization import router as authorization_router
-from dairyos.api.search import router as search_router
-from dairyos.api.assistant import router as assistant_router
+from dairyos.api.breeding_biology import router as breeding_biology_router
+from dairyos.api.coml import router as coml_router
+from dairyos.api.command_center import router as command_router
+from dairyos.api.dairy_kpi import router as dairy_kpi_router
+from dairyos.api.dashboard import router as dashboard_router
+from dairyos.api.equipment_management import router as equipment_router
+from dairyos.api.farm_data_entry import router as farm_router
+from dairyos.api.farm_intelligence import router as farm_intelligence_router
+from dairyos.api.farm_planning import router as farm_planning_router
+from dairyos.api.feed_equipment import router as feed_equipment_router
+from dairyos.api.feed_inventory import router as feed_inventory_router
+from dairyos.api.feed_inventory_projection import (
+    router as feed_inventory_projection_router,
+)
+from dairyos.api.feed_management import router as feed_management_router
+from dairyos.api.finance_ledger import router as finance_ledger_router
+from dairyos.api.financial_intelligence import router as financial_intelligence_router
+from dairyos.api.health import router as health_router
+from dairyos.api.heat_stress_intelligence import (
+    router as heat_stress_intelligence_router,
+)
+from dairyos.api.live_analytics import router as live_analytics_router
+from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
+from dairyos.api.milk_production_analytics import (
+    router as milk_production_analytics_router,
+)
+from dairyos.api.milk_production_summary import router as milk_production_summary_router
+from dairyos.api.milk_quality import router as milk_quality_router
+from dairyos.api.milk_traceability import router as milk_traceability_router
+from dairyos.api.operational_findings import router as operational_findings_router
+from dairyos.api.operations import router as operations_router
+from dairyos.api.payroll import router as payroll_router
+from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reports import router as reports_router
+from dairyos.api.reproduction_management import router as reproduction_management_router
+from dairyos.api.search import router as search_router
+from dairyos.api.settings import router as settings_router
+from dairyos.api.system import router as system_router
+from dairyos.api.tab_state import router as tab_state_router
+from dairyos.api.tmr import router as tmr_router
+from dairyos.api.veterinary_non_milking import router as veterinary_non_milking_router
+from dairyos.api.youngstock_management import router as youngstock_management_router
 
 
 def _unmount_duplicate_routes(router, paths: set[str]) -> None:

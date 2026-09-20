@@ -1,19 +1,15 @@
-from dairyos.operations.milk.commands.services.milk_production_handler import (
-    MilkProductionCommandHandler,
-)
-
-from dairyos.operations.milk.services.milk_production_service import (
-    MilkProductionService,
-)
-
 from dairyos.operations.commands.handlers.animal_health_handler import (
     AnimalHealthHandler,
 )
-
 from dairyos.operations.commands.handlers.animal_operational_review_handler import (
     AnimalOperationalReviewHandler,
 )
-
+from dairyos.operations.milk.commands.services.milk_production_handler import (
+    MilkProductionCommandHandler,
+)
+from dairyos.operations.milk.services.milk_production_service import (
+    MilkProductionService,
+)
 
 
 class OperationalCommandRegistry:

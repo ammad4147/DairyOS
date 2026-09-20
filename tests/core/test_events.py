@@ -1,9 +1,7 @@
 from dairyos.core.events.models import DairyEvent
 from dairyos.core.events.services.publisher import EventPublisher
-
-from dairyos.core.workflows.rules.engine import WorkflowEngine
 from dairyos.core.workflows.rules.animal_rules import calving_rule
-
+from dairyos.core.workflows.rules.engine import WorkflowEngine
 
 
 def test_event_publish():

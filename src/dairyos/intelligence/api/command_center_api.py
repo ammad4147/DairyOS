@@ -16,7 +16,6 @@ Autonomous Intelligence Runtime
 from dairyos.intelligence.integration.autonomous_intelligence_composer import (
     AutonomousIntelligenceComposer,
 )
-
 from dairyos.intelligence.integration.intelligence_dashboard_bridge import (
     IntelligenceDashboardBridge,
 )

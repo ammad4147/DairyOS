@@ -4,11 +4,11 @@ from datetime import date, timedelta
 
 import pytest
 
-from tests.helpers.breeding import post_breeding
 from dairyos.app import container as app_container
 from dairyos.farm.reproduction.services.post_calving_return_service import (
     reconcile_due_post_calving_returns,
 )
+from tests.helpers.breeding import post_breeding
 
 
 def _record(client, animal_id: str, event_type: str, result: str, **extra):

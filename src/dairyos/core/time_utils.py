@@ -24,9 +24,9 @@ audited together), this helper is the one place that change happens --
 not scattered across every call site again.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utcnow() -> datetime:
     """Naive UTC datetime -- see module docstring for why naive."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)

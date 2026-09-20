@@ -1,5 +1,6 @@
-from dairyos.herd.inventory.services.animal_inventory_service import AnimalInventoryService
-
+from dairyos.herd.inventory.services.animal_inventory_service import (
+    AnimalInventoryService,
+)
 
 
 def test_animal_id():

@@ -1,18 +1,8 @@
 from datetime import date
 
-
-from dairyos.herd.health.services.health_history_service import (
-    HealthHistoryService
-)
-
-from dairyos.herd.health.models.historical_health_record import (
-    HistoricalHealthRecord
-)
-
-from dairyos.herd.health.models.vaccination_history import (
-    VaccinationHistory
-)
-
+from dairyos.herd.health.models.historical_health_record import HistoricalHealthRecord
+from dairyos.herd.health.models.vaccination_history import VaccinationHistory
+from dairyos.herd.health.services.health_history_service import HealthHistoryService
 
 
 def test_previous_health_record_saved():
@@ -121,7 +111,7 @@ def test_vaccination_history_saved():
 def test_health_timeline_contains_history():
 
     from dairyos.herd.health.services.animal_health_timeline_service import (
-        AnimalHealthTimelineService
+        AnimalHealthTimelineService,
     )
 
 

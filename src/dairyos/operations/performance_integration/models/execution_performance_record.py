@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -19,5 +19,5 @@ class ExecutionPerformanceRecord:
     performance_score: float
 
     recorded_at: datetime = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )

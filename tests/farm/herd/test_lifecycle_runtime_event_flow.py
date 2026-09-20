@@ -1,16 +1,12 @@
 from datetime import date
 
-
 from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
-
-
 from dairyos.herd.models import (
     Animal,
     AnimalStatus,
 )
-
 
 
 def test_lifecycle_engine_runtime_updates_animal_operational_state():

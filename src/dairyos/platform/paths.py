@@ -27,7 +27,6 @@ import os
 import sys
 from pathlib import Path
 
-
 APPLICATION_NAME = "DairyOS"
 
 DATA_DIR_ENV_VAR = "DAIRYOS_DATA_DIR"

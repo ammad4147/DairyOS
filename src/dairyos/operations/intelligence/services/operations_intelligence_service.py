@@ -1,7 +1,6 @@
-from typing import List
 
-from ..models.operational_signal import OperationalSignal
 from ..models.operational_score import OperationalScore
+from ..models.operational_signal import OperationalSignal
 
 
 class OperationsIntelligenceService:
@@ -10,7 +9,7 @@ class OperationsIntelligenceService:
     """
 
     def __init__(self):
-        self.signals: List[OperationalSignal] = []
+        self.signals: list[OperationalSignal] = []
 
     def register_signal(
         self,
@@ -22,7 +21,7 @@ class OperationsIntelligenceService:
         return signal
 
 
-    def active_signals(self) -> List[OperationalSignal]:
+    def active_signals(self) -> list[OperationalSignal]:
 
         return [
             signal

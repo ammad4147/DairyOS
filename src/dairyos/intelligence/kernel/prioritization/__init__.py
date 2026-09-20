@@ -1,8 +1,7 @@
-from .decision_priority import DecisionPriority
 from .decision_prioritizer import DecisionPrioritizer
-
+from .decision_priority import DecisionPriority
 
 __all__ = [
-    "DecisionPriority",
     "DecisionPrioritizer",
+    "DecisionPriority",
 ]

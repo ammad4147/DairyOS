@@ -1,47 +1,36 @@
 from dairyos.operations.workforce_intelligence.repositories.execution_metric_repository import (
     ExecutionMetricRepository,
 )
-
 from dairyos.operations.workforce_intelligence.repositories.workforce_accountability_repository import (
     WorkforceAccountabilityRepository,
 )
-
 from dairyos.operations.workforce_intelligence.repositories.workforce_ownership_repository import (
     WorkforceOwnershipRepository,
 )
-
-from dairyos.operations.workforce_intelligence.services.workforce_execution_intelligence_service import (
-    WorkforceExecutionIntelligenceService,
-)
-
-from dairyos.operations.workforce_intelligence.services.summary.workforce_performance_summary_service import (
-    WorkforcePerformanceSummaryService,
-)
-
-from dairyos.operations.workforce_intelligence.services.summary.workforce_reliability_summary_service import (
-    WorkforceReliabilitySummaryService,
-)
-
-from dairyos.operations.workforce_intelligence.services.workforce_accountability_service import (
-    WorkforceAccountabilityService,
-)
-
 from dairyos.operations.workforce_intelligence.services.summary.workforce_accountability_summary_service import (
     WorkforceAccountabilitySummaryService,
 )
-
-from dairyos.operations.workforce_intelligence.services.workforce_ownership_service import (
-    WorkforceOwnershipService,
-)
-
 from dairyos.operations.workforce_intelligence.services.summary.workforce_ownership_summary_service import (
     WorkforceOwnershipSummaryService,
 )
-
+from dairyos.operations.workforce_intelligence.services.summary.workforce_performance_summary_service import (
+    WorkforcePerformanceSummaryService,
+)
+from dairyos.operations.workforce_intelligence.services.summary.workforce_reliability_summary_service import (
+    WorkforceReliabilitySummaryService,
+)
+from dairyos.operations.workforce_intelligence.services.workforce_accountability_service import (
+    WorkforceAccountabilityService,
+)
 from dairyos.operations.workforce_intelligence.services.workforce_command_service import (
     WorkforceCommandService,
 )
-
+from dairyos.operations.workforce_intelligence.services.workforce_execution_intelligence_service import (
+    WorkforceExecutionIntelligenceService,
+)
+from dairyos.operations.workforce_intelligence.services.workforce_ownership_service import (
+    WorkforceOwnershipService,
+)
 
 
 def main():

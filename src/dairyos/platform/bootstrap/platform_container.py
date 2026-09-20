@@ -1,23 +1,18 @@
-from dairyos.platform.configuration.services.configuration_manager import (
-    ConfigurationManager,
-)
-
 from dairyos.platform.authorization.services.authorization_service import (
     AuthorizationService,
 )
-
-from dairyos.platform.resources.services.resource_service import (
-    ResourceService,
+from dairyos.platform.configuration.services.configuration_manager import (
+    ConfigurationManager,
 )
-
-from dairyos.platform.tenant_admin.services.tenant_service import (
-    TenantService,
-)
-
 from dairyos.platform.governance.services.governance_service import (
     GovernanceService,
 )
-
+from dairyos.platform.resources.services.resource_service import (
+    ResourceService,
+)
+from dairyos.platform.tenant_admin.services.tenant_service import (
+    TenantService,
+)
 
 
 class PlatformContainer:

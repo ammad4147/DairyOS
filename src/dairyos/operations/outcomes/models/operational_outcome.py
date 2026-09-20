@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .outcome_rating import OutcomeRating
 from .outcome_feedback import OutcomeFeedback
+from .outcome_rating import OutcomeRating
 
 
 @dataclass

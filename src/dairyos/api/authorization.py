@@ -8,9 +8,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 
 from dairyos.api.auth import _decode_token, get_current_user, require_permission
-from dairyos.auth.permissions import PERMISSIONS, PERMISSION_GROUPS, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS, normalize_permissions, permissions_for_role, permissions_from_json
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.api.reports import report_permission_for_request
+from dairyos.auth.permissions import (
+    PERMISSION_GROUPS,
+    PERMISSIONS,
+    ROLE_DESCRIPTIONS,
+    ROLE_PERMISSIONS,
+    normalize_permissions,
+    permissions_for_role,
+    permissions_from_json,
+)
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 router = APIRouter(prefix="/authz", tags=["authorization"])
 

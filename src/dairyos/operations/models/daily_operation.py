@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -21,14 +20,14 @@ class DailyOperation:
     description: str
 
     status: str = "PENDING"
-    completed_at: Optional[datetime] = None
-    completion_notes: Optional[str] = None
+    completed_at: datetime | None = None
+    completion_notes: str | None = None
 
     created_at: datetime = field(
         default_factory=datetime.now
     )
 
-    def complete(self, notes: Optional[str] = None) -> None:
+    def complete(self, notes: str | None = None) -> None:
         """
         Mark operation as completed.
         """

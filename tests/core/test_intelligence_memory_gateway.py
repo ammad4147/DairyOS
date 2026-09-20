@@ -1,7 +1,6 @@
 from dairyos.intelligence.persistence.gateway.intelligence_memory_gateway import (
     IntelligenceMemoryGateway,
 )
-
 from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
 )

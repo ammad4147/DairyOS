@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.herd_command_service import HerdCommandService
 
 
-
 def test_command_creation():
 
     service = HerdCommandService()

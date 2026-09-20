@@ -1,11 +1,9 @@
 from dairyos.operations.dashboard.services.dashboard_builder_service import (
     DashboardBuilderService,
 )
-
 from dairyos.operations.dashboard.services.dashboard_summary_service import (
     DashboardSummaryService,
 )
-
 
 
 def test_dashboard_health_green():

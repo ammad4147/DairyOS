@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.learning_signal import LearningSignal
 from ..models.operational_pattern import OperationalPattern
@@ -11,8 +10,8 @@ class PatternDetectionService:
 
     def detect_patterns(
         self,
-        signals: List[LearningSignal],
-    ) -> List[OperationalPattern]:
+        signals: list[LearningSignal],
+    ) -> list[OperationalPattern]:
 
         patterns = []
 

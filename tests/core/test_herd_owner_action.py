@@ -1,7 +1,7 @@
+from dairyos.herd.dashboard.models.executive_command_center import (
+    ExecutiveCommandCenter,
+)
 from dairyos.herd.dashboard.services.owner_action_service import OwnerActionService
-
-from dairyos.herd.dashboard.models.executive_command_center import ExecutiveCommandCenter
-
 
 
 def test_owner_action_creation():

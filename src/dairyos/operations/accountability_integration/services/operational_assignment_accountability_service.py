@@ -1,6 +1,3 @@
-from dairyos.operations.accountability_integration.services.accountability_bridge import (
-    AccountabilityBridge,
-)
 
 
 class OperationalAssignmentAccountabilityService:

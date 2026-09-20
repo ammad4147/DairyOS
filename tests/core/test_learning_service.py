@@ -1,11 +1,9 @@
-from dairyos.intelligence.learning.services.learning_service import (
-    LearningService,
-)
-
 from dairyos.intelligence.learning.repository.adapters.memory_learning_repository import (
     MemoryLearningRepository,
 )
-
+from dairyos.intelligence.learning.services.learning_service import (
+    LearningService,
+)
 from dairyos.intelligence.persistence.models.intelligence_event import (
     IntelligenceEvent,
 )

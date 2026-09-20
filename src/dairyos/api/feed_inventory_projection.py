@@ -8,10 +8,9 @@ from dairyos.api.feed_inventory import (
     _finance_purchased_quantity,
     _latest_finance_purchase,
     _latest_finance_unit_rate,
-    _threshold_quantity,
     _storage_movement_breakdown,
+    _threshold_quantity,
 )
-
 
 router = APIRouter(
     prefix="/farm/feed-inventory",

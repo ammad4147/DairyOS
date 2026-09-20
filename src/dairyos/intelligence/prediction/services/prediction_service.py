@@ -1,9 +1,8 @@
-from dairyos.intelligence.prediction.services.prediction_analyzer import (
-    PredictionAnalyzer,
-)
-
 from dairyos.intelligence.prediction.repository.prediction_repository import (
     PredictionRepository,
+)
+from dairyos.intelligence.prediction.services.prediction_analyzer import (
+    PredictionAnalyzer,
 )
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 ANALYSIS_CONTRACTS = {
     "yield": {
         "status": "AVAILABLE",

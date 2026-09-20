@@ -1,7 +1,6 @@
 from ..models.advisory import Advisory
 
 
-
 class AdvisoryService:
 
 

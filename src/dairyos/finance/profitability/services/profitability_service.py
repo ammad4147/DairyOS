@@ -1,7 +1,6 @@
 from ..models.profitability_summary import ProfitabilitySummary
 
 
-
 class ProfitabilityService:
 
 

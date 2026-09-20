@@ -2,7 +2,6 @@ from dairyos.feed import FeedInventoryTransaction
 from dairyos.feed.services import FeedInventoryService
 
 
-
 def test_receive_feed_inventory():
 
     service = FeedInventoryService()

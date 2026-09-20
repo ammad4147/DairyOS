@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import os
+from datetime import UTC, datetime
 
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 
@@ -41,7 +41,7 @@ class DeploymentControlService:
         }
 
     def activate(self, *, updated_by: str) -> dict[str, object]:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.repository.set(DEPLOYMENT_ACTIVE_KEY, "true", updated_by=updated_by)
         self.repository.set(DEPLOYMENT_ACTIVATED_AT_KEY, now, updated_by=updated_by)
         self.repository.set(DEPLOYMENT_ACTIVATED_BY_KEY, updated_by, updated_by=updated_by)
@@ -49,7 +49,7 @@ class DeploymentControlService:
         return self.status()
 
     def deactivate(self, *, updated_by: str) -> dict[str, object]:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.repository.set(DEPLOYMENT_ACTIVE_KEY, "false", updated_by=updated_by)
         self.repository.set(DEPLOYMENT_LAST_ACTION_KEY, f"RESET:{now}", updated_by=updated_by)
         return self.status()

@@ -1,6 +1,9 @@
-from dairyos.herd.dashboard.services.command_center_dashboard_service import CommandCenterDashboardService
-from dairyos.herd.dashboard.services.executive_reporting_service import ExecutiveReportingService
-
+from dairyos.herd.dashboard.services.command_center_dashboard_service import (
+    CommandCenterDashboardService,
+)
+from dairyos.herd.dashboard.services.executive_reporting_service import (
+    ExecutiveReportingService,
+)
 
 
 def create_report():

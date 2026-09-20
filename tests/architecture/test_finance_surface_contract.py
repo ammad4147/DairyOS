@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FINANCE_TAB = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "FinanceTab.tsx"
 

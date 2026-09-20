@@ -1,7 +1,4 @@
-from dairyos.herd.health.services.health_signal_service import (
-    HealthSignalService
-)
-
+from dairyos.herd.health.services.health_signal_service import HealthSignalService
 
 
 def test_milk_drop_detection():

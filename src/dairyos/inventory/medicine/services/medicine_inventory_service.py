@@ -1,7 +1,6 @@
 from ..models.medicine_inventory import MedicineInventory
 
 
-
 class MedicineInventoryService:
 
 

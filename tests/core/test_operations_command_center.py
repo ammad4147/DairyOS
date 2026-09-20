@@ -1,5 +1,4 @@
 from dairyos.app import container
-
 from dairyos.operations.command_center.operations_command_center_orchestrator import (
     OperationsCommandCenterOrchestrator,
 )

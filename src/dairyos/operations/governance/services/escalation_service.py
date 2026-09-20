@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.escalation_policy import EscalationPolicy
 
@@ -9,7 +8,7 @@ class EscalationService:
     """
 
     def __init__(self):
-        self.policies: List[EscalationPolicy] = []
+        self.policies: list[EscalationPolicy] = []
 
 
     def register_policy(
@@ -22,6 +21,6 @@ class EscalationService:
         return policy
 
 
-    def get_policies(self) -> List[EscalationPolicy]:
+    def get_policies(self) -> list[EscalationPolicy]:
 
         return list(self.policies)

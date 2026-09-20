@@ -1,5 +1,4 @@
 from dairyos.feed.intelligence.models import FeedSignal
-
 from dairyos.feed.workflow.models import (
     FeedWorkflowRequest,
 )

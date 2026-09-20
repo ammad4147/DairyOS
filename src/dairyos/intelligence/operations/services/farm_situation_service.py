@@ -3,7 +3,6 @@ from dairyos.intelligence.operations.models.farm_situation import (
 )
 
 
-
 class FarmSituationService:
     """
     Evaluates current dairy farm conditions.

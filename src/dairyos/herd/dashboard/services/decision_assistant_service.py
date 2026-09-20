@@ -1,7 +1,6 @@
 from ..models.decision_assistant import DecisionAssistant
 
 
-
 class DecisionAssistantService:
 
 

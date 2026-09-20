@@ -4,7 +4,6 @@ from dairyos.feed import FeedingRecord
 from dairyos.feed.services import FeedingService
 
 
-
 def test_add_feeding_record():
 
     service = FeedingService()

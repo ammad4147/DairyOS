@@ -1,7 +1,6 @@
 from ..models.workflow_automation import WorkflowAutomation
 
 
-
 class WorkflowAutomationService:
 
 

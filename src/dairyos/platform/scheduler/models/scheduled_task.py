@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.platform.scheduler.models.schedule_status import ScheduleStatus
 
@@ -17,6 +17,6 @@ class ScheduledTask:
 
     recurrence: str = ""
 
-    execution_time: datetime = datetime.now(timezone.utc)
+    execution_time: datetime = datetime.now(UTC)
 
     status: ScheduleStatus = ScheduleStatus.CREATED

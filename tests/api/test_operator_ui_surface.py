@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+
 from tests.helpers.breeding import ensure_test_semen_lot
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

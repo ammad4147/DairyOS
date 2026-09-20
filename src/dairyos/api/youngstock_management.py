@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
-from dairyos.data.repositories.repository_factory import RepositoryFactory
-
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(prefix="/farm/youngstock", tags=["Calf & Youngstock Management"])
 
@@ -78,7 +78,7 @@ def _record(container, input_type: str, payload: dict[str, Any], operator: str):
         **payload,
         "input_type": input_type,
         "operator": operator,
-        "timestamp": payload.get("timestamp") or datetime.now(timezone.utc).isoformat(),
+        "timestamp": payload.get("timestamp") or datetime.now(UTC).isoformat(),
     }
     event = container.input_gateway.record(
         input_type=input_type,

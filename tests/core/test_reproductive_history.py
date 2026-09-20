@@ -1,18 +1,10 @@
 from datetime import date
 
-
+from dairyos.herd.health.models.insemination_record import InseminationRecord
+from dairyos.herd.health.services.fertility_review_service import FertilityReviewService
 from dairyos.herd.health.services.reproductive_history_service import (
-    ReproductiveHistoryService
+    ReproductiveHistoryService,
 )
-
-from dairyos.herd.health.services.fertility_review_service import (
-    FertilityReviewService
-)
-
-from dairyos.herd.health.models.insemination_record import (
-    InseminationRecord
-)
-
 
 
 def test_previous_reproductive_history():

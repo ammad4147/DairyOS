@@ -1,12 +1,9 @@
-from dairyos.platform.knowledge_graph.services.knowledge_query_service import (
-    KnowledgeQueryService,
-)
-
-
 from dairyos.platform.knowledge_graph.relationships.relationship import (
     Relationship,
 )
-
+from dairyos.platform.knowledge_graph.services.knowledge_query_service import (
+    KnowledgeQueryService,
+)
 
 
 def test_graph_connection_query():

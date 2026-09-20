@@ -1,18 +1,8 @@
 from datetime import date
 
-from dairyos.herd.models import (
-    Animal,
-    AnimalStatus
-)
-
-from dairyos.herd.lifecycle.services.lifecycle_engine import (
-    LifecycleEngine
-)
-
-from dairyos.herd.lifecycle.services.movement_engine import (
-    MovementEngine
-)
-
+from dairyos.herd.lifecycle.services.lifecycle_engine import LifecycleEngine
+from dairyos.herd.lifecycle.services.movement_engine import MovementEngine
+from dairyos.herd.models import Animal, AnimalStatus
 
 
 def create_animal():

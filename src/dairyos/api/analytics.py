@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from dairyos.api.dependencies import get_container
 from dairyos.farm.operations.services.analytics_contract_service import (
     AnalyticsContractService,
 )
+from dairyos.farm.operations.services.live_analytics_service import LiveAnalyticsService
 from dairyos.farm.operations.services.reconciled_implementation_contract_service import (
     ReconciledImplementationContractService,
 )
-from dairyos.farm.operations.services.live_analytics_service import LiveAnalyticsService
-from dairyos.api.dependencies import get_container
-
 
 router = APIRouter(
     prefix="/farm/analytics",

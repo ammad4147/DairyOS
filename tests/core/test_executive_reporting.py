@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.executive_reporting_service import ExecutiveReportingService
-
+from dairyos.herd.dashboard.services.executive_reporting_service import (
+    ExecutiveReportingService,
+)
 
 
 def test_report_creation():

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from dairyos.windows import supervisor
 
-
 RETIRED_SUPERVISOR_MARKERS = (
     "process_pending_installation_choice",
     "queue_installation_choice",

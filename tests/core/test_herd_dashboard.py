@@ -1,7 +1,5 @@
 from dairyos.herd.dashboard.models import HerdDashboard
-
 from dairyos.herd.dashboard.services.kpi_service import HerdKPIService
-
 
 
 def test_dashboard_creation():

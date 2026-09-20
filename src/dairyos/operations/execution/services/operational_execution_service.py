@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
 
 from dairyos.operations.execution.events.execution_events import (
     ExecutionEvents,
@@ -46,7 +45,7 @@ class OperationalExecutionService:
         self,
         event_journal: PersistentEventJournal | None = None,
     ):
-        self.executions: List[OperationalExecution] = []
+        self.executions: list[OperationalExecution] = []
 
         self.event_journal = (
             event_journal
@@ -260,7 +259,7 @@ class OperationalExecutionService:
     def get_execution(
         self,
         execution_id: str,
-    ) -> Optional[OperationalExecution]:
+    ) -> OperationalExecution | None:
         """
         Return a recovered or newly-created execution.
         """
@@ -275,7 +274,7 @@ class OperationalExecutionService:
 
     def list_executions(
         self,
-    ) -> List[OperationalExecution]:
+    ) -> list[OperationalExecution]:
         """
         Return all executions known to this service, including rehydrated
         executions.

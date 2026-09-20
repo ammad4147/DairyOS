@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -55,7 +55,7 @@ def test_automatic_backup_creates_primary_mirror_and_monthly_archive(monkeypatch
         "postgresql+psycopg://backup-role@localhost/dairyos",
         data_root=data_root,
         mirror_destination=destination,
-        now=datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 9, 2, 12, 0, tzinfo=UTC),
     )
 
     assert result.primary.name == "DairyOS-Backup-2026-09-02.dump"
@@ -88,13 +88,13 @@ def test_only_one_monthly_archive_is_created_per_calendar_month(monkeypatch, tmp
         "postgresql+psycopg://backup-role@localhost/dairyos",
         data_root=data_root,
         mirror_destination=destination,
-        now=datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 9, 1, 1, 0, tzinfo=UTC),
     )
     second = backups.run_automatic_backup(
         "postgresql+psycopg://backup-role@localhost/dairyos",
         data_root=data_root,
         mirror_destination=destination,
-        now=datetime(2026, 9, 15, 1, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 9, 15, 1, 0, tzinfo=UTC),
     )
 
     assert first.monthly_primary is not None
@@ -131,7 +131,7 @@ def test_failed_backup_records_failure_without_erasing_last_success(monkeypatch,
             "postgresql+psycopg://backup-role@localhost/dairyos",
             data_root=data_root,
             mirror_destination=backups.BackupDestination(tmp_path / "mirror", True),
-            now=datetime(2026, 9, 2, 0, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 9, 2, 0, 0, tzinfo=UTC),
         )
 
     health = json.loads(health_path.read_text(encoding="utf-8"))

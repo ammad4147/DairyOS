@@ -1,7 +1,6 @@
 from ..models.milk_forecast import MilkForecast
 
 
-
 class MilkForecastService:
 
 

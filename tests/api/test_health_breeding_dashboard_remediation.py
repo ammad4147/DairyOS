@@ -11,7 +11,6 @@ from dairyos.data.models.operational_write import (
 )
 from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.data.repositories.vaccination_repository import VaccinationRepository
-
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )

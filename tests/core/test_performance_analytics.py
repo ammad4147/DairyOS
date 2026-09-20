@@ -1,6 +1,7 @@
-from dairyos.herd.dashboard.services.performance_analytics_service import PerformanceAnalyticsService
 from dairyos.herd.dashboard.models.operational_memory import OperationalMemory
-
+from dairyos.herd.dashboard.services.performance_analytics_service import (
+    PerformanceAnalyticsService,
+)
 
 
 def test_performance_calculation():

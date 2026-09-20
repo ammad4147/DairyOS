@@ -1,7 +1,6 @@
 from ..models.feed_inventory import FeedInventory
 
 
-
 class FeedInventoryService:
 
 

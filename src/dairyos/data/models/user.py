@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 from dairyos.core.time_utils import utcnow
+
 from ..database.base import Base
 
 

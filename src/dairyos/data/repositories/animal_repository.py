@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from dairyos.core.time_utils import utcnow
 
 from ..models.animal import Animal
 from ..models.animal_milking_schedule_history import (
     AnimalMilkingScheduleHistory,
 )
-from dairyos.core.time_utils import utcnow
 
 
 class AnimalRepository:
@@ -210,7 +211,7 @@ class AnimalRepository:
                 ) from exc
 
         if parsed.tzinfo is not None:
-            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            parsed = parsed.astimezone(UTC).replace(tzinfo=None)
 
         return parsed
 

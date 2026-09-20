@@ -1,10 +1,8 @@
-from dairyos.platform.events.models.operational_event import (
-    OperationalEvent,
-)
-
-
 from dairyos.intelligence.operations.workflow.models.workflow_projection import (
     WorkflowProjection,
+)
+from dairyos.platform.events.models.operational_event import (
+    OperationalEvent,
 )
 
 

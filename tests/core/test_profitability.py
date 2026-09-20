@@ -1,5 +1,6 @@
-from dairyos.finance.profitability.services.profitability_service import ProfitabilityService
-
+from dairyos.finance.profitability.services.profitability_service import (
+    ProfitabilityService,
+)
 
 
 def test_revenue():

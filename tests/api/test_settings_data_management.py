@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 
 from dairyos.api import settings as settings_api
 from dairyos.api.auth import get_current_user
-from dairyos.auth.permissions import permissions_for_role
 from dairyos.app import app
+from dairyos.auth.permissions import permissions_for_role
 
 
 def _admin_override():

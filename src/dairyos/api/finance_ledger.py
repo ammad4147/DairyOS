@@ -10,7 +10,7 @@ disposition ledger so Finance and Milk remain synchronized.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -29,13 +29,16 @@ from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.farm.herd.services.animal_classification_service import (
+    STANDARD_ANIMAL_CATEGORY_OPTIONS,
+    AnimalClassificationError,
+    AnimalClassificationService,
+)
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
 )
-from dairyos.farm.herd.services.animal_classification_service import (
-    AnimalClassificationError,
-    AnimalClassificationService,
-    STANDARD_ANIMAL_CATEGORY_OPTIONS,
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
 )
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.expense_taxonomy import (
@@ -44,18 +47,15 @@ from dairyos.finance.expense_taxonomy import (
     legacy_category,
     valid_item,
 )
-from dairyos.finance.profitability.services.feed_opex_cost_service import (
-    FeedOpexCostService,
-)
-from dairyos.farm.settings.services.operational_date_authority import (
-    OperationalDateAuthority,
-)
 from dairyos.finance.opex_attribution import (
     ATTRIBUTION_METHODS,
     COP_CLASSIFICATIONS,
+    NON_OPEX_ITEMS,
     default_attribution_method,
     default_cop_classification,
-    NON_OPEX_ITEMS,
+)
+from dairyos.finance.profitability.services.feed_opex_cost_service import (
+    FeedOpexCostService,
 )
 
 router = APIRouter(prefix="/farm/finance-ledger", tags=["finance-ledger"])

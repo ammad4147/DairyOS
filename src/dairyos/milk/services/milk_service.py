@@ -1,14 +1,7 @@
 from dairyos.milk.models.milk_entry import MilkEntry
 from dairyos.milk.models.milk_record import MilkRecord
-
-from dairyos.milk.services.milk_record_service import (
-    MilkRecordService
-)
-
-from dairyos.milk.services.milk_validation_service import (
-    MilkValidationService
-)
-
+from dairyos.milk.services.milk_record_service import MilkRecordService
+from dairyos.milk.services.milk_validation_service import MilkValidationService
 
 
 class MilkService:

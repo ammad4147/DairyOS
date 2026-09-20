@@ -3,7 +3,6 @@ from dairyos.platform.drilldown.models.navigation_context import (
 )
 
 
-
 class NavigationService:
     """
     Enterprise dashboard drill-down context manager.

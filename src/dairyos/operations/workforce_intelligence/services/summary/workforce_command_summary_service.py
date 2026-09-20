@@ -3,7 +3,6 @@ from dairyos.operations.workforce_intelligence.services.workforce_command_servic
 )
 
 
-
 class WorkforceCommandSummaryService:
     """
     Provides consolidated workforce command summary.

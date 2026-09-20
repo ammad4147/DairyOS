@@ -5,42 +5,9 @@ This module provides the main dashboard UI components for displaying
 farm data in a modern, professional interface.
 """
 
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import json
-
-from src.dairyos.herd.dashboard.models import (
-    HerdDashboard,
-    DailyOperatingBoard,
-    IntelligenceBrief,
-    ExecutiveAlert,
-    AdaptiveLearning,
-    DecisionAssistant,
-    DecisionOptimization,
-    DecisionLearning,
-    Advisory,
-    Escalation,
-    PredictiveSignal,
-    IntelligentAlert,
-    KnowledgeEntry,
-    MonitoringEvent,
-    OwnerAction,
-)
-from src.dairyos.herd.dashboard.models.daily_operating_board import DailyOperatingBoard as DailyOperatingBoardModel
-from src.dairyos.herd.dashboard.models.intelligence_brief import IntelligenceBrief as IntelligenceBriefModel
-from src.dairyos.herd.dashboard.models.executive_alert import ExecutiveAlert as ExecutiveAlertModel
-from src.dairyos.herd.dashboard.models.adaptive_learning import AdaptiveLearning as AdaptiveLearningModel
-from src.dairyos.herd.dashboard.models.decision_assistant import DecisionAssistant as DecisionAssistantModel
-from src.dairyos.herd.dashboard.models.decision_optimization import DecisionOptimization as DecisionOptimizationModel
-from src.dairyos.herd.dashboard.models.decision_learning import DecisionLearning as DecisionLearningModel
-from src.dairyos.herd.dashboard.models.advisory import Advisory as AdvisoryModel
-from src.dairyos.herd.dashboard.models.escalation import Escalation as EscalationModel
-from src.dairyos.herd.dashboard.models.predictive_signal import PredictiveSignal as PredictiveSignalModel
-from src.dairyos.herd.dashboard.models.intelligent_alert import IntelligentAlert as IntelligentAlertModel
-from src.dairyos.herd.dashboard.models.knowledge_entry import KnowledgeEntry as KnowledgeEntryModel
-from src.dairyos.herd.dashboard.models.monitoring_event import MonitoringEvent as MonitoringEventModel
-from src.dairyos.herd.dashboard.models.owner_action import OwnerAction as OwnerActionModel
+from typing import Any
 
 
 @dataclass
@@ -48,12 +15,12 @@ class DashboardCard:
     """Represents a dashboard card with data and styling."""
     title: str
     value: str
-    subtitle: Optional[str] = None
+    subtitle: str | None = None
     status: str = "normal"  # normal, warning, critical, success
-    icon: Optional[str] = None
-    trend: Optional[str] = None  # up, down, flat
-    data: Optional[Any] = None
-    color: Optional[str] = None
+    icon: str | None = None
+    trend: str | None = None  # up, down, flat
+    data: Any | None = None
+    color: str | None = None
 
 
 @dataclass
@@ -76,7 +43,7 @@ class DashboardRenderer:
         self.cards = []
         self.summary = None
     
-    def render_summary(self, dashboard_data: Dict[str, Any]) -> DashboardSummary:
+    def render_summary(self, dashboard_data: dict[str, Any]) -> DashboardSummary:
         """
         Render the summary section of the dashboard.
         
@@ -110,7 +77,7 @@ class DashboardRenderer:
             last_update=datetime.now()
         )
     
-    def render_kpi_cards(self, dashboard_data: Dict[str, Any]) -> List[DashboardCard]:
+    def render_kpi_cards(self, dashboard_data: dict[str, Any]) -> list[DashboardCard]:
         """
         Render KPI cards for the dashboard.
         
@@ -169,7 +136,7 @@ class DashboardRenderer:
         
         return cards
     
-    def render_sensor_cards(self, sensor_data: List[Dict[str, Any]]) -> List[DashboardCard]:
+    def render_sensor_cards(self, sensor_data: list[dict[str, Any]]) -> list[DashboardCard]:
         """
         Render sensor cards for the dashboard.
         
@@ -199,7 +166,7 @@ class DashboardRenderer:
         
         return cards
     
-    def render_alerts_section(self, alerts: List[Dict[str, Any]]) -> List[DashboardCard]:
+    def render_alerts_section(self, alerts: list[dict[str, Any]]) -> list[DashboardCard]:
         """
         Render alerts section for the dashboard.
         
@@ -229,7 +196,7 @@ class DashboardRenderer:
         
         return cards
     
-    def render_production_chart(self, production_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def render_production_chart(self, production_data: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Render production chart data.
         
@@ -250,7 +217,7 @@ class DashboardRenderer:
             }]
         }
     
-    def render_health_chart(self, health_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def render_health_chart(self, health_data: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Render health chart data.
         
@@ -271,7 +238,7 @@ class DashboardRenderer:
             }]
         }
     
-    def render_dashboard_html(self, dashboard_data: Dict[str, Any]) -> str:
+    def render_dashboard_html(self, dashboard_data: dict[str, Any]) -> str:
         """
         Render the complete dashboard as HTML.
         
@@ -707,7 +674,7 @@ class DashboardRenderer:
         
         return html
     
-    def _render_cards_html(self, cards: List[DashboardCard]) -> str:
+    def _render_cards_html(self, cards: list[DashboardCard]) -> str:
         """Render cards as HTML."""
         html = ""
         for card in cards:
@@ -732,7 +699,7 @@ class DashboardRenderer:
             """
         return html
     
-    def _render_chart_html(self, chart_data: Dict[str, Any]) -> str:
+    def _render_chart_html(self, chart_data: dict[str, Any]) -> str:
         """Render chart as HTML."""
         if not chart_data.get('datasets'):
             return ""

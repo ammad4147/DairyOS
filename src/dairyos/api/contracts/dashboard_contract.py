@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -23,23 +23,23 @@ class DashboardContract:
 
     farm_status: str = "UNKNOWN"
 
-    operational_state: Dict[str, Any] = field(
+    operational_state: dict[str, Any] = field(
         default_factory=dict
     )
 
-    dashboard: Dict[str, Any] = field(
+    dashboard: dict[str, Any] = field(
         default_factory=dict
     )
 
-    operational_decisions: List[Any] = field(
+    operational_decisions: list[Any] = field(
         default_factory=list
     )
 
-    operational_decision_summary: Dict[str, Any] = field(
+    operational_decision_summary: dict[str, Any] = field(
         default_factory=dict
     )
 
-    exceptions: List[Any] = field(
+    exceptions: list[Any] = field(
         default_factory=list
     )
 

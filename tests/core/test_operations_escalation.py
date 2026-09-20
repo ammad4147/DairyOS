@@ -1,22 +1,17 @@
 from datetime import datetime
 
-
 from dairyos.operations.escalation.models.escalation_level import (
     EscalationLevel,
 )
-
 from dairyos.operations.escalation.models.operational_escalation import (
     OperationalEscalation,
 )
-
-from dairyos.operations.escalation.services.escalation_rule_service import (
-    EscalationRuleService,
-)
-
 from dairyos.operations.escalation.services.escalation_management_service import (
     EscalationManagementService,
 )
-
+from dairyos.operations.escalation.services.escalation_rule_service import (
+    EscalationRuleService,
+)
 
 
 def test_escalation_level_detection():

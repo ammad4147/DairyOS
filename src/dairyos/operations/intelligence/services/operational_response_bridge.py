@@ -1,44 +1,35 @@
-from datetime import datetime, timezone
-from typing import Dict, Any
-
-from dairyos.operations.intelligence.models.operational_signal import (
-    OperationalSignal,
-)
-
-from dairyos.operations.decisions.services.operations_decision_service import (
-    OperationsDecisionService,
-)
-
-from dairyos.operations.decisions.models.decision_context import (
-    DecisionContext,
-)
-
-from dairyos.operations.alerts.services.alert_management_service import (
-    AlertManagementService,
-)
-
-from dairyos.operations.alerts.models.operational_alert import (
-    OperationalAlert,
-)
+from datetime import UTC, datetime
+from typing import Any
 
 from dairyos.operations.alerts.models.alert_severity import (
     AlertSeverity,
 )
-
-from dairyos.operations.escalation.services.escalation_rule_service import (
-    EscalationRuleService,
+from dairyos.operations.alerts.models.operational_alert import (
+    OperationalAlert,
 )
-
-from dairyos.operations.escalation.services.escalation_management_service import (
-    EscalationManagementService,
+from dairyos.operations.alerts.services.alert_management_service import (
+    AlertManagementService,
 )
-
+from dairyos.operations.decisions.models.decision_context import (
+    DecisionContext,
+)
+from dairyos.operations.decisions.services.operations_decision_service import (
+    OperationsDecisionService,
+)
+from dairyos.operations.escalation.models.escalation_level import (
+    EscalationLevel,
+)
 from dairyos.operations.escalation.models.operational_escalation import (
     OperationalEscalation,
 )
-
-from dairyos.operations.escalation.models.escalation_level import (
-    EscalationLevel,
+from dairyos.operations.escalation.services.escalation_management_service import (
+    EscalationManagementService,
+)
+from dairyos.operations.escalation.services.escalation_rule_service import (
+    EscalationRuleService,
+)
+from dairyos.operations.intelligence.models.operational_signal import (
+    OperationalSignal,
 )
 
 
@@ -71,7 +62,7 @@ class OperationalResponseBridge:
         self,
         signal: OperationalSignal,
         delay_hours: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
 
         priority = self._map_priority(
             signal.severity
@@ -112,7 +103,7 @@ class OperationalResponseBridge:
             description=signal.description,
 
             created_at=datetime.now(
-                timezone.utc
+                UTC
             ),
         )
 
@@ -157,7 +148,7 @@ class OperationalResponseBridge:
                 ),
 
                 created_at=datetime.now(
-                    timezone.utc
+                    UTC
                 ),
             )
 

@@ -1,7 +1,4 @@
-from dairyos.herd.health.services.clinical_history_service import (
-    ClinicalHistoryService
-)
-
+from dairyos.herd.health.services.clinical_history_service import ClinicalHistoryService
 
 
 def test_history_animal():

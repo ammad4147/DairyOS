@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.performance_measurement import PerformanceMeasurement
 
@@ -9,7 +8,7 @@ class PerformanceService:
     """
 
     def __init__(self):
-        self.measurements: List[PerformanceMeasurement] = []
+        self.measurements: list[PerformanceMeasurement] = []
 
 
     def record_measurement(

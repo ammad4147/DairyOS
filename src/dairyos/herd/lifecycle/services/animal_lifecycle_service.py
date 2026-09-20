@@ -1,7 +1,6 @@
 from ..models.animal_lifecycle import AnimalLifecycle
 
 
-
 class AnimalLifecycleService:
 
 

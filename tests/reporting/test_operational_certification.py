@@ -84,6 +84,7 @@ def test_identification_gaps(run):
 def test_milk_agrees_with_dashboard(farm, monkeypatch, run):
     """Milk <-> Dashboard: the Dashboard's day total equals the report's."""
     import datetime as _dt
+
     from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
     from tests.reporting.synthetic_farm import PKT
 

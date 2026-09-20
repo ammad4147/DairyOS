@@ -21,7 +21,6 @@ from dairyos.intelligence.persistence.gateway.intelligence_memory_gateway import
 )
 
 
-
 class EventPersistenceBridge:
     """
     Persists enterprise events through

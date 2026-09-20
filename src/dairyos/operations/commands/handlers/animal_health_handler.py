@@ -1,12 +1,9 @@
 from dairyos.operations.commands.handlers.command_handler import (
     CommandHandler,
 )
-
-
 from dairyos.platform.events.models.operational_event import (
     OperationalEvent,
 )
-
 
 
 class AnimalHealthHandler(CommandHandler):

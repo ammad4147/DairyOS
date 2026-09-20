@@ -1,5 +1,4 @@
 from ..models.executive_cockpit import ExecutiveCockpit
-
 from .alert_priority_service import AlertPriorityService
 
 

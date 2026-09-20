@@ -1,4 +1,5 @@
 from pathlib import Path
+
 ROOT=Path(__file__).resolve().parents[2]
 def text(p): return (ROOT/p).read_text(encoding="utf-8-sig")
 def test_health_ui_contract():

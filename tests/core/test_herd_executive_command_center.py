@@ -1,9 +1,8 @@
-from dairyos.herd.dashboard.services.executive_command_center_service import ExecutiveCommandCenterService
-
 from dairyos.herd.dashboard.models.executive_cockpit import ExecutiveCockpit
-
 from dairyos.herd.dashboard.models.executive_decision import ExecutiveDecision
-
+from dairyos.herd.dashboard.services.executive_command_center_service import (
+    ExecutiveCommandCenterService,
+)
 
 
 def test_command_center_creation():

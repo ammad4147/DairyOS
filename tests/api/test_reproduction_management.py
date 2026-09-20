@@ -1,7 +1,7 @@
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
 from tests.helpers.breeding import post_breeding
+
 
 def test_reproduction_overview_reads_persisted_breeding_records(client, registered_animal):
     response = post_breeding(client, registered_animal, "insemination", "completed")

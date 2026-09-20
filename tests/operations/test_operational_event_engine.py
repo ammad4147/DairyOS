@@ -1,12 +1,9 @@
 from dairyos.operations.events.operational_event import (
     OperationalEvent,
 )
-
-
 from dairyos.operations.services.event_service import (
     EventService,
 )
-
 
 
 def test_operational_event_creation():

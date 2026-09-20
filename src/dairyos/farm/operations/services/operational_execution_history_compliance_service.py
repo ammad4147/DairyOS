@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class OperationalExecutionHistoryComplianceService:
@@ -130,7 +130,7 @@ class OperationalExecutionHistoryComplianceService:
 
             "evaluation_time":
                 datetime.now(
-                    timezone.utc
+                    UTC
                 ),
 
             "compliance_status":

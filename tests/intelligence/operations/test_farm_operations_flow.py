@@ -1,15 +1,12 @@
-from dairyos.intelligence.operations.services.farm_situation_service import (
-    FarmSituationService,
-)
-
-from dairyos.intelligence.operations.services.farm_decision_service import (
-    FarmDecisionService,
-)
-
 from dairyos.intelligence.operations.orchestration.services.operations_orchestration_service import (
     OperationsOrchestrationService,
 )
-
+from dairyos.intelligence.operations.services.farm_decision_service import (
+    FarmDecisionService,
+)
+from dairyos.intelligence.operations.services.farm_situation_service import (
+    FarmSituationService,
+)
 
 
 def test_farm_condition_creates_operational_actions():

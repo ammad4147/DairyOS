@@ -3,7 +3,6 @@ from dairyos.intelligence.operations.health.models.farm_health_report import (
 )
 
 
-
 class FarmHealthService:
     """
     Evaluates dairy operational health.

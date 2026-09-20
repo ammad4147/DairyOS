@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 ASSISTANT_PACKAGE = SRC / "dairyos" / "assistant"

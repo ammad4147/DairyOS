@@ -24,11 +24,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Sequence
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Findings

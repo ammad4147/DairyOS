@@ -6,12 +6,12 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.data.models.feed_ration import FeedRation
-from dairyos.data.models.feed_record import FeedRecord
-from dairyos.core.time_utils import utcnow
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
+from dairyos.core.time_utils import utcnow
+from dairyos.data.models.feed_ration import FeedRation
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )

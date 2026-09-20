@@ -13,20 +13,20 @@ at application startup (see `ApplicationRuntime._hydrate_withdrawal_periods`)
 so active withdrawal periods survive an application restart.
 """
 
+
 from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Integer,
     String,
-    ForeignKey,
 )
 
-from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class TreatmentRecord(Base):

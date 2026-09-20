@@ -1,6 +1,7 @@
 from dairyos.intelligence.kernel.models.intelligence_signal import IntelligenceSignal
-from dairyos.intelligence.kernel.registry.signal_registry import IntelligenceSignalRegistry
-
+from dairyos.intelligence.kernel.registry.signal_registry import (
+    IntelligenceSignalRegistry,
+)
 
 
 def test_signal_registry_registers_signal():

@@ -5,7 +5,6 @@ from dairyos.api.dependencies import get_container
 from dairyos.data.database.automatic_backups import read_backup_health
 from dairyos.data.database.session import engine
 
-
 router = APIRouter(
     tags=["System"]
 )

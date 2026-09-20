@@ -3,7 +3,6 @@ from dairyos.intelligence.operations.workflow.models.workflow_decision import (
 )
 
 
-
 class WorkflowDecisionService:
     """
     Generates operational decisions from

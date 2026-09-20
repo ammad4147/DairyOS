@@ -19,7 +19,7 @@ def new_payroll():
         record = PayrollRecord(
             employee_name="Atomicity test", employee_role="Milker",
             period_start=date(2026, 9, 1), period_end=date(2026, 9, 30),
-            base_pay=Decimal("20000.01"), worked_days=Decimal("26"),
+            base_pay=Decimal("20000.01"), worked_days=Decimal(26),
         )
         session.add(record)
         session.flush()

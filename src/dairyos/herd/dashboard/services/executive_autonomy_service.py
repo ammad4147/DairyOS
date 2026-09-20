@@ -1,7 +1,6 @@
 from ..models.executive_autonomy import ExecutiveAutonomy
 
 
-
 class ExecutiveAutonomyService:
 
 

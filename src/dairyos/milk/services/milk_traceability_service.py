@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import List, Dict
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -9,9 +8,9 @@ class MilkTraceabilityBatch:
     tank_id: str
     shift: str
     timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
-    animal_ids: List[str] = field(default_factory=list)
+    animal_ids: list[str] = field(default_factory=list)
     total_litres: float = 0.0
     status: str = "IN_TANK"
     delivery_ticket_id: str | None = None
@@ -31,7 +30,7 @@ class MilkTraceabilityService:
     """
 
     def __init__(self):
-        self._batches: Dict[str, MilkTraceabilityBatch] = {}
+        self._batches: dict[str, MilkTraceabilityBatch] = {}
 
     def create_batch(
         self,
@@ -81,7 +80,7 @@ class MilkTraceabilityService:
     def trace_animal(
         self,
         animal_id: str,
-    ) -> List[MilkTraceabilityBatch]:
+    ) -> list[MilkTraceabilityBatch]:
         return [
             batch
             for batch in self._batches.values()

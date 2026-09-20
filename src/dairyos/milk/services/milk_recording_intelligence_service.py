@@ -10,7 +10,6 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-
 M19_WARNING_THRESHOLD_PERCENT = 15.0
 M19_CRITICAL_THRESHOLD_PERCENT = 20.0
 M19_BASELINE_COMPLETE_DAYS = 3

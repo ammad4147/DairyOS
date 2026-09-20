@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -98,12 +98,12 @@ def record_observation(
 
     observed_at = (
         observation.observed_at
-        or datetime.now(timezone.utc)
+        or datetime.now(UTC)
     )
 
     if observed_at.tzinfo is None:
         observed_at = observed_at.replace(
-            tzinfo=timezone.utc
+            tzinfo=UTC
         )
 
     thi = round(
@@ -237,7 +237,7 @@ def heat_stress_intelligence(
 
                 if observed_at.tzinfo is None:
                     observed_at = observed_at.replace(
-                        tzinfo=timezone.utc
+                        tzinfo=UTC
                     )
 
                 if observed_at.date() >= cutoff_date:

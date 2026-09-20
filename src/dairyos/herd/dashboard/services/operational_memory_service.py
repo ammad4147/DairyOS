@@ -1,7 +1,6 @@
 from ..models.operational_memory import OperationalMemory
 
 
-
 class OperationalMemoryService:
 
 

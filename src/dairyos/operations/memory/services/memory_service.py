@@ -1,7 +1,6 @@
-from typing import List
 
-from ..models.operational_memory import OperationalMemory
 from ..models.knowledge_pattern import KnowledgePattern
+from ..models.operational_memory import OperationalMemory
 
 
 class MemoryService:
@@ -10,7 +9,7 @@ class MemoryService:
     """
 
     def __init__(self):
-        self.memories: List[OperationalMemory] = []
+        self.memories: list[OperationalMemory] = []
 
 
     def store(

@@ -1,5 +1,10 @@
 import dairyos.api.finance_ledger as finance_ledger_api
-from dairyos.finance.expense_taxonomy import EXPENSE_TAXONOMIES, MASTER_CATEGORIES, all_items, legacy_category
+from dairyos.finance.expense_taxonomy import (
+    EXPENSE_TAXONOMIES,
+    MASTER_CATEGORIES,
+    all_items,
+    legacy_category,
+)
 
 
 def test_finance_expense_taxonomy_is_unique_and_governed():

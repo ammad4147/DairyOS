@@ -1,7 +1,5 @@
 from dairyos.herd.intelligence.models.herd_decision import HerdDecision
-
 from dairyos.herd.intelligence.services.decision_service import DecisionService
-
 
 
 class Context:

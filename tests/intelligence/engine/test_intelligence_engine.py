@@ -1,13 +1,11 @@
 from dairyos.intelligence.engine.intelligence_engine import (
     IntelligenceEngine,
 )
-
-from dairyos.intelligence.models.intelligence_signal import (
-    IntelligenceSignal,
-)
-
 from dairyos.intelligence.models.intelligence_recommendation import (
     IntelligenceRecommendation,
+)
+from dairyos.intelligence.models.intelligence_signal import (
+    IntelligenceSignal,
 )
 
 

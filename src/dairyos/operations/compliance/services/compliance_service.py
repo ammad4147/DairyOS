@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.compliance_check import ComplianceCheck
 
@@ -9,7 +8,7 @@ class ComplianceService:
     """
 
     def __init__(self):
-        self.checks: List[ComplianceCheck] = []
+        self.checks: list[ComplianceCheck] = []
 
 
     def record_check(

@@ -6,10 +6,11 @@ operational date is supported; corrections preserve previous values and actors
 in revision_history within the same atomic database transaction.
 """
 
-from sqlalchemy import Column, DateTime, Float, Index, Integer, String, func, JSON
+from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, String, func
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class MilkQualitySample(Base):

@@ -1,8 +1,6 @@
+from dairyos.core.alerts.services.alert_engine import AlertEngine
 from dairyos.core.notifications.models import Notification
 from dairyos.core.notifications.services.dispatcher import NotificationDispatcher
-
-from dairyos.core.alerts.services.alert_engine import AlertEngine
-
 
 
 def test_notification_dispatch():

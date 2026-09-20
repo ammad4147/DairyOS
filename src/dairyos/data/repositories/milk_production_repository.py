@@ -1,13 +1,14 @@
-from datetime import date as date_type, datetime as datetime_type
+from datetime import date as date_type
+from datetime import datetime as datetime_type
 from math import isclose, isfinite
 
 from sqlalchemy import func
 
-from ..models.milk_production import MilkProduction
-from ..models.animal import Animal
-from ..models.treatment_record import TreatmentRecord
 from dairyos.core.time_utils import utcnow
 
+from ..models.animal import Animal
+from ..models.milk_production import MilkProduction
+from ..models.treatment_record import TreatmentRecord
 
 INACTIVE_LIFECYCLE_STATUSES = {"DECEASED", "SOLD", "CULLED"}
 MILK_YIELD_FIELDS = ("morning_yield", "afternoon_yield", "evening_yield")

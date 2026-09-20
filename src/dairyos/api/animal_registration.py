@@ -10,7 +10,7 @@ overwritten when they contradict the selected category.
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from hashlib import sha256
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -29,7 +29,6 @@ from dairyos.farm.herd.services.animal_parentage_service import (
     validate_parentage,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-
 
 router = APIRouter(prefix="/farm/animals", tags=["Animal Registration"])
 

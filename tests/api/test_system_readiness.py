@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 import dairyos.api.system as system_api
 
 
-
 def test_readiness_reports_live_database_and_runtime(client: TestClient):
     response = client.get("/readiness")
 

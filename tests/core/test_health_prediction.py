@@ -1,5 +1,6 @@
-from dairyos.intelligence.health.services.health_prediction_service import HealthPredictionService
-
+from dairyos.intelligence.health.services.health_prediction_service import (
+    HealthPredictionService,
+)
 
 
 def test_animal_id():

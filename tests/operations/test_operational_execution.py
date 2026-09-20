@@ -1,15 +1,12 @@
-from dairyos.operations.execution.services.operational_execution_service import (
-    OperationalExecutionService,
-)
-
 from dairyos.operations.execution.services.execution_tracking_service import (
     ExecutionTrackingService,
 )
-
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
+)
 from dairyos.operations.workflow.services.execution_workflow_bridge import (
     ExecutionWorkflowBridge,
 )
-
 
 
 def test_operational_execution_lifecycle():

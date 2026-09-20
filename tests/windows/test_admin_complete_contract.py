@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"
 BUILD = ROOT / "scripts" / "Build-DairyOS-Installer.ps1"

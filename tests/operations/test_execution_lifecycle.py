@@ -1,7 +1,6 @@
 from dairyos.operations.execution.models.operational_execution import (
     OperationalExecution,
 )
-
 from dairyos.operations.execution.services.execution_tracking_service import (
     ExecutionTrackingService,
 )

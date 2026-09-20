@@ -1,13 +1,10 @@
 from datetime import date
 
-import pytest
-
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
 from dairyos.farm.reproduction.services.reproductive_state_service import (
     ReproductivePolicy,
     ReproductiveStateService,
 )
-
 
 POLICY = ReproductivePolicy(
     voluntary_waiting_period_days=60,

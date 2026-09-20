@@ -3,7 +3,6 @@ from dairyos.platform.audit.models.audit_record import (
 )
 
 
-
 class AuditService:
     """
     Enterprise operational audit service.

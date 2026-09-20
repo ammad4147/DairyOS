@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 
 from dairyos.api.dependencies import get_container
 
-
 router = APIRouter(
     tags=["Readiness"],
 )

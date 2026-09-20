@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import re
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from .operational_schedule_state import OperationalScheduleState
 
@@ -75,7 +75,7 @@ def _normalise_mapping(mapping, fallback):
 class FarmOperationalState:
     farm_id: str
     operational_date: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     active_operations: dict = field(default_factory=dict)
     animals: dict = field(default_factory=dict)
     milk_status: dict = field(default_factory=dict)
@@ -151,7 +151,7 @@ class FarmOperationalState:
         self.active_operations[operation_type] = {
             "status": "IN_PROGRESS",
             "operator": operator,
-            "started_at": datetime.now(timezone.utc),
+            "started_at": datetime.now(UTC),
             "metadata": metadata or {},
         }
         return self.active_operations[operation_type]
@@ -161,13 +161,13 @@ class FarmOperationalState:
         operation = self.active_operations.get(operation_type)
         if operation is not None:
             operation["status"] = "COMPLETED"
-            operation["completed_at"] = datetime.now(timezone.utc)
+            operation["completed_at"] = datetime.now(UTC)
         return operation
 
     def record_freshness(self, area, timestamp=None, source=None):
         area = _normalise_key(area, "GENERAL")
         self.operational_freshness[area] = {
-            "last_updated": timestamp or datetime.now(timezone.utc),
+            "last_updated": timestamp or datetime.now(UTC),
             "source": source,
         }
 
@@ -206,7 +206,7 @@ class FarmOperationalState:
             entry["animals_milked"] += 1
         if operator and operator not in entry["operators"]:
             entry["operators"].append(operator)
-        entry["last_timestamp"] = timestamp or datetime.now(timezone.utc)
+        entry["last_timestamp"] = timestamp or datetime.now(UTC)
         entry["status"] = "completed"
         if entry_key:
             today_entries = [
@@ -239,7 +239,7 @@ class FarmOperationalState:
             "animal_id": animal_id,
             "observation": observation,
             "severity": severity,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
         }
         self.health_alerts.append(record)
         if animal_id is not None:
@@ -252,7 +252,7 @@ class FarmOperationalState:
         existing = self.breeding_status.setdefault(animal_id, {})
         existing.update(details)
         existing["animal_id"] = animal_id
-        existing["updated_at"] = datetime.now(timezone.utc)
+        existing["updated_at"] = datetime.now(UTC)
         return existing
 
     def record_breeding_activity(self, animal_id, details):
@@ -261,7 +261,7 @@ class FarmOperationalState:
         self.breeding_status[animal_id] = {
             **details,
             "animal_id": animal_id,
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
         return self.breeding_status[animal_id]
 
@@ -277,7 +277,7 @@ class FarmOperationalState:
             **details,
             "item": item,
             "status": details.get("status", "UNKNOWN"),
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
         return self.inventory_status[key]
 
@@ -286,7 +286,7 @@ class FarmOperationalState:
         details = details if isinstance(details, dict) else {}
         self.equipment_status[equipment_id] = {
             **details,
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
         return self.equipment_status[equipment_id]
 

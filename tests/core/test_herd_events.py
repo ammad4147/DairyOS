@@ -1,13 +1,11 @@
-from dairyos.farm.operations.models.farm_operation_event import (
-    FarmOperationEvent,
+from dairyos.farm.herd.models.animal_operational_state import (
+    AnimalOperationalState,
 )
-
 from dairyos.farm.herd.services.animal_event_projection import (
     AnimalEventProjection,
 )
-
-from dairyos.farm.herd.models.animal_operational_state import (
-    AnimalOperationalState,
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
 )
 
 

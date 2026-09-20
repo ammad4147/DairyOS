@@ -3,7 +3,6 @@ from dairyos.platform.events.models.operational_event import (
 )
 
 
-
 class EventBus:
     """
     Operational event publication boundary.

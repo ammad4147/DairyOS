@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
 from dairyos.platform import paths
-
 
 STATE_FILENAME: Final[str] = "installation_state.json"
 

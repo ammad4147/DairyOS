@@ -1,7 +1,6 @@
 from ..models.operational_outcome import OperationalOutcome
 
 
-
 class OperationalOutcomeService:
 
 

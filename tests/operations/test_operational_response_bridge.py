@@ -1,9 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.operations.intelligence.models.operational_signal import (
     OperationalSignal,
 )
-
 from dairyos.operations.intelligence.services.operational_response_bridge import (
     OperationalResponseBridge,
 )
@@ -28,7 +27,7 @@ def test_operational_signal_response_pipeline():
         source="Farm Operations",
 
         created_at=datetime.now(
-            timezone.utc
+            UTC
         ),
 
     )

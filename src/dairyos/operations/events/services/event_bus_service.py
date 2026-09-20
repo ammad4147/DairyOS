@@ -1,4 +1,4 @@
-from typing import List, Callable
+from collections.abc import Callable
 
 from ..models.operational_event import OperationalEvent
 
@@ -11,8 +11,8 @@ class EventBusService:
 
     def __init__(self):
 
-        self.events: List[OperationalEvent] = []
-        self.subscribers: List[Callable] = []
+        self.events: list[OperationalEvent] = []
+        self.subscribers: list[Callable] = []
 
 
     def publish(

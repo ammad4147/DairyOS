@@ -3,7 +3,6 @@ from dairyos.operations.workforce_intelligence.models.workforce_command_snapshot
 )
 
 
-
 class WorkforceCommandRepository:
     """
     Stores workforce command snapshots.

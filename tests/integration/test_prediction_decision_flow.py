@@ -7,20 +7,17 @@ Prediction to Decision Validation
 
 def test_prediction_to_decision_components():
 
-    from dairyos.intelligence.prediction.services.prediction_service import (
-        PredictionService,
+    from dairyos.intelligence.decision.services.confidence_engine import (
+        ConfidenceEngine,
     )
-
-    from dairyos.intelligence.prediction.services.prediction_analyzer import (
-        PredictionAnalyzer,
-    )
-
     from dairyos.intelligence.decision.services.decision_service import (
         DecisionService,
     )
-
-    from dairyos.intelligence.decision.services.confidence_engine import (
-        ConfidenceEngine,
+    from dairyos.intelligence.prediction.services.prediction_analyzer import (
+        PredictionAnalyzer,
+    )
+    from dairyos.intelligence.prediction.services.prediction_service import (
+        PredictionService,
     )
 
 

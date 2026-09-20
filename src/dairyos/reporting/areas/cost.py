@@ -15,9 +15,21 @@ from typing import Any
 
 from dairyos.finance import ledger_semantics as semantics
 from dairyos.finance.opex_period_attribution import attribute_opex_for_period
-from dairyos.reporting.context import ReportContext, ReportParameterError, clean_text, money, ratio, to_date
+from dairyos.reporting.context import (
+    ReportContext,
+    ReportParameterError,
+    clean_text,
+    money,
+    ratio,
+    to_date,
+)
 from dairyos.reporting.definitions import (
-    Column, Metric, ReconciliationCheck, ReportDefinition, ReportResult, Section,
+    Column,
+    Metric,
+    ReconciliationCheck,
+    ReportDefinition,
+    ReportResult,
+    Section,
 )
 from dairyos.reporting.engine import column_set
 from dairyos.reporting.periods import format_date, month_sequence

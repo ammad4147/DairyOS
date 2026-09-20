@@ -1,5 +1,5 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from datetime import datetime, timezone
 
 from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
     BreedingAnalyticsService,
@@ -16,7 +16,7 @@ def ev(animal, kind, day, result="RECORDED", semen=None, tech="Tech"):
         semen_or_bull=semen,
         technician=tech,
         notes=None,
-        timestamp=datetime.fromisoformat(day + "T00:00:00").replace(tzinfo=timezone.utc),
+        timestamp=datetime.fromisoformat(day + "T00:00:00").replace(tzinfo=UTC),
     )
 
 

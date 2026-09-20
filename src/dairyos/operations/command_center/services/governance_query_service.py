@@ -1,4 +1,3 @@
-from typing import List
 
 
 class GovernanceQueryService:
@@ -17,10 +16,10 @@ class GovernanceQueryService:
 
     def build_projection(
         self,
-        rules: List | None = None,
-        policies: List | None = None,
-        cycles: List | None = None,
-        owners: List | None = None,
+        rules: list | None = None,
+        policies: list | None = None,
+        cycles: list | None = None,
+        owners: list | None = None,
     ):
 
         rules = rules if rules is not None else []

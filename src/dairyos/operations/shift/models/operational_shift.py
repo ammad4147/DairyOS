@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 
@@ -25,7 +25,7 @@ class OperationalShift:
 
     started_at: datetime = field(
         default_factory=lambda: datetime.now(
-            timezone.utc
+            UTC
         )
     )
 
@@ -47,6 +47,6 @@ class OperationalShift:
 
         self.closed_at = (
             datetime.now(
-                timezone.utc
+                UTC
             )
         )

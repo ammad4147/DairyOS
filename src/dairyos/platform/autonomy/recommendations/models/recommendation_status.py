@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class RecommendationStatus(str, Enum):
 
     NEW = "new"

@@ -3,7 +3,6 @@ from dairyos.platform.command_center.farm_board.models.farm_status_snapshot impo
 )
 
 
-
 class FarmBoardService:
     """
     Generates farm-wide operational snapshots.

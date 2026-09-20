@@ -1,12 +1,8 @@
 from fastapi import APIRouter
 
-
-
 from dairyos.platform.autonomy.orchestration.services.autonomy_orchestrator import (
     AutonomyOrchestrator,
 )
-
-
 
 router = APIRouter(
 

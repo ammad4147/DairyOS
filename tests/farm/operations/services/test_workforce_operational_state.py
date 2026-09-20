@@ -1,11 +1,9 @@
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
-
 
 
 def test_workforce_event_updates_operational_state():

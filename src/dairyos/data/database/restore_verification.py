@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import json
 import os
-from pathlib import Path
 import tempfile
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-from dairyos.data.database.automatic_backups import backup_health_path, read_backup_health
+from dairyos.data.database.automatic_backups import (
+    backup_health_path,
+    read_backup_health,
+)
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
     database_semantic_fingerprint,
@@ -19,7 +22,6 @@ from dairyos.data.database.backup import (
     verify_backup_archive,
 )
 from dairyos.platform import paths
-
 
 RESTORE_VERIFY_INTERVAL = timedelta(days=7)
 
@@ -29,17 +31,17 @@ class RestoreVerificationError(RuntimeError):
 
 
 def _utc_now(now: datetime | None = None) -> datetime:
-    value = now or datetime.now(timezone.utc)
+    value = now or datetime.now(UTC)
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _parse_time(value: object) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
     except ValueError:
         return None
 

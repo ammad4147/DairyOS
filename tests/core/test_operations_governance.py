@@ -1,14 +1,12 @@
-from dairyos.operations.governance.models.governance_rule import GovernanceRule
-from dairyos.operations.governance.services.governance_service import (
-    GovernanceService,
-)
-
 from dairyos.operations.governance.models.escalation_policy import (
     EscalationPolicy,
 )
-
+from dairyos.operations.governance.models.governance_rule import GovernanceRule
 from dairyos.operations.governance.services.escalation_service import (
     EscalationService,
+)
+from dairyos.operations.governance.services.governance_service import (
+    GovernanceService,
 )
 
 

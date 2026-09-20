@@ -1,5 +1,5 @@
-from datetime import date, datetime, timedelta, timezone
 import uuid
+from datetime import UTC, date, datetime, timedelta
 
 from dairyos.app import container
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
@@ -39,7 +39,7 @@ def _add_breeding_event(animal_id, event_type, when, result="positive"):
             timestamp=datetime.combine(
                 when,
                 datetime.min.time(),
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
         )
     )

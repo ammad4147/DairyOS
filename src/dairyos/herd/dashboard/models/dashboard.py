@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -31,7 +31,7 @@ class Dashboard:
 
     title: str = "DairyOS Dashboard"
 
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -42,4 +42,4 @@ class DashboardView:
 
     name: str
 
-    payload: Optional[Dict[str, Any]] = None
+    payload: dict[str, Any] | None = None

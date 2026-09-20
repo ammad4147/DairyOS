@@ -1,7 +1,6 @@
 from ..models.escalation import Escalation
 
 
-
 class EscalationService:
 
 

@@ -1,11 +1,9 @@
-from .operations_health_service import OperationsHealthService
-
 from .operations_health_intelligence_bridge import (
     OperationsHealthIntelligenceBridge,
 )
-
+from .operations_health_service import OperationsHealthService
 
 __all__ = [
-    "OperationsHealthService",
     "OperationsHealthIntelligenceBridge",
+    "OperationsHealthService",
 ]

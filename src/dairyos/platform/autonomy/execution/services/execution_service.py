@@ -1,19 +1,15 @@
-from typing import Dict
-
-from dairyos.platform.autonomy.execution.models.action_plan import (
-    ActionPlan,
-)
 
 from dairyos.operations.execution.models.operational_execution import (
     OperationalExecution,
 )
-
+from dairyos.operations.execution.services.execution_tracking_service import (
+    ExecutionTrackingService,
+)
 from dairyos.operations.execution.services.operational_execution_service import (
     OperationalExecutionService,
 )
-
-from dairyos.operations.execution.services.execution_tracking_service import (
-    ExecutionTrackingService,
+from dairyos.platform.autonomy.execution.models.action_plan import (
+    ActionPlan,
 )
 
 
@@ -66,7 +62,7 @@ class ExecutionService:
             else ExecutionTrackingService()
         )
 
-        self._executions_by_plan: Dict[int, OperationalExecution] = {}
+        self._executions_by_plan: dict[int, OperationalExecution] = {}
 
     def create_plan(
         self,

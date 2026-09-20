@@ -3,7 +3,6 @@ from dairyos.platform.command_center.governance.models.command_audit_record impo
 )
 
 
-
 class GovernanceService:
     """
     Provides Command Center authorization and audit support.

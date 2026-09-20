@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 from dairyos.application.database_aware_animal_passport import (
@@ -97,14 +97,14 @@ def test_passport_links_persisted_welfare_and_honors_historical_date():
             "welfare_domain": "GENERAL",
             "score": 82,
             "status": "OBSERVED",
-            "observed_at": datetime(2026, 8, 29, tzinfo=timezone.utc).isoformat(),
+            "observed_at": datetime(2026, 8, 29, tzinfo=UTC).isoformat(),
         },
         {
             "animal_id": "AN-001",
             "welfare_domain": "GENERAL",
             "score": 91,
             "status": "OBSERVED",
-            "observed_at": datetime(2026, 8, 30, tzinfo=timezone.utc).isoformat(),
+            "observed_at": datetime(2026, 8, 30, tzinfo=UTC).isoformat(),
         },
     ]
     passport = DatabaseAwareLifetimeAnimalPassportService(

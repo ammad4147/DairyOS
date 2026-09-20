@@ -1,11 +1,7 @@
 from dairyos.herd.health.services.clinical_knowledge_service import (
-    ClinicalKnowledgeService
+    ClinicalKnowledgeService,
 )
-
-from dairyos.herd.health.services.clinical_review_service import (
-    ClinicalReviewService
-)
-
+from dairyos.herd.health.services.clinical_review_service import ClinicalReviewService
 
 
 def test_mastitis_reference_found():

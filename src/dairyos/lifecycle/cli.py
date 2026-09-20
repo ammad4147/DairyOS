@@ -9,12 +9,10 @@ import sys
 from pathlib import Path
 
 from .manager import (
-    PURGE_CONFIRMATION,
     LifecycleError,
     LifecycleManager,
     UninstallMode,
 )
-from .purge import purge_data_after_backup
 from .restore import restore_snapshot
 
 

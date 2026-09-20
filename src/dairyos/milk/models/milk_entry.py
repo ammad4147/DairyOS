@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import isfinite
 
 from dairyos.milk.models.milking_session import MilkingSession
@@ -19,7 +19,7 @@ class MilkEntry:
     operator: str
 
     entry_time: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 

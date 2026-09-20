@@ -1,15 +1,12 @@
 from dairyos.dashboard.models.dashboard_layout import (
     DashboardLayout,
 )
-
 from dairyos.dashboard.models.dashboard_view import (
     DashboardView,
 )
-
 from dairyos.dashboard.models.dashboard_widget import (
     DashboardWidget,
 )
-
 from dairyos.dashboard.models.dashboard_zone import (
     DashboardZone,
 )

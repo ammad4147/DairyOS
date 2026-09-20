@@ -3,7 +3,6 @@ from dairyos.platform.command_center.rooms.models.intelligence_room import (
 )
 
 
-
 class RoomService:
     """
     Provides operational intelligence rooms.

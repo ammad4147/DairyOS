@@ -4,9 +4,9 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from dairyos.data.database.session import engine
-from dairyos.data.models.milk_production import MilkProduction
-from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.milk_disposition import MilkDisposition
+from dairyos.data.models.milk_production import MilkProduction
 
 
 def seed_sale(client, animal_id):
@@ -56,7 +56,7 @@ def test_amendment_synchronizes_commercial_facts(client, registered_animal):
         milk = session.query(MilkDisposition).filter_by(sale_id=f"FIN-{transaction_id}").one()
         assert finance.amount == milk.amount_due == Decimal("22000.00")
         assert finance.quantity == milk.quantity_litres == 110
-        assert finance.unit_rate == milk.selling_price_per_litre == Decimal("200")
+        assert finance.unit_rate == milk.selling_price_per_litre == Decimal(200)
         assert finance.counterparty == milk.counterparty == "Revised Buyer"
         disposition_id = milk.id
     response = client.patch(

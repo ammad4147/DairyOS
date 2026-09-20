@@ -1,10 +1,8 @@
-from datetime import datetime, UTC
-
+from datetime import UTC, datetime
 
 from dairyos.app import container
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.database.session import SessionLocal
-
 from dairyos.domain.events import Event
 
 

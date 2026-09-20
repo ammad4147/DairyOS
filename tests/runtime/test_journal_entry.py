@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.domain.events import Event
 from dairyos.domain.events.operational_input_received import (
@@ -34,7 +34,7 @@ def test_journal_entry_preserves_datetime_timestamp():
         8,
         12,
         30,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     event = Event(

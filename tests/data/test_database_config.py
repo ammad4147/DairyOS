@@ -11,7 +11,6 @@ The module-level DATABASE_URL / engine / SessionLocal built at import time
 are left untouched by these tests.
 """
 
-import os
 
 import pytest
 

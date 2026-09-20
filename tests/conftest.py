@@ -68,8 +68,8 @@ from dairyos.data.models.animal_milking_schedule_history import (
 )
 from dairyos.data.models.app_setting import AppSetting
 from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
-from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.feed_ration import FeedRation
+from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.health_observation import HealthObservation
@@ -89,8 +89,8 @@ from dairyos.data.models.operational_write import (
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.models.treatment_record import TreatmentRecord
-from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.data.models.user import User
+from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
 )

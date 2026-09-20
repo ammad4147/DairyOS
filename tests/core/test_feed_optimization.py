@@ -1,4 +1,6 @@
-from dairyos.intelligence.feed.services.feed_optimization_service import FeedOptimizationService
+from dairyos.intelligence.feed.services.feed_optimization_service import (
+    FeedOptimizationService,
+)
 
 
 def test_group():

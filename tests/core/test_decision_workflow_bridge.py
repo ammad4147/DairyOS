@@ -1,17 +1,14 @@
-from dairyos.intelligence.workflow.integration.decision_workflow_bridge import (
-    DecisionWorkflowBridge,
+from dairyos.intelligence.decision.gateway.decision_gateway import (
+    DecisionGateway,
 )
-
 from dairyos.intelligence.workflow.gateway.workflow_gateway import (
     WorkflowGateway,
 )
-
+from dairyos.intelligence.workflow.integration.decision_workflow_bridge import (
+    DecisionWorkflowBridge,
+)
 from dairyos.intelligence.workflow.services.workflow_orchestrator import (
     WorkflowOrchestrator,
-)
-
-from dairyos.intelligence.decision.gateway.decision_gateway import (
-    DecisionGateway,
 )
 
 

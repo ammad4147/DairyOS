@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _directive(client, animal_id, directive, **kwargs):
@@ -90,7 +90,7 @@ def test_temporary_directive_can_carry_effective_until(
     registered_animal,
 ):
     until = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
         + timedelta(days=5)
     ).isoformat()
 

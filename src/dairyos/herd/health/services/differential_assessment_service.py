@@ -3,7 +3,6 @@ from datetime import datetime
 from ..models.differential_assessment import DifferentialAssessment
 
 
-
 class DifferentialAssessmentService:
 
 

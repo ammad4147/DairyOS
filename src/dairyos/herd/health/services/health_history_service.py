@@ -1,5 +1,3 @@
-from ..models.historical_health_record import HistoricalHealthRecord
-from ..models.vaccination_history import VaccinationHistory
 
 
 

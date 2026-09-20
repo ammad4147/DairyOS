@@ -1,14 +1,5 @@
-from dairyos.core.masterdata.models import (
-    Farm,
-    Location,
-    Breed,
-    AnimalType
-)
-
-from dairyos.core.masterdata.services.master_data_service import (
-    MasterDataService
-)
-
+from dairyos.core.masterdata.models import AnimalType, Breed, Farm
+from dairyos.core.masterdata.services.master_data_service import MasterDataService
 
 
 def test_master_data_creation():

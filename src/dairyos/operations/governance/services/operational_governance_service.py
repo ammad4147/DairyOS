@@ -1,30 +1,23 @@
-from typing import Any, Dict, List
-
-
-from dairyos.operations.command_center.services.execution_accountability_query_service import (
-    ExecutionAccountabilityQueryService,
-)
-
-from dairyos.operations.resolution.services.resolution_management_service import (
-    ResolutionManagementService,
-)
-
-from dairyos.operations.resolution.services.resolution_verification_service import (
-    ResolutionVerificationService,
-)
-
-from dairyos.operations.outcomes.services.outcome_analysis_service import (
-    OutcomeAnalysisService,
-)
-
-from dairyos.operations.effectiveness.services.effectiveness_analysis_service import (
-    EffectivenessAnalysisService,
-)
+from typing import Any
 
 from dairyos.operations.closure_intelligence.services.closure_intelligence_service import (
     ClosureIntelligenceService,
 )
-
+from dairyos.operations.command_center.services.execution_accountability_query_service import (
+    ExecutionAccountabilityQueryService,
+)
+from dairyos.operations.effectiveness.services.effectiveness_analysis_service import (
+    EffectivenessAnalysisService,
+)
+from dairyos.operations.outcomes.services.outcome_analysis_service import (
+    OutcomeAnalysisService,
+)
+from dairyos.operations.resolution.services.resolution_management_service import (
+    ResolutionManagementService,
+)
+from dairyos.operations.resolution.services.resolution_verification_service import (
+    ResolutionVerificationService,
+)
 
 
 class OperationalGovernanceService:
@@ -103,10 +96,10 @@ class OperationalGovernanceService:
 
     def build_governance_view(
         self,
-        accountability_records: List | None = None,
-        outcomes: List | None = None,
+        accountability_records: list | None = None,
+        outcomes: list | None = None,
         effectiveness=None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Creates governance projection.
 

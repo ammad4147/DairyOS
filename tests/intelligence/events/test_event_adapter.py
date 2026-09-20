@@ -1,11 +1,9 @@
 from dairyos.intelligence.events.adapters.event_adapter import (
     EventAdapter,
 )
-
 from dairyos.intelligence.events.models.enterprise_event import (
     EnterpriseEvent,
 )
-
 
 
 def test_event_adapter_conversion():

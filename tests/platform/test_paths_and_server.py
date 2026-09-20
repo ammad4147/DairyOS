@@ -15,7 +15,6 @@ import pytest
 from dairyos.platform import paths
 from dairyos.server import build_parser, resolve_configuration
 
-
 # ----------------------------------------------------------------------
 # Data directory resolution
 # ----------------------------------------------------------------------

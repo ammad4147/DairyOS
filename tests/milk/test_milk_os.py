@@ -1,6 +1,6 @@
 from dairyos.milk import (
-    MilkRecord,
     MilkingSession,
+    MilkRecord,
     MilkRecordService,
 )
 

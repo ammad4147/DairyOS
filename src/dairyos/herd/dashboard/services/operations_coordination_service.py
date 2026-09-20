@@ -1,7 +1,6 @@
 from ..models.operations_coordination import OperationsCoordination
 
 
-
 class OperationsCoordinationService:
 
 

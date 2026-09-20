@@ -5,19 +5,20 @@ This module manages multiple input modules, handles their lifecycle,
 and provides a unified interface for data collection and event handling.
 """
 
-from typing import Dict, List, Optional, Callable, Any
-from dataclasses import dataclass
 import asyncio
-from datetime import datetime
-from collections import deque
 import logging
-import yaml
 import os
 import time
+from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
-from .module import InputModule, InputData, InputError, InputStatus, DataQuality, HealthReport
+import yaml
 
+from .module import HealthReport, InputData, InputError, InputModule, InputStatus
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,11 @@ class ModuleConfig:
     """Configuration for a module in the manager."""
     module_id: str
     module_class: type
-    config: Optional[Dict[str, Any]] = None
+    config: dict[str, Any] | None = None
     polling_interval: float = 1.0  # seconds
     is_active: bool = True
-    calibration_offset: Optional[float] = None
-    connection_params: Optional[Dict[str, Any]] = None
+    calibration_offset: float | None = None
+    connection_params: dict[str, Any] | None = None
     max_reconnect_attempts: int = 5
     reconnect_strategy: ReconnectStrategy = ReconnectStrategy.EXPONENTIAL
     reconnect_base_delay: float = 1.0  # seconds
@@ -54,21 +55,21 @@ class InputManager:
     and handles offline/reconnect logic.
     """
     
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self, config_file: str | None = None):
         """Initialize the input manager."""
-        self._modules: Dict[str, InputModule] = {}
-        self._module_configs: Dict[str, ModuleConfig] = {}
-        self._polling_tasks: Dict[str, asyncio.Task] = {}
+        self._modules: dict[str, InputModule] = {}
+        self._module_configs: dict[str, ModuleConfig] = {}
+        self._polling_tasks: dict[str, asyncio.Task] = {}
         self._buffer_size = 100
-        self._data_buffer: Dict[str, deque] = {}
-        self._error_buffer: Dict[str, deque] = {}
-        self._offline_buffer: Dict[str, deque] = {}
-        self._on_data_callbacks: List[Callable[[InputData], None]] = []
-        self._on_error_callbacks: List[Callable[[InputError], None]] = []
-        self._on_status_change_callbacks: List[Callable[[str, InputStatus], None]] = []
-        self._on_health_change_callbacks: List[Callable[[HealthReport], None]] = []
+        self._data_buffer: dict[str, deque] = {}
+        self._error_buffer: dict[str, deque] = {}
+        self._offline_buffer: dict[str, deque] = {}
+        self._on_data_callbacks: list[Callable[[InputData], None]] = []
+        self._on_error_callbacks: list[Callable[[InputError], None]] = []
+        self._on_status_change_callbacks: list[Callable[[str, InputStatus], None]] = []
+        self._on_health_change_callbacks: list[Callable[[HealthReport], None]] = []
         self._config_file = config_file
-        self._watchdog_tasks: Dict[str, asyncio.Task] = {}
+        self._watchdog_tasks: dict[str, asyncio.Task] = {}
         
         # Event loop for async operations
         self._loop = asyncio.get_event_loop()
@@ -315,7 +316,6 @@ class InputManager:
         """
         # This is a placeholder - in a real implementation, 
         # this would store data to persistent storage
-        pass
     
     def _start_watchdog(self, module_id: str) -> None:
         """
@@ -479,7 +479,7 @@ class InputManager:
             except Exception as e:
                 logger.error(f"Error in health change callback: {e}")
     
-    def get_module_status(self, module_id: str) -> Optional[InputStatus]:
+    def get_module_status(self, module_id: str) -> InputStatus | None:
         """
         Get the status of a specific module.
         
@@ -493,7 +493,7 @@ class InputManager:
             return self._modules[module_id].status
         return None
     
-    def get_module_health(self, module_id: str) -> Optional[HealthReport]:
+    def get_module_health(self, module_id: str) -> HealthReport | None:
         """
         Get the health report of a specific module.
         
@@ -507,7 +507,7 @@ class InputManager:
             return self._modules[module_id].health_report
         return None
     
-    def get_recent_data(self, module_id: str, count: int = 1) -> List[InputData]:
+    def get_recent_data(self, module_id: str, count: int = 1) -> list[InputData]:
         """
         Get recent data from a module's buffer.
         
@@ -523,7 +523,7 @@ class InputManager:
             return list(buffer)[-count:] if count > 0 else list(buffer)
         return []
     
-    def get_recent_errors(self, module_id: str, count: int = 1) -> List[InputError]:
+    def get_recent_errors(self, module_id: str, count: int = 1) -> list[InputError]:
         """
         Get recent errors from a module's buffer.
         
@@ -539,7 +539,7 @@ class InputManager:
             return list(buffer)[-count:] if count > 0 else list(buffer)
         return []
     
-    def get_all_modules(self) -> List[str]:
+    def get_all_modules(self) -> list[str]:
         """
         Get a list of all registered module IDs.
         
@@ -548,7 +548,7 @@ class InputManager:
         """
         return list(self._modules.keys())
     
-    def get_active_modules(self) -> List[str]:
+    def get_active_modules(self) -> list[str]:
         """
         Get a list of all active module IDs.
         
@@ -582,7 +582,7 @@ class InputManager:
         # Start all modules
         asyncio.run(self.start_all())
     
-    async def calibrate_module(self, module_id: str, calibration_data: Dict[str, Any]) -> bool:
+    async def calibrate_module(self, module_id: str, calibration_data: dict[str, Any]) -> bool:
         """
         Perform calibration on a specific module.
         

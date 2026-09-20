@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
+from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
@@ -22,11 +23,11 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.herd.services.animal_milking_schedule_service import (
     AnimalMilkingScheduleService,
 )
-from dairyos.farm.production.services.milk_reconciliation_service import (
-    MilkReconciliationService,
-)
 from dairyos.farm.production.services.milk_inventory_capacity_service import (
     overall_saleable_capacity,
+)
+from dairyos.farm.production.services.milk_reconciliation_service import (
+    MilkReconciliationService,
 )
 from dairyos.farm.production.services.missed_milking_control_service import (
     MissedMilkingControlService,
@@ -34,8 +35,6 @@ from dairyos.farm.production.services.missed_milking_control_service import (
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
-from dairyos.core.time_utils import utcnow
-
 
 # Schema preparation is migration-gate owned. Importing this router is
 # intentionally database-schema read-only.

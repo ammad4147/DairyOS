@@ -7,15 +7,14 @@ technical startup errors.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import sys
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 
 from dairyos.platform import paths
-
 
 MARKER_FILENAME = "DairyOS-installation-state.json"
 MARKER_ENV_VAR = "DAIRYOS_INSTALLATION_STATE"
@@ -146,7 +145,7 @@ def record_successful_start(*, data_root: Path | None = None) -> Path | None:
     root = data_root or paths.data_root(create=False)
     payload = {
         "version": MARKER_VERSION,
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "recorded_at": datetime.now(UTC).isoformat(),
         "data_root": str(root),
         "automatic_backups": True,
     }

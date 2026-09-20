@@ -1,7 +1,6 @@
 from ..models.predictive_signal import PredictiveSignal
 
 
-
 class PredictiveSignalService:
 
 

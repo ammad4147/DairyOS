@@ -3,7 +3,6 @@ from dairyos.operations.workflows.models.operational_workflow import (
 )
 
 
-
 class WorkflowService:
     """
     Creates and manages operational workflows.

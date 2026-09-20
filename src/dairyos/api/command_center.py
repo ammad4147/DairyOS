@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException
 
 from dairyos.api.dependencies import get_container
 
-
 router = APIRouter(tags=["Command Center"])
 
 

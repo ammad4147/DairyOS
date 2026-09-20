@@ -4,8 +4,8 @@ import pytest
 
 from dairyos.windows.components import (
     ComponentAction,
-    ComponentSpec,
     ComponentError,
+    ComponentSpec,
     apply_component,
     compare_versions,
     inspect_component,

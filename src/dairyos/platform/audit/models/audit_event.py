@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -16,7 +16,7 @@ class AuditEvent:
     action: str
     resource: str
     outcome: str
-    timestamp: datetime = datetime.now(timezone.utc)
+    timestamp: datetime = datetime.now(UTC)
 
     def is_successful(self) -> bool:
         return self.outcome.upper() == "SUCCESS"

@@ -11,18 +11,15 @@ Contains no intelligence logic.
 """
 
 
-from dairyos.intelligence.integration.executive_runtime_service import (
-    ExecutiveRuntimeService,
-)
-
-from dairyos.intelligence.integration.executive_reporting_bridge import (
-    ExecutiveReportingBridge,
-)
-
 from dairyos.intelligence.integration.executive_decision_bridge import (
     ExecutiveDecisionBridge,
 )
-
+from dairyos.intelligence.integration.executive_reporting_bridge import (
+    ExecutiveReportingBridge,
+)
+from dairyos.intelligence.integration.executive_runtime_service import (
+    ExecutiveRuntimeService,
+)
 
 
 class ExecutiveIntelligenceFacade:

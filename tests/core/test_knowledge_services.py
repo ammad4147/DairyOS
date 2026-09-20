@@ -1,23 +1,18 @@
-from dairyos.intelligence.knowledge.services.knowledge_service import (
-    KnowledgeService,
-)
-
 from dairyos.intelligence.knowledge.repository.adapters.memory_knowledge_record_repository import (
     MemoryKnowledgeRecordRepository,
 )
-
-from dairyos.intelligence.knowledge.services.pattern_discovery_service import (
-    PatternDiscoveryService,
+from dairyos.intelligence.knowledge.services.knowledge_service import (
+    KnowledgeService,
 )
-
-from dairyos.intelligence.knowledge.services.rule_generation_service import (
-    RuleGenerationService,
-)
-
 from dairyos.intelligence.knowledge.services.lesson_management_service import (
     LessonManagementService,
 )
-
+from dairyos.intelligence.knowledge.services.pattern_discovery_service import (
+    PatternDiscoveryService,
+)
+from dairyos.intelligence.knowledge.services.rule_generation_service import (
+    RuleGenerationService,
+)
 
 
 def test_knowledge_service_create():

@@ -1,18 +1,14 @@
 from datetime import datetime
 
-
 from dairyos.operations.events.models.event_type import (
     OperationalEventType,
 )
-
 from dairyos.operations.events.models.operational_event import (
     OperationalEvent,
 )
-
 from dairyos.operations.events.services.event_bus_service import (
     EventBusService,
 )
-
 
 
 def test_event_publish():

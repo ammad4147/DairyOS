@@ -1,19 +1,15 @@
-from dairyos.intelligence.decision.integration import (
-    DecisionIntegration,
-)
-
 from dairyos.intelligence.decision.gateway import (
     DecisionGateway,
 )
-
-from dairyos.intelligence.decision.services import (
-    DecisionService,
+from dairyos.intelligence.decision.integration import (
+    DecisionIntegration,
 )
-
 from dairyos.intelligence.decision.repository.adapters import (
     MemoryDecisionRepository,
 )
-
+from dairyos.intelligence.decision.services import (
+    DecisionService,
+)
 
 
 class MockPrediction:

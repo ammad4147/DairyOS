@@ -1,11 +1,9 @@
-from dairyos.intelligence.integration.executive_decision_bridge import (
-    ExecutiveDecisionBridge,
-)
-
 from dairyos.herd.dashboard.models.executive_command_center import (
     ExecutiveCommandCenter,
 )
-
+from dairyos.intelligence.integration.executive_decision_bridge import (
+    ExecutiveDecisionBridge,
+)
 
 
 def test_executive_decision_bridge_builds_decision():

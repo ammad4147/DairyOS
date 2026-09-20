@@ -1,5 +1,7 @@
 from dairyos.herd.dashboard.models.farm_command_center import FarmCommandCenter
-from dairyos.herd.dashboard.services.farm_command_center_service import FarmCommandCenterService
+from dairyos.herd.dashboard.services.farm_command_center_service import (
+    FarmCommandCenterService,
+)
 
 
 class DummyDecision:

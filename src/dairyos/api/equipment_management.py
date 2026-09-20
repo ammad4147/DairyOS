@@ -12,8 +12,9 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
 )
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
-
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 router = APIRouter(
     prefix="/farm/equipment",

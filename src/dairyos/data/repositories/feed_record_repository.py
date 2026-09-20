@@ -1,5 +1,6 @@
-from ..models.feed_record import FeedRecord
 from dairyos.core.time_utils import utcnow
+
+from ..models.feed_record import FeedRecord
 
 
 class FeedRecordRepository:

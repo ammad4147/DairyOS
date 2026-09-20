@@ -1,6 +1,6 @@
-from types import SimpleNamespace
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
+from types import SimpleNamespace
 
 
 class AutonomousDecisionLoop:
@@ -54,7 +54,7 @@ class AutonomousDecisionLoop:
             "cycle_id": cycle_id,
             "started_at": started_at,
             "completed_at": datetime.now(
-                timezone.utc
+                UTC
             ).isoformat(),
             "stages": stages,
             "stage_count": len(stages),
@@ -93,7 +93,7 @@ class AutonomousDecisionLoop:
         )
 
         started_at = datetime.now(
-            timezone.utc
+            UTC
         ).isoformat()
 
 

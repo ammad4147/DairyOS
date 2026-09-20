@@ -1,17 +1,14 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
-from dairyos.farm.operations.state.farm_operational_state_service import (
-    FarmOperationalStateService,
-)
-
 from dairyos.farm.operations.services.operational_state_query_service import (
     OperationalStateQueryService,
 )
-
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
+)
 
 
 def test_task_creation_enters_operational_state():
@@ -151,7 +148,7 @@ def test_overdue_task_generates_heads_up():
 
 
     overdue = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
         -
         timedelta(days=1)
     ).isoformat()

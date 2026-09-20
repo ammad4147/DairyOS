@@ -1,7 +1,6 @@
-from ..models.herd_snapshot import HerdSnapshot
-
 from dairyos.herd.models import AnimalStatus
 
+from ..models.herd_snapshot import HerdSnapshot
 
 
 class HerdMetricsService:

@@ -1,3 +1,3 @@
-from .governance_service import GovernanceService
 from .escalation_service import EscalationService
+from .governance_service import GovernanceService
 from .review_management_service import ReviewManagementService

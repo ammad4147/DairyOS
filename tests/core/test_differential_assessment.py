@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.differential_assessment_service import (
-    DifferentialAssessmentService
+    DifferentialAssessmentService,
 )
-
 
 
 def test_assessment_animal():

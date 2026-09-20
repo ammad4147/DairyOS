@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.autonomous_response_service import AutonomousResponseService
-
+from dairyos.herd.dashboard.services.autonomous_response_service import (
+    AutonomousResponseService,
+)
 
 
 def test_response_creation():

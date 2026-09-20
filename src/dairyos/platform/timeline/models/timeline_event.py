@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -17,6 +16,6 @@ class TimelineEvent:
     actor: str
 
     timestamp: datetime = datetime.now(
-        timezone.utc
+        UTC
     )
 

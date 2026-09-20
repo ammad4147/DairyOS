@@ -1,9 +1,8 @@
-from dairyos.farm.operations.models.farm_operation_event import (
-    FarmOperationEvent,
-)
-
 from dairyos.farm.operations.events.farm_operation_event_bridge import (
     FarmOperationEventBridge,
+)
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
 )
 
 

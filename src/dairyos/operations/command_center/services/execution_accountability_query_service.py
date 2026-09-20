@@ -1,4 +1,3 @@
-from typing import List
 
 
 class ExecutionAccountabilityQueryService:
@@ -17,7 +16,7 @@ class ExecutionAccountabilityQueryService:
 
     def build_projection(
         self,
-        records: List | None = None,
+        records: list | None = None,
     ):
 
         records = (

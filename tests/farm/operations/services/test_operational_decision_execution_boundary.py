@@ -1,11 +1,9 @@
 from dairyos.farm.operations.runtime.farm_operations_runtime import (
     FarmOperationsRuntime,
 )
-
 from dairyos.farm.operations.services.operational_decision_execution_boundary import (
     OperationalDecisionExecutionBoundary,
 )
-
 
 
 def test_operational_decision_execution_requires_boundary():

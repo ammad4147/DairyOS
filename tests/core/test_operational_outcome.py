@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.operational_outcome_service import OperationalOutcomeService
-
+from dairyos.herd.dashboard.services.operational_outcome_service import (
+    OperationalOutcomeService,
+)
 
 
 def test_outcome_creation():

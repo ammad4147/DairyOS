@@ -3,7 +3,6 @@ from dairyos.farm.operations.runtime import (
 )
 
 
-
 def test_daily_farm_operations_create_records():
 
     runtime = FarmOperationsRuntime()

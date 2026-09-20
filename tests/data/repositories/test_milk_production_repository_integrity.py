@@ -3,7 +3,9 @@ from types import SimpleNamespace
 import pytest
 
 from dairyos.data.models.milk_production import MilkProduction
-from dairyos.data.repositories.milk_production_repository import MilkProductionRepository
+from dairyos.data.repositories.milk_production_repository import (
+    MilkProductionRepository,
+)
 
 
 class FakeAnimalRepository:

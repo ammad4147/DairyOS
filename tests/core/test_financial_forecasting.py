@@ -1,5 +1,6 @@
-from dairyos.intelligence.finance.services.financial_forecast_service import FinancialForecastService
-
+from dairyos.intelligence.finance.services.financial_forecast_service import (
+    FinancialForecastService,
+)
 
 
 def test_period():

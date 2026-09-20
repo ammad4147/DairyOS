@@ -3,7 +3,6 @@ from dairyos.platform.runtime import (
 )
 
 
-
 def test_platform_runtime_starts():
 
     runtime = PlatformRuntime()

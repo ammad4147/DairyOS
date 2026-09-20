@@ -1,6 +1,5 @@
 from collections import Counter
 
-
 from dairyos.farm.inputs.learning.input_pattern import (
     OperationalInputPattern,
 )

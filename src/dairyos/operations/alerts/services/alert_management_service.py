@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_alert import OperationalAlert
 
@@ -11,7 +10,7 @@ class AlertManagementService:
 
     def __init__(self):
 
-        self.alerts: List[OperationalAlert] = []
+        self.alerts: list[OperationalAlert] = []
 
 
     def create_alert(

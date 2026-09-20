@@ -3,7 +3,6 @@ from dairyos.milk import (
 )
 
 
-
 def test_daily_board_total():
 
     service = DailyMilkBoardService()

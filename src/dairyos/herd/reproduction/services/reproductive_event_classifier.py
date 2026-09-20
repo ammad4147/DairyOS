@@ -1,7 +1,7 @@
 """Canonical breeding-event classification for all DairyOS reproduction surfaces."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 CONFIRMED_RESULTS = {"pregnant", "confirmed", "positive", "yes"}
 NEGATIVE_RESULTS = {
@@ -28,7 +28,7 @@ CALVING_EVENTS = {"calving", "calved", "parturition"}
 DRY_OFF_EVENTS = {"dry_off"}
 
 EXPECTED_GESTATION_DAYS = 283
-_EPOCH_MIN = datetime.min.replace(tzinfo=timezone.utc)
+_EPOCH_MIN = datetime.min.replace(tzinfo=UTC)
 
 
 def normalize_event_type(value) -> str:

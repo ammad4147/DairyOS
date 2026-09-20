@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.checklist_item import ChecklistItem
 
@@ -9,7 +8,7 @@ class ChecklistService:
     """
 
     def __init__(self):
-        self.items: List[ChecklistItem] = []
+        self.items: list[ChecklistItem] = []
 
 
     def add_item(

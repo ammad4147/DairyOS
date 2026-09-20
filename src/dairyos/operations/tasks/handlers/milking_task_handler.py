@@ -1,8 +1,6 @@
 from dairyos.operations.tasks.handlers.task_handler import (
     TaskHandler,
 )
-
-
 from dairyos.platform.events.models.operational_event import (
     OperationalEvent,
 )

@@ -1,7 +1,8 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+from ..database.base import Base
 
 
 class OperationalFindingLifecycleEvent(Base):

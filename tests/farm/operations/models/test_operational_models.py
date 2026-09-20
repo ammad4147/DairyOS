@@ -1,10 +1,9 @@
 from dairyos.farm.operations.models import (
-    MilkRecord,
+    BreedingRecord,
     FeedRecord,
     HealthObservation,
-    BreedingRecord,
+    MilkRecord,
 )
-
 
 
 def test_milk_record_creation():

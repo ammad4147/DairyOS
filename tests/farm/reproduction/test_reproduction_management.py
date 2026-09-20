@@ -1,15 +1,12 @@
 from dairyos.farm.reproduction.models.pregnancy_record import (
     PregnancyRecord,
 )
-
 from dairyos.farm.reproduction.repository.reproduction_repository import (
     ReproductionRepository,
 )
-
 from dairyos.farm.reproduction.services.reproduction_management_service import (
     ReproductionManagementService,
 )
-
 
 
 def test_pregnancy_tracking():

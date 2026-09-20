@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.escalation_service import EscalationService
 
 
-
 def test_owner_attention_escalation():
 
     result = EscalationService().evaluate(

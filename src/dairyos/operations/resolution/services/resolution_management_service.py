@@ -1,4 +1,3 @@
-from typing import List
 
 
 class ResolutionManagementService:
@@ -9,7 +8,7 @@ class ResolutionManagementService:
 
     def __init__(self):
 
-        self.resolutions: List = []
+        self.resolutions: list = []
 
 
     def create_resolution(

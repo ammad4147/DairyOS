@@ -1,7 +1,6 @@
 from dairyos.platform.domain_registry.models.domain import Domain
 
 
-
 class DomainRegistryService:
     """
     Enterprise domain discovery registry.

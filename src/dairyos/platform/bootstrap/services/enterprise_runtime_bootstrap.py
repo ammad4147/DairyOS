@@ -6,54 +6,54 @@ runtime; it does not construct a second application composition graph.
 """
 
 from dairyos.application.application_runtime import ApplicationRuntime
-from dairyos.platform.integration.services.platform_service_registry import (
-    PlatformServiceRegistry,
-)
-from dairyos.platform.integration.models.platform_service import PlatformService
-from dairyos.platform.runtime import PlatformRuntime
-from dairyos.platform.health.services.platform_health_service import (
-    PlatformHealthService,
-)
-from dairyos.platform.readiness.services.readiness_service import ReadinessService
-from dairyos.platform.readiness.services.operational_status_gateway import (
-    OperationalStatusGateway,
-)
-from dairyos.platform.domain_registry.services.domain_registry_service import (
-    DomainRegistryService,
-)
-from dairyos.platform.domain_health.services.domain_health_service import (
-    DomainHealthService,
-)
-from dairyos.platform.observability.services.observability_service import (
-    ObservabilityService,
-)
-from dairyos.platform.events.services.event_store import EventStore
-from dairyos.platform.events.services.event_bus import EventBus
-from dairyos.platform.events.integration.services.event_subscriber_registry import (
-    EventSubscriberRegistry,
-)
-from dairyos.platform.events.integration.services.event_dispatcher import (
-    EventDispatcher,
-)
-from dairyos.platform.events.integration.services.operational_event_publisher import (
-    OperationalEventPublisher,
+from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_runtime import (
+    WorkflowIntelligenceRuntime,
 )
 from dairyos.operations.commands.services.command_dispatcher import CommandDispatcher
 from dairyos.operations.commands.services.operational_command_registry import (
     OperationalCommandRegistry,
 )
-from dairyos.operations.tasks.services.task_dispatcher import TaskDispatcher
-from dairyos.operations.tasks.services.task_registry import TaskRegistry
 from dairyos.operations.tasks.integration.services.operational_task_gateway import (
     OperationalTaskGateway,
 )
+from dairyos.operations.tasks.services.task_dispatcher import TaskDispatcher
+from dairyos.operations.tasks.services.task_registry import TaskRegistry
 from dairyos.operations.workflows.integration.services.operational_workflow_runtime import (
     OperationalWorkflowRuntime,
 )
-from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_runtime import (
-    WorkflowIntelligenceRuntime,
-)
 from dairyos.platform.bootstrap.models.bootstrap_result import BootstrapResult
+from dairyos.platform.domain_health.services.domain_health_service import (
+    DomainHealthService,
+)
+from dairyos.platform.domain_registry.services.domain_registry_service import (
+    DomainRegistryService,
+)
+from dairyos.platform.events.integration.services.event_dispatcher import (
+    EventDispatcher,
+)
+from dairyos.platform.events.integration.services.event_subscriber_registry import (
+    EventSubscriberRegistry,
+)
+from dairyos.platform.events.integration.services.operational_event_publisher import (
+    OperationalEventPublisher,
+)
+from dairyos.platform.events.services.event_bus import EventBus
+from dairyos.platform.events.services.event_store import EventStore
+from dairyos.platform.health.services.platform_health_service import (
+    PlatformHealthService,
+)
+from dairyos.platform.integration.models.platform_service import PlatformService
+from dairyos.platform.integration.services.platform_service_registry import (
+    PlatformServiceRegistry,
+)
+from dairyos.platform.observability.services.observability_service import (
+    ObservabilityService,
+)
+from dairyos.platform.readiness.services.operational_status_gateway import (
+    OperationalStatusGateway,
+)
+from dairyos.platform.readiness.services.readiness_service import ReadinessService
+from dairyos.platform.runtime import PlatformRuntime
 
 
 class EnterpriseRuntimeBootstrap:

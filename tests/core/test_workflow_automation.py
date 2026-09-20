@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.workflow_automation_service import WorkflowAutomationService
-
+from dairyos.herd.dashboard.services.workflow_automation_service import (
+    WorkflowAutomationService,
+)
 
 
 def test_production_workflow_creation():

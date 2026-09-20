@@ -3,7 +3,6 @@ from dairyos.intelligence.operations.orchestration.models.operational_action imp
 )
 
 
-
 class HealthActionService:
     """
     Converts farm health recommendations

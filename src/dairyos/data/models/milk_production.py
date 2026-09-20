@@ -19,9 +19,9 @@ from sqlalchemy import (
     func,
 )
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
 
+from ..database.base import Base
 
 _MILK_FINITE_NONNEGATIVE = """
 (

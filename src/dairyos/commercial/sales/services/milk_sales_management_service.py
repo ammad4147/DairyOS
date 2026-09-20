@@ -1,7 +1,6 @@
 from ..models.milk_sale import MilkSale
 
 
-
 class MilkSalesManagementService:
 
 

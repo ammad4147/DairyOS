@@ -3,7 +3,6 @@ from dairyos.farm.operations.services import (
 )
 
 
-
 def test_dashboard_builds_operational_view():
 
     dashboard = FarmDashboardService()

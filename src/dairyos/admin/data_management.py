@@ -16,19 +16,23 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import shutil
-from importlib.metadata import PackageNotFoundError, version as package_version
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Any
 
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
-    create_backup as pg_create_backup,
-    restore_backup as pg_restore_backup,
     database_semantic_fingerprint,
     verify_backup_archive,
+)
+from dairyos.data.database.backup import (
+    create_backup as pg_create_backup,
+)
+from dairyos.data.database.backup import (
+    restore_backup as pg_restore_backup,
 )
 from dairyos.data.database.session import create_application_session
 from dairyos.data.farm_identity import (
@@ -148,7 +152,7 @@ def export_farm_data(
         metadata = {
             "format_version": PACKAGE_FORMAT_VERSION,
             "farm_instance_id": farm_id,
-            "exported_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "exported_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "dairyos_version": _dairyos_version(),
             "database_file": PACKAGE_DATABASE_FILENAME,
             "semantic_fingerprint": fingerprint,
@@ -311,7 +315,7 @@ def import_farm_data(
 
     rollback_meta = {
         "farm_instance_id": current_farm_id,
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
     (rollback_dir / "rollback-metadata.json").write_text(
         json.dumps(rollback_meta, indent=2) + "\n", encoding="utf-8"

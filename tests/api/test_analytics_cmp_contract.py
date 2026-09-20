@@ -1,8 +1,12 @@
 from fastapi.testclient import TestClient
 
 from dairyos.app import app
-from dairyos.farm.operations.services.analytics_contract_service import AnalyticsContractService
-from dairyos.farm.operations.services.reconciled_implementation_contract_service import ReconciledImplementationContractService
+from dairyos.farm.operations.services.analytics_contract_service import (
+    AnalyticsContractService,
+)
+from dairyos.farm.operations.services.reconciled_implementation_contract_service import (
+    ReconciledImplementationContractService,
+)
 
 
 def _paths() -> set[str]:

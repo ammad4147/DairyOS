@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_memory import OperationalMemory
 
@@ -10,7 +9,7 @@ class KnowledgeRetrievalService:
 
     def search(
         self,
-        memories: List[OperationalMemory],
+        memories: list[OperationalMemory],
         category: str,
     ):
 

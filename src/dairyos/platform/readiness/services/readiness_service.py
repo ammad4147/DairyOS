@@ -1,11 +1,9 @@
 from dairyos.platform.readiness.models.capability_status import (
     CapabilityStatus,
 )
-
 from dairyos.platform.readiness.models.readiness_report import (
     ReadinessReport,
 )
-
 
 
 class ReadinessService:

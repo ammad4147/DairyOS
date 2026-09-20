@@ -1,5 +1,4 @@
 import pytest
-
 from fastapi import HTTPException
 
 from dairyos.api.finance_ledger import _validate_transition

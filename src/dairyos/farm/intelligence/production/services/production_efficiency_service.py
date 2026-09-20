@@ -3,7 +3,6 @@ from dairyos.farm.intelligence.production.models.production_efficiency import (
 )
 
 
-
 class ProductionEfficiencyService:
     """
     Calculates dairy production efficiency with currency context.
@@ -56,5 +55,5 @@ class ProductionEfficiencyService:
             litres_per_animal=litres_per_animal,
             efficiency_status=status,
         )
-        setattr(res, "currency", self.currency)
+        res.currency = self.currency
         return res

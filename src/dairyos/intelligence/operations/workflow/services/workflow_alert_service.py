@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class WorkflowAlertService:
@@ -59,7 +59,7 @@ class WorkflowAlertService:
     ):
 
         now = datetime.now(
-            timezone.utc
+            UTC
         )
 
 

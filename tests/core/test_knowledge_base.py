@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.knowledge_base_service import KnowledgeBaseService
 
 
-
 def create_service():
 
     return KnowledgeBaseService()

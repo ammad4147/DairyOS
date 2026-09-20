@@ -3,7 +3,6 @@ from dairyos.platform.command_center.knowledge.knowledge_summary import (
 )
 
 
-
 class KnowledgeViewService:
 
 

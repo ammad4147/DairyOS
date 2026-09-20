@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
 
 @dataclass
 class WithdrawalPeriod:
@@ -13,15 +14,15 @@ class WithdrawalPeriod:
     def is_withdrawn(self, at: datetime | None = None) -> bool:
         if self.withdrawn:
             return True
-        check_time = at or datetime.now(timezone.utc)
+        check_time = at or datetime.now(UTC)
         start = self.start_time
         end = self.end_time
         # Normalize timezones for safe comparison
         if check_time.tzinfo is not None:
             if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
+                start = start.replace(tzinfo=UTC)
             if end.tzinfo is None:
-                end = end.replace(tzinfo=timezone.utc)
+                end = end.replace(tzinfo=UTC)
         else:
             if start.tzinfo is not None:
                 start = start.replace(tzinfo=None)

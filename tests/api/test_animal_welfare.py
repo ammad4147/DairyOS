@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -14,7 +14,7 @@ def test_welfare_overview_returns_no_data_without_persisted_observations(client)
 
 
 def test_welfare_kpis_read_persisted_observations(client, registered_animal):
-    observed_at = datetime.now(timezone.utc).isoformat()
+    observed_at = datetime.now(UTC).isoformat()
     response = client.post(
         "/farm/welfare/observations",
         json={

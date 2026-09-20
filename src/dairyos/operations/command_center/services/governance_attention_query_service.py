@@ -1,4 +1,3 @@
-from typing import List
 
 
 class GovernanceAttentionQueryService:
@@ -17,8 +16,8 @@ class GovernanceAttentionQueryService:
 
     def build_projection(
         self,
-        governance_rules: List | None = None,
-        escalation_policies: List | None = None,
+        governance_rules: list | None = None,
+        escalation_policies: list | None = None,
     ):
 
         governance_rules = (

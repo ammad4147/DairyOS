@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -13,4 +12,4 @@ class OperationalPattern:
     category: str
     occurrence_count: int
     impact_level: str
-    signal_ids: List[str]
+    signal_ids: list[str]

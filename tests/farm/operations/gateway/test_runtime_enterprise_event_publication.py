@@ -1,9 +1,8 @@
-from dairyos.farm.operations.runtime.farm_operations_runtime import (
-    FarmOperationsRuntime,
-)
-
 from dairyos.farm.operations.events.farm_operation_event_bus import (
     FarmOperationEventBus,
+)
+from dairyos.farm.operations.runtime.farm_operations_runtime import (
+    FarmOperationsRuntime,
 )
 
 

@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.decision_memory_service import DecisionMemoryService
-
+from dairyos.herd.dashboard.services.decision_memory_service import (
+    DecisionMemoryService,
+)
 
 
 def create_memory():

@@ -1,5 +1,6 @@
-from dairyos.herd.culling.services.culling_management_service import CullingManagementService
-
+from dairyos.herd.culling.services.culling_management_service import (
+    CullingManagementService,
+)
 
 
 def test_animal_id():

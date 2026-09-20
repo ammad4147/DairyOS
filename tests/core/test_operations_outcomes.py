@@ -1,9 +1,8 @@
-from dairyos.operations.outcomes.services.outcome_record_service import (
-    OutcomeRecordService,
-)
-
 from dairyos.operations.outcomes.services.feedback_service import (
     FeedbackService,
+)
+from dairyos.operations.outcomes.services.outcome_record_service import (
+    OutcomeRecordService,
 )
 
 

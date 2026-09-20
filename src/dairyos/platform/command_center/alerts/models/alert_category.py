@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class AlertCategory(str, Enum):
 
     ANIMAL_HEALTH = "animal_health"

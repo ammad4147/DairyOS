@@ -1,7 +1,6 @@
 from ..models.owner_financial_cockpit import OwnerFinancialCockpit
 
 
-
 class OwnerFinancialCockpitService:
 
 

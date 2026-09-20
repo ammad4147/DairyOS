@@ -1,11 +1,9 @@
 from dairyos.operations.shift.repositories.operational_shift_repository import (
     OperationalShiftRepository,
 )
-
 from dairyos.operations.shift.services.operational_shift_service import (
     OperationalShiftService,
 )
-
 
 
 def test_shift_open():

@@ -1,7 +1,6 @@
 from ..models.financial_forecast import FinancialForecast
 
 
-
 class FinancialForecastService:
 
 

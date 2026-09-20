@@ -3,7 +3,6 @@ from dairyos.platform.knowledge_graph.relationships.relationship import (
 )
 
 
-
 class RelationshipStore:
 
 

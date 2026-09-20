@@ -1,8 +1,8 @@
 """Feed/OPEX profitability metrics using governed TMR and Finance OPEX."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import UTC, date, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.finance.opex_attribution import attributed_amount
@@ -44,7 +44,7 @@ class FeedOpexCostService:
             raise ValueError("days must be positive")
 
         now_dt = CostOfProductionService._as_utc(
-            now or datetime.now(timezone.utc)
+            now or datetime.now(UTC)
         )
 
         if period_end is None:
@@ -140,7 +140,7 @@ class FeedOpexCostService:
             now=datetime.combine(
                 period_end,
                 datetime.max.time(),
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             ),
         )
 

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -10,6 +9,6 @@ class WorkflowDefinition:
 
     owner: str = ""
 
-    steps: List[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
 
     trigger_source: str = ""

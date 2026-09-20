@@ -1,5 +1,6 @@
-from dairyos.herd.breeding.services.breeding_management_service import BreedingManagementService
-
+from dairyos.herd.breeding.services.breeding_management_service import (
+    BreedingManagementService,
+)
 
 
 def test_animal_id():

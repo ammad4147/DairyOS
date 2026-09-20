@@ -14,24 +14,20 @@ Signal
 
 def test_autonomous_decision_loop_components():
 
-    from dairyos.intelligence.decision.services.decision_service import (
-        DecisionService,
-    )
-
-    from dairyos.intelligence.command.services.recommendation_service import (
-        RecommendationService,
-    )
-
     from dairyos.intelligence.command.services.command_execution_service import (
         CommandExecutionService,
     )
-
-    from dairyos.intelligence.workflow.gateway.workflow_gateway import (
-        WorkflowGateway,
+    from dairyos.intelligence.command.services.recommendation_service import (
+        RecommendationService,
     )
-
+    from dairyos.intelligence.decision.services.decision_service import (
+        DecisionService,
+    )
     from dairyos.intelligence.execution.gateway.execution_gateway import (
         ExecutionGateway,
+    )
+    from dairyos.intelligence.workflow.gateway.workflow_gateway import (
+        WorkflowGateway,
     )
 
 

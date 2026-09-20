@@ -1,13 +1,11 @@
-from dairyos.intelligence.services.intelligence_service import (
-    IntelligenceService,
-)
-
 from dairyos.intelligence.kernel.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
 from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
+)
+from dairyos.intelligence.services.intelligence_service import (
+    IntelligenceService,
 )
 
 

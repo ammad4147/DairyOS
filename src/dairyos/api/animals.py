@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 import logging
+from datetime import UTC, date, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -127,7 +127,7 @@ def _serialize_animal(value: Any) -> dict[str, Any]:
 
 
 def _generate_animal_id(repository: Any) -> str:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     existing = _repository_call(repository, ("list", "list_all", "get_all"))
     if existing is None:
         return f"AN-{timestamp}"
@@ -187,7 +187,7 @@ def create_animal(request: AnimalCreateRequest) -> dict[str, Any]:
     payload = _canonicalise_payload(request.model_dump(exclude_none=True))
     payload["animal_id"] = _generate_animal_id(repository)
     payload["active"] = True
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     payload["created_at"] = timestamp
     payload["updated_at"] = timestamp
     created = _persist(repository, payload)

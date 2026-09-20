@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class TaskLifecycleIntelligenceService:
@@ -108,7 +108,7 @@ class TaskLifecycleIntelligenceService:
     ):
 
         now = datetime.now(
-            timezone.utc
+            UTC
         )
 
 

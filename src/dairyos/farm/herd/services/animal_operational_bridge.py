@@ -1,15 +1,12 @@
 from dairyos.farm.herd.services.animal_event_projection import (
     AnimalEventProjection,
 )
-
 from dairyos.farm.herd.services.animal_intelligence_service import (
     AnimalIntelligenceService,
 )
-
 from dairyos.farm.herd.services.animal_recommendation_service import (
     AnimalRecommendationService,
 )
-
 from dairyos.operations.decisions.services.farm_operational_decision_bridge import (
     FarmOperationalDecisionBridge,
 )

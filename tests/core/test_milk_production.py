@@ -1,5 +1,6 @@
-from dairyos.herd.production.services.milk_production_service import MilkProductionService
-
+from dairyos.herd.production.services.milk_production_service import (
+    MilkProductionService,
+)
 
 
 def test_group():

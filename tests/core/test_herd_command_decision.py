@@ -1,11 +1,9 @@
 from dairyos.herd.dashboard.models.herd_command import HerdCommand
-
-from dairyos.herd.dashboard.services.command_decision_service import CommandDecisionService
-
+from dairyos.herd.dashboard.services.command_decision_service import (
+    CommandDecisionService,
+)
 from dairyos.herd.dashboard.services.herd_command_service import HerdCommandService
-
 from dairyos.herd.intelligence.models.herd_decision import HerdDecision
-
 
 
 class Context:

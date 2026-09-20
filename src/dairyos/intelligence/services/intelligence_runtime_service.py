@@ -1,11 +1,9 @@
 from dairyos.intelligence.context.intelligence_context_builder import (
     IntelligenceContextBuilder,
 )
-
 from dairyos.intelligence.services.intelligence_orchestrator import (
     IntelligenceOrchestrator,
 )
-
 
 
 class IntelligenceRuntimeService:

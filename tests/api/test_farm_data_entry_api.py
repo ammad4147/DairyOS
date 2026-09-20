@@ -4,7 +4,6 @@ from pydantic import ValidationError
 from dairyos.api.farm_data_entry import LegacyCompatibleMilkEntryRequest
 from dairyos.api.milk_traceability import ProductionPatch
 from tests.helpers.breeding import post_breeding
-from dairyos.api.app import app
 
 
 def test_record_milk_entry(client, registered_animal):

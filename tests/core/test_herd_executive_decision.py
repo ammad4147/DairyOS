@@ -1,7 +1,7 @@
-from dairyos.herd.dashboard.services.executive_decision_service import ExecutiveDecisionService
-
 from dairyos.herd.dashboard.models.executive_alert import ExecutiveAlert
-
+from dairyos.herd.dashboard.services.executive_decision_service import (
+    ExecutiveDecisionService,
+)
 
 
 def test_executive_decision_creation():

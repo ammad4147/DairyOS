@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class TimelineEventType(str, Enum):
 
     OPERATION = "operation"

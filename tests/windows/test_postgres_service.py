@@ -38,7 +38,7 @@ def test_configured_service_name_wins(monkeypatch):
 def test_resolve_service_name_requires_installed_service(monkeypatch):
     monkeypatch.delenv("DAIRYOS_POSTGRES_SERVICE", raising=False)
     monkeypatch.setattr(postgres_service.os, "name", "nt")
-    monkeypatch.setattr(postgres_service, "list_postgresql_services", lambda: [])
+    monkeypatch.setattr(postgres_service, "list_postgresql_services", list)
 
     try:
         postgres_service.resolve_service_name()

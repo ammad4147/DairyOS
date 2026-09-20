@@ -11,7 +11,12 @@ import pytest
 from openpyxl import load_workbook
 
 from dairyos.api.authorization import permission_for_request
-from dairyos.reporting.periods import PeriodError, month_sequence, quarter_sequence, resolve_period
+from dairyos.reporting.periods import (
+    PeriodError,
+    month_sequence,
+    quarter_sequence,
+    resolve_period,
+)
 from dairyos.reporting.registry import AREAS, REPORT_BY_ID, REPORTS
 from tests.reporting.conftest import section
 
@@ -129,6 +134,7 @@ def test_month_and_quarter_sequences_clip_to_the_range():
 def test_today_follows_the_farm_clock_not_utc(farm, monkeypatch, run):
     """00:30 PKT on 19-Sep is still 18-Sep in UTC. Reporting must say 19-Sep."""
     import datetime as _dt
+
     from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
     from tests.reporting.synthetic_farm import PKT
 
@@ -208,7 +214,7 @@ def _export(farm, fmt, **body):
 
 def test_excel_export_matches_the_report_and_keeps_numbers_numeric(farm, run):
     request = {"report_id": "fin-revenue-expense-reconciliation", "period": SEPTEMBER}
-    body = run(**{"report_id": request["report_id"], "period": SEPTEMBER})
+    body = run(report_id=request["report_id"], period=SEPTEMBER)
     response = _export(farm, "XLSX", **request)
     assert response.headers["content-type"].startswith("application/vnd.openxmlformats")
     assert "2026-09-01_to_2026-09-30" in response.headers["content-disposition"]

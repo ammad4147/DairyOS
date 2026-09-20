@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
-
 
 
 @dataclass
@@ -35,7 +34,7 @@ class OperationalAction:
 
     created_at: datetime = field(
         default_factory=lambda: datetime.now(
-            timezone.utc
+            UTC
         )
     )
 

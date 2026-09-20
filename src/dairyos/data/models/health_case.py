@@ -1,3 +1,4 @@
+
 from sqlalchemy import (
     Column,
     DateTime,
@@ -6,10 +7,10 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from datetime import datetime
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class HealthCase(Base):

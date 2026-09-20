@@ -1,20 +1,14 @@
-from datetime import datetime, UTC
-
-
-from dairyos.farm.operations.models.farm_operation_event import (
-    FarmOperationEvent,
-)
-
+from datetime import UTC, datetime
 
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
 )
-
-
 from dairyos.farm.herd.services.animal_event_projection import (
     AnimalEventProjection,
 )
-
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
+)
 
 
 def test_animal_operational_state_persists_after_event_projection():

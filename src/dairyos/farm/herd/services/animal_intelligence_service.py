@@ -1,7 +1,6 @@
 from dairyos.farm.herd.models.animal_operational_state import (
     AnimalOperationalState,
 )
-
 from dairyos.farm.herd.services.animal_reproduction_intelligence_service import (
     AnimalReproductionIntelligenceService,
 )

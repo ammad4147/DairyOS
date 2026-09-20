@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Centralized payload normalization and operational input boundary guards for DairyOS."""
 import json
 

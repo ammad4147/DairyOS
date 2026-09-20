@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import Depends, HTTPException
 
@@ -12,7 +12,6 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
 )
 
 from .router import router
-
 
 _POLICY = DEFAULT_REPRODUCTIVE_POLICY
 

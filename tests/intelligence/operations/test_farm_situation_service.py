@@ -3,7 +3,6 @@ from dairyos.intelligence.operations.services.farm_situation_service import (
 )
 
 
-
 def test_farm_situation_detects_attention_condition():
 
     service = FarmSituationService()

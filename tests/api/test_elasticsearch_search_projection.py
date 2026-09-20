@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 from dairyos.api.search import animal_document
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 SEARCH = (

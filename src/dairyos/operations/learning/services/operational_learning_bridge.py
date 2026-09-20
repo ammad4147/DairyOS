@@ -1,31 +1,24 @@
-from typing import Dict, List
-
-from dairyos.operations.outcomes.models.operational_outcome import (
-    OperationalOutcome,
-)
 
 from dairyos.operations.learning.models.learning_signal import (
     LearningSignal,
 )
-
-from dairyos.operations.learning.services.learning_service import (
-    LearningService,
-)
-
-from dairyos.operations.learning.services.pattern_detection_service import (
-    PatternDetectionService,
-)
-
 from dairyos.operations.learning.services.improvement_service import (
     ImprovementService,
 )
-
+from dairyos.operations.learning.services.learning_service import (
+    LearningService,
+)
+from dairyos.operations.learning.services.pattern_detection_service import (
+    PatternDetectionService,
+)
+from dairyos.operations.memory.services.memory_service import (
+    MemoryService,
+)
 from dairyos.operations.memory.services.pattern_learning_service import (
     PatternLearningService,
 )
-
-from dairyos.operations.memory.services.memory_service import (
-    MemoryService,
+from dairyos.operations.outcomes.models.operational_outcome import (
+    OperationalOutcome,
 )
 
 
@@ -85,7 +78,7 @@ class OperationalLearningBridge:
     def process_outcome(
         self,
         outcome: OperationalOutcome,
-    ) -> Dict:
+    ) -> dict:
 
         signal = LearningSignal(
 

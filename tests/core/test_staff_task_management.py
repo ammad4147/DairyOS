@@ -1,5 +1,6 @@
-from dairyos.operations.staff.services.staff_task_management_service import StaffTaskManagementService
-
+from dairyos.operations.staff.services.staff_task_management_service import (
+    StaffTaskManagementService,
+)
 
 
 def test_task_id():

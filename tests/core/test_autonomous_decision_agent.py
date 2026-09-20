@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.autonomous_decision_agent_service import AutonomousDecisionAgentService
-
+from dairyos.herd.dashboard.services.autonomous_decision_agent_service import (
+    AutonomousDecisionAgentService,
+)
 
 
 def test_condition_saved():

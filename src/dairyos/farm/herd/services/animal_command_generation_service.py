@@ -1,7 +1,6 @@
 from dairyos.farm.herd.models.animal_operational_state import (
     AnimalOperationalState,
 )
-
 from dairyos.operations.commands.models.operational_command import (
     OperationalCommand,
 )

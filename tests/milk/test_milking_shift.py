@@ -1,9 +1,8 @@
 from dairyos.milk import (
+    MilkingSession,
     MilkingShift,
     MilkingShiftService,
-    MilkingSession,
 )
-
 
 
 def test_create_milking_shift():

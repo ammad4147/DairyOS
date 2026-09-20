@@ -1,17 +1,12 @@
-from dairyos.operations.workflows.services.workflow_service import (
-    WorkflowService,
-)
-
-
-from dairyos.operations.workflows.integration.services.workflow_runtime_gateway import (
-    WorkflowRuntimeGateway,
-)
-
-
 from dairyos.operations.workflows.integration.services.workflow_event_publisher import (
     WorkflowEventPublisher,
 )
-
+from dairyos.operations.workflows.integration.services.workflow_runtime_gateway import (
+    WorkflowRuntimeGateway,
+)
+from dairyos.operations.workflows.services.workflow_service import (
+    WorkflowService,
+)
 
 
 class OperationalWorkflowRuntime:

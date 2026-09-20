@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -34,7 +34,7 @@ class OperationalActivity:
 
     created_at: datetime = field(
         default_factory=lambda:
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
     )
 
     started_at: datetime | None = None
@@ -74,7 +74,7 @@ class OperationalActivity:
         self.status = "IN_PROGRESS"
 
         self.started_at = (
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
         )
 
         return self
@@ -91,7 +91,7 @@ class OperationalActivity:
         self.status = "COMPLETED"
 
         self.completed_at = (
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
         )
 
         return self
@@ -108,7 +108,7 @@ class OperationalActivity:
         self.status = "VERIFIED"
 
         self.verified_at = (
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
         )
 
         return self

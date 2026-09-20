@@ -1,7 +1,6 @@
 from ..models.action_outcome import ActionOutcome
 
 
-
 class ActionOutcomeService:
 
 

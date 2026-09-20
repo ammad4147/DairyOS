@@ -1,35 +1,29 @@
-from dairyos.milk.models.milk_entry import (
-    MilkEntry,
+from dairyos.farm.operations.events.farm_operation_event_bus import (
+    FarmOperationEventBus,
 )
-
-from dairyos.milk.services.milk_service import (
-    MilkService,
-)
-
-from dairyos.farm.operations.models import (
-    FeedRecord,
-    HealthObservation,
-    BreedingRecord,
-    OperationalActivity,
-)
-
-from dairyos.farm.operations.models.farm_operation_event import (
-    FarmOperationEvent,
-)
-
-from dairyos.farm.operations.repositories.adapters import (
-    MemoryMilkRepository,
-    MemoryFeedRepository,
-    MemoryHealthRepository,
-    MemoryBreedingRepository,
-)
-
 from dairyos.farm.operations.gateway.operations_event_gateway import (
     OperationsEventGateway,
 )
-
-from dairyos.farm.operations.events.farm_operation_event_bus import (
-    FarmOperationEventBus,
+from dairyos.farm.operations.models import (
+    BreedingRecord,
+    FeedRecord,
+    HealthObservation,
+    OperationalActivity,
+)
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
+)
+from dairyos.farm.operations.repositories.adapters import (
+    MemoryBreedingRepository,
+    MemoryFeedRepository,
+    MemoryHealthRepository,
+    MemoryMilkRepository,
+)
+from dairyos.milk.models.milk_entry import (
+    MilkEntry,
+)
+from dairyos.milk.services.milk_service import (
+    MilkService,
 )
 
 

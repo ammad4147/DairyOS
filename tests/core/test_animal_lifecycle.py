@@ -1,5 +1,6 @@
-from dairyos.herd.lifecycle.services.animal_lifecycle_service import AnimalLifecycleService
-
+from dairyos.herd.lifecycle.services.animal_lifecycle_service import (
+    AnimalLifecycleService,
+)
 
 
 def test_calf_stage():

@@ -1,7 +1,6 @@
 from ..models.decision_optimization import DecisionOptimization
 
 
-
 class DecisionOptimizationService:
 
 

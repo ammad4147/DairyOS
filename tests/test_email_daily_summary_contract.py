@@ -136,7 +136,7 @@ def test_daily_summary_has_explicit_empty_states():
         },
         "mortalities": [],
     }
-    service._active_warnings = lambda: []
+    service._active_warnings = list
 
     _, body = service.render(
         digest_date=date(2026, 9, 6),

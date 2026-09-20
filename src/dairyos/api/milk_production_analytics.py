@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -15,8 +15,8 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
     MilkProductionTrendIntelligenceService,
 )
 from dairyos.farm.production.services.milk_reconciliation_service import (
-    MilkReconciliationService,
     VALID_DISPOSITIONS,
+    MilkReconciliationService,
 )
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
@@ -104,7 +104,7 @@ def _production_extremes(
     selected_date = None
     snapshots = []
 
-    for offset in range(0, 7):
+    for offset in range(7):
         candidate_date = target_date - timedelta(days=offset)
         candidate = []
 

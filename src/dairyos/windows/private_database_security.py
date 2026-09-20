@@ -17,23 +17,23 @@ from __future__ import annotations
 import base64
 import json
 import os
-from pathlib import Path
 import secrets
 import tempfile
+from pathlib import Path
 from urllib.parse import quote
 
 import psycopg
-
-from dairyos.windows.protected_secret import (
-    protect_bytes as _protect_windows,
-    unprotect_bytes as _unprotect_windows,
-)
 
 from dairyos.windows.private_postgres import (
     PrivatePostgreSQLConfig,
     isolated_postgres_environment,
 )
-
+from dairyos.windows.protected_secret import (
+    protect_bytes as _protect_windows,
+)
+from dairyos.windows.protected_secret import (
+    unprotect_bytes as _unprotect_windows,
+)
 
 SECURITY_VERSION = 1
 SECURITY_FILENAME = "security.json"

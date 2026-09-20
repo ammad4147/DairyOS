@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
-
 router = APIRouter(prefix="/farm/milk", tags=["Milk Quality"])
 
 

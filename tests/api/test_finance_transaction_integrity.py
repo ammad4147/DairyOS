@@ -19,7 +19,9 @@ expenses -- excluded from cost per litre, reported separately.
 """
 from dairyos.api.reference_data import GOVERNED
 from dairyos.finance.classification import transaction_classifier as classifier
-from dairyos.finance.profitability.services.feed_opex_cost_service import FeedOpexCostService
+from dairyos.finance.profitability.services.feed_opex_cost_service import (
+    FeedOpexCostService,
+)
 
 
 def _record_financial(client, **overrides):

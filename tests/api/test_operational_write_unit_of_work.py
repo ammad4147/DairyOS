@@ -8,11 +8,19 @@ from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
 from dairyos.app import container
-from dairyos.application.operational_write import OperationalWriteService, RequestIdentityConflict
+from dairyos.application.operational_write import (
+    OperationalWriteService,
+    RequestIdentityConflict,
+)
 from dairyos.data.database.models.event_journal_model import EventJournalModel
 from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.data.models.operational_write import OperationalWrite, OperationalProjectionOutbox
-from dairyos.farm.inputs.repository.operational_input_repository import OperationalInputRepository
+from dairyos.data.models.operational_write import (
+    OperationalProjectionOutbox,
+    OperationalWrite,
+)
+from dairyos.farm.inputs.repository.operational_input_repository import (
+    OperationalInputRepository,
+)
 from dairyos.farm.inputs.services.input_ingestion_service import InputIngestionService
 
 

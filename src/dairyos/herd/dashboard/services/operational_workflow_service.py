@@ -1,7 +1,6 @@
 from ..models.operational_workflow import OperationalWorkflow
 
 
-
 class OperationalWorkflowService:
 
 

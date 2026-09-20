@@ -1,19 +1,15 @@
-from typing import List
-
-from dairyos.intelligence.operations.orchestration.models.operational_action import (
-    OperationalAction,
-)
 
 from dairyos.intelligence.operations.orchestration.models.action_assignment import (
     ActionAssignment,
 )
-
+from dairyos.intelligence.operations.orchestration.models.action_outcome import (
+    ActionOutcome,
+)
 from dairyos.intelligence.operations.orchestration.models.execution_record import (
     ExecutionRecord,
 )
-
-from dairyos.intelligence.operations.orchestration.models.action_outcome import (
-    ActionOutcome,
+from dairyos.intelligence.operations.orchestration.models.operational_action import (
+    OperationalAction,
 )
 
 
@@ -35,13 +31,13 @@ class OperationsOrchestrationRepository:
 
     def __init__(self):
 
-        self.actions: List[OperationalAction] = []
+        self.actions: list[OperationalAction] = []
 
-        self.assignments: List[ActionAssignment] = []
+        self.assignments: list[ActionAssignment] = []
 
-        self.executions: List[ExecutionRecord] = []
+        self.executions: list[ExecutionRecord] = []
 
-        self.outcomes: List[ActionOutcome] = []
+        self.outcomes: list[ActionOutcome] = []
 
 
     def save_action(
@@ -88,24 +84,24 @@ class OperationsOrchestrationRepository:
 
 
 
-    def get_actions(self) -> List[OperationalAction]:
+    def get_actions(self) -> list[OperationalAction]:
 
         return self.actions
 
 
 
-    def get_assignments(self) -> List[ActionAssignment]:
+    def get_assignments(self) -> list[ActionAssignment]:
 
         return self.assignments
 
 
 
-    def get_executions(self) -> List[ExecutionRecord]:
+    def get_executions(self) -> list[ExecutionRecord]:
 
         return self.executions
 
 
 
-    def get_outcomes(self) -> List[ActionOutcome]:
+    def get_outcomes(self) -> list[ActionOutcome]:
 
         return self.outcomes

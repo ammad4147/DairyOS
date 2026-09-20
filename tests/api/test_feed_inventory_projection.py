@@ -5,7 +5,6 @@ from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 
-
 client = TestClient(app)
 
 

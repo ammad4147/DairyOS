@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -11,7 +11,6 @@ from dairyos.api.finance_ledger import (
     EQUIPMENT_PURCHASE_ITEM,
 )
 from dairyos.data.models.feed_ration import FeedRation
-
 
 router = APIRouter(
     prefix="/farm/feed-equipment",
@@ -351,7 +350,7 @@ def set_feed_equipment_status(
         )
 
     now = datetime.now(
-        timezone.utc
+        UTC
     ).isoformat()
 
     snapshot = {

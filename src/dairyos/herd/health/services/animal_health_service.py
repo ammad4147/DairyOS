@@ -1,7 +1,6 @@
 from ..models.animal_health import AnimalHealth
 
 
-
 class AnimalHealthService:
 
 

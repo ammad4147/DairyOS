@@ -16,14 +16,12 @@ Does not control execution.
 """
 
 
-from dairyos.intelligence.integration.intelligence_dashboard_bridge import (
-    IntelligenceDashboardBridge,
-)
-
 from dairyos.intelligence.integration.executive_intelligence_bridge import (
     ExecutiveIntelligenceBridge,
 )
-
+from dairyos.intelligence.integration.intelligence_dashboard_bridge import (
+    IntelligenceDashboardBridge,
+)
 
 
 class ExecutiveRuntimeService:

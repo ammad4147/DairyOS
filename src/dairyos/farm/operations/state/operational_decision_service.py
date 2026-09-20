@@ -1,14 +1,14 @@
-from dairyos.farm.operations.services.workforce_intelligence_service import (
-    WorkforceIntelligenceService,
-)
-from dairyos.farm.operations.services.inventory_intelligence_service import (
-    InventoryIntelligenceService,
-)
 from dairyos.farm.operations.services.equipment_intelligence_service import (
     EquipmentIntelligenceService,
 )
 from dairyos.farm.operations.services.financial_intelligence_service import (
     FinancialIntelligenceService,
+)
+from dairyos.farm.operations.services.inventory_intelligence_service import (
+    InventoryIntelligenceService,
+)
+from dairyos.farm.operations.services.workforce_intelligence_service import (
+    WorkforceIntelligenceService,
 )
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,

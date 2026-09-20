@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class AutonomyEventType(str, Enum):
 
     RECOMMENDATION_CREATED = (

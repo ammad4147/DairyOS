@@ -1,9 +1,8 @@
-from dairyos.intelligence.learning.services.pattern_analyzer import (
-    PatternAnalyzer,
-)
-
 from dairyos.intelligence.learning.repository.learning_repository import (
     LearningRepository,
+)
+from dairyos.intelligence.learning.services.pattern_analyzer import (
+    PatternAnalyzer,
 )
 
 

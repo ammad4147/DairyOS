@@ -3,7 +3,6 @@ from dairyos.operations.command_center.models.operational_action import (
 )
 
 
-
 class OperationalActionRepository:
     """
     In-memory repository for farm operational actions.

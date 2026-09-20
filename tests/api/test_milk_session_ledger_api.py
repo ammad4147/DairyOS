@@ -5,10 +5,10 @@ what it refuses, and whether the refusal tells them how to proceed.
 """
 
 from datetime import date, timedelta
+
 import pytest
 
 from dairyos.app import container
-
 
 TODAY = date(2026, 8, 13)
 YESTERDAY = TODAY - timedelta(days=1)

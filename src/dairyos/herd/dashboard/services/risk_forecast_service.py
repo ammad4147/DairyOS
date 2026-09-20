@@ -1,7 +1,6 @@
 from ..models.risk_forecast import RiskForecast
 
 
-
 class RiskForecastService:
 
 

@@ -1,7 +1,6 @@
 from dairyos.finance.cashflow.services.cash_flow_service import CashFlowService
 
 
-
 def test_opening_cash():
 
     result = CashFlowService().evaluate(

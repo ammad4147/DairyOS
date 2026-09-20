@@ -1,33 +1,17 @@
 from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
-
-from dairyos.operations.health.services.operations_health_service import (
-    OperationsHealthService,
-)
-
-from dairyos.operations.command.services.operations_command_service import (
-    OperationsCommandService,
-)
-
-from dairyos.farm.operations.dashboard.farm_command_center_service import (
-    FarmCommandCenterService,
-)
-
 from dairyos.operations.command_center.services.execution_accountability_query_service import (
     ExecutionAccountabilityQueryService,
 )
-
+from dairyos.operations.command_center.services.governance_attention_query_service import (
+    GovernanceAttentionQueryService,
+)
 from dairyos.operations.command_center.services.governance_query_service import (
     GovernanceQueryService,
 )
-
 from dairyos.operations.command_center.services.operational_control_query_service import (
     OperationalControlQueryService,
-)
-
-from dairyos.operations.command_center.services.governance_attention_query_service import (
-    GovernanceAttentionQueryService,
 )
 
 

@@ -1,4 +1,3 @@
-from dairyos.api.app import app
 
 
 def test_operations_dashboard(client):

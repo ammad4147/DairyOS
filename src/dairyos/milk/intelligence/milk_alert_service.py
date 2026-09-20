@@ -4,7 +4,8 @@ All comparisons are date-based. A comparison is made only between a
 completed date D and the immediately preceding completed date D_prev.
 """
 
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 
 class MilkAlertService:
@@ -46,15 +47,15 @@ class MilkAlertService:
 
     def determine_completed_dates(
         self,
-        daily_records: Dict[str, Dict[str, Any]],
+        daily_records: dict[str, dict[str, Any]],
         expected_sessions_per_day: int = 2,
-    ) -> List[str]:
+    ) -> list[str]:
         """Return explicit dates whose expected milk sessions are complete.
 
         ``is_completed`` is authoritative when supplied. Otherwise a record is
         complete only when its session_count reaches the expected count.
         """
-        completed: List[str] = []
+        completed: list[str] = []
         for date_str, record in sorted(daily_records.items()):
             if record.get("is_completed") is True:
                 completed.append(date_str)
@@ -68,12 +69,12 @@ class MilkAlertService:
         self,
         current_date: str,
         completed_dates: Iterable[str],
-    ) -> Optional[str]:
+    ) -> str | None:
         dates = sorted(set(completed_dates))
         preceding = [date for date in dates if date < current_date]
         return preceding[-1] if preceding else None
 
-    def _severity_for_drop(self, drop_percent: float) -> Optional[str]:
+    def _severity_for_drop(self, drop_percent: float) -> str | None:
         if drop_percent > self.red_threshold_percent:
             return "RED"
         if drop_percent >= self.amber_threshold_percent:
@@ -87,7 +88,7 @@ class MilkAlertService:
         preceding_yield: float,
         current_date: str,
         preceding_date: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Compare one animal's yield on two completed dates."""
         current_yield = float(current_yield)
         preceding_yield = float(preceding_yield)
@@ -130,7 +131,7 @@ class MilkAlertService:
         preceding_date: str,
         current_total_yield: float,
         preceding_total_yield: float,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Compare total herd yield between two completed dates."""
         current_total_yield = float(current_total_yield)
         preceding_total_yield = float(preceding_total_yield)
@@ -163,7 +164,7 @@ class MilkAlertService:
         animal_id: str,
         date: str,
         session: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "alert": "MISSED_MILKING_SESSION",
             "animal_id": animal_id,
@@ -174,7 +175,7 @@ class MilkAlertService:
             "passport_url": f"#page-animal-passport?animal_id={animal_id}",
         }
 
-    def notification_badge(self, alerts: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
+    def notification_badge(self, alerts: Iterable[dict[str, Any]]) -> dict[str, Any]:
         """Build bell counts, deduplicating animal yield alerts by animal/date pair."""
         animal_keys = set()
         red_animals = set()

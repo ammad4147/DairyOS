@@ -1,6 +1,5 @@
-from dataclasses import dataclass
-from datetime import datetime, UTC
-from dataclasses import field
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 
 @dataclass

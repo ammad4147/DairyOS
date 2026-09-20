@@ -1,17 +1,14 @@
 from dairyos.intelligence.integration.autonomous_replay_service import (
     AutonomousReplayService,
 )
-
-from dairyos.intelligence.persistence.services.history.intelligence_history_service import (
-    IntelligenceHistoryService,
-)
-
 from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
 )
-
 from dairyos.intelligence.persistence.services.event_recorder import (
     EventRecorder,
+)
+from dairyos.intelligence.persistence.services.history.intelligence_history_service import (
+    IntelligenceHistoryService,
 )
 
 

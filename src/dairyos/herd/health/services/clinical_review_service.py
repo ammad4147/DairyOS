@@ -1,7 +1,6 @@
 from ..models.knowledge_link import KnowledgeLink
 
 
-
 class ClinicalReviewService:
 
 

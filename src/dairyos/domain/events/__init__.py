@@ -12,7 +12,7 @@ class Event:
 
     name: str
 
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
 
     timestamp: str = ""
 
@@ -32,7 +32,6 @@ class Event:
 from dairyos.domain.events.operational_input_received import (
     OperationalInputReceived,
 )
-
 
 __all__ = [
     "Event",

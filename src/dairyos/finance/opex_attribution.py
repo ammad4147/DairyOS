@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 COP_CLASSIFICATIONS = frozenset({"OPEX", "NON_OPEX"})
 ATTRIBUTION_METHODS = frozenset({"DIRECT", "PERIODIC", "CONSUMPTION", "ALLOCATED"})

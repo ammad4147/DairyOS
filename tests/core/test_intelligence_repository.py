@@ -1,8 +1,8 @@
+from abc import ABC
+
 from dairyos.intelligence.repository.intelligence_repository import (
     IntelligenceRepository,
 )
-
-from abc import ABC
 
 
 def test_intelligence_repository_is_contract():

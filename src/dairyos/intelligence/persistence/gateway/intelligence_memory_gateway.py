@@ -1,7 +1,6 @@
 from dairyos.intelligence.persistence.services.event_recorder import (
     EventRecorder,
 )
-
 from dairyos.intelligence.persistence.services.history.intelligence_history_service import (
     IntelligenceHistoryService,
 )

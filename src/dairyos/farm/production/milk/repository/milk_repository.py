@@ -3,7 +3,6 @@ from dairyos.farm.production.milk.models.milk_record import (
 )
 
 
-
 class MilkRepository:
     """
     Temporary milk record storage.

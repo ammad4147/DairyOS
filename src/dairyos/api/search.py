@@ -15,7 +15,6 @@ from typing import Any
 from elasticsearch import Elasticsearch
 from fastapi import APIRouter, HTTPException, Query
 
-
 logger = logging.getLogger(__name__)
 
 ELASTICSEARCH_URL = os.getenv(

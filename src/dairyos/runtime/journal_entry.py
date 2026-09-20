@@ -12,7 +12,7 @@ business semantics.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -79,12 +79,12 @@ class JournalEntry:
 
         else:
             timestamp = datetime.now(
-                timezone.utc
+                UTC
             )
 
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(
-                tzinfo=timezone.utc
+                tzinfo=UTC
             )
 
         payload = dict(

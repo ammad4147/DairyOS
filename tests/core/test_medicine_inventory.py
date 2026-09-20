@@ -1,5 +1,6 @@
-from dairyos.inventory.medicine.services.medicine_inventory_service import MedicineInventoryService
-
+from dairyos.inventory.medicine.services.medicine_inventory_service import (
+    MedicineInventoryService,
+)
 
 
 def test_medicine_name():

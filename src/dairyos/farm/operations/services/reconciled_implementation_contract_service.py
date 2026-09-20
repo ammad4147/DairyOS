@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 CAPABILITIES = {
     "farm_identity_settings": {
         "title": "Farm Identity / Settings",

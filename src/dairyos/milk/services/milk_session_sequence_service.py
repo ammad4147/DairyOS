@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import date as date_type, datetime as datetime_type
+from datetime import date as date_type
+from datetime import datetime as datetime_type
 from hashlib import sha256
 
 from sqlalchemy import text
 
 from dairyos.milk.models.milking_session import MilkingSession
-from dairyos.farm.herd.services.animal_milking_schedule_service import (
-    AnimalMilkingScheduleService,
-)
 
 SESSION_ORDER: tuple[str, ...] = (
     MilkingSession.MORNING.value,

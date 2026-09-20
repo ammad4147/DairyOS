@@ -1,25 +1,20 @@
+from datetime import datetime
+
 from dairyos.operations.closure.services.closure_integration_service import (
     ClosureIntegrationService,
 )
-
-from dairyos.operations.command_verification.models.command_verification import (
-    CommandVerification,
-)
-
-from dairyos.operations.command_verification.models.verification_status import (
-    VerificationStatus,
-)
-
 from dairyos.operations.command_outcome.models.command_outcome import (
     CommandOutcome,
 )
-
 from dairyos.operations.command_outcome.models.outcome_status import (
     OutcomeStatus,
 )
-
-from datetime import datetime
-
+from dairyos.operations.command_verification.models.command_verification import (
+    CommandVerification,
+)
+from dairyos.operations.command_verification.models.verification_status import (
+    VerificationStatus,
+)
 
 
 def test_successful_execution_moves_to_closure_review():

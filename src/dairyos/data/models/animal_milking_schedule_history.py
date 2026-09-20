@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class AnimalMilkingScheduleHistory(Base):

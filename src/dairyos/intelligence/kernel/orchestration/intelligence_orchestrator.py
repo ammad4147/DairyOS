@@ -1,19 +1,15 @@
-from dairyos.intelligence.kernel.context.intelligence_context import (
-    IntelligenceContext,
-)
-
 from dairyos.intelligence.kernel.assessment.situation_assessment import (
     SituationAssessment,
 )
-
+from dairyos.intelligence.kernel.context.intelligence_context import (
+    IntelligenceContext,
+)
 from dairyos.intelligence.kernel.prioritization.decision_prioritizer import (
     DecisionPrioritizer,
 )
-
 from dairyos.intelligence.kernel.recommendation.recommendation_engine import (
     RecommendationEngine,
 )
-
 from dairyos.intelligence.kernel.synthesis.decision_synthesizer import (
     DecisionSynthesizer,
 )

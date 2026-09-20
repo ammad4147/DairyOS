@@ -1,13 +1,11 @@
 from dairyos.operations.actions.models.operational_action import (
     OperationalAction,
 )
-
-from dairyos.operations.execution.services.operational_execution_service import (
-    OperationalExecutionService,
-)
-
 from dairyos.operations.execution.models.operational_execution import (
     OperationalExecution,
+)
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
 )
 
 

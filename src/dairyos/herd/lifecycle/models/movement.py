@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from dairyos.core.time_utils import utcnow
 
+from dairyos.core.time_utils import utcnow
 
 
 @dataclass

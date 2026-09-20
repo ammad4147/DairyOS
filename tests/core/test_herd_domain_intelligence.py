@@ -1,17 +1,10 @@
-from dairyos.herd.health.services.health_service import HealthService
-
-from dairyos.herd.production.services.production_service import ProductionService
-
-from dairyos.herd.nutrition.services.nutrition_service import NutritionService
-
-from dairyos.herd.reproduction.services.reproduction_service import ReproductionService
-
 from dairyos.herd.finance.services.finance_service import FinanceService
-
+from dairyos.herd.health.services.health_service import HealthService
 from dairyos.herd.intelligence.services.domain_adapter import DomainIntelligenceAdapter
-
 from dairyos.herd.intelligence.services.herd_aggregator import HerdAggregator
-
+from dairyos.herd.nutrition.services.nutrition_service import NutritionService
+from dairyos.herd.production.services.production_service import ProductionService
+from dairyos.herd.reproduction.services.reproduction_service import ReproductionService
 
 
 def test_domain_snapshot_creation():

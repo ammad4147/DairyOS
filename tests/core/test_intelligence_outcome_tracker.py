@@ -1,7 +1,6 @@
 from dairyos.intelligence.kernel.models.intelligence_decision import (
     IntelligenceDecision,
 )
-
 from dairyos.intelligence.kernel.services.outcome_tracker import (
     OutcomeTracker,
 )

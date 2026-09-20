@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class CommandPermission(str, Enum):
 
     VIEW = "view"

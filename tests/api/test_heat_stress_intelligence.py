@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 from dairyos.api import heat_stress_intelligence as heat_stress_api
@@ -16,7 +16,7 @@ def test_heat_stress_intelligence_reports_no_data_without_observations(client):
 
 def test_heat_stress_intelligence_persists_and_aggregates_observations(client):
     farm_id = f"HEAT-LIVE-{uuid4().hex}"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamps = [
         (now - timedelta(hours=6)).isoformat(),
         (now - timedelta(hours=4)).isoformat(),
@@ -58,7 +58,7 @@ def test_heat_stress_intelligence_survives_repository_reload(client):
             "farm_id": farm_id,
             "temperature_c": 33.0,
             "humidity_pct": 80.0,
-            "observed_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            "observed_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
         },
     )
     assert response.status_code == 200, response.text

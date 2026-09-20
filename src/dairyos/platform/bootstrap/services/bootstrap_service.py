@@ -3,7 +3,6 @@ from dairyos.platform.bootstrap.platform_container import (
 )
 
 
-
 class BootstrapService:
     """
     Enterprise platform startup service.

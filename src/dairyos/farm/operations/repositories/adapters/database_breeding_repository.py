@@ -6,16 +6,14 @@ PostgreSQL adapter for operational breeding persistence.
 Implements the existing farm.operations repository contract.
 """
 
-from dairyos.farm.operations.repositories.breeding_repository import (
-    BreedingRepository,
+from dairyos.data.database.models.breeding_record_model import (
+    BreedingRecordModel,
 )
-
 from dairyos.farm.operations.models.breeding_record import (
     BreedingRecord,
 )
-
-from dairyos.data.database.models.breeding_record_model import (
-    BreedingRecordModel,
+from dairyos.farm.operations.repositories.breeding_repository import (
+    BreedingRepository,
 )
 
 

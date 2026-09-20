@@ -5,7 +5,6 @@ from dairyos.milk import (
 )
 
 
-
 def test_record_milk_entry():
 
     service = MilkEntryService()

@@ -1,7 +1,6 @@
 from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
-
 from dairyos.platform.bootstrap.services.enterprise_runtime_bootstrap import (
     EnterpriseRuntimeBootstrap,
 )

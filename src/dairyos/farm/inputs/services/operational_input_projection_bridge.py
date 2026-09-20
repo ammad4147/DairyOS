@@ -1,9 +1,7 @@
+from dairyos.domain.events import Event
 from dairyos.domain.events.operational_input_received import (
     OperationalInputReceived,
 )
-
-from dairyos.domain.events import Event
-
 from dairyos.farm.inputs.models.operational_projection_event import (
     OperationalProjectionEvent,
 )

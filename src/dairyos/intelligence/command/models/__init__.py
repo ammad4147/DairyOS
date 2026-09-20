@@ -1,10 +1,9 @@
+from .command_action import CommandAction
 from .farm_situation import FarmSituation
 from .operational_recommendation import OperationalRecommendation
-from .command_action import CommandAction
-
 
 __all__ = [
+    "CommandAction",
     "FarmSituation",
     "OperationalRecommendation",
-    "CommandAction",
 ]

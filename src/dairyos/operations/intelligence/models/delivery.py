@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
 from dairyos.core.time_utils import utcnow
+
 
 @dataclass
 class Delivery:

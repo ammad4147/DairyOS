@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -16,7 +16,6 @@ from dairyos.farm.production.models.non_milking_directive import (
 from dairyos.farm.production.services.non_milking_directive_service import (
     NonMilkingDirectiveService,
 )
-
 
 router = APIRouter(
     prefix="/farm",
@@ -55,7 +54,7 @@ def _resolve_directive_findings(factory, animal_id: str):
         ):
             finding.status = "RESOLVED"
             finding.resolved_at = datetime.now(
-                timezone.utc
+                UTC
             )
             finding.resolved_by = "Veterinary clearance"
             finding.resolution_note = (

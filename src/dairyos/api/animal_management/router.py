@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -87,7 +87,7 @@ def _record_operational_event(container, input_type, payload, actor):
     if gateway is not None:
         return gateway.record(
             input_type=input_type,
-            payload={**payload, "timestamp": datetime.now(timezone.utc).isoformat(), "operator": actor},
+            payload={**payload, "timestamp": datetime.now(UTC).isoformat(), "operator": actor},
             actor=actor,
         )
     return None
@@ -363,7 +363,7 @@ def update_animal(animal_id: str, payload: dict, container=Depends(get_container
             setattr(animal, field, value)
             changed[field] = value
 
-    animal.updated_at = datetime.now(timezone.utc)
+    animal.updated_at = datetime.now(UTC)
     updated = repository.save(animal)
     if "animal_category" in payload or "category" in payload or "lifecycle_status" in payload or "sex" in payload:
         changed["animal_category"] = serialize_animal(animal).get("animal_category")
@@ -404,7 +404,7 @@ def record_animal_disposition(animal_id: str, payload: dict, container=Depends(g
     animal.is_currently_milking = False
     animal.milking_frequency = None
     animal.active = False
-    animal.updated_at = datetime.now(timezone.utc)
+    animal.updated_at = datetime.now(UTC)
     updated = repository.save(animal)
 
     event_payload = {
@@ -488,7 +488,7 @@ def change_lifecycle(animal_id: str, payload: dict, container=Depends(get_contai
     animal.is_currently_milking = classification.lifecycle_status == "LACTATING"
     if not animal.is_currently_milking:
         animal.milking_frequency = None
-    animal.updated_at = datetime.now(timezone.utc)
+    animal.updated_at = datetime.now(UTC)
     updated = repository.save(animal)
     _record_operational_event(container, "animal_lifecycle", {"animal_id": animal_id, "previous_status": previous, "lifecycle_status": classification.lifecycle_status, "reason": payload.get("reason")}, str(payload.get("operator") or "API"))
     return serialize_animal(updated)

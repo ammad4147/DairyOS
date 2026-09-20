@@ -3,7 +3,6 @@ from pathlib import Path
 
 from dairyos.lifecycle import manager as lifecycle_manager
 
-
 ROOT = Path(__file__).resolve().parents[2]
 MANAGER = ROOT / "src" / "dairyos/lifecycle/manager.py"
 ISS = ROOT / "tools" / "windows-desktop" / "DairyOS-Installer.iss"

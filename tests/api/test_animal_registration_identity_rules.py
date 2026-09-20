@@ -3,9 +3,10 @@ from fastapi.testclient import TestClient
 from dairyos.app import app, container
 from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.animal import Animal
-from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
+from dairyos.data.models.animal_milking_schedule_history import (
+    AnimalMilkingScheduleHistory,
+)
 from dairyos.runtime.persistent_event_journal import PersistentEventJournal
-
 
 client = TestClient(app)
 

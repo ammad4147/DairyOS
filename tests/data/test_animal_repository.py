@@ -4,7 +4,6 @@ from dairyos.data.repositories.animal_repository import (
 )
 
 
-
 def test_repository_add_and_count():
 
     repository = AnimalRepository()

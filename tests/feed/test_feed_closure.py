@@ -4,7 +4,6 @@ from dairyos.feed import FeedingRecord
 from dairyos.feed.services import FeedClosureService
 
 
-
 def test_complete_feeding_day():
 
     service = FeedClosureService()

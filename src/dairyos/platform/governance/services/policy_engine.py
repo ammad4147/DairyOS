@@ -3,7 +3,6 @@ from dairyos.platform.governance.services.policy_registry import (
 )
 
 
-
 class PolicyEngine:
     """
     Evaluates enterprise platform policies.

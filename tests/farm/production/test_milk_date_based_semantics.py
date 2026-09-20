@@ -9,7 +9,6 @@ from dairyos.farm.production.services.milk_daily_semantics import (
 )
 from dairyos.farm.production.services.milk_drop_detection_service import detect_drop
 
-
 DAY = date(2026, 8, 15)
 PRIOR = date(2026, 8, 14)
 

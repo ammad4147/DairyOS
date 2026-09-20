@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.governance_rule import GovernanceRule
 
@@ -9,7 +8,7 @@ class GovernanceService:
     """
 
     def __init__(self):
-        self.rules: List[GovernanceRule] = []
+        self.rules: list[GovernanceRule] = []
 
 
     def register_rule(
@@ -22,6 +21,6 @@ class GovernanceService:
         return rule
 
 
-    def get_rules(self) -> List[GovernanceRule]:
+    def get_rules(self) -> list[GovernanceRule]:
 
         return list(self.rules)

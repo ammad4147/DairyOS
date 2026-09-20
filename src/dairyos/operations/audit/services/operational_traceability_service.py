@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_traceability import (
     OperationalTraceability,
@@ -32,7 +31,7 @@ class OperationalTraceabilityService:
 
     def __init__(self):
 
-        self.records: List[
+        self.records: list[
             OperationalTraceability
         ] = []
 
@@ -53,7 +52,7 @@ class OperationalTraceabilityService:
 
     def get_traces(
         self,
-    ) -> List[OperationalTraceability]:
+    ) -> list[OperationalTraceability]:
 
         return list(
             self.records

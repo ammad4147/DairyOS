@@ -3,7 +3,6 @@ from dairyos.platform.autonomy.audit.models.autonomy_audit_event import (
 )
 
 
-
 class AutonomyAuditService:
     """
     Records autonomous intelligence history.

@@ -1,13 +1,11 @@
+from dairyos.operations.closure_intelligence.services.closure_intelligence_service import (
+    ClosureIntelligenceService,
+)
 from dairyos.operations.command_outcome.services.command_outcome_service import (
     CommandOutcomeService,
 )
-
 from dairyos.operations.command_verification.services.command_verification_service import (
     CommandVerificationService,
-)
-
-from dairyos.operations.closure_intelligence.services.closure_intelligence_service import (
-    ClosureIntelligenceService,
 )
 
 

@@ -1,13 +1,11 @@
 from dairyos.operations.automation.models.automation_rule import (
     AutomationRule,
 )
-
-from dairyos.operations.automation.services.automation_rule_service import (
-    AutomationRuleService,
-)
-
 from dairyos.operations.automation.services.automation_execution_service import (
     AutomationExecutionService,
+)
+from dairyos.operations.automation.services.automation_rule_service import (
+    AutomationRuleService,
 )
 
 

@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.notification import Notification
 
@@ -11,7 +10,7 @@ class NotificationService:
 
     def __init__(self):
 
-        self.notifications: List[Notification] = []
+        self.notifications: list[Notification] = []
 
 
     def create_notification(

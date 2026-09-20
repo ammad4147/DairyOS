@@ -3,7 +3,6 @@ from dairyos.platform.command_center.drilldown.models.drilldown_path import (
 )
 
 
-
 class DrilldownService:
     """
     Provides entity navigation across Command Center.

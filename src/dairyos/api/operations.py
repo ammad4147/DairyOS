@@ -10,7 +10,6 @@ from dairyos.operations.health.services.operations_health_service import (
     OperationsHealthService,
 )
 
-
 router = APIRouter(
     prefix="/operations",
     tags=["Operations"],

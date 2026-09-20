@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -12,5 +11,5 @@ class OperationalSummary:
 
     metrics: dict
 
-    generated_at: datetime = datetime.now(timezone.utc)
+    generated_at: datetime = datetime.now(UTC)
 

@@ -1,12 +1,9 @@
-from dairyos.operations.tasks.models.task_type import (
-    TaskType,
-)
-
-
 from dairyos.operations.tasks.handlers.milking_task_handler import (
     MilkingTaskHandler,
 )
-
+from dairyos.operations.tasks.models.task_type import (
+    TaskType,
+)
 
 
 class TaskRegistry:

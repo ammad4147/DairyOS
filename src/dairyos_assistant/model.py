@@ -20,7 +20,6 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
-import socket
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -183,7 +182,7 @@ class LlamaServerProvider:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 body = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, socket.timeout, TimeoutError) as exc:
+        except (urllib.error.URLError, TimeoutError) as exc:
             raise ModelUnavailable(f"model server unreachable: {exc}") from exc
         except json.JSONDecodeError as exc:
             raise ModelUnavailable(f"model server returned invalid JSON: {exc}") from exc

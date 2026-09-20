@@ -1,7 +1,6 @@
 from dairyos.operations.executive.models.executive_operations_summary import (
     ExecutiveOperationsSummary,
 )
-
 from dairyos.operations.executive.services.operations_command_bridge import (
     OperationsCommandBridge,
 )

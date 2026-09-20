@@ -1,11 +1,9 @@
-from dairyos.milk.integration import (
-    MilkHealthBridgeService,
-)
-
 from dairyos.herd.health.services.health_risk_assessment_service import (
     HealthRiskAssessmentService,
 )
-
+from dairyos.milk.integration import (
+    MilkHealthBridgeService,
+)
 
 
 def test_milk_drop_creates_health_signal():

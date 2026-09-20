@@ -1,13 +1,11 @@
-from ..models.executive_operations_summary import (
-    ExecutiveOperationsSummary,
-)
-
 from ...command.services.operations_command_service import (
     OperationsCommandService,
 )
-
 from ...command_center.services.governance_attention_query_service import (
     GovernanceAttentionQueryService,
+)
+from ..models.executive_operations_summary import (
+    ExecutiveOperationsSummary,
 )
 
 

@@ -1,25 +1,17 @@
-from datetime import datetime, UTC
-
-
-from dairyos.herd.lifecycle.models.lifecycle_event import (
-    LifecycleEvent,
-)
-
-
-from dairyos.farm.herd.services.lifecycle_event_bridge import (
-    LifecycleEventBridge,
-)
-
-
-from dairyos.farm.herd.services.animal_event_projection import (
-    AnimalEventProjection,
-)
-
+from datetime import UTC, datetime
 
 from dairyos.farm.herd.repository.animal_operational_state_repository import (
     AnimalOperationalStateRepository,
 )
-
+from dairyos.farm.herd.services.animal_event_projection import (
+    AnimalEventProjection,
+)
+from dairyos.farm.herd.services.lifecycle_event_bridge import (
+    LifecycleEventBridge,
+)
+from dairyos.herd.lifecycle.models.lifecycle_event import (
+    LifecycleEvent,
+)
 
 
 def test_lifecycle_event_bridge_updates_animal_operational_state():

@@ -1,11 +1,9 @@
 from dairyos.intelligence.knowledge.models.knowledge_record import (
     KnowledgeRecord,
 )
-
 from dairyos.intelligence.knowledge.repository.adapters.memory_knowledge_record_repository import (
     MemoryKnowledgeRecordRepository,
 )
-
 
 
 def test_repository_save():

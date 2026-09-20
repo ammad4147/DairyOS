@@ -1,7 +1,6 @@
 from dairyos.herd.calves.services.calf_management_service import CalfManagementService
 
 
-
 def test_animal_id():
 
     result = CalfManagementService().evaluate(

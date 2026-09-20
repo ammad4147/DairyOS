@@ -1,7 +1,6 @@
 from ..models.executive_intelligence_summary import ExecutiveIntelligenceSummary
 
 
-
 class ExecutiveIntelligenceSummaryService:
 
 

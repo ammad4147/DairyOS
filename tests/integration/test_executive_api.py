@@ -3,7 +3,6 @@ from dairyos.intelligence.api.executive_api import (
 )
 
 
-
 def test_executive_api_execution():
 
     api = ExecutiveAPI()

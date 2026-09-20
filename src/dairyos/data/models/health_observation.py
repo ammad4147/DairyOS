@@ -1,17 +1,17 @@
+
 from sqlalchemy import (
     Column,
-    Integer,
-    String,
-    Float,
     DateTime,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
+    Integer,
+    String,
 )
 
-from datetime import datetime
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class HealthObservation(Base):

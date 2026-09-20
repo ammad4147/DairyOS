@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -13,10 +13,6 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.findings.services.operational_finding_service import (
     OperationalFindingService,
 )
-from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
-    MilkProductionTrendIntelligenceService,
-)
-
 
 
 def _clean_kpi_num(val):
@@ -495,25 +491,25 @@ def milk_production_summary(
     start = datetime.combine(
         start_date_value,
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     end = datetime.combine(
         end_date_exclusive,
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     previous_start = datetime.combine(
         previous_start_date,
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     previous_end = datetime.combine(
         previous_end_date,
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     factory = RepositoryFactory.create()
@@ -550,19 +546,19 @@ def milk_production_summary(
         today_start = datetime.combine(
             operational_date,
             datetime.min.time(),
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
         tomorrow = datetime.combine(
             next_operational_date,
             datetime.min.time(),
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
         yesterday_start = datetime.combine(
             previous_operational_date,
             datetime.min.time(),
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
         today_rows = _qualifying_rows(

@@ -5,7 +5,6 @@ from dairyos.farm.operations.services.milk_production_trend_intelligence_service
     MilkProductionTrendIntelligenceService,
 )
 
-
 DAY = date(2026, 8, 15)
 
 

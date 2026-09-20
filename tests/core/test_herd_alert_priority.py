@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.alert_priority_service import AlertPriorityService
 
 
-
 def test_alert_creation():
 
     alerts = AlertPriorityService().generate(

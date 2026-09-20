@@ -1,5 +1,7 @@
+from dairyos.intelligence.kernel.models.intelligence_decision import (
+    IntelligenceDecision,
+)
 from dairyos.intelligence.kernel.models.intelligence_signal import IntelligenceSignal
-from dairyos.intelligence.kernel.models.intelligence_decision import IntelligenceDecision
 
 
 class IntelligenceKernel:

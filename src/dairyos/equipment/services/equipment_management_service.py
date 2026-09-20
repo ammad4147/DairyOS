@@ -1,7 +1,6 @@
 from ..models.equipment_asset import EquipmentAsset
 
 
-
 class EquipmentManagementService:
 
 

@@ -1,9 +1,8 @@
-from dairyos.operations.actions.services.operational_action_service import (
-    OperationalActionService,
-)
-
 from dairyos.operations.actions.services.action_tracking_service import (
     ActionTrackingService,
+)
+from dairyos.operations.actions.services.operational_action_service import (
+    OperationalActionService,
 )
 
 

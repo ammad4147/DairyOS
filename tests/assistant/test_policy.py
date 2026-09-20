@@ -17,7 +17,6 @@ import pytest
 
 from dairyos_assistant.policy import Decision, classify
 
-
 # Section 28 and section 1 of the brief: requests for this farm's data.
 MUST_REFUSE = [
     "How much milk did we produce today?",

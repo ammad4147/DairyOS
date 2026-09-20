@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_kpi import OperationalKPI
 
@@ -9,7 +8,7 @@ class KPIService:
     """
 
     def __init__(self):
-        self.kpis: List[OperationalKPI] = []
+        self.kpis: list[OperationalKPI] = []
 
 
     def register_kpi(

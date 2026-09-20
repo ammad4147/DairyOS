@@ -1,9 +1,8 @@
-from dairyos.operations.execution.services.operational_execution_service import (
-    OperationalExecutionService,
-)
-
 from dairyos.operations.execution.services.execution_lifecycle_bridge import (
     ExecutionLifecycleBridge,
+)
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
 )
 
 

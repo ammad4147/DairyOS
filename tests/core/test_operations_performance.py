@@ -1,10 +1,8 @@
 from dairyos.operations.performance.models.operational_kpi import OperationalKPI
-from dairyos.operations.performance.services.kpi_service import KPIService
-
 from dairyos.operations.performance.models.performance_measurement import (
     PerformanceMeasurement,
 )
-
+from dairyos.operations.performance.services.kpi_service import KPIService
 from dairyos.operations.performance.services.performance_service import (
     PerformanceService,
 )

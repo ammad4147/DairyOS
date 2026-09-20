@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 from .operational_attention import OperationalAttention
 
@@ -13,7 +12,7 @@ class OperationalCommandStatus:
     health_status: str
     active_attention_count: int
     recommended_focus: str
-    attentions: List[OperationalAttention]
+    attentions: list[OperationalAttention]
 
     @property
     def has_critical_attention(self) -> bool:

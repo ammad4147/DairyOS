@@ -1,7 +1,6 @@
 from ..models.farm_event import FarmEvent
 
 
-
 class FarmDataIntegrationService:
 
 

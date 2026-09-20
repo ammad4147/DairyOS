@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 
 class WelfareKPIService:
@@ -13,10 +13,10 @@ class WelfareKPIService:
             return None
         if isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
         if isinstance(value, date):
-            return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+            return datetime.combine(value, datetime.min.time(), tzinfo=UTC)
         return None
 
     @classmethod
@@ -85,7 +85,7 @@ class WelfareKPIService:
         }
 
     def evaluate_last_days(self, *, animals, health_observations, treatments, days=30, now=None):
-        end = self._as_datetime(now) or datetime.now(timezone.utc)
+        end = self._as_datetime(now) or datetime.now(UTC)
         start = end - timedelta(days=days)
         return self.evaluate(
             animals=animals,

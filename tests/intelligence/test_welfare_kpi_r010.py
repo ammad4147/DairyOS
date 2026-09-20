@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from dairyos.intelligence.welfare_kpi_service import WelfareKPIService
 
 
 def test_welfare_kpis_use_persisted_health_and_treatment_evidence():
-    end = datetime(2026, 8, 13, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 13, tzinfo=UTC)
     start = end - timedelta(days=30)
     animals = [
         SimpleNamespace(animal_id="AN-1", active=True),
@@ -36,7 +36,7 @@ def test_welfare_kpis_use_persisted_health_and_treatment_evidence():
 
 
 def test_welfare_kpis_do_not_invent_metrics_without_evidence():
-    end = datetime(2026, 8, 13, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 13, tzinfo=UTC)
     result = WelfareKPIService().evaluate(
         animals=[SimpleNamespace(animal_id="AN-1", active=True)],
         health_observations=[],

@@ -3,7 +3,6 @@ from dairyos.platform.knowledge_graph.graph.knowledge_graph import (
 )
 
 
-
 class KnowledgeService:
 
 

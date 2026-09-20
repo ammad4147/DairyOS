@@ -1,11 +1,5 @@
-from dairyos.herd.health.services.animal_baseline_service import (
-    AnimalBaselineService
-)
-
-from dairyos.herd.health.services.animal_deviation_service import (
-    AnimalDeviationService
-)
-
+from dairyos.herd.health.services.animal_baseline_service import AnimalBaselineService
+from dairyos.herd.health.services.animal_deviation_service import AnimalDeviationService
 
 
 def test_baseline_creation():

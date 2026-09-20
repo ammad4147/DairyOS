@@ -1,7 +1,6 @@
 from ..models.dashboard import HerdDashboard
 
 
-
 class HerdDashboardService:
 
 

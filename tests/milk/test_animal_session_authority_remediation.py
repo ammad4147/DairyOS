@@ -11,7 +11,6 @@ from dairyos.milk.services.milk_session_sequence_service import (
     SequenceViolation,
 )
 
-
 DAY = date(2026, 8, 31)
 
 

@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from dairyos.domain.commands import Command
 from dairyos.data.models.animal import Animal
+from dairyos.domain.commands import Command
 
 
 class AnimalManagementService:
@@ -74,7 +74,7 @@ class AnimalManagementService:
                             "active": True,
                             "created_at":
                                 datetime.now(
-                                    timezone.utc
+                                    UTC
                                 ).isoformat(),
                         },
                     )

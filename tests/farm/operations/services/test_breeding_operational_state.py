@@ -1,7 +1,6 @@
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )

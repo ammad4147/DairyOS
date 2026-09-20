@@ -1,7 +1,6 @@
 from ..models.command_center_dashboard import CommandCenterDashboard
 
 
-
 class CommandCenterDashboardService:
 
 

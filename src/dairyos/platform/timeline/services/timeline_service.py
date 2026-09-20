@@ -3,7 +3,6 @@ from dairyos.platform.timeline.models.timeline_event import (
 )
 
 
-
 class TimelineService:
     """
     Operational event history service.

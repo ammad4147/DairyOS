@@ -1,4 +1,3 @@
-from typing import Dict
 
 from dairyos.platform.integration.models.platform_service import (
     PlatformService,
@@ -12,7 +11,7 @@ class PlatformServiceRegistry:
 
     def __init__(self):
 
-        self._services: Dict[str, PlatformService] = {}
+        self._services: dict[str, PlatformService] = {}
 
 
     def register(

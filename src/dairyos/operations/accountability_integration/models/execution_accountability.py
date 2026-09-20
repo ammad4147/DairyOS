@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -17,7 +17,7 @@ class ExecutionAccountability:
     status: str = "ASSIGNED"
 
     assigned_at: datetime = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )
 
     completed_at: datetime | None = None
@@ -28,5 +28,5 @@ class ExecutionAccountability:
         self.status = "COMPLETED"
 
         self.completed_at = (
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
         )

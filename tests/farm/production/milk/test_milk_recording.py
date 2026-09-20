@@ -1,15 +1,12 @@
 from dairyos.farm.production.milk.models.milk_record import (
     MilkRecord,
 )
-
 from dairyos.farm.production.milk.repository.milk_repository import (
     MilkRepository,
 )
-
 from dairyos.farm.production.milk.services.milk_recording_service import (
     MilkRecordingService,
 )
-
 
 
 def test_daily_milk_recording():

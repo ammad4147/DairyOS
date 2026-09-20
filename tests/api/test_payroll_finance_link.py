@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal
-from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -64,13 +63,13 @@ def _record():
         employee_role="Milker",
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
-        worked_days=Decimal("26"),
-        base_pay=Decimal("26000"),
-        overtime_hours=Decimal("4"),
-        overtime_rate=Decimal("500"),
-        allowances=Decimal("1000"),
-        advances=Decimal("0"),
-        deductions=Decimal("0"),
+        worked_days=Decimal(26),
+        base_pay=Decimal(26000),
+        overtime_hours=Decimal(4),
+        overtime_rate=Decimal(500),
+        allowances=Decimal(1000),
+        advances=Decimal(0),
+        deductions=Decimal(0),
     )
     record.id = 1
     return record
@@ -147,4 +146,4 @@ def test_payroll_api_create_satisfies_financial_input_contract(client: TestClien
     payload = response.json()
     assert payload["id"] > 0
     assert payload["status"] == "DRAFT"
-    assert Decimal(payload["net_pay"]) == Decimal("13800")
+    assert Decimal(payload["net_pay"]) == Decimal(13800)

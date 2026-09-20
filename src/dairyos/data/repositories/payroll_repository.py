@@ -66,8 +66,8 @@ class PayrollRepository:
         records = list(records)
         return {
             "record_count": len(records),
-            "gross_pay": sum((Decimal(r.gross_pay) for r in records), Decimal("0")),
-            "net_pay": sum((Decimal(r.net_pay) for r in records), Decimal("0")),
-            "advances": sum((Decimal(r.advances or 0) for r in records), Decimal("0")),
-            "deductions": sum((Decimal(r.deductions or 0) for r in records), Decimal("0")),
+            "gross_pay": sum((Decimal(r.gross_pay) for r in records), Decimal(0)),
+            "net_pay": sum((Decimal(r.net_pay) for r in records), Decimal(0)),
+            "advances": sum((Decimal(r.advances or 0) for r in records), Decimal(0)),
+            "deductions": sum((Decimal(r.deductions or 0) for r in records), Decimal(0)),
         }

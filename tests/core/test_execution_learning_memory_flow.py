@@ -11,11 +11,9 @@ def test_execution_learning_memory_chain():
     from dairyos.intelligence.execution.gateway.execution_gateway import (
         ExecutionGateway,
     )
-
     from dairyos.intelligence.learning.gateway.learning_gateway import (
         LearningGateway,
     )
-
     from dairyos.intelligence.memory.gateway.memory_gateway import (
         MemoryGateway,
     )

@@ -16,7 +16,6 @@ still import or execute:
 
 from dairyos.data.database.database import initialize_database
 
-
 if __name__ == "__main__":
     initialize_database()
 

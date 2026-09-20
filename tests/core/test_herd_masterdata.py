@@ -1,9 +1,5 @@
 from dairyos.herd.masterdata.models import Breed
-
-from dairyos.herd.masterdata.services.master_data_service import (
-    MasterDataService
-)
-
+from dairyos.herd.masterdata.services.master_data_service import MasterDataService
 
 
 def test_breed_creation():

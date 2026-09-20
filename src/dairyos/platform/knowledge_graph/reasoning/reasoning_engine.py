@@ -3,7 +3,6 @@ from dairyos.platform.knowledge_graph.reasoning.reasoning_result import (
 )
 
 
-
 class ReasoningEngine:
 
 

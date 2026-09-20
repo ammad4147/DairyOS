@@ -3,7 +3,6 @@ from dairyos.farm.herd.models.animal import (
 )
 
 
-
 class AnimalRepository:
     """
     Temporary in-memory animal storage.

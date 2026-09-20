@@ -8,7 +8,6 @@ Operational Intelligence processing.
 from dairyos.operations.events.services.event_bus_service import (
     EventBusService,
 )
-
 from dairyos.operations.intelligence.services.operational_event_signal_service import (
     OperationalEventSignalService,
 )

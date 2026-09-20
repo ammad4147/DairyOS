@@ -1,7 +1,6 @@
 from dairyos.intelligence.learning.services.pattern_analyzer import (
     PatternAnalyzer,
 )
-
 from dairyos.intelligence.persistence.models.intelligence_event import (
     IntelligenceEvent,
 )

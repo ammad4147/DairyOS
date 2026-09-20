@@ -3,7 +3,6 @@ from dairyos.operations.tasks.integration.models.task_execution_result import (
 )
 
 
-
 class OperationalTaskGateway:
     """
     Application boundary for operational task execution.

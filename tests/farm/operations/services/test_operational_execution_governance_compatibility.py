@@ -1,9 +1,8 @@
-from dairyos.farm.operations.services.operational_execution_tracking_service import (
-    OperationalExecutionTrackingService,
-)
-
 from dairyos.farm.operations.services.operational_execution_history_compliance_service import (
     OperationalExecutionHistoryComplianceService,
+)
+from dairyos.farm.operations.services.operational_execution_tracking_service import (
+    OperationalExecutionTrackingService,
 )
 
 

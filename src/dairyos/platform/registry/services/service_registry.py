@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from dairyos.platform.container.models.service_lifecycle import ServiceLifecycle
 from dairyos.platform.registry.models.service_registry_entry import ServiceRegistryEntry
@@ -10,7 +10,7 @@ class ServiceRegistry:
     """
 
     def __init__(self):
-        self._services: Dict[str, ServiceRegistryEntry] = {}
+        self._services: dict[str, ServiceRegistryEntry] = {}
 
     def register(self, name: str, instance: Any) -> None:
         self._services[name] = ServiceRegistryEntry(

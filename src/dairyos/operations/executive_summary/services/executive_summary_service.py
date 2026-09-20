@@ -3,7 +3,6 @@ from datetime import datetime
 from ..models.executive_operations_summary import (
     ExecutiveOperationsSummary,
 )
-
 from ..models.executive_priority import (
     ExecutivePriority,
 )

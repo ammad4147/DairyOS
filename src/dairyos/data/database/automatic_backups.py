@@ -14,15 +14,15 @@ pretending that it protects against disk loss.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
 import ctypes
 import json
 import os
-from pathlib import Path
 import shutil
 import tempfile
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from pathlib import Path
 
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
@@ -32,7 +32,6 @@ from dairyos.data.database.backup import (
     verify_backup_checksum,
 )
 from dairyos.platform import paths
-
 
 ROLLING_KEEP = 120  # 4 per day x 30 days
 MONTHLY_KEEP = 60   # five years of monthly recovery points
@@ -58,10 +57,10 @@ class AutomaticBackupResult:
 
 
 def _utc_now(now: datetime | None = None) -> datetime:
-    value = now or datetime.now(timezone.utc)
+    value = now or datetime.now(UTC)
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _safe_json_write(path: Path, payload: dict[str, object]) -> None:

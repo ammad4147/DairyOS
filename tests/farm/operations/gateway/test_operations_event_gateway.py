@@ -1,15 +1,12 @@
-from dairyos.farm.operations.gateway.operations_event_gateway import (
-    OperationsEventGateway,
-)
-
 from dairyos.farm.operations.events.farm_operation_event_bridge import (
     FarmOperationEventBridge,
 )
-
 from dairyos.farm.operations.gateway.operational_event_adapter import (
     OperationalEventAdapter,
 )
-
+from dairyos.farm.operations.gateway.operations_event_gateway import (
+    OperationsEventGateway,
+)
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )

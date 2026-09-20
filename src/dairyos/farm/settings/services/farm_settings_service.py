@@ -8,8 +8,7 @@ and dashboard defaults. They never replace domain facts.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 DEFAULT_FARM_NAME = "Trident Dairies"
 DEFAULT_ANIMAL_ID_PREFIX = "TD"
@@ -100,7 +99,7 @@ class FarmSettingsService:
     @staticmethod
     def _system_timezone_info():
         """Return the timezone supplied by the host operating system."""
-        return datetime.now().astimezone().tzinfo or timezone.utc
+        return datetime.now().astimezone().tzinfo or UTC
 
     def get_timezone(self) -> str:
         """Return the sole supported DairyOS operational timezone authority."""

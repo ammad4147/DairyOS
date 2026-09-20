@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from dairyos.operations.models.daily_operation import DailyOperation
 
@@ -14,7 +13,7 @@ class DailyOperationsService:
     """
 
     def __init__(self):
-        self._operations: List[DailyOperation] = []
+        self._operations: list[DailyOperation] = []
 
     def add_operation(
         self,
@@ -28,7 +27,7 @@ class DailyOperationsService:
 
         return operation
 
-    def get_operations(self) -> List[DailyOperation]:
+    def get_operations(self) -> list[DailyOperation]:
         """
         Return all registered operations.
         """
@@ -38,7 +37,7 @@ class DailyOperationsService:
     def get_operation(
         self,
         operation_id: str,
-    ) -> Optional[DailyOperation]:
+    ) -> DailyOperation | None:
         """
         Find operation by ID.
         """
@@ -52,7 +51,7 @@ class DailyOperationsService:
     def complete_operation(
         self,
         operation_id: str,
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> bool:
         """
         Complete an operational task.

@@ -1,9 +1,8 @@
 from dairyos.milk import (
     MilkEntry,
-    MilkService,
     MilkingSession,
+    MilkService,
 )
-
 
 
 def test_complete_milking_workflow():

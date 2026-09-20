@@ -1,8 +1,7 @@
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-
-
 from tests.helpers.breeding import post_breeding
+
 
 def test_reproduction_overview_counts_one_conception_for_multiple_positive_checks(client, registered_animal):
     for event_type, result in (

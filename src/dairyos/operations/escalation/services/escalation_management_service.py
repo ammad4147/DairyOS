@@ -1,4 +1,3 @@
-from typing import List
 
 
 class EscalationManagementService:
@@ -9,7 +8,7 @@ class EscalationManagementService:
 
     def __init__(self):
 
-        self.escalations: List = []
+        self.escalations: list = []
 
 
     def create_escalation(

@@ -1,7 +1,4 @@
-from dairyos.core.security.password import (
-    hash_password,
-    verify_password
-)
+from dairyos.core.security.password import hash_password, verify_password
 
 
 def test_password_security():

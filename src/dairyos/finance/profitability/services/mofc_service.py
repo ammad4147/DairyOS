@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from dairyos.finance.classification.transaction_classifier import is_active
 
 
@@ -18,8 +19,8 @@ class MOFCService:
         if value is None:
             return None
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     def evaluate(
         self,
@@ -36,7 +37,7 @@ class MOFCService:
         if milk_price_per_litre < 0:
             raise ValueError("milk_price_per_litre must be non-negative")
 
-        now_dt = self._as_utc(now or datetime.now(timezone.utc))
+        now_dt = self._as_utc(now or datetime.now(UTC))
         cutoff = now_dt - timedelta(days=days)
 
         milk_by_subject: dict[str, float] = defaultdict(float)

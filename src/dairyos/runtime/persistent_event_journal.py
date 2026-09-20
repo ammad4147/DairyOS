@@ -37,11 +37,8 @@ The journal does NOT:
 from dairyos.data.database.models.event_journal_model import (
     EventJournalModel,
 )
-
 from dairyos.data.database.session import SessionLocal
-
 from dairyos.domain.events import Event
-
 from dairyos.runtime.journal_entry import JournalEntry
 
 
@@ -248,8 +245,7 @@ class PersistentEventJournal:
                     sequence_text
                 )
 
-                if sequence > highest:
-                    highest = sequence
+                highest = max(highest, sequence)
 
             return highest
 

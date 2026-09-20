@@ -2,7 +2,6 @@ from pathlib import Path
 
 from dairyos.api.dashboard import _herd_metrics
 
-
 ROOT = Path(__file__).resolve().parents[2]
 CLIENT = ROOT / "src" / "DairyOS.Web" / "src" / "api" / "commandDashboardClient.ts"
 DASHBOARD = (

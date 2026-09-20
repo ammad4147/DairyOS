@@ -1,9 +1,10 @@
 """Immutable audit records for authoritative Milk corrections."""
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
 
 
 class MilkProductionCorrection(Base):

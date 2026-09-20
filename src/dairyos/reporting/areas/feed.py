@@ -21,9 +21,22 @@ from typing import Any
 
 from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.finance.classification import transaction_classifier as classifier
-from dairyos.reporting.context import ReportContext, clean_text, money, ratio, to_date, upper
+from dairyos.reporting.context import (
+    ReportContext,
+    clean_text,
+    money,
+    ratio,
+    to_date,
+    upper,
+)
 from dairyos.reporting.definitions import (
-    Column, Filter, Metric, ReconciliationCheck, ReportDefinition, ReportResult, Section,
+    Column,
+    Filter,
+    Metric,
+    ReconciliationCheck,
+    ReportDefinition,
+    ReportResult,
+    Section,
 )
 from dairyos.reporting.engine import column_set
 from dairyos.reporting.periods import format_date

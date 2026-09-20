@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import os
-from pathlib import Path
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
@@ -25,7 +25,6 @@ from dairyos.data.database.restore_verification import (
 from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.platform import paths
 from dairyos.windows.private_postgres import isolated_postgres_environment
-
 
 MIGRATION_LOCK_KEY = 746182934517
 MIGRATION_DATABASE_URL_ENV = "DAIRYOS_MIGRATION_DATABASE_URL"
@@ -189,8 +188,8 @@ def _bootstrap_empty_database(connection, config: Config, target: tuple[str, ...
     directly at Alembic heads, database security primitives that would normally
     arrive through migrations must be installed explicitly before the stamp.
     """
-    from dairyos.data.database.base import Base
     import dairyos.data.database.database  # noqa: F401  # registers all ORM models
+    from dairyos.data.database.base import Base
 
     Base.metadata.create_all(bind=connection)
     install_destructive_guards(connection)

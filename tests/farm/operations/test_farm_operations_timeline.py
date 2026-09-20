@@ -1,12 +1,10 @@
 from dairyos.farm.operations.models.milk_record import (
     MilkRecord,
 )
-
 from dairyos.farm.operations.services import (
     MilkOperationService,
     OperationsTimelineService,
 )
-
 
 
 def test_farm_event_enters_daily_timeline():

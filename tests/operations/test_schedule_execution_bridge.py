@@ -1,20 +1,15 @@
 from datetime import time
 
-
-from dairyos.operations.models.work_shift import WorkShift
-
 from dairyos.operations.actions.services.operational_action_service import (
     OperationalActionService,
 )
-
 from dairyos.operations.execution.services.operational_execution_service import (
     OperationalExecutionService,
 )
-
+from dairyos.operations.models.work_shift import WorkShift
 from dairyos.operations.scheduler_integration.services.schedule_execution_bridge import (
     ScheduleExecutionBridge,
 )
-
 
 
 def test_schedule_creates_execution():

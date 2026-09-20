@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_workflow_event import OperationalWorkflowEvent
 from ..models.operational_workflow_result import OperationalWorkflowResult
@@ -21,7 +20,7 @@ class OperationsWorkflowOrchestrator:
     """
 
     def __init__(self):
-        self.events: List[OperationalWorkflowEvent] = []
+        self.events: list[OperationalWorkflowEvent] = []
 
 
     def submit_event(
@@ -48,7 +47,7 @@ class OperationsWorkflowOrchestrator:
         )
 
 
-    def process_all(self) -> List[OperationalWorkflowResult]:
+    def process_all(self) -> list[OperationalWorkflowResult]:
 
         return [
             self.process_event(event)

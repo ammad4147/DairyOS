@@ -1,7 +1,6 @@
 from dairyos.inventory.feed.services.feed_inventory_service import FeedInventoryService
 
 
-
 def test_feed_item():
 
     result = FeedInventoryService().evaluate(

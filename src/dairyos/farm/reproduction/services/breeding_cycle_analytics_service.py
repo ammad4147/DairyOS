@@ -8,8 +8,9 @@ from those cycles.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, timezone
-from typing import Any, Iterable
+from collections.abc import Iterable
+from datetime import UTC, date, datetime
+from typing import Any
 
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving,
@@ -18,7 +19,6 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_negative_pregnancy_check,
     normalize_event_type,
 )
-
 
 TERMINAL_OUTCOME = {
     "pregnancy_lost": "CLOSED_PREGNANCY_LOSS",
@@ -37,13 +37,13 @@ def _utc(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, date) and not isinstance(value, datetime):
-        return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.combine(value, datetime.min.time(), tzinfo=UTC)
     if isinstance(value, datetime):
-        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
     if isinstance(value, str):
         try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+            return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
         except ValueError:
             return None
     return None
@@ -64,7 +64,7 @@ def _event_payload(record: Any) -> dict[str, Any]:
         "semen_batch_number": _value(record, "semen_batch_number"),
         "semen_unit_cost": _value(record, "semen_unit_cost"),
         "timestamp": timestamp.isoformat() if timestamp else None,
-        "_sort": timestamp or datetime.min.replace(tzinfo=timezone.utc),
+        "_sort": timestamp or datetime.min.replace(tzinfo=UTC),
     }
 
 

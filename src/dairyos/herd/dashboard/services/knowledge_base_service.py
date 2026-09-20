@@ -1,7 +1,6 @@
 from ..models.knowledge_entry import KnowledgeEntry
 
 
-
 class KnowledgeBaseService:
 
 

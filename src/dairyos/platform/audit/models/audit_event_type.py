@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class AuditEventType(str, Enum):
 
     USER_ACTION = "user_action"

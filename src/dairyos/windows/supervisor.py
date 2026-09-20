@@ -12,7 +12,6 @@ import binascii
 import ctypes
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import secrets
 import socket
@@ -22,10 +21,12 @@ import threading
 import time
 from ctypes import wintypes
 from dataclasses import dataclass
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from dairyos.lifecycle.manager import LifecycleManager
 from dairyos.windows.appliance_database import (
     ApplianceDatabaseError,
     apply_database_environment,
@@ -43,7 +44,6 @@ from dairyos.windows.system_postgres_admin import (
     stage_migration_database_url,
     stage_runtime_database_url,
 )
-from dairyos.lifecycle.manager import LifecycleManager
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"

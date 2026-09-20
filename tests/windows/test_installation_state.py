@@ -4,7 +4,6 @@ import json
 
 import pytest
 
-from dairyos.platform import paths
 from dairyos.windows.installation_state import (
     InstallationState,
     InstallationStateError,

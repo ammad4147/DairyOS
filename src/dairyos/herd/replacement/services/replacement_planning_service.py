@@ -1,7 +1,6 @@
 from ..models.replacement_plan import ReplacementPlan
 
 
-
 class ReplacementPlanningService:
 
 

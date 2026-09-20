@@ -1,9 +1,9 @@
-from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text, text
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+from ..database.base import Base
 
 
 class FeedRation(Base):

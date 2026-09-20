@@ -1,5 +1,6 @@
-from dairyos.finance.cockpit.services.owner_financial_cockpit_service import OwnerFinancialCockpitService
-
+from dairyos.finance.cockpit.services.owner_financial_cockpit_service import (
+    OwnerFinancialCockpitService,
+)
 
 
 def test_profit():

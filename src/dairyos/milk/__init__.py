@@ -1,24 +1,22 @@
 from dairyos.milk.models import *
 from dairyos.milk.services import *
 
-
 __all__ = [
 
-    "MilkRecord",
-    "MilkingSession",
-    "MilkQualityRecord",
-    "MilkEntry",
-    "MilkingShift",
     "DailyMilkBoard",
+    "DailyMilkBoardService",
     "DailyMilkRegister",
     "FarmMilkingDay",
-
-    "MilkRecordService",
-    "MilkingSessionService",
-    "MilkEntryService",
-    "MilkingShiftService",
-    "DailyMilkBoardService",
-    "MilkValidationService",
     "MilkDeploymentService",
+    "MilkEntry",
+    "MilkEntryService",
+    "MilkQualityRecord",
+    "MilkRecord",
+    "MilkRecordService",
+    "MilkValidationService",
+    "MilkingSession",
+    "MilkingSessionService",
+    "MilkingShift",
+    "MilkingShiftService",
 
 ]

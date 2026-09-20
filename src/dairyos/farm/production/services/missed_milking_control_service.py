@@ -4,9 +4,15 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
-from dairyos.farm.herd.services.animal_milking_schedule_service import AnimalMilkingScheduleService
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.farm.findings.services.operational_finding_service import (
+    OperationalFindingService,
+)
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 
 MISSED_DEDUPE_PREFIX = "MILK_MISSED_SESSION"
 REJECTION_PREFIX = "MISSED_MILK_REJECTED:"

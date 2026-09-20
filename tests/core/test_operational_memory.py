@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.operational_memory_service import OperationalMemoryService
-
+from dairyos.herd.dashboard.services.operational_memory_service import (
+    OperationalMemoryService,
+)
 
 
 def test_memory_creation():

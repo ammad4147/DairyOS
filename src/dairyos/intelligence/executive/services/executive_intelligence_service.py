@@ -1,7 +1,6 @@
 from ..models.executive_status import ExecutiveStatus
 
 
-
 class ExecutiveIntelligenceService:
 
 

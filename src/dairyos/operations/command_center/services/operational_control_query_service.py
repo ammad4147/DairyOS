@@ -1,4 +1,3 @@
-from typing import List
 
 
 class OperationalControlQueryService:
@@ -16,9 +15,9 @@ class OperationalControlQueryService:
 
     def build_projection(
         self,
-        governance_rules: List | None = None,
-        escalation_policies: List | None = None,
-        review_cycles: List | None = None,
+        governance_rules: list | None = None,
+        escalation_policies: list | None = None,
+        review_cycles: list | None = None,
     ):
 
         governance_rules = (

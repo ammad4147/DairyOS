@@ -1,57 +1,36 @@
-from dairyos.intelligence.operations.workflow.repositories.workflow_projection_repository import (
-    WorkflowProjectionRepository,
-)
-
-
-from dairyos.intelligence.operations.workflow.services.workflow_projection_service import (
-    WorkflowProjectionService,
-)
-
-
-from dairyos.intelligence.operations.workflow.services.workflow_query_service import (
-    WorkflowQueryService,
-)
-
-
-from dairyos.intelligence.operations.workflow.services.workflow_analytics_service import (
-    WorkflowAnalyticsService,
-)
-
-
-from dairyos.intelligence.operations.workflow.services.workflow_alert_service import (
-    WorkflowAlertService,
-)
-
-
-from dairyos.intelligence.operations.workflow.services.workflow_decision_service import (
-    WorkflowDecisionService,
-)
-
-
-from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_event_adapter import (
-    WorkflowIntelligenceEventAdapter,
-)
-
-
-from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_query_gateway import (
-    WorkflowIntelligenceQueryGateway,
-)
-
-
-from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_analytics_gateway import (
-    WorkflowIntelligenceAnalyticsGateway,
-)
-
-
 from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_alert_gateway import (
     WorkflowIntelligenceAlertGateway,
 )
-
-
+from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_analytics_gateway import (
+    WorkflowIntelligenceAnalyticsGateway,
+)
 from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_decision_gateway import (
     WorkflowIntelligenceDecisionGateway,
 )
-
+from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_event_adapter import (
+    WorkflowIntelligenceEventAdapter,
+)
+from dairyos.intelligence.operations.workflow.integration.workflow_intelligence_query_gateway import (
+    WorkflowIntelligenceQueryGateway,
+)
+from dairyos.intelligence.operations.workflow.repositories.workflow_projection_repository import (
+    WorkflowProjectionRepository,
+)
+from dairyos.intelligence.operations.workflow.services.workflow_alert_service import (
+    WorkflowAlertService,
+)
+from dairyos.intelligence.operations.workflow.services.workflow_analytics_service import (
+    WorkflowAnalyticsService,
+)
+from dairyos.intelligence.operations.workflow.services.workflow_decision_service import (
+    WorkflowDecisionService,
+)
+from dairyos.intelligence.operations.workflow.services.workflow_projection_service import (
+    WorkflowProjectionService,
+)
+from dairyos.intelligence.operations.workflow.services.workflow_query_service import (
+    WorkflowQueryService,
+)
 
 
 class WorkflowIntelligenceRuntime:

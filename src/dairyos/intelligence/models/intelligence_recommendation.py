@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -27,6 +27,6 @@ class IntelligenceRecommendation:
 
     created_at: datetime = field(
         default_factory=lambda:
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )
 

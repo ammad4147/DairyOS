@@ -1,29 +1,30 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
-from decimal import Decimal
 import json
+from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 
+from dairyos.api.coml import get_integrated_coml
+from dairyos.api.milk_production_analytics import _yield_drop_watchlist
 from dairyos.auth.permissions import permissions_from_json
 from dairyos.core.time_utils import utcnow
-from dairyos.dashboard.services.dashboard_projection_service import DashboardProjectionService
+from dairyos.dashboard.services.dashboard_projection_service import (
+    DashboardProjectionService,
+)
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.finance.classification import transaction_classifier as classifier
 from dairyos.email.service import EmailService
-from dairyos.api.milk_production_analytics import _yield_drop_watchlist
-from dairyos.api.coml import get_integrated_coml
+from dairyos.farm.herd.services.animal_classification_service import (
+    AnimalClassificationError,
+    AnimalClassificationService,
+)
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
 )
 from dairyos.farm.production.services.milk_reconciliation_service import (
     MilkReconciliationService,
 )
-from dairyos.farm.herd.services.animal_classification_service import (
-    AnimalClassificationService,
-    AnimalClassificationError,
-)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-
+from dairyos.finance.classification import transaction_classifier as classifier
 
 _SNAPSHOT_AUDIT_KEY = "email_snapshot_delivery_audit"
 _SNAPSHOT_AUDIT_LIMIT = 500
@@ -40,7 +41,7 @@ def expected_digest_date(now: datetime | None = None) -> date:
     return current.date() - timedelta(days=1)
 
 
-def _money(value: Decimal | float | int) -> str:
+def _money(value: Decimal | float) -> str:
     return f"PKR {float(value):,.2f}"
 
 
@@ -60,7 +61,7 @@ class DashboardDigestService:
                 ).get_timezone_info()
             except (AttributeError, TypeError, ValueError):
                 pass
-        return fallback or datetime.now().astimezone().tzinfo or timezone.utc
+        return fallback or datetime.now().astimezone().tzinfo or UTC
 
     def _farm_timezone_label(self, fallback=None) -> str:
         repository_factory = getattr(self.container, "repository_factory", None)
@@ -457,9 +458,9 @@ class DashboardDigestService:
         generated_at: datetime | None = None,
     ) -> dict:
         """Send a manual live snapshot to selected configured recipients."""
-        now = generated_at or utcnow().replace(tzinfo=timezone.utc)
+        now = generated_at or utcnow().replace(tzinfo=UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         selected_ids = {
             str(recipient_id).strip()
             for recipient_id in recipient_ids

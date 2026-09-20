@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.diagnostic_request_service import (
-    DiagnosticRequestService
+    DiagnosticRequestService,
 )
-
 
 
 def test_request_animal():

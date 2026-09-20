@@ -8,15 +8,15 @@ This model persists the farm.operations BreedingRecord contract.
 It does NOT replace herd.reproduction BreedingRecord.
 """
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     Numeric,
     String,
-    ForeignKey,
 )
 
 from dairyos.data.database.base import Base

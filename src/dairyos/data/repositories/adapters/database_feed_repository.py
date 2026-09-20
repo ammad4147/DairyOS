@@ -1,9 +1,8 @@
-from dairyos.farm.operations.repositories.feed_repository import (
-    FeedRepository,
-)
-
 from dairyos.data.models import (
     FeedRecord as DatabaseFeedRecord,
+)
+from dairyos.farm.operations.repositories.feed_repository import (
+    FeedRepository,
 )
 
 

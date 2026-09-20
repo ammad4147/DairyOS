@@ -1,7 +1,6 @@
 from ..models.culling_decision import CullingDecision
 
 
-
 class CullingManagementService:
 
 

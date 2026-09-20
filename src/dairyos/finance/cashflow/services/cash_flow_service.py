@@ -1,7 +1,6 @@
 from ..models.cash_flow_summary import CashFlowSummary
 
 
-
 class CashFlowService:
 
 

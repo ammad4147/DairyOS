@@ -1,7 +1,7 @@
-import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 
 class DataBackupManager:
     """
@@ -19,7 +19,7 @@ class DataBackupManager:
             target_db = Path("src/dairyos/data/dairyos.db")
             
         if target_db.exists():
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             backup_file = vault / f"dairyos_safe_backup_{timestamp}.db"
             shutil.copy2(target_db, backup_file)
             return str(backup_file.absolute())

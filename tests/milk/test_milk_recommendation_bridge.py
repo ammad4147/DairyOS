@@ -1,17 +1,12 @@
-from dairyos.milk.integration import (
-    MilkRecommendationBridge,
-)
-
-
 from dairyos.intelligence.command.models.farm_situation import (
     FarmSituation,
 )
-
-
 from dairyos.intelligence.command.repository.adapters.memory_recommendation_repository import (
     MemoryRecommendationRepository,
 )
-
+from dairyos.milk.integration import (
+    MilkRecommendationBridge,
+)
 
 
 def test_milk_normal_recommendation():

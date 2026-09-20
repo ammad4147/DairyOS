@@ -1,10 +1,8 @@
 from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
-from zoneinfo import ZoneInfo
 
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-
 from dairyos.missed_milking_scheduler import (
     LAST_RECONCILED_DATE_KEY,
     DailyMissedMilkingScheduler,

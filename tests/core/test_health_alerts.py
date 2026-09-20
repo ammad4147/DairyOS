@@ -1,18 +1,8 @@
 from datetime import datetime
 
-
-from dairyos.herd.health.services.health_alert_service import (
-    HealthAlertService
-)
-
-from dairyos.herd.health.models.health_follow_up import (
-    HealthFollowUp
-)
-
-from dairyos.herd.health.services.health_follow_up_service import (
-    HealthFollowUpService
-)
-
+from dairyos.herd.health.models.health_follow_up import HealthFollowUp
+from dairyos.herd.health.services.health_alert_service import HealthAlertService
+from dairyos.herd.health.services.health_follow_up_service import HealthFollowUpService
 
 
 def test_create_alert():

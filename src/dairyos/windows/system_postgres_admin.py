@@ -115,10 +115,9 @@ def validate_admin_password(
             user=ADMIN_ROLE,
             password=password,
             connect_timeout=10,
-        ) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                cursor.fetchone()
+        ) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
     except Exception as exc:
         raise SystemPostgresAdminCredentialError(
             "The dairyos_admin credential could not be validated against system PostgreSQL."
@@ -216,10 +215,9 @@ def _connect_runtime(
             user=APP_ROLE,
             password=password,
             connect_timeout=10,
-        ) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                cursor.fetchone()
+        ) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
     except Exception as exc:
         raise SystemPostgresRuntimeCredentialError(
             "The restricted dairyos database credential could not authenticate "

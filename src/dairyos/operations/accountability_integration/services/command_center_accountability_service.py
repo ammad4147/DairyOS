@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.execution_accountability import (
     ExecutionAccountability,
@@ -29,7 +28,7 @@ class CommandCenterAccountabilityService:
         self,
     ):
 
-        self.records: List[
+        self.records: list[
             ExecutionAccountability
         ] = []
 
@@ -96,6 +95,6 @@ class CommandCenterAccountabilityService:
 
     def get_records(
         self,
-    ) -> List[ExecutionAccountability]:
+    ) -> list[ExecutionAccountability]:
 
         return self.records

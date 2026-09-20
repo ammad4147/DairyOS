@@ -1,28 +1,8 @@
 from datetime import date
 
-
-from dairyos.herd.models import (
-
-    Animal,
-
-    AnimalStatus
-
-)
-
-
-from dairyos.herd.repositories import (
-
-    AnimalRepository
-
-)
-
-
-from dairyos.herd.services.animal_service import (
-
-    AnimalService
-
-)
-
+from dairyos.herd.models import Animal, AnimalStatus
+from dairyos.herd.repositories import AnimalRepository
+from dairyos.herd.services.animal_service import AnimalService
 
 
 def test_repository_save():

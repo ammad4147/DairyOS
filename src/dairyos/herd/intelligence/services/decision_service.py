@@ -1,7 +1,6 @@
 from dairyos.herd.intelligence.models.herd_decision import HerdDecision
 
 
-
 class DecisionService:
 
 

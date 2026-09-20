@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from ..models.financial_transaction import FinancialTransaction
 from ...finance.classification.transaction_classifier import is_expense, is_income
+from ..models.financial_transaction import FinancialTransaction
 
 
 class FinancialRepository:
@@ -119,7 +119,7 @@ class FinancialRepository:
             raise ValueError("A reason is required to void a financial transaction.")
 
         note = (getattr(entity, "notes", None) or "").strip()
-        stamp = datetime.now(timezone.utc).isoformat()
+        stamp = datetime.now(UTC).isoformat()
         audit = f"VOIDED_AT={stamp} REASON={cleaned_reason}"
         entity.notes = f"{note}\n{audit}".strip()
         entity.status = "VOID"

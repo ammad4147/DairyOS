@@ -222,9 +222,9 @@ def test_settlement_lifecycle_through_the_finance_api(farm, run):
         row = next(r for r in section(sales, "sales")["rows"] if r["sale_id"] == f"FIN-{sale_id}")
         assert (row["status"], money(row["outstanding"]), row["milk_record"]) == ("RECEIVED", D("0.00"), "Agrees")
     finally:
-        from tests import conftest as root
         from dairyos.data.models.financial_transaction import FinancialTransaction
         from dairyos.data.models.milk_disposition import MilkDisposition
+        from tests import conftest as root
         db = root.container.repository_factory.session
         row = db.get(FinancialTransaction, sale_id)
         row.status, row.settled_date = "RECEIVABLE", None

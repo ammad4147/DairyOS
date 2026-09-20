@@ -18,5 +18,3 @@ class OperationalEventAdapter(FarmOperationEventBridge):
     paths continue to function without creating a second adapter
     implementation.
     """
-
-    pass

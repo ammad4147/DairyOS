@@ -1,6 +1,6 @@
 from dairyos.intelligence.decision.models import (
-    DecisionRecommendation,
     DecisionConfidence,
+    DecisionRecommendation,
 )
 
 

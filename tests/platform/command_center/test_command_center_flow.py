@@ -1,41 +1,27 @@
 from dairyos.platform.command_center.alerts.models.command_alert import (
     CommandAlert,
 )
-
 from dairyos.platform.command_center.alerts.services.alert_service import (
     AlertService,
 )
-
-
-from dairyos.platform.command_center.priorities.services.prioritization_service import (
-    PrioritizationService,
-)
-
-
 from dairyos.platform.command_center.governance.services.governance_service import (
     GovernanceService,
 )
-
-
-from dairyos.platform.command_center.timeline.models.timeline_event import (
-    TimelineEvent,
-)
-
-
-from dairyos.platform.command_center.timeline.services.timeline_service import (
-    TimelineService,
-)
-
-
 from dairyos.platform.command_center.learning.models.learning_feedback import (
     LearningFeedback,
 )
-
-
 from dairyos.platform.command_center.learning.services.feedback_service import (
     FeedbackService,
 )
-
+from dairyos.platform.command_center.priorities.services.prioritization_service import (
+    PrioritizationService,
+)
+from dairyos.platform.command_center.timeline.models.timeline_event import (
+    TimelineEvent,
+)
+from dairyos.platform.command_center.timeline.services.timeline_service import (
+    TimelineService,
+)
 
 
 def test_command_center_operational_cycle():

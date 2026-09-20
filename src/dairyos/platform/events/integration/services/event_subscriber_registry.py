@@ -3,7 +3,6 @@ from dairyos.platform.events.integration.models.event_subscription import (
 )
 
 
-
 class EventSubscriberRegistry:
     """
     Registry for operational event listeners.

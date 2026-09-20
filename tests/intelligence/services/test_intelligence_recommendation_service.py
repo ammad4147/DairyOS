@@ -1,11 +1,9 @@
-from dairyos.intelligence.services.intelligence_recommendation_service import (
-    IntelligenceRecommendationService,
-)
-
 from dairyos.intelligence.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
+from dairyos.intelligence.services.intelligence_recommendation_service import (
+    IntelligenceRecommendationService,
+)
 
 
 def test_recommendation_generated_from_signal():

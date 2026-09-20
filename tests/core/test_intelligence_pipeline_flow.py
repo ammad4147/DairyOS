@@ -1,21 +1,17 @@
-from dairyos.intelligence.integration.cross_intelligence_gateway import (
-    CrossIntelligenceGateway,
-)
-
-from dairyos.intelligence.integration.intelligence_pipeline import (
-    IntelligencePipeline,
-)
-
 from dairyos.intelligence.integration.connectors.decision_workflow_connector import (
     DecisionWorkflowConnector,
 )
-
+from dairyos.intelligence.integration.connectors.learning_memory_connector import (
+    LearningMemoryConnector,
+)
 from dairyos.intelligence.integration.connectors.workflow_execution_connector import (
     WorkflowExecutionConnector,
 )
-
-from dairyos.intelligence.integration.connectors.learning_memory_connector import (
-    LearningMemoryConnector,
+from dairyos.intelligence.integration.cross_intelligence_gateway import (
+    CrossIntelligenceGateway,
+)
+from dairyos.intelligence.integration.intelligence_pipeline import (
+    IntelligencePipeline,
 )
 
 

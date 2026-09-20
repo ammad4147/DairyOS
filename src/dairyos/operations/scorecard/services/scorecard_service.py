@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_scorecard import (
     OperationalScorecard,
@@ -13,7 +12,7 @@ class ScorecardService:
 
     def generate(
         self,
-        performance_records: List,
+        performance_records: list,
     ) -> OperationalScorecard:
 
 

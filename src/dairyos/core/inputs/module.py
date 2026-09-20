@@ -5,12 +5,10 @@ This module defines the interface for all input modules in the system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Dict, List
-from enum import Enum
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-import time
+from enum import Enum
+from typing import Any
 
 
 class InputStatus(Enum):
@@ -36,7 +34,7 @@ class InputData:
     data: Any
     timestamp: datetime
     quality: DataQuality = DataQuality.GOOD
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -45,7 +43,7 @@ class InputError:
     module_id: str
     error: str
     timestamp: datetime
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 @dataclass
@@ -57,8 +55,8 @@ class HealthReport:
     connection_attempts: int
     consecutive_failures: int
     uptime: float
-    last_error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    last_error: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class InputModule(ABC):
@@ -70,7 +68,7 @@ class InputModule(ABC):
     standardized event handling.
     """
     
-    def __init__(self, module_id: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, module_id: str, config: dict[str, Any] | None = None):
         """
         Initialize the input module.
         
@@ -96,7 +94,6 @@ class InputModule(ABC):
         Returns:
             True if connection was successful, False otherwise
         """
-        pass
     
     @abstractmethod
     async def disconnect(self) -> bool:
@@ -106,7 +103,6 @@ class InputModule(ABC):
         Returns:
             True if disconnection was successful, False otherwise
         """
-        pass
     
     @abstractmethod
     async def read(self) -> Any:
@@ -116,7 +112,6 @@ class InputModule(ABC):
         Returns:
             The data read from the source
         """
-        pass
     
     @abstractmethod
     async def validate(self, data: Any) -> bool:
@@ -129,17 +124,15 @@ class InputModule(ABC):
         Returns:
             True if data is valid, False otherwise
         """
-        pass
     
     @abstractmethod
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Perform a health check on the input module.
         
         Returns:
             Dictionary containing health status information
         """
-        pass
     
     @property
     def status(self) -> InputStatus:
@@ -179,7 +172,7 @@ class InputModule(ABC):
         self._is_running = False
         await self.disconnect()
     
-    async def poll(self) -> Optional[InputData]:
+    async def poll(self) -> InputData | None:
         """
         Perform a complete polling cycle.
         
@@ -221,7 +214,7 @@ class InputModule(ABC):
             self.status = InputStatus.ERROR
             return None
     
-    async def calibrate(self, calibration_data: Dict[str, Any]) -> bool:
+    async def calibrate(self, calibration_data: dict[str, Any]) -> bool:
         """
         Perform a calibration routine for this module.
         

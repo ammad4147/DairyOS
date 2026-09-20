@@ -1,7 +1,6 @@
 from dairyos.herd.dashboard.services.owner_brief_service import OwnerBriefService
 
 
-
 def test_owner_brief_creation():
 
     brief = OwnerBriefService().generate(

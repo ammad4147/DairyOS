@@ -3,7 +3,6 @@ from dairyos.intelligence.signals.detectors.milk_variance_detector import (
 )
 
 
-
 class IntelligenceSignalRegistry:
     """
     Registry of intelligence detectors.

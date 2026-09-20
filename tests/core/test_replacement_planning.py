@@ -1,5 +1,6 @@
-from dairyos.herd.replacement.services.replacement_planning_service import ReplacementPlanningService
-
+from dairyos.herd.replacement.services.replacement_planning_service import (
+    ReplacementPlanningService,
+)
 
 
 def test_current_cows():

@@ -1,11 +1,9 @@
 from dairyos.intelligence.persistence.models.intelligence_event import (
     IntelligenceEvent,
 )
-
 from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
     MemoryEventRepository,
 )
-
 from dairyos.intelligence.persistence.services.history.intelligence_history_service import (
     IntelligenceHistoryService,
 )

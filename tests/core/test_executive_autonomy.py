@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.executive_autonomy_service import ExecutiveAutonomyService
-
+from dairyos.herd.dashboard.services.executive_autonomy_service import (
+    ExecutiveAutonomyService,
+)
 
 
 def test_issue_saved():

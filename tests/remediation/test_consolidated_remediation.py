@@ -1,9 +1,11 @@
-from pathlib import Path
-from types import SimpleNamespace as N
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
+from types import SimpleNamespace as N
 
-from dairyos.finance.profitability.services.cost_of_production_service import CostOfProductionService
+from dairyos.finance.profitability.services.cost_of_production_service import (
+    CostOfProductionService,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -15,7 +17,7 @@ def _new_animal(client, tag):
 def test_withdrawal_milk_remains_in_cost_denominator():
     now = datetime(2026, 9, 9, 12, tzinfo=UTC)
     milk = [N(total_yield=100, production_date=now, status='RECORDED'), N(total_yield=20, production_date=now, status='WITHDRAWAL')]
-    finance = [N(amount=Decimal('12000'), transaction_date=now, transaction_type='EXPENSE', category='FEED', status='RECORDED')]
+    finance = [N(amount=Decimal(12000), transaction_date=now, transaction_type='EXPENSE', category='FEED', status='RECORDED')]
     result = CostOfProductionService().evaluate(milk, finance, days=1, now=now)
     assert result['milk_litres'] == 120
     assert result['cost_per_litre'] == 100

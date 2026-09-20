@@ -1,10 +1,9 @@
 from dairyos.milk import (
     DailyMilkRegister,
-    MilkValidationService,
     MilkEntry,
     MilkingSession,
+    MilkValidationService,
 )
-
 
 
 def test_register_validation_failure():

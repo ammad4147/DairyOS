@@ -1,7 +1,6 @@
 from ..models.farm_action import FarmAction
 
 
-
 class ActionExecutionService:
 
 

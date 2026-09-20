@@ -3,7 +3,6 @@ from dairyos.platform.learning_feedback.models.feedback_signal import (
 )
 
 
-
 class FeedbackService:
     """
     Captures operational learning feedback.

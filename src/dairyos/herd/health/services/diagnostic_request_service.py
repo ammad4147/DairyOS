@@ -3,7 +3,6 @@ from datetime import datetime
 from ..models.diagnostic_request import DiagnosticRequest
 
 
-
 class DiagnosticRequestService:
 
 

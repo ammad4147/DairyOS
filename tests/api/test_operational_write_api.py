@@ -8,7 +8,9 @@ from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.milking_session_record import MilkingSessionRecord
 from dairyos.data.models.operational_write import OperationalProjectionOutbox
 from dairyos.data.models.treatment_record import TreatmentRecord
-from dairyos.data.repositories.milking_session_record_repository import MilkingSessionRecordRepository
+from dairyos.data.repositories.milking_session_record_repository import (
+    MilkingSessionRecordRepository,
+)
 
 
 def _milk(animal, **extra):

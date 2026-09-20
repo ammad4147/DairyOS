@@ -1,8 +1,8 @@
-from sqlalchemy import Boolean, Column, Float, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+
+from dairyos.core.time_utils import utcnow
 
 from ..database.base import Base
-from dairyos.core.time_utils import utcnow
-from sqlalchemy import DateTime
 
 
 class FeedInventoryItem(Base):

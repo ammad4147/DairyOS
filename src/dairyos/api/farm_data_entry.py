@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from math import isfinite
 from typing import Any
@@ -6,53 +6,45 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
-from dairyos.core.inventory_units import InventoryIntegrityError
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
-
-from dairyos.data.models.milk_production import MilkProduction
+from dairyos.core.inventory_units import InventoryIntegrityError
 from dairyos.data.models.feed_record import FeedRecord
-from dairyos.data.models.health_observation import HealthObservation
-from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.models.health_case import HealthCase
+from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.inventory_transaction import InventoryTransaction
+from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.treatment_record import TreatmentRecord
+from dairyos.data.repositories.repository_factory import (
+    RepositoryFactory,
+)
+from dairyos.farm.herd.services.animal_milking_schedule_service import (
+    AnimalMilkingScheduleService,
+)
 from dairyos.farm.operations.models.breeding_record import BreedingRecord
-from dairyos.data.models.milking_session_record import MilkingSessionRecord
+from dairyos.farm.production.services.withdrawal_milk_wastage_service import (
+    animal_withdrawn_on_date,
+    ensure_withdrawal_wastage,
+)
 from dairyos.milk.models.milking_session import MilkingSession
 from dairyos.milk.models.milking_session_ledger import (
     MilkingSessionSkipReason,
     MilkingSessionStatus,
 )
+from dairyos.milk.services.milk_recording_intelligence_service import (
+    MilkRecordingIntelligenceService,
+)
 from dairyos.milk.services.milk_session_sequence_service import (
     MilkSessionSequenceService,
     SequenceViolation,
 )
-from dairyos.farm.herd.services.animal_milking_schedule_service import (
-    AnimalMilkingScheduleService,
-)
-from dairyos.milk.services.milk_recording_intelligence_service import (
-    MilkRecordingIntelligenceService,
-)
-from dairyos.farm.findings.services.operational_finding_service import (
-    OperationalFindingService,
-)
-
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
 )
-from dairyos.farm.production.services.withdrawal_milk_wastage_service import (
-    animal_withdrawn_on_date,
-    ensure_withdrawal_wastage,
-)
-
-from dairyos.data.repositories.repository_factory import (
-    RepositoryFactory,
-)
-
 
 router = APIRouter(
     prefix="/farm",
@@ -345,7 +337,7 @@ class FinancialEntryRequest(BaseEntryRequest):
 
 
 def _timestamp() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _today() -> date:
@@ -444,7 +436,7 @@ def _feeding_datetime(payload: dict[str, Any], factory=None) -> datetime:
             repository_factory=factory,
         ).current_datetime().replace(tzinfo=None)
     except Exception:
-        return datetime.now(timezone.utc).replace(tzinfo=None)
+        return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _transaction_datetime(payload: dict[str, Any]) -> datetime | None:
@@ -1567,7 +1559,7 @@ def record_treatment(
                 ),
             )
 
-        treated_at = datetime.now(timezone.utc)
+        treated_at = datetime.now(UTC)
         withdrawal_until = (
             treated_at
             + timedelta(days=withdrawal_days)
@@ -1724,7 +1716,7 @@ def list_active_withdrawals(
     ):
         return []
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     active = []
 
     for record in treatment_repo.get_all():
@@ -2280,7 +2272,7 @@ def open_health_case(
             diagnosis=entry.diagnosis,
             notes=entry.notes,
             status="OPEN",
-            opened_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            opened_at=datetime.now(UTC).replace(tzinfo=None),
             opened_by=operator,
             follow_up_due_at=(
                 entry.follow_up_due_at.replace(tzinfo=None)
@@ -2430,7 +2422,7 @@ def resolve_health_case(
 
         case.status = "RESOLVED"
         case.resolution = resolution
-        case.resolved_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        case.resolved_at = datetime.now(UTC).replace(tzinfo=None)
         case.resolved_by = (entry.resolved_by or operator).strip()
 
         session = getattr(rf, "session", None)

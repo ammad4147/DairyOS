@@ -1,7 +1,6 @@
 from ..models.calf_management import CalfManagement
 
 
-
 class CalfManagementService:
 
     def calculate_adg(
@@ -52,5 +51,5 @@ class CalfManagementService:
             priority,
             action
         )
-        setattr(res, "adg_kg_per_day", adg)
+        res.adg_kg_per_day = adg
         return res

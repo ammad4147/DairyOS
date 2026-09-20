@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
-
 DESTRUCTIVE_ROLE = "dairyos_destructive_admin"
 
 

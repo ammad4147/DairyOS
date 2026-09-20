@@ -1,7 +1,6 @@
 from dairyos.repositories.milk_repository import MilkRepository
 
 
-
 class MemoryMilkRepository(MilkRepository):
 
 

@@ -1,11 +1,9 @@
 from dairyos.intelligence.command.models.command_action import (
     CommandAction,
 )
-
 from dairyos.intelligence.command.models.farm_situation import (
     FarmSituation,
 )
-
 from dairyos.intelligence.command.models.operational_recommendation import (
     OperationalRecommendation,
 )

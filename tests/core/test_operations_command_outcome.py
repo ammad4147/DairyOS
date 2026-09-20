@@ -1,15 +1,12 @@
-from dairyos.operations.command_outcome.services.command_outcome_service import (
-    CommandOutcomeService,
-)
-
-from dairyos.operations.command_outcome.services.outcome_evaluation_service import (
-    OutcomeEvaluationService,
-)
-
 from dairyos.operations.command_outcome.models.outcome_status import (
     OutcomeStatus,
 )
-
+from dairyos.operations.command_outcome.services.command_outcome_service import (
+    CommandOutcomeService,
+)
+from dairyos.operations.command_outcome.services.outcome_evaluation_service import (
+    OutcomeEvaluationService,
+)
 
 
 def test_successful_command_outcome():

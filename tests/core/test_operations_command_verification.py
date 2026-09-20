@@ -1,15 +1,12 @@
-from dairyos.operations.command_verification.services.command_verification_service import (
-    CommandVerificationService,
-)
-
-from dairyos.operations.command_verification.services.verification_analysis_service import (
-    VerificationAnalysisService,
-)
-
 from dairyos.operations.command_verification.models.verification_status import (
     VerificationStatus,
 )
-
+from dairyos.operations.command_verification.services.command_verification_service import (
+    CommandVerificationService,
+)
+from dairyos.operations.command_verification.services.verification_analysis_service import (
+    VerificationAnalysisService,
+)
 
 
 def test_successful_command_verification():

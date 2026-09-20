@@ -3,7 +3,6 @@ from dairyos.platform.security_boundary.models.access_result import (
 )
 
 
-
 class AuthorizationService:
     """
     Enterprise operational authorization service.

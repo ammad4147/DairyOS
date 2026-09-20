@@ -14,7 +14,8 @@ its own weights is exactly what the gate is looking for.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from dairyos_assistant.grounding import REJECTED_TEXT, Verdict, check
 from dairyos_assistant.model import ModelProvider, ModelUnavailable

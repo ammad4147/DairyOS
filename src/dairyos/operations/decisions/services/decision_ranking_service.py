@@ -1,7 +1,5 @@
-from typing import List
 
 from ..models.operational_decision import OperationalDecision
-from ..models.decision_priority import DecisionPriority
 
 
 class DecisionRankingService:
@@ -18,8 +16,8 @@ class DecisionRankingService:
 
     def rank(
         self,
-        decisions: List[OperationalDecision],
-    ) -> List[OperationalDecision]:
+        decisions: list[OperationalDecision],
+    ) -> list[OperationalDecision]:
 
         return sorted(
             decisions,

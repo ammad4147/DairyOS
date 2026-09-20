@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.decision_assistant_service import DecisionAssistantService
-
+from dairyos.herd.dashboard.services.decision_assistant_service import (
+    DecisionAssistantService,
+)
 
 
 def test_assistant_creation():

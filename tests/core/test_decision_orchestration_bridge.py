@@ -1,11 +1,9 @@
 from dairyos.intelligence.decision.models.decision_recommendation import (
     DecisionRecommendation,
 )
-
 from dairyos.intelligence.operations.orchestration.gateway.operations_orchestration_gateway import (
     OperationsOrchestrationGateway,
 )
-
 from dairyos.intelligence.operations.orchestration.integration.decision_orchestration_bridge import (
     DecisionOrchestrationBridge,
 )

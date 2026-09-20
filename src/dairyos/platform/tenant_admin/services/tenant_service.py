@@ -1,7 +1,6 @@
 from dairyos.platform.tenant_admin.models.tenant import Tenant
 
 
-
 class TenantService:
     """
     Enterprise tenant lifecycle service.

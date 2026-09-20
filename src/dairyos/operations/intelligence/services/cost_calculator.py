@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class CostCalculator:
     feed_cost_per_liter: float

@@ -1,17 +1,14 @@
-from dairyos.operations.compliance.models.operational_procedure import (
-    OperationalProcedure,
-)
-
-from dairyos.operations.compliance.services.procedure_service import (
-    ProcedureService,
-)
-
 from dairyos.operations.compliance.models.compliance_check import (
     ComplianceCheck,
 )
-
+from dairyos.operations.compliance.models.operational_procedure import (
+    OperationalProcedure,
+)
 from dairyos.operations.compliance.services.compliance_service import (
     ComplianceService,
+)
+from dairyos.operations.compliance.services.procedure_service import (
+    ProcedureService,
 )
 
 

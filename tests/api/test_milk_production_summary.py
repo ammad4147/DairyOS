@@ -1,8 +1,10 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
-from dairyos.app import container
 from dairyos.api.farm_data_entry import next_milking_session
-from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
+from dairyos.app import container
+from dairyos.data.models.animal_milking_schedule_history import (
+    AnimalMilkingScheduleHistory,
+)
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.operational_finding import OperationalFinding
 
@@ -99,14 +101,14 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
     history_start = datetime.combine(
         today - timedelta(days=30),
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     historical_schedule_1 = AnimalMilkingScheduleHistory(
         animal_id=animal_1_id,
         milking_frequency="THRICE_DAILY",
         effective_from=history_start,
-        effective_to=datetime.now(timezone.utc),
+        effective_to=datetime.now(UTC),
         changed_by="summary-test",
         reason="Seed historical schedule for date-aware summary validation",
     )
@@ -115,7 +117,7 @@ def test_milk_production_summary_aggregates_persisted_data_and_excludes_legacy_r
         animal_id=animal_2_id,
         milking_frequency="THRICE_DAILY",
         effective_from=history_start,
-        effective_to=datetime.now(timezone.utc),
+        effective_to=datetime.now(UTC),
         changed_by="summary-test",
         reason="Seed historical schedule for date-aware summary validation",
     )

@@ -61,7 +61,7 @@ def get_connection() -> Connection:
 
 __all__ = [
     "engine",
-    "get_session",
     "get_connection",
+    "get_session",
     "initialize_database",
 ]

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List
 
 from .work_shift import WorkShift
 
@@ -14,7 +13,7 @@ class WorkSchedule:
     schedule_id: str
     schedule_date: date
     farm_area: str
-    shifts: List[WorkShift] = field(default_factory=list)
+    shifts: list[WorkShift] = field(default_factory=list)
 
     def add_shift(self, shift: WorkShift) -> None:
         self.shifts.append(shift)

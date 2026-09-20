@@ -1,18 +1,8 @@
 from datetime import date
 
-from dairyos.herd.models import (
-    Animal,
-    AnimalStatus
-)
-
-from dairyos.herd.services.animal_registry import (
-    AnimalRegistry
-)
-
-from dairyos.herd.services.lifecycle import (
-    LifecycleService
-)
-
+from dairyos.herd.models import Animal, AnimalStatus
+from dairyos.herd.services.animal_registry import AnimalRegistry
+from dairyos.herd.services.lifecycle import LifecycleService
 
 
 def test_animal_registration():

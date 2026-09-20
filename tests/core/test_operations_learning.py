@@ -1,10 +1,10 @@
 from dairyos.operations.learning.models.learning_signal import LearningSignal
+from dairyos.operations.learning.services.improvement_service import (
+    ImprovementService,
+)
 from dairyos.operations.learning.services.learning_service import LearningService
 from dairyos.operations.learning.services.pattern_detection_service import (
     PatternDetectionService,
-)
-from dairyos.operations.learning.services.improvement_service import (
-    ImprovementService,
 )
 
 

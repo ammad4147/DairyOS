@@ -1,15 +1,13 @@
 from abc import ABC, abstractmethod
 
-from dairyos.intelligence.kernel.models.intelligence_signal import (
-    IntelligenceSignal,
-)
-
 from dairyos.intelligence.kernel.models.intelligence_decision import (
     IntelligenceDecision,
 )
-
 from dairyos.intelligence.kernel.models.intelligence_outcome import (
     IntelligenceOutcome,
+)
+from dairyos.intelligence.kernel.models.intelligence_signal import (
+    IntelligenceSignal,
 )
 
 

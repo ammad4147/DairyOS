@@ -1,7 +1,4 @@
-from dairyos.herd.health.services.treatment_plan_service import (
-    TreatmentPlanService
-)
-
+from dairyos.herd.health.services.treatment_plan_service import TreatmentPlanService
 
 
 def test_treatment_animal():

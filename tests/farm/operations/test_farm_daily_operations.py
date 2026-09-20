@@ -1,21 +1,17 @@
-from dairyos.farm.operations.models.milk_record import (
-    MilkRecord,
-)
-
 from dairyos.farm.operations.models.feed_record import (
     FeedRecord,
 )
-
 from dairyos.farm.operations.models.health_observation import (
     HealthObservation,
 )
-
+from dairyos.farm.operations.models.milk_record import (
+    MilkRecord,
+)
 from dairyos.farm.operations.services import (
-    MilkOperationService,
     FeedOperationService,
     HealthObservationService,
+    MilkOperationService,
 )
-
 
 
 def test_daily_farm_operations_create_events():

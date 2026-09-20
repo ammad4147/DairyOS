@@ -147,7 +147,9 @@ class AttentionQueueService:
 
         if repository is None:
             try:
-                from dairyos.data.repositories.repository_factory import RepositoryFactory
+                from dairyos.data.repositories.repository_factory import (
+                    RepositoryFactory,
+                )
 
                 factory = RepositoryFactory.create()
                 repository = factory.operational_findings()

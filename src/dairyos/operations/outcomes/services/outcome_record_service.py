@@ -1,8 +1,7 @@
-from typing import List
 
 from ..models.operational_outcome import OperationalOutcome
-from ..models.outcome_rating import OutcomeRating
 from ..models.outcome_feedback import OutcomeFeedback
+from ..models.outcome_rating import OutcomeRating
 
 
 class OutcomeRecordService:
@@ -11,7 +10,7 @@ class OutcomeRecordService:
     """
 
     def __init__(self):
-        self.outcomes: List[OperationalOutcome] = []
+        self.outcomes: list[OperationalOutcome] = []
 
 
     def record_outcome(

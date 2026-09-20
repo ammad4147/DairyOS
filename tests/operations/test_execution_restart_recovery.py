@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from dairyos.domain.events import Event
 from dairyos.operations.execution.models.operational_execution import (
     OperationalExecution,
 )

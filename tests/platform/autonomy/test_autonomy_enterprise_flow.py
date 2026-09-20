@@ -1,29 +1,23 @@
-from dairyos.platform.autonomy.orchestration.services.autonomy_orchestrator import (
-    AutonomyOrchestrator,
+from dairyos.operations.execution.models.operational_execution import (
+    OperationalExecution,
 )
-
-from dairyos.platform.autonomy.copilot.services.farm_copilot import (
-    FarmCopilot,
-)
-
-from dairyos.platform.autonomy.governance.services.autonomy_governance import (
-    AutonomyGovernance,
-)
-
-from dairyos.platform.autonomy.execution.services.execution_service import (
-    ExecutionService,
-)
-
 from dairyos.platform.autonomy.audit.services.autonomy_audit_service import (
     AutonomyAuditService,
 )
-
+from dairyos.platform.autonomy.copilot.services.farm_copilot import (
+    FarmCopilot,
+)
+from dairyos.platform.autonomy.execution.services.execution_service import (
+    ExecutionService,
+)
+from dairyos.platform.autonomy.governance.services.autonomy_governance import (
+    AutonomyGovernance,
+)
 from dairyos.platform.autonomy.learning.services.autonomy_learning_service import (
     AutonomyLearningService,
 )
-
-from dairyos.operations.execution.models.operational_execution import (
-    OperationalExecution,
+from dairyos.platform.autonomy.orchestration.services.autonomy_orchestrator import (
+    AutonomyOrchestrator,
 )
 
 

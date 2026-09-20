@@ -1,7 +1,6 @@
 from dairyos.herd.health.services.clinical_observation_service import (
-    ClinicalObservationService
+    ClinicalObservationService,
 )
-
 
 
 def test_observation_animal_id():

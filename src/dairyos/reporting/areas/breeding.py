@@ -37,8 +37,21 @@ from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     normalize_event_type,
 )
 from dairyos.reporting.areas.herd import BREED_FILTER, classify, is_current
-from dairyos.reporting.context import ReportContext, ReportParameterError, clean_text, money, to_date
-from dairyos.reporting.definitions import Column, Filter, Metric, ReportDefinition, ReportResult, Section
+from dairyos.reporting.context import (
+    ReportContext,
+    ReportParameterError,
+    clean_text,
+    money,
+    to_date,
+)
+from dairyos.reporting.definitions import (
+    Column,
+    Filter,
+    Metric,
+    ReportDefinition,
+    ReportResult,
+    Section,
+)
 from dairyos.reporting.engine import column_set
 
 AREA = "breeding"

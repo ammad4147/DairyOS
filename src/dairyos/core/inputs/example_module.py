@@ -4,14 +4,13 @@ Example input module implementation for DairyOS.
 This module demonstrates how to implement a concrete input module.
 """
 
-from typing import Any, Dict, Optional
 import asyncio
+import logging
 import random
 from datetime import datetime
-import logging
+from typing import Any
 
-from .module import InputModule, InputStatus, DataQuality
-
+from .module import InputModule, InputStatus
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class ExampleInputModule(InputModule):
     that can be managed by the InputManager.
     """
     
-    def __init__(self, module_id: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, module_id: str, config: dict[str, Any] | None = None):
         """
         Initialize the example input module.
         
@@ -160,7 +159,7 @@ class ExampleInputModule(InputModule):
         except Exception:
             return False
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Perform a health check on the input module.
         
@@ -179,7 +178,7 @@ class ExampleInputModule(InputModule):
             "last_read_value": self._last_read_value
         }
     
-    async def calibrate(self, calibration_data: Dict[str, Any]) -> bool:
+    async def calibrate(self, calibration_data: dict[str, Any]) -> bool:
         """
         Perform a calibration routine for this module.
         

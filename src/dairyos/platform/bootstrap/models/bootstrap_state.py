@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -17,4 +17,4 @@ class BootstrapState:
     def mark_started(self, service_count: int):
         self.initialized = True
         self.service_count = service_count
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(UTC)

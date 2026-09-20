@@ -1,9 +1,6 @@
 from dairyos.core.configuration.services.config_manager import ConfigurationManager
-
 from dairyos.core.system.health import system_health
-
 from dairyos.core.system.info import system_info
-
 
 
 def test_configuration():

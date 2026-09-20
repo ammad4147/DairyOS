@@ -10,18 +10,15 @@ Does not contain intelligence logic.
 """
 
 
-from dairyos.herd.dashboard.models.executive_intelligence_summary import (
-    ExecutiveIntelligenceSummary,
-)
-
 from dairyos.herd.dashboard.models.executive_cockpit import (
     ExecutiveCockpit,
 )
-
 from dairyos.herd.dashboard.models.executive_command_center import (
     ExecutiveCommandCenter,
 )
-
+from dairyos.herd.dashboard.models.executive_intelligence_summary import (
+    ExecutiveIntelligenceSummary,
+)
 
 
 class ExecutiveIntelligenceBridge:

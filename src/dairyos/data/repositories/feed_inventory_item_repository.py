@@ -1,7 +1,7 @@
-from datetime import datetime
+
+from dairyos.core.time_utils import utcnow
 
 from ..models.feed_inventory_item import FeedInventoryItem
-from dairyos.core.time_utils import utcnow
 
 
 class FeedInventoryItemRepository:

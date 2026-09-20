@@ -16,7 +16,6 @@ from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
 
-
 _REASON = "POST_CALVING_PLANNED_RETURN"
 _MILKING_FREQUENCIES = {"TWICE_DAILY", "THRICE_DAILY"}
 

@@ -1,18 +1,14 @@
 from datetime import datetime
 
-
 from dairyos.operations.effectiveness.models.operational_effectiveness import (
     OperationalEffectiveness,
 )
-
-from dairyos.operations.effectiveness.services.effectiveness_calculation_service import (
-    EffectivenessCalculationService,
-)
-
 from dairyos.operations.effectiveness.services.effectiveness_analysis_service import (
     EffectivenessAnalysisService,
 )
-
+from dairyos.operations.effectiveness.services.effectiveness_calculation_service import (
+    EffectivenessCalculationService,
+)
 
 
 def test_effectiveness_calculation():

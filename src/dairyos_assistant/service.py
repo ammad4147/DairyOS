@@ -27,15 +27,16 @@ from __future__ import annotations
 import json
 import re
 import sys
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, Iterable, Sequence, TextIO
+from typing import Any, TextIO
 
 from dairyos_assistant import __version__
 from dairyos_assistant.generation import generate_answer, generate_general_answer
 from dairyos_assistant.model import ModelProvider, NullProvider
 from dairyos_assistant.policy import (
-    Decision,
     REFUSAL_TEXT,
+    Decision,
     classify,
     is_instructional,
 )
@@ -55,14 +56,11 @@ PROTOCOL_VERSION = 1
 EVIDENCE_LIMIT = 4
 
 _DAIRYOS_HINTS = frozenset(
-    "dairyos milk feed tmr animal herd cow health breeding finance dashboard "
-    "report settings backup restore installation farm record session ration "
-    "cop opex vaccination calving pasture"
-    .split()
+    ["dairyos", "milk", "feed", "tmr", "animal", "herd", "cow", "health", "breeding", "finance", "dashboard", "report", "settings", "backup", "restore", "installation", "farm", "record", "session", "ration", "cop", "opex", "vaccination", "calving", "pasture"]
 )
 
 _GENERAL_DAIRY_EFFECT_WORDS = frozenset(
-    "weather climate heat humidity temperature season".split()
+    ["weather", "climate", "heat", "humidity", "temperature", "season"]
 )
 
 
@@ -80,7 +78,7 @@ def _is_general_dairy_effect_question(question: str) -> bool:
     """
     words = set(re.findall(r"[a-z0-9]+", question.lower()))
     return bool(words & _GENERAL_DAIRY_EFFECT_WORDS) and not bool(
-        re.search(r"\b(?:dairyos|in\s+dairyos|how\s+do\s+i|where\s+do\s+i)\b", question, re.I)
+        re.search(r"\b(?:dairyos|in\s+dairyos|how\s+do\s+i|where\s+do\s+i)\b", question, re.IGNORECASE)
     )
 
 

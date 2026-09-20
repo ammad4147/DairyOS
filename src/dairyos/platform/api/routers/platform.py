@@ -1,9 +1,6 @@
 from fastapi import APIRouter
 
-from dairyos.platform.api.services.platform_health_service import (
-    PlatformHealthService
-)
-
+from dairyos.platform.api.services.platform_health_service import PlatformHealthService
 
 router = APIRouter(
     prefix="/platform",

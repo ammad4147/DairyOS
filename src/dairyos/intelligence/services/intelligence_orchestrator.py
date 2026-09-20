@@ -1,23 +1,18 @@
-from dairyos.intelligence.registry.signal_registry import (
-    IntelligenceSignalRegistry,
-)
-
-from dairyos.intelligence.services.intelligence_detection_service import (
-    IntelligenceDetectionService,
-)
-
-from dairyos.intelligence.services.intelligence_analysis_service import (
-    IntelligenceAnalysisService,
-)
-
-from dairyos.intelligence.services.intelligence_recommendation_service import (
-    IntelligenceRecommendationService,
-)
-
 from dairyos.intelligence.models.intelligence_pipeline_result import (
     IntelligencePipelineResult,
 )
-
+from dairyos.intelligence.registry.signal_registry import (
+    IntelligenceSignalRegistry,
+)
+from dairyos.intelligence.services.intelligence_analysis_service import (
+    IntelligenceAnalysisService,
+)
+from dairyos.intelligence.services.intelligence_detection_service import (
+    IntelligenceDetectionService,
+)
+from dairyos.intelligence.services.intelligence_recommendation_service import (
+    IntelligenceRecommendationService,
+)
 
 
 class IntelligenceOrchestrator:

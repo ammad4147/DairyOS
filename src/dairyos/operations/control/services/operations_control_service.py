@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.control_attention import ControlAttention
 from ..models.operations_control_status import OperationsControlStatus
@@ -11,7 +10,7 @@ class OperationsControlService:
 
 
     def __init__(self):
-        self.attentions: List[ControlAttention] = []
+        self.attentions: list[ControlAttention] = []
 
 
     def register_attention(

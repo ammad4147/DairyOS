@@ -3,7 +3,6 @@ from dairyos.intelligence.application.executive_intelligence_facade import (
 )
 
 
-
 def test_executive_intelligence_facade_execution():
 
 

@@ -1,26 +1,10 @@
 from datetime import datetime
 
-
-from dairyos.herd.health.models.treatment_record import (
-    TreatmentRecord
-)
-
-from dairyos.herd.health.models.treatment_response import (
-    TreatmentResponse
-)
-
-from dairyos.herd.health.models.recovery_outcome import (
-    RecoveryOutcome
-)
-
-from dairyos.herd.health.services.treatment_service import (
-    TreatmentService
-)
-
-from dairyos.herd.health.services.recovery_monitor_service import (
-    RecoveryMonitorService
-)
-
+from dairyos.herd.health.models.recovery_outcome import RecoveryOutcome
+from dairyos.herd.health.models.treatment_record import TreatmentRecord
+from dairyos.herd.health.models.treatment_response import TreatmentResponse
+from dairyos.herd.health.services.recovery_monitor_service import RecoveryMonitorService
+from dairyos.herd.health.services.treatment_service import TreatmentService
 
 
 def test_create_treatment():

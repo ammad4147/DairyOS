@@ -3,7 +3,6 @@ from dairyos.operations.workforce_intelligence.models.workforce_command_snapshot
 )
 
 
-
 class WorkforceCommandService:
     """
     Consolidates workforce intelligence domains

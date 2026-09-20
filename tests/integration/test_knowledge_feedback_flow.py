@@ -13,20 +13,17 @@ Operational Improvement
 
 def test_knowledge_feedback_components():
 
-    from dairyos.intelligence.learning_feedback.gateway.learning_gateway import (
-        LearningGateway,
-    )
-
-    from dairyos.intelligence.learning_feedback.services.learning_feedback_service import (
-        LearningFeedbackService,
-    )
-
     from dairyos.intelligence.knowledge.gateway.knowledge_gateway import (
         KnowledgeGateway,
     )
-
     from dairyos.intelligence.knowledge.services.knowledge_service import (
         KnowledgeService,
+    )
+    from dairyos.intelligence.learning_feedback.gateway.learning_gateway import (
+        LearningGateway,
+    )
+    from dairyos.intelligence.learning_feedback.services.learning_feedback_service import (
+        LearningFeedbackService,
     )
 
 

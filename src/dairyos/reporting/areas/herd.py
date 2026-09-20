@@ -20,8 +20,23 @@ from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
     AnimalClassificationService,
 )
-from dairyos.reporting.context import ReportContext, age_label, age_months, clean_text, money, to_date, upper
-from dairyos.reporting.definitions import Column, Filter, Metric, ReportDefinition, ReportResult, Section
+from dairyos.reporting.context import (
+    ReportContext,
+    age_label,
+    age_months,
+    clean_text,
+    money,
+    to_date,
+    upper,
+)
+from dairyos.reporting.definitions import (
+    Column,
+    Filter,
+    Metric,
+    ReportDefinition,
+    ReportResult,
+    Section,
+)
 from dairyos.reporting.engine import column_set
 
 AREA = "herd"
@@ -241,7 +256,7 @@ def build_by_category(ctx: ReportContext) -> ReportResult:
 
     current = [a for a in ctx.animals() if is_current(a)]
     counts = {c: 0 for c in CATEGORY_ORDER}
-    breeds: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
+    breeds: OrderedDict[str, dict[str, Any]] = OrderedDict()
     for animal in current:
         category = classify(animal)[0]
         counts[category] += 1
@@ -482,7 +497,9 @@ def _timeline_text(record: Any) -> str | None:
 
 
 def build_passport(ctx: ReportContext) -> ReportResult:
-    from dairyos.application.database_aware_animal_passport import DatabaseAwareLifetimeAnimalPassportService
+    from dairyos.application.database_aware_animal_passport import (
+        DatabaseAwareLifetimeAnimalPassportService,
+    )
     from dairyos.reporting.context import ReportParameterError
 
     animal_id = ctx.filter("animal_id")

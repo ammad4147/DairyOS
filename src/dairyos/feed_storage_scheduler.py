@@ -7,7 +7,6 @@ from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
 )
 
-
 log = logging.getLogger(__name__)
 
 

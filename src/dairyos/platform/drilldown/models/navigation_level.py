@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class NavigationLevel(str, Enum):
 
     EXECUTIVE = "executive"

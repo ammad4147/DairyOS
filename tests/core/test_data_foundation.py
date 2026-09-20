@@ -1,10 +1,10 @@
 from dairyos.data.database.database import initialize_database
-from dairyos.data.database.session import SessionLocal, engine
 from dairyos.data.database.models.farm_model import FarmModel
-from dairyos.data.models.farm import Farm
+from dairyos.data.database.session import SessionLocal, engine
 from dairyos.data.models.animal import Animal
-from dairyos.data.repositories.farm_repository import FarmRepository
+from dairyos.data.models.farm import Farm
 from dairyos.data.repositories.animal_repository import AnimalRepository
+from dairyos.data.repositories.farm_repository import FarmRepository
 
 
 def _clean_farms(session):

@@ -1,30 +1,20 @@
-from datetime import datetime, UTC
-
-
-from dairyos.farm.operations.models.farm_operation_event import (
-    FarmOperationEvent,
-)
-
-
-from dairyos.farm.herd.repository.animal_operational_state_repository import (
-    AnimalOperationalStateRepository,
-)
-
-
-from dairyos.farm.herd.services.animal_event_projection import (
-    AnimalEventProjection,
-)
-
-
-from dairyos.farm.herd.services.animal_operational_bridge import (
-    AnimalOperationalBridge,
-)
-
+from datetime import UTC, datetime
 
 from dairyos.farm.herd.models.animal_operational_state import (
     AnimalOperationalState,
 )
-
+from dairyos.farm.herd.repository.animal_operational_state_repository import (
+    AnimalOperationalStateRepository,
+)
+from dairyos.farm.herd.services.animal_event_projection import (
+    AnimalEventProjection,
+)
+from dairyos.farm.herd.services.animal_operational_bridge import (
+    AnimalOperationalBridge,
+)
+from dairyos.farm.operations.models.farm_operation_event import (
+    FarmOperationEvent,
+)
 
 
 class TestAnimalIntelligenceService:

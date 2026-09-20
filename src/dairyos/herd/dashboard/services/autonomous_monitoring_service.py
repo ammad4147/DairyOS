@@ -1,7 +1,6 @@
 from ..models.monitoring_event import MonitoringEvent
 
 
-
 class AutonomousMonitoringService:
 
 

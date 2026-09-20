@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -101,19 +100,19 @@ class OperationalExecution:
 
     status: str = CREATED
 
-    assigned_at: Optional[datetime] = None
-    acknowledged_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    verified_at: Optional[datetime] = None
-    closed_at: Optional[datetime] = None
+    assigned_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    verified_at: datetime | None = None
+    closed_at: datetime | None = None
 
-    acknowledged_by: Optional[str] = None
-    started_by: Optional[str] = None
-    completed_by: Optional[str] = None
-    verified_by: Optional[str] = None
+    acknowledged_by: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    verified_by: str | None = None
 
-    notes: Optional[str] = None
+    notes: str | None = None
 
     created_at: datetime = field(
         default_factory=datetime.now
@@ -166,7 +165,7 @@ class OperationalExecution:
 
     def start(
         self,
-        actor: Optional[str] = None,
+        actor: str | None = None,
     ) -> None:
 
         self._transition(self.STARTED)
@@ -176,8 +175,8 @@ class OperationalExecution:
 
     def complete(
         self,
-        notes: Optional[str] = None,
-        actor: Optional[str] = None,
+        notes: str | None = None,
+        actor: str | None = None,
     ) -> None:
 
         self._transition(self.COMPLETED)
@@ -188,7 +187,7 @@ class OperationalExecution:
 
     def verify(
         self,
-        actor: Optional[str] = None,
+        actor: str | None = None,
     ) -> None:
 
         self._transition(self.VERIFIED)

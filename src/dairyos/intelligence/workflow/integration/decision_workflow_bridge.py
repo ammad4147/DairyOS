@@ -1,7 +1,6 @@
 from dairyos.intelligence.decision.gateway.decision_gateway import (
     DecisionGateway,
 )
-
 from dairyos.intelligence.workflow.gateway.workflow_gateway import (
     WorkflowGateway,
 )

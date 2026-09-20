@@ -128,7 +128,6 @@ def test_monitoring_uses_frequency_effective_on_current_operational_date(
 
     def fake_detect_drop(*args, **kwargs):
         captured.update(kwargs)
-        return None
 
     monkeypatch.setattr(
         "dairyos.farm.production.services.milk_cycle_monitoring_service.detect_drop",
@@ -211,7 +210,6 @@ def test_monitoring_passes_date_aware_schedule_to_individual_drop_detector(
 
     def fake_detect_drop(*args, **kwargs):
         captured.update(kwargs)
-        return None
 
     monkeypatch.setattr(
         "dairyos.farm.production.services.milk_cycle_monitoring_service.detect_drop",

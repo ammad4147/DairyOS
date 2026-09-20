@@ -18,10 +18,17 @@ from pydantic import BaseModel, Field, field_validator
 
 from dairyos.api.dependencies import get_container
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.reporting import export as exporters
 from dairyos.reporting.context import ReportParameterError
-from dairyos.reporting.engine import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, ReportRequest, run_report
+from dairyos.reporting.engine import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    ReportRequest,
+    run_report,
+)
 from dairyos.reporting.periods import PERIOD_MODE_LABELS, PERIOD_MODES, QUARTER_LABELS
 from dairyos.reporting.registry import catalog, get_report
 

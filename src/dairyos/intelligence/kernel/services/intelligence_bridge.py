@@ -1,13 +1,10 @@
-from typing import List
-
-from dairyos.intelligence.kernel.models.intelligence_signal import (
-    IntelligenceSignal,
-)
 
 from dairyos.intelligence.kernel.models.intelligence_decision import (
     IntelligenceDecision,
 )
-
+from dairyos.intelligence.kernel.models.intelligence_signal import (
+    IntelligenceSignal,
+)
 from dairyos.intelligence.kernel.services.intelligence_kernel import (
     IntelligenceKernel,
 )
@@ -37,8 +34,8 @@ class IntelligenceBridge:
 
     def evaluate_signals(
         self,
-        signals: List[IntelligenceSignal],
-    ) -> List[IntelligenceDecision]:
+        signals: list[IntelligenceSignal],
+    ) -> list[IntelligenceDecision]:
 
         decisions = []
 

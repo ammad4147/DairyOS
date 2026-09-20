@@ -1,7 +1,6 @@
 from ..models.preventive_action_plan import PreventiveActionPlan
 
 
-
 class PreventiveActionService:
 
 

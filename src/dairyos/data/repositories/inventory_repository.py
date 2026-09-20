@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+
 from sqlalchemy import text
 
 from dairyos.core.inventory_units import convert_quantity

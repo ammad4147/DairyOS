@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 from dairyos.finance.opex_attribution import attributed_amount
 
-
 ROOT = Path(__file__).resolve().parents[1]
 COML_API = (ROOT / "src/dairyos/api/coml.py").read_text(encoding="utf-8")
 FINANCE_API = (ROOT / "src/dairyos/api/finance_ledger.py").read_text(encoding="utf-8")

@@ -1,5 +1,5 @@
-from datetime import date
 import uuid
+from datetime import date
 
 
 def _register_milking_animal(client):

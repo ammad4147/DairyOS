@@ -15,9 +15,8 @@ from intelligence composition internals.
 """
 
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
-
 
 
 class AutonomousRuntimeSession:
@@ -55,7 +54,7 @@ class AutonomousRuntimeSession:
 
 
         started_at = datetime.now(
-            timezone.utc
+            UTC
         ).isoformat()
 
 
@@ -70,7 +69,7 @@ class AutonomousRuntimeSession:
 
 
         completed_at = datetime.now(
-            timezone.utc
+            UTC
         ).isoformat()
 
 

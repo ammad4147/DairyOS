@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.coml_record import COMLRecord

@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from typing import List
-
-from dairyos.intelligence.kernel.registry.signal_registry import (
-    IntelligenceSignalRegistry,
-)
 
 from dairyos.intelligence.kernel.models.intelligence_outcome import (
     IntelligenceOutcome,
+)
+from dairyos.intelligence.kernel.registry.signal_registry import (
+    IntelligenceSignalRegistry,
 )
 
 
@@ -33,7 +31,7 @@ class SignalEvaluator:
         self.registry = registry
 
 
-    def evaluate(self) -> List[IntelligenceEvaluation]:
+    def evaluate(self) -> list[IntelligenceEvaluation]:
 
         evaluations = []
 
@@ -51,7 +49,7 @@ class SignalEvaluator:
         return evaluations
 
 
-    def evaluate_outcomes(self) -> List[IntelligenceOutcome]:
+    def evaluate_outcomes(self) -> list[IntelligenceOutcome]:
 
         outcomes = []
 

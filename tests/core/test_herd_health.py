@@ -1,21 +1,7 @@
 from datetime import date
 
-
-from dairyos.herd.health.models import (
-
-    HealthRecord,
-
-    Vaccination
-
-)
-
-
-from dairyos.herd.health.services.health_service import (
-
-    HealthService
-
-)
-
+from dairyos.herd.health.models import HealthRecord, Vaccination
+from dairyos.herd.health.services.health_service import HealthService
 
 
 def test_health_record_creation():

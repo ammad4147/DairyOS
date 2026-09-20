@@ -1,13 +1,11 @@
 from dairyos.intelligence.kernel.memory.intelligence_memory import (
     IntelligenceMemory,
 )
-
-from dairyos.intelligence.kernel.models.intelligence_signal import (
-    IntelligenceSignal,
-)
-
 from dairyos.intelligence.kernel.models.intelligence_decision import (
     IntelligenceDecision,
+)
+from dairyos.intelligence.kernel.models.intelligence_signal import (
+    IntelligenceSignal,
 )
 
 

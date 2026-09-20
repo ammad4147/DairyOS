@@ -14,7 +14,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.findings.services.operational_finding_service import OperationalFindingService
+from dairyos.farm.findings.services.operational_finding_service import (
+    OperationalFindingService,
+)
 
 router = APIRouter(prefix="/farm/findings", tags=["Operational Findings"])
 

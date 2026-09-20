@@ -1,9 +1,8 @@
-from dairyos.intelligence.learning.repository.learning_repository import (
-    LearningRepository,
-)
-
 from dairyos.intelligence.learning.models.learning_signal import (
     LearningSignal,
+)
+from dairyos.intelligence.learning.repository.learning_repository import (
+    LearningRepository,
 )
 
 

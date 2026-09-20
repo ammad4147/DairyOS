@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.farm.production.models.non_milking_directive import (
     NonMilkingDirective,
@@ -54,7 +54,7 @@ class NonMilkingDirectiveService:
             getattr(animal, "is_currently_milking", False)
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         animal.non_milking_directive = directive.value
         animal.non_milking_since = now
@@ -95,7 +95,7 @@ class NonMilkingDirectiveService:
             animal_id,
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         animal.non_milking_directive = (
             NonMilkingDirective.NONE.value

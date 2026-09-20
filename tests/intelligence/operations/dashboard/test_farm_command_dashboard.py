@@ -1,12 +1,9 @@
 from dairyos.intelligence.operations.dashboard.farm_command_dashboard import (
     FarmCommandDashboard,
 )
-
-
 from dairyos.intelligence.operations.models.farm_situation import (
     FarmSituation,
 )
-
 
 
 def test_dashboard_builds_operational_view():

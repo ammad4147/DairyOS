@@ -2,7 +2,6 @@ import re
 import subprocess
 from pathlib import PurePosixPath
 
-
 DEBRIS_PATTERNS = (
     re.compile(r"\.g\d+-backup$", re.IGNORECASE),
     re.compile(r"\.corrupted-\d{8}-\d{6}\.bak$", re.IGNORECASE),

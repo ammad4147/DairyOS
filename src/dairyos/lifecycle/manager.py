@@ -12,24 +12,21 @@ import importlib.metadata
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Callable
 
 from dairyos.data.database.backup import (
     PostgreSQLBackupError,
     create_backup,
     database_semantic_fingerprint,
-    restore_backup,
     verify_backup_archive,
 )
 from dairyos.platform import paths
-
 
 MANIFEST_NAME = "lifecycle.json"
 PURGE_CONFIRMATION = "PURGE DAIRYOS DATA"
@@ -178,7 +175,7 @@ class LifecycleManager:
             raise LifecycleError(
                 "A verified DairyOS backup requires a PostgreSQL database URL."
             )
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         destination = self.backup_root / f"{timestamp}-{_safe_label(label)}"
         staging_parent = self.backup_root / ".staging"
         staging_parent.mkdir(parents=True, exist_ok=True)
@@ -320,7 +317,7 @@ class LifecycleManager:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _python_version() -> str:

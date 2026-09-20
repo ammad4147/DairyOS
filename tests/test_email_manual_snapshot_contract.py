@@ -1,10 +1,9 @@
-from datetime import date, datetime
 import inspect
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from dairyos.email.digest import DashboardDigestService
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_API = (ROOT / "src/dairyos/api/settings.py").read_text(encoding="utf-8")

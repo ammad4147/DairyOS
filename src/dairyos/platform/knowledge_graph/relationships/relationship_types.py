@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class RelationshipType(Enum):
 
     OWNS = "owns"

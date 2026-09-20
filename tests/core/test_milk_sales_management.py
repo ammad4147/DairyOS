@@ -1,5 +1,6 @@
-from dairyos.commercial.sales.services.milk_sales_management_service import MilkSalesManagementService
-
+from dairyos.commercial.sales.services.milk_sales_management_service import (
+    MilkSalesManagementService,
+)
 
 
 def test_sale_id():

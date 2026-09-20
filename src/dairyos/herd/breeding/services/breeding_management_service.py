@@ -1,7 +1,6 @@
 from ..models.breeding_management import BreedingManagement
 
 
-
 class BreedingManagementService:
 
 

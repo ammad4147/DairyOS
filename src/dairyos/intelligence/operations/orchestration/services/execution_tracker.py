@@ -1,13 +1,11 @@
 from dairyos.intelligence.operations.orchestration.models.execution_record import (
     ExecutionRecord,
 )
-
-from dairyos.operations.execution.services.operational_execution_service import (
-    OperationalExecutionService,
-)
-
 from dairyos.operations.execution.services.execution_tracking_service import (
     ExecutionTrackingService,
+)
+from dairyos.operations.execution.services.operational_execution_service import (
+    OperationalExecutionService,
 )
 
 

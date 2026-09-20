@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.decision_learning_service import DecisionLearningService
-
+from dairyos.herd.dashboard.services.decision_learning_service import (
+    DecisionLearningService,
+)
 
 
 def test_learning_creation():

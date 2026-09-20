@@ -33,32 +33,26 @@ class AutonomousIntelligenceComposer:
 
     def __init__(self):
 
-        from dairyos.intelligence.prediction.gateway.prediction_gateway import (
-            PredictionGateway,
-        )
-
-        from dairyos.intelligence.decision.gateway.decision_gateway import (
-            DecisionGateway,
-        )
-
         from dairyos.intelligence.command.gateway.command_gateway import (
             CommandGateway,
         )
-
+        from dairyos.intelligence.decision.gateway.decision_gateway import (
+            DecisionGateway,
+        )
         from dairyos.intelligence.execution.gateway.execution_gateway import (
             ExecutionGateway,
         )
-
-        from dairyos.intelligence.memory.gateway.memory_gateway import (
-            MemoryGateway,
+        from dairyos.intelligence.integration.decision_governance_service import (
+            DecisionGovernanceService,
         )
-
         from dairyos.intelligence.learning.gateway.learning_gateway import (
             LearningGateway,
         )
-
-        from dairyos.intelligence.integration.decision_governance_service import (
-            DecisionGovernanceService,
+        from dairyos.intelligence.memory.gateway.memory_gateway import (
+            MemoryGateway,
+        )
+        from dairyos.intelligence.prediction.gateway.prediction_gateway import (
+            PredictionGateway,
         )
 
 

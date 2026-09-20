@@ -3,7 +3,6 @@ from dairyos.platform.autonomy.learning.models.autonomy_feedback import (
 )
 
 
-
 class AutonomyLearningService:
     """
     Converts operational outcomes into learning signals.

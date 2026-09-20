@@ -1,23 +1,33 @@
 """Persistent reproduction-management projections and operational KPIs."""
 
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from dairyos.api.dependencies import get_container
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.herd.reproduction.services.reproductive_event_classifier import (
-    is_calving as _is_calving,
-    is_confirmed_pregnancy as _is_confirmed_pregnancy,
-    is_insemination as _is_insemination,
-    is_pregnancy_check as _is_pregnancy_check,
-    normalize_event_type,
-)
-from dairyos.herd.reproduction.services.reproduction_kpi_service import ReproductionKpiService
 from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
     BreedingAnalyticsService,
     BreedingCycleProjectionService,
+)
+from dairyos.herd.reproduction.services.reproduction_kpi_service import (
+    ReproductionKpiService,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_calving as _is_calving,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_confirmed_pregnancy as _is_confirmed_pregnancy,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_insemination as _is_insemination,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    is_pregnancy_check as _is_pregnancy_check,
+)
+from dairyos.herd.reproduction.services.reproductive_event_classifier import (
+    normalize_event_type,
 )
 
 router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"])
@@ -25,10 +35,10 @@ router = APIRouter(prefix="/farm/reproduction", tags=["Reproduction Management"]
 
 def _as_utc(value: datetime | None) -> datetime:
     if value is None:
-        return datetime.min.replace(tzinfo=timezone.utc)
+        return datetime.min.replace(tzinfo=UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _fresh_factory(container):
@@ -135,7 +145,7 @@ def _insemination_attempt_success(records):
     }
 
 def _management(records):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(days=365)
 
     recent = [

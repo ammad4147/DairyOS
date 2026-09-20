@@ -3,7 +3,6 @@ from dairyos.operations.workflows.services.workflow_service import (
 )
 
 
-
 class WorkflowRuntimeGateway:
     """
     Runtime boundary for operational workflows.

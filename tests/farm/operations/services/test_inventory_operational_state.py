@@ -1,19 +1,15 @@
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
-
 from dairyos.farm.operations.state.memory_operational_state_repository import (
     MemoryOperationalStateRepository,
 )
-
 from dairyos.farm.operations.state.operational_decision_service import (
     OperationalDecisionService,
 )
-
 
 
 def test_inventory_status_updates_operational_state():

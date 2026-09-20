@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -41,5 +41,5 @@ class OperationalTraceability:
     closure_reference: str | None = None
 
     created_at: datetime = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
     )

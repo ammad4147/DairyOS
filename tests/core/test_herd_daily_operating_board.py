@@ -1,9 +1,10 @@
-from dairyos.herd.dashboard.services.daily_operating_board_service import DailyOperatingBoardService
-
-from dairyos.herd.dashboard.models.executive_command_center import ExecutiveCommandCenter
-
+from dairyos.herd.dashboard.models.executive_command_center import (
+    ExecutiveCommandCenter,
+)
 from dairyos.herd.dashboard.models.owner_action import OwnerAction
-
+from dairyos.herd.dashboard.services.daily_operating_board_service import (
+    DailyOperatingBoardService,
+)
 
 
 def test_daily_board_creation():

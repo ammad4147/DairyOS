@@ -25,7 +25,6 @@ from dairyos.knowledge_bridge import (
     sanitised_environment,
 )
 
-
 ROOT = Path(__file__).resolve().parents[2]
 API_SOURCE = ROOT / "src" / "dairyos" / "api" / "assistant.py"
 BRIDGE_SOURCE = ROOT / "src" / "dairyos" / "knowledge_bridge.py"

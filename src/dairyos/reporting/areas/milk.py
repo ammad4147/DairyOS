@@ -15,11 +15,27 @@ from typing import Any
 
 from dairyos.data.models.milk_disposition import MilkDisposition
 from dairyos.data.models.milk_production import MilkProduction
-from dairyos.farm.production.services.milk_reconciliation_service import MilkReconciliationService
+from dairyos.farm.production.services.milk_reconciliation_service import (
+    MilkReconciliationService,
+)
 from dairyos.reporting.areas.herd import BREED_FILTER, GROUP_FILTER
-from dairyos.reporting.context import ReportContext, ReportParameterError, clean_text, money, ratio, to_date, upper
+from dairyos.reporting.context import (
+    ReportContext,
+    ReportParameterError,
+    clean_text,
+    money,
+    ratio,
+    to_date,
+    upper,
+)
 from dairyos.reporting.definitions import (
-    Column, Filter, Metric, ReconciliationCheck, ReportDefinition, ReportResult, Section,
+    Column,
+    Filter,
+    Metric,
+    ReconciliationCheck,
+    ReportDefinition,
+    ReportResult,
+    Section,
 )
 from dairyos.reporting.engine import column_set
 from dairyos.reporting.periods import month_sequence
@@ -159,7 +175,7 @@ BY_ANIMAL_COLUMNS = column_set(
 def build_by_animal(ctx: ReportContext) -> ReportResult:
     allowed = _animal_attribute_filter(ctx)
     animals = ctx.animal_index()
-    buckets: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
+    buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
     for record in production_rows(ctx, ctx.period.start, ctx.period.end, animal_id=ctx.filter("animal_id")):
         animal_id = str(record.animal_id)
         if allowed is not None and animal_id not in allowed:

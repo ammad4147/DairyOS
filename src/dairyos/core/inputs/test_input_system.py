@@ -5,11 +5,10 @@ This file demonstrates how to use the input system components.
 """
 
 import asyncio
-from datetime import datetime
 from typing import Any
 
-from .manager import InputManager, ModuleConfig
 from .example_module import ExampleInputModule
+from .manager import InputManager, ModuleConfig
 from .module import InputData, InputError
 
 

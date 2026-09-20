@@ -1,4 +1,3 @@
-from dairyos.api.app import app
 
 
 def test_command_status_endpoint(client):

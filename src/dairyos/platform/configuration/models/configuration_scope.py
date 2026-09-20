@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class ConfigurationScope(str, Enum):
 
     GLOBAL = "global"

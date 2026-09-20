@@ -1,6 +1,7 @@
-from dairyos.herd.dashboard.services.action_execution_service import ActionExecutionService
 from dairyos.herd.dashboard.models.recommendation import Recommendation
-
+from dairyos.herd.dashboard.services.action_execution_service import (
+    ActionExecutionService,
+)
 
 
 def test_action_creation():

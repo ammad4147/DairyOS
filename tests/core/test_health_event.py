@@ -1,7 +1,4 @@
-from dairyos.herd.health.services.health_event_service import (
-    HealthEventService
-)
-
+from dairyos.herd.health.services.health_event_service import HealthEventService
 
 
 def test_create_health_event():

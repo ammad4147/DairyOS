@@ -3,7 +3,6 @@ from dairyos.platform.command_center.knowledge.knowledge_view_service import (
 )
 
 
-
 def test_command_center_knowledge_summary():
 
 

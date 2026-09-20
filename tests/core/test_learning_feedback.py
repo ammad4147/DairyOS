@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.learning_feedback_service import LearningFeedbackService
-
+from dairyos.herd.dashboard.services.learning_feedback_service import (
+    LearningFeedbackService,
+)
 
 
 def test_learning_signal_creation():

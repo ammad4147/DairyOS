@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_calving,
@@ -130,7 +131,7 @@ class ReproductiveStateService:
                 timestamp = datetime.combine(
                     raw_timestamp,
                     datetime.min.time(),
-                    tzinfo=timezone.utc,
+                    tzinfo=UTC,
                 )
             elif isinstance(raw_timestamp, str):
                 try:
@@ -147,9 +148,9 @@ class ReproductiveStateService:
                 )
 
             if timestamp.tzinfo is None:
-                timestamp = timestamp.replace(tzinfo=timezone.utc)
+                timestamp = timestamp.replace(tzinfo=UTC)
             else:
-                timestamp = timestamp.astimezone(timezone.utc)
+                timestamp = timestamp.astimezone(UTC)
 
         return {
             "animal_id": animal_id,
@@ -174,7 +175,7 @@ class ReproductiveStateService:
             timestamp = datetime.combine(
                 event["event_date"],
                 datetime.min.time(),
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
         return SimpleNamespace(
             animal_id=event["animal_id"],
@@ -201,7 +202,7 @@ class ReproductiveStateService:
         normalized.sort(
             key=lambda event: (
                 event["timestamp"] is None,
-                event["timestamp"] or datetime.max.replace(tzinfo=timezone.utc),
+                event["timestamp"] or datetime.max.replace(tzinfo=UTC),
                 event["event_date"],
                 event["record_id"],
             )
@@ -367,11 +368,7 @@ class ReproductiveStateService:
                 pregnancy_status = "PREGNANT"
                 latest_pregnancy = event
                 latest_state_event = event
-            elif self._is_negative_pregnancy_event(event):
-                pregnancy_status = "NOT_PREGNANT"
-                latest_pregnancy = None
-                latest_state_event = event
-            elif event_type in {"pregnancy_lost", "abortion", "stillbirth"}:
+            elif self._is_negative_pregnancy_event(event) or event_type in {"pregnancy_lost", "abortion", "stillbirth"}:
                 pregnancy_status = "NOT_PREGNANT"
                 latest_pregnancy = None
                 latest_state_event = event

@@ -3,7 +3,6 @@ from datetime import datetime
 from dairyos.operations.workflow.models.operational_workflow_event import (
     OperationalWorkflowEvent,
 )
-
 from dairyos.operations.workflow.services.operations_workflow_orchestrator import (
     OperationsWorkflowOrchestrator,
 )

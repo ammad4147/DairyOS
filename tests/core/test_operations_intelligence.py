@@ -3,7 +3,6 @@ from datetime import datetime
 from dairyos.operations.intelligence.models.operational_signal import (
     OperationalSignal,
 )
-
 from dairyos.operations.intelligence.services.operations_intelligence_service import (
     OperationsIntelligenceService,
 )

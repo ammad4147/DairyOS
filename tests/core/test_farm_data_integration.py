@@ -1,5 +1,6 @@
-from dairyos.data.integration.services.farm_data_integration_service import FarmDataIntegrationService
-
+from dairyos.data.integration.services.farm_data_integration_service import (
+    FarmDataIntegrationService,
+)
 
 
 def test_event_id():

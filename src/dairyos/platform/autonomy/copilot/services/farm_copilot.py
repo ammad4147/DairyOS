@@ -3,7 +3,6 @@ from dairyos.platform.autonomy.copilot.models.copilot_response import (
 )
 
 
-
 class FarmCopilot:
     """
     Domain-specific dairy operations assistant.

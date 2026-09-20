@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-from dairyos.domain.events import Event
 from dairyos.farm.command_center.services.operational_command_center_service import (
     OperationalCommandCenterService,
 )

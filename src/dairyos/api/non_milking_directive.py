@@ -17,7 +17,6 @@ from dairyos.farm.production.services.non_milking_directive_service import (
     NonMilkingDirectiveService,
 )
 
-
 router = APIRouter(
     prefix="/farm/animals",
     tags=["Veterinary Non-Milking Directive"],

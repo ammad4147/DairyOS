@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.predictive_signal_service import PredictiveSignalService
-
+from dairyos.herd.dashboard.services.predictive_signal_service import (
+    PredictiveSignalService,
+)
 
 
 def test_signal_creation():

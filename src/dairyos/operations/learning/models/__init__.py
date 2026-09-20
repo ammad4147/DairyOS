@@ -1,3 +1,3 @@
+from .improvement_opportunity import ImprovementOpportunity
 from .learning_signal import LearningSignal
 from .operational_pattern import OperationalPattern
-from .improvement_opportunity import ImprovementOpportunity

@@ -21,7 +21,6 @@ import pytest
 from dairyos.api.health import _knowledge_assistant_check
 from dairyos.knowledge_bridge import bridge
 
-
 HEALTH_SOURCE = Path(__file__).resolve().parents[2] / "src" / "dairyos" / "api" / "health.py"
 
 

@@ -1,8 +1,10 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
-from dairyos.farm.operations.state.operational_schedule_state import OperationalScheduleState
+from dairyos.farm.operations.state.operational_schedule_state import (
+    OperationalScheduleState,
+)
 from dairyos.milk.models.milking_cycle import MilkingCycle, MilkingFrequency
 
 
@@ -36,7 +38,7 @@ def test_missed_session_remains_pending_until_explicit_outcome():
     state.configure_milking_cycle("A1", 2, "2026-08-15")
     state.schedule_milking_cycles_for_date("2026-08-15")
     assert len(state.pending_milk_sessions("A1", "2026-08-15")) == 2
-    state.record_milking_session("A1", "2026-08-15", "MORNING", "RECORDED", recorded_at=datetime(2026, 8, 15, 6, 10, tzinfo=timezone.utc))
+    state.record_milking_session("A1", "2026-08-15", "MORNING", "RECORDED", recorded_at=datetime(2026, 8, 15, 6, 10, tzinfo=UTC))
     assert len(state.pending_milk_sessions("A1", "2026-08-15")) == 1
 
 
@@ -46,7 +48,7 @@ def test_next_entry_surfaces_prior_missed_session_notification():
     state.schedule_milking_cycles_for_date("2026-08-15")
     outcome = state.record_milking_session(
         "A1", "2026-08-15", "EVENING", "RECORDED",
-        recorded_at=datetime(2026, 8, 15, 21, 5, tzinfo=timezone.utc),
+        recorded_at=datetime(2026, 8, 15, 21, 5, tzinfo=UTC),
     )
     assert outcome["missed_prior_sessions"] == ["MORNING"]
     assert outcome["notifications"][0]["type"] == "MISSED_MILKING_SESSION"
@@ -69,7 +71,7 @@ def test_late_entry_is_flagged_against_scheduled_time():
     state.schedule_milking_cycles_for_date("2026-08-15")
     outcome = state.record_milking_session(
         "A1", "2026-08-15", "MORNING", "RECORDED",
-        recorded_at=datetime(2026, 8, 15, 7, 0, tzinfo=timezone.utc),
+        recorded_at=datetime(2026, 8, 15, 7, 0, tzinfo=UTC),
     )
     assert outcome["late"] is True
 

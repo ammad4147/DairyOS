@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.execution_performance_record import (
     ExecutionPerformanceRecord,
@@ -14,7 +13,7 @@ class PerformanceBridge:
 
     def __init__(self):
 
-        self.records: List[
+        self.records: list[
             ExecutionPerformanceRecord
         ] = []
 
@@ -66,6 +65,6 @@ class PerformanceBridge:
 
     def get_records(
         self,
-    ) -> List[ExecutionPerformanceRecord]:
+    ) -> list[ExecutionPerformanceRecord]:
 
         return self.records

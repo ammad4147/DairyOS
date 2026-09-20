@@ -3,7 +3,6 @@ from dairyos.platform.command_center.models.operational_summary import (
 )
 
 
-
 class CommandAggregator:
     """
     Enterprise operational command aggregation service.

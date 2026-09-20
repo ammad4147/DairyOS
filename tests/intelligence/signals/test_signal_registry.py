@@ -1,12 +1,9 @@
-from dairyos.intelligence.signals.signal_registry import (
-    SignalRegistry,
-)
-
-
 from dairyos.intelligence.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
+from dairyos.intelligence.signals.signal_registry import (
+    SignalRegistry,
+)
 
 
 class TestDetector:

@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.operational_attention import OperationalAttention
 from ..models.operational_command_status import OperationalCommandStatus
@@ -10,7 +9,7 @@ class OperationsCommandService:
     """
 
     def __init__(self):
-        self.attentions: List[OperationalAttention] = []
+        self.attentions: list[OperationalAttention] = []
 
 
     def register_attention(
@@ -23,7 +22,7 @@ class OperationsCommandService:
         return attention
 
 
-    def active_attentions(self) -> List[OperationalAttention]:
+    def active_attentions(self) -> list[OperationalAttention]:
 
         return [
             attention

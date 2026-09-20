@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.learning_signal import LearningSignal
 
@@ -9,7 +8,7 @@ class LearningService:
     """
 
     def __init__(self):
-        self.signals: List[LearningSignal] = []
+        self.signals: list[LearningSignal] = []
 
     def record_signal(
         self,
@@ -20,6 +19,6 @@ class LearningService:
 
         return signal
 
-    def get_signals(self) -> List[LearningSignal]:
+    def get_signals(self) -> list[LearningSignal]:
 
         return list(self.signals)

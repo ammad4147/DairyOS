@@ -3,7 +3,6 @@ from dairyos.intelligence.signals.signal_detector import (
 )
 
 
-
 class SignalRegistry:
     """
     Registry of intelligence signal detectors.

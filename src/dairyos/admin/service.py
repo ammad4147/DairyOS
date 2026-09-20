@@ -9,12 +9,15 @@ import shutil
 import socket
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dairyos.data.database.backup import verify_backup_artifact
 from dairyos.lifecycle.manager import LifecycleError, LifecycleManager, UninstallMode
-from dairyos.lifecycle.purge import create_external_purge_backup, purge_data_after_backup
+from dairyos.lifecycle.purge import (
+    create_external_purge_backup,
+    purge_data_after_backup,
+)
 from dairyos.lifecycle.reset import (
     reset_operational_data,
     verify_file_projection_zero_state,
@@ -288,7 +291,7 @@ def _admin_stage(message: str) -> None:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _local_now() -> str:
@@ -496,7 +499,7 @@ def _copy_external_recovery_artifact(backup: Path) -> Path:
 
 def _write_audit_event(artifact: Path, event: str, payload: dict[str, object]) -> None:
     path = artifact.parent / "admin-audit.jsonl"
-    record = {"timestamp": datetime.now(timezone.utc).isoformat(), "event": event, **payload}
+    record = {"timestamp": datetime.now(UTC).isoformat(), "event": event, **payload}
     with path.open("a", encoding="utf-8", newline="\n") as stream:
         stream.write(json.dumps(record, sort_keys=True) + "\n")
 

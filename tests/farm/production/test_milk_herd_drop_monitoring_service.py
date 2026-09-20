@@ -4,7 +4,6 @@ from dairyos.farm.production.services.milk_herd_drop_monitoring_service import (
     MilkHerdDailyDropMonitoringService,
 )
 
-
 DAY = date(2026, 8, 17)
 
 

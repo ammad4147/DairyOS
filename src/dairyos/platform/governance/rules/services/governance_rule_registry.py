@@ -1,10 +1,7 @@
-from typing import Dict
-
 
 from dairyos.platform.governance.rules.models.governance_rule import (
     GovernanceRule,
 )
-
 
 
 class GovernanceRuleRegistry:
@@ -16,7 +13,7 @@ class GovernanceRuleRegistry:
 
     def __init__(self):
 
-        self._rules: Dict[str, GovernanceRule] = {}
+        self._rules: dict[str, GovernanceRule] = {}
 
 
 

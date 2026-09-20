@@ -3,7 +3,6 @@
 from dairyos.api.tmr import SHARED_PRICE_PREFERENCE_GROUP
 from dairyos.app import container
 
-
 SILAGE = "Corn / Maize Silage"
 VANDA = "Commercial Compound Vanda / Cattle Feed"
 

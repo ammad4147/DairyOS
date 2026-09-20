@@ -1,7 +1,6 @@
 from ..models.herd_context import HerdContext
 
 
-
 class HerdAggregator:
 
 

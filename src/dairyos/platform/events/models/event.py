@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from .event_type import EventType
 from .event_priority import EventPriority
+from .event_type import EventType
 
 
 @dataclass
@@ -29,7 +29,7 @@ class PlatformEvent:
     )
 
     created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     processed: bool = False

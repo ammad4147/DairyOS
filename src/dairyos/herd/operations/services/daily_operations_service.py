@@ -1,7 +1,6 @@
 from ..models.daily_operations import DailyOperations
 
 
-
 class DailyOperationsService:
 
 

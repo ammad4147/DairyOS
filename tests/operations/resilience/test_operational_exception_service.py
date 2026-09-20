@@ -1,11 +1,9 @@
 from dairyos.operations.resilience.repositories.operational_exception_repository import (
     OperationalExceptionRepository,
 )
-
 from dairyos.operations.resilience.services.operational_exception_service import (
     OperationalExceptionService,
 )
-
 
 
 def test_exception_recording():

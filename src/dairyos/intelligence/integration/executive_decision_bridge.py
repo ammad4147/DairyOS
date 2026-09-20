@@ -14,7 +14,6 @@ from dairyos.herd.dashboard.models.executive_decision import (
 )
 
 
-
 class ExecutiveDecisionBridge:
     """
     Converts executive command information

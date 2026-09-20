@@ -1,13 +1,11 @@
+from copy import deepcopy
+
 from dairyos.farm.operations.alerts.operational_heads_up_service import (
     OperationalHeadsUpService,
 )
-
 from dairyos.farm.operations.state.operational_state_runtime import (
     OperationalStateRuntime,
 )
-
-
-from copy import deepcopy
 
 
 class FarmOperationalStateService:

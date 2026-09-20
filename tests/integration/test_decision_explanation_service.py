@@ -1,13 +1,11 @@
-from dairyos.intelligence.decision.services.decision_explanation_service import (
-    DecisionExplanationService,
+from dairyos.intelligence.decision.models.decision_confidence import (
+    DecisionConfidence,
 )
-
 from dairyos.intelligence.decision.models.decision_recommendation import (
     DecisionRecommendation,
 )
-
-from dairyos.intelligence.decision.models.decision_confidence import (
-    DecisionConfidence,
+from dairyos.intelligence.decision.services.decision_explanation_service import (
+    DecisionExplanationService,
 )
 
 

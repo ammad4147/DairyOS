@@ -1,11 +1,9 @@
 from dairyos.farm.health.models.health_record import (
     HealthRecord,
 )
-
 from dairyos.farm.health.repository.health_repository import (
     HealthRepository,
 )
-
 from dairyos.farm.health.services.health_management_service import (
     HealthManagementService,
 )

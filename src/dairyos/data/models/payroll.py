@@ -3,8 +3,9 @@ from decimal import Decimal
 
 from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String, Text
 
-from ..database.base import Base
 from dairyos.core.time_utils import utcnow
+
+from ..database.base import Base
 
 
 class PayrollRecord(Base):
@@ -17,13 +18,13 @@ class PayrollRecord(Base):
     employee_role = Column(String, nullable=False, index=True)
     period_start = Column(Date, nullable=False, index=True)
     period_end = Column(Date, nullable=False, index=True)
-    worked_days = Column(Numeric(10, 2), nullable=False, default=Decimal("0"))
-    base_pay = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
-    overtime_hours = Column(Numeric(10, 2), nullable=False, default=Decimal("0"))
-    overtime_rate = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
-    allowances = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
-    advances = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
-    deductions = Column(Numeric(14, 2), nullable=False, default=Decimal("0"))
+    worked_days = Column(Numeric(10, 2), nullable=False, default=Decimal(0))
+    base_pay = Column(Numeric(14, 2), nullable=False, default=Decimal(0))
+    overtime_hours = Column(Numeric(10, 2), nullable=False, default=Decimal(0))
+    overtime_rate = Column(Numeric(14, 2), nullable=False, default=Decimal(0))
+    allowances = Column(Numeric(14, 2), nullable=False, default=Decimal(0))
+    advances = Column(Numeric(14, 2), nullable=False, default=Decimal(0))
+    deductions = Column(Numeric(14, 2), nullable=False, default=Decimal(0))
     status = Column(String, nullable=False, default="DRAFT", index=True)
     payment_date = Column(Date, nullable=True)
     finance_transaction_id = Column(Integer, nullable=True, unique=True, index=True)

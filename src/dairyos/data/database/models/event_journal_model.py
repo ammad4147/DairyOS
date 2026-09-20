@@ -16,19 +16,18 @@ OperationalEventModel
     = operational database projection used by application queries
 """
 
-from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Integer,
-    JSON,
     String,
 )
 from sqlalchemy.orm import relationship
 
-from dairyos.data.database.base import Base
 from dairyos.core.time_utils import utcnow
+from dairyos.data.database.base import Base
 
 
 class EventJournalModel(Base):

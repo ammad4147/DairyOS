@@ -1,7 +1,6 @@
 from ..models.movement import AnimalMovement
 
 
-
 class MovementEngine:
 
 

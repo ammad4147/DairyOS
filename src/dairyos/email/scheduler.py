@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import date, datetime, time, timedelta, timezone, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.deployment_control_service import (
+    DeploymentControlService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+
 from .digest import DashboardDigestService, expected_digest_date
 
 log = logging.getLogger(__name__)
@@ -79,7 +82,7 @@ class NightlyEmailScheduler:
             return None
         try:
             parsed = datetime.fromisoformat(str(value))
-            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
+            return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed
         except ValueError:
             return None
 

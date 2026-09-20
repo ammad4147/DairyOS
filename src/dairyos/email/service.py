@@ -8,6 +8,7 @@ from email.message import EmailMessage
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.email_sender_setting import EmailSenderSetting
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+
 from .crypto import decrypt_secret, encrypt_secret
 
 

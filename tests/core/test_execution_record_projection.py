@@ -1,7 +1,6 @@
 from dairyos.intelligence.operations.orchestration.models.execution_record import (
     ExecutionRecord,
 )
-
 from dairyos.operations.execution.models.operational_execution import (
     OperationalExecution,
 )

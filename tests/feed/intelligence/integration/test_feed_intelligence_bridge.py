@@ -1,12 +1,11 @@
 from dairyos.feed.intelligence.integration import (
-    FeedSignalBridge,
     FeedDecisionAdapter,
+    FeedSignalBridge,
 )
-
 from dairyos.feed.intelligence.models import (
     FeedSignal,
-    FeedSignalType,
     FeedSignalSeverity,
+    FeedSignalType,
 )
 
 

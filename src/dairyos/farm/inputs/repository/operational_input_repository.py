@@ -2,14 +2,14 @@ import json
 import os
 import tempfile
 import time
-from dairyos.platform.paths import resolve_storage_file
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from dairyos.domain.events.operational_input_received import (
     OperationalInputReceived,
 )
+from dairyos.platform.paths import resolve_storage_file
 
 
 class OperationalInputRepository:
@@ -168,9 +168,8 @@ class OperationalInputRepository:
                 if isinstance(timestamp, str) and timestamp:
                     timestamp = datetime.fromisoformat(timestamp)
                 if timestamp is None:
-                    from datetime import timezone
 
-                    timestamp = datetime.now(timezone.utc)
+                    timestamp = datetime.now(UTC)
 
                 loaded_records.append(
                     OperationalInputReceived(

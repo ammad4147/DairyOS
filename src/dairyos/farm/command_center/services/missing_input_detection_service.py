@@ -1,9 +1,11 @@
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.command_center.models.operational_gap import (
     OperationalGap,
 )
-from dairyos.farm.settings.services.deployment_control_service import DeploymentControlService
+from dairyos.farm.settings.services.deployment_control_service import (
+    DeploymentControlService,
+)
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 
 
 class MissingInputDetectionService:

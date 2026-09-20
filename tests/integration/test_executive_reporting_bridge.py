@@ -1,11 +1,9 @@
-from dairyos.intelligence.integration.executive_reporting_bridge import (
-    ExecutiveReportingBridge,
-)
-
 from dairyos.herd.dashboard.models.executive_cockpit import (
     ExecutiveCockpit,
 )
-
+from dairyos.intelligence.integration.executive_reporting_bridge import (
+    ExecutiveReportingBridge,
+)
 
 
 def test_executive_reporting_bridge_builds_report():

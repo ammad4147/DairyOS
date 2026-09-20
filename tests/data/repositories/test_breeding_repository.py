@@ -1,11 +1,8 @@
-from datetime import datetime, timezone
 
 from dairyos.data.database.session import SessionLocal
-
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
 )
-
 from dairyos.farm.operations.models.breeding_record import (
     BreedingRecord,
 )

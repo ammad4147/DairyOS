@@ -18,14 +18,11 @@ from pathlib import Path
 import pytest
 
 from dairyos_assistant.corpus.validation import (
-    Severity,
     codes,
     errors,
     format_report,
-    legacy_identifiers,
     validate_corpus,
 )
-
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "docs" / "assistant-knowledge"

@@ -16,7 +16,6 @@ from dairyos.data.database.backup import (
 )
 from dairyos.data.database.session import DATABASE_URL
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("DAIRYOS_RUN_BACKUP_E2E") != "1",
     reason="set DAIRYOS_RUN_BACKUP_E2E=1 to run the destructive PostgreSQL restore E2E",

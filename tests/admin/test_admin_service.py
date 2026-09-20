@@ -1,11 +1,12 @@
-from pathlib import Path
 import json
-from types import SimpleNamespace
+from pathlib import Path
+
 import pytest
+
 from dairyos.admin.service import (
     CLEAN_INSTALL_CONFIRMATION,
-    AdminService,
     RESET_CONFIRMATION,
+    AdminService,
 )
 from dairyos.lifecycle.manager import LifecycleError
 

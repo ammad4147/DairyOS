@@ -27,25 +27,26 @@ DAY = date(2026, 9, 1)
 
 
 def _seed(session):
-    from dairyos.data.models.animal import Animal
     from datetime import datetime
+
+    from dairyos.data.models.animal import Animal
 
     session.add(Animal(animal_id="RG-001", animal_type="CATTLE", sex="FEMALE", lifecycle_status="LACTATING",
                        status="ACTIVE", active=True, is_currently_milking=True))
     session.flush()
     session.add(MilkProduction(animal_id="RG-001", production_date=datetime(2026, 9, 1, 6), session_ledger=True,
                                morning_yield=500.0, total_yield=500.0, status="RECORDED"))
-    sale = FinancialTransaction(transaction_type="INCOME", category="MILK_SALES", amount=Decimal("100000"),
+    sale = FinancialTransaction(transaction_type="INCOME", category="MILK_SALES", amount=Decimal(100000),
                                 transaction_date=datetime(2026, 9, 1), status="RECEIVABLE", quantity=400.0,
-                                unit="litre", unit_rate=Decimal("250"), currency="PKR")
+                                unit="litre", unit_rate=Decimal(250), currency="PKR")
     session.add(sale)
     session.flush()
     session.add(MilkDisposition(production_date=DAY, disposition_type="SOLD", quantity_litres=400.0,
-                                sale_id=f"FIN-{sale.id}", selling_price_per_litre=Decimal("250"),
-                                amount_due=Decimal("100000"), amount_received=Decimal("0"), status="RECORDED"))
+                                sale_id=f"FIN-{sale.id}", selling_price_per_litre=Decimal(250),
+                                amount_due=Decimal(100000), amount_received=Decimal(0), status="RECORDED"))
     session.add(MilkDisposition(production_date=DAY, disposition_type="SOLD", quantity_litres=50.0,
-                                sale_id="MILK-TAB-1", selling_price_per_litre=Decimal("200"),
-                                amount_due=Decimal("10000"), amount_received=Decimal("0"), status="RECORDED"))
+                                sale_id="MILK-TAB-1", selling_price_per_litre=Decimal(200),
+                                amount_due=Decimal(10000), amount_received=Decimal(0), status="RECORDED"))
     session.commit()
     return sale.id
 
@@ -53,7 +54,7 @@ def _seed(session):
 def _revenue(session) -> Decimal:
     session.expire_all()
     return sum((Decimal(str(row.amount)) for row in session.query(FinancialTransaction).all()
-                if classifier.is_income(row)), Decimal("0"))
+                if classifier.is_income(row)), Decimal(0))
 
 
 def test_receipt_against_finance_originated_sale_is_refused(client):

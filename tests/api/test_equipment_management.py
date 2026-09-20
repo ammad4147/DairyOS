@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -228,7 +228,7 @@ def test_equipment_overdue_service_generates_finding(client):
             "status": "AVAILABLE",
             "condition": "FAIR",
             "next_service_due_at": (
-                datetime.now(timezone.utc)
+                datetime.now(UTC)
                 - timedelta(days=3)
             ).isoformat(),
             "operator": "Equipment Auditor",

@@ -4,21 +4,24 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from sqlalchemy.engine import URL
 
 from dairyos.data.database.automatic_backups import run_automatic_backup
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
 from dairyos.windows.appliance_database import prepare_database
 from dairyos.windows.private_postgres import (
     persisted_cluster_is_running,
+)
+from dairyos.windows.private_postgres import (
     stop as stop_private_postgres,
 )
-
 
 LOG = logging.getLogger("dairyos.windows.backup_task")
 TASK_NAME = "DairyOS-Automatic-Backup"

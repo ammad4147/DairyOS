@@ -1,7 +1,5 @@
 from dairyos.platform.domain_registry.models.domain import Domain
 
-
-
 DEFAULT_DOMAINS = [
 
     Domain(

@@ -11,12 +11,11 @@ class FeedbackCoordinator:
 
         if feedback_service is None:
 
-            from dairyos.intelligence.learning_feedback.services.learning_feedback_service import (
-                LearningFeedbackService,
-            )
-
             from dairyos.intelligence.learning_feedback.repository.adapters.memory_learning_feedback_repository import (
                 MemoryLearningFeedbackRepository,
+            )
+            from dairyos.intelligence.learning_feedback.services.learning_feedback_service import (
+                LearningFeedbackService,
             )
 
             repository = MemoryLearningFeedbackRepository()

@@ -9,8 +9,8 @@ at all when there is nothing to be faithful to.
 
 from __future__ import annotations
 
-import json
 import io
+import json
 
 import pytest
 

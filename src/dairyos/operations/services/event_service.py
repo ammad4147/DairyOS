@@ -3,7 +3,6 @@ from dairyos.operations.events.operational_event import (
 )
 
 
-
 class EventService:
 
 

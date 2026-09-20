@@ -1,4 +1,3 @@
-from typing import List
 
 from ..models.review_cycle import ReviewCycle
 
@@ -9,7 +8,7 @@ class ReviewManagementService:
     """
 
     def __init__(self):
-        self.cycles: List[ReviewCycle] = []
+        self.cycles: list[ReviewCycle] = []
 
 
     def register_cycle(
@@ -22,6 +21,6 @@ class ReviewManagementService:
         return cycle
 
 
-    def get_cycles(self) -> List[ReviewCycle]:
+    def get_cycles(self) -> list[ReviewCycle]:
 
         return list(self.cycles)

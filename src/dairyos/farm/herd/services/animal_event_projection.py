@@ -1,5 +1,5 @@
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from dairyos.farm.herd.models.animal_operational_state import (
     AnimalOperationalState,

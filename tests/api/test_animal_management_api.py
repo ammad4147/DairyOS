@@ -1,14 +1,18 @@
 import re
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from dairyos.app import app, container
-from dairyos.runtime.persistent_event_journal import PersistentEventJournal
-from dairyos.farm.operations.state.farm_operational_state_service import FarmOperationalStateService
 from dairyos.data.database.session import SessionLocal
 from dairyos.data.models.animal import Animal
-from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
+from dairyos.data.models.animal_milking_schedule_history import (
+    AnimalMilkingScheduleHistory,
+)
+from dairyos.farm.operations.state.farm_operational_state_service import (
+    FarmOperationalStateService,
+)
+from dairyos.runtime.persistent_event_journal import PersistentEventJournal
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,7 @@
 """Persisted animal-welfare observations and transparent KPI aggregation."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -53,7 +53,7 @@ def record_welfare_observation(
         if animal is None:
             raise HTTPException(status_code=404, detail="Animal not found")
 
-        observed_at = observation.observed_at or datetime.now(timezone.utc)
+        observed_at = observation.observed_at or datetime.now(UTC)
         item = {
             "animal_id": observation.animal_id,
             "welfare_domain": observation.welfare_domain.strip().upper(),
@@ -101,7 +101,7 @@ def welfare_overview(
     days: int = Query(default=30, ge=1, le=365),
     container=Depends(get_container),
 ):
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     factory = container.repository_factory
     raw = _load(factory, farm_id)
     observations: list[dict] = []
@@ -109,7 +109,7 @@ def welfare_overview(
         try:
             observed_at = datetime.fromisoformat(str(item["observed_at"]).replace("Z", "+00:00"))
             if observed_at.tzinfo is None:
-                observed_at = observed_at.replace(tzinfo=timezone.utc)
+                observed_at = observed_at.replace(tzinfo=UTC)
             if observed_at >= cutoff:
                 observations.append({**item, "observed_at": observed_at})
         except (KeyError, TypeError, ValueError):

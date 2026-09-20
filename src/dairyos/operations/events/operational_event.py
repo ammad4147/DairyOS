@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
-
 
 
 @dataclass
@@ -34,7 +33,7 @@ class OperationalEvent:
 
         default_factory=lambda:
 
-            datetime.now(timezone.utc)
+            datetime.now(UTC)
 
     )
 

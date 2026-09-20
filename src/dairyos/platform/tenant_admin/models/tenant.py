@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.platform.tenant_admin.models.tenant_status import (
     TenantStatus,
 )
-
 
 
 @dataclass
@@ -16,4 +15,4 @@ class Tenant:
 
     status: TenantStatus = TenantStatus.PROVISIONING
 
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = datetime.now(UTC)

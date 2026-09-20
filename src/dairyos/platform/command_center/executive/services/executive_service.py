@@ -3,7 +3,6 @@ from dairyos.platform.command_center.executive.models.executive_summary import (
 )
 
 
-
 class ExecutiveService:
     """
     Generates executive command center summaries.

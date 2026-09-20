@@ -1,7 +1,6 @@
 from ..models.clinical_completeness import ClinicalCompleteness
 
 
-
 class ClinicalCompletenessService:
 
 

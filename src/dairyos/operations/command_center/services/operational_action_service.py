@@ -3,7 +3,6 @@ from dairyos.operations.command_center.models.operational_action import (
 )
 
 
-
 class OperationalActionService:
     """
     Application service for operational actions.

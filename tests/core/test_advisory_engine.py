@@ -1,7 +1,5 @@
-from dairyos.herd.dashboard.services.advisory_service import AdvisoryService
-
 from dairyos.herd.dashboard.models.knowledge_entry import KnowledgeEntry
-
+from dairyos.herd.dashboard.services.advisory_service import AdvisoryService
 
 
 def test_advisory_creation():

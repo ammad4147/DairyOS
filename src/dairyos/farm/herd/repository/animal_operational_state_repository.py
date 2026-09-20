@@ -1,12 +1,12 @@
 import json
 import os
 import tempfile
-from dairyos.platform.paths import resolve_storage_file
 from pathlib import Path
 
 from dairyos.farm.herd.models.animal_operational_state import (
     AnimalOperationalState,
 )
+from dairyos.platform.paths import resolve_storage_file
 
 
 class AnimalOperationalStateRepository:

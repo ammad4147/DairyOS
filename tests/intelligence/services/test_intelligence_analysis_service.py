@@ -1,11 +1,9 @@
-from dairyos.intelligence.services.intelligence_analysis_service import (
-    IntelligenceAnalysisService,
-)
-
 from dairyos.intelligence.models.intelligence_signal import (
     IntelligenceSignal,
 )
-
+from dairyos.intelligence.services.intelligence_analysis_service import (
+    IntelligenceAnalysisService,
+)
 
 
 def test_analysis_of_warning_signal():

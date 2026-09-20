@@ -1,8 +1,8 @@
-from datetime import datetime
+
+from dairyos.core.time_utils import utcnow
 
 from ..models.correlated_health_signal import CorrelatedHealthSignal
 from ..models.health_alert import HealthAlert
-from dairyos.core.time_utils import utcnow
 
 
 class HealthRiskAssessmentService:

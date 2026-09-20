@@ -1,14 +1,12 @@
+from dairyos.milk.intelligence import (
+    MilkAlertService,
+    MilkAnomalyService,
+    MilkPerformanceService,
+)
 from dairyos.milk.models import (
     MilkEntry,
     MilkingSession,
 )
-
-from dairyos.milk.intelligence import (
-    MilkPerformanceService,
-    MilkAlertService,
-    MilkAnomalyService,
-)
-
 
 
 def create_entries():

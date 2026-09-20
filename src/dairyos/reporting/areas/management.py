@@ -13,7 +13,13 @@ from datetime import date
 from typing import Any
 
 from dairyos.reporting.context import ReportContext
-from dairyos.reporting.definitions import Column, Metric, ReportDefinition, ReportResult, Section
+from dairyos.reporting.definitions import (
+    Column,
+    Metric,
+    ReportDefinition,
+    ReportResult,
+    Section,
+)
 from dairyos.reporting.engine import column_set
 from dairyos.reporting.periods import ResolvedPeriod, format_date
 

@@ -1,5 +1,5 @@
-from dairyos.platform.observability.models.metric import Metric
 from dairyos.platform.observability.models.health_indicator import HealthIndicator
+from dairyos.platform.observability.models.metric import Metric
 from dairyos.platform.observability.models.platform_event import PlatformEvent
 
 

@@ -1,15 +1,11 @@
-from datetime import datetime, UTC
-
+from datetime import UTC, datetime
 
 from dairyos.farm.operations.models.farm_operation_event import (
     FarmOperationEvent,
 )
-
-
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
 )
-
 
 
 def test_lifecycle_event_projects_to_farm_operational_state():

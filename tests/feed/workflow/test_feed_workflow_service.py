@@ -1,11 +1,10 @@
-from dairyos.feed.workflow import (
-    FeedWorkflowService,
-)
-
 from dairyos.feed.intelligence.models import (
     FeedSignal,
-    FeedSignalType,
     FeedSignalSeverity,
+    FeedSignalType,
+)
+from dairyos.feed.workflow import (
+    FeedWorkflowService,
 )
 
 

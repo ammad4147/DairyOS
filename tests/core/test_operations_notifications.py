@@ -1,22 +1,17 @@
 from datetime import datetime
 
-
 from dairyos.operations.notifications.models.notification import (
     Notification,
 )
-
 from dairyos.operations.notifications.models.notification_type import (
     NotificationType,
 )
-
-from dairyos.operations.notifications.services.notification_service import (
-    NotificationService,
-)
-
 from dairyos.operations.notifications.services.notification_dispatch_service import (
     NotificationDispatchService,
 )
-
+from dairyos.operations.notifications.services.notification_service import (
+    NotificationService,
+)
 
 
 def test_notification_creation():

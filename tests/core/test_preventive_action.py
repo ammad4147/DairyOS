@@ -1,5 +1,6 @@
-from dairyos.herd.dashboard.services.preventive_action_service import PreventiveActionService
-
+from dairyos.herd.dashboard.services.preventive_action_service import (
+    PreventiveActionService,
+)
 
 
 def test_plan_creation():

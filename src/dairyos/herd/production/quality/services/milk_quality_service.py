@@ -1,7 +1,6 @@
 from ..models.milk_quality import MilkQuality
 
 
-
 class MilkQualityService:
 
 

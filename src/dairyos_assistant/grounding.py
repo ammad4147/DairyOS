@@ -23,8 +23,9 @@ know, which is always a true statement and never a dangerous one.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from dairyos_assistant.policy import REAL_IDENTIFIER
 

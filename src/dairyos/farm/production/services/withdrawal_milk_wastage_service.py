@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 from dairyos.data.models.milk_disposition import MilkDisposition
-
 
 AUTO_WASTAGE_PREFIX = "AUTO_WITHDRAWAL_WASTAGE"
 
 
 def _aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def animal_withdrawn_on_date(withdrawal_service, animal_id: str, day: date) -> bool:
@@ -20,8 +19,8 @@ def animal_withdrawn_on_date(withdrawal_service, animal_id: str, day: date) -> b
     if withdrawal_service is None:
         return False
 
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    end = datetime.combine(day, time.max, tzinfo=timezone.utc)
+    start = datetime.combine(day, time.min, tzinfo=UTC)
+    end = datetime.combine(day, time.max, tzinfo=UTC)
 
     getter = getattr(withdrawal_service, "get_periods_for_animal", None)
     if callable(getter):

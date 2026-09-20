@@ -3,7 +3,6 @@ from dairyos.platform.governance.rules.services.governance_rule_registry import 
 )
 
 
-
 class ComplianceChecker:
     """
     Evaluates governance rule availability.

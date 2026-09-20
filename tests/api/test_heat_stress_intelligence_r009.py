@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -7,7 +7,7 @@ from dairyos.app import app
 
 def test_heat_stress_observation_persists_and_intelligence_reads_it():
     with TestClient(app) as client:
-        observed_at = datetime.now(timezone.utc).isoformat()
+        observed_at = datetime.now(UTC).isoformat()
         response = client.post(
             "/farm/heat-stress/intelligence/observations",
             json={

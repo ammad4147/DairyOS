@@ -1,7 +1,7 @@
 from datetime import date
 
-from ..models.work_shift import WorkShift
 from ..models.work_schedule import WorkSchedule
+from ..models.work_shift import WorkShift
 
 
 class FarmWorkSchedulerService:

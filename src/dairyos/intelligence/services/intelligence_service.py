@@ -1,21 +1,17 @@
 from dairyos.intelligence.kernel.context.intelligence_context import (
     IntelligenceContext,
 )
-
-from dairyos.intelligence.kernel.models.intelligence_signal import (
-    IntelligenceSignal,
-)
-
 from dairyos.intelligence.kernel.interface.intelligence_gateway import (
     IntelligenceGateway,
 )
-
-from dairyos.intelligence.repository.intelligence_repository import (
-    IntelligenceRepository,
+from dairyos.intelligence.kernel.models.intelligence_signal import (
+    IntelligenceSignal,
 )
-
 from dairyos.intelligence.persistence.services.event_recorder import (
     EventRecorder,
+)
+from dairyos.intelligence.repository.intelligence_repository import (
+    IntelligenceRepository,
 )
 
 

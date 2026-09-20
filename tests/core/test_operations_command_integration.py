@@ -1,19 +1,15 @@
-from dairyos.operations.executive_decision.services.executive_decision_service import (
-    ExecutiveDecisionService,
-)
-
-from dairyos.operations.command_integration.services.operations_command_adapter import (
-    OperationsCommandAdapter,
-)
-
-from dairyos.operations.command_integration.services.command_routing_service import (
-    CommandRoutingService,
-)
-
 from dairyos.operations.command_integration.models.command_priority import (
     CommandPriority,
 )
-
+from dairyos.operations.command_integration.services.command_routing_service import (
+    CommandRoutingService,
+)
+from dairyos.operations.command_integration.services.operations_command_adapter import (
+    OperationsCommandAdapter,
+)
+from dairyos.operations.executive_decision.services.executive_decision_service import (
+    ExecutiveDecisionService,
+)
 
 
 def test_command_creation_from_decision():

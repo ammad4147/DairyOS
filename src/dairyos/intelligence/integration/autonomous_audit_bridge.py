@@ -15,14 +15,12 @@ Runtime orchestration remains independent.
 """
 
 
-from dairyos.intelligence.events.services.autonomous_event_service import (
-    AutonomousEventService,
-)
-
 from dairyos.intelligence.events.adapters.event_adapter import (
     EventAdapter,
 )
-
+from dairyos.intelligence.events.services.autonomous_event_service import (
+    AutonomousEventService,
+)
 
 
 class AutonomousAuditBridge:
@@ -54,7 +52,6 @@ class AutonomousAuditBridge:
             from dairyos.intelligence.persistence.gateway.intelligence_memory_gateway import (
                 IntelligenceMemoryGateway,
             )
-
             from dairyos.intelligence.persistence.repositories.adapters.memory_event_repository import (
                 MemoryEventRepository,
             )

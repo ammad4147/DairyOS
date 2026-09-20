@@ -1,9 +1,8 @@
-from dairyos.farm.operations.repositories.health_repository import (
-    HealthRepository,
-)
-
 from dairyos.data.models import (
     HealthObservation as DatabaseHealthObservation,
+)
+from dairyos.farm.operations.repositories.health_repository import (
+    HealthRepository,
 )
 
 

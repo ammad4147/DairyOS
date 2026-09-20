@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
-from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.payroll import PayrollRecord
 from dairyos.data.repositories.repository_factory import RepositoryFactory
@@ -24,13 +23,13 @@ class PayrollCreateRequest(BaseModel):
     employee_role: str = Field(min_length=1)
     period_start: date
     period_end: date
-    worked_days: Decimal = Field(default=Decimal("0"), ge=0)
-    base_pay: Decimal = Field(default=Decimal("0"), ge=0)
-    overtime_hours: Decimal = Field(default=Decimal("0"), ge=0)
-    overtime_rate: Decimal = Field(default=Decimal("0"), ge=0)
-    allowances: Decimal = Field(default=Decimal("0"), ge=0)
-    advances: Decimal = Field(default=Decimal("0"), ge=0)
-    deductions: Decimal = Field(default=Decimal("0"), ge=0)
+    worked_days: Decimal = Field(default=Decimal(0), ge=0)
+    base_pay: Decimal = Field(default=Decimal(0), ge=0)
+    overtime_hours: Decimal = Field(default=Decimal(0), ge=0)
+    overtime_rate: Decimal = Field(default=Decimal(0), ge=0)
+    allowances: Decimal = Field(default=Decimal(0), ge=0)
+    advances: Decimal = Field(default=Decimal(0), ge=0)
+    deductions: Decimal = Field(default=Decimal(0), ge=0)
     notes: str | None = None
 
 

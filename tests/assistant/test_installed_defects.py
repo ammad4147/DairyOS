@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from dairyos_assistant.model import LlamaServerProvider, ModelUnavailable
+from dairyos_assistant.model import LlamaServerProvider
 from dairyos_assistant.retrieval import KnowledgeIndex
 from dairyos_assistant.service import Assistant, approved_text, corpus_root
 
@@ -275,6 +275,7 @@ def test_the_service_survives_having_no_standard_streams(monkeypatch, capsys):
 def test_the_service_survives_an_invalid_windowed_output_handle(monkeypatch):
     """Directly launched windowed builds must not show an Errno 22 dialog."""
     from io import StringIO
+
     from dairyos_assistant.service import serve
 
     class InvalidFlush(StringIO):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from dairyos.milk.models.milking_cycle import (
     DEFAULT_SESSION_TIMES,
@@ -15,7 +15,7 @@ class OperationalScheduleState:
     """Planned operational schedule state; actual execution remains manual."""
 
     schedule_date: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     milking_schedule: list = field(default_factory=list)
     milking_cycles: dict = field(default_factory=dict)
     feeding_schedule: list = field(default_factory=list)
@@ -78,9 +78,9 @@ class OperationalScheduleState:
         expected = cycle.expected_session(operational_date, shift) if cycle else None
         if expected is None:
             raise ValueError(f"no expected milking session for animal {animal_id} on {operational_date.isoformat()} shift {shift}")
-        recorded_at = recorded_at or datetime.now(timezone.utc)
+        recorded_at = recorded_at or datetime.now(UTC)
         if recorded_at.tzinfo is None:
-            recorded_at = recorded_at.replace(tzinfo=timezone.utc)
+            recorded_at = recorded_at.replace(tzinfo=UTC)
         if status == "RECORDED":
             outcome = classify_session_entry(expected, recorded_at)
         else:

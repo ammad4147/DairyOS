@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 from dairyos.admin import backup_catalog as catalog
 from dairyos.data.database.backup import verify_backup_artifact

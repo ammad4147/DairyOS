@@ -23,7 +23,6 @@ from dairyos.farm.settings.services.farm_settings_service import (
     FarmSettingsService,
 )
 
-
 SESSION_ORDER = {
     "MORNING": 0,
     "AFTERNOON": 1,

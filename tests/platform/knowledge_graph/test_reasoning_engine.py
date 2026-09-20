@@ -1,12 +1,9 @@
-from dairyos.platform.knowledge_graph.services.reasoning_service import (
-    ReasoningService,
-)
-
-
 from dairyos.platform.knowledge_graph.reasoning.evidence import (
     Evidence,
 )
-
+from dairyos.platform.knowledge_graph.services.reasoning_service import (
+    ReasoningService,
+)
 
 
 def test_reasoning_generates_explanation():

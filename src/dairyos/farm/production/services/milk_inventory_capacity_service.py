@@ -5,7 +5,6 @@ from datetime import date, datetime
 
 from dairyos.data.repositories.repository_factory import RepositoryFactory
 
-
 INACTIVE_STATUSES = frozenset({"VOID", "CANCELLED", "DELETED"})
 
 

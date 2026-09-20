@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -50,7 +51,10 @@ def rebuild_file_projections(manager) -> None:
 
 
 def restore_database_only(manager, dump: Path) -> None:
-    from dairyos.admin.service import _record_database_checksum, _verify_backup_directory
+    from dairyos.admin.service import (
+        _record_database_checksum,
+        _verify_backup_directory,
+    )
 
     rollback = manager.backup(label="pre-database-restore", require_database=True)
     _record_database_checksum(rollback)

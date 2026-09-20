@@ -1,13 +1,11 @@
 from dairyos.operations.decisions.models.decision_context import (
     DecisionContext,
 )
-
-from dairyos.operations.decisions.services.operations_decision_service import (
-    OperationsDecisionService,
-)
-
 from dairyos.operations.decisions.services.decision_ranking_service import (
     DecisionRankingService,
+)
+from dairyos.operations.decisions.services.operations_decision_service import (
+    OperationsDecisionService,
 )
 
 

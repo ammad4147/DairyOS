@@ -1,16 +1,12 @@
 from datetime import date
 
-
 from dairyos.application.application_runtime import (
     ApplicationRuntime,
 )
-
-
 from dairyos.herd.models import (
     Animal,
     AnimalStatus,
 )
-
 
 
 def create_animal():

@@ -4,19 +4,18 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-
 from sqlalchemy import text
+
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
-from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.api.reference_data import GOVERNED
+from dairyos.core.inventory_units import convert_quantity
 from dairyos.data.models.feed_inventory_item import FeedInventoryItem
 from dairyos.data.models.inventory_transaction import InventoryTransaction
-from dairyos.finance.classification.transaction_classifier import is_active
-from dairyos.core.inventory_units import convert_quantity
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.finance.classification.transaction_classifier import is_active
 
 router = APIRouter(prefix="/farm/feed-inventory", tags=["feed-inventory"])
 
@@ -689,6 +688,7 @@ def reconcile_tmr_feed_storage(factory):
     dates with existing materialised rows are not recalculated.
     """
     from datetime import date, timedelta
+
     from dairyos.api.tmr import build_live_tmr_summary
 
     _lock_stock(factory)

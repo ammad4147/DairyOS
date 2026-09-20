@@ -1,17 +1,14 @@
+from dairyos.intelligence.learning.models.learning_signal import (
+    LearningSignal,
+)
 from dairyos.intelligence.prediction.gateway.prediction_gateway import (
     PredictionGateway,
 )
-
-from dairyos.intelligence.prediction.services.prediction_service import (
-    PredictionService,
-)
-
 from dairyos.intelligence.prediction.repository.adapters.memory_prediction_repository import (
     MemoryPredictionRepository,
 )
-
-from dairyos.intelligence.learning.models.learning_signal import (
-    LearningSignal,
+from dairyos.intelligence.prediction.services.prediction_service import (
+    PredictionService,
 )
 
 

@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from dairyos.api.tmr import milk_litres_for_period, tmr_feed_cost_for_period
 from dairyos.data.database.models.operational_state_model import OperationalStateModel
-from dairyos.data.repositories.repository_factory import RepositoryFactory
-from dairyos.finance.opex_attribution import attributed_amount
-from dairyos.finance.classification.transaction_classifier import is_expense
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
+from dairyos.data.repositories.repository_factory import RepositoryFactory
 from dairyos.farm.operations.services.milk_production_trend_intelligence_service import (
     MilkProductionTrendIntelligenceService,
 )
-from dairyos.farm.settings.services.operational_date_authority import OperationalDateAuthority
 from dairyos.farm.reproduction.services.breeding_cycle_analytics_service import (
     BreedingAnalyticsService,
     BreedingCycleProjectionService,
 )
+from dairyos.farm.settings.services.operational_date_authority import (
+    OperationalDateAuthority,
+)
+from dairyos.finance.classification.transaction_classifier import is_expense
+from dairyos.finance.opex_attribution import attributed_amount
 from dairyos.herd.reproduction.services.reproductive_event_classifier import (
     is_confirmed_pregnancy,
     is_insemination,
@@ -456,7 +458,7 @@ class LiveAnalyticsService:
             try:
                 observed = datetime.fromisoformat(str(item["observed_at"]).replace("Z", "+00:00"))
                 if observed.tzinfo is None:
-                    observed = observed.replace(tzinfo=timezone.utc)
+                    observed = observed.replace(tzinfo=UTC)
                 day = observed.date()
                 if start <= day < end_exclusive:
                     buckets[day.isoformat()].append(float(item["thi"]))
@@ -501,14 +503,14 @@ class LiveAnalyticsService:
         })
         ordered_inseminations = sorted(
             [r for r in records if is_insemination(r)],
-            key=lambda r: getattr(r, "timestamp", None) or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda r: getattr(r, "timestamp", None) or datetime.min.replace(tzinfo=UTC),
         )
         for record in records:
             timestamp = getattr(record, "timestamp", None)
             if timestamp is None:
                 continue
             if timestamp.tzinfo is None:
-                timestamp = timestamp.replace(tzinfo=timezone.utc)
+                timestamp = timestamp.replace(tzinfo=UTC)
             key = timestamp.strftime("%Y-%m")
             bucket = buckets[key]
             if is_insemination(record):

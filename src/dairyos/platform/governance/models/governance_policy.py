@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dairyos.platform.governance.models.governance_status import GovernanceStatus
 
@@ -10,4 +10,4 @@ class GovernancePolicy:
     name: str
     description: str
     status: GovernanceStatus = GovernanceStatus.ACTIVE
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = datetime.now(UTC)

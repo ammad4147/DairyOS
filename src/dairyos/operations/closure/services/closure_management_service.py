@@ -1,4 +1,3 @@
-from typing import List
 
 
 class ClosureManagementService:
@@ -9,7 +8,7 @@ class ClosureManagementService:
 
     def __init__(self):
 
-        self.closures: List = []
+        self.closures: list = []
 
 
     def create_closure(

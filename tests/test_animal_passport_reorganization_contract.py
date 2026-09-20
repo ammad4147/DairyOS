@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 from dairyos.application.animal_passport import LifetimeAnimalPassportService
 
-
 ROOT = Path(__file__).resolve().parents[1]
 PASSPORT_UI = (
     ROOT / "src/DairyOS.Web/src/components/AnimalPassportModal.tsx"

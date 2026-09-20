@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class ResourceType(str, Enum):
 
     USERS = "users"

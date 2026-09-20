@@ -1,5 +1,5 @@
-from ..models.farm_health_index import FarmHealthIndex
 from ..models.command_status import CommandStatus
+from ..models.farm_health_index import FarmHealthIndex
 
 
 class CommandCenterIntelligenceService:
@@ -22,7 +22,7 @@ class CommandCenterIntelligenceService:
 
         total = round(
 
-            (
+
 
                 production_score * 0.40
 
@@ -38,7 +38,7 @@ class CommandCenterIntelligenceService:
 
                 financial_score * 0.15
 
-            )
+
 
         )
 
