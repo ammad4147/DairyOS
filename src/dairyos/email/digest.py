@@ -154,8 +154,33 @@ class DashboardDigestService:
             if change is None:
                 change = trend.get("change_percent")
 
+            session_totals = {
+                "MORNING": 0.0,
+                "AFTERNOON": 0.0,
+                "EVENING": 0.0,
+            }
+            session_fields = {
+                "MORNING": "morning_yield",
+                "AFTERNOON": "afternoon_yield",
+                "EVENING": "evening_yield",
+            }
+            for record in records:
+                production_date = getattr(record, "production_date", None)
+                if production_date is None:
+                    continue
+                record_date = getattr(production_date, "date", lambda: None)()
+                if record_date != digest_date:
+                    continue
+                if str(getattr(record, "status", "") or "").upper() == "VOID":
+                    continue
+                for session_name, field_name in session_fields.items():
+                    value = getattr(record, field_name, None)
+                    if value is not None:
+                        session_totals[session_name] += float(value)
+
             return {
                 "total_yield": reconciliation.get("biological_production_litres"),
+                "session_totals": session_totals,
                 "change_percent": change,
                 "sold": by_type.get("SOLD", 0.0),
                 "domestic_use": by_type.get("DOMESTIC_USE", 0.0),
