@@ -26,7 +26,9 @@ def _money(value: Any, decimals: int = 2) -> str:
 
 
 def _num(value: Any, decimals: int = 1) -> str:
-    return f"{float(value or 0):,.{decimals}f}"
+    if value is None:
+        return "Unavailable"
+    return f"{float(value):,.{decimals}f}"
 
 
 def _box(c: canvas.Canvas, x: float, y: float, w: float, h: float, title: str, accent) -> None:
@@ -84,8 +86,13 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     health = summary.get("health") or {}
     attention = summary.get("attention") or []
     milking = int(herd["counts"].get("Milking", 0) or 0)
-    yield_l = float(milk.get("total_yield") or 0)
-    per_cow = yield_l / milking if milking else 0
+    raw_yield = milk.get("total_yield")
+    yield_l = float(raw_yield) if raw_yield is not None else None
+    per_cow = (
+        yield_l / milking
+        if yield_l is not None and milking
+        else None
+    )
     net_cash = (
         float(finance.get("revenue_received") or 0)
         - float(finance.get("expenses") or 0)
@@ -108,7 +115,7 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         f"DATA {completeness_status}",
     )
     cards = [
-        ("MILK PRODUCED", f"{_num(yield_l)} L", f"{_num(per_cow)} L / milking cow", NAVY),
+        ("MILK PRODUCED", (f"{_num(yield_l)} L" if yield_l is not None else "Unavailable"), (f"{_num(per_cow)} L / milking cow" if per_cow is not None else "Per-cow unavailable"), NAVY),
         ("HERD", f"{herd['total']} head", f"{milking} milking cows", GREEN),
         ("COST OF PRODUCTION", (f"{_money(cop.get('total_cop_per_liter'))} / L" if cop.get("total_cop_per_liter") is not None else "Unavailable"), (f"Feed {_money(cop.get('feed_cost_per_liter'))} / L" if cop.get("feed_cost_per_liter") is not None else "Feed unavailable"), ORANGE),
         ("CASH MOVEMENT", _money(net_cash) if finance is not None else "Restricted", (f"Receipts {_money(finance.get('revenue_received'))}" if finance is not None else "Finance permission required"), PURPLE),
@@ -131,8 +138,8 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     _box(c, margin + col_w + gap, top - h1, col_w, h1, "HERD STATUS & TODAY'S ACTIVITY", GREEN)
     ry = top - 17 * mm
     rows = [
-        ("Total Milk Produced", f"{_num(yield_l)} L"),
-        ("Per Milking Cow", f"{_num(per_cow)} L"),
+        ("Total Milk Produced", f"{_num(yield_l)} L" if yield_l is not None else "Unavailable"),
+        ("Per Milking Cow", f"{_num(per_cow)} L" if per_cow is not None else "Unavailable"),
         ("Milk Sold", f"{_num(milk.get('sold'))} L"),
         ("Calf Feed", f"{_num(milk.get('calf_feed'))} L"),
         ("Domestic Use", f"{_num(milk.get('domestic_use'))} L"),
