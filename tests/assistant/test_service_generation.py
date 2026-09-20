@@ -128,6 +128,16 @@ def test_vague_operator_question_receives_guided_help_when_model_is_unavailable(
     assert result["stage"] in {"APPROVED_TEXT", "GENERAL_ANSWERED", "RETRIEVAL_ONLY", "RELATED_GUIDANCE"}
 
 
+def test_weak_dairyos_match_is_context_for_general_dairy_reasoning(assistant):
+    model = ScriptedModel("General dairy practice should be considered alongside the related DairyOS workflow.")
+    result = assistant(model).answer("What is the weather effect on milk?")
+
+    assert result["route"] == "DAIRYOS_GUIDED_GENERAL"
+    assert result["general_knowledge"] is True
+    assert result["related_evidence"] is True
+    assert result["grounding_note"]
+
+
 def test_an_unreachable_model_degrades_to_approved_text_not_to_invention(assistant):
     """Degrading must reach the operator, not stop at the response.
 

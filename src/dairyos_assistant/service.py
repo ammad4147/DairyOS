@@ -25,6 +25,7 @@ composes prose, so nothing here can fabricate it.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable, Sequence, TextIO
@@ -62,7 +63,7 @@ _DAIRYOS_HINTS = frozenset(
 
 
 def _is_dairyos_question(question: str) -> bool:
-    words = set(question.lower().replace("/", " ").split())
+    words = set(re.findall(r"[a-z0-9]+", question.lower()))
     return bool(words & _DAIRYOS_HINTS)
 
 
@@ -162,6 +163,17 @@ class Assistant:
             }
             for hit in hits
         ]
+        # A single broad word such as "milk" is a topic, not a complete
+        # capability question. Treat weak lexical matches as related context
+        # so the local model can explain the likely area and ask for the
+        # missing detail instead of presenting the first hit as authoritative.
+        if (
+            evidence
+            and _is_dairyos_question(question)
+            and float(evidence[0].get("score", 0.0)) < 2.0
+        ):
+            for item in evidence:
+                item["related_only"] = True
         if not evidence and _is_dairyos_question(question):
             related_hits = self.index.search(
                 question, limit=3, min_score=0.0, min_matched_terms=1
