@@ -13,7 +13,7 @@ def _source() -> str:
     return ISS.read_text(encoding="utf-8-sig")
 
 
-def test_installer_is_clean_install_only():
+def test_installer_refreshes_matching_installation_and_rejects_unknown_state():
     source = _source()
 
     forbidden = (
@@ -32,6 +32,8 @@ def test_installer_is_clean_install_only():
 
     for token in forbidden:
         assert token not in source
+    assert "ExistingDairyOSInstallationMatches" in source
+    assert "preserving ProgramData" in source
 
 
 def test_installer_uses_one_canonical_programdata_root():
@@ -138,7 +140,7 @@ def test_installer_no_longer_stages_installation_choice():
         assert token not in source
 
 
-def test_clean_install_rejects_existing_canonical_root():
+def test_unknown_existing_canonical_root_is_rejected():
     source = _source()
 
     assert (
@@ -159,7 +161,8 @@ def test_clean_install_rejects_existing_canonical_root():
     prepare = source[prepare_start:prepare_end]
 
     assert "CanonicalDairyOSDataRootHasExistingState()" in prepare
-    assert "clean installation cannot continue" in prepare
+    assert "not tied to this existing DairyOS installation" in prepare
+    assert "ExistingDairyOSInstallationMatches()" in prepare
     assert "DelTree(CanonicalDairyOSDataRoot()" not in prepare
     assert "CanonicalDairyOSDataRoot()" in prepare
 

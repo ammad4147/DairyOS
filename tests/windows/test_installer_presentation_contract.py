@@ -31,10 +31,12 @@ def test_installer_does_not_present_farm_movement_choices():
         assert token not in source
 
 
-def test_existing_canonical_state_is_rejected_for_zero_state_install():
+def test_existing_canonical_state_is_only_rejected_when_not_this_installation():
     source = _source()
 
-    assert "clean installation cannot continue" in source
+    assert "not tied to this existing DairyOS installation" in source
+    assert "ExistingDairyOSInstallationMatches" in source
+    assert "preserving ProgramData" in source
     assert "DelTree(CanonicalDairyOSDataRoot()" not in source
     assert "CanonicalDairyOSDataRoot()" in source
 

@@ -69,7 +69,7 @@ def test_installer_does_not_restore_farm_data():
         assert token not in source
 
 
-def test_existing_canonical_state_blocks_clean_install():
+def test_matching_existing_installation_allows_application_refresh():
     source = _source()
 
     start = source.index(
@@ -81,12 +81,12 @@ def test_existing_canonical_state_blocks_clean_install():
     block = source[start:end]
 
     assert "CanonicalDairyOSDataRootHasExistingState()" in block
-    assert "Result :=" in block
-    assert "DairyOS clean installation cannot continue" in block
-    assert "CanonicalDairyOSDataRoot()" in block
+    assert "ExistingDairyOSInstallationMatches()" in block
+    assert "StopInstalledDairyOSForUninstall()" in block
+    assert "preserving ProgramData" in block
 
 
-def test_collision_guard_is_fail_closed_for_any_existing_entry():
+def test_collision_guard_keeps_unknown_state_fail_closed():
     source = _source()
 
     start = source.index(
@@ -102,10 +102,9 @@ def test_collision_guard_is_fail_closed_for_any_existing_entry():
     assert "FindNext(FindRec)" in block
     assert "Result := True;" in block
 
-    # No recognition/adoption heuristic is permitted.
-    assert "lifecycle.json" not in block
-    assert "runtime.json" not in block
-    assert "postgres" not in block.lower()
+    assert "lifecycle.json" in block
+    assert "DairyOS.exe" in block
+    assert "installation_root" in block
 
 
 def test_installer_never_deletes_existing_programdata_to_make_room():
@@ -113,6 +112,13 @@ def test_installer_never_deletes_existing_programdata_to_make_room():
 
     assert "DelTree(CanonicalDairyOSDataRoot()" not in source
     assert "RemoveDir(" not in source
+
+
+def test_refresh_preserves_programdata_and_reprovisions_runtime():
+    source = _source()
+    assert "preserving ProgramData" in source
+    assert "ProvisionLifecycleState();" in source
+    assert "ProvisionAutomaticBackupTask();" in source
 
     assert "[UninstallDelete]" in source
     assert (

@@ -306,6 +306,32 @@ begin
   end;
 end;
 
+function ExistingDairyOSInstallationMatches(): Boolean;
+var
+  LifecyclePath: String;
+  LifecycleText: String;
+  ExpectedRoot: String;
+begin
+  Result := False;
+  LifecyclePath := CanonicalDairyOSDataRoot() + '\lifecycle.json';
+
+  { A same-installation refresh is recognized only when both sides of the
+    lifecycle boundary are present: the durable lifecycle manifest in the
+    canonical data root and the existing DairyOS runtime in the canonical
+    application directory. Unknown or partial ProgramData remains blocked. }
+  if (not FileExists(LifecyclePath)) or
+     (not FileExists(ExpandConstant('{app}\DairyOS.exe'))) then
+    exit;
+
+  if not LoadStringFromFile(LifecyclePath, LifecycleText) then
+    exit;
+
+  ExpectedRoot := ExpandConstant('{app}');
+  StringChangeEx(ExpectedRoot, '\', '\\', True);
+  Result := Pos('"installation_root": "' + ExpectedRoot + '"', LifecycleText) > 0;
+end;
+
+function StopInstalledDairyOSForUninstall(): Boolean; forward;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
@@ -313,9 +339,31 @@ begin
 
   if CanonicalDairyOSDataRootHasExistingState() then
   begin
-    { Never destroy or silently adopt an existing canonical farm state. }
-    Log('DairyOS setup: existing canonical farm state detected; installation rejected.');
-    Result := 'DairyOS clean installation cannot continue because ' + CanonicalDairyOSDataRoot() + ' already contains farm state. Uninstall or preserve the existing installation first.';
+    if not ExistingDairyOSInstallationMatches() then
+    begin
+      { Never destroy or silently adopt unknown or partial farm state. }
+      Log('DairyOS setup: existing canonical farm state is not tied to this installation; installation rejected.');
+      Result := 'DairyOS installation cannot continue because ' + CanonicalDairyOSDataRoot() + ' contains farm state that is not tied to this existing DairyOS installation. Preserve or recover it first.';
+      exit;
+    end;
+
+    Log('DairyOS setup: matching DairyOS installation detected; preserving ProgramData for application refresh.');
+    MsgBox(
+      'An existing DairyOS installation was detected.' + #13#10#13#10 +
+      'The DairyOS application will be refreshed. Your farm database, settings, backups and operational data in ' +
+      CanonicalDairyOSDataRoot() + ' will be preserved.',
+      mbInformation,
+      MB_OK
+    );
+
+    { Stop only the matching DairyOS runtime before Program Files is replaced.
+      The routine does not remove farm data; it also removes the old scheduled
+      task, which is recreated during post-install provisioning. }
+    if not StopInstalledDairyOSForUninstall() then
+    begin
+      Result := 'DairyOS could not stop its existing private runtime safely. The application was not refreshed and farm data remains intact.';
+      exit;
+    end;
   end;
 end;
 
