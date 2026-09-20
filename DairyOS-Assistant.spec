@@ -16,11 +16,17 @@ runtime = ROOT / "runtime" / "assistant"
 model = runtime / "model" / "Qwen3-1.7B-Q4_K_M.gguf"
 server = runtime / "llama" / "llama-server.exe"
 assistant_runtime_datas = []
-for path, destination in ((model, "assistant-runtime/model"), (server, "assistant-runtime/llama")):
+if model.is_file():
+    assistant_runtime_datas.append((str(model), "assistant-runtime/model"))
+elif not ALLOW_MISSING_RUNTIME:
+    raise FileNotFoundError(f"Assistant runtime artifact missing: {model}")
+
+llama_files = list((runtime / "llama").glob("*")) if (runtime / "llama").is_dir() else []
+if not llama_files and not ALLOW_MISSING_RUNTIME:
+    raise FileNotFoundError(f"Assistant runtime directory missing: {runtime / 'llama'}")
+for path in llama_files:
     if path.is_file():
-        assistant_runtime_datas.append((str(path), destination))
-    elif not ALLOW_MISSING_RUNTIME:
-        raise FileNotFoundError(f"Assistant runtime artifact missing: {path}")
+        assistant_runtime_datas.append((str(path), "assistant-runtime/llama"))
 
 assistant = Analysis(
     [str(ROOT / "src" / "dairyos_assistant" / "service.py")],
