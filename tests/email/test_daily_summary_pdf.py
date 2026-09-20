@@ -48,7 +48,7 @@ def _summary(**overrides):
 def test_daily_summary_pdf_is_exactly_one_page_and_contains_governed_values():
     payload = daily_summary_pdf(_summary())
     assert payload.startswith(b"%PDF-")
-    assert len(re.findall(rb"/Type\s*/Page(?!s)\\b", payload)) == 1
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
 
 
 def test_daily_summary_pdf_caps_attention_rows_without_overflow():
