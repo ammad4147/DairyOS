@@ -288,7 +288,14 @@ class DashboardDigestService:
             counts = {"ai": 0, "pd": 0, "confirmed": 0, "losses": 0, "calvings": 0}
             for record in factory.breeding().get_all():
                 timestamp = getattr(record, "timestamp", None)
-                record_date = getattr(timestamp, "date", lambda: None)()
+                if timestamp is None:
+                    continue
+                if timestamp.tzinfo is None:
+                    record_date = timestamp.date()
+                else:
+                    record_date = timestamp.astimezone(
+                        self._farm_timezone()
+                    ).date()
                 if record_date != digest_date:
                     continue
                 event_type = str(getattr(record, "event_type", "") or "").upper()
