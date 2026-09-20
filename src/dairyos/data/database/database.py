@@ -20,6 +20,33 @@ from dairyos.data.database.session import engine
 # ORM model registration
 # ------------------------------------------------------------------
 
+from dairyos.data.models.animal import Animal
+from dairyos.data.models.animal_milking_schedule_history import AnimalMilkingScheduleHistory
+from dairyos.data.database.models.farm_model import FarmModel
+from dairyos.data.models.equipment import Equipment, EquipmentServiceEvent
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.financial_transaction import FinancialTransaction
+from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
+from dairyos.data.models.breeding_propagation_outbox import BreedingPropagationOutbox
+from dairyos.data.models.operational_write import OperationalWrite, OperationalProjectionOutbox
+from dairyos.data.models.health_observation import HealthObservation
+from dairyos.data.models.health_case import HealthCase
+from dairyos.data.models.milk_production import MilkProduction
+from dairyos.data.models.milk_production_correction import MilkProductionCorrection
+from dairyos.data.models.operational_finding import OperationalFinding
+from dairyos.data.models.operational_finding_lifecycle_event import OperationalFindingLifecycleEvent
+from dairyos.data.models.milk_disposition import MilkDisposition
+from dairyos.data.models.milking_session_record import MilkingSessionRecord
+from dairyos.data.database.models.operational_event_model import OperationalEventModel
+from dairyos.data.database.models.operational_state_model import OperationalStateModel
+from dairyos.data.database.models.event_journal_model import EventJournalModel
+from dairyos.data.models.treatment_record import TreatmentRecord
+from dairyos.data.models.drug_withdrawal_reference import DrugWithdrawalReference
+from dairyos.data.models.inventory_transaction import InventoryTransaction
+from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
+from dairyos.data.models.vaccination_record import VaccinationRecord
+from dairyos.data.models.user import User
+
 
 def initialize_database() -> None:
     """Create the development/test schema when explicitly appropriate.
