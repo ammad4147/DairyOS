@@ -184,7 +184,10 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         c.setFont("Helvetica", 7)
         yy = top4 - 23 * mm
         for item in attention[:max_rows]:
-            c.drawString(margin + 5 * mm, yy, f"{item.get('area','Operational')}: {item.get('title','Action required')}"[:115]); yy -= 5 * mm
+            subject = f" [{item.get('subject_id')}]" if item.get("subject_id") else ""
+            severity = str(item.get("severity") or "INFO").upper()
+            line = f"{severity} | {item.get('area','Operational')}{subject}: {item.get('title','Action required')}"
+            c.drawString(margin + 5 * mm, yy, line[:115]); yy -= 5 * mm
         if len(attention) > max_rows:
             c.drawRightString(width - margin - 4 * mm, top4 - 31 * mm, f"+ {len(attention)-max_rows} more in DairyOS")
 
