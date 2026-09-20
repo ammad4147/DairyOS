@@ -85,7 +85,7 @@ def _item(**overrides) -> dict:
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="corpus not yet created")
 def test_assistant_corpus_has_no_errors():
     findings = validate_corpus(
-        CORPUS, ROOT, pending_external_ids=legacy_identifiers(LEGACY)
+        CORPUS, ROOT, pending_external_ids=frozenset()
     )
     assert errors(findings) == [], format_report(errors(findings))
 
@@ -106,7 +106,7 @@ def test_nothing_is_servable_until_an_item_is_approved():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not LEGACY.is_dir(), reason="legacy corpus removed")
+@pytest.mark.skipif(not any(LEGACY.glob("*")), reason="legacy corpus removed")
 def test_legacy_corpus_duplicate_identifiers_are_detected():
     """The previous validator read only the top-level 'items' array.
 
@@ -122,7 +122,7 @@ def test_legacy_corpus_duplicate_identifiers_are_detected():
     assert duplicates == LEGACY_DUPLICATE_IDS
 
 
-@pytest.mark.skipif(not LEGACY.is_dir(), reason="legacy corpus removed")
+@pytest.mark.skipif(not any(LEGACY.glob("*")), reason="legacy corpus removed")
 def test_legacy_corpus_broken_cross_link_is_detected():
     """breeding.pregnancy points at breeding.abortion, which does not exist.
 
@@ -138,7 +138,7 @@ def test_legacy_corpus_broken_cross_link_is_detected():
     assert "breeding.abortion" in broken[0].message
 
 
-@pytest.mark.skipif(not LEGACY.is_dir(), reason="legacy corpus removed")
+@pytest.mark.skipif(not any(LEGACY.glob("*")), reason="legacy corpus removed")
 def test_legacy_corpus_simulator_reference_is_detected():
     """The Training Simulator was retired; the corpus must not teach one."""
     findings = validate_corpus(

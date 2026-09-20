@@ -14,7 +14,7 @@ CORPUS = ROOT / "docs" / "assistant-knowledge"
 def _index() -> KnowledgeIndex:
     return KnowledgeIndex.load(
         CORPUS,
-        servable_statuses=("IMPLEMENTATION_REVIEW", "DOMAIN_REVIEW", "APPROVED"),
+        servable_statuses=("APPROVED",),
     )
 
 
@@ -37,8 +37,19 @@ def test_independent_operator_phrasings_retrieve_how_to_items():
 
 
 def test_promoted_items_are_procedurally_complete():
-    index = _index()
-    promoted = [item for item in index.documents if item.get("status") == "IMPLEMENTATION_REVIEW"]
+    import json
+
+    payload = json.loads(
+        (CORPUS / "dairyos" / "how-to-consolidated-draft.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    promoted = [
+        item
+        for item in payload["items"]
+        if item.get("status") == "APPROVED"
+        and item.get("class") == "DAIRYOS_INSTRUCTION"
+    ]
     assert len(promoted) == 77
     for item in promoted:
         scenario = item.get("scenario")
@@ -50,7 +61,7 @@ def test_promoted_items_are_procedurally_complete():
         assert item.get("verified_against_source"), item["id"]
 
 
-def test_clinical_items_remain_outside_implementation_promotion():
+def test_animal_health_items_are_approved_as_educational_triage_guidance():
     import json
 
     payload = json.loads(
@@ -58,8 +69,11 @@ def test_clinical_items_remain_outside_implementation_promotion():
             encoding="utf-8"
         )
     )
-    assert all(
-        item.get("status") == "DRAFT"
+    clinical = [
+        item
         for item in payload["items"]
         if item.get("class") == "DAIRY_KNOWLEDGE"
-    )
+    ]
+    assert len(clinical) == 14
+    assert all(item.get("status") == "APPROVED" for item in clinical)
+    assert all("veterinary" in item.get("approval_basis", "").lower() for item in clinical)

@@ -1,10 +1,10 @@
 """The pre-release switch, and the single place it can be turned off.
 
-The corpus is authored but not yet reviewed. Only ``APPROVED`` items are
-servable, so a correctly configured Assistant built today would answer nothing
-at all. That is the review gate doing its job, and weakening the gate itself
-would be the wrong fix, because the gate is what makes an approved corpus mean
-something.
+The certified corpus serves only ``APPROVED`` items. The current consolidated
+corpus contains 141 approved items, including the independently source-verified
+non-clinical DairyOS how-to set and the veterinary-reviewed educational/triage
+set. The Assistant is not a veterinarian and must not diagnose, prescribe, or
+provide dosing.
 
 So the gate is left alone and a separate, deliberate, single-valued switch is
 provided instead. While ``PRE_RELEASE`` is true the index additionally serves
@@ -41,8 +41,8 @@ PRE_RELEASE_STATUSES: tuple[str, ...] = (
 # The reason, recorded here so that a reader of a pre-release build knows why
 # it is one without having to find the decision in a chat log.
 PRE_RELEASE_REASON = (
-    "Closed 18 September 2026. All 44 servable items of corpus v0.4.0 are "
-    "APPROVED: the 19 clinical items by Dr Umair Shaffi, DVM, and the 25 "
-    "DairyOS mechanics items by Trident Dairies as operator. The switch is off "
-    "and this build serves only approved knowledge."
+    "Closed 20 September 2026. Corpus v0.8.0-unified-approved contains 141 "
+    "approved items. Animal-health content is educational and triage guidance "
+    "only; diagnosis, prescribing, and dosing remain with a veterinarian. The "
+    "switch is off and this build serves only approved knowledge."
 )

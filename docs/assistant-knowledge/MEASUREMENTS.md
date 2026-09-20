@@ -13,8 +13,14 @@ including the ones that are unflattering.
 
 **Artefacts.** Qwen3-1.7B-Q4_K_M.gguf and llama.cpp b10456 `llama-server.exe`,
 both verified against the pinned sha256 values in
-`scripts/Get-AssistantRuntime.ps1`. Corpus 0.4.0, 44 servable items, pre-release
-build serving implementation-reviewed content.
+`scripts/Get-AssistantRuntime.ps1`. Historical measurement: corpus 0.4.0,
+44 servable items, pre-release build serving implementation-reviewed content.
+
+The current consolidated corpus is v0.8.0-unified-approved: 141 approved items
+are servable. Animal-health content is educational and triage guidance only;
+the Assistant is not a veterinarian and does not diagnose, prescribe, or dose.
+The historical measurements below are not presented as measurements of that
+newer corpus.
 
 **Machine.** Operator's Windows workstation. CPU inference.
 

@@ -1,22 +1,21 @@
 {
   "schema_version": 2,
-  "corpus_version": "0.6.0-implementation-review",
-  "generated_at": "2026-09-20T00:00:00+00:00",
-  "dairyos_source_authority": "15e742364719825ce6f0c5dd800751e3bcfc8b07",
+  "corpus_version": "0.9.0-assistant-owned-rebuild",
+  "generated_at": "2026-09-20T05:00:00+05:00",
+  "dairyos_source_authority": "4696fee49ac7e25de5e358286b13503b3f70b68c",
   "servable_statuses": [
     "APPROVED"
   ],
   "counts": {
-    "total": 144,
+    "total": 145,
     "by_status": {
-      "APPROVED": 50,
+      "DRAFT": 0,
       "DEPRECATED": 3,
-      "IMPLEMENTATION_REVIEW": 77,
-      "DRAFT": 14
+      "APPROVED": 141
     },
     "by_class": {
-      "DAIRYOS_INSTRUCTION": 124,
-      "DAIRY_KNOWLEDGE": 20
+      "DAIRY_KNOWLEDGE": 20,
+      "DAIRYOS_INSTRUCTION": 124
     }
   },
   "files": [
@@ -24,14 +23,14 @@
       "path": "dairyos/animals-and-herd.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "animals-and-herd",
-      "sha256": "c2132a42588e67d789f545ec4fc556b9468374222c540028a38141bf5d944137",
+      "sha256": "26634fed210a1625809874e41ba4af3ceccfd33110cf80b7d2038f3a9efc42b3",
       "item_count": 7
     },
     {
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "breeding-and-reproduction",
-      "sha256": "1819ae9d3cb693c148fc509e3922f42c9d9a7b92ce08353d988d049abd1a5a7c",
+      "sha256": "7584a2db583d9b1e8a47a12395d116f00806d1d1aad243f84d0efa1cda01c4d7",
       "item_count": 9
     },
     {
@@ -45,7 +44,7 @@
       "path": "dairyos/health-and-veterinary.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "health-and-veterinary",
-      "sha256": "ed1809e5d804c3199dea7da8c8c772c57cbcfd1a9abddfabc56ee21db4bbd706",
+      "sha256": "4618811b3d2e8e8cbade9913833d9c58ad370e6f344220cb4b63e0923c45a676",
       "item_count": 13
     },
     {
@@ -64,11 +63,11 @@
     },
     {
       "path": "dairyos/how-to-consolidated-draft.json",
-      "class": "MIXED_DRAFT",
+      "class": "MIXED",
       "domain": "cross-domain-how-to",
-      "sha256": "60102a41a672adc89b7a71a46bd59722e71d000e3fffde2e270e1492fe006794",
+      "sha256": "4a7eff2252cfbe87d8a80fe4abb591b1f5e96972e66a4992b3d1deab6d5428d8",
       "item_count": 91
     }
   ],
-  "note": "Independent source-anchor audit completed for promoted non-clinical items; clinical items remain DRAFT."
+  "note": "Assistant-owned corpus rebuilt from current DairyOS repository capability review plus general dairy-industry guidance; legacy training and simulator material is not a source."
 }

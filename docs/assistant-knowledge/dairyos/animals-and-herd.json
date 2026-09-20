@@ -396,7 +396,6 @@
         "animals.search",
         "animals.edit-identity",
         "animals.lifecycle",
-        "milk.entry",
         "health.observation-triage",
         "breeding.event"
       ],

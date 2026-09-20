@@ -100,8 +100,7 @@
         "breeding.ai",
         "breeding.pregnancy",
         "breeding.calving",
-        "breeding.chronology",
-        "animals.passport"
+        "breeding.chronology"
       ],
       "merged_from": [
         "vaccination-breeding-items.json::breeding.event",
@@ -430,8 +429,7 @@
         "breeding.pregnancy",
         "breeding.post-calving-return",
         "breeding.dry-off",
-        "health.observation-triage",
-        "milk.entry"
+        "health.observation-triage"
       ],
       "merged_from": [
         "vaccination-breeding-items.json::breeding.calving",
@@ -935,8 +933,7 @@
       "related": [
         "breeding.calving",
         "breeding.chronology",
-        "breeding.current-state",
-        "milk.entry"
+        "breeding.current-state"
       ],
       "verified_against_source": "b190d1a059141e39df994c2fcc23c1021066986d",
       "implementation_reviewed_by": "Claude Opus 5 (agent), traced to DairyOS 45900048a",

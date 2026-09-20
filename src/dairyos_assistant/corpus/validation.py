@@ -1,6 +1,7 @@
 """Integrity validation for the DairyOS Assistant knowledge corpus.
 
-This module replaces ``docs/training/validate_knowledge_base.py``, which had two
+This module is the sole validator for the Assistant-owned corpus. It replaces
+the retired legacy validator, which had two
 demonstrated logic failures:
 
 * It collected items with ``payload.get("items", [])`` at the top level only, so
@@ -265,10 +266,7 @@ def load_corpus(corpus_root: Path) -> LoadedCorpus:
 
 def _load_catalogue(corpus_root: Path, repo_root: Path) -> dict[str, set[str]]:
     """Return ``{domain_id: {capability, ...}}`` from whichever catalogue exists."""
-    for candidate in (
-        Path(corpus_root) / "capability_catalog.json",
-        Path(repo_root) / "docs" / "training" / "capability_catalog.json",
-    ):
+    for candidate in (Path(corpus_root) / "capability_catalog.json",):
         if candidate.is_file():
             try:
                 payload = json.loads(candidate.read_text(encoding="utf-8"))
@@ -798,9 +796,9 @@ def validate_corpus(
     """Validate a knowledge corpus and return every finding.
 
     ``strict_layout`` enforces the flat, non-inheriting layout ratified for the
-    new corpus. It is turned off when validating the legacy ``docs/training``
-    tree, whose shape predates that decision: the structural rules would then
-    drown out the defects the legacy run exists to surface.
+    new corpus. ``strict_layout`` remains configurable for callers validating
+    archived material, but the retired training tree is not part of the
+    Assistant or its release inputs.
     """
     corpus_root = Path(corpus_root)
     repo_root = Path(repo_root)

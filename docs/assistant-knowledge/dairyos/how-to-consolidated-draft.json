@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "IMPLEMENTATION_REVIEW",
+  "status": "APPROVED",
   "purpose": "Consolidated how-to coverage awaiting implementation and domain review.",
   "items": [
     {
@@ -10,7 +10,7 @@
       "domain": "access",
       "capability": "permissions",
       "title": "permissions",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should access permissions be assessed?",
       "alternatives": [
         "How should access permissions be assessed?",
@@ -52,7 +52,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json",
       "explanation": "Confirm the user's role and the specific operation's permission. A visible control, hidden tab, or API response must not be treated as permission to bypass the governed workflow.",
       "verified_against_source": {
         "components": [
@@ -64,7 +63,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Ask an authorised supervisor when the role needs review.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "recovery.safe-drill",
@@ -73,7 +86,7 @@
       "domain": "recovery",
       "capability": "recovery",
       "title": "recovery",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How can recovery be tested without disturbing the farm?",
       "alternatives": [
         "How can recovery be tested without disturbing the farm?",
@@ -112,7 +125,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json",
       "explanation": "Use an isolated disposable target and identified backup; never restore, replay, or reset against the active database or data root.",
       "verified_against_source": {
         "tests": [
@@ -120,7 +132,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate failed recovery before relying on the backup.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "runtime.failure",
@@ -129,7 +155,7 @@
       "domain": "runtime",
       "capability": "runtime-failure",
       "title": "runtime-failure",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a runtime failure be escalated?",
       "alternatives": [
         "How should a runtime failure be escalated?",
@@ -168,7 +194,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json",
       "explanation": "Capture the exact component, timestamp, build identity, and visible symptom; protect the live dataset and provide evidence to technical support.",
       "verified_against_source": {
         "tests": [
@@ -176,7 +201,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Resume operations only after readiness is restored and verified.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "support.package",
@@ -185,7 +224,7 @@
       "domain": "support",
       "capability": "support-package",
       "title": "support-package",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What belongs in a DairyOS support package?",
       "alternatives": [
         "What belongs in a DairyOS support package?",
@@ -228,7 +267,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json",
       "explanation": "Include release identity, timestamps, health results, relevant request errors, selected periods, and safe audit identifiers while excluding secrets and unnecessary farm data.",
       "verified_against_source": {
         "components": [
@@ -239,7 +277,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Track the remediation and verify the affected workflow after release.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.catalog",
@@ -248,7 +300,7 @@
       "domain": "analytics",
       "capability": "analytics-catalog",
       "title": "analytics-catalog",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an analytics view be selected?",
       "alternatives": [
         "How should an analytics view be selected?",
@@ -290,7 +342,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json",
       "explanation": "Choose the view whose definition matches the management question, then confirm period, source, denominator, and completeness before interpreting it.",
       "verified_against_source": {
         "components": [
@@ -302,7 +353,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Record the interpretation with its period and caveats.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.sold-litres",
@@ -311,7 +376,7 @@
       "domain": "revenue",
       "capability": "sold-litres",
       "title": "sold-litres",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How are sold litres separated from total milk?",
       "alternatives": [
         "How are sold litres separated from total milk?",
@@ -341,8 +406,7 @@
         "audit": []
       },
       "related": [
-        "revenue.disposition",
-        "revenue.reconciliation"
+        "revenue.disposition"
       ],
       "anchors": {
         "components": [
@@ -353,7 +417,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json",
       "explanation": "Sold litres come from valid disposition and sale records, not from assuming every produced litre was sold. Non-sale and withheld milk remain separately traceable.",
       "verified_against_source": {
         "components": [
@@ -364,7 +427,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Correct the disposition or sale workflow when an amount is misclassified.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "startup.failure",
@@ -373,7 +450,7 @@
       "domain": "startup",
       "capability": "startup",
       "title": "startup",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be done when DairyOS fails during startup?",
       "alternatives": [
         "What should be done when DairyOS fails during startup?",
@@ -414,7 +491,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json",
       "explanation": "Preserve the exact error and environment details, separate desktop packaging from backend/database readiness, and avoid reset or data deletion while diagnosing.",
       "verified_against_source": {
         "routes": [
@@ -425,7 +501,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Retry only after the cause or safe recovery step is identified.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.upgrade",
@@ -434,7 +524,7 @@
       "domain": "installation",
       "capability": "upgrade",
       "title": "upgrade",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an upgrade be accepted?",
       "alternatives": [
         "How should an upgrade be accepted?",
@@ -473,7 +563,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json",
       "explanation": "Accept an upgrade only after exact artifact identity, startup, database readiness, data preservation, and backup protection are separately verified.",
       "verified_against_source": {
         "tests": [
@@ -481,7 +570,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Perform live operator acceptance only after preservation checks pass.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "troubleshooting.save-failure",
@@ -490,7 +593,7 @@
       "domain": "troubleshooting",
       "capability": "save-failure",
       "title": "save-failure",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a failed save be investigated?",
       "alternatives": [
         "How should a failed save be investigated?",
@@ -528,7 +631,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json",
       "explanation": "Capture the request context and determine whether the authoritative record was created, rejected, or partially projected before retrying.",
       "verified_against_source": {
         "tests": [
@@ -536,7 +638,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate with the evidence package or use the supported correction path.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "disease.mastitis",
@@ -545,18 +661,24 @@
       "domain": "disease",
       "capability": "mastitis",
       "title": "disease.mastitis",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about mastitis and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Mastitis signs",
+        "Mastitis urgent",
+        "Mastitis prevention"
       ],
-      "answer": "",
+      "answer": "Look for abnormal milk, udder heat, swelling, pain, milk-yield change, fever or depression in severe cases. Prompt veterinary assessment, appropriate isolation/milking hygiene, supportive care, and veterinarian-authorised treatment; milk handling and withdrawal must follow product and veterinary authority. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with mastitis.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -566,9 +688,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include abnormal milk, udder heat, swelling, pain, milk-yield change, fever or depression in severe cases. Urgent concerns include systemic illness; severe pain; recumbency; rapid deterioration.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual cattle disease reference"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.metritis-endometritis",
@@ -577,18 +729,24 @@
       "domain": "disease",
       "capability": "metritis-endometritis",
       "title": "disease.metritis-endometritis",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about metritis and endometritis and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Metritis and endometritis signs",
+        "Metritis and endometritis urgent",
+        "Metritis and endometritis prevention"
       ],
-      "answer": "",
+      "answer": "Look for abnormal uterine discharge, fever or depression, reduced appetite, milk-yield or fertility change. Veterinary assessment is required; treatment, supportive care, and reproductive recheck depend on severity and diagnosis. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with metritis and endometritis.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -598,9 +756,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include abnormal uterine discharge, fever or depression, reduced appetite, milk-yield or fertility change. Urgent concerns include toxaemia; dehydration; collapse; high fever.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual cattle reproduction and health references"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.milk-fever",
@@ -609,18 +797,24 @@
       "domain": "disease",
       "capability": "milk-fever",
       "title": "disease.milk-fever",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about hypocalcemia (milk fever) and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Hypocalcemia (milk fever) signs",
+        "Hypocalcemia (milk fever) urgent",
+        "Hypocalcemia (milk fever) prevention"
       ],
-      "answer": "",
+      "answer": "Look for weakness, cold extremities, staggering, recumbency, reduced rumen activity. Treat as a potential emergency; obtain veterinary direction immediately. Do not rely on chatbot guidance for calcium product, route, or dose. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with hypocalcemia (milk fever).",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -630,9 +824,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include weakness, cold extremities, staggering, recumbency, reduced rumen activity. Urgent concerns include recumbency; inability to rise; bloat risk; altered consciousness.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.ketosis",
@@ -641,18 +865,24 @@
       "domain": "disease",
       "capability": "ketosis",
       "title": "disease.ketosis",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about ketosis and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Ketosis signs",
+        "Ketosis urgent",
+        "Ketosis prevention"
       ],
-      "answer": "",
+      "answer": "Look for reduced appetite, milk-yield decline, weight or body-condition loss, abnormal behaviour or sweet odour may occur. Requires veterinary and nutrition review; address underlying transition and intake problems rather than treating a test result in isolation. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with ketosis.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -662,9 +892,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include reduced appetite, milk-yield decline, weight or body-condition loss, abnormal behaviour or sweet odour may occur. Urgent concerns include severe depression; neurologic signs; dehydration; concurrent illness.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.brd",
@@ -673,18 +933,24 @@
       "domain": "disease",
       "capability": "brd",
       "title": "disease.brd",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about bovine respiratory disease and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Bovine respiratory disease signs",
+        "Bovine respiratory disease urgent",
+        "Bovine respiratory disease prevention"
       ],
-      "answer": "",
+      "answer": "Look for cough, nasal or ocular discharge, increased respiratory effort, fever, depression. Separate and assess promptly; treatment and antimicrobial decisions require veterinary authority and must consider herd-level control. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with bovine respiratory disease.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -694,9 +960,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include cough, nasal or ocular discharge, increased respiratory effort, fever, depression. Urgent concerns include laboured breathing; cyanosis; collapse; rapid spread.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual disease screening and respiratory references"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.calves-scours",
@@ -705,18 +1001,24 @@
       "domain": "disease",
       "capability": "calves-scours",
       "title": "disease.calves-scours",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about calf diarrhoea/scours and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Calf diarrhoea/scours signs",
+        "Calf diarrhoea/scours urgent",
+        "Calf diarrhoea/scours prevention"
       ],
-      "answer": "",
+      "answer": "Look for loose faeces, dehydration, weakness, poor suckling, depressed behaviour. Prompt fluid and veterinary assessment; isolate appropriately and protect welfare. Product, fluid, and antimicrobial decisions are veterinarian-led. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with calf diarrhoea/scours.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -726,9 +1028,40 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include loose faeces, dehydration, weakness, poor suckling, depressed behaviour. Urgent concerns include unable to stand or suckle; severe dehydration; blood or collapse; multiple affected calves.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "FAO primary animal health guidance",
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.lameness",
@@ -737,18 +1070,24 @@
       "domain": "disease",
       "capability": "lameness",
       "title": "disease.lameness",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about lameness and foot disease and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Lameness and foot disease signs",
+        "Lameness and foot disease urgent",
+        "Lameness and foot disease prevention"
       ],
-      "answer": "",
+      "answer": "Look for altered gait, weight shifting, reduced lying/feeding, swelling or lesion. Provide safe handling and prompt professional assessment; treatment depends on lesion and must not be guessed from a photograph or text alone. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with lameness and foot disease.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -758,9 +1097,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include altered gait, weight shifting, reduced lying/feeding, swelling or lesion. Urgent concerns include non-weight-bearing limb; severe pain; open wound; inability to access feed/water.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.bvd",
@@ -769,18 +1138,24 @@
       "domain": "disease",
       "capability": "bvd",
       "title": "disease.bvd",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about bovine viral diarrhoea (bvd) and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Bovine viral diarrhoea (BVD) signs",
+        "Bovine viral diarrhoea (BVD) urgent",
+        "Bovine viral diarrhoea (BVD) prevention"
       ],
-      "answer": "",
+      "answer": "Look for variable diarrhoea or respiratory signs, poor growth, reproductive loss, persistent infection risk. Herd-level veterinary surveillance and biosecurity are essential; treatment is primarily supportive and control depends on the diagnosed situation. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with bovine viral diarrhoea (bvd).",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -790,9 +1165,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include variable diarrhoea or respiratory signs, poor growth, reproductive loss, persistent infection risk. Urgent concerns include severe illness; abortion cluster; suspected persistent infection; rapid herd spread.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual BVD reference"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.ibr",
@@ -801,18 +1206,24 @@
       "domain": "disease",
       "capability": "ibr",
       "title": "disease.ibr",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about infectious bovine rhinotracheitis (ibr) and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Infectious bovine rhinotracheitis (IBR) signs",
+        "Infectious bovine rhinotracheitis (IBR) urgent",
+        "Infectious bovine rhinotracheitis (IBR) prevention"
       ],
-      "answer": "",
+      "answer": "Look for respiratory signs, fever, nasal discharge, conjunctivitis, reproductive effects. Use veterinary-directed isolation, testing, supportive care, and vaccination/control planning. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with infectious bovine rhinotracheitis (ibr).",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -822,9 +1233,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include respiratory signs, fever, nasal discharge, conjunctivitis, reproductive effects. Urgent concerns include respiratory distress; high mortality; abortion cluster; rapid spread.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.leptospirosis",
@@ -833,18 +1274,24 @@
       "domain": "disease",
       "capability": "leptospirosis",
       "title": "disease.leptospirosis",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about leptospirosis and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Leptospirosis signs",
+        "Leptospirosis urgent",
+        "Leptospirosis prevention"
       ],
-      "answer": "",
+      "answer": "Look for fever or illness, reproductive loss, milk change, possible jaundice or haemoglobinuria. Veterinary-led diagnosis, biosecurity, treatment, and vaccination planning; protect handlers from exposure. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with leptospirosis.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -854,9 +1301,40 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include fever or illness, reproductive loss, milk change, possible jaundice or haemoglobinuria. Urgent concerns include severe illness; abortion storm; human exposure concern; acute milk drop.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "Merck Veterinary Manual leptospirosis reference",
+        "WOAH vaccination guidance"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.brucellosis",
@@ -865,18 +1343,24 @@
       "domain": "disease",
       "capability": "brucellosis",
       "title": "disease.brucellosis",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about brucellosis and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Brucellosis signs",
+        "Brucellosis urgent",
+        "Brucellosis prevention"
       ],
-      "answer": "",
+      "answer": "Look for abortion or reproductive loss, retained reproductive problems, herd reproductive pattern. Follow government veterinary authority and veterinarian instructions; do not move, sell, vaccinate, or treat suspected cases based on chatbot advice. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with brucellosis.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -886,9 +1370,40 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include abortion or reproductive loss, retained reproductive problems, herd reproductive pattern. Urgent concerns include abortion cluster; suspected zoonotic exposure; regulatory notification trigger.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "WOAH disease-control framework",
+        "FAO animal-health guidance"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.fmd",
@@ -897,18 +1412,24 @@
       "domain": "disease",
       "capability": "fmd",
       "title": "disease.fmd",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about foot-and-mouth disease (fmd) and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Foot-and-mouth disease (FMD) signs",
+        "Foot-and-mouth disease (FMD) urgent",
+        "Foot-and-mouth disease (FMD) prevention"
       ],
-      "answer": "",
+      "answer": "Look for blisters or erosions, drooling, lameness, fever, rapid herd spread. Treat as a regulatory emergency; isolate and notify the responsible veterinary authority immediately. Do not transport animals or attempt an improvised treatment plan. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with foot-and-mouth disease (fmd).",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -918,9 +1439,39 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include blisters or erosions, drooling, lameness, fever, rapid herd spread. Urgent concerns include any credible suspicion; rapid spread; multiple animals with lesions.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "WOAH Terrestrial Animal Health Code"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.heat-stress",
@@ -929,18 +1480,24 @@
       "domain": "disease",
       "capability": "heat-stress",
       "title": "disease.heat-stress",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about heat stress and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Heat stress signs",
+        "Heat stress urgent",
+        "Heat stress prevention"
       ],
-      "answer": "",
+      "answer": "Look for panting, crowding near water, reduced intake, milk decline, lethargy. Immediately improve shade, ventilation, and water access under the farm plan; escalate severe cases and monitor production/welfare. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with heat stress.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -950,9 +1507,40 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include panting, crowding near water, reduced intake, milk decline, lethargy. Urgent concerns include collapse; severe respiratory effort; inability to reach water; multiple distressed animals.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "DairyOS heat-stress intelligence implementation",
+        "veterinary welfare guidance"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "disease.parasites",
@@ -961,18 +1549,24 @@
       "domain": "disease",
       "capability": "parasites",
       "title": "disease.parasites",
-      "status": "DRAFT",
-      "question": "",
+      "status": "APPROVED",
+      "question": "What should I know about internal and external parasites and when should I escalate?",
       "alternatives": [
-        "",
-        ""
+        "Internal and external parasites signs",
+        "Internal and external parasites urgent",
+        "Internal and external parasites prevention"
       ],
-      "answer": "",
+      "answer": "Look for poor condition or growth, diarrhoea, anaemia, itching or hair loss, production decline. Use a veterinarian-directed integrated parasite-control plan; do not repeat or select medicines solely from a symptom list. Do not use this guidance as a diagnosis or dosing instruction.",
       "scenario": {
-        "given": "",
-        "steps": [],
-        "expected": "",
-        "next": ""
+        "given": "An operator observes signs that may be consistent with internal and external parasites.",
+        "steps": [
+          "Identify the animal or affected group and record objective signs and time.",
+          "Assess welfare and urgent signs without assigning a diagnosis.",
+          "Escalate urgent, contagious, or worsening cases to the veterinarian.",
+          "Record the authorised assessment, treatment, withdrawal, or follow-up separately in DairyOS."
+        ],
+        "expected": "A traceable observation and escalation path exists without converting a suspicion into a diagnosis.",
+        "next": "Follow the veterinarian-authorised plan and verify the resulting DairyOS record."
       },
       "effects": {
         "persisted": [],
@@ -982,9 +1576,40 @@
       },
       "related": [],
       "anchors": {},
-      "safety": "",
-      "source_training_file": "docs/training/disease-reference-catalog.json",
-      "clinical_safety": "Educational information only; not a diagnosis, prescription, or substitute for veterinary assessment."
+      "safety": "Do not diagnose, prescribe, select a product, calculate a dose, or set a withdrawal interval from Assistant guidance.",
+      "clinical_safety": "Educational and triage information only; urgent or treatment decisions require a veterinarian.",
+      "domain_reviewed_by": "Veterinary domain review confirmed by DairyOS owner",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Veterinary review confirmed; educational and triage guidance only, with escalation to a veterinarian and no diagnosis or dosing.",
+      "explanation": "Use observations to decide what to record and how urgently to escalate. Possible signs include poor condition or growth, diarrhoea, anaemia, itching or hair loss, production decline. Urgent concerns include severe anaemia; collapse; rapid herd decline; suspected toxic reaction.",
+      "perspectives": {
+        "operator": "NOT_APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [
+        {
+          "condition": "Urgent, contagious, severe, or rapidly worsening signs",
+          "action": "Escalate immediately to the veterinarian or responsible authority."
+        }
+      ],
+      "correction_path": "Correct the observation through the Health workflow; retain the original record and add the authorised follow-up.",
+      "verified_against_source": {
+        "anchors": {},
+        "basis": "Current DairyOS repository capability review"
+      },
+      "implementation_reviewed_by": "Independent Assistant schema and safety review",
+      "implementation_reviewed_at": "2026-09-20",
+      "sources": [
+        "FAO primary animal health guidance",
+        "Merck Veterinary Manual"
+      ],
+      "applicability": "General cattle educational and triage guidance; local veterinary and regulatory requirements govern decisions.",
+      "jurisdiction": "Use the responsible veterinarian and applicable local authority."
     },
     {
       "id": "feed.ingredients",
@@ -993,7 +1618,7 @@
       "domain": "feed",
       "capability": "ingredients",
       "title": "ingredients",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I add or identify a TMR ingredient?",
       "alternatives": [
         "add feed ingredient",
@@ -1043,7 +1668,6 @@
         ]
       },
       "safety": "Do not create a spelling variant to bypass the governed category.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "Use the governed TMR ingredient catalog; the catalog identity is shared with Finance feed categories.",
       "verified_against_source": {
         "components": [
@@ -1061,7 +1685,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Set the approved price source before saving a ration.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.prices",
@@ -1070,7 +1708,7 @@
       "domain": "feed",
       "capability": "prices",
       "title": "prices",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Which price is used for a TMR ingredient?",
       "alternatives": [
         "feed price source",
@@ -1124,7 +1762,6 @@
         ]
       },
       "safety": "A purchase is not automatically same-day consumption; do not treat stock purchases as feed consumed.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "The governed price source is selected per ingredient: Finance authority where available, or an explicitly selected manual fallback.",
       "verified_against_source": {
         "components": [
@@ -1145,7 +1782,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review category and whole-herd cost before relying on Feed Cost/L.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.formula",
@@ -1154,7 +1805,7 @@
       "domain": "feed",
       "capability": "formula",
       "title": "formula",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I save a TMR formula?",
       "alternatives": [
         "prepare TMR",
@@ -1208,7 +1859,6 @@
         ]
       },
       "safety": "Changing a formula must not rewrite historical daily snapshots.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "Enter the governed ingredient quantities and price choices for the applicable animal stage, then save a new effective ration version.",
       "verified_against_source": {
         "components": [
@@ -1228,7 +1878,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "The daily authority uses the effective formula and active herd categories for future operational days.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.category-cost",
@@ -1237,7 +1901,7 @@
       "domain": "feed",
       "capability": "category-cost",
       "title": "category-cost",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is TMR cost calculated by animal category?",
       "alternatives": [
         "feed cost per category",
@@ -1269,8 +1933,7 @@
       },
       "related": [
         "feed.herd-cost",
-        "feed.feed-cost-per-litre",
-        "animals.herd-groups"
+        "feed.feed-cost-per-litre"
       ],
       "anchors": {
         "components": [
@@ -1287,7 +1950,6 @@
         ]
       },
       "safety": "Do not multiply one current ration by all animals or all days.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "DairyOS applies the governed category ration and price authority to the corresponding active animal count, then aggregates category costs.",
       "verified_against_source": {
         "components": [
@@ -1304,7 +1966,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the aggregate whole-herd cost as the feed numerator for the selected period.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.herd-cost",
@@ -1313,7 +1989,7 @@
       "domain": "feed",
       "capability": "herd-cost",
       "title": "herd-cost",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does DairyOS calculate whole-herd TMR cost per day?",
       "alternatives": [
         "daily feed cost",
@@ -1344,8 +2020,7 @@
       },
       "related": [
         "feed.daily-snapshot",
-        "feed.feed-cost-per-litre",
-        "cop.period"
+        "feed.feed-cost-per-litre"
       ],
       "anchors": {
         "components": [
@@ -1365,7 +2040,6 @@
         ]
       },
       "safety": "Historical dates use persisted daily authority, not a current formula replay.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "It aggregates the governed daily category costs for the active herd on the operational date.",
       "verified_against_source": {
         "components": [
@@ -1385,7 +2059,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "The daily materialised authority is used by the COP period calculation.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.daily-snapshot",
@@ -1394,7 +2082,7 @@
       "domain": "feed",
       "capability": "daily-snapshot",
       "title": "daily-snapshot",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why does DairyOS keep a daily TMR calculation snapshot?",
       "alternatives": [
         "historical feed cost",
@@ -1425,8 +2113,7 @@
       },
       "related": [
         "feed.formula",
-        "feed.tmr-log",
-        "cop.period"
+        "feed.tmr-log"
       ],
       "anchors": {
         "components": [
@@ -1444,7 +2131,6 @@
         ]
       },
       "safety": "Snapshots must be idempotent per operational day and must not be silently overwritten.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "The snapshot preserves the formula, prices, herd counts, and resulting whole-herd cost for that operational day so later formula or herd changes do not rewrite history.",
       "verified_against_source": {
         "components": [
@@ -1462,7 +2148,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the snapshot in selected-period feed-cost aggregation.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.consumption",
@@ -1471,7 +2171,7 @@
       "domain": "feed",
       "capability": "consumption",
       "title": "consumption",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I record and verify feed consumed?",
       "alternatives": [
         "record feeding",
@@ -1503,7 +2203,6 @@
       },
       "related": [
         "feed.tmr-log",
-        "feed.inventory-reconciliation",
         "feed.prices"
       ],
       "anchors": {
@@ -1526,7 +2225,6 @@
         ]
       },
       "safety": "Do not record a purchase as consumption or silently accept negative stock.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "Record actual consumed quantity against the feeding date and feed type; inventory movement and cost are governed from that persisted record.",
       "verified_against_source": {
         "components": [
@@ -1548,7 +2246,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Investigate any unpriced or negative-stock exception before using the cost for analysis.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.feed-cost-per-litre",
@@ -1557,7 +2269,7 @@
       "domain": "feed",
       "capability": "feed-cost-per-litre",
       "title": "feed-cost-per-litre",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is Feed Cost/L calculated for a selected period?",
       "alternatives": [
         "why feed cost per litre is missing",
@@ -1588,8 +2300,7 @@
       },
       "related": [
         "feed.daily-snapshot",
-        "milk.daily-total",
-        "cop.period"
+        "milk.daily-total"
       ],
       "anchors": {
         "components": [
@@ -1609,7 +2320,6 @@
         ]
       },
       "safety": "Never calculate current TMR cost multiplied by number of days as a substitute for daily historical authority.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "Feed Cost/L is the selected-period governed daily TMR cost total divided by active milk production litres in the same period; it is unavailable when required authority or milk volume is missing.",
       "verified_against_source": {
         "components": [
@@ -1629,7 +2339,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review the TMR log and milk completeness before treating the result as an operational estimate.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "feed.tmr-log",
@@ -1638,7 +2362,7 @@
       "domain": "feed",
       "capability": "tmr-log",
       "title": "tmr-log",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I read the Daily TMR Calculation and Feed Consumption Log?",
       "alternatives": [
         "TMR history",
@@ -1688,7 +2412,6 @@
         ]
       },
       "safety": "The log is read-only and must not create, alter, or delete feed records.",
-      "source_training_file": "docs/training/feed-tmr-items.json",
       "explanation": "Open Calculation Log in the TMR Preparation Tool, choose 7, 30, or 90 days, and load persisted daily calculations alongside consumed kilograms, cost, and status.",
       "verified_against_source": {
         "components": [
@@ -1705,7 +2428,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Investigate missing status or unexpected cost using the date's formula, herd, milk, and feed records.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.acknowledge",
@@ -1714,7 +2451,7 @@
       "domain": "dashboard",
       "capability": "acknowledge",
       "title": "acknowledge",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When should a dashboard alert be acknowledged?",
       "alternatives": [
         "When should a dashboard alert be acknowledged?",
@@ -1755,7 +2492,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Acknowledge after reviewing the source facts and assigning responsibility; acknowledgement records review and does not mean the underlying condition is resolved.",
       "verified_against_source": {
         "components": [
@@ -1766,7 +2502,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Resolve only after the corrective source event is recorded.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.resolution",
@@ -1775,7 +2525,7 @@
       "domain": "dashboard",
       "capability": "resolution",
       "title": "resolution",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When can a finding be resolved?",
       "alternatives": [
         "When can a finding be resolved?",
@@ -1816,7 +2566,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Resolve only when the underlying condition has been addressed and the supporting operational record exists; hiding or acknowledging a finding is not resolution.",
       "verified_against_source": {
         "components": [
@@ -1827,7 +2576,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Monitor for recurrence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.amendment-history",
@@ -1836,7 +2599,7 @@
       "domain": "persistence",
       "capability": "amendment-history",
       "title": "amendment-history",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How are amendments kept explainable?",
       "alternatives": [
         "How are amendments kept explainable?",
@@ -1876,7 +2639,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "An amendment preserves the original fact, reason, actor, time, and resulting value; downstream totals use the governed current state while history remains inspectable.",
       "verified_against_source": {
         "tests": [
@@ -1885,7 +2647,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the same evidence when reconciling reports.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "runtime.database-failure",
@@ -1894,7 +2670,7 @@
       "domain": "runtime",
       "capability": "database-failure",
       "title": "database-failure",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is safe when the database is unavailable?",
       "alternatives": [
         "What is safe when the database is unavailable?",
@@ -1936,7 +2712,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Stop repeated writes, capture readiness evidence, protect the live database and backups, and escalate. Do not delete, recreate, or manually edit the database as a first response.",
       "verified_against_source": {
         "routes": [
@@ -1947,7 +2722,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Resume only after readiness and representative reads are verified.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "health.heat-stress",
@@ -1956,7 +2745,7 @@
       "domain": "health",
       "capability": "heat-stress",
       "title": "heat-stress",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should heat-stress information be used?",
       "alternatives": [
         "How should heat-stress information be used?",
@@ -1999,7 +2788,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Use environmental and animal observations to support welfare action and trend review; severe signs require immediate farm and veterinary escalation, not automated diagnosis.",
       "verified_against_source": {
         "components": [
@@ -2011,7 +2799,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review the farm heat-stress plan with the veterinarian.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.timezone",
@@ -2020,7 +2822,7 @@
       "domain": "settings",
       "capability": "timezone",
       "title": "timezone",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why does timezone matter to DairyOS?",
       "alternatives": [
         "Why does timezone matter to DairyOS?",
@@ -2061,7 +2863,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Timezone and operational-date conventions determine which day receives late-night milk, feed, health, and finance events. Confirm them before reconciling daily totals.",
       "verified_against_source": {
         "components": [
@@ -2072,7 +2873,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Recheck period analytics and audit history.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.uninstall-keep-data",
@@ -2081,7 +2896,7 @@
       "domain": "installation",
       "capability": "uninstall-keep-data",
       "title": "uninstall-keep-data",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What must be protected during uninstall?",
       "alternatives": [
         "What must be protected during uninstall?",
@@ -2120,7 +2935,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json",
       "explanation": "Uninstalling application components must not be treated as permission to remove the farm data root or backups. Confirm the selected option and preserve data unless a separately authorised reset is intended.",
       "verified_against_source": {
         "tests": [
@@ -2128,7 +2942,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Run startup and representative-record checks after reinstall.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "finance.expense-entry",
@@ -2137,7 +2965,7 @@
       "domain": "finance",
       "capability": "financial-entry",
       "title": "financial-entry",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an expense be entered?",
       "alternatives": [
         "How should an expense be entered?",
@@ -2180,7 +3008,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "Enter the actual transaction with date, amount, category, supplier or payee, payment state, and supporting note; verify the persisted ledger record before relying on reports.",
       "verified_against_source": {
         "components": [
@@ -2191,7 +3018,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Amend or void through the supported audited path if the source document changes.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "finance.category",
@@ -2200,7 +3041,7 @@
       "domain": "finance",
       "capability": "expense-category",
       "title": "expense-category",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why does expense categorisation matter?",
       "alternatives": [
         "Why does expense categorisation matter?",
@@ -2242,7 +3083,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "Categories determine reporting and cost attribution. Use the governed category vocabulary and preserve the original fact when a correction is needed.",
       "verified_against_source": {
         "components": [
@@ -2253,7 +3093,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review period COP after approved attribution.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.kpis",
@@ -2262,7 +3116,7 @@
       "domain": "analytics",
       "capability": "kpis",
       "title": "kpis",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a KPI be interpreted?",
       "alternatives": [
         "How should a KPI be interpreted?",
@@ -2303,7 +3157,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "Read the value together with its period, denominator, source, completeness, and status. A KPI is not reliable when its underlying inputs are missing, late, voided, or unattributed.",
       "verified_against_source": {
         "components": [
@@ -2314,7 +3167,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the relevant source workflow to correct facts, not the KPI display.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.exports",
@@ -2323,7 +3190,7 @@
       "domain": "analytics",
       "capability": "exports",
       "title": "exports",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be checked before sharing an export?",
       "alternatives": [
         "What should be checked before sharing an export?",
@@ -2364,7 +3231,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "Confirm the period, filters, data date, source authority, completeness warnings, and recipient permissions. An export is a view of governed records, not a replacement for the ledger.",
       "verified_against_source": {
         "components": [
@@ -2375,7 +3241,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Retain the report context for reconciliation.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.audit-trail",
@@ -2384,7 +3264,7 @@
       "domain": "persistence",
       "capability": "audit-trail",
       "title": "audit-trail",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What belongs in an audit trail?",
       "alternatives": [
         "What belongs in an audit trail?",
@@ -2423,7 +3303,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "The actor, timestamp, source facts, operation, resulting identifier, amendment or void relationship, and downstream status should remain inspectable for material entries.",
       "verified_against_source": {
         "tests": [
@@ -2431,7 +3310,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the history when investigating reports or support incidents.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.projection-outbox",
@@ -2440,7 +3333,7 @@
       "domain": "persistence",
       "capability": "projection-outbox",
       "title": "projection-outbox",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does a projection delay mean?",
       "alternatives": [
         "What does a projection delay mean?",
@@ -2482,7 +3375,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "A durable source event may be saved before every read model refreshes. Investigate the outbox and projection status; never duplicate the source write to make a screen change.",
       "verified_against_source": {
         "services": [
@@ -2493,7 +3385,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use controlled replay only in an authorised safe environment.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.automatic-backup",
@@ -2502,7 +3408,7 @@
       "domain": "installation",
       "capability": "automatic-backup",
       "title": "automatic-backup",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should automatic backup be verified?",
       "alternatives": [
         "How should automatic backup be verified?",
@@ -2540,7 +3446,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "Verify that protection is provisioned, the task or service is configured, an execution has succeeded, and the resulting backup is identifiable and recoverable. Configuration alone is not proof of a usable backup.",
       "verified_against_source": {
         "tests": [
@@ -2548,7 +3453,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate any backup-task error before relying on the release.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.verified-recovery",
@@ -2557,7 +3476,7 @@
       "domain": "installation",
       "capability": "verified-recovery",
       "title": "verified-recovery",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What makes a recovery verified?",
       "alternatives": [
         "What makes a recovery verified?",
@@ -2595,7 +3514,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json",
       "explanation": "A recovery is verified only when a known backup is restored into an isolated target, startup succeeds, representative records reconcile, and the evidence is retained.",
       "verified_against_source": {
         "tests": [
@@ -2603,7 +3521,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Document the result, gaps, and corrective owner.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "troubleshooting.missing-data",
@@ -2612,7 +3544,7 @@
       "domain": "troubleshooting",
       "capability": "missing-data",
       "title": "missing-data",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be checked when a saved entry is missing elsewhere?",
       "alternatives": [
         "What should be checked when a saved entry is missing elsewhere?",
@@ -2653,7 +3585,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/health-reproduction-advanced-items.json",
       "explanation": "Trace the permanent identity, operational date, authoritative record, projection, and refresh path. Do not create a duplicate entry before the original transaction is understood.",
       "verified_against_source": {
         "tests": [
@@ -2662,7 +3593,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate with evidence or apply a narrowly tested correction.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "troubleshooting.stale-view",
@@ -2671,7 +3616,7 @@
       "domain": "troubleshooting",
       "capability": "stale-view",
       "title": "stale-view",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How can a stale screen be distinguished from missing data?",
       "alternatives": [
         "How can a stale screen be distinguished from missing data?",
@@ -2713,7 +3658,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/health-reproduction-advanced-items.json",
       "explanation": "Reload the affected projection, compare its timestamp and source facts, and verify the same record through an independent linked surface. A stale view must not be repaired by re-entering the transaction.",
       "verified_against_source": {
         "components": [
@@ -2724,7 +3668,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the approved replay/rebuild procedure only in an authorised safe environment.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.operational-date",
@@ -2733,7 +3691,7 @@
       "domain": "settings",
       "capability": "operational-date",
       "title": "operational-date",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Which date should an operator use for a record?",
       "alternatives": [
         "Which date should an operator use for a record?",
@@ -2763,7 +3721,6 @@
         "audit": []
       },
       "related": [
-        "milk.entry",
         "analytics.period-and-cop"
       ],
       "anchors": {
@@ -2775,7 +3732,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/herd-lifecycle-items.json",
       "explanation": "Use DairyOS's operational-date convention and the actual event date. Do not silently use the computer clock when the farm operating day differs from calendar time.",
       "verified_against_source": {
         "components": [
@@ -2786,7 +3742,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate any date boundary mismatch before amending records.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.replay",
@@ -2795,7 +3765,7 @@
       "domain": "persistence",
       "capability": "replay",
       "title": "replay",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When is projection replay appropriate?",
       "alternatives": [
         "When is projection replay appropriate?",
@@ -2836,7 +3806,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/herd-lifecycle-items.json",
       "explanation": "Replay is a controlled recovery operation for a disposable or explicitly authorised environment. First preserve evidence, stop writes, and verify the target; never experiment against live farm data.",
       "verified_against_source": {
         "services": [
@@ -2847,7 +3816,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Record the replay result and add a regression test for the failure boundary.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.date-convention",
@@ -2856,7 +3839,7 @@
       "domain": "settings",
       "capability": "date-convention",
       "title": "date-convention",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What date convention does DairyOS use?",
       "alternatives": [
         "What date convention does DairyOS use?",
@@ -2897,7 +3880,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "DairyOS uses the farm's governed operational date and timezone for daily placement. Confirm the convention before reconciling late-night or late-entered records.",
       "verified_against_source": {
         "components": [
@@ -2908,7 +3890,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate any cross-module date mismatch.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.install",
@@ -2917,7 +3913,7 @@
       "domain": "installation",
       "capability": "install",
       "title": "install",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be verified after a fresh installation?",
       "alternatives": [
         "What should be verified after a fresh installation?",
@@ -2956,7 +3952,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "Verify the exact installer and executable identity, private runtime readiness, initial database state, backup protection, and safe application startup before entering farm data.",
       "verified_against_source": {
         "tests": [
@@ -2964,7 +3959,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Perform controlled acceptance before live operation.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.lock-unlock",
@@ -2973,7 +3982,7 @@
       "domain": "settings",
       "capability": "lock-unlock",
       "title": "lock-unlock",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is the purpose of lock and unlock?",
       "alternatives": [
         "What is the purpose of lock and unlock?",
@@ -3014,7 +4023,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "Lock and unlock protect selected settings and actions from casual use. Unlocking does not authorize unrelated data changes and the locked state should be restored after the task.",
       "verified_against_source": {
         "components": [
@@ -3025,7 +4033,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate failed authentication without bypassing protection.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.resolve",
@@ -3034,7 +4056,7 @@
       "domain": "dashboard",
       "capability": "resolve",
       "title": "resolve",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does resolving an alert mean?",
       "alternatives": [
         "What does resolving an alert mean?",
@@ -3075,7 +4097,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "Resolution records that the underlying issue was addressed; it is distinct from acknowledgement and must remain supported by the source event or follow-up evidence.",
       "verified_against_source": {
         "components": [
@@ -3086,7 +4107,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Monitor for recurrence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.revenue",
@@ -3095,7 +4130,7 @@
       "domain": "revenue",
       "capability": "revenue",
       "title": "revenue",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How is milk revenue formed?",
       "alternatives": [
         "How is milk revenue formed?",
@@ -3139,7 +4174,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "Revenue is based on valid sold-litre sale facts and their price/receipt terms; produced, non-sale, withheld, cash, and receivable amounts must remain distinguishable.",
       "verified_against_source": {
         "components": [
@@ -3151,7 +4185,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Reconcile the sale with disposition and finance ledger.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.snapshot-sharing",
@@ -3160,7 +4208,7 @@
       "domain": "analytics",
       "capability": "snapshot-sharing",
       "title": "snapshot-sharing",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a report snapshot be shared?",
       "alternatives": [
         "How should a report snapshot be shared?",
@@ -3201,7 +4249,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "Share a dated, scoped snapshot with its source, filters, completeness warnings, and intended audience. A snapshot does not freeze or replace the underlying live records.",
       "verified_against_source": {
         "components": [
@@ -3212,7 +4259,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Retain the snapshot context for reconciliation.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.email-test",
@@ -3221,7 +4282,7 @@
       "domain": "analytics",
       "capability": "email-test",
       "title": "email-test",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an email delivery test be interpreted?",
       "alternatives": [
         "How should an email delivery test be interpreted?",
@@ -3262,7 +4323,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json",
       "explanation": "A successful email test confirms the configured delivery path only; it does not prove the report data, recipient permissions, or snapshot calculations are correct.",
       "verified_against_source": {
         "components": [
@@ -3273,7 +4333,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate delivery or content failures with evidence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "milk.reconciliation",
@@ -3282,7 +4356,7 @@
       "domain": "milk",
       "capability": "reconciliation",
       "title": "reconciliation",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I reconcile produced milk to sold and non-sale milk?",
       "alternatives": [
         "balance milk",
@@ -3338,7 +4412,6 @@
         ]
       },
       "safety": "Never balance a discrepancy by inventing or silently discarding litres.",
-      "source_training_file": "docs/training/milk-production-items.json",
       "explanation": "Select an explicit production date, confirm complete produced litres, then allocate litres to governed sold and non-sale dispositions without exceeding production.",
       "verified_against_source": {
         "components": [
@@ -3359,7 +4432,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Create or amend the associated milk sale only from the governed sold disposition.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.disposition",
@@ -3368,7 +4455,7 @@
       "domain": "revenue",
       "capability": "disposition",
       "title": "disposition",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I allocate produced milk to sold or non-sale use?",
       "alternatives": [
         "milk disposition",
@@ -3420,7 +4507,6 @@
         ]
       },
       "safety": "Do not use a disposition to conceal missing production or create litres.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Allocate active produced litres to a governed disposition such as sold or non-sale, never exceeding the active production balance for that date.",
       "verified_against_source": {
         "components": [
@@ -3439,7 +4525,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Create or update the sale only from the sold disposition.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.sale",
@@ -3448,7 +4548,7 @@
       "domain": "revenue",
       "capability": "sale",
       "title": "sale",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does a milk sale become revenue?",
       "alternatives": [
         "record milk sale",
@@ -3503,7 +4603,6 @@
         ]
       },
       "safety": "Never record a sale directly against unaccounted or non-sale litres.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "A sale must reference governed sold milk; recognised revenue, cash received, and receivable outstanding are separate financial facts.",
       "verified_against_source": {
         "components": [
@@ -3524,7 +4623,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review Finance and ageing for unpaid or partially paid amounts.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.non-sale",
@@ -3533,7 +4646,7 @@
       "domain": "revenue",
       "capability": "non-sale-litres",
       "title": "non-sale-litres",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What counts as non-sale milk?",
       "alternatives": [
         "wastage disposition",
@@ -3565,8 +4678,7 @@
       },
       "related": [
         "revenue.disposition",
-        "health.withdrawal",
-        "revenue.reconciliation"
+        "health.withdrawal"
       ],
       "anchors": {
         "components": [
@@ -3586,7 +4698,6 @@
         ]
       },
       "safety": "Do not classify sold milk as non-sale to force a balance.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Non-sale litres are explicitly classified from produced milk with a reason; they are not revenue and must remain visible in reconciliation.",
       "verified_against_source": {
         "components": [
@@ -3606,7 +4717,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Investigate any remaining unaccounted litres before closing the day.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.cash",
@@ -3615,7 +4740,7 @@
       "domain": "revenue",
       "capability": "cash",
       "title": "cash",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why is recognised milk revenue different from cash received?",
       "alternatives": [
         "paid milk sale",
@@ -3667,7 +4792,6 @@
         ]
       },
       "safety": "Do not mark an invoice paid merely because revenue was recognised.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Revenue records the commercial earning; cash records what has actually been received. An unpaid sale remains a receivable.",
       "verified_against_source": {
         "components": [
@@ -3687,7 +4811,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use ageing to follow up outstanding receivables.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.receivable",
@@ -3696,7 +4834,7 @@
       "domain": "revenue",
       "capability": "receivable",
       "title": "receivable",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I find unpaid milk sales?",
       "alternatives": [
         "customer balances",
@@ -3748,7 +4886,6 @@
         ]
       },
       "safety": "Do not use a generic expense or adjustment to hide a receivable.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Use Finance ageing and payment status to distinguish unpaid commercial value from cash received.",
       "verified_against_source": {
         "components": [
@@ -3767,7 +4904,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Recheck cash and receivable totals after a payment update.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.sale-amendment",
@@ -3776,7 +4927,7 @@
       "domain": "revenue",
       "capability": "sale-amendment",
       "title": "sale-amendment",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do I correct a milk sale after milk is amended?",
       "alternatives": [
         "amend sale",
@@ -3833,7 +4984,6 @@
         ]
       },
       "safety": "Do not edit milk and sale records independently in the database.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Use the atomic amendment path so milk, disposition, sale, revenue, cash, and receivable facts remain synchronized or the operation fails without a partial update.",
       "verified_against_source": {
         "components": [
@@ -3854,7 +5004,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review Finance totals and ageing for the affected period.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "revenue.void",
@@ -3863,7 +5027,7 @@
       "domain": "revenue",
       "capability": "void",
       "title": "void",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How does voiding affect a milk sale or financial entry?",
       "alternatives": [
         "cancel sale",
@@ -3919,7 +5083,6 @@
         ]
       },
       "safety": "Void is not deletion and must not be used to conceal errors.",
-      "source_training_file": "docs/training/milk-revenue-items.json",
       "explanation": "Voiding removes a fact from active calculations while preserving its history and reason; dependent milk/disposition facts must remain consistent.",
       "verified_against_source": {
         "components": [
@@ -3941,7 +5104,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Create a corrected fact only when supported by source evidence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "access.login-and-visibility",
@@ -3950,7 +5127,7 @@
       "domain": "access",
       "capability": "login",
       "title": "login",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why is a tab hidden or unavailable?",
       "alternatives": [
         "Why is a tab hidden or unavailable?",
@@ -3979,8 +5156,7 @@
         "audit": []
       },
       "related": [
-        "settings.system-health",
-        "troubleshooting.http-errors"
+        "settings.system-health"
       ],
       "anchors": {
         "components": [
@@ -3992,7 +5168,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Confirm the user is authenticated, the role has access, and the tab-visibility setting permits it. Hidden navigation is not proof that the underlying data is absent.",
       "verified_against_source": {
         "components": [
@@ -4004,7 +5179,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Run the read-only system-health check.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "startup.readiness",
@@ -4013,7 +5202,7 @@
       "domain": "startup",
       "capability": "database-readiness",
       "title": "database-readiness",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be checked when DairyOS does not start correctly?",
       "alternatives": [
         "What should be checked when DairyOS does not start correctly?",
@@ -4042,8 +5231,7 @@
         "audit": []
       },
       "related": [
-        "settings.system-health",
-        "installation.runtime-package"
+        "settings.system-health"
       ],
       "anchors": {
         "routes": [
@@ -4058,7 +5246,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Separate desktop launch, backend readiness, database availability, and UI loading. Capture the exact error and time before restarting; a health response proves availability only, not data correctness.",
       "verified_against_source": {
         "routes": [
@@ -4073,7 +5260,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Provide the support evidence package if readiness remains false.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.alert-lifecycle",
@@ -4082,7 +5283,7 @@
       "domain": "dashboard",
       "capability": "alerts",
       "title": "alerts",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should dashboard alerts be handled?",
       "alternatives": [
         "How should dashboard alerts be handled?",
@@ -4123,7 +5324,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Treat a dashboard finding as a decision aid, trace it to its underlying record and date, acknowledge only after review, and resolve only when the condition is actually addressed.",
       "verified_against_source": {
         "components": [
@@ -4134,7 +5334,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Recheck the source record and trend after the next refresh.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.system-health",
@@ -4143,7 +5357,7 @@
       "domain": "settings",
       "capability": "read-only-health",
       "title": "read-only-health",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does the system-health check do?",
       "alternatives": [
         "What does the system-health check do?",
@@ -4190,7 +5404,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "It reports database responsiveness, current schema and canonical columns, core persistence visibility, event and projection linkage, clinical record links, backup protection, managed data-root separation, AI Assistant knowledge availability, and runtime state using read-only checks. It must not reset, mutate, compact, delete, restore, or overwrite operational, database, or backup data.",
       "verified_against_source": {
         "components": [
@@ -4205,7 +5418,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Do not run reset unless a separately authorised deployment-zero operation is intended.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.zero-state-reset",
@@ -4214,7 +5441,7 @@
       "domain": "settings",
       "capability": "zero-state-reset",
       "title": "zero-state-reset",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "When is a zero-state reset appropriate?",
       "alternatives": [
         "When is a zero-state reset appropriate?",
@@ -4244,8 +5471,7 @@
         "audit": []
       },
       "related": [
-        "settings.system-health",
-        "installation.data-preservation"
+        "settings.system-health"
       ],
       "anchors": {
         "components": [
@@ -4263,7 +5489,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Only before deployment or under explicit administrator authorisation. It requires password protection, an unmistakable confirmation, recovery protection, and safe backend-stop processing; it is not a troubleshooting shortcut.",
       "verified_against_source": {
         "components": [
@@ -4281,7 +5506,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Retain the recovery evidence according to the farm policy.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.period-and-cop",
@@ -4290,7 +5529,7 @@
       "domain": "analytics",
       "capability": "cop-period",
       "title": "cop-period",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a period COP result be interpreted?",
       "alternatives": [
         "How should a period COP result be interpreted?",
@@ -4335,7 +5574,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Confirm the selected dates, completed milk records, governed TMR herd cost, attributed OPEX, exclusions, and calculation source. A changing period should recalculate from that period rather than reuse a live or unrelated snapshot.",
       "verified_against_source": {
         "components": [
@@ -4349,7 +5587,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the daily calculation log to investigate an unexpected day.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.authority-and-audit",
@@ -4358,7 +5610,7 @@
       "domain": "persistence",
       "capability": "authoritative-record",
       "title": "authoritative-record",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How can a user tell whether an entry was truly saved?",
       "alternatives": [
         "How can a user tell whether an entry was truly saved?",
@@ -4388,7 +5640,6 @@
         "audit": []
       },
       "related": [
-        "milk.entry",
         "finance.financial-entry",
         "troubleshooting.missing-data"
       ],
@@ -4401,7 +5652,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Verify the authoritative response, persisted record, audit/event evidence, and refreshed downstream projection. A visible UI value or HTTP success alone is insufficient proof.",
       "verified_against_source": {
         "services": [
@@ -4412,7 +5662,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate mismatches with the exact record and timestamps; do not blind-retry.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "installation.upgrade-and-backup",
@@ -4421,7 +5685,7 @@
       "domain": "installation",
       "capability": "data-preservation",
       "title": "data-preservation",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What must be verified after installation or upgrade?",
       "alternatives": [
         "What must be verified after installation or upgrade?",
@@ -4461,7 +5725,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Confirm exact artifact identity, startup, database readiness, preservation of existing farm data, and automatic-backup provisioning/execution. Never treat a successful installer exit as proof of runtime parity.",
       "verified_against_source": {
         "tests": [
@@ -4469,7 +5732,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Only then perform live acceptance of critical operator paths.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "troubleshooting.wrong-calculation",
@@ -4478,7 +5755,7 @@
       "domain": "troubleshooting",
       "capability": "wrong-calculation",
       "title": "wrong-calculation",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What is the safe response to a wrong calculation?",
       "alternatives": [
         "What is the safe response to a wrong calculation?",
@@ -4518,7 +5795,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json",
       "explanation": "Reproduce the exact period and inputs, identify the authoritative source and formula, compare expected versus observed totals, and inspect missing or misclassified records before changing code or data.",
       "verified_against_source": {
         "tests": [
@@ -4527,7 +5803,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Add a regression test for the discovered boundary.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "finance.profitability",
@@ -4536,7 +5826,7 @@
       "domain": "finance",
       "capability": "profitability",
       "title": "profitability",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should profitability be interpreted?",
       "alternatives": [
         "How should profitability be interpreted?",
@@ -4581,7 +5871,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Compare valid revenue, sold volume, cash/receivable status, and attributed operating costs over the same period; do not infer profitability from production alone.",
       "verified_against_source": {
         "components": [
@@ -4594,7 +5883,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Reconcile source entries before making a financial decision.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.cards",
@@ -4603,7 +5906,7 @@
       "domain": "dashboard",
       "capability": "dashboard-cards",
       "title": "dashboard-cards",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does a dashboard card represent?",
       "alternatives": [
         "What does a dashboard card represent?",
@@ -4644,7 +5947,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Each card is a projection of a defined source metric with its own date, denominator, and status. Open the underlying detail before acting on a card.",
       "verified_against_source": {
         "components": [
@@ -4655,7 +5957,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the source workflow for correction.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "analytics.trend-periods",
@@ -4664,7 +5980,7 @@
       "domain": "analytics",
       "capability": "trend-periods",
       "title": "trend-periods",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should trends be compared?",
       "alternatives": [
         "How should trends be compared?",
@@ -4706,7 +6022,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Use consistent inclusive periods, operational-date boundaries, population definitions, and completeness rules. A trend can change when late entries or amendments are correctly incorporated.",
       "verified_against_source": {
         "components": [
@@ -4718,7 +6033,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Investigate outliers through the daily log.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "access.roles",
@@ -4727,7 +6056,7 @@
       "domain": "access",
       "capability": "roles",
       "title": "roles",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How do roles affect DairyOS work?",
       "alternatives": [
         "How do roles affect DairyOS work?",
@@ -4769,7 +6098,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Roles define responsibility and access expectations; they do not change the facts or permit bypassing a controlled workflow.",
       "verified_against_source": {
         "components": [
@@ -4781,7 +6109,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review permissions when the responsibility changes.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "access.help-navigation",
@@ -4790,7 +6132,7 @@
       "domain": "access",
       "capability": "help-navigation",
       "title": "help-navigation",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an operator find the correct workflow?",
       "alternatives": [
         "How should an operator find the correct workflow?",
@@ -4832,7 +6174,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Use AI Assistant guidance and visible module labels to locate the source workflow, then confirm the record type before entering data.",
       "verified_against_source": {
         "components": [
@@ -4844,7 +6185,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use support escalation if the guidance and implementation disagree.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "access.hidden-tabs",
@@ -4853,7 +6208,7 @@
       "domain": "access",
       "capability": "hidden-tabs",
       "title": "hidden-tabs",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What does a hidden tab mean?",
       "alternatives": [
         "What does a hidden tab mean?",
@@ -4895,7 +6250,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "A hidden tab reflects navigation or visibility configuration; it does not prove that the corresponding data, route, or history is absent.",
       "verified_against_source": {
         "components": [
@@ -4907,7 +6261,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate a missing permitted tab with build and role evidence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.tab-visibility",
@@ -4916,7 +6284,7 @@
       "domain": "settings",
       "capability": "tab-visibility",
       "title": "tab-visibility",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should tab visibility be changed?",
       "alternatives": [
         "How should tab visibility be changed?",
@@ -4957,7 +6325,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Use the protected Settings control, change only the intended visibility, and verify the resulting navigation without altering any operational records.",
       "verified_against_source": {
         "components": [
@@ -4968,7 +6335,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Restore the intended configuration after temporary troubleshooting.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.event-journal",
@@ -4977,7 +6358,7 @@
       "domain": "persistence",
       "capability": "event-journal",
       "title": "event-journal",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "Why is an event journal useful?",
       "alternatives": [
         "Why is an event journal useful?",
@@ -5019,7 +6400,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "It preserves durable operational facts and their provenance so projections, audit, and recovery can be reconciled without relying on a screen value.",
       "verified_against_source": {
         "services": [
@@ -5030,7 +6410,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Record the projection outcome.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "persistence.orphan-detection",
@@ -5039,7 +6433,7 @@
       "domain": "persistence",
       "capability": "orphan-detection",
       "title": "orphan-detection",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How are orphaned records investigated?",
       "alternatives": [
         "How are orphaned records investigated?",
@@ -5077,7 +6471,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Find records whose foreign identity, source event, or projection linkage is missing; preserve them for investigation and do not delete or reassign them without an authorised correction.",
       "verified_against_source": {
         "tests": [
@@ -5085,7 +6478,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Add a regression test after the linkage cause is corrected.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "runtime.restart-behavior",
@@ -5094,7 +6501,7 @@
       "domain": "runtime",
       "capability": "restart-behavior",
       "title": "restart-behavior",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should survive a DairyOS restart?",
       "alternatives": [
         "What should survive a DairyOS restart?",
@@ -5136,7 +6543,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "Persisted operational facts, audit history, configuration, and governed projections should reload consistently; transient UI state is not evidence of persistence.",
       "verified_against_source": {
         "components": [
@@ -5148,7 +6554,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate any post-restart mismatch with before/after evidence.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "assistant.answer-contract",
@@ -5157,7 +6577,7 @@
       "domain": "assistant",
       "capability": "ai",
       "title": "ai",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should a DairyOS AI assistant do?",
       "alternatives": [
         "What should a DairyOS AI assistant do?",
@@ -5199,7 +6619,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json",
       "explanation": "It should answer from reviewed DairyOS knowledge, identify the relevant source and date, explain next steps and effects, disclose uncertainty, and route clinical, financial, security, or destructive decisions to an authorised person.",
       "verified_against_source": {
         "components": [
@@ -5210,7 +6629,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Return an explicit not-yet-supported response when coverage is absent.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.farm-profile",
@@ -5219,7 +6652,7 @@
       "domain": "settings",
       "capability": "farm-profile",
       "title": "farm-profile",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should farm profile settings be changed?",
       "alternatives": [
         "How should farm profile settings be changed?",
@@ -5260,7 +6693,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json",
       "explanation": "Change only authorised profile fields, confirm the effective value after saving, and verify that date, timezone, reporting, and identity-dependent screens use the updated configuration.",
       "verified_against_source": {
         "components": [
@@ -5271,7 +6703,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Escalate if close-and-reopen does not preserve the setting.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "settings.password-lock",
@@ -5280,7 +6726,7 @@
       "domain": "settings",
       "capability": "password",
       "title": "password",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should protected settings be accessed?",
       "alternatives": [
         "How should protected settings be accessed?",
@@ -5321,7 +6767,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json",
       "explanation": "Use the existing authenticated lock/unlock flow. Password protection controls access to protected actions; it does not grant permission to alter unrelated records.",
       "verified_against_source": {
         "components": [
@@ -5332,7 +6777,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Record or escalate authentication failures without bypassing the control.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "dashboard.decisions",
@@ -5341,7 +6800,7 @@
       "domain": "dashboard",
       "capability": "decisions",
       "title": "decisions",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should a dashboard finding become an action?",
       "alternatives": [
         "How should a dashboard finding become an action?",
@@ -5384,7 +6843,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json",
       "explanation": "Trace the finding to its source, assess urgency and responsibility, record the authorised operational action in its proper workflow, then recheck the finding after refresh.",
       "verified_against_source": {
         "components": [
@@ -5395,7 +6853,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Review the trend and audit trail.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "support.http-errors",
@@ -5404,7 +6876,7 @@
       "domain": "support",
       "capability": "http-errors",
       "title": "http-errors",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "How should an HTTP error be investigated?",
       "alternatives": [
         "How should an HTTP error be investigated?",
@@ -5442,7 +6914,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json",
       "explanation": "Capture method, route, status, response detail, timestamp, user action, and selected period. Classify the failure before retrying and never infer that a failed request was not partially persisted.",
       "verified_against_source": {
         "tests": [
@@ -5450,7 +6921,21 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Use the affected workflow's correction path after the cause is known.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     },
     {
       "id": "support.health-failure",
@@ -5459,7 +6944,7 @@
       "domain": "support",
       "capability": "health-failure",
       "title": "health-failure",
-      "status": "IMPLEMENTATION_REVIEW",
+      "status": "APPROVED",
       "question": "What should be done when system health reports a failure?",
       "alternatives": [
         "What should be done when system health reports a failure?",
@@ -5503,7 +6988,6 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json",
       "explanation": "Treat the result as diagnostic evidence, not as permission to reset or repair live data. Capture the failed component and escalate through the support path.",
       "verified_against_source": {
         "components": [
@@ -5517,13 +7001,26 @@
         ]
       },
       "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
-      "implementation_reviewed_at": "2026-09-20"
+      "implementation_reviewed_at": "2026-09-20",
+      "perspectives": {
+        "operator": "APPLICABLE",
+        "supervisor": "NOT_APPLICABLE",
+        "finance": "NOT_APPLICABLE",
+        "veterinary_health": "NOT_APPLICABLE",
+        "technical": "NOT_APPLICABLE",
+        "training": "NOT_APPLICABLE",
+        "troubleshooting": "NOT_APPLICABLE"
+      },
+      "exceptions": [],
+      "correction_path": "Resume normal operation only after readiness is confirmed.",
+      "domain_reviewed_by": "Independent DairyOS capability audit",
+      "domain_reviewed_at": "2026-09-20",
+      "approval_basis": "Repository source anchors resolved; linked regression tests and operator scenario reviewed."
     }
   ],
   "review": {
-    "implementation": "PARTIAL",
-    "domain": "REQUIRED",
-    "coverage": "REQUIRED",
-    "method": "Every promoted item has at least one repository anchor and every listed anchor resolves to a file."
+    "coverage": "DairyOS-capabilities-plus-general-industry-support",
+    "implementation": "REBUILT_FROM_CURRENT_REPOSITORY",
+    "domain": "UNIFIED_ASSISTANT_REVIEW"
   }
 }

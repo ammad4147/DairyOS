@@ -500,8 +500,7 @@
       "related": [
         "health.observation-triage",
         "health.treatment",
-        "health.resolution",
-        "dashboard.findings"
+        "health.resolution"
       ],
       "merged_from": [
         "veterinary-items.json::health.follow-up",

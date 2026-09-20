@@ -234,7 +234,7 @@ def test_corpus_validation_runs_without_the_application():
         "import json\n"
         "from dairyos_assistant.corpus.validation import (\n"
         "    validate_corpus, errors, legacy_identifiers)\n"
-        "pending = legacy_identifiers('docs/training')\n"
+        "pending = frozenset()\n"
         "f = validate_corpus('docs/assistant-knowledge', '.',\n"
         "                    check_manifest=False, pending_external_ids=pending)\n"
         "print(json.dumps({'errors': len(errors(f)), 'findings': len(f)}))\n"

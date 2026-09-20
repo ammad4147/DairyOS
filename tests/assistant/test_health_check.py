@@ -34,8 +34,8 @@ def _result(**overrides):
         "refuses_operational": True,
         "model_bundled": True,
         "error": "",
-        "servable_items": 44,
-        "corpus_version": "0.4.0",
+        "servable_items": 141,
+        "corpus_version": "0.8.0-unified-approved",
         "serving_unreviewed": False,
     }
     base.update(overrides)
@@ -99,7 +99,7 @@ def test_a_healthy_assistant_passes(monkeypatch):
     monkeypatch.setattr(bridge, "self_test", _result())
     check = _knowledge_assistant_check()
     assert check["status"] == "PASS"
-    assert "44 approved" in check["detail"]
+    assert "141 approved" in check["detail"]
 
 
 def test_a_missing_component_fails_without_implying_data_loss(monkeypatch):
