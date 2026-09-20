@@ -81,7 +81,10 @@ def install(source: Path | None = None) -> dict:
         candidates = list(staging.rglob("assistant-manifest.json"))
         if len(candidates) != 1:
             raise ValueError("Assistant package manifest is missing or ambiguous.")
-        manifest = json.loads(candidates[0].read_text(encoding="utf-8"))
+        # PowerShell's UTF-8 output on supported Windows builds may include a
+        # BOM. It is still the package's JSON manifest, not a reason to reject
+        # an otherwise verified artifact.
+        manifest = json.loads(candidates[0].read_text(encoding="utf-8-sig"))
         if not isinstance(manifest, dict) or not _compatible(manifest):
             raise ValueError("Assistant package is incompatible with this Core.")
         payload = candidates[0].parent
