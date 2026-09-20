@@ -363,7 +363,7 @@ class DashboardDigestService:
         finance = (
             self._financial_snapshot(digest_date)
             if "finance.view" in user_permissions or "dashboard.view_finance" in user_permissions
-            else {}
+            else None
         )
         attention = self._active_findings()
         reproduction = self._reproduction_snapshot(digest_date)
@@ -382,6 +382,33 @@ class DashboardDigestService:
             "reproduction": reproduction,
             "attention": attention,
         }
+
+    def _delivery_content(self, summary: dict) -> tuple[str, str]:
+        digest_date = summary["operational_date"]
+        attention = summary.get("attention") or []
+        completeness = summary.get("completeness") or {}
+        milk = summary.get("milk") or {}
+        herd = summary.get("herd") or {}
+        subject = f"DairyOS Daily Summary — {digest_date.isoformat()}"
+        if attention:
+            subject += f" — {len(attention)} attention item(s)"
+        milk_total = milk.get("total_yield")
+        milk_text = (
+            f"{float(milk_total):.1f} L"
+            if milk_total is not None
+            else "Unavailable"
+        )
+        lines = [
+            f"DairyOS Daily Farm Summary — {digest_date.isoformat()}",
+            f"Data status: {str(completeness.get('status') or 'UNKNOWN').title()}",
+            f"Milk produced: {milk_text}",
+            f"Herd: {herd.get('total', 'Unavailable')} head",
+            f"Attention: {len(attention)} item(s)",
+            "",
+            "The governed one-page Daily Farm Summary PDF is attached.",
+            "Open DairyOS for record-level detail and outstanding actions.",
+        ]
+        return subject, "\n".join(lines)
 
     def render_pdf(self, *, digest_date: date, user_permissions: set[str]) -> bytes:
         return daily_summary_pdf(
