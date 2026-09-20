@@ -861,6 +861,10 @@ export default function MilkTab({
     async () => {
       await load();
       await loadOperationalSupplemental();
+      // Missing-milk actions are derived from persisted session state. Keep
+      // the action list in step with every successful milk mutation so a
+      // completed entry cannot remain actionable until a remount/refresh.
+      await refreshMissedSessions();
     };
 
   useEffect(() => {

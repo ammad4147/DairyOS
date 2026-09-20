@@ -219,6 +219,7 @@ def test_ui_and_api_contracts_are_present():
     assert "@router.get(\"/missed-sessions\")" in api
     assert "/missed-sessions?lookback_days=31" in milk_ui
     assert "/missed-sessions/reconcile" not in milk_ui
+    assert "await refreshMissedSessions();" in milk_ui
     assert "LAST_RECONCILED_DATE_KEY" in scheduler
     assert "RUN_AFTER_LOCAL_TIME = time(0, 5)" in scheduler
 
