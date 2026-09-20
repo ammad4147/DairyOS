@@ -101,11 +101,12 @@ def test_a_healthy_assistant_passes(monkeypatch):
     assert "141 approved" in check["detail"]
 
 
-def test_a_missing_component_fails_without_implying_data_loss(monkeypatch):
+def test_a_missing_optional_component_warns_without_implying_data_loss(monkeypatch):
     monkeypatch.setattr(bridge, "self_test", _result(installed=False))
     check = _knowledge_assistant_check()
-    assert check["status"] == "FAIL"
-    assert "No farm data is affected" in check["detail"]
+    assert check["status"] == "WARNING"
+    assert "optional Assistant" in check["detail"]
+    assert "no farm data is affected" in check["detail"].lower()
 
 
 def test_a_broken_refusal_is_a_failure_not_a_warning(monkeypatch):

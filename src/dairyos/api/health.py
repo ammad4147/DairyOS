@@ -104,11 +104,11 @@ def _knowledge_assistant_check() -> dict[str, Any]:
     if not result["installed"]:
         return _health_check(
             "knowledge assistant",
-            "FAIL",
-            "The Assistant component is missing from this installation. The build "
-            "refuses to produce a package without it, so this indicates a partial "
-            "or altered install. No farm data is affected and no other feature "
-            "depends on it.",
+            "WARNING",
+            "The optional Assistant is not installed in this Core installation. "
+            "Install the separately distributed, checksum-verified Assistant "
+            "package to enable knowledge assistance. Core DairyOS remains usable; "
+            "no farm data is affected and no other feature depends on it.",
             **evidence,
         )
 
