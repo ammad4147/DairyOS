@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import { apiUrl } from '../config/api';
+import { postRequest } from '../api/farmEntryClient';
 import {
   farmToday,
   formatFarmDate,
@@ -179,6 +180,7 @@ function shortDate(value: string): string {
 }
 
 async function api(path: string, body?: unknown) {
+  if (body !== undefined) return postRequest(path, body);
   const response = await fetch(
     apiUrl(path),
     body
