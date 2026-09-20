@@ -33,7 +33,7 @@ assistant = Analysis(
     pathex=[str(ROOT / "src")],
     binaries=[],
     datas=[(str(ROOT / "docs" / "assistant-knowledge"), "assistant-knowledge")] + assistant_runtime_datas,
-    hiddenimports=collect_submodules("dairyos_assistant"),
+    hiddenimports=collect_submodules("dairyos_assistant") + ["encodings.idna"],
     excludes=[
         "dairyos", "sqlalchemy", "alembic", "psycopg", "psycopg2",
         "elasticsearch", "dotenv", "webview", "fastapi", "starlette", "uvicorn",

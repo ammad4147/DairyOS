@@ -22,6 +22,9 @@ datas = [
 ]
 binaries = []
 hiddenimports = []
+# URL handling can request this codec dynamically in a frozen build. Keep it
+# explicit so packaged Windows runtime does not report "unknown encoding: idna".
+hiddenimports += ["encodings.idna"]
 # The normal farm runtime carries the protected lifecycle and recovery
 # services used by Settings. There is no standalone operator Admin module to
 # package.
