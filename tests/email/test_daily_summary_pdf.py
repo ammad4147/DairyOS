@@ -206,3 +206,71 @@ def test_daily_completeness_identifies_missing_session_and_feed(monkeypatch):
     assert result["missing_milk_sessions"] == ["AFTERNOON"]
     assert result["feed_event_count"] == 4
     assert result["checks"]["tmr_authority"] is False
+
+
+def test_zero_milk_is_preserved_as_governed_zero():
+    summary = _summary(
+        milk={
+            "total_yield": 0.0,
+            "sold": 0.0,
+            "calf_feed": 0.0,
+            "domestic_use": 0.0,
+            "wastage": 0.0,
+            "unaccounted": 0.0,
+            "watchlist": [],
+        },
+        completeness={"status": "COMPLETE"},
+    )
+    payload = daily_summary_pdf(summary)
+    assert payload.startswith(b"%PDF-")
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
+
+
+def test_missing_milk_authority_is_not_treated_as_zero():
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    summary = _summary(
+        milk={
+            "total_yield": None,
+            "sold": 0.0,
+            "calf_feed": 0.0,
+            "domestic_use": 0.0,
+            "wastage": 0.0,
+            "unaccounted": 0.0,
+            "watchlist": [],
+        },
+        completeness={"status": "INCOMPLETE"},
+    )
+    subject, body = service._delivery_content(summary)
+    assert subject.startswith("DairyOS Daily Summary")
+    assert "Milk produced: Unavailable" in body
+    payload = daily_summary_pdf(summary)
+    assert payload.startswith(b"%PDF-")
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
+
+
+def test_feed_event_on_utc_previous_day_counts_on_farm_operational_day(monkeypatch):
+    from zoneinfo import ZoneInfo
+
+    factory = _CompletenessFactory(
+        {"MORNING", "AFTERNOON", "EVENING"},
+        [
+            SimpleNamespace(
+                feeding_date=datetime(2026, 9, 19, 20, 30, tzinfo=UTC)
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "dairyos.email.digest.RepositoryFactory.create",
+        lambda: factory,
+    )
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    service._farm_timezone = lambda fallback=None: ZoneInfo("Asia/Karachi")
+    result = service._daily_completeness(
+        digest_date=date(2026, 9, 20),
+        cop={"feed_complete": True},
+    )
+    assert result["feed_event_count"] == 1
