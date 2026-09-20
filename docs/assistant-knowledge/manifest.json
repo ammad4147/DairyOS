@@ -23,14 +23,14 @@
       "path": "dairyos/animals-and-herd.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "animals-and-herd",
-      "sha256": "26634fed210a1625809874e41ba4af3ceccfd33110cf80b7d2038f3a9efc42b3",
+      "sha256": "9800a3cdfb4a9ba4d84306a7b69e6c827b796dddac0009d6f3d4a8d917e9bf7c",
       "item_count": 7
     },
     {
       "path": "dairyos/breeding-and-reproduction.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "breeding-and-reproduction",
-      "sha256": "7584a2db583d9b1e8a47a12395d116f00806d1d1aad243f84d0efa1cda01c4d7",
+      "sha256": "91a6d9934037cd8a3709b4f380a5725804234f860fb03ae2b67b7627781b3a17",
       "item_count": 9
     },
     {
@@ -44,7 +44,7 @@
       "path": "dairyos/health-and-veterinary.json",
       "class": "DAIRYOS_INSTRUCTION",
       "domain": "health-and-veterinary",
-      "sha256": "4618811b3d2e8e8cbade9913833d9c58ad370e6f344220cb4b63e0923c45a676",
+      "sha256": "e97fbc49c2917d2f4b80fd81733ac98ec0ac394143e6ba506fe0747d603dd888",
       "item_count": 13
     },
     {
@@ -65,7 +65,7 @@
       "path": "dairyos/how-to-consolidated-draft.json",
       "class": "MIXED",
       "domain": "cross-domain-how-to",
-      "sha256": "4a7eff2252cfbe87d8a80fe4abb591b1f5e96972e66a4992b3d1deab6d5428d8",
+      "sha256": "c8a1ebd72502461008599346612121a2aa65e5955e05d828af2613b45ebb05cb",
       "item_count": 91
     }
   ],
