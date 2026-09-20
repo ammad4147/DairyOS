@@ -41,6 +41,7 @@ def status() -> dict:
     return {
         "installed": manifest is not None,
         "manifest": manifest,
+        "source_configured": PACKAGE_SOURCE is not None and PACKAGE_SOURCE.is_file(),
         "status": "INSTALLED" if manifest is not None else "NOT_INSTALLED",
     }
 

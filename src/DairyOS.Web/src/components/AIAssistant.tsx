@@ -19,7 +19,7 @@ type AssistantReply = {
 
 type AssistantStatus = {
   status?: string;
-  package?: { status?: string; installed?: boolean };
+  package?: { status?: string; installed?: boolean; source_configured?: boolean };
 };
 
 export default function AIAssistant() {
@@ -121,10 +121,15 @@ export default function AIAssistant() {
         <div style={{ marginTop: 4, color: '#cbd5e1' }}>
           Status: {packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED' ? 'Installed' : 'Not Installed'}
         </div>
-        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && (
+        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && packageStatus?.package?.source_configured && (
           <button type="button" onClick={installAssistant} disabled={installing} style={{ marginTop: 8 }}>
             {installing ? 'Installing Assistant…' : 'Install Assistant'}
           </button>
+        )}
+        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && packageStatus?.package && !packageStatus.package.source_configured && (
+          <div style={{ marginTop: 8, color: '#fbbf24', fontSize: 12 }}>
+            No approved Assistant package source is configured on this computer. Core DairyOS remains usable; an administrator must provide the separately distributed package before it can be installed.
+          </div>
         )}
       </div>
 
