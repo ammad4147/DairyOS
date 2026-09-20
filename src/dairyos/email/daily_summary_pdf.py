@@ -137,8 +137,13 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     _box(c, margin, top - h1, col_w, h1, "MILK PRODUCTION & UTILIZATION", NAVY)
     _box(c, margin + col_w + gap, top - h1, col_w, h1, "HERD STATUS & TODAY'S ACTIVITY", GREEN)
     ry = top - 17 * mm
+    sessions = milk.get("session_totals") or {}
     rows = [
         ("Total Milk Produced", f"{_num(yield_l)} L" if yield_l is not None else "Unavailable"),
+        ("Morning / Afternoon / Evening", " / ".join(
+            f"{_num(sessions.get(name))} L"
+            for name in ("MORNING", "AFTERNOON", "EVENING")
+        ) if sessions else "Unavailable"),
         ("Per Milking Cow", f"{_num(per_cow)} L" if per_cow is not None else "Unavailable"),
         ("Milk Sold", f"{_num(milk.get('sold'))} L"),
         ("Calf Feed", f"{_num(milk.get('calf_feed'))} L"),
