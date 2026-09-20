@@ -163,9 +163,12 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     h3 = 30 * mm
     _box(c, margin, top3 - h3, col_w, h3, "REPRODUCTION", colors.HexColor("#C96882"))
     _box(c, margin + col_w + gap, top3 - h3, col_w, h3, "HEALTH & WELFARE", colors.HexColor("#DF3A32"))
-    reproduction = summary.get("reproduction") or {}
+    reproduction = summary.get("reproduction")
     c.setFillColor(TEXT); c.setFont("Helvetica", 7.5)
-    c.drawString(margin + 4 * mm, top3 - 18 * mm, f"AI {reproduction.get('ai', 0)}   PD {reproduction.get('pd', 0)}   Confirmed {reproduction.get('confirmed', 0)}   Losses {reproduction.get('losses', 0)}   Due {reproduction.get('due', 0)}")
+    if reproduction:
+        c.drawString(margin + 4 * mm, top3 - 18 * mm, f"AI {reproduction.get('ai', 0)}   PD {reproduction.get('pd', 0)}   Confirmed {reproduction.get('confirmed', 0)}   Losses {reproduction.get('losses', 0)}   Due {reproduction.get('due', 0)}")
+    else:
+        c.drawString(margin + 4 * mm, top3 - 18 * mm, "Reproductive activity: see governed Breeding records")
     c.drawString(margin + col_w + gap + 4 * mm, top3 - 18 * mm, f"Active Health Alerts: {health.get('active_exceptions', 0)}")
     c.drawString(margin + col_w + gap + 4 * mm, top3 - 24 * mm, f"Under Milk Withdrawal: {health.get('withdrawal_count', 0)}")
 
