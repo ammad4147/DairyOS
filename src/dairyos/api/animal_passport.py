@@ -54,6 +54,24 @@ def get_lifetime_passport(
     return passport
 
 
+@router.get("/{animal_id}/timeline")
+def get_animal_timeline(
+    animal_id: str,
+    container=Depends(get_container),
+) -> dict:
+    """Return the passport-backed, read-only timeline for one animal."""
+    passport = DatabaseAwareLifetimeAnimalPassportService(
+        container.repository_factory
+    ).build(animal_id)
+    if passport is None:
+        raise HTTPException(status_code=404, detail="Animal not found")
+    return {
+        "animal_id": animal_id,
+        "events": passport.get("timeline", []),
+        "record_counts": passport.get("record_counts", {}),
+    }
+
+
 @router.get("/{animal_id}/reproduction")
 def get_reproductive_state(
     animal_id: str,
