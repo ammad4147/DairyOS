@@ -45,7 +45,7 @@ MODEL_PORT = 8477
 MODEL_READY_TIMEOUT = 180.0
 # How long the first question of a session will wait for the model to
 # finish loading before being answered from approved knowledge instead.
-MODEL_FIRST_USE_WAIT = 20.0
+MODEL_FIRST_USE_WAIT = 180.0
 REQUEST_TIMEOUT = 90.0
 
 # Kept deliberately small. A question that has not been answered in this long
@@ -195,6 +195,7 @@ class AssistantBridge:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     env=environment,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             model_url = f"http://127.0.0.1:{self.model_port}"
         else:
@@ -216,6 +217,7 @@ class AssistantBridge:
             encoding="utf-8",
             bufsize=1,
             env=environment,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         logger.info("Assistant process started (model=%s)", model_url or "none")
         return True

@@ -123,11 +123,11 @@ def test_the_bridge_waits_for_the_model_before_the_first_question():
 
 
 def test_the_wait_is_bounded():
-    """An operator watching a spinner will wait once, briefly. The fallback
-    exists so that waiting longer is never necessary."""
+    """The first question may wait for the bundled local model to load, but
+    must still have a finite upper bound."""
     from dairyos.knowledge_bridge import MODEL_FIRST_USE_WAIT
 
-    assert 0 < MODEL_FIRST_USE_WAIT <= 30
+    assert 0 < MODEL_FIRST_USE_WAIT <= 180
 
 
 # ---------------------------------------------------------------------------
