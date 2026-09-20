@@ -59,18 +59,15 @@ def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
     assert "entries that violate them are rejected" in source
     assert "operator entry remains authoritative" not in source
 
-    # PD is available after insemination and remains available after a positive
-    # declaration so an operator can manually reconfirm or revise pregnancy.
+    # PD is available only while the animal is awaiting its first diagnosis.
+    # A positive result removes it from the PD list and closes that review step.
     assert (
-        "manualAiAnimals.filter(a => ['INSEMINATED', 'BRED', 'PREGNANT'].includes(norm(byId.get(a.id)?.state)))"
+        "manualAiAnimals.filter(a => ['INSEMINATED', 'BRED'].includes(norm(byId.get(a.id)?.state)))"
         in source
     )
     assert "Pregnancy Check / Review (PD)" in source
     assert "Negative (Revise to Not Pregnant / Open)" in source
-    assert (
-        "No inseminated or confirmed-pregnant animals currently available for "
-        "pregnancy diagnosis/review"
-    ) in source
+    assert "No inseminated animals currently awaiting pregnancy diagnosis/review" in source
 
     # Calving and explicit pregnancy-loss entries remain restricted to animals
     # whose current manual state is confirmed pregnant.

@@ -29,7 +29,7 @@ function ageFromBirthDate(value?:string|null){if(!value)return 'Unknown';const b
 function toUiAnimal(animal:BackendAnimal):HerdAnimal{return{id:animal.animal_id,breed:animal.breed||'Unknown',category:animal.animal_category||'Unclassified',age:ageFromBirthDate(animal.date_of_birth),status:animal.active===false?(animal.status||'Inactive'):(animal.status||animal.lifecycle_status||'Active'),frequency:animal.milking_frequency||'NONE',earTag:animal.ear_tag||animal.animal_id,gender:(animal.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:animal.lifecycle_status||undefined}}
 
 export default function MainAppShell(){
- const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false);
+ const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false),[treatmentAnimalId,setTreatmentAnimalId]=useState<string|null>(null);
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount,refresh:refreshAlerts}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
  const [animals,setAnimals]=useState<BackendAnimal[]>([]);const [showAnimalModal,setShowAnimalModal]=useState(false),[animalRegistrationRequest,setAnimalRegistrationRequest]=useState<AnimalPurchaseRegistrationRequest|null>(null),[dashboardRefreshVersion,setDashboardRefreshVersion]=useState(0);
@@ -61,7 +61,7 @@ export default function MainAppShell(){
     </header>
 
     <main style={{flex:1,minHeight:0,minWidth:0,overflowY:'auto',overflowX:'hidden',background:'#0b0f19',position:'relative'}}>
-     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion}/>}
+     {currentView==='dashboard'&&<UnifiedDashboard onNavigate={v=>setCurrentView(v)} onOpenYieldModal={handleOpenYieldEntry} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onOpenTreatment={id=>{setTreatmentAnimalId(id);setCurrentView('health')}} herdMasterList={herdMasterList} dashboardRefreshVersion={dashboardRefreshVersion}/>}
      {currentView==='animals'&&<AnimalTab animals={animals} onOpenPassport={id=>setSelectedPassportAnimalId(id)} onRegister={()=>openAnimalRegistration()} onRefresh={refreshAnimals}/>}
      {currentView==='finance'&&<FinanceTab herdMasterList={herdMasterList} onAnimalChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}} onOpenPayroll={openPayroll} onOpenAnimalRegistration={openAnimalRegistration}/>}
      {currentView==='feed'&&<FeedTab/>}
@@ -70,7 +70,7 @@ export default function MainAppShell(){
      {currentView==='audit'&&<AuditTab/>}
      {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs}/>}
      {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} onOpenAnimalPassport={openLinkedPassport} onOperationalChanged={async()=>{setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
-     {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
+     {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} initialTreatmentAnimalId={treatmentAnimalId} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='breeding'&&<BreedingTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={async()=>{await refreshAnimals();setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
     </main>

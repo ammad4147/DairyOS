@@ -281,7 +281,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
     () => eventType === 'AI'
       ? aiCandidates
       : eventType === 'PD'
-        ? manualAiAnimals.filter(a => ['INSEMINATED', 'BRED', 'PREGNANT'].includes(norm(byId.get(a.id)?.state)))
+        ? manualAiAnimals.filter(a => ['INSEMINATED', 'BRED'].includes(norm(byId.get(a.id)?.state)))
         : (eventType === 'CALVING' || eventType === 'LOSS')
           ? manualAiAnimals.filter(a => norm(byId.get(a.id)?.state) === 'PREGNANT')
           : [],
@@ -371,7 +371,7 @@ export default function BreedingTab({ onOpenPassport, herdMasterList = [], onCha
   const empty = eventType === 'AI'
     ? 'No Milking, Dry, or Heifer animals available for manual insemination'
     : eventType === 'PD'
-      ? 'No inseminated or confirmed-pregnant animals currently available for pregnancy diagnosis/review'
+      ? 'No inseminated animals currently awaiting pregnancy diagnosis/review'
       : eventType === 'CALVING'
         ? 'No confirmed pregnant animals currently awaiting calving'
         : 'No confirmed pregnant animals currently available for pregnancy-loss entry';

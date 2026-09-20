@@ -372,12 +372,12 @@ def _validate_transition(
             )
 
     elif event_type in _PD_EVENTS:
-        if current not in {"INSEMINATED", "PREGNANT"}:
+        if current != "INSEMINATED":
             raise HTTPException(
                 status_code=409,
                 detail=(
                     "Pregnancy diagnosis/review is available only for an animal "
-                    "that has been inseminated or is currently confirmed pregnant."
+                    "currently awaiting its first diagnosis after insemination."
                 ),
             )
         if (

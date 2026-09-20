@@ -9,7 +9,7 @@ type CaseRow={id?:number|string;case_id?:number|string;animal_id?:string;status?
 type ObservationRow={id?:number|string;animal_id?:string;health_case_id?:number|string|null;timestamp?:string;observed_at?:string;date?:string;observation?:string;symptom?:string;severity?:string;reported_by?:string;operator?:string};
 type TreatmentRow={id?:number|string;treatment_id?:number|string;animal_id?:string;health_case_id?:number|string|null;treated_at?:string;timestamp?:string;date?:string;diagnosis?:string;notes?:string;medicine?:string;dose?:string;treated_by?:string;operator?:string;milk_withdrawal_days?:number};
 type ClinicalRow={id:string;caseRef?:CaseRow;animalId:string;date:string;diagnosis:string;severity:string;symptoms:string;treatment:string;withdrawalDays:number;nextCheck:string;active:boolean};
-interface Props{onOpenPassport?:(id:string)=>void;herdMasterList?:HerdAnimal[];onChanged?:()=>void}
+interface Props{onOpenPassport?:(id:string)=>void;herdMasterList?:HerdAnimal[];onChanged?:()=>void;initialTreatmentAnimalId?:string|null}
 
 const DIAGNOSES=['Mastitis','Metritis / Endometritis','Lameness / Hoof Disorder','Ketosis','Milk Fever / Hypocalcemia','Retained Placenta','Displaced Abomasum','Respiratory Disease / Pneumonia','Diarrhea / Enteritis','Foot Rot','Bloat / Tympany','Ruminal Acidosis','Fever / Pyrexia','Injury / Trauma','Other'];
 const MEDICINES=['Oxytetracycline','Penicillin / Streptomycin','Ceftiofur','Amoxicillin / Ampicillin','Flunixin meglumine','Meloxicam','Ketoprofen','Calcium borogluconate','Dextrose / Energy support','Oral / IV electrolytes','Intramammary mastitis treatment','Anthelmintic / Dewormer','Topical antiseptic / wound care','Supportive therapy','Other'];
@@ -28,9 +28,10 @@ function caseId(c:CaseRow){return String(c.id??c.case_id??'')}
 function belongsToCase(row:{health_case_id?:number|string|null;animal_id?:string},c:CaseRow){const cid=caseId(c);return row.health_case_id!=null?String(row.health_case_id)===cid:String(row.animal_id||'')===String(c.animal_id||'')}
 function inCaseWindow(value:unknown,c:CaseRow){const time=ts(value),opened=ts(c.opened_at),resolved=ts(c.resolved_at);if(!time)return true;if(opened&&time<opened)return false;if(resolved&&time>resolved)return false;return true}
 
-export default function HealthTab({onOpenPassport,herdMasterList=[],onChanged}:Props){
+export default function HealthTab({onOpenPassport,herdMasterList=[],onChanged,initialTreatmentAnimalId}:Props){
  const [cases,setCases]=useState<CaseRow[]>([]),[observations,setObservations]=useState<ObservationRow[]>([]),[treatments,setTreatments]=useState<TreatmentRow[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[search,setSearch]=useState(''),[show,setShow]=useState(false),[passport,setPassport]=useState<string|null>(null);
  const [animal,setAnimal]=useState(herdMasterList[0]?.id||''),[diagnosis,setDiagnosis]=useState(''),[symptoms,setSymptoms]=useState(''),[medicine,setMedicine]=useState(''),[vet,setVet]=useState(''),[withdrawal,setWithdrawal]=useState('0'),[dose,setDose]=useState(''),[route,setRoute]=useState(''),[severity,setSeverity]=useState('NORMAL'),[follow,setFollow]=useState('');
+ useEffect(()=>{if(initialTreatmentAnimalId){setAnimal(initialTreatmentAnimalId);setShow(true)}},[initialTreatmentAnimalId]);
  useEffect(()=>{if(herdMasterList.length&&!herdMasterList.some(a=>a.id===animal))setAnimal(herdMasterList[0].id)},[herdMasterList,animal]);
  const openPassport=(id:string)=>onOpenPassport?onOpenPassport(id):setPassport(id);
 

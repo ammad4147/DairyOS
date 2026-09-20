@@ -14,7 +14,6 @@ def test_utc_event_does_not_make_calving_assertion_depend_on_local_midnight(clie
     """
     for event_type, result in (
         ("insemination", "completed"),
-        ("pregnancy_diagnosis", "pregnant"),
         ("pregnancy_confirmed", "confirmed"),
         ("calving", "completed"),
     ):

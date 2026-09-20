@@ -7,6 +7,8 @@ type Props = {
   alert: AuditAlertItem;
   onClose: () => void;
   onOpenPassport: (animalId: string) => void;
+  onOpenTreatment: (animalId: string) => void;
+  onDismissDerived: (alertId: string) => void;
 };
 
 type YieldDropDetail = {
@@ -29,7 +31,7 @@ const triageChecks = [
   'Verify Lactating & Pregnancy Stage',
 ];
 
-export default function YieldDropAlertModal({ alert, onClose, onOpenPassport }: Props) {
+export default function YieldDropAlertModal({ alert, onClose, onOpenPassport, onOpenTreatment, onDismissDerived }: Props) {
   const { markResolved } = useAlertAudit();
   const [detail, setDetail] = useState<YieldDropDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,6 +112,11 @@ export default function YieldDropAlertModal({ alert, onClose, onOpenPassport }: 
     setDismissing(true);
     setError('');
     try {
+      if (alert.id.startsWith('derived-milk-drop-')) {
+        onDismissDerived(alert.id);
+        onClose();
+        return;
+      }
       await markResolved(
         alert.id,
         'Dashboard Yield Drop Triage',
@@ -207,7 +214,7 @@ export default function YieldDropAlertModal({ alert, onClose, onOpenPassport }: 
             <button type="button" disabled={!animalId} onClick={() => animalId && onOpenPassport(animalId)} style={button('#0284c7')}>
               Open Animal Passport {animalId}
             </button>
-            <button type="button" disabled={!animalId} onClick={() => setObservationOpen(true)} style={button('#b91c1c')}>
+            <button type="button" disabled={!animalId} onClick={() => animalId && onOpenTreatment(animalId)} style={button('#b91c1c')}>
               Log Clinical Observation
             </button>
             <button type="button" disabled={dismissing} onClick={() => void dismissAlert()} style={button('#7f1d1d')}>

@@ -20,6 +20,7 @@ interface Props {
   onNavigate?: (view: string) => void;
   onOpenYieldModal?: () => void;
   onOpenPassport?: (id: string) => void;
+  onOpenTreatment?: (id: string) => void;
   herdMasterList?: HerdAnimal[];
   dashboardRefreshVersion?: number;
 }
@@ -40,7 +41,7 @@ function monthLabel(month: string): string {
 
 import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL || 'http://127.0.0.1:8000';
-export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, herdMasterList = [], dashboardRefreshVersion = 0 }: Props) {
+export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenPassport, onOpenTreatment, herdMasterList = [], dashboardRefreshVersion = 0 }: Props) {
   const [data, setData] = useState<CommandDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const [passportTag, setPassportTag] = useState<string | null>(null);
   const [selectedDropAlert, setSelectedDropAlert] = useState<any | null>(null);
   const [selectedDropAlertId, setSelectedDropAlertId] = useState<string | null>(null);
+  const [dismissedDerivedDropAlerts, setDismissedDerivedDropAlerts] = useState<Set<string>>(new Set());
   const [comlOutput, setComlOutput] = useState<MonthlyComlOutput | null>(null);
   const [unreconciledMilkLitres, setUnreconciledMilkLitres] = useState<number | null>(null);
   const { alerts, refresh: refreshAlerts } = useAlertAudit();
@@ -385,7 +387,19 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const activeDropAlerts = [
     ...persistedDropAlerts,
     ...derivedDropAlerts,
-  ];
+  ].filter(item => !dismissedDerivedDropAlerts.has(String(item.id)));
+
+  const openTreatmentHandler = (animalId: string) => {
+    setSelectedDropAlert(null);
+    onOpenTreatment?.(animalId);
+  };
+
+  const alertModalProps = (close: () => void) => ({
+    onClose: close,
+    onOpenPassport: (animalId: string) => { close(); openPassportHandler(animalId); },
+    onOpenTreatment: openTreatmentHandler,
+    onDismissDerived: (alertId: string) => setDismissedDerivedDropAlerts(previous => new Set(previous).add(alertId)),
+  });
 
   const healthData = data?.health || { sick:0, mastitis:0, highTemp:0, completedVax:0, dueVax:0, sickAnimals:[] };
   const sickAnimals = healthData.sickAnimals || [];
@@ -449,7 +463,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
             })
           )}
         </div>
-        {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlert(null)} onOpenPassport={animalId=>{setSelectedDropAlert(null);openPassportHandler(animalId)}} />}
+        {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} {...alertModalProps(() => setSelectedDropAlert(null))} />}
         {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)} />}
       </div>
     );
@@ -549,7 +563,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
           </div>
         </div>
       </div>
-      {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} onClose={()=>setSelectedDropAlert(null)} onOpenPassport={animalId=>{setSelectedDropAlert(null);openPassportHandler(animalId)}} />}
+      {selectedDropAlert && <YieldDropAlertModal alert={selectedDropAlert} {...alertModalProps(() => setSelectedDropAlert(null))} />}
       {passportTag && <AnimalPassportModal animalId={passportTag} onClose={()=>setPassportTag(null)}/>} 
     </div>
   );

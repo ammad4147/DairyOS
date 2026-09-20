@@ -34,7 +34,6 @@ def test_reproduction_overview_reads_persisted_breeding_records(client, register
 def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, registered_animal):
     for event_type, result in (
         ("insemination", "completed"),
-        ("pregnancy_diagnosis", "pregnant"),
         ("pregnancy_confirmed", "confirmed"),
         ("calving", "completed"),
     ):
@@ -63,7 +62,7 @@ def test_reproduction_overview_supports_operator_ui_event_vocabulary(client, reg
 
     body = client.get("/farm/reproduction/overview").json()
     assert body["inseminations"] == 1
-    assert body["pregnancy_checks"] == 1
+    assert body["pregnancy_checks"] == 0
     assert body["confirmed_pregnancies"] == 1
     assert body["calvings"] == 1
     assert body["conception_rate_percent"] == 100.0

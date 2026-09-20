@@ -3,19 +3,18 @@ from dairyos.data.repositories.repository_factory import RepositoryFactory
 from tests.helpers.breeding import post_breeding
 
 
-def test_reproduction_overview_counts_one_conception_for_multiple_positive_checks(client, registered_animal):
+def test_reproduction_overview_counts_one_conception_for_positive_diagnosis(client, registered_animal):
     for event_type, result in (
         ("insemination", "completed"),
-        ("pregnancy_diagnosis", "pregnant"),
-        ("pregnancy_confirmed", "confirmed"),
+        ("pregnancy_diagnosis", "positive"),
     ):
         response = post_breeding(client, registered_animal, event_type, result)
         assert response.status_code == 200, response.text
 
     body = client.get("/farm/reproduction/overview").json()
     assert body["inseminations"] == 1
-    # pregnancy_confirmed is outcome evidence, not a second pregnancy-check
-    # encounter. It is intentionally excluded from this encounter count.
+    # A positive diagnosis is the single pregnancy-check encounter and closes
+    # the pending review for this reproductive cycle.
     assert body["pregnancy_checks"] == 1
     assert body["services_with_documented_outcome"] == 1
     assert body["confirmed_pregnancies"] == 1
