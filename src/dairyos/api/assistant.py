@@ -102,4 +102,8 @@ def ask_assistant(payload: AssistantQuestion) -> dict[str, Any]:
         "answer": response.get("answer"),
         "evidence": response.get("evidence", []),
         "unreviewed": bool(response.get("unreviewed")),
+        "general_knowledge": bool(response.get("general_knowledge")),
+        "related_evidence": bool(response.get("related_evidence")),
+        "grounding_note": response.get("grounding_note"),
+        "verbatim": bool(response.get("verbatim")),
     }

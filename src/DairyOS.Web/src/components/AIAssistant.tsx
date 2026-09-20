@@ -12,6 +12,9 @@ type AssistantReply = {
   evidence: Evidence[];
   unreviewed: boolean;
   verbatim?: boolean;
+  general_knowledge?: boolean;
+  related_evidence?: boolean;
+  grounding_note?: string | null;
 };
 
 type AssistantStatus = {
@@ -190,6 +193,12 @@ export default function AIAssistant() {
           {reply.unreviewed && (
             <div style={{ marginTop: 8, fontSize: 11, color: '#fbbf24' }}>
               Based on knowledge that has not completed review.
+            </div>
+          )}
+
+          {reply.grounding_note && (
+            <div style={{ marginTop: 8, fontSize: 11, color: '#94a3b8' }}>
+              {reply.grounding_note}
             </div>
           )}
 
