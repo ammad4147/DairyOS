@@ -270,3 +270,15 @@ def test_the_service_survives_having_no_standard_streams(monkeypatch, capsys):
     serve(assistant=object())  # must return, not raise
 
     assert "no standard input" in capsys.readouterr().err
+
+
+def test_the_service_survives_an_invalid_windowed_output_handle(monkeypatch):
+    """Directly launched windowed builds must not show an Errno 22 dialog."""
+    from io import StringIO
+    from dairyos_assistant.service import serve
+
+    class InvalidFlush(StringIO):
+        def flush(self):
+            raise OSError(22, "Invalid argument")
+
+    serve(stdin=StringIO('{"type":"status"}\n'), stdout=InvalidFlush(), assistant=object())

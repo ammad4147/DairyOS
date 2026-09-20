@@ -373,8 +373,18 @@ def serve(
                     response = handle(request, worker)
                 except Exception as exc:  # noqa: BLE001 - reported, never raised at the backend
                     response = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-        sink.write(json.dumps(response, ensure_ascii=False) + "\n")
-        sink.flush()
+        try:
+            sink.write(json.dumps(response, ensure_ascii=False) + "\n")
+            sink.flush()
+        except (BrokenPipeError, OSError) as exc:
+            # A windowed PyInstaller process can expose a TextIOWrapper whose
+            # underlying Windows handle is invalid when the executable is
+            # launched directly instead of through DairyOS. Do not surface an
+            # unhandled Errno 22 dialog; the parent will observe EOF and can
+            # report the Assistant as unavailable.
+            if isinstance(exc, OSError) and getattr(exc, "errno", None) not in {22, 9}:
+                print(f"DairyOS Assistant: output stream failed: {exc}", file=sys.stderr)
+            return
 
 
 def _provider_from(argv: list[str]) -> ModelProvider:
