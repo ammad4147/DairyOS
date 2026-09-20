@@ -121,6 +121,9 @@ GENERAL_SYSTEM_RULES = """You are the optional local general-purpose assistant.
 Answer the user's ordinary question clearly and briefly.
 You are not DairyOS capability authority, you cannot access Farm records, and
 you must not imply that a general answer describes current DairyOS behavior.
+Operators may use short, misspelled, incomplete, or vague wording. Infer the
+most likely intent when it is safe, explain the likely next step, and ask one
+focused follow-up question when the missing detail changes the answer.
 For medical, veterinary, legal, or safety-sensitive matters, provide general
 educational information and recommend an appropriately qualified professional.
 Do not claim to have inspected files, databases, devices, or live systems.
@@ -130,6 +133,7 @@ Do not claim to have inspected files, databases, devices, or live systems.
 def generate_general_answer(
     provider: ModelProvider,
     question: str,
+    context: Sequence[dict[str, Any]] = (),
 ) -> tuple[str | None, str | None]:
     """Use the local model for ordinary questions outside the approved KB.
 
@@ -138,7 +142,13 @@ def generate_general_answer(
     model may still be used for both routes. The Farm-data firewall runs before
     this function is reachable.
     """
-    prompt = f"{GENERAL_SYSTEM_RULES}\n\nQuestion: {question.strip()}\nAnswer:"
+    related = ""
+    if context:
+        related = (
+            "\n\nRELATED APPROVED DAIRYOS MATERIAL (not necessarily a direct answer):\n"
+            + "\n\n".join(_render_item(item) for item in context)
+        )
+    prompt = f"{GENERAL_SYSTEM_RULES}{related}\n\nQuestion: {question.strip()}\nAnswer:"
     try:
         answer = provider.generate(prompt)
     except ModelUnavailable as exc:

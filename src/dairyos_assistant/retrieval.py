@@ -349,6 +349,10 @@ class KnowledgeIndex:
 
 
 NO_EVIDENCE_TEXT = (
-    "The approved knowledge base does not cover this. I can only answer from "
-    "reviewed DairyOS and dairy-management knowledge, and I will not guess."
+    "The approved knowledge base does not cover this exact wording yet. "
+    "I can still help you find the right DairyOS workflow. Tell me whether "
+    "you mean Milk, Feed/TMR, Animals, Health, Breeding, Finance, Dashboard, "
+    "Reports, Settings, Backup/Restore, or installation. If you meant a "
+    "general dairy question, say what animal, stage, symptom, feed, or result "
+    "you are asking about and I will explain the general guidance."
 )

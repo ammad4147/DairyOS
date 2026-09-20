@@ -119,6 +119,15 @@ def test_an_unanswerable_question_uses_the_separate_general_route(assistant):
     assert model.calls, "the general route should use the configured local model"
 
 
+def test_vague_operator_question_receives_guided_help_when_model_is_unavailable(assistant):
+    model = ScriptedModel(ModelUnavailable("offline"))
+    result = assistant(model).answer("dairyos help")
+
+    assert result["route"] in {"GENERAL_AI", "CURATED_DAIRY_VETERINARY", "DAIRYOS_CAPABILITY", "DAIRYOS_GUIDED_GENERAL"}
+    assert result["text"]
+    assert result["stage"] in {"APPROVED_TEXT", "GENERAL_ANSWERED", "RETRIEVAL_ONLY", "RELATED_GUIDANCE"}
+
+
 def test_an_unreachable_model_degrades_to_approved_text_not_to_invention(assistant):
     """Degrading must reach the operator, not stop at the response.
 

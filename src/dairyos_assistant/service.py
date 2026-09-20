@@ -53,6 +53,18 @@ PROTOCOL_VERSION = 1
 # told.
 EVIDENCE_LIMIT = 4
 
+_DAIRYOS_HINTS = frozenset(
+    "dairyos milk feed tmr animal herd cow health breeding finance dashboard "
+    "report settings backup restore installation farm record session ration "
+    "cop opex vaccination calving pasture"
+    .split()
+)
+
+
+def _is_dairyos_question(question: str) -> bool:
+    words = set(question.lower().replace("/", " ").split())
+    return bool(words & _DAIRYOS_HINTS)
+
 
 def corpus_root() -> Path:
     """Where the knowledge corpus lives, frozen or from source.
@@ -150,6 +162,28 @@ class Assistant:
             }
             for hit in hits
         ]
+        if not evidence and _is_dairyos_question(question):
+            related_hits = self.index.search(
+                question, limit=3, min_score=0.0, min_matched_terms=1
+            )
+            if related_hits:
+                hits = related_hits
+                evidence = [
+                    {
+                        "id": hit.knowledge_id,
+                        "title": hit.title,
+                        "domain": hit.domain,
+                        "capability": hit.capability,
+                        "class": hit.item_class,
+                        "status": hit.status,
+                        "score": hit.score,
+                        "matched_terms": list(hit.matched_terms),
+                        "unreviewed": hit.unreviewed,
+                        "related_only": True,
+                    }
+                    for hit in hits
+                ]
+
         response: dict[str, Any] = {
             "decision": verdict.decision.value,
             "stage": "RETRIEVAL_ONLY",
@@ -167,6 +201,9 @@ class Assistant:
                 if any(item["class"] == "DAIRY_KNOWLEDGE" for item in evidence)
                 else "DAIRYOS_CAPABILITY"
             )
+            if any(item.get("related_only") for item in evidence):
+                response["route"] = "DAIRYOS_GUIDED_GENERAL"
+                response["related_evidence"] = True
         else:
             response["route"] = "GENERAL_AI"
 
@@ -179,6 +216,28 @@ class Assistant:
                 response["answer"] = answer
                 response["general_knowledge"] = True
             else:
+                response["model_error"] = failure
+            return response
+
+        if any(item.get("related_only") for item in evidence):
+            answer, failure = generate_general_answer(
+                self.provider, question, [hit.item for hit in hits]
+            )
+            if answer is not None:
+                response["stage"] = "GENERAL_ANSWERED"
+                response["text"] = answer
+                response["answer"] = answer
+                response["general_knowledge"] = True
+                response["grounding_note"] = (
+                    "DairyOS evidence shown is related context; the remainder is general dairy guidance."
+                )
+            else:
+                response["stage"] = "RELATED_GUIDANCE"
+                response["text"] = (
+                    "I could not find a direct approved DairyOS answer. The related "
+                    "DairyOS topics above may help; general dairy best practice "
+                    "requires the local Assistant model, which is currently unavailable."
+                )
                 response["model_error"] = failure
             return response
 
