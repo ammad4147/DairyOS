@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-import re
 from dairyos.email.daily_summary_pdf import daily_summary_pdf
 from dairyos.email.service import EmailSenderConfig, EmailService
 
@@ -59,7 +58,7 @@ def test_daily_summary_pdf_caps_attention_rows_without_overflow():
     ]
     payload = daily_summary_pdf(_summary(attention=attention))
     assert payload.startswith(b"%PDF-")
-    assert payload.count(b"/Type /Page") == 1
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
 
 
 def test_email_service_adds_pdf_attachment(monkeypatch):
