@@ -166,6 +166,12 @@ class RuntimeContainer:
             return
         self.operations = self.runtime.farm_operations_runtime
         self.dashboard = self
+        # Establish the application session's first pooled connection before
+        # the webview is released.  The packaged UI fans out several read
+        # requests on first paint; without this warm-up those requests can
+        # concurrently trigger SQLAlchemy's initial connection provisioning
+        # on the shared runtime session and surface a transient HTTP 500.
+        self.repository_factory.session.connection()
         self.restore_state()
         # Planned post-calving returns are applied by the runtime lifecycle
         # worker, never as a side effect of a read endpoint.
