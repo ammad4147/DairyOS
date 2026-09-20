@@ -204,7 +204,9 @@ def test_pd_due_respects_the_35_day_rule(run):
 
 def test_due_for_ai_pregnancies_and_repeat_breeders(run):
     due = {r["animal_id"] for r in section(run("breed-due-for-ai"), "due")["rows"]}
-    assert len(due) == 24 and "M005" in due and "H001" in due
+    # M005 had pregnancy loss on 2026-08-15 and returns after the approved
+    # 45-day post-terminal waiting period (2026-09-29), so it is not due yet.
+    assert len(due) == 23 and "M005" not in due and "H001" in due
     assert not due & {"M001", "M002", "M003", "M004", "M006", "D001", "H002", "H003", "H004"}
     pregnant = {r["animal_id"]: r for r in section(run("breed-pregnancies"), "pregnancies")["rows"]}
     assert set(pregnant) == {"M001", "D001"}

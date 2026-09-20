@@ -1938,6 +1938,23 @@ def feed_opex_profitability(
             value = value.date()
         return value is not None and period_start <= value <= period_end
 
+    def finance_in_period(row) -> bool:
+        if in_period(row, "transaction_date"):
+            return True
+        method = str(
+            getattr(row, "cop_attribution_method", "") or ""
+        ).strip().upper()
+        if method not in {"PERIODIC", "ALLOCATED"}:
+            return False
+        coverage_start = getattr(row, "cop_coverage_start", None)
+        coverage_end = getattr(row, "cop_coverage_end", None)
+        return (
+            coverage_start is not None
+            and coverage_end is not None
+            and coverage_start <= period_end
+            and coverage_end >= period_start
+        )
+
     feed_basis = tmr_feed_cost_for_period(
         factory,
         period_start,
@@ -1946,7 +1963,7 @@ def feed_opex_profitability(
 
     return FeedOpexCostService().evaluate(
         [row for row in factory.milk().get_all() if in_period(row, "production_date")],
-        [row for row in factory.finance().get_all() if in_period(row, "transaction_date")],
+        [row for row in factory.finance().get_all() if finance_in_period(row)],
         days=days,
         now=datetime.combine(period_end, datetime.max.time(), tzinfo=UTC),
         governed_feed_cost=feed_basis.get(

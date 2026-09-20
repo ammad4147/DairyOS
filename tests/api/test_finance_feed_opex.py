@@ -183,8 +183,8 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
         unit_rate=500,
         cop_classification="OPEX",
         cop_attribution_method="PERIODIC",
-        cop_coverage_start="2026-08-22",
-        cop_coverage_end="2026-08-22",
+        cop_coverage_start="2026-08-23",
+        cop_coverage_end="2026-08-23",
     ).status_code == 200
 
     monkeypatch.setattr(
@@ -215,6 +215,13 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
     assert data["cmpl"] == 25
     assert data["feed_authority_complete"] is True
     assert data["feed_cost_authority"] == "GOVERNED_TMR_CONSUMPTION"
+
+    profitability = client.get(
+        "/farm/finance-ledger/profitability/feed-opex"
+        "?period_start=2026-08-23&period_end=2026-09-21"
+    )
+    assert profitability.status_code == 200, profitability.text
+    assert profitability.json()["opex"] == 500
 
 
 def test_voided_finance_feed_purchase_does_not_change_governed_feed_cop(

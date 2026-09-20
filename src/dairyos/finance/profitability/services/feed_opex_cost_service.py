@@ -68,24 +68,33 @@ class FeedOpexCostService:
         # the legacy reporting helper.  Its rolling timestamp window is widened
         # deliberately so it cannot discard a row that has already passed the
         # authoritative operational-date filter.
-        governed_financial_records = [
-            row
-            for row in financial_records
-            if (
-                transaction_date := getattr(
-                    row,
-                    "transaction_date",
-                    None,
-                )
-            )
-            is not None
-            and period_start
-            <= (
+        def finance_row_in_period(row) -> bool:
+            transaction_date = getattr(row, "transaction_date", None)
+            transaction_day = (
                 transaction_date.date()
                 if isinstance(transaction_date, datetime)
                 else transaction_date
             )
-            <= period_end
+            if transaction_day is not None and period_start <= transaction_day <= period_end:
+                return True
+
+            method = str(
+                getattr(row, "cop_attribution_method", "") or ""
+            ).strip().upper()
+            if method not in {"PERIODIC", "ALLOCATED"}:
+                return False
+
+            coverage_start = getattr(row, "cop_coverage_start", None)
+            coverage_end = getattr(row, "cop_coverage_end", None)
+            return (
+                coverage_start is not None
+                and coverage_end is not None
+                and coverage_start <= period_end
+                and coverage_end >= period_start
+            )
+
+        governed_financial_records = [
+            row for row in financial_records if finance_row_in_period(row)
         ]
 
         # Authoritative COP periods are operational-date periods.  TMR feed,

@@ -33,11 +33,10 @@ class BreedingManualAuthorityContractTest(unittest.TestCase):
         self.assertIn("Female calves cannot enter the breeding workflow.", self.api_source)
         self.assertIn("female calves, male calves, bulls", self.api_source)
 
-    def test_biological_clock_does_not_block_manual_insemination_entry(self):
-        self.assertNotIn("state.eligible_to_breed", self.api_source)
-        self.assertNotIn("not yet biologically eligible for insemination", self.api_source)
-        self.assertIn("Biological clocks, waiting periods, and readiness calculations are", self.api_source)
-        self.assertIn("A manual operator breeding entry is the authority.", self.api_source)
+    def test_post_terminal_waiting_period_is_enforced_by_api(self):
+        self.assertIn("state.eligible_to_breed", self.api_source)
+        self.assertIn("post-terminal waiting", self.api_source)
+        self.assertIn("voluntary_waiting_period_end", self.api_source)
 
     def test_frontend_ai_selector_uses_manual_category_filter_not_readiness_decision(self):
         self.assertIn("const aiSelectableCategory", self.ui_source)
@@ -47,11 +46,11 @@ class BreedingManualAuthorityContractTest(unittest.TestCase):
         self.assertNotIn("Boolean(s?.eligible_to_breed)&&", self.ui_source)
         self.assertNotIn("No mature female animals currently eligible for insemination", self.ui_source)
 
-    def test_operator_authority_copy_is_visible_without_changing_capabilities(self):
-        self.assertIn("operator-entered breeding events as authoritative Passport records", self.ui_source)
-        self.assertIn("Biological clocks provide reminders and guidance only", self.ui_source)
-        self.assertIn("Manual AI authority", self.ui_source)
-        self.assertIn("operator entry remains authoritative", self.ui_source)
+    def test_operator_entry_copy_is_visible_with_backend_safety_boundaries(self):
+        self.assertIn("Record actual breeding events as Passport records", self.ui_source)
+        self.assertIn("backend enforces the 45-day", self.ui_source)
+        self.assertIn("Manual AI authority: only eligible animals are selectable", self.ui_source)
+        self.assertNotIn("operator entry remains authoritative", self.ui_source)
         self.assertIn("Save Breeding Entry", self.ui_source)
 
 

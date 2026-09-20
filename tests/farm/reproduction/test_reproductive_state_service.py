@@ -9,7 +9,7 @@ from dairyos.farm.reproduction.services.reproductive_state_service import (
 )
 
 POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
+    voluntary_waiting_period_days=45,
     gestation_days=280,
     dry_off_days_before_calving=60,
 )
@@ -52,9 +52,43 @@ def test_dim_and_vwp_are_date_driven():
 
     assert state.days_in_milk == 45
     assert state.voluntary_waiting_period_end == date(
-        2026, 3, 2
+        2026, 2, 15
     )
-    assert state.eligible_to_breed is False
+    assert state.eligible_to_breed is True
+
+
+def test_post_calving_waiting_period_is_exactly_45_days():
+    service = ReproductiveStateService(POLICY)
+
+    before_due = service.resolve(
+        "A1",
+        [{"animal_id": "A1", "event_type": "CALVING", "event_date": "2026-01-01"}],
+        as_of_date=date(2026, 2, 14),
+    )
+    on_due = service.resolve(
+        "A1",
+        [{"animal_id": "A1", "event_type": "CALVING", "event_date": "2026-01-01"}],
+        as_of_date=date(2026, 2, 15),
+    )
+
+    assert before_due.eligible_to_breed is False
+    assert on_due.eligible_to_breed is True
+
+
+def test_pregnancy_loss_starts_the_same_45_day_waiting_period():
+    service = ReproductiveStateService(POLICY)
+    events = [
+        {"animal_id": "A1", "event_type": "INSEMINATION", "event_date": "2026-01-01"},
+        {"animal_id": "A1", "event_type": "PREGNANCY_CONFIRMED", "event_date": "2026-02-01"},
+        {"animal_id": "A1", "event_type": "PREGNANCY_LOST", "event_date": "2026-03-01"},
+    ]
+
+    before_due = service.resolve("A1", events, as_of_date=date(2026, 4, 14))
+    on_due = service.resolve("A1", events, as_of_date=date(2026, 4, 15))
+
+    assert before_due.voluntary_waiting_period_end == date(2026, 4, 15)
+    assert before_due.eligible_to_breed is False
+    assert on_due.eligible_to_breed is True
 
 
 def test_insemination_then_confirmed_pregnancy_produces_days_open_and_ecd():

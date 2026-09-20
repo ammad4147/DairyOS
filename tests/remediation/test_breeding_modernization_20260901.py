@@ -13,7 +13,9 @@ def test_breeding_ui_has_no_heat_or_estrus_operational_concept():
         assert token not in s
     assert "Manual AI Candidates" in s
     assert "Manual AI authority" in s
-    assert "operator entry remains authoritative" in s
+    assert "backend enforces the 45-day waiting period" in s
+    assert "entries that violate them are rejected" in s
+    assert "operator entry remains authoritative" not in s
     assert "days after calving" in s
     assert "Insemination Success Analytics" in s
     assert "1st Attempt" in s and "2nd Attempt" in s and "3rd Attempt" in s
@@ -22,7 +24,7 @@ def test_dashboard_reproduction_is_exactly_three_operational_metrics():
     ui = text("src/DairyOS.Web/src/components/UnifiedDashboard.tsx")
     client = text("src/DairyOS.Web/src/api/commandDashboardClient.ts")
     backend = text("src/dairyos/api/dashboard.py")
-    assert "Pregnancy Ratio" in ui
+    assert "Conception Rate" in ui
     assert "reproData.pregnancyRatio" in ui
     assert "repeat(3,minmax(0,1fr))" in ui
     assert "On Heat" not in ui

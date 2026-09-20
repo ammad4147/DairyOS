@@ -361,8 +361,15 @@ def _validate_transition(
                     "pregnancy diagnosis or calving before another insemination."
                 ),
             )
-        # Biological clocks, waiting periods, and readiness calculations are
-        # advisory only. A manual operator breeding entry is the authority.
+        if not state.eligible_to_breed:
+            waiting_end = state.voluntary_waiting_period_end.isoformat() if state.voluntary_waiting_period_end else "a later date"
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Insemination is blocked until the post-terminal waiting "
+                    f"period ends on {waiting_end}."
+                ),
+            )
 
     elif event_type in _PD_EVENTS:
         if current not in {"INSEMINATED", "PREGNANT"}:
@@ -919,12 +926,17 @@ def _dashboard_reproduction(container) -> dict[str, Any]:
     analytics = BreedingAnalyticsService.summarize(
         BreedingCycleProjectionService.project(records)
     )
-    pregnancy_ratio = analytics["pregnancy_ratio_percent"]
+    conception_rate = analytics["herd_conception_rate_percent"]
+    if conception_rate is None:
+        conception_rate = 0.0
     return {
         "inseminated": pending,
         "pregnant": pregnant,
-        "pregnancyRatio": pregnancy_ratio,
-        "pregnancy_ratio_percent": pregnancy_ratio,
+        # Keep the legacy response keys for installed clients, but make them
+        # carry the canonical observed conception metric used by Analytics.
+        "pregnancyRatio": conception_rate,
+        "pregnancy_ratio_percent": conception_rate,
+        "conception_rate_percent": conception_rate,
         "data_status": "LIVE_PERSISTED_DATA",
     }
 

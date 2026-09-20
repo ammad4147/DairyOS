@@ -37,7 +37,7 @@ class ReproductivePolicy:
 
 
 DEFAULT_REPRODUCTIVE_POLICY = ReproductivePolicy(
-    voluntary_waiting_period_days=60,
+    voluntary_waiting_period_days=45,
     gestation_days=283,
     dry_off_days_before_calving=60,
     pd_due_days=35,
@@ -329,6 +329,22 @@ class ReproductiveStateService:
         last_calving_date = (
             last_calving_event["event_date"] if last_calving_event else None
         )
+        terminal_events = [
+            event
+            for event in animal_events
+            if normalize_event_type(event["event_type"])
+            in {"pregnancy_lost", "abortion", "stillbirth"}
+        ]
+        last_terminal_event = max(
+            [event for event in ([last_calving_event] if last_calving_event else []) + terminal_events],
+            key=lambda event: event["event_date"],
+            default=None,
+        )
+        terminal_event_date = (
+            last_terminal_event["event_date"]
+            if last_terminal_event
+            else None
+        )
         lactation_number = sum(
             1
             for event in animal_events
@@ -340,8 +356,8 @@ class ReproductiveStateService:
             else None
         )
         vwp_end = (
-            last_calving_date + timedelta(days=self.policy.voluntary_waiting_period_days)
-            if last_calving_date is not None
+            terminal_event_date + timedelta(days=self.policy.voluntary_waiting_period_days)
+            if terminal_event_date is not None
             else None
         )
 

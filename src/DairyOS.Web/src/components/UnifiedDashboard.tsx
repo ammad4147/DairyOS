@@ -394,11 +394,11 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
   const vaccinationsDueToday = dueVaccinations.filter(item => item.dueState === 'DUE_TODAY');
   const overdueVaccinations = dueVaccinations.filter(item => item.dueState === 'OVERDUE');
   const vaccinationAttentionRows = [...vaccinationsDueToday, ...overdueVaccinations];
-  const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; } | undefined;
+  const reproSource = data?.reproduction as { inseminated?:number; pregnant?:number; pregnancyRatio?:number; conception_rate_percent?:number; } | undefined;
   const reproData = {
     inseminated: reproSource?.inseminated ?? 0,
     pregnant: reproSource?.pregnant ?? 0,
-    pregnancyRatio: reproSource?.pregnancyRatio ?? 0,
+    pregnancyRatio: reproSource?.conception_rate_percent ?? reproSource?.pregnancyRatio ?? 0,
   };
   const currentComlMonth = comlOutput?.month || farmToday().slice(0, 7);
   const currentComlValue = comlOutput?.costOfMilkProductionPerLiter ?? null;
@@ -544,7 +544,7 @@ export default function UnifiedDashboard({ onNavigate, onOpenYieldModal, onOpenP
             </div>
           </div>
           <div style={{flex:'0.85 1 0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,minHeight:0,minWidth:0}}>
-            <div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Pregnancy Ratio',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div></div>
+            <div className="cmd-card" style={{...cardBase,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:6,color:'#fb923c',fontWeight:800,fontSize:12,marginBottom:6,cursor:'pointer'}} onClick={()=>onNavigate?.('breeding')}><Activity size={15}/> Reproductive Health</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:6,flex:1,alignItems:'center',minWidth:0}}>{[['Inseminated',reproData.inseminated,'#60a5fa'],['Pregnant',reproData.pregnant,'#a78bfa'],['Conception Rate',`${Number(reproData.pregnancyRatio).toFixed(1)}%`,'#ec4899']].map(([label,value,color])=><div key={String(label)} style={{background:'#1e293b',padding:6,borderRadius:6,textAlign:'center',minWidth:0}}><div style={{color:String(color),fontSize:13,fontWeight:900}}>{String(value)}</div><div style={{fontSize:9,color:'#94a3b8'}}>{String(label)}</div></div>)}</div></div>
             <div className="cmd-card" style={{display:'flex',flexDirection:'column',...cardBase,minWidth:0}}><div style={{color:'#38bdf8',fontWeight:800,fontSize:12,marginBottom:8}}><Plus size={15} style={{verticalAlign:'middle',marginRight:4}}/> Data Entry</div><div style={{display:'flex',flexDirection:'column',gap:8,justifyContent:'center',flex:1}}><ActionButton onClick={()=>onOpenYieldModal ? onOpenYieldModal() : onNavigate?.('milk')} text="Enter Milk Production" icon={<Milk size={14}/>} color="#0284c7"/><ActionButton onClick={()=>onNavigate?.('finance')} text="Enter Milk Sale" icon={<span style={{fontWeight:900}}>₨</span>} color="#059669"/></div></div>
           </div>
         </div>

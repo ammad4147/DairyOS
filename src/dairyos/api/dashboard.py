@@ -554,11 +554,14 @@ def get_dashboard(container=Depends(get_container)):
     }
     cycles = BreedingCycleProjectionService.project(breeding_records)
     reproductive_analytics = BreedingAnalyticsService.summarize(cycles)
-    pregnancy_ratio = reproductive_analytics["pregnancy_ratio_percent"]
+    pregnancy_ratio = reproductive_analytics["herd_conception_rate_percent"]
+    if pregnancy_ratio is None:
+        pregnancy_ratio = 0.0
     payload["reproduction"] = {
         **reproduction_counts,
         "pregnancyRatio": pregnancy_ratio,
         "pregnancy_ratio_percent": pregnancy_ratio,
+        "conception_rate_percent": pregnancy_ratio,
         "data_status": "LIVE_PERSISTED_DATA",
     }
     payload["milk"] = {

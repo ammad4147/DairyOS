@@ -55,7 +55,9 @@ def test_breeding_form_candidate_lists_follow_manual_lifecycle_sequence():
     assert "return !['INSEMINATED', 'BRED', 'PREGNANT'].includes(x);" in source
     assert "Manual AI Candidates" in source
     assert "Manual AI authority" in source
-    assert "operator entry remains authoritative" in source
+    assert "backend enforces the 45-day waiting period" in source
+    assert "entries that violate them are rejected" in source
+    assert "operator entry remains authoritative" not in source
 
     # PD is available after insemination and remains available after a positive
     # declaration so an operator can manually reconfirm or revise pregnancy.
