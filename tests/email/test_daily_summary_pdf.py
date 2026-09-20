@@ -48,7 +48,7 @@ def _summary(**overrides):
 def test_daily_summary_pdf_is_exactly_one_page_and_contains_governed_values():
     payload = daily_summary_pdf(_summary())
     assert payload.startswith(b"%PDF-")
-    assert payload.count(b"/Type /Page") == 1
+    assert payload.count(b"/Type /Page ") == 1
 
 
 def test_daily_summary_pdf_caps_attention_rows_without_overflow():
@@ -85,11 +85,13 @@ def test_email_service_adds_pdf_attachment(monkeypatch):
         subject="DairyOS Daily Summary",
         body="Summary attached.",
         config=EmailSenderConfig(
-            host="smtp.example.com",
-            port=587,
-            username="user",
-            password="secret",
-            from_address="dairyos@example.com",
+            sender_email="dairyos@example.com",
+            sender_display_name="DairyOS",
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            smtp_username="user",
+            smtp_password="secret",
+            use_tls=True,
         ),
         attachments=[("DairyOS-Daily-Summary-2026-09-20.pdf", b"%PDF-test", "application", "pdf")],
     )
