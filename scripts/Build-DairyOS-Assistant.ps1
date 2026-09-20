@@ -45,7 +45,9 @@ Get-ChildItem -LiteralPath $packRoot -File -Recurse | ForEach-Object {
 }
 @{ format = "dairyassistant-integrity-v1"; files = $integrityFiles } |
     ConvertTo-Json -Depth 8 | Set-Content (Join-Path $packRoot "assistant-package-integrity.json") -Encoding utf8
-Compress-Archive -Path (Join-Path $packRoot "*") -DestinationPath $package -CompressionLevel Optimal
+$archive = Join-Path $root "DairyOS-Assistant.zip"
+Compress-Archive -Path (Join-Path $packRoot "*") -DestinationPath $archive -CompressionLevel Optimal
+Move-Item -LiteralPath $archive -Destination $package -Force
 $hash = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 $size = (Get-Item $package).Length
 $manifest.package_size_bytes = $size
