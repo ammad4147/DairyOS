@@ -344,13 +344,14 @@ begin
     end;
 
     Log('DairyOS setup: matching DairyOS installation detected; preserving ProgramData for application refresh.');
-    MsgBox(
-      'An existing DairyOS installation was detected.' + #13#10#13#10 +
-      'The DairyOS application will be refreshed. Your farm database, settings, backups and operational data in ' +
-      CanonicalDairyOSDataRoot() + ' will be preserved.',
-      mbInformation,
-      MB_OK
-    );
+    if not WizardSilent() then
+      MsgBox(
+        'An existing DairyOS installation was detected.' + #13#10#13#10 +
+        'The DairyOS application will be refreshed. Your farm database, settings, backups and operational data in ' +
+        CanonicalDairyOSDataRoot() + ' will be preserved.',
+        mbInformation,
+        MB_OK
+      );
 
     { Stop only the matching DairyOS runtime before Program Files is replaced.
       The routine does not remove farm data; it also removes the old scheduled
