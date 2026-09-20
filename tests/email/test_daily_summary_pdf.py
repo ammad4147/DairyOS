@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 from dairyos.email.daily_summary_pdf import daily_summary_pdf
+from dairyos.email.digest import DashboardDigestService
 from dairyos.email.service import EmailSenderConfig, EmailService
 
 
@@ -100,3 +102,35 @@ def test_email_service_adds_pdf_attachment(monkeypatch):
     assert len(attachments) == 1
     assert attachments[0].get_filename() == "DairyOS-Daily-Summary-2026-09-20.pdf"
     assert attachments[0].get_content_type() == "application/pdf"
+
+
+def test_delivery_content_reports_incomplete_status_and_attention():
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    summary = _summary(
+        completeness={"status": "INCOMPLETE"},
+        attention=[{"area": "Milk", "title": "Session missing"}],
+    )
+    subject, body = service._delivery_content(summary)
+    assert "1 attention item(s)" in subject
+    assert "Data status: Incomplete" in body
+    assert "Milk produced: 135.0 L" in body
+
+
+def test_pdf_accepts_restricted_finance_and_unavailable_authorities():
+    summary = _summary(
+        finance=None,
+        cop={
+            "feed_total": None,
+            "feed_cost_per_liter": None,
+            "opex_total": None,
+            "opex_cost_per_liter": None,
+            "total_cop_per_liter": None,
+        },
+        health={"active_exceptions": None},
+        completeness={"status": "INCOMPLETE"},
+    )
+    payload = daily_summary_pdf(summary)
+    assert payload.startswith(b"%PDF-")
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
