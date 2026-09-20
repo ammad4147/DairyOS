@@ -19,7 +19,7 @@ if ((@(& git status --porcelain) -join "`n").Trim()) {
 & (Join-Path $PSScriptRoot "Get-AssistantRuntime.ps1")
 $root = [IO.Path]::GetFullPath((Join-Path $repo $OutputRoot))
 $staging = Join-Path $root "staging"
-$package = Join-Path $root "DairyOS-Assistant-Pack.zip"
+$package = Join-Path $root "DairyOS-Assistant.dairyassistant"
 Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
@@ -38,6 +38,13 @@ $manifest = [ordered]@{
     source_tree = $tree
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $packRoot "assistant-manifest.json") -Encoding utf8
+$integrityFiles = [ordered]@{}
+Get-ChildItem -LiteralPath $packRoot -File -Recurse | ForEach-Object {
+    $relative = [IO.Path]::GetRelativePath($packRoot, $_.FullName).Replace('\', '/')
+    $integrityFiles[$relative] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+@{ format = "dairyassistant-integrity-v1"; files = $integrityFiles } |
+    ConvertTo-Json -Depth 8 | Set-Content (Join-Path $packRoot "assistant-package-integrity.json") -Encoding utf8
 Compress-Archive -Path (Join-Path $packRoot "*") -DestinationPath $package -CompressionLevel Optimal
 $hash = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 $size = (Get-Item $package).Length

@@ -79,16 +79,15 @@ async def install_assistant(files: list[UploadFile] | None = File(default=None))
         if not files:
             result = assistant_package.install()
         else:
-            package = next((item for item in files if str(item.filename or "").lower().endswith(".zip")), None)
-            checksum = next((item for item in files if str(item.filename or "").lower().endswith(".sha256")), None)
-            if package is None or checksum is None:
-                raise ValueError("Select both the Assistant ZIP package and its .sha256 checksum file.")
+            if len(files) != 1:
+                raise ValueError("Select one approved .dairyassistant package file.")
+            package = files[0]
+            if not str(package.filename or "").lower().endswith(assistant_package.SINGLE_FILE_SUFFIX):
+                raise ValueError("Selected Assistant package must be a .dairyassistant file.")
             temporary = Path(tempfile.mkdtemp(prefix="dairyos-assistant-upload-"))
-            package_path = temporary / "assistant-package.zip"
-            checksum_path = Path(str(package_path) + ".sha256")
+            package_path = temporary / "assistant-package.dairyassistant"
             with package_path.open("wb") as handle:
                 shutil.copyfileobj(package.file, handle)
-            checksum_path.write_bytes(await checksum.read())
             result = assistant_package.install(package_path)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

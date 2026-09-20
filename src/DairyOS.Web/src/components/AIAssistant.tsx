@@ -29,7 +29,7 @@ export default function AIAssistant() {
   const [busy, setBusy] = useState(false);
   const [packageStatus, setPackageStatus] = useState<AssistantStatus | null>(null);
   const [installing, setInstalling] = useState(false);
-  const [packageFiles, setPackageFiles] = useState<FileList | null>(null);
+  const [packageFile, setPackageFile] = useState<File | null>(null);
 
   async function refreshPackageStatus() {
     try {
@@ -45,12 +45,12 @@ export default function AIAssistant() {
     setInstalling(true);
     setError(null);
     try {
-      if (!packageFiles || packageFiles.length === 0) {
-        setError('Select the approved Assistant ZIP and its .sha256 checksum file first.');
+      if (!packageFile) {
+        setError('Select the approved single-file Assistant package first.');
         return;
       }
       const form = new FormData();
-      Array.from(packageFiles).forEach((file) => form.append('files', file));
+      form.append('files', packageFile);
       const response = await fetch(apiUrl('/assistant/install'), { method: 'POST', body: form });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.detail || 'Assistant installation was not completed.');
@@ -130,12 +130,12 @@ export default function AIAssistant() {
         </div>
         {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && (
           <div>
-            <input type="file" accept=".zip,.sha256" multiple onChange={(event) => setPackageFiles(event.target.files)} style={{ marginTop: 8, maxWidth: '100%' }} />
-            <button type="button" onClick={installAssistant} disabled={installing || !packageFiles?.length} style={{ marginTop: 8 }}>
+            <input type="file" accept=".dairyassistant" onChange={(event) => setPackageFile(event.target.files?.[0] || null)} style={{ marginTop: 8, maxWidth: '100%' }} />
+            <button type="button" onClick={installAssistant} disabled={installing || !packageFile} style={{ marginTop: 8 }}>
               {installing ? 'Installing Assistant…' : 'Install Selected Assistant Package'}
             </button>
             <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 11 }}>
-              Select both the approved ZIP package and its matching `.sha256` file.
+              Select one approved `.dairyassistant` package file. Integrity is verified internally before activation.
             </div>
           </div>
         )}

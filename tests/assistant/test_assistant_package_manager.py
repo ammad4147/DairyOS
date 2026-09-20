@@ -30,6 +30,40 @@ def _package(tmp_path: Path) -> Path:
     return package
 
 
+def _single_file_package(tmp_path: Path, *, tamper: bool = False) -> Path:
+    payload = tmp_path / "single-payload"
+    payload.mkdir()
+    executable = payload / "DairyOSAssistant.exe"
+    executable.write_bytes(b"assistant-single-file")
+    manifest = payload / "assistant-manifest.json"
+    manifest.write_text(
+        json.dumps({
+            "package_id": "dairyos-assistant",
+            "assistant_version": "0.1.0",
+            "compatible_core": ">=0.1.0 <0.2.0",
+        }),
+        encoding="utf-8",
+    )
+    integrity = payload / assistant_package.INTEGRITY_FILENAME
+    integrity.write_text(
+        json.dumps({
+            "format": "dairyos-assistant-integrity-v1",
+            "files": {
+                executable.name: hashlib.sha256(executable.read_bytes()).hexdigest(),
+                manifest.name: hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            },
+        }),
+        encoding="utf-8",
+    )
+    if tamper:
+        executable.write_bytes(b"tampered")
+    package = tmp_path / "DairyOS-Assistant.dairyassistant"
+    with zipfile.ZipFile(package, "w") as archive:
+        for path in payload.iterdir():
+            archive.write(path, path.name)
+    return package
+
+
 def test_missing_package_is_not_installed(tmp_path, monkeypatch):
     monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
     with pytest.raises(FileNotFoundError):
@@ -48,6 +82,25 @@ def test_package_install_is_staged_and_manifest_driven(tmp_path, monkeypatch):
         "assistant_version"
     ] == "0.1.0"
     assert (root / "DairyOSAssistant.exe").is_file()
+
+
+def test_single_file_package_verifies_internal_integrity_manifest(tmp_path, monkeypatch):
+    package = _single_file_package(tmp_path)
+    root = tmp_path / "assistant"
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", root)
+
+    result = assistant_package.install(package)
+
+    assert result["installed"] is True
+    assert (root / "DairyOSAssistant.exe").read_bytes() == b"assistant-single-file"
+
+
+def test_single_file_package_rejects_tampered_payload(tmp_path, monkeypatch):
+    package = _single_file_package(tmp_path, tamper=True)
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
+
+    with pytest.raises(ValueError, match="integrity verification failed"):
+        assistant_package.install(package)
 
 
 def test_incompatible_package_does_not_replace_existing_assistant(tmp_path, monkeypatch):

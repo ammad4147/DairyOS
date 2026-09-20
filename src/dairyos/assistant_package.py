@@ -19,6 +19,8 @@ PACKAGE_SOURCE = Path(
     os.environ.get("DAIRYOS_ASSISTANT_PACKAGE", "")
 ) if os.environ.get("DAIRYOS_ASSISTANT_PACKAGE", "") else None
 CORE_VERSION = "0.1.0"
+SINGLE_FILE_SUFFIX = ".dairyassistant"
+INTEGRITY_FILENAME = "assistant-package-integrity.json"
 
 
 def manifest_path() -> Path:
@@ -63,15 +65,18 @@ def install(source: Path | None = None) -> dict:
     if package is None or not package.is_file():
         raise FileNotFoundError("No approved Assistant package source is configured.")
     expected = Path(str(package) + ".sha256")
-    if not expected.is_file():
-        raise ValueError("Assistant package SHA-256 sidecar is required.")
-    fields = expected.read_text(encoding="utf-8").strip().split()
-    declared = fields[0].lower() if fields else ""
-    if len(declared) != 64 or any(ch not in "0123456789abcdef" for ch in declared):
-        raise ValueError("Assistant package SHA-256 sidecar is invalid.")
-    actual = _sha256(package)
-    if declared != actual:
-        raise ValueError("Assistant package SHA-256 verification failed.")
+    legacy_sidecar = expected.is_file()
+    single_file_package = package.suffix.lower() == SINGLE_FILE_SUFFIX
+    if not legacy_sidecar and not single_file_package:
+        raise ValueError("Assistant package SHA-256 sidecar is required for legacy package archives.")
+    if legacy_sidecar:
+        fields = expected.read_text(encoding="utf-8").strip().split()
+        declared = fields[0].lower() if fields else ""
+        if len(declared) != 64 or any(ch not in "0123456789abcdef" for ch in declared):
+            raise ValueError("Assistant package SHA-256 sidecar is invalid.")
+        actual = _sha256(package)
+        if declared != actual:
+            raise ValueError("Assistant package SHA-256 verification failed.")
 
     staging_parent = ASSISTANT_ROOT.parent / ".assistant-staging"
     staging_parent.mkdir(parents=True, exist_ok=True)
@@ -79,6 +84,25 @@ def install(source: Path | None = None) -> dict:
     try:
         with zipfile.ZipFile(package) as archive:
             archive.extractall(staging)
+        if not legacy_sidecar:
+            integrity_candidates = list(staging.rglob(INTEGRITY_FILENAME))
+            if len(integrity_candidates) != 1:
+                raise ValueError(
+                    "Single-file Assistant package integrity manifest is missing or ambiguous."
+                )
+            integrity = json.loads(integrity_candidates[0].read_text(encoding="utf-8-sig"))
+            declared_files = integrity.get("files", {}) if isinstance(integrity, dict) else {}
+            if not isinstance(declared_files, dict) or not declared_files:
+                raise ValueError("Single-file Assistant package integrity manifest is invalid.")
+            payload_root = integrity_candidates[0].parent
+            for relative, declared_hash in declared_files.items():
+                candidate = (payload_root / str(relative)).resolve()
+                try:
+                    candidate.relative_to(payload_root.resolve())
+                except ValueError as exc:
+                    raise ValueError("Assistant package integrity manifest contains an unsafe path.") from exc
+                if not candidate.is_file() or _sha256(candidate) != str(declared_hash).lower():
+                    raise ValueError(f"Assistant package integrity verification failed for {relative}.")
         candidates = list(staging.rglob("assistant-manifest.json"))
         if len(candidates) != 1:
             raise ValueError("Assistant package manifest is missing or ambiguous.")

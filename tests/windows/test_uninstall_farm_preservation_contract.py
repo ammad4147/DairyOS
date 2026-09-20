@@ -39,7 +39,13 @@ def test_automation_uninstall_has_no_preservation_wizard_state():
     assert "function UninstallPreservationChoiceFromCommandLine(): String;" in source
     assert "'/PRESERVEFARMDATA=NO'" in source
     assert "function InitializeUninstall(): Boolean;" in source
-    assert "WizardSilent" not in source
+    # Silent mode is intentionally used by the refresh/reinstall path so an
+    # automated in-place refresh cannot be blocked by the informational dialog.
+    # It must not alter the uninstall preservation decision itself.
+    prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
+    uninstall = source[source.index("function InitializeUninstall(): Boolean;"):]
+    assert "WizardSilent" in prepare
+    assert "WizardSilent" not in uninstall
 
 
 def test_installer_ci_declares_silent_preservation_decision():
