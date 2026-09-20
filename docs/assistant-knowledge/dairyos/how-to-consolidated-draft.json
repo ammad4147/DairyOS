@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "DRAFT",
+  "status": "IMPLEMENTATION_REVIEW",
   "purpose": "Consolidated how-to coverage awaiting implementation and domain review.",
   "items": [
     {
@@ -10,7 +10,7 @@
       "domain": "access",
       "capability": "permissions",
       "title": "permissions",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should access permissions be assessed?",
       "alternatives": [
         "How should access permissions be assessed?",
@@ -52,7 +52,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json"
+      "source_training_file": "docs/training/access-health-recovery-items.json",
+      "explanation": "Confirm the user's role and the specific operation's permission. A visible control, hidden tab, or API response must not be treated as permission to bypass the governed workflow.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "recovery.safe-drill",
@@ -61,7 +73,7 @@
       "domain": "recovery",
       "capability": "recovery",
       "title": "recovery",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How can recovery be tested without disturbing the farm?",
       "alternatives": [
         "How can recovery be tested without disturbing the farm?",
@@ -100,7 +112,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json"
+      "source_training_file": "docs/training/access-health-recovery-items.json",
+      "explanation": "Use an isolated disposable target and identified backup; never restore, replay, or reset against the active database or data root.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "runtime.failure",
@@ -109,7 +129,7 @@
       "domain": "runtime",
       "capability": "runtime-failure",
       "title": "runtime-failure",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a runtime failure be escalated?",
       "alternatives": [
         "How should a runtime failure be escalated?",
@@ -148,7 +168,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json"
+      "source_training_file": "docs/training/access-health-recovery-items.json",
+      "explanation": "Capture the exact component, timestamp, build identity, and visible symptom; protect the live dataset and provide evidence to technical support.",
+      "verified_against_source": {
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "support.package",
@@ -157,7 +185,7 @@
       "domain": "support",
       "capability": "support-package",
       "title": "support-package",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What belongs in a DairyOS support package?",
       "alternatives": [
         "What belongs in a DairyOS support package?",
@@ -200,7 +228,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/access-health-recovery-items.json"
+      "source_training_file": "docs/training/access-health-recovery-items.json",
+      "explanation": "Include release identity, timestamps, health results, relevant request errors, selected periods, and safe audit identifiers while excluding secrets and unnecessary farm data.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.catalog",
@@ -209,7 +248,7 @@
       "domain": "analytics",
       "capability": "analytics-catalog",
       "title": "analytics-catalog",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an analytics view be selected?",
       "alternatives": [
         "How should an analytics view be selected?",
@@ -251,7 +290,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json"
+      "source_training_file": "docs/training/analytics-release-failure-items.json",
+      "explanation": "Choose the view whose definition matches the management question, then confirm period, source, denominator, and completeness before interpreting it.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.sold-litres",
@@ -260,7 +311,7 @@
       "domain": "revenue",
       "capability": "sold-litres",
       "title": "sold-litres",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How are sold litres separated from total milk?",
       "alternatives": [
         "How are sold litres separated from total milk?",
@@ -302,7 +353,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json"
+      "source_training_file": "docs/training/analytics-release-failure-items.json",
+      "explanation": "Sold litres come from valid disposition and sale records, not from assuming every produced litre was sold. Non-sale and withheld milk remain separately traceable.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "startup.failure",
@@ -311,7 +373,7 @@
       "domain": "startup",
       "capability": "startup",
       "title": "startup",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be done when DairyOS fails during startup?",
       "alternatives": [
         "What should be done when DairyOS fails during startup?",
@@ -352,7 +414,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json"
+      "source_training_file": "docs/training/analytics-release-failure-items.json",
+      "explanation": "Preserve the exact error and environment details, separate desktop packaging from backend/database readiness, and avoid reset or data deletion while diagnosing.",
+      "verified_against_source": {
+        "routes": [
+          "GET /health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.upgrade",
@@ -361,7 +434,7 @@
       "domain": "installation",
       "capability": "upgrade",
       "title": "upgrade",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an upgrade be accepted?",
       "alternatives": [
         "How should an upgrade be accepted?",
@@ -400,7 +473,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json"
+      "source_training_file": "docs/training/analytics-release-failure-items.json",
+      "explanation": "Accept an upgrade only after exact artifact identity, startup, database readiness, data preservation, and backup protection are separately verified.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "troubleshooting.save-failure",
@@ -409,7 +490,7 @@
       "domain": "troubleshooting",
       "capability": "save-failure",
       "title": "save-failure",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a failed save be investigated?",
       "alternatives": [
         "How should a failed save be investigated?",
@@ -447,7 +528,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/analytics-release-failure-items.json"
+      "source_training_file": "docs/training/analytics-release-failure-items.json",
+      "explanation": "Capture the request context and determine whether the authoritative record was created, rejected, or partially projected before retrying.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "disease.mastitis",
@@ -904,7 +993,7 @@
       "domain": "feed",
       "capability": "ingredients",
       "title": "ingredients",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I add or identify a TMR ingredient?",
       "alternatives": [
         "add feed ingredient",
@@ -954,7 +1043,25 @@
         ]
       },
       "safety": "Do not create a spelling variant to bypass the governed category.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "Use the governed TMR ingredient catalog; the catalog identity is shared with Finance feed categories.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/tmr/ingredients"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_finance_tmr_catalog_parity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.prices",
@@ -963,7 +1070,7 @@
       "domain": "feed",
       "capability": "prices",
       "title": "prices",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Which price is used for a TMR ingredient?",
       "alternatives": [
         "feed price source",
@@ -1017,7 +1124,28 @@
         ]
       },
       "safety": "A purchase is not automatically same-day consumption; do not treat stock purchases as feed consumed.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "The governed price source is selected per ingredient: Finance authority where available, or an explicitly selected manual fallback.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx",
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr",
+          "POST /farm/tmr/stages"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_finance_feed_opex_profitability.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.formula",
@@ -1026,7 +1154,7 @@
       "domain": "feed",
       "capability": "formula",
       "title": "formula",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I save a TMR formula?",
       "alternatives": [
         "prepare TMR",
@@ -1080,7 +1208,27 @@
         ]
       },
       "safety": "Changing a formula must not rewrite historical daily snapshots.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "Enter the governed ingredient quantities and price choices for the applicable animal stage, then save a new effective ration version.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/tmr/stages",
+          "GET /farm/tmr"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/tmr_daily_cost_scheduler.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_feed_storage_tmr_authority.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.category-cost",
@@ -1089,7 +1237,7 @@
       "domain": "feed",
       "capability": "category-cost",
       "title": "category-cost",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How is TMR cost calculated by animal category?",
       "alternatives": [
         "feed cost per category",
@@ -1139,7 +1287,24 @@
         ]
       },
       "safety": "Do not multiply one current ration by all animals or all days.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "DairyOS applies the governed category ration and price authority to the corresponding active animal count, then aggregates category costs.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.herd-cost",
@@ -1148,7 +1313,7 @@
       "domain": "feed",
       "capability": "herd-cost",
       "title": "herd-cost",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How does DairyOS calculate whole-herd TMR cost per day?",
       "alternatives": [
         "daily feed cost",
@@ -1200,7 +1365,27 @@
         ]
       },
       "safety": "Historical dates use persisted daily authority, not a current formula replay.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "It aggregates the governed daily category costs for the active herd on the operational date.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx",
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr",
+          "GET /farm/coml/integrated"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.daily-snapshot",
@@ -1209,7 +1394,7 @@
       "domain": "feed",
       "capability": "daily-snapshot",
       "title": "daily-snapshot",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why does DairyOS keep a daily TMR calculation snapshot?",
       "alternatives": [
         "historical feed cost",
@@ -1259,7 +1444,25 @@
         ]
       },
       "safety": "Snapshots must be idempotent per operational day and must not be silently overwritten.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "The snapshot preserves the formula, prices, herd counts, and resulting whole-herd cost for that operational day so later formula or herd changes do not rewrite history.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py",
+          "src/dairyos/tmr_daily_cost_scheduler.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.consumption",
@@ -1268,7 +1471,7 @@
       "domain": "feed",
       "capability": "consumption",
       "title": "consumption",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I record and verify feed consumed?",
       "alternatives": [
         "record feeding",
@@ -1323,7 +1526,29 @@
         ]
       },
       "safety": "Do not record a purchase as consumption or silently accept negative stock.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "Record actual consumed quantity against the feeding date and feed type; inventory movement and cost are governed from that persisted record.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FeedTab.tsx",
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "POST /farm/feed/records",
+          "GET /farm/feed/records",
+          "POST /farm/feed-inventory/automatic-consumption/sync"
+        ],
+        "services": [
+          "src/dairyos/api/feed_management.py",
+          "src/dairyos/api/feed_inventory.py"
+        ],
+        "tests": [
+          "tests/api/test_feed_storage_tmr_authority.py",
+          "tests/lifecycle/test_feed_surface_certification.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.feed-cost-per-litre",
@@ -1332,7 +1557,7 @@
       "domain": "feed",
       "capability": "feed-cost-per-litre",
       "title": "feed-cost-per-litre",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How is Feed Cost/L calculated for a selected period?",
       "alternatives": [
         "why feed cost per litre is missing",
@@ -1384,7 +1609,27 @@
         ]
       },
       "safety": "Never calculate current TMR cost multiplied by number of days as a substitute for daily historical authority.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "Feed Cost/L is the selected-period governed daily TMR cost total divided by active milk production litres in the same period; it is unavailable when required authority or milk volume is missing.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated",
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/finance/profitability/services/feed_opex_cost_service.py",
+          "src/dairyos/api/coml.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py",
+          "tests/api/test_coml.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "feed.tmr-log",
@@ -1393,7 +1638,7 @@
       "domain": "feed",
       "capability": "tmr-log",
       "title": "tmr-log",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I read the Daily TMR Calculation and Feed Consumption Log?",
       "alternatives": [
         "TMR history",
@@ -1443,7 +1688,24 @@
         ]
       },
       "safety": "The log is read-only and must not create, alter, or delete feed records.",
-      "source_training_file": "docs/training/feed-tmr-items.json"
+      "source_training_file": "docs/training/feed-tmr-items.json",
+      "explanation": "Open Calculation Log in the TMR Preparation Tool, choose 7, 30, or 90 days, and load persisted daily calculations alongside consumed kilograms, cost, and status.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/TMRPreparationTool.tsx"
+        ],
+        "routes": [
+          "GET /farm/tmr/history"
+        ],
+        "services": [
+          "src/dairyos/api/tmr.py"
+        ],
+        "tests": [
+          "tests/api/test_tmr_cop_authority.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.acknowledge",
@@ -1452,7 +1714,7 @@
       "domain": "dashboard",
       "capability": "acknowledge",
       "title": "acknowledge",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "When should a dashboard alert be acknowledged?",
       "alternatives": [
         "When should a dashboard alert be acknowledged?",
@@ -1493,7 +1755,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Acknowledge after reviewing the source facts and assigning responsibility; acknowledgement records review and does not mean the underlying condition is resolved.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.resolution",
@@ -1502,7 +1775,7 @@
       "domain": "dashboard",
       "capability": "resolution",
       "title": "resolution",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "When can a finding be resolved?",
       "alternatives": [
         "When can a finding be resolved?",
@@ -1543,7 +1816,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Resolve only when the underlying condition has been addressed and the supporting operational record exists; hiding or acknowledging a finding is not resolution.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.amendment-history",
@@ -1552,7 +1836,7 @@
       "domain": "persistence",
       "capability": "amendment-history",
       "title": "amendment-history",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How are amendments kept explainable?",
       "alternatives": [
         "How are amendments kept explainable?",
@@ -1592,7 +1876,16 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "An amendment preserves the original fact, reason, actor, time, and resulting value; downstream totals use the governed current state while history remains inspectable.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py",
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "runtime.database-failure",
@@ -1601,7 +1894,7 @@
       "domain": "runtime",
       "capability": "database-failure",
       "title": "database-failure",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What is safe when the database is unavailable?",
       "alternatives": [
         "What is safe when the database is unavailable?",
@@ -1643,7 +1936,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Stop repeated writes, capture readiness evidence, protect the live database and backups, and escalate. Do not delete, recreate, or manually edit the database as a first response.",
+      "verified_against_source": {
+        "routes": [
+          "GET /health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "health.heat-stress",
@@ -1652,7 +1956,7 @@
       "domain": "health",
       "capability": "heat-stress",
       "title": "heat-stress",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should heat-stress information be used?",
       "alternatives": [
         "How should heat-stress information be used?",
@@ -1695,7 +1999,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Use environmental and animal observations to support welfare action and trend review; severe signs require immediate farm and veterinary escalation, not automated diagnosis.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/HealthTab.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.timezone",
@@ -1704,7 +2020,7 @@
       "domain": "settings",
       "capability": "timezone",
       "title": "timezone",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why does timezone matter to DairyOS?",
       "alternatives": [
         "Why does timezone matter to DairyOS?",
@@ -1745,7 +2061,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Timezone and operational-date conventions determine which day receives late-night milk, feed, health, and finance events. Confirm them before reconciling daily totals.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.uninstall-keep-data",
@@ -1754,7 +2081,7 @@
       "domain": "installation",
       "capability": "uninstall-keep-data",
       "title": "uninstall-keep-data",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What must be protected during uninstall?",
       "alternatives": [
         "What must be protected during uninstall?",
@@ -1793,7 +2120,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/final-operations-gaps-items.json"
+      "source_training_file": "docs/training/final-operations-gaps-items.json",
+      "explanation": "Uninstalling application components must not be treated as permission to remove the farm data root or backups. Confirm the selected option and preserve data unless a separately authorised reset is intended.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "finance.expense-entry",
@@ -1802,7 +2137,7 @@
       "domain": "finance",
       "capability": "financial-entry",
       "title": "financial-entry",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an expense be entered?",
       "alternatives": [
         "How should an expense be entered?",
@@ -1845,7 +2180,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "Enter the actual transaction with date, amount, category, supplier or payee, payment state, and supporting note; verify the persisted ledger record before relying on reports.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "finance.category",
@@ -1854,7 +2200,7 @@
       "domain": "finance",
       "capability": "expense-category",
       "title": "expense-category",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why does expense categorisation matter?",
       "alternatives": [
         "Why does expense categorisation matter?",
@@ -1896,7 +2242,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "Categories determine reporting and cost attribution. Use the governed category vocabulary and preserve the original fact when a correction is needed.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.kpis",
@@ -1905,7 +2262,7 @@
       "domain": "analytics",
       "capability": "kpis",
       "title": "kpis",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a KPI be interpreted?",
       "alternatives": [
         "How should a KPI be interpreted?",
@@ -1946,7 +2303,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "Read the value together with its period, denominator, source, completeness, and status. A KPI is not reliable when its underlying inputs are missing, late, voided, or unattributed.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.exports",
@@ -1955,7 +2323,7 @@
       "domain": "analytics",
       "capability": "exports",
       "title": "exports",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be checked before sharing an export?",
       "alternatives": [
         "What should be checked before sharing an export?",
@@ -1996,7 +2364,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "Confirm the period, filters, data date, source authority, completeness warnings, and recipient permissions. An export is a view of governed records, not a replacement for the ledger.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.audit-trail",
@@ -2005,7 +2384,7 @@
       "domain": "persistence",
       "capability": "audit-trail",
       "title": "audit-trail",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What belongs in an audit trail?",
       "alternatives": [
         "What belongs in an audit trail?",
@@ -2044,7 +2423,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "The actor, timestamp, source facts, operation, resulting identifier, amendment or void relationship, and downstream status should remain inspectable for material entries.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.projection-outbox",
@@ -2053,7 +2440,7 @@
       "domain": "persistence",
       "capability": "projection-outbox",
       "title": "projection-outbox",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What does a projection delay mean?",
       "alternatives": [
         "What does a projection delay mean?",
@@ -2095,7 +2482,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "A durable source event may be saved before every read model refreshes. Investigate the outbox and projection status; never duplicate the source write to make a screen change.",
+      "verified_against_source": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.automatic-backup",
@@ -2104,7 +2502,7 @@
       "domain": "installation",
       "capability": "automatic-backup",
       "title": "automatic-backup",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should automatic backup be verified?",
       "alternatives": [
         "How should automatic backup be verified?",
@@ -2142,7 +2540,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "Verify that protection is provisioned, the task or service is configured, an execution has succeeded, and the resulting backup is identifiable and recoverable. Configuration alone is not proof of a usable backup.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.verified-recovery",
@@ -2151,7 +2557,7 @@
       "domain": "installation",
       "capability": "verified-recovery",
       "title": "verified-recovery",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What makes a recovery verified?",
       "alternatives": [
         "What makes a recovery verified?",
@@ -2189,7 +2595,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/finance-analytics-audit-items.json"
+      "source_training_file": "docs/training/finance-analytics-audit-items.json",
+      "explanation": "A recovery is verified only when a known backup is restored into an isolated target, startup succeeds, representative records reconcile, and the evidence is retained.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "troubleshooting.missing-data",
@@ -2198,7 +2612,7 @@
       "domain": "troubleshooting",
       "capability": "missing-data",
       "title": "missing-data",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be checked when a saved entry is missing elsewhere?",
       "alternatives": [
         "What should be checked when a saved entry is missing elsewhere?",
@@ -2239,7 +2653,16 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/health-reproduction-advanced-items.json"
+      "source_training_file": "docs/training/health-reproduction-advanced-items.json",
+      "explanation": "Trace the permanent identity, operational date, authoritative record, projection, and refresh path. Do not create a duplicate entry before the original transaction is understood.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py",
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "troubleshooting.stale-view",
@@ -2248,7 +2671,7 @@
       "domain": "troubleshooting",
       "capability": "stale-view",
       "title": "stale-view",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How can a stale screen be distinguished from missing data?",
       "alternatives": [
         "How can a stale screen be distinguished from missing data?",
@@ -2290,7 +2713,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/health-reproduction-advanced-items.json"
+      "source_training_file": "docs/training/health-reproduction-advanced-items.json",
+      "explanation": "Reload the affected projection, compare its timestamp and source facts, and verify the same record through an independent linked surface. A stale view must not be repaired by re-entering the transaction.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.operational-date",
@@ -2299,7 +2733,7 @@
       "domain": "settings",
       "capability": "operational-date",
       "title": "operational-date",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Which date should an operator use for a record?",
       "alternatives": [
         "Which date should an operator use for a record?",
@@ -2341,7 +2775,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/herd-lifecycle-items.json"
+      "source_training_file": "docs/training/herd-lifecycle-items.json",
+      "explanation": "Use DairyOS's operational-date convention and the actual event date. Do not silently use the computer clock when the farm operating day differs from calendar time.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.replay",
@@ -2350,7 +2795,7 @@
       "domain": "persistence",
       "capability": "replay",
       "title": "replay",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "When is projection replay appropriate?",
       "alternatives": [
         "When is projection replay appropriate?",
@@ -2391,7 +2836,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/herd-lifecycle-items.json"
+      "source_training_file": "docs/training/herd-lifecycle-items.json",
+      "explanation": "Replay is a controlled recovery operation for a disposable or explicitly authorised environment. First preserve evidence, stop writes, and verify the target; never experiment against live farm data.",
+      "verified_against_source": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.date-convention",
@@ -2400,7 +2856,7 @@
       "domain": "settings",
       "capability": "date-convention",
       "title": "date-convention",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What date convention does DairyOS use?",
       "alternatives": [
         "What date convention does DairyOS use?",
@@ -2441,7 +2897,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "DairyOS uses the farm's governed operational date and timezone for daily placement. Confirm the convention before reconciling late-night or late-entered records.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_withdrawal_operational_date.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.install",
@@ -2450,7 +2917,7 @@
       "domain": "installation",
       "capability": "install",
       "title": "install",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be verified after a fresh installation?",
       "alternatives": [
         "What should be verified after a fresh installation?",
@@ -2489,7 +2956,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "Verify the exact installer and executable identity, private runtime readiness, initial database state, backup protection, and safe application startup before entering farm data.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.lock-unlock",
@@ -2498,7 +2973,7 @@
       "domain": "settings",
       "capability": "lock-unlock",
       "title": "lock-unlock",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What is the purpose of lock and unlock?",
       "alternatives": [
         "What is the purpose of lock and unlock?",
@@ -2539,7 +3014,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "Lock and unlock protect selected settings and actions from casual use. Unlocking does not authorize unrelated data changes and the locked state should be restored after the task.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.resolve",
@@ -2548,7 +3034,7 @@
       "domain": "dashboard",
       "capability": "resolve",
       "title": "resolve",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What does resolving an alert mean?",
       "alternatives": [
         "What does resolving an alert mean?",
@@ -2589,7 +3075,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "Resolution records that the underlying issue was addressed; it is distinct from acknowledgement and must remain supported by the source event or follow-up evidence.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.revenue",
@@ -2598,7 +3095,7 @@
       "domain": "revenue",
       "capability": "revenue",
       "title": "revenue",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How is milk revenue formed?",
       "alternatives": [
         "How is milk revenue formed?",
@@ -2642,7 +3139,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "Revenue is based on valid sold-litre sale facts and their price/receipt terms; produced, non-sale, withheld, cash, and receivable amounts must remain distinguishable.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_revenue_ledger_quantity_ui.py",
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.snapshot-sharing",
@@ -2651,7 +3160,7 @@
       "domain": "analytics",
       "capability": "snapshot-sharing",
       "title": "snapshot-sharing",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a report snapshot be shared?",
       "alternatives": [
         "How should a report snapshot be shared?",
@@ -2692,7 +3201,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "Share a dated, scoped snapshot with its source, filters, completeness warnings, and intended audience. A snapshot does not freeze or replace the underlying live records.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.email-test",
@@ -2701,7 +3221,7 @@
       "domain": "analytics",
       "capability": "email-test",
       "title": "email-test",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an email delivery test be interpreted?",
       "alternatives": [
         "How should an email delivery test be interpreted?",
@@ -2742,7 +3262,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/last-capabilities-items.json"
+      "source_training_file": "docs/training/last-capabilities-items.json",
+      "explanation": "A successful email test confirms the configured delivery path only; it does not prove the report data, recipient permissions, or snapshot calculations are correct.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "milk.reconciliation",
@@ -2751,7 +3282,7 @@
       "domain": "milk",
       "capability": "reconciliation",
       "title": "reconciliation",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I reconcile produced milk to sold and non-sale milk?",
       "alternatives": [
         "balance milk",
@@ -2807,7 +3338,28 @@
         ]
       },
       "safety": "Never balance a discrepancy by inventing or silently discarding litres.",
-      "source_training_file": "docs/training/milk-production-items.json"
+      "source_training_file": "docs/training/milk-production-items.json",
+      "explanation": "Select an explicit production date, confirm complete produced litres, then allocate litres to governed sold and non-sale dispositions without exceeding production.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/milk/reconciliation",
+          "POST /farm/milk/dispositions",
+          "PATCH /farm/milk/dispositions/{disposition_id}"
+        ],
+        "services": [
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py",
+          "tests/lifecycle/test_milk_surface_certification.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.disposition",
@@ -2816,7 +3368,7 @@
       "domain": "revenue",
       "capability": "disposition",
       "title": "disposition",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I allocate produced milk to sold or non-sale use?",
       "alternatives": [
         "milk disposition",
@@ -2868,7 +3420,26 @@
         ]
       },
       "safety": "Do not use a disposition to conceal missing production or create litres.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Allocate active produced litres to a governed disposition such as sold or non-sale, never exceeding the active production balance for that date.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/milk/dispositions",
+          "PATCH /farm/milk/dispositions/{disposition_id}"
+        ],
+        "services": [
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.sale",
@@ -2877,7 +3448,7 @@
       "domain": "revenue",
       "capability": "sale",
       "title": "sale",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How does a milk sale become revenue?",
       "alternatives": [
         "record milk sale",
@@ -2932,7 +3503,28 @@
         ]
       },
       "safety": "Never record a sale directly against unaccounted or non-sale litres.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "A sale must reference governed sold milk; recognised revenue, cash received, and receivable outstanding are separate financial facts.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial",
+          "GET /farm/milk/reconciliation"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py",
+          "tests/lifecycle/test_milk_operational_lifecycle.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.non-sale",
@@ -2941,7 +3533,7 @@
       "domain": "revenue",
       "capability": "non-sale-litres",
       "title": "non-sale-litres",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What counts as non-sale milk?",
       "alternatives": [
         "wastage disposition",
@@ -2994,7 +3586,27 @@
         ]
       },
       "safety": "Do not classify sold milk as non-sale to force a balance.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Non-sale litres are explicitly classified from produced milk with a reason; they are not revenue and must remain visible in reconciliation.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/milk/dispositions",
+          "GET /farm/milk/reconciliation"
+        ],
+        "services": [
+          "src/dairyos/milk/services/milk_recording_intelligence_service.py",
+          "src/dairyos/farm/production/services/milk_reconciliation_service.py"
+        ],
+        "tests": [
+          "tests/milk/test_withdrawal_milk_wastage_service.py",
+          "tests/api/test_milk_reconciliation_crud.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.cash",
@@ -3003,7 +3615,7 @@
       "domain": "revenue",
       "capability": "cash",
       "title": "cash",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why is recognised milk revenue different from cash received?",
       "alternatives": [
         "paid milk sale",
@@ -3055,7 +3667,27 @@
         ]
       },
       "safety": "Do not mark an invoice paid merely because revenue was recognised.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Revenue records the commercial earning; cash records what has actually been received. An unpaid sale remains a receivable.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/financial",
+          "POST /farm/financial",
+          "POST /farm/financial/{transaction_id}/status"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py",
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.receivable",
@@ -3064,7 +3696,7 @@
       "domain": "revenue",
       "capability": "receivable",
       "title": "receivable",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I find unpaid milk sales?",
       "alternatives": [
         "customer balances",
@@ -3116,7 +3748,26 @@
         ]
       },
       "safety": "Do not use a generic expense or adjustment to hide a receivable.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Use Finance ageing and payment status to distinguish unpaid commercial value from cash received.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/finance-ledger/ageing",
+          "GET /farm/financial"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_finance_transaction_integrity.py",
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.sale-amendment",
@@ -3125,7 +3776,7 @@
       "domain": "revenue",
       "capability": "sale-amendment",
       "title": "sale-amendment",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do I correct a milk sale after milk is amended?",
       "alternatives": [
         "amend sale",
@@ -3182,7 +3833,28 @@
         ]
       },
       "safety": "Do not edit milk and sale records independently in the database.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Use the atomic amendment path so milk, disposition, sale, revenue, cash, and receivable facts remain synchronized or the operation fails without a partial update.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/MilkTab.tsx",
+          "src/DairyOS.Web/src/components/FinanceTab.tsx"
+        ],
+        "routes": [
+          "PATCH /farm/milk/production/{record_id}",
+          "PATCH /farm/milk/dispositions/{disposition_id}",
+          "PATCH /farm/finance-ledger/{transaction_id}"
+        ],
+        "services": [
+          "src/dairyos/api/milk_traceability.py",
+          "src/dairyos/api/finance_ledger.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_sale_amendment_atomicity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "revenue.void",
@@ -3191,7 +3863,7 @@
       "domain": "revenue",
       "capability": "void",
       "title": "void",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How does voiding affect a milk sale or financial entry?",
       "alternatives": [
         "cancel sale",
@@ -3247,7 +3919,29 @@
         ]
       },
       "safety": "Void is not deletion and must not be used to conceal errors.",
-      "source_training_file": "docs/training/milk-revenue-items.json"
+      "source_training_file": "docs/training/milk-revenue-items.json",
+      "explanation": "Voiding removes a fact from active calculations while preserving its history and reason; dependent milk/disposition facts must remain consistent.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/MilkTab.tsx"
+        ],
+        "routes": [
+          "POST /farm/financial/{transaction_id}/status",
+          "POST /farm/milk/production/{record_id}/void",
+          "POST /farm/milk/dispositions/{disposition_id}/void"
+        ],
+        "services": [
+          "src/dairyos/api/finance_ledger.py",
+          "src/dairyos/api/milk_traceability.py"
+        ],
+        "tests": [
+          "tests/api/test_milk_reconciliation_crud.py",
+          "tests/api/test_finance_transaction_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "access.login-and-visibility",
@@ -3256,7 +3950,7 @@
       "domain": "access",
       "capability": "login",
       "title": "login",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why is a tab hidden or unavailable?",
       "alternatives": [
         "Why is a tab hidden or unavailable?",
@@ -3298,7 +3992,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Confirm the user is authenticated, the role has access, and the tab-visibility setting permits it. Hidden navigation is not proof that the underlying data is absent.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "startup.readiness",
@@ -3307,7 +4013,7 @@
       "domain": "startup",
       "capability": "database-readiness",
       "title": "database-readiness",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be checked when DairyOS does not start correctly?",
       "alternatives": [
         "What should be checked when DairyOS does not start correctly?",
@@ -3352,7 +4058,22 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Separate desktop launch, backend readiness, database availability, and UI loading. Capture the exact error and time before restarting; a health response proves availability only, not data correctness.",
+      "verified_against_source": {
+        "routes": [
+          "GET /health",
+          "GET /farm/system-health"
+        ],
+        "services": [
+          "src/dairyos/api/health.py"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.alert-lifecycle",
@@ -3361,7 +4082,7 @@
       "domain": "dashboard",
       "capability": "alerts",
       "title": "alerts",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should dashboard alerts be handled?",
       "alternatives": [
         "How should dashboard alerts be handled?",
@@ -3402,7 +4123,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Treat a dashboard finding as a decision aid, trace it to its underlying record and date, acknowledge only after review, and resolve only when the condition is actually addressed.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.system-health",
@@ -3411,7 +4143,7 @@
       "domain": "settings",
       "capability": "read-only-health",
       "title": "read-only-health",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What does the system-health check do?",
       "alternatives": [
         "What does the system-health check do?",
@@ -3458,7 +4190,22 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "It reports database responsiveness, current schema and canonical columns, core persistence visibility, event and projection linkage, clinical record links, backup protection, managed data-root separation, AI Assistant knowledge availability, and runtime state using read-only checks. It must not reset, mutate, compact, delete, restore, or overwrite operational, database, or backup data.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/system-health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py",
+          "tests/architecture/test_system_health_schema_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.zero-state-reset",
@@ -3467,7 +4214,7 @@
       "domain": "settings",
       "capability": "zero-state-reset",
       "title": "zero-state-reset",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "When is a zero-state reset appropriate?",
       "alternatives": [
         "When is a zero-state reset appropriate?",
@@ -3516,7 +4263,25 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Only before deployment or under explicit administrator authorisation. It requires password protection, an unmistakable confirmation, recovery protection, and safe backend-stop processing; it is not a troubleshooting shortcut.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "POST /settings/system-reset"
+        ],
+        "services": [
+          "src/dairyos/api/settings.py",
+          "src/dairyos/windows/supervisor.py"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.period-and-cop",
@@ -3525,7 +4290,7 @@
       "domain": "analytics",
       "capability": "cop-period",
       "title": "cop-period",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a period COP result be interpreted?",
       "alternatives": [
         "How should a period COP result be interpreted?",
@@ -3570,7 +4335,21 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Confirm the selected dates, completed milk records, governed TMR herd cost, attributed OPEX, exclusions, and calculation source. A changing period should recalculate from that period rather than reuse a live or unrelated snapshot.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "routes": [
+          "GET /farm/coml/integrated"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.authority-and-audit",
@@ -3579,7 +4358,7 @@
       "domain": "persistence",
       "capability": "authoritative-record",
       "title": "authoritative-record",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How can a user tell whether an entry was truly saved?",
       "alternatives": [
         "How can a user tell whether an entry was truly saved?",
@@ -3622,7 +4401,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Verify the authoritative response, persisted record, audit/event evidence, and refreshed downstream projection. A visible UI value or HTTP success alone is insufficient proof.",
+      "verified_against_source": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "installation.upgrade-and-backup",
@@ -3631,7 +4421,7 @@
       "domain": "installation",
       "capability": "data-preservation",
       "title": "data-preservation",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What must be verified after installation or upgrade?",
       "alternatives": [
         "What must be verified after installation or upgrade?",
@@ -3671,7 +4461,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Confirm exact artifact identity, startup, database readiness, preservation of existing farm data, and automatic-backup provisioning/execution. Never treat a successful installer exit as proof of runtime parity.",
+      "verified_against_source": {
+        "tests": [
+          "tests/admin/test_admin_postgres_integration.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "troubleshooting.wrong-calculation",
@@ -3680,7 +4478,7 @@
       "domain": "troubleshooting",
       "capability": "wrong-calculation",
       "title": "wrong-calculation",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What is the safe response to a wrong calculation?",
       "alternatives": [
         "What is the safe response to a wrong calculation?",
@@ -3720,7 +4518,16 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/operations-support-items.json"
+      "source_training_file": "docs/training/operations-support-items.json",
+      "explanation": "Reproduce the exact period and inputs, identify the authoritative source and formula, compare expected versus observed totals, and inspect missing or misclassified records before changing code or data.",
+      "verified_against_source": {
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py",
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "finance.profitability",
@@ -3729,7 +4536,7 @@
       "domain": "finance",
       "capability": "profitability",
       "title": "profitability",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should profitability be interpreted?",
       "alternatives": [
         "How should profitability be interpreted?",
@@ -3774,7 +4581,20 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Compare valid revenue, sold volume, cash/receivable status, and attributed operating costs over the same period; do not infer profitability from production alone.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/FinanceTab.tsx",
+          "src/DairyOS.Web/src/components/COML.tsx"
+        ],
+        "tests": [
+          "tests/api/test_finance_revenue_ledger_quantity_ui.py",
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.cards",
@@ -3783,7 +4603,7 @@
       "domain": "dashboard",
       "capability": "dashboard-cards",
       "title": "dashboard-cards",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What does a dashboard card represent?",
       "alternatives": [
         "What does a dashboard card represent?",
@@ -3824,7 +4644,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Each card is a projection of a defined source metric with its own date, denominator, and status. Open the underlying detail before acting on a card.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "analytics.trend-periods",
@@ -3833,7 +4664,7 @@
       "domain": "analytics",
       "capability": "trend-periods",
       "title": "trend-periods",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should trends be compared?",
       "alternatives": [
         "How should trends be compared?",
@@ -3875,7 +4706,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Use consistent inclusive periods, operational-date boundaries, population definitions, and completeness rules. A trend can change when late entries or amendments are correctly incorporated.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/COML.tsx",
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/api/test_cop_tmr_ui_linkage.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "access.roles",
@@ -3884,7 +4727,7 @@
       "domain": "access",
       "capability": "roles",
       "title": "roles",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How do roles affect DairyOS work?",
       "alternatives": [
         "How do roles affect DairyOS work?",
@@ -3926,7 +4769,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Roles define responsibility and access expectations; they do not change the facts or permit bypassing a controlled workflow.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "access.help-navigation",
@@ -3935,7 +4790,7 @@
       "domain": "access",
       "capability": "help-navigation",
       "title": "help-navigation",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an operator find the correct workflow?",
       "alternatives": [
         "How should an operator find the correct workflow?",
@@ -3977,7 +4832,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Use AI Assistant guidance and visible module labels to locate the source workflow, then confirm the record type before entering data.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/AIAssistant.tsx",
+          "src/DairyOS.Web/src/App.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "access.hidden-tabs",
@@ -3986,7 +4853,7 @@
       "domain": "access",
       "capability": "hidden-tabs",
       "title": "hidden-tabs",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What does a hidden tab mean?",
       "alternatives": [
         "What does a hidden tab mean?",
@@ -4028,7 +4895,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "A hidden tab reflects navigation or visibility configuration; it does not prove that the corresponding data, route, or history is absent.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/App.tsx",
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_health_vaccination_split_20260901.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.tab-visibility",
@@ -4037,7 +4916,7 @@
       "domain": "settings",
       "capability": "tab-visibility",
       "title": "tab-visibility",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should tab visibility be changed?",
       "alternatives": [
         "How should tab visibility be changed?",
@@ -4078,7 +4957,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Use the protected Settings control, change only the intended visibility, and verify the resulting navigation without altering any operational records.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.event-journal",
@@ -4087,7 +4977,7 @@
       "domain": "persistence",
       "capability": "event-journal",
       "title": "event-journal",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "Why is an event journal useful?",
       "alternatives": [
         "Why is an event journal useful?",
@@ -4129,7 +5019,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "It preserves durable operational facts and their provenance so projections, audit, and recovery can be reconciled without relying on a screen value.",
+      "verified_against_source": {
+        "services": [
+          "src/dairyos/application/operational_write.py"
+        ],
+        "tests": [
+          "tests/api/test_breeding_propagation_outbox.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "persistence.orphan-detection",
@@ -4138,7 +5039,7 @@
       "domain": "persistence",
       "capability": "orphan-detection",
       "title": "orphan-detection",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How are orphaned records investigated?",
       "alternatives": [
         "How are orphaned records investigated?",
@@ -4176,7 +5077,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Find records whose foreign identity, source event, or projection linkage is missing; preserve them for investigation and do not delete or reassign them without an authorised correction.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "runtime.restart-behavior",
@@ -4185,7 +5094,7 @@
       "domain": "runtime",
       "capability": "restart-behavior",
       "title": "restart-behavior",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should survive a DairyOS restart?",
       "alternatives": [
         "What should survive a DairyOS restart?",
@@ -4227,7 +5136,19 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "Persisted operational facts, audit history, configuration, and governed projections should reload consistently; transient UI state is not evidence of persistence.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py",
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "assistant.answer-contract",
@@ -4236,7 +5157,7 @@
       "domain": "assistant",
       "capability": "ai",
       "title": "ai",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should a DairyOS AI assistant do?",
       "alternatives": [
         "What should a DairyOS AI assistant do?",
@@ -4278,7 +5199,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/remaining-capabilities-items.json"
+      "source_training_file": "docs/training/remaining-capabilities-items.json",
+      "explanation": "It should answer from reviewed DairyOS knowledge, identify the relevant source and date, explain next steps and effects, disclose uncertainty, and route clinical, financial, security, or destructive decisions to an authorised person.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/AIAssistant.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.farm-profile",
@@ -4287,7 +5219,7 @@
       "domain": "settings",
       "capability": "farm-profile",
       "title": "farm-profile",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should farm profile settings be changed?",
       "alternatives": [
         "How should farm profile settings be changed?",
@@ -4328,7 +5260,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+      "source_training_file": "docs/training/settings-dashboard-support-items.json",
+      "explanation": "Change only authorised profile fields, confirm the effective value after saving, and verify that date, timezone, reporting, and identity-dependent screens use the updated configuration.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "settings.password-lock",
@@ -4337,7 +5280,7 @@
       "domain": "settings",
       "capability": "password",
       "title": "password",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should protected settings be accessed?",
       "alternatives": [
         "How should protected settings be accessed?",
@@ -4378,7 +5321,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+      "source_training_file": "docs/training/settings-dashboard-support-items.json",
+      "explanation": "Use the existing authenticated lock/unlock flow. Password protection controls access to protected actions; it does not grant permission to alter unrelated records.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "tests": [
+          "tests/architecture/test_streamlining_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "dashboard.decisions",
@@ -4387,7 +5341,7 @@
       "domain": "dashboard",
       "capability": "decisions",
       "title": "decisions",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should a dashboard finding become an action?",
       "alternatives": [
         "How should a dashboard finding become an action?",
@@ -4430,7 +5384,18 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+      "source_training_file": "docs/training/settings-dashboard-support-items.json",
+      "explanation": "Trace the finding to its source, assess urgency and responsibility, record the authorised operational action in its proper workflow, then recheck the finding after refresh.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/UnifiedDashboard.tsx"
+        ],
+        "tests": [
+          "tests/remediation/test_audit_20260901_contract.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "support.http-errors",
@@ -4439,7 +5404,7 @@
       "domain": "support",
       "capability": "http-errors",
       "title": "http-errors",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "How should an HTTP error be investigated?",
       "alternatives": [
         "How should an HTTP error be investigated?",
@@ -4477,7 +5442,15 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+      "source_training_file": "docs/training/settings-dashboard-support-items.json",
+      "explanation": "Capture method, route, status, response detail, timestamp, user action, and selected period. Classify the failure before retrying and never infer that a failed request was not partially persisted.",
+      "verified_against_source": {
+        "tests": [
+          "tests/remediation/test_forensic_integrity.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     },
     {
       "id": "support.health-failure",
@@ -4486,7 +5459,7 @@
       "domain": "support",
       "capability": "health-failure",
       "title": "health-failure",
-      "status": "DRAFT",
+      "status": "IMPLEMENTATION_REVIEW",
       "question": "What should be done when system health reports a failure?",
       "alternatives": [
         "What should be done when system health reports a failure?",
@@ -4530,12 +5503,27 @@
         ]
       },
       "safety": "",
-      "source_training_file": "docs/training/settings-dashboard-support-items.json"
+      "source_training_file": "docs/training/settings-dashboard-support-items.json",
+      "explanation": "Treat the result as diagnostic evidence, not as permission to reset or repair live data. Capture the failed component and escalate through the support path.",
+      "verified_against_source": {
+        "components": [
+          "src/DairyOS.Web/src/components/SettingsTab.tsx"
+        ],
+        "routes": [
+          "GET /farm/system-health"
+        ],
+        "tests": [
+          "tests/api/test_health_api.py"
+        ]
+      },
+      "implementation_reviewed_by": "Independent DairyOS source-anchor audit",
+      "implementation_reviewed_at": "2026-09-20"
     }
   ],
   "review": {
-    "implementation": "REQUIRED",
+    "implementation": "PARTIAL",
     "domain": "REQUIRED",
-    "coverage": "REQUIRED"
+    "coverage": "REQUIRED",
+    "method": "Every promoted item has at least one repository anchor and every listed anchor resolves to a file."
   }
 }

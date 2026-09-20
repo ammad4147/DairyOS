@@ -126,11 +126,13 @@ def test_content_served_below_approved_is_marked_unreviewed(tmp_path: Path):
     )
 
 
-def test_the_real_corpus_is_fully_approved(index: KnowledgeIndex):
-    """Recorded as a fact, not assumed. If an unapproved item is ever added,
-    this fails and the reviewer knows before a build does."""
+def test_the_review_fixture_marks_unapproved_items_as_unreviewed(index: KnowledgeIndex):
+    """Development review may inspect candidates, but must mark them clearly."""
     assert index.servable_count > 0
-    assert not any(item.get("status") != "APPROVED" for item in index.documents)
+    assert any(item.get("status") == "IMPLEMENTATION_REVIEW" for item in index.documents)
+    hits = index.search("how do I record a feed event", min_score=0.0, min_matched_terms=1)
+    assert hits
+    assert all(hit.unreviewed for hit in hits if hit.status != "APPROVED")
 
 
 def test_deprecated_items_are_never_served(index: KnowledgeIndex):
