@@ -12,6 +12,7 @@ from dairyos.dashboard.services.dashboard_projection_service import (
     DashboardProjectionService,
 )
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.email.daily_summary_pdf import daily_summary_pdf
 from dairyos.email.service import EmailService
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
@@ -266,6 +267,52 @@ class DashboardDigestService:
         finally:
             factory.close()
 
+
+    def _pdf_payload(self, *, digest_date: date, user_permissions: set[str]) -> dict:
+        dashboard = self._dashboard()
+        health = dict(dashboard.get("health", {}) or {})
+        milk = self._milk_snapshot(digest_date)
+        herd = self._herd_snapshot(digest_date)
+        cop = self._cop_snapshot(digest_date)
+        finance = (
+            self._financial_snapshot(digest_date)
+            if "finance.view" in user_permissions or "dashboard.view_finance" in user_permissions
+            else {}
+        )
+        warnings = self._active_warnings()
+        attention = [
+            {"area": "Operational", "title": warning}
+            for warning in warnings
+        ]
+        return {
+            "operational_date": digest_date,
+            "milk": milk,
+            "herd": herd,
+            "cop": cop,
+            "finance": finance,
+            "health": health,
+            "attention": attention,
+        }
+
+    def render_pdf(self, *, digest_date: date, user_permissions: set[str]) -> bytes:
+        return daily_summary_pdf(
+            self._pdf_payload(
+                digest_date=digest_date,
+                user_permissions=user_permissions,
+            )
+        )
+
+    def _email_attachment(self, *, digest_date: date, user_permissions: set[str]):
+        filename = f"DairyOS-Daily-Summary-{digest_date.isoformat()}.pdf"
+        return (
+            filename,
+            self.render_pdf(
+                digest_date=digest_date,
+                user_permissions=user_permissions,
+            ),
+            "application",
+            "pdf",
+        )
 
     def render(self, *, digest_date: date, user_permissions: set[str]) -> tuple[str, str]:
         dashboard = self._dashboard()
@@ -606,7 +653,16 @@ class DashboardDigestService:
                         digest_date=digest_date,
                         user_permissions={"dashboard.view", "dashboard.view_finance"},
                     )
-                    self.mail.send(recipient=email, subject=subject, body=body, config=config)
+                    self.mail.send(
+                        recipient=email,
+                        subject=subject,
+                        body=body,
+                        config=config,
+                        attachments=[self._email_attachment(
+                            digest_date=digest_date,
+                            user_permissions={"dashboard.view", "dashboard.view_finance"},
+                        )],
+                    )
                     delivery = existing_delivery or EmailDigestDelivery(
                         digest_run_id=run.id,
                         user_id=None,
@@ -650,7 +706,16 @@ class DashboardDigestService:
                     continue
                 try:
                     subject, body = self.render(digest_date=digest_date, user_permissions=set(permissions))
-                    self.mail.send(recipient=user.personal_email, subject=subject, body=body, config=config)
+                    self.mail.send(
+                        recipient=user.personal_email,
+                        subject=subject,
+                        body=body,
+                        config=config,
+                        attachments=[self._email_attachment(
+                            digest_date=digest_date,
+                            user_permissions=set(permissions),
+                        )],
+                    )
                     if existing is None:
                         existing = EmailDigestDelivery(digest_run_id=run.id, user_id=user.id, recipient_email=user.personal_email, status="SENT")
                     existing.recipient_email = user.personal_email
