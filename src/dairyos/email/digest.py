@@ -313,6 +313,47 @@ class DashboardDigestService:
         finally:
             factory.close()
 
+    def _daily_completeness(self, *, digest_date: date, cop: dict) -> dict:
+        """Evaluate only governed daily authorities; never infer missing records."""
+        factory = RepositoryFactory.create()
+        try:
+            required_sessions = {"MORNING", "AFTERNOON", "EVENING"}
+            settled_sessions = {
+                str(value).upper()
+                for value in factory.milking_session_ledger().settled_sessions_on(
+                    digest_date
+                )
+            }
+            missing_sessions = sorted(required_sessions - settled_sessions)
+
+            zone = self._farm_timezone()
+            feed_events = 0
+            for record in factory.feed().get_all():
+                observed_at = getattr(record, "feeding_date", None)
+                if observed_at is None:
+                    continue
+                if observed_at.tzinfo is None:
+                    observed_date = observed_at.date()
+                else:
+                    observed_date = observed_at.astimezone(zone).date()
+                if observed_date == digest_date:
+                    feed_events += 1
+
+            checks = {
+                "milk_sessions": not missing_sessions,
+                "feed_events": feed_events >= 5,
+                "tmr_authority": cop.get("feed_complete") is True,
+            }
+            return {
+                "status": "COMPLETE" if all(checks.values()) else "INCOMPLETE",
+                "checks": checks,
+                "missing_milk_sessions": missing_sessions,
+                "feed_event_count": feed_events,
+                "required_feed_events": 5,
+            }
+        finally:
+            factory.close()
+
     def _pdf_payload(self, *, digest_date: date, user_permissions: set[str]) -> dict:
         dashboard = self._dashboard()
         health = dict(dashboard.get("health", {}) or {})
@@ -326,8 +367,13 @@ class DashboardDigestService:
         )
         attention = self._active_findings()
         reproduction = self._reproduction_snapshot(digest_date)
+        completeness = self._daily_completeness(
+            digest_date=digest_date,
+            cop=cop,
+        )
         return {
             "operational_date": digest_date,
+            "completeness": completeness,
             "milk": milk,
             "herd": herd,
             "cop": cop,
