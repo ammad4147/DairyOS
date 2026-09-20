@@ -640,18 +640,20 @@ class ReportingSaveApi:
 
     def choose_farm_import_package(self) -> dict[str, object]:
         window = _require_desktop_window()
-        open_dialog_type = 10
+        # Farm exports are structured .dairypkg directories, not single files.
+        # Use the native folder picker so an exported package can be selected
+        # directly instead of opening the directory and finding no importable
+        # file inside it.
+        folder_dialog_type = 20
         selected = window.create_file_dialog(
-            open_dialog_type,
-            allow_multiple=False,
-            file_types=("DairyOS Farm Package (*.dairypkg)",),
+            folder_dialog_type,
         )
         if not selected:
             return {"status": "CANCELLED"}
         selected_path = selected[0] if isinstance(selected, (list, tuple)) else selected
         path = Path(str(selected_path)).expanduser().resolve()
-        if path.suffix.lower() != ".dairypkg":
-            raise ValueError("Selected farm package must end with .dairypkg.")
+        if path.suffix.lower() != ".dairypkg" or not path.is_dir():
+            raise ValueError("Selected farm package must be an existing .dairypkg folder.")
         return {"status": "SELECTED", "path": str(path)}
 
     def save_reporting_export(

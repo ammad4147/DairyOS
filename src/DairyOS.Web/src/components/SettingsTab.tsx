@@ -437,7 +437,7 @@ export default function SettingsTab({
     try {
       const response = await fetch(`${API_BASE}/settings/data-management/import`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: dataPackagePath }),
+        body: JSON.stringify({ path: dataPackagePath, confirm: 'IMPORT VERIFIED FARM DATA' }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Farm data import failed.');

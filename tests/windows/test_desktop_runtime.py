@@ -470,12 +470,29 @@ def test_farm_export_destination_requires_package_extension(tmp_path):
         api.choose_farm_export_destination("Farm.dairypkg")
 
 
-def test_farm_import_selection_requires_package_extension(tmp_path):
+def test_farm_import_selection_requires_existing_package_folder(tmp_path):
     class FakeWindow:
         def create_file_dialog(self, dialog_type, allow_multiple=False, file_types=None):
             return str(tmp_path / "Farm.zip")
 
     api = ReportingSaveApi()
     _set_desktop_window(FakeWindow())
-    with pytest.raises(ValueError, match="must end with .dairypkg"):
+    with pytest.raises(ValueError, match="existing .dairypkg folder"):
         api.choose_farm_import_package()
+
+
+def test_farm_import_selection_uses_folder_picker(tmp_path):
+    package = tmp_path / "Farm.dairypkg"
+    package.mkdir()
+
+    class FakeWindow:
+        def create_file_dialog(self, dialog_type):
+            assert dialog_type == 20
+            return str(package)
+
+    api = ReportingSaveApi()
+    _set_desktop_window(FakeWindow())
+    assert api.choose_farm_import_package() == {
+        "status": "SELECTED",
+        "path": str(package.resolve()),
+    }

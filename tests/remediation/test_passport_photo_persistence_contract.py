@@ -9,4 +9,5 @@ def test_passport_restores_saved_photo_when_reopened():
     source = PASSPORT.read_text(encoding="utf-8")
     assert "setPhotoData(animalData.photo_data||null)" in source
     assert "accept=\"image/jpeg,image/png,image/webp\"" in source
-
+    assert source.count("No photo added") >= 2
+    assert "Optional. Select a photo before creating the permanent animal record." in source
