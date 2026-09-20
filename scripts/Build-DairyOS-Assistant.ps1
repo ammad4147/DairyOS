@@ -40,7 +40,7 @@ $manifest = [ordered]@{
 $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $packRoot "assistant-manifest.json") -Encoding utf8
 $integrityFiles = [ordered]@{}
 Get-ChildItem -LiteralPath $packRoot -File -Recurse | ForEach-Object {
-    $relative = [IO.Path]::GetRelativePath($packRoot, $_.FullName).Replace('\', '/')
+    $relative = $_.FullName.Substring($packRoot.Length + 1).Replace('\', '/')
     $integrityFiles[$relative] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 @{ format = "dairyassistant-integrity-v1"; files = $integrityFiles } |
