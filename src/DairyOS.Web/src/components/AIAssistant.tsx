@@ -29,6 +29,7 @@ export default function AIAssistant() {
   const [busy, setBusy] = useState(false);
   const [packageStatus, setPackageStatus] = useState<AssistantStatus | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [packageFiles, setPackageFiles] = useState<FileList | null>(null);
 
   async function refreshPackageStatus() {
     try {
@@ -44,7 +45,13 @@ export default function AIAssistant() {
     setInstalling(true);
     setError(null);
     try {
-      const response = await fetch(apiUrl('/assistant/install'), { method: 'POST' });
+      if (!packageFiles || packageFiles.length === 0) {
+        setError('Select the approved Assistant ZIP and its .sha256 checksum file first.');
+        return;
+      }
+      const form = new FormData();
+      Array.from(packageFiles).forEach((file) => form.append('files', file));
+      const response = await fetch(apiUrl('/assistant/install'), { method: 'POST', body: form });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.detail || 'Assistant installation was not completed.');
       setPackageStatus(body.package ? { package: body.package } : { package: { installed: true, status: 'INSTALLED' } });
@@ -121,10 +128,16 @@ export default function AIAssistant() {
         <div style={{ marginTop: 4, color: '#cbd5e1' }}>
           Status: {packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED' ? 'Installed' : 'Not Installed'}
         </div>
-        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && packageStatus?.package?.source_configured && (
-          <button type="button" onClick={installAssistant} disabled={installing} style={{ marginTop: 8 }}>
-            {installing ? 'Installing Assistant…' : 'Install Assistant'}
-          </button>
+        {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && (
+          <div>
+            <input type="file" accept=".zip,.sha256" multiple onChange={(event) => setPackageFiles(event.target.files)} style={{ marginTop: 8, maxWidth: '100%' }} />
+            <button type="button" onClick={installAssistant} disabled={installing || !packageFiles?.length} style={{ marginTop: 8 }}>
+              {installing ? 'Installing Assistant…' : 'Install Selected Assistant Package'}
+            </button>
+            <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 11 }}>
+              Select both the approved ZIP package and its matching `.sha256` file.
+            </div>
+          </div>
         )}
         {!(packageStatus?.package?.installed || packageStatus?.package?.status === 'INSTALLED') && packageStatus?.package && !packageStatus.package.source_configured && (
           <div style={{ marginTop: 8, color: '#fbbf24', fontSize: 12 }}>

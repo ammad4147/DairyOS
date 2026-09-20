@@ -18,9 +18,12 @@ it any.
 
 from __future__ import annotations
 
+import shutil
+import tempfile
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
 
 from dairyos import assistant_package
@@ -69,12 +72,29 @@ def assistant_status() -> dict[str, Any]:
 
 
 @router.post("/install")
-def install_assistant() -> dict[str, Any]:
-    """Install the pre-approved Assistant package selected by Core policy."""
+async def install_assistant(files: list[UploadFile] | None = File(default=None)) -> dict[str, Any]:
+    """Install a verified Assistant package selected by the administrator."""
+    temporary: Path | None = None
     try:
-        result = assistant_package.install()
+        if not files:
+            result = assistant_package.install()
+        else:
+            package = next((item for item in files if str(item.filename or "").lower().endswith(".zip")), None)
+            checksum = next((item for item in files if str(item.filename or "").lower().endswith(".sha256")), None)
+            if package is None or checksum is None:
+                raise ValueError("Select both the Assistant ZIP package and its .sha256 checksum file.")
+            temporary = Path(tempfile.mkdtemp(prefix="dairyos-assistant-upload-"))
+            package_path = temporary / "assistant-package.zip"
+            checksum_path = Path(str(package_path) + ".sha256")
+            with package_path.open("wb") as handle:
+                shutil.copyfileobj(package.file, handle)
+            checksum_path.write_bytes(await checksum.read())
+            result = assistant_package.install(package_path)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    finally:
+        if temporary is not None:
+            shutil.rmtree(temporary, ignore_errors=True)
     return {"status": "INSTALLED", "package": result}
 
 
