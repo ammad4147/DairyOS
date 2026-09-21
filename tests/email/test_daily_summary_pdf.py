@@ -296,3 +296,29 @@ def test_naive_utc_feed_event_uses_farm_operational_date(monkeypatch):
         cop={"feed_complete": True},
     )
     assert result["feed_event_count"] == 1
+
+
+def test_active_findings_prioritize_urgent_severity(monkeypatch):
+    findings = [
+        SimpleNamespace(source_module="health", subject_id="COW-LOW", severity="LOW", title="Low"),
+        SimpleNamespace(source_module="milk", subject_id="COW-CRIT", severity="CRITICAL", title="Critical"),
+        SimpleNamespace(source_module="breeding", subject_id="COW-HIGH", severity="HIGH", title="High"),
+        SimpleNamespace(source_module="feed", subject_id="COW-WARN", severity="WARNING", title="Warning"),
+    ]
+    factory = SimpleNamespace(
+        operational_findings=lambda: SimpleNamespace(get_open=lambda: findings),
+        close=lambda: None,
+    )
+    monkeypatch.setattr("dairyos.email.digest.RepositoryFactory.create", lambda: factory)
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+
+    result = service._active_findings()
+
+    assert [item["severity"] for item in result] == [
+        "CRITICAL",
+        "HIGH",
+        "WARNING",
+        "LOW",
+    ]
