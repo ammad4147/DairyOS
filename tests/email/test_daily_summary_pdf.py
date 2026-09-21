@@ -521,3 +521,57 @@ def test_scheduled_delivery_uses_canonical_summary_and_pdf_attachment(monkeypatc
     assert maintype == "application"
     assert subtype == "pdf"
     assert b"(DAILY FARM SUMMARY)" in payload
+
+
+def test_pdf_exposes_milk_inventory_reconciliation_context():
+    summary = _summary()
+    summary["milk"].update(
+        {
+            "total_yield": 220.0,
+            "sold": 310.0,
+            "opening_inventory": 100.0,
+            "unaccounted": 0.0,
+            "over_accounted": 0.0,
+            "reconciliation_status": "RECONCILED",
+        }
+    )
+    payload = daily_summary_pdf(summary)
+    assert b"Opening Milk Inventory" in payload
+    assert b"100.0 L" in payload
+    assert b"Reconciliation" in payload
+    assert b"RECONCILED" in payload
+
+
+def test_canonical_attention_includes_yield_drop_and_health_when_not_findings(monkeypatch):
+    service = DashboardDigestService(container=object())
+    monkeypatch.setattr(service, "_dashboard", lambda: {"health": {"active_exceptions": 1}})
+    monkeypatch.setattr(
+        service,
+        "_milk_snapshot",
+        lambda digest_date: {
+            "total_yield": 220.0,
+            "session_totals": {},
+            "watchlist": [
+                {
+                    "animal_id": "TD-001",
+                    "drop_percentage": 33.3,
+                    "severity": "CRITICAL",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(service, "_herd_snapshot", lambda digest_date: {"total": 8, "counts": {}})
+    monkeypatch.setattr(service, "_cop_snapshot", lambda digest_date: {"feed_complete": True})
+    monkeypatch.setattr(service, "_financial_snapshot", lambda digest_date: {"revenue_received": 0, "expenses": 0})
+    monkeypatch.setattr(service, "_active_findings", lambda: [])
+    monkeypatch.setattr(service, "_reproduction_snapshot", lambda digest_date: {})
+    monkeypatch.setattr(service, "_daily_completeness", lambda **kwargs: {"status": "COMPLETE"})
+
+    summary = service._pdf_payload(
+        digest_date=date(2026, 9, 21),
+        user_permissions={"dashboard.view_finance"},
+    )
+    attention = summary["attention"]
+    assert attention[0]["severity"] == "CRITICAL"
+    assert attention[0]["subject_id"] == "TD-001"
+    assert any(item["area"] == "Health" for item in attention)
