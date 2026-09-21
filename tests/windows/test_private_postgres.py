@@ -148,6 +148,19 @@ def test_stale_postmaster_pid_is_removed_and_cluster_is_started(
         "_is_port_open",
         lambda host, port: False,
     )
+    # This test exercises stale-PID recovery, not the independent Windows
+    # persisted-port relocation path. Keep the mocked persisted port bindable
+    # so the host machine's real port reservations cannot change the result.
+    monkeypatch.setattr(
+        pg,
+        "persisted_cluster_is_running",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        pg,
+        "_port_is_bindable",
+        lambda host, port: True,
+    )
     monkeypatch.setattr(
         pg,
         "_write_postgresql_conf",
