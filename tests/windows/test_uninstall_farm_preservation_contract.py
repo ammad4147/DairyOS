@@ -36,6 +36,15 @@ def test_uninstaller_blocks_if_preservation_fails():
     assert "Result := False;" in initialize
 
 
+def test_silent_preservation_success_does_not_block_uninstall():
+    source = ISS.read_text(encoding="utf-8-sig")
+    start = source.index("function ExportFarmDataForUninstall(): Boolean;")
+    end = source.index("function StopInstalledDairyOSForUninstall(): Boolean;", start)
+    export = source[start:end]
+    assert "SuppressibleMsgBox(" in export
+    assert "Complete DairyOS farm data was saved and verified" in export
+
+
 def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]

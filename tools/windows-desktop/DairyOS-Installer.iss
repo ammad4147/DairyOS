@@ -542,11 +542,11 @@ begin
     exit;
   end;
 
-  MsgBox(
+  SuppressibleMsgBox(
     'Complete DairyOS farm data was saved and verified at:' + #13#10#13#10 +
     PreservedFarmDataPath + #13#10#13#10 +
     'Keep this package safe. It can be imported later from Settings > Data Management.',
-    mbInformation, MB_OK
+    mbInformation, MB_OK, IDOK
   );
   Log('DairyOS uninstall: verified farm-data preservation package: ' + PreservedFarmDataPath);
   Result := True;
