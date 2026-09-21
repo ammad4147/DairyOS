@@ -467,15 +467,20 @@ jobs:
           # through the uninstaller. This separates PostgreSQL/package failure
           # from uninstaller lifecycle failure and prevents hidden waits.
           $preExportPackage = Join-Path $env:RUNNER_TEMP "DairyOS-Farm-pre-uninstall.dairypkg"
+          $preExportStdout = Join-Path $env:RUNNER_TEMP "dairyos-pre-export.stdout.log"
+          $preExportStderr = Join-Path $env:RUNNER_TEMP "dairyos-pre-export.stderr.log"
           if (Test-Path $preExportPackage) { Remove-Item $preExportPackage -Recurse -Force }
+          Remove-Item $preExportStdout,$preExportStderr -Force -ErrorAction SilentlyContinue
           $preExport = Start-Process -FilePath $installedExe -ArgumentList @(
             "--farm-data-export", $preExportPackage, "--data-root", $dataRoot
-          ) -PassThru
+          ) -RedirectStandardOutput $preExportStdout -RedirectStandardError $preExportStderr -PassThru
           if (-not $preExport.WaitForExit(120000)) {
             Stop-Process -Id $preExport.Id -Force -ErrorAction SilentlyContinue
             throw "Packaged farm-data export exceeded 120 seconds before uninstall."
           }
           if ($preExport.ExitCode -ne 0 -or -not (Test-Path $preExportPackage)) {
+            if (Test-Path $preExportStdout -PathType Leaf) { Get-Content $preExportStdout }
+            if (Test-Path $preExportStderr -PathType Leaf) { Get-Content $preExportStderr }
             throw "Packaged farm-data export failed before uninstall with code $($preExport.ExitCode)."
           }
           Write-Host "PACKAGED FARM-DATA EXPORT CERTIFICATION: PASS"

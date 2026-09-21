@@ -1163,6 +1163,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         except Exception as exc:
             LOG.error("Farm data preservation export failed: %s", exc)
+            print(f"Farm data preservation export failed: {exc}", file=sys.stderr)
             return 5
 
     if args.lifecycle_install:
