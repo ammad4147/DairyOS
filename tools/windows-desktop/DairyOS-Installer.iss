@@ -322,7 +322,7 @@ begin
   if not FileExists(LifecyclePath) then
     exit;
 
-  if not LoadStringFromFile(LifecyclePath, Manifest, False) then
+  if not LoadStringFromFile(LifecyclePath, Manifest) then
     exit;
 
   { Python JSON escapes Windows separators. Normalize only for this exact
