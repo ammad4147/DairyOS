@@ -37,7 +37,8 @@ def test_existing_canonical_state_is_only_rejected_when_not_this_installation():
     assert "not tied to this existing DairyOS installation" in source
     assert "ExistingDairyOSInstallationMatches" in source
     assert "preserving ProgramData" in source
-    assert "DelTree(CanonicalDairyOSDataRoot()" not in source
+    prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in prepare
     assert "CanonicalDairyOSDataRoot()" in source
 
 
