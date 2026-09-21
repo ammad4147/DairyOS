@@ -19,6 +19,7 @@ from typing import Any
 from dairyos.data.models.health_case import HealthCase
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.vaccination_record import VaccinationRecord
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.reporting.context import (
     ReportContext,
     ReportParameterError,
@@ -370,6 +371,53 @@ def build_animal_history(ctx: ReportContext) -> ReportResult:
     )
 
 
+CLINICAL_INVENTORY_COLUMNS = column_set(
+    Column("date", "Date", "date"), Column("item", "Item"),
+    Column("movement", "Movement", "status"), Column("quantity_in", "In", "number", total=True),
+    Column("quantity_out", "Out", "number", total=True), Column("unit", "Unit"),
+    Column("source", "Source"), Column("recorded_by", "Recorded By", "text", "Details", "optional"),
+    Column("notes", "Notes", "text", "Details", "optional"),
+)
+
+
+def build_clinical_inventory(ctx: ReportContext) -> ReportResult:
+    start, end = _bounds(ctx)
+    item_filter = ctx.filter("item")
+    source_types = {"CLINICAL_RECEIPT", "TREATMENT_CONSUMPTION", "VACCINATION_CONSUMPTION"}
+    rows = []
+    for record in ctx.session.query(InventoryTransaction).filter(
+        InventoryTransaction.recorded_at >= start,
+        InventoryTransaction.recorded_at < end,
+    ).order_by(InventoryTransaction.recorded_at, InventoryTransaction.id).all():
+        if upper(record.source_type) not in source_types:
+            continue
+        if item_filter and item_filter.lower() not in str(record.item or "").lower():
+            continue
+        signed = float(record.signed_quantity or 0)
+        source = {
+            "CLINICAL_RECEIPT": "Clinical inventory receipt",
+            "TREATMENT_CONSUMPTION": "Treatment consumption",
+            "VACCINATION_CONSUMPTION": "Vaccination consumption",
+        }[upper(record.source_type)]
+        rows.append({
+            "date": to_date(record.recorded_at), "item": clean_text(record.item),
+            "movement": _label(record.movement_type),
+            "quantity_in": round(signed, 3) if signed > 0 else None,
+            "quantity_out": round(-signed, 3) if signed < 0 else None,
+            "unit": clean_text(record.unit), "source": source,
+            "recorded_by": clean_text(record.recorded_by), "notes": clean_text(record.notes),
+        })
+    return ReportResult(
+        sections=[Section("clinical_inventory", "Clinical Inventory Movements", CLINICAL_INVENTORY_COLUMNS, rows,
+                          {"_label": "Total", "quantity_in": round(sum(r["quantity_in"] or 0 for r in rows), 3),
+                           "quantity_out": round(sum(r["quantity_out"] or 0 for r in rows), 3)}, primary=True)],
+        summary=[Metric("movements", "Movements", len(rows), "integer"),
+                 Metric("items", "Items", len({r["item"] for r in rows}), "integer")],
+        notes=["Clinical inventory is operator-recorded. Treatment and vaccination events consume stock only when explicitly linked; no dose is inferred from free text.",
+               "Quantities are displayed by movement; filter to one item before interpreting totals when units differ."],
+    )
+
+
 def _definition(report_id, title, purpose, builder, **kwargs) -> ReportDefinition:
     kwargs.setdefault("authority", "Health cases and treatment records")
     return ReportDefinition(id=report_id, area=AREA, title=title, purpose=purpose,
@@ -416,4 +464,9 @@ REPORTS: tuple[ReportDefinition, ...] = (
                 "One animal's health cases, treatments, withdrawals and vaccinations.",
                 build_animal_history, columns=TREATMENT_COLUMNS, filters=(REQUIRED_ANIMAL,),
                 authority="Health cases, treatment records and vaccination records"),
+    _definition("health-clinical-inventory", "Clinical Inventory",
+                "Receipts and explicitly linked medicine and vaccination consumption recorded by the operator.",
+                build_clinical_inventory, period="range", columns=CLINICAL_INVENTORY_COLUMNS,
+                default_sort=("date", "asc"), authority="Clinical inventory movement ledger",
+                filters=(Filter("item", "Item contains", "text"),)),
 )
