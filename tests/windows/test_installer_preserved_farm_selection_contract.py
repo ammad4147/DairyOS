@@ -123,9 +123,10 @@ def test_refresh_preserves_programdata_and_reprovisions_runtime():
 
     assert "[UninstallDelete]" in source
     assert (
-        "Deliberately empty. ProgramData contains farm data"
+        'Type: filesandordirs; Name: "{app}"'
         in source
     )
+    assert "ProgramData contains farm data" in source
 
 
 def test_installer_retains_clean_lifecycle_initialization():
