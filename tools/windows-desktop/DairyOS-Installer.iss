@@ -309,6 +309,7 @@ end;
 function ExistingDairyOSInstallationMatches(): Boolean;
 var
   LifecyclePath: String;
+  AnsiManifest: AnsiString;
   Manifest: String;
   CanonicalData: String;
   CanonicalInstall: String;
@@ -322,7 +323,9 @@ begin
   if not FileExists(LifecyclePath) then
     exit;
 
-  LoadStringFromFile(LifecyclePath, Manifest);
+  if not LoadStringFromFile(LifecyclePath, AnsiManifest) then
+    exit;
+  Manifest := AnsiManifest;
   if Manifest = '' then
     exit;
 

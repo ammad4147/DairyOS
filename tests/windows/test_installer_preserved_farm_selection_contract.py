@@ -103,7 +103,7 @@ def test_collision_guard_keeps_unknown_state_fail_closed():
     assert "Result := True;" in block
 
     assert "lifecycle.json" in block
-    assert "LoadStringFromFile(LifecyclePath, Manifest)" in block
+    assert "LoadStringFromFile(LifecyclePath, AnsiManifest)" in block
     assert '"data_root": "' in block
     assert '"installation_root": "' in block
 
