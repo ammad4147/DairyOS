@@ -268,9 +268,14 @@ def build_stock_movement(ctx: ReportContext) -> ReportResult:
     end = datetime.combine(ctx.period.end + timedelta(days=1), time.min)
     item_filter, kind = ctx.filter("item"), ctx.filter("movement_type")
     rows = []
+    clinical_source_types = {"CLINICAL_RECEIPT", "TREATMENT_CONSUMPTION", "VACCINATION_CONSUMPTION"}
     for record in ctx.session.query(InventoryTransaction).filter(
         InventoryTransaction.recorded_at >= start, InventoryTransaction.recorded_at < end,
     ).order_by(InventoryTransaction.recorded_at, InventoryTransaction.id).all():
+        # Clinical consumables have their own governed authority. They must
+        # never be presented as feed or included in feed kg totals.
+        if upper(record.source_type) in clinical_source_types:
+            continue
         if item_filter and item_filter.lower() not in str(record.item or "").lower():
             continue
         if kind and upper(record.movement_type) != kind:
