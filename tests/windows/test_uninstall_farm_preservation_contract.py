@@ -55,6 +55,12 @@ def test_uninstall_stops_only_bundled_postgres_runtime():
     assert "StopInstalledProcessByPath" in section
 
 
+def test_uninstall_removes_runtime_generated_application_files():
+    source = ISS.read_text(encoding="utf-8-sig")
+    uninstall_delete = source[source.index("[UninstallDelete]"):source.index("[Code]")]
+    assert 'Type: filesandordirs; Name: "{app}"' in uninstall_delete
+
+
 def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]

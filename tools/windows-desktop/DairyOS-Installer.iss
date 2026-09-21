@@ -62,8 +62,13 @@ Name: "{commonappdata}\DairyOS"
 Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
-; Deliberately empty. ProgramData contains farm data and is deleted only after
-; the operator's explicit NO preservation decision.
+; Remove the complete application tree, including runtime-generated files
+; such as PostgreSQL logs and state that were not present in the original
+; [Files] manifest. Farm data remains governed by the explicit preservation
+; choice below and is never inferred from this application-tree cleanup.
+Type: filesandordirs; Name: "{app}"
+; ProgramData contains farm data and is deleted only after the operator's
+; explicit NO preservation decision.
 Type: filesandordirs; Name: "{commonappdata}\DairyOS"
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
