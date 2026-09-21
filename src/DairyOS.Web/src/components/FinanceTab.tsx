@@ -50,6 +50,7 @@ type TaxonomyResponse = {
   animal_purchase_categories?: Array<{ value: string; label: string }>;
   cop_governance?: {
     defaults?: Record<string, { classification?: string | null; attribution_method?: string | null }>;
+    measurement_policies?: Record<string, { units?: string[]; operational_authority?: string; generic_entry_allowed?: boolean }>;
   };
 };
 
@@ -301,7 +302,7 @@ export default function FinanceTab({
   const [customSpecification, setCustomSpecification] = useState('');
   const [animalPurchaseCategory, setAnimalPurchaseCategory] = useState('Milking');
   const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState('kg');
+  const [unit, setUnit] = useState('');
   const [unitRate, setUnitRate] = useState('');
   const [directAmount, setDirectAmount] = useState('');
   const [expenseDate, setExpenseDate, resetExpenseDateToToday] = useFarmDateField();
@@ -421,6 +422,13 @@ export default function FinanceTab({
     setSubCategory(currentTaxonomy[nextGroup]?.[0] ?? '');
     setCustomSpecification('');
   };
+
+  const measurementPolicy = taxonomy?.cop_governance?.measurement_policies?.[subCategory];
+  const measurementUnits = measurementPolicy?.units ?? (masterCategory === 'FEED' ? ['kg', 'g'] : []);
+  useEffect(() => {
+    if (measurementUnits.length === 1) setUnit(measurementUnits[0]);
+    else if (!measurementUnits.includes(unit)) setUnit('');
+  }, [subCategory, taxonomy]);
 
   const expenseRows = useMemo(() => transactions.filter(isExpense), [transactions]);
   const activeExpenseRows = useMemo(
@@ -1452,7 +1460,7 @@ export default function FinanceTab({
             <input value={vendor} onChange={event => setVendor(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Vendor / Supplier" />
             {isAnimalPurchase ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Purchase amount (PKR)" /> : !showExpenseQuantity ? <input required type="number" min="0.01" step="0.01" value={directAmount} onChange={event => setDirectAmount(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="Amount (PKR)" /> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
               <input type="number" min="0" step="0.001" value={quantity} onChange={event => setQuantity(event.target.value)} style={inputStyle} placeholder="Quantity" />
-              <select value={isSemenPurchase ? 'straw' : unit} onChange={event => setUnit(event.target.value)} disabled={isSemenPurchase} style={inputStyle}><option>straw</option><option>kg</option><option>bag</option><option>ton</option><option>litre</option><option>service</option><option>head</option><option>unit</option></select>
+              <select required value={isSemenPurchase ? 'straw' : unit} onChange={event => setUnit(event.target.value)} disabled={isSemenPurchase} style={inputStyle}><option value="">Select unit</option>{(measurementUnits.length ? measurementUnits : ['piece', 'service', 'period']).map(option => <option key={option} value={option}>{option}</option>)}</select>
               <input type="number" min="0" step="0.01" value={unitRate} onChange={event => setUnitRate(event.target.value)} style={inputStyle} placeholder="Unit rate" disabled={!quantity} />
               <input type="number" min="0" step="0.01" value={quantity ? calculatedAmount : directAmount} onChange={event => quantity ? undefined : setDirectAmount(event.target.value)} style={inputStyle} placeholder="Amount" readOnly={Boolean(quantity)} />
             </div>}
@@ -1538,7 +1546,7 @@ export default function FinanceTab({
                 <input required name="amount" type="number" min="0.01" step="0.01" defaultValue={editTarget.amount} style={inputStyle} placeholder="Purchase amount (PKR)" />
               </> : <>
                 <input name="quantity" type="number" step="0.001" defaultValue={editTarget.quantity ?? ''} style={inputStyle} placeholder="Quantity" />
-                <input name="unit" defaultValue={editTarget.unit || 'kg'} style={inputStyle} placeholder="Unit" />
+                <input name="unit" defaultValue={editTarget.unit || ''} style={inputStyle} placeholder="Governed unit" />
                 <input name="unit_rate" type="number" step="0.01" defaultValue={editTarget.unit_rate ?? ''} style={inputStyle} placeholder="Unit rate" />
                 <input name="amount" type="number" step="0.01" defaultValue={editTarget.amount} style={inputStyle} placeholder="Amount" />
               </>}

@@ -47,6 +47,7 @@ from dairyos.finance.expense_taxonomy import (
     legacy_category,
     valid_item,
 )
+from dairyos.finance.expense_measurement import policy_catalog, validate_unit
 from dairyos.finance.opex_attribution import (
     ATTRIBUTION_METHODS,
     COP_CLASSIFICATIONS,
@@ -460,6 +461,10 @@ def _validate_expense_payload(
             status_code=422,
             detail="unit is required when quantity is supplied.",
         )
+    try:
+        validate_unit(entry.sub_category, entry.unit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     if entry.quantity is not None and entry.unit_rate is None:
         raise HTTPException(
@@ -1858,6 +1863,7 @@ def finance_taxonomy():
                 }
                 for item in opex_items
             },
+            "measurement_policies": policy_catalog(opex_items),
         },
     }
 
