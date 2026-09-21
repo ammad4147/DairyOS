@@ -149,11 +149,14 @@ def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
         ("Calf Feed", f"{_num(milk.get('calf_feed'))} L"),
         ("Domestic Use", f"{_num(milk.get('domestic_use'))} L"),
         ("Wastage", f"{_num(milk.get('wastage'))} L"),
+        ("Opening Milk Inventory", f"{_num(milk.get('opening_inventory'))} L"),
         ("Unaccounted", f"{_num(milk.get('unaccounted'))} L"),
+        ("Over-accounted", f"{_num(milk.get('over_accounted'))} L"),
+        ("Reconciliation", str(milk.get("reconciliation_status") or "UNKNOWN")),
         ("Yield Drop Alerts", str(len(milk.get("watchlist") or []))),
     ]
     for label, value in rows:
-        _row(c, margin + 4 * mm, ry, label, value, col_w - 8 * mm, label in {"Total Milk Produced", "Unaccounted"}); ry -= 5.2 * mm
+        _row(c, margin + 4 * mm, ry, label, value, col_w - 8 * mm, label in {"Total Milk Produced", "Unaccounted", "Over-accounted"}); ry -= 4.25 * mm
 
     ry = top - 17 * mm
     counts = herd["counts"]
