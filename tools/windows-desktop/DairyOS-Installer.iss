@@ -44,6 +44,9 @@ SetupLogging=yes
 
 [Files]
 Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Recovery-only copy. This makes pg_ctl available before {app} is recreated
+; when retained DairyOS data outlives the application directory.
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\pg_ctl.exe"; Flags: dontcopy
 
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.
@@ -564,6 +567,7 @@ end;
 function StopInstalledDairyOSForUninstall(): Boolean;
 var
   PgCtl: String;
+  RecoveryPgCtl: String;
   DataDir: String;
   PidFile: String;
   ResultCode: Integer;
@@ -576,6 +580,15 @@ begin
     persistent data directory. Never terminate arbitrary postgres.exe
     processes because the workstation may host unrelated PostgreSQL services. }
   PgCtl := ExpandConstant('{app}\runtime\PostgreSQL\bin\pg_ctl.exe');
+  if not FileExists(PgCtl) then
+  begin
+    { The application directory may be absent after keep-data uninstall.
+      Extract the exact packaged pg_ctl before touching the retained cluster. }
+    ExtractTemporaryFile('pg_ctl.exe');
+    RecoveryPgCtl := ExpandConstant('{tmp}\pg_ctl.exe');
+    if FileExists(RecoveryPgCtl) then
+      PgCtl := RecoveryPgCtl;
+  end;
   DataDir := DairyOSDataRoot('') + '\postgres\data';
   PidFile := DataDir + '\postmaster.pid';
 
