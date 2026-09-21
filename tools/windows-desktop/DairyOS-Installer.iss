@@ -491,6 +491,23 @@ begin
     PreservedFarmDataPath := PreservedFarmDataPath + '.dairypkg';
 end;
 
+function PreservationDestinationFromCommandLine(): String;
+var
+  I: Integer;
+  Arg: String;
+begin
+  Result := '';
+  for I := 1 to ParamCount do
+  begin
+    Arg := ParamStr(I);
+    if CompareText(Copy(Arg, 1, 18), '/PRESERVEDATAPATH=') = 0 then
+    begin
+      Result := Copy(Arg, 19, Length(Arg));
+      exit;
+    end;
+  end;
+end;
+
 function ExportFarmDataForUninstall(): Boolean;
 var
   DairyOSExe: String;
@@ -666,6 +683,7 @@ end;
 function InitializeUninstall(): Boolean;
 var
   Choice: String;
+  CommandLineDestination: String;
   Response: Integer;
 begin
   Choice := UninstallPreservationChoiceFromCommandLine();
@@ -689,7 +707,10 @@ begin
 
   if Choice = 'YES' then
   begin
-    if not ChoosePreservationDestination() then
+    CommandLineDestination := PreservationDestinationFromCommandLine();
+    if CommandLineDestination <> '' then
+      PreservedFarmDataPath := CommandLineDestination
+    else if not ChoosePreservationDestination() then
     begin
       Result := False;
       exit;

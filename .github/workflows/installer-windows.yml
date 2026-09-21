@@ -470,8 +470,10 @@ jobs:
           # durable lifecycle manifest and farm state must remain authoritative
           # so the same installer can safely refresh the application in place.
           $keepDataLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-keep-data.log"
+          $preservedFarmData = Join-Path $env:RUNNER_TEMP "DairyOS-Farm-keep-data.dairypkg"
+          if (Test-Path $preservedFarmData) { Remove-Item $preservedFarmData -Recurse -Force }
           Remove-Item $keepDataLog -Force -ErrorAction SilentlyContinue
-          $keepDataArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=YES","/LOG=$keepDataLog")
+          $keepDataArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=YES","/PRESERVEDATAPATH=$preservedFarmData","/LOG=$keepDataLog")
           $keepDataUninstall = Start-Process -FilePath $uninstaller -ArgumentList $keepDataArgs -PassThru -Wait
           if ($keepDataUninstall.ExitCode -ne 0) {
             if (Test-Path $keepDataLog -PathType Leaf) {
@@ -489,6 +491,9 @@ jobs:
           }
           if (-not (Test-Path (Join-Path $dataRoot "lifecycle.json") -PathType Leaf)) {
             throw "Keep-data uninstall deleted the durable lifecycle manifest."
+          }
+          if (-not (Test-Path $preservedFarmData)) {
+            throw "Keep-data uninstall did not create the verified farm-data package."
           }
 
           $reinstallLog = Join-Path $env:RUNNER_TEMP "dairyos-keep-data-reinstall.log"
