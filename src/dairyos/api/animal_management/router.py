@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
+from dairyos.finance.clinical_inventory import record_clinical_consumption
 from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.farm.herd.services.animal_classification_service import (
     AnimalClassificationError,
@@ -1000,6 +1001,18 @@ def amend_scheduled_vaccination(
         event_payload,
         operator,
     )
+
+    inventory_item = payload.get("inventory_item")
+    consumption_quantity = payload.get("consumption_quantity")
+    consumption_unit = payload.get("consumption_unit")
+    if any(value is not None for value in (inventory_item, consumption_quantity, consumption_unit)):
+        if not inventory_item or consumption_quantity is None or not consumption_unit:
+            raise HTTPException(status_code=422, detail="Clinical inventory linkage requires inventory_item, consumption_quantity, and consumption_unit together.")
+        record_clinical_consumption(
+            container, item=inventory_item, quantity=float(consumption_quantity),
+            unit=consumption_unit, source_type="VACCINATION_CONSUMPTION",
+            source_id=record.id, recorded_by=operator, notes=f"Vaccination {record.id}: {record.vaccine}",
+        )
 
     container.repository_factory.session.flush()
     if not container.repository_factory.session.info.get(

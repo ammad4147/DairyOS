@@ -137,6 +137,7 @@ from dairyos.api.authorization import router as authorization_router
 from dairyos.api.breeding_biology import router as breeding_biology_router
 from dairyos.api.coml import router as coml_router
 from dairyos.api.command_center import router as command_router
+from dairyos.api.clinical_inventory import router as clinical_inventory_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.equipment_management import router as equipment_router
@@ -204,6 +205,7 @@ _unmount_duplicate_routes(
 _unmount_duplicate_routes(breeding_biology_router, {"/dashboard"})
 
 app.include_router(command_router)
+app.include_router(clinical_inventory_router)
 app.include_router(dashboard_router)
 app.include_router(breeding_biology_router)
 app.include_router(equipment_router)

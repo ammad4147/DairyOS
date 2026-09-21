@@ -33,6 +33,8 @@ from typing import Any
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.finance.classification.transaction_classifier import is_expense
 from dairyos.finance.opex_attribution import attributed_amount
+from dairyos.finance.expense_measurement import measurement_policy
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 
 SEMEN_PURCHASE_ITEM = "Semen Straws (Sexed / Conventional)"
 
@@ -107,6 +109,36 @@ def _semen_consumption(factory, item, start: date, end: date) -> Decimal | None:
     )
 
 
+def _clinical_consumption(factory, item, start: date, end: date) -> Decimal | None:
+    """Recognize only operator-recorded clinical stock consumed from this purchase."""
+    policy = measurement_policy(getattr(item, "sub_category", None))
+    if policy.quantity_kind != "purchase":
+        return None
+    receipts = factory.session.query(InventoryTransaction).filter(
+        InventoryTransaction.source_type == "CLINICAL_RECEIPT",
+        InventoryTransaction.source_id == str(item.id),
+        InventoryTransaction.item == getattr(item, "sub_category", None),
+    ).all()
+    if not receipts:
+        return None
+    receipt_qty = sum(Decimal(str(row.quantity or 0)) for row in receipts)
+    if receipt_qty <= 0:
+        return None
+    consumed = factory.session.query(InventoryTransaction).filter(
+        InventoryTransaction.item == getattr(item, "sub_category", None),
+        InventoryTransaction.source_type.in_(["TREATMENT_CONSUMPTION", "VACCINATION_CONSUMPTION"]),
+        InventoryTransaction.signed_quantity < 0,
+    ).all()
+    used = sum(
+        abs(Decimal(str(row.signed_quantity or 0)))
+        for row in consumed
+        if getattr(row, "recorded_at", None) is not None and start <= row.recorded_at.date() <= end
+    )
+    if used <= 0:
+        return None
+    return (Decimal(str(item.amount)) * used / receipt_qty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def attribute_opex_for_period(
     factory,
     start: date,
@@ -142,6 +174,15 @@ def attribute_opex_for_period(
             and str(getattr(item, "sub_category", "") or "").strip() == SEMEN_PURCHASE_ITEM
         ):
             consumed = _semen_consumption(factory, item, start, end)
+            if consumed is not None:
+                attributed = consumed
+                attribution_status = "ATTRIBUTED"
+
+        if (
+            attribution_status == "UNATTRIBUTED"
+            and str(getattr(item, "cop_attribution_method", "") or "").upper() == "CONSUMPTION"
+        ):
+            consumed = _clinical_consumption(factory, item, start, end)
             if consumed is not None:
                 attributed = consumed
                 attribution_status = "ATTRIBUTED"

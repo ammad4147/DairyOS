@@ -12,6 +12,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.core.inventory_units import InventoryIntegrityError
+from dairyos.finance.clinical_inventory import record_clinical_consumption
 from dairyos.data.models.feed_record import FeedRecord
 from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.health_case import HealthCase
@@ -259,6 +260,10 @@ class TreatmentEntryRequest(BaseEntryRequest):
     # linked, the case's withdrawal_until is raised to this treatment's
     # milk_withdrawal_until if that is later than what the case already has.
     health_case_id: int | None = None
+    # Optional explicit stock linkage. A free-form dose never changes stock.
+    inventory_item: str | None = None
+    consumption_quantity: float | None = None
+    consumption_unit: str | None = None
 
 
 class HealthCaseOpenRequest(BaseEntryRequest):
@@ -1624,6 +1629,15 @@ def record_treatment(
         )
 
         treatment_repo.add(record)
+
+        if any(value is not None for value in (entry.inventory_item, entry.consumption_quantity, entry.consumption_unit)):
+            if not entry.inventory_item or entry.consumption_quantity is None or not entry.consumption_unit:
+                raise HTTPException(status_code=422, detail="Clinical inventory linkage requires inventory_item, consumption_quantity, and consumption_unit together.")
+            record_clinical_consumption(
+                container, item=entry.inventory_item, quantity=entry.consumption_quantity,
+                unit=entry.consumption_unit, source_type="TREATMENT_CONSUMPTION",
+                source_id=record.id, recorded_by=operator, notes=f"Treatment {record.id}: {entry.medicine}",
+            )
 
         # A linked case's withdrawal_until always reflects the LATEST known
         # withdrawal date across everything wrapped into it -- never a
