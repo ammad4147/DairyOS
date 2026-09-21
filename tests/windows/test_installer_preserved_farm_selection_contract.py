@@ -101,6 +101,7 @@ def test_collision_guard_keeps_unknown_state_fail_closed():
     assert "FindFirst(AddBackslash(Root) + '*', FindRec)" in block
     assert "FindNext(FindRec)" in block
     assert "Result := True;" in block
+    assert "CompareText(FindRec.Name, 'assistant') <> 0" in block
 
     assert "lifecycle.json" in block
     assert "LoadStringFromFile(LifecyclePath, AnsiManifest)" in block

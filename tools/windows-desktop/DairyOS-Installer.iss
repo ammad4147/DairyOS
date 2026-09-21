@@ -291,8 +291,11 @@ begin
   begin
     try
       repeat
+        { The optional Assistant is application-owned and may be installed
+          before Core. It is not farm state and must not block Core setup. }
         if (FindRec.Name <> '.') and
-           (FindRec.Name <> '..') then
+           (FindRec.Name <> '..') and
+           (CompareText(FindRec.Name, 'assistant') <> 0) then
         begin
           Result := True;
           exit;
