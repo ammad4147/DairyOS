@@ -188,6 +188,9 @@ class DashboardDigestService:
                 "wastage": by_type.get("WASTAGE", 0.0),
                 "other": by_type.get("OTHER", 0.0),
                 "unaccounted": reconciliation.get("unaccounted_saleable_litres", 0.0) or 0.0,
+                "over_accounted": reconciliation.get("over_accounted_litres", 0.0) or 0.0,
+                "opening_inventory": reconciliation.get("opening_saleable_inventory_litres", 0.0) or 0.0,
+                "reconciliation_status": reconciliation.get("status", "UNKNOWN"),
                 "watchlist": watchlist,
             }
         finally:
@@ -422,7 +425,63 @@ class DashboardDigestService:
             if "finance.view" in user_permissions or "dashboard.view_finance" in user_permissions
             else None
         )
-        attention = self._active_findings()
+        attention = list(self._active_findings())
+        existing_keys = {
+            (
+                str(item.get("area") or "").upper(),
+                str(item.get("subject_id") or "").upper(),
+            )
+            for item in attention
+        }
+        for item in milk.get("watchlist") or []:
+            animal_id = str(item.get("animal_id") or "").strip()
+            key = ("MILK", animal_id.upper())
+            if key in existing_keys:
+                continue
+            attention.append(
+                {
+                    "area": "Milk",
+                    "subject_id": animal_id or None,
+                    "severity": str(item.get("severity") or "WARNING").upper(),
+                    "title": (
+                        f"Yield drop {float(item.get('drop_percentage') or 0.0):.1f}%"
+                    ),
+                    "detail": "Governed milk yield-drop watchlist.",
+                    "route": "/farm/milk",
+                }
+            )
+            existing_keys.add(key)
+
+        active_health = int(health.get("active_exceptions") or 0)
+        health_findings = sum(
+            1
+            for item in attention
+            if str(item.get("area") or "").upper() == "HEALTH"
+        )
+        if active_health > health_findings:
+            attention.append(
+                {
+                    "area": "Health",
+                    "subject_id": None,
+                    "severity": "WARNING",
+                    "title": f"{active_health} active health alert(s)",
+                    "detail": "Open Health for governed record-level detail.",
+                    "route": "/farm/health",
+                }
+            )
+
+        severity_rank = {
+            "CRITICAL": 0, "HIGH": 1, "MAJOR": 1, "WARNING": 2,
+            "MEDIUM": 2, "MODERATE": 2, "LOW": 3, "MINOR": 3, "INFO": 4,
+        }
+        attention.sort(
+            key=lambda item: (
+                severity_rank.get(str(item.get("severity") or "INFO").upper(), 4),
+                str(item.get("area") or ""),
+                str(item.get("subject_id") or ""),
+                str(item.get("title") or ""),
+            )
+        )
         reproduction = self._reproduction_snapshot(digest_date)
         completeness = self._daily_completeness(
             digest_date=digest_date,
@@ -709,11 +768,14 @@ class DashboardDigestService:
             if config is None:
                 raise RuntimeError("DairyOS email sender is not configured")
 
-            subject, body = self.render_snapshot(
-                snapshot_date=snapshot_date,
-                generated_at=now,
-                user_permissions={"dashboard.view", "dashboard.view_finance"},
+            permissions = {"dashboard.view", "dashboard.view_finance"}
+            summary = self._pdf_payload(
+                digest_date=snapshot_date,
+                user_permissions=permissions,
             )
+            subject, body = self._delivery_content(summary)
+            filename = f"DairyOS-Daily-Summary-{snapshot_date.isoformat()}.pdf"
+            pdf_payload = daily_summary_pdf(summary)
             delivered = 0
             failed = 0
             results = []
@@ -728,6 +790,12 @@ class DashboardDigestService:
                         subject=subject,
                         body=body,
                         config=config,
+                        attachments=[(
+                            filename,
+                            pdf_payload,
+                            "application",
+                            "pdf",
+                        )],
                     )
                     delivered += 1
                 except Exception as exc:
