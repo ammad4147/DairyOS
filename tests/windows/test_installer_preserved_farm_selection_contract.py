@@ -127,7 +127,7 @@ def test_refresh_preserves_programdata_and_reprovisions_runtime():
         'Type: filesandordirs; Name: "{app}"'
         in source
     )
-    assert "ProgramData contains farm data" in source
+    assert "farm data remains under its independent backup/recovery ownership" in source
 
 
 def test_installer_retains_clean_lifecycle_initialization():
