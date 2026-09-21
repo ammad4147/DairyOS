@@ -274,3 +274,25 @@ def test_feed_event_on_utc_previous_day_counts_on_farm_operational_day(monkeypat
         cop={"feed_complete": True},
     )
     assert result["feed_event_count"] == 1
+
+
+def test_naive_utc_feed_event_uses_farm_operational_date(monkeypatch):
+    from zoneinfo import ZoneInfo
+
+    factory = _CompletenessFactory(
+        {"MORNING", "AFTERNOON", "EVENING"},
+        [SimpleNamespace(feeding_date=datetime(2026, 9, 19, 20, 30))],
+    )
+    monkeypatch.setattr(
+        "dairyos.email.digest.RepositoryFactory.create",
+        lambda: factory,
+    )
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    service._farm_timezone = lambda fallback=None: ZoneInfo("Asia/Karachi")
+    result = service._daily_completeness(
+        digest_date=date(2026, 9, 20),
+        cop={"feed_complete": True},
+    )
+    assert result["feed_event_count"] == 1
