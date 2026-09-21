@@ -32,7 +32,11 @@ from urllib.parse import urlparse
 # localhost is not on its own a reason to allow a connection.
 FORBIDDEN_PORTS = frozenset({5432, 9200})
 
-DEFAULT_TIMEOUT_SECONDS = 60.0
+# Model generation is optional for refusal/guidance paths: reviewed corpus
+# text remains available when the local model is slow or unavailable. Keep the
+# transport bounded so the operator and API do not sit behind a dead model
+# server for the bridge's much longer process timeout.
+DEFAULT_TIMEOUT_SECONDS = 10.0
 
 # Generation is deliberately cold. The Assistant restates reviewed knowledge; it
 # is not asked to be imaginative, and sampling variety would make its answers
