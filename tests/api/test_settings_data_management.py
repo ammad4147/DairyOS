@@ -87,6 +87,40 @@ def test_data_management_export_ignores_legacy_user_permission_requirement(
     assert called is True
 
 
+def test_data_management_export_validate_import_share_desktop_session_boundary(
+    monkeypatch,
+):
+    """The packaged desktop round trip must not require a second bearer login."""
+    calls = []
+    monkeypatch.setattr(
+        settings_api,
+        "export_farm_data",
+        lambda database_url, path: calls.append(("export", path)) or {"path": path},
+    )
+    monkeypatch.setattr(
+        settings_api,
+        "validate_package",
+        lambda path: calls.append(("validate", path)) or {"valid": True},
+    )
+    monkeypatch.setattr(
+        settings_api,
+        "import_farm_data",
+        lambda database_url, path: calls.append(("import", path)) or {"imported": True},
+    )
+
+    client = TestClient(app)
+    package = "C:/Desktop-Farm.dairypkg"
+    export = client.post("/settings/data-management/export", json={"path": package})
+    validate = client.post("/settings/data-management/validate", json={"path": package})
+    imported = client.post(
+        "/settings/data-management/import",
+        json={"path": package, "confirm": "IMPORT VERIFIED FARM DATA"},
+    )
+
+    assert [response.status_code for response in (export, validate, imported)] == [200, 200, 200]
+    assert calls == [("export", package), ("validate", package), ("import", package)]
+
+
 def test_data_management_import_requires_exact_confirmation(monkeypatch):
     monkeypatch.setattr(
         settings_api,

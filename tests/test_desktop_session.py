@@ -45,3 +45,29 @@ async def test_other_production_routes_still_require_desktop_session(monkeypatch
 
     response = await enforce_desktop_session(request, call_next)
     assert response.status_code == 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/settings/data-management/export",
+        "/settings/data-management/validate",
+        "/settings/data-management/import",
+    ],
+)
+async def test_data_management_routes_reject_non_desktop_access(monkeypatch, path):
+    monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_DESKTOP_SESSION_TOKEN", "desktop-capability")
+    request = SimpleNamespace(
+        method="POST",
+        url=SimpleNamespace(path=path),
+        headers={},
+        base_url="http://127.0.0.1:8123/",
+    )
+
+    async def call_next(_received):
+        raise AssertionError("data-management route must not reach the application")
+
+    response = await enforce_desktop_session(request, call_next)
+    assert response.status_code == 401

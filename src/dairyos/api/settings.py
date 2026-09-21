@@ -460,8 +460,13 @@ def export_farm_package(
 @router.post("/data-management/validate")
 def validate_farm_package(
     payload: DataManagementPathRequest,
-    admin=Depends(require_permission("settings.data_management")),
 ):
+    """Validate a package inside the authorized DairyOS desktop session.
+
+    The desktop-session middleware is the security boundary for the packaged
+    application. Validation is part of the Export -> Validate -> Import
+    workflow and must not trigger a second interactive bearer login.
+    """
     try:
         return validate_package(payload.path)
     except DataManagementError as exc:
