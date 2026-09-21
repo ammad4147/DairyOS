@@ -752,14 +752,39 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Mode: String;
 begin
+  { Instrumentation: log the entry point and flag state }
+  Log('DairyOS uninstall: *** CurUninstallStepChanged ENTRY ***');
+  Log('DairyOS uninstall: CurUninstallStep = ' + IntToStr(Ord(CurUninstallStep)) + ' (usPostUninstall=' + IntToStr(Ord(usPostUninstall)) + ')');
+  Log('DairyOS uninstall: PreserveFarmDataOnUninstall = ' + BoolToStr(PreserveFarmDataOnUninstall));
+  
+  { Determine mode for logging }
+  if PreserveFarmDataOnUninstall then
+    Mode := 'KEEP-DATA'
+  else
+    Mode := 'REMOVE-DATA';
+  Log('DairyOS uninstall: Uninstall mode = ' + Mode);
+
   { ProgramData is deliberately outside declarative [UninstallDelete]
     processing. The resolved choice is available here, after preservation
     has succeeded and the application tree has been removed. }
   if (CurUninstallStep = usPostUninstall) and
      (not PreserveFarmDataOnUninstall) then
   begin
-    Log('DairyOS uninstall: explicit remove-data choice; deleting ProgramData farm state.');
+    Log('DairyOS uninstall: *** REMOVE-DATA PATH: Starting DelTree ***');
+    Log('DairyOS uninstall: Deleting ProgramData from: ' + CanonicalDairyOSDataRoot());
     DelTree(CanonicalDairyOSDataRoot(), True, True, True);
+    Log('DairyOS uninstall: *** DelTree COMPLETED ***');
+  end
+  else if (CurUninstallStep = usPostUninstall) then
+  begin
+    Log('DairyOS uninstall: *** KEEP-DATA PATH: Skipping DelTree (ProgramData preserved) ***');
+    Log('DairyOS uninstall: *** CurUninstallStepChanged EXIT (no-op for keep-data) ***');
+  end
+  else
+  begin
+    Log('DairyOS uninstall: CurUninstallStepChanged called for non-usPostUninstall step; no action.');
   end;
 end;
