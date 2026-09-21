@@ -364,10 +364,12 @@ class DashboardDigestService:
                 observed_at = getattr(record, "feeding_date", None)
                 if observed_at is None:
                     continue
+                # Feed timestamps are persisted as naive UTC by utcnow().
+                # Attach that established authority before converting to the
+                # configured farm timezone for operational-day classification.
                 if observed_at.tzinfo is None:
-                    observed_date = observed_at.date()
-                else:
-                    observed_date = observed_at.astimezone(zone).date()
+                    observed_at = observed_at.replace(tzinfo=UTC)
+                observed_date = observed_at.astimezone(zone).date()
                 if observed_date == digest_date:
                     feed_events += 1
 
