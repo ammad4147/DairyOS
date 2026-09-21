@@ -521,10 +521,18 @@ jobs:
             }
             throw "Keep-data uninstaller exited with code $($keepDataUninstall.ExitCode)."
           }
-          if (Test-Path $installRoot) {
-            $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
-            if ($remaining) { throw "Application runtime remains after keep-data uninstall: $installRoot" }
-          }
+          # Inno Setup removes its own uninstaller through a short-lived
+          # helper after the parent process exits. Wait for that bounded,
+          # expected cleanup window before evaluating the runtime invariant.
+          $keepDataCleanupDeadline = (Get-Date).AddSeconds(30)
+          do {
+            $remaining = if (Test-Path $installRoot) {
+              @(Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue)
+            } else { @() }
+            if (-not $remaining) { break }
+            Start-Sleep -Seconds 1
+          } while ((Get-Date) -lt $keepDataCleanupDeadline)
+          if ($remaining) { throw "Application runtime remains after keep-data uninstall: $installRoot" }
           if (-not (Test-Path $marker -PathType Leaf)) {
             throw "Keep-data uninstall deleted the ProgramData retention marker."
           }
@@ -571,10 +579,15 @@ jobs:
             throw "Silent uninstaller exited with code $($uninstall.ExitCode)."
           }
 
-          if (Test-Path $installRoot) {
-            $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
-            if ($remaining) { throw "Application runtime remains after uninstall: $installRoot" }
-          }
+          $removeDataCleanupDeadline = (Get-Date).AddSeconds(30)
+          do {
+            $remaining = if (Test-Path $installRoot) {
+              @(Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue)
+            } else { @() }
+            if (-not $remaining) { break }
+            Start-Sleep -Seconds 1
+          } while ((Get-Date) -lt $removeDataCleanupDeadline)
+          if ($remaining) { throw "Application runtime remains after uninstall: $installRoot" }
           if (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf) {
             throw "Private PostgreSQL remained running after uninstall."
           }
