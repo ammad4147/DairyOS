@@ -67,16 +67,10 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 ; [Files] manifest. Farm data remains governed by the explicit preservation
 ; choice below and is never inferred from this application-tree cleanup.
 Type: filesandordirs; Name: "{app}"
-; ProgramData contains farm data and is deleted only after the operator's
-; explicit NO preservation decision.
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
 
 [Code]
-var
-  PreserveFarmDataOnUninstall: Boolean;
-  PreservedFarmDataPath: String;
-
 function CanonicalDairyOSDataRoot(): String;
 begin
   Result := ExpandConstant('{commonappdata}\DairyOS');
@@ -243,7 +237,7 @@ begin
     '$ErrorActionPreference = ''Stop''; ' +
     '$action = New-ScheduledTaskAction -Execute ''' + EscapedBackupExe + '''; ' +
     '$trigger = New-ScheduledTaskTrigger -Once -At ([datetime]::Today.AddMinutes(1)) ' +
-      '-RepetitionInterval (New-TimeSpan -Days 1); ' +
+      '-RepetitionInterval (New-TimeSpan -Hours 6); ' +
     '$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable; ' +
     '$principal = New-ScheduledTaskPrincipal ' +
       '-UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) ' +
@@ -479,6 +473,9 @@ begin
     Log('DairyOS uninstall: automatic backup task remains; uninstall blocked.');
 end;
 
+(* Obsolete uninstall-triggered preservation helpers retained temporarily for
+   review only; they are not compiled or reachable. *)
+(*
 function ChoosePreservationDestination(): Boolean;
 var
   SuggestedName: String;
@@ -555,6 +552,7 @@ begin
   Log('DairyOS uninstall: verified farm-data preservation package: ' + PreservedFarmDataPath);
   Result := True;
 end;
+*)
 
 function StopInstalledDairyOSForUninstall(): Boolean;
 var
@@ -683,66 +681,8 @@ begin
   Result := True;
 end;
 
-function UninstallPreservationChoiceFromCommandLine(): String;
-var
-  I: Integer;
-  Arg: String;
-begin
-  Result := '';
-  for I := 1 to ParamCount do
-  begin
-    Arg := Uppercase(ParamStr(I));
-    if Arg = '/PRESERVEFARMDATA=NO' then
-      Result := 'NO'
-    else if Arg = '/PRESERVEFARMDATA=YES' then
-      Result := 'YES';
-  end;
-end;
-
 function InitializeUninstall(): Boolean;
-var
-  Choice: String;
-  CommandLineDestination: String;
-  Response: Integer;
 begin
-  PreserveFarmDataOnUninstall := False;
-  Choice := UninstallPreservationChoiceFromCommandLine();
-  if Choice = '' then
-  begin
-    Response := MsgBox(
-      'Preserve farm data before uninstalling DairyOS?',
-      mbConfirmation,
-      MB_YESNOCANCEL
-    );
-    if Response = IDCANCEL then
-    begin
-      Result := False;
-      exit;
-    end;
-    if Response = IDYES then
-      Choice := 'YES'
-    else
-      Choice := 'NO';
-  end;
-
-  if Choice = 'YES' then
-  begin
-    PreserveFarmDataOnUninstall := True;
-    CommandLineDestination := PreservationDestinationFromCommandLine();
-    if CommandLineDestination <> '' then
-      PreservedFarmDataPath := CommandLineDestination
-    else if not ChoosePreservationDestination() then
-    begin
-      Result := False;
-      exit;
-    end;
-    if not ExportFarmDataForUninstall() then
-    begin
-      Result := False;
-      exit;
-    end;
-  end;
-
   Result := StopInstalledDairyOSForUninstall();
   if Result then
   begin
@@ -752,39 +692,9 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var
-  Mode: String;
 begin
-  { Instrumentation: log the entry point and flag state }
-  Log('DairyOS uninstall: *** CurUninstallStepChanged ENTRY ***');
-  Log('DairyOS uninstall: CurUninstallStep = ' + IntToStr(Ord(CurUninstallStep)) + ' (usPostUninstall=' + IntToStr(Ord(usPostUninstall)) + ')');
-  Log('DairyOS uninstall: PreserveFarmDataOnUninstall = ' + BoolToStr(PreserveFarmDataOnUninstall));
-  
-  { Determine mode for logging }
-  if PreserveFarmDataOnUninstall then
-    Mode := 'KEEP-DATA'
-  else
-    Mode := 'REMOVE-DATA';
-  Log('DairyOS uninstall: Uninstall mode = ' + Mode);
-
-  { ProgramData is deliberately outside declarative [UninstallDelete]
-    processing. The resolved choice is available here, after preservation
-    has succeeded and the application tree has been removed. }
-  if (CurUninstallStep = usPostUninstall) and
-     (not PreserveFarmDataOnUninstall) then
-  begin
-    Log('DairyOS uninstall: *** REMOVE-DATA PATH: Starting DelTree ***');
-    Log('DairyOS uninstall: Deleting ProgramData from: ' + CanonicalDairyOSDataRoot());
-    DelTree(CanonicalDairyOSDataRoot(), True, True, True);
-    Log('DairyOS uninstall: *** DelTree COMPLETED ***');
-  end
-  else if (CurUninstallStep = usPostUninstall) then
-  begin
-    Log('DairyOS uninstall: *** KEEP-DATA PATH: Skipping DelTree (ProgramData preserved) ***');
-    Log('DairyOS uninstall: *** CurUninstallStepChanged EXIT (no-op for keep-data) ***');
-  end
-  else
-  begin
-    Log('DairyOS uninstall: CurUninstallStepChanged called for non-usPostUninstall step; no action.');
-  end;
+  { Farm data is not part of uninstall. Recovery is provided by automatic
+    backups and deliberate Settings Export/Import operations. }
+  if CurUninstallStep = usPostUninstall then
+    Log('DairyOS uninstall: application cleanup complete; farm data remains under its independent backup/recovery ownership.');
 end;

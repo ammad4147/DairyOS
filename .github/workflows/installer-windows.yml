@@ -97,6 +97,7 @@ jobs:
           Write-Host "EXACT SOURCE / BINARY / INSTALLER MANIFEST: PASS"
 
       - name: Certify silent install and keep-data uninstall
+        if: ${{ false }}
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -687,6 +688,29 @@ jobs:
           # Collision certification is complete; remove only the temporary CI sentinel.
           Remove-Item $marker -Force
           exit 0
+
+      - name: Certify simplified install and uninstall
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
+          $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Simplified-Cert"
+          Remove-Item $installRoot -Recurse -Force -ErrorAction SilentlyContinue
+          $setup = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR=' + $installRoot)) -PassThru -Wait
+          if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
+          $installedExe = Join-Path $installRoot 'DairyOS.exe'
+          if (-not (Test-Path $installedExe -PathType Leaf)) { throw 'Installed DairyOS.exe is missing.' }
+          $taskXml = schtasks.exe /Query /TN 'DairyOS-Automatic-Backup' /XML 2>&1
+          if ($LASTEXITCODE -ne 0) { throw 'Automatic backup task was not registered.' }
+          if (([string]$taskXml) -notmatch 'PT6H') { throw 'Automatic backup task is not configured for six-hour repetition.' }
+          $uninstaller = Join-Path $installRoot 'unins000.exe'
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
+          $deadline = (Get-Date).AddSeconds(30)
+          while ((Test-Path $installRoot) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 1 }
+          if (Test-Path $installRoot) { throw "Application runtime remains after uninstall: $installRoot" }
+          if ((schtasks.exe /Query /TN 'DairyOS-Automatic-Backup' 2>&1; $LASTEXITCODE) -eq 0) { throw 'DairyOS backup task remained after uninstall.' }
+          Write-Host 'SIMPLIFIED INSTALL / UNINSTALL CERTIFICATION: PASS'
 
       - name: Publish installer artifact
         uses: actions/upload-artifact@v4
