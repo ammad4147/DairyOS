@@ -12,42 +12,14 @@ SETTINGS_UI = (
 ).read_text(encoding="utf-8")
 
 
-def test_manual_snapshot_renderer_has_live_identity_and_generation_timestamp(monkeypatch):
-    service = DashboardDigestService(container=object())
-
-    def fake_render(*, digest_date, user_permissions):
-        assert digest_date == date(2026, 9, 6)
-        assert "dashboard.view_finance" in user_permissions
-        return (
-            "DairyOS Daily Summary — 2026-09-06",
-            "DairyOS Daily Summary — 2026-09-06\n"
-            "Operational Date: 2026-09-06\n"
-            "\n"
-            "MILK PRODUCTION\n"
-            "Total yield today: 10.0 litres\n"
-            "\n"
-            "This digest reflects governed DairyOS records for the operational date shown.",
-        )
-
-    monkeypatch.setattr(service, "render", fake_render)
-    generated_at = datetime(
-        2026, 9, 6, 14, 35, 7, tzinfo=ZoneInfo("Asia/Karachi")
-    )
-
-    subject, body = service.render_snapshot(
-        snapshot_date=date(2026, 9, 6),
-        generated_at=generated_at,
-        user_permissions={"dashboard.view", "dashboard.view_finance"},
-    )
-
-    assert subject == "DairyOS Snapshot — 2026-09-06 14:35 (Asia/Karachi)"
-    assert body.startswith(
-        "DairyOS Snapshot\n"
-        "Operational Date: 2026-09-06\n"
-        "Snapshot Generated: 2026-09-06 14:35:07 (Asia/Karachi)"
-    )
-    assert "This snapshot reflects governed DairyOS records available at the generation time shown." in body
-
+def test_manual_snapshot_uses_canonical_daily_summary_pdf_delivery():
+    source = inspect.getsource(DashboardDigestService.send_snapshot)
+    assert "_pdf_payload" in source
+    assert "_delivery_content" in source
+    assert "daily_summary_pdf(summary)" in source
+    assert "DairyOS-Daily-Summary-" in source
+    assert '"application"' in source
+    assert '"pdf"' in source
 
 def test_manual_snapshot_delivery_does_not_consume_nightly_digest_run():
     source = inspect.getsource(DashboardDigestService.send_snapshot)
