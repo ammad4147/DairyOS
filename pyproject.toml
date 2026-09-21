@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8.0", "httpx2>=2.12"]
+test = ["pytest>=8.0", "httpx2>=2.12", "pypdf>=5.0"]
 desktop = ["pywebview>=6.2.1"]
 
 [project.scripts]

@@ -212,4 +212,15 @@ class InputCatalog:
                 governance_required=True,
                 normalization_enabled=True,
             ),
+            OperationalInputDefinition(
+                input_type="youngstock_care",
+                name="Youngstock Newborn Care Entry",
+                description="Evidence of newborn calf care such as first colostrum and navel care.",
+                required_fields=["animal_id", "care_type", "completed_at"],
+                optional_fields=["quantity_liters", "quality_brix", "notes", "operator"],
+                analytics_enabled=True,
+                notification_enabled=True,
+                governance_required=True,
+                normalization_enabled=True,
+            ),
         ]
