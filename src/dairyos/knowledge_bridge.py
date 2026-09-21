@@ -43,6 +43,46 @@ STRIPPED_NAMES = frozenset({
 
 MODEL_PORT = 8477
 MODEL_READY_TIMEOUT = 180.0
+
+
+def stop_orphaned_assistant_processes() -> None:
+    """Stop stale Windows Assistant owners before package activation.
+
+    A previous Core process may have exited without its child processes being
+    reaped. In that case ``AssistantBridge.stop`` has no Popen handles, while
+    Windows still locks the old package DLLs. Only processes whose command
+    lines identify both DairyOS and an Assistant runtime are targeted.
+    """
+    if os.name != "nt":
+        return
+    query = (
+        "Get-CimInstance Win32_Process | "
+        "Where-Object { $_.Name -in @('DairyOSAssistant.exe','llama-server.exe') "
+        "-and $_.CommandLine -match '(?i)DairyOS' "
+        "-and $_.CommandLine -match '(?i)assistant|llama' } | "
+        "Select-Object -ExpandProperty ProcessId"
+    )
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", query],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    for line in result.stdout.splitlines():
+        try:
+            pid = int(line.strip())
+        except ValueError:
+            continue
+        if pid == os.getpid():
+            continue
+        subprocess.run(
+            ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
 # How long the first question of a session will wait for the model to
 # finish loading before being answered from approved knowledge instead.
 MODEL_FIRST_USE_WAIT = 180.0
