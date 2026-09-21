@@ -103,8 +103,9 @@ def test_collision_guard_keeps_unknown_state_fail_closed():
     assert "Result := True;" in block
 
     assert "lifecycle.json" in block
-    assert "DairyOS.exe" in block
-    assert "same-installation identity" in block
+    assert "LoadStringFromFile(LifecyclePath, Manifest, False)" in block
+    assert '"data_root": "' in block
+    assert '"installation_root": "' in block
 
 
 def test_installer_never_deletes_existing_programdata_to_make_room():

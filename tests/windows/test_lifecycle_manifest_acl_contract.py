@@ -117,6 +117,7 @@ def test_windows_ci_retires_installation_choice_and_certifies_canonical_collisio
     assert "PROGRAMDATA DATABASE PREFLIGHT: PASS" in workflow
     assert "OPERATIONAL STORAGE ACL CERTIFICATION: PASS" in workflow
     assert "BACKUP TREE ACL CERTIFICATION: PASS" in workflow
+    assert "INSTALL / KEEP-DATA UNINSTALL / REINSTALL CERTIFICATION: PASS" in workflow
     assert "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS" in workflow
 
     assert (
@@ -130,7 +131,7 @@ def test_windows_ci_retires_installation_choice_and_certifies_canonical_collisio
     marker_create = (
         '"preserve-me" | Set-Content -Path $marker -Encoding ascii'
     )
-    collision_start = "# The installer is clean-install-only."
+    collision_start = "# The NO path removes the DairyOS-owned state; collision safety is"
     collision_pass = (
         'Write-Host "CANONICAL DATA COLLISION '
         'FAIL-CLOSED CERTIFICATION: PASS"'

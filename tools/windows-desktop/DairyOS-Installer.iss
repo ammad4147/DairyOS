@@ -309,22 +309,30 @@ end;
 function ExistingDairyOSInstallationMatches(): Boolean;
 var
   LifecyclePath: String;
+  Manifest: String;
+  CanonicalData: String;
+  CanonicalInstall: String;
 begin
   Result := False;
   LifecyclePath := CanonicalDairyOSDataRoot() + '\lifecycle.json';
 
-  { A same-installation refresh is recognized only when both sides of the
-    lifecycle boundary are present: the durable lifecycle manifest in the
-    canonical data root and the existing DairyOS runtime in the canonical
-    application directory. Unknown or partial ProgramData remains blocked. }
-  if (not FileExists(LifecyclePath)) or
-     (not FileExists(ExpandConstant('{app}\DairyOS.exe'))) then
+  { A keep-data uninstall removes the application directory but intentionally
+    retains this durable manifest. The manifest is the installation identity;
+    requiring the old executable here incorrectly blocks reinstall. }
+  if not FileExists(LifecyclePath) then
     exit;
 
-  { The installer owns exactly this AppId, canonical application directory,
-    and canonical data directory. Requiring both durable markers is the
-    stable same-installation identity check supported by Inno Setup 6/7. }
-  Result := True;
+  if not LoadStringFromFile(LifecyclePath, Manifest, False) then
+    exit;
+
+  { Python JSON escapes Windows separators. Normalize only for this exact
+    identity comparison; no arbitrary farm state is adopted. }
+  StringChangeEx(Manifest, '\\', '\', True);
+  CanonicalData := CanonicalDairyOSDataRoot();
+  CanonicalInstall := ExpandConstant('{app}');
+  Result :=
+    (Pos('"data_root": "' + CanonicalData + '"', Manifest) > 0) and
+    (Pos('"installation_root": "' + CanonicalInstall + '"', Manifest) > 0);
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean; forward;

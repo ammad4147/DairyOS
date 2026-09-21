@@ -465,6 +465,56 @@ jobs:
 
           $uninstaller = Join-Path $installRoot "unins000.exe"
           if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
+
+          # A keep-data uninstall removes only the application payload. The
+          # durable lifecycle manifest and farm state must remain authoritative
+          # so the same installer can safely refresh the application in place.
+          $keepDataLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-keep-data.log"
+          Remove-Item $keepDataLog -Force -ErrorAction SilentlyContinue
+          $keepDataArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=YES","/LOG=$keepDataLog")
+          $keepDataUninstall = Start-Process -FilePath $uninstaller -ArgumentList $keepDataArgs -PassThru -Wait
+          if ($keepDataUninstall.ExitCode -ne 0) {
+            if (Test-Path $keepDataLog -PathType Leaf) {
+              Write-Host "KEEP-DATA UNINSTALL LOG:" -ForegroundColor Yellow
+              Get-Content $keepDataLog
+            }
+            throw "Keep-data uninstaller exited with code $($keepDataUninstall.ExitCode)."
+          }
+          if (Test-Path $installRoot) {
+            $remaining = Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue
+            if ($remaining) { throw "Application runtime remains after keep-data uninstall: $installRoot" }
+          }
+          if (-not (Test-Path $marker -PathType Leaf)) {
+            throw "Keep-data uninstall deleted the ProgramData retention marker."
+          }
+          if (-not (Test-Path (Join-Path $dataRoot "lifecycle.json") -PathType Leaf)) {
+            throw "Keep-data uninstall deleted the durable lifecycle manifest."
+          }
+
+          $reinstallLog = Join-Path $env:RUNNER_TEMP "dairyos-keep-data-reinstall.log"
+          Remove-Item $reinstallLog -Force -ErrorAction SilentlyContinue
+          $reinstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$installRoot","/LOG=$reinstallLog")
+          $reinstall = Start-Process -FilePath $installer -ArgumentList $reinstallArgs -PassThru -Wait
+          if ($reinstall.ExitCode -ne 0) {
+            if (Test-Path $reinstallLog -PathType Leaf) {
+              Write-Host "KEEP-DATA REINSTALL LOG:" -ForegroundColor Yellow
+              Get-Content $reinstallLog
+            }
+            throw "Keep-data reinstall exited with code $($reinstall.ExitCode)."
+          }
+          if (-not (Test-Path $installedExe -PathType Leaf)) {
+            throw "Keep-data reinstall did not restore the DairyOS executable."
+          }
+          if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") {
+            throw "Keep-data reinstall altered the preserved ProgramData marker."
+          }
+          $reinstalledManifest = Get-Content (Join-Path $installRoot "release-manifest.json") -Raw | ConvertFrom-Json
+          if ($reinstalledManifest.source_commit -ne $expectedHead) {
+            throw "Keep-data reinstall installed a release from the wrong source commit."
+          }
+          Write-Host "INSTALL / KEEP-DATA UNINSTALL / REINSTALL CERTIFICATION: PASS"
+
+          $uninstaller = Join-Path $installRoot "unins000.exe"
           $uninstallLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall.log"
           Remove-Item $uninstallLog -Force -ErrorAction SilentlyContinue
           $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=NO","/LOG=$uninstallLog")
@@ -491,9 +541,8 @@ jobs:
 
           Write-Host "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS"
 
-          # The installer is clean-install-only. The NO path removes the
-          # DairyOS-owned state; collision safety is exercised separately
-          # against a deliberately populated root.
+          # The NO path removes the DairyOS-owned state; collision safety is
+          # exercised separately against a deliberately populated root.
           New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
           "preserve-me" | Set-Content -Path $marker -Encoding ascii
           $markerBeforeCollision = (Get-Content $marker -Raw).Trim()
