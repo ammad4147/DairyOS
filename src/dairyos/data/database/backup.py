@@ -171,6 +171,7 @@ def create_backup(database_url: str, destination: str | Path) -> Path:
         _tool("pg_dump"),
         "--format=custom",
         "--no-owner",
+        "--no-password",
         f"--lock-wait-timeout={LOCK_WAIT_TIMEOUT}",
         "--verbose",
         *args,
