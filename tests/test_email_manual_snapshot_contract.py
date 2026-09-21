@@ -35,8 +35,11 @@ def test_snapshot_endpoint_and_recipient_selection_are_wired_to_existing_email_s
     assert "DashboardDigestService(container=container).send_snapshot" in SETTINGS_API
     assert "recipient_ids=payload.recipient_ids" in SETTINGS_API
 
-    assert "Share DairyOS Snapshot" in SETTINGS_UI
-    assert "Select All for Snapshot" in SETTINGS_UI
+    assert "Share Daily Summary" in SETTINGS_UI
+    assert "Select All for Daily Summary" in SETTINGS_UI
     assert "/settings/email/snapshot" in SETTINGS_UI
     assert "recipient_ids: selectedRecipientIds" in SETTINGS_UI
     assert "does not replace or suppress the automatic nightly summary" in SETTINGS_UI
+    assert "governed Daily Summary PDF" in SETTINGS_UI
+    assert "Share DairyOS Snapshot" not in SETTINGS_UI
+    assert "Select All for Snapshot" not in SETTINGS_UI
