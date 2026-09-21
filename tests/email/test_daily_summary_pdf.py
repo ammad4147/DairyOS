@@ -406,7 +406,7 @@ def test_exception_heavy_daily_summary_remains_one_a4_page():
 
     assert payload.startswith(b"%PDF-")
     assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
-    assert b"(40 item\(s\) require attention)" in payload
+    assert rb"(40 item\(s\) require attention)" in payload
     assert b"(+ 37 more in DairyOS)" in payload
 
 
