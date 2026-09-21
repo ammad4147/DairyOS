@@ -474,7 +474,14 @@ jobs:
           if (Test-Path $preservedFarmData) { Remove-Item $preservedFarmData -Recurse -Force }
           Remove-Item $keepDataLog -Force -ErrorAction SilentlyContinue
           $keepDataArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=YES","/PRESERVEDATAPATH=$preservedFarmData","/LOG=$keepDataLog")
-          $keepDataUninstall = Start-Process -FilePath $uninstaller -ArgumentList $keepDataArgs -PassThru -Wait
+          Write-Host "STARTING KEEP-DATA UNINSTALL: $preservedFarmData"
+          $keepDataUninstall = Start-Process -FilePath $uninstaller -ArgumentList $keepDataArgs -PassThru
+          if (-not $keepDataUninstall.WaitForExit(120000)) {
+            Write-Host "KEEP-DATA UNINSTALL TIMEOUT LOG:" -ForegroundColor Yellow
+            if (Test-Path $keepDataLog -PathType Leaf) { Get-Content $keepDataLog }
+            Stop-Process -Id $keepDataUninstall.Id -Force -ErrorAction SilentlyContinue
+            throw "Keep-data uninstaller did not finish within 120 seconds."
+          }
           if ($keepDataUninstall.ExitCode -ne 0) {
             if (Test-Path $keepDataLog -PathType Leaf) {
               Write-Host "KEEP-DATA UNINSTALL LOG:" -ForegroundColor Yellow
