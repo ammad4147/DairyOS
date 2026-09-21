@@ -1143,7 +1143,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.data_root:
             os.environ["DAIRYOS_DATA_DIR"] = str(Path(args.data_root).expanduser().resolve())
         try:
-            stage_runtime_database_url()
+            # Packaged DairyOS owns a private PostgreSQL appliance.  Use the
+            # same protected application credential and runtime discovery as
+            # normal startup; the separate system-PostgreSQL credential
+            # provider is only authoritative for non-packaged deployments.
+            if getattr(sys, "frozen", False):
+                database = prepare_database()
+                apply_database_environment(database)
+            else:
+                stage_runtime_database_url()
             from dairyos.admin.data_management import export_farm_data, validate_package
             from dairyos.data.database.session import DATABASE_URL
 

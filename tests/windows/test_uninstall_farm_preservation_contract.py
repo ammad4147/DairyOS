@@ -20,6 +20,15 @@ def test_uninstaller_preservation_uses_verified_data_management_export():
     assert '"status": "VERIFIED"' in supervisor
 
 
+def test_packaged_preservation_uses_private_appliance_authority():
+    supervisor = SUPERVISOR.read_text(encoding="utf-8")
+    export_branch = supervisor[supervisor.index('if args.farm_data_export:'):supervisor.index('    if args.lifecycle_install:')]
+    assert "if getattr(sys, \"frozen\", False):" in export_branch
+    assert "database = prepare_database()" in export_branch
+    assert "apply_database_environment(database)" in export_branch
+    assert "stage_runtime_database_url()" in export_branch
+
+
 def test_uninstaller_blocks_if_preservation_fails():
     source = ISS.read_text(encoding="utf-8-sig")
     initialize = source[source.index("function InitializeUninstall(): Boolean;"):]
