@@ -460,7 +460,7 @@ begin
   ExecResult := Exec(
     SchtasksExe,
     '/Query /TN "DairyOS-Automatic-Backup"',
-    ExpandConstant('{app}'),
+    ExpandConstant('{tmp}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     QueryResultCode
