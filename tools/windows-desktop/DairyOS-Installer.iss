@@ -527,11 +527,13 @@ begin
   if (not Exec(DairyOSExe, Params, ExpandConstant('{app}'), SW_HIDE,
     ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
   begin
-    MsgBox(
-      'DairyOS could not create and verify the requested farm-data package. ' +
-      'Uninstall is blocked and the installed farm state remains in place.',
-      mbError, MB_OK
-    );
+    Log('DairyOS uninstall: farm-data export failed with code ' + IntToStr(ResultCode) + '.');
+    if not WizardSilent then
+      MsgBox(
+        'DairyOS could not create and verify the requested farm-data package. ' +
+        'Uninstall is blocked and the installed farm state remains in place.',
+        mbError, MB_OK
+      );
     exit;
   end;
 

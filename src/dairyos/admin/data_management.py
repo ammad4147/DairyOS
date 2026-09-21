@@ -117,6 +117,11 @@ def export_farm_data(
     try:
         # 1. Farm identity
         farm_id = get_or_create_farm_instance_id(session)
+        # Do not hold the application session open while pg_dump acquires its
+        # own consistent snapshot and table locks. Keeping this session alive
+        # can retain a transaction on the private cluster and block export.
+        session.close()
+        session = None
 
         # 2. Database dump
         db_dump_path = dest / PACKAGE_DATABASE_FILENAME
@@ -191,7 +196,8 @@ def export_farm_data(
         shutil.rmtree(dest, ignore_errors=True)
         raise DataManagementError(f"Export failed: {exc}") from exc
     finally:
-        session.close()
+        if session is not None:
+            session.close()
 
 
 def validate_package(package_path: str | Path) -> dict[str, Any]:
