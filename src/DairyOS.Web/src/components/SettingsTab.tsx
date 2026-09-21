@@ -331,16 +331,16 @@ export default function SettingsTab({
         body: JSON.stringify({ recipient_ids: selectedRecipientIds }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Unable to share DairyOS snapshot.');
+      if (!response.ok) throw new Error(data.detail || 'Unable to share Daily Summary.');
       const delivered = Number(data.delivered || 0);
       const failed = Number(data.failed || 0);
       setMessage(
         failed > 0
-          ? `DairyOS snapshot shared with ${delivered} recipient(s); ${failed} delivery failed.`
-          : `DairyOS snapshot shared with ${delivered} recipient(s).`,
+          ? `Daily Summary shared with ${delivered} recipient(s); ${failed} delivery failed.`
+          : `Daily Summary shared with ${delivered} recipient(s).`,
       );
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Unable to share DairyOS snapshot.');
+      setError(sendError instanceof Error ? sendError.message : 'Unable to share Daily Summary.');
     } finally {
       setSnapshotSending(false);
     }
@@ -546,14 +546,14 @@ export default function SettingsTab({
                   {recipients.length > 0 && (
                     <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 7, padding: '6px 0', borderTop: '1px solid #1f2937' }}>
                       <input type="checkbox" checked={allRecipientsSelected} onChange={toggleAllSnapshotRecipients} />
-                      Select All for Snapshot
+                      Select All for Daily Summary
                     </label>
                   )}
                   {recipients.map(recipient => (
                     <div key={recipient.id} style={{ display: 'flex', gap: 7, alignItems: 'center', borderTop: '1px solid #1f2937', paddingTop: 6 }}>
                       <input
                         type="checkbox"
-                        aria-label={`Select ${recipient.name} for snapshot`}
+                        aria-label={`Select ${recipient.name} for Daily Summary`}
                         checked={selectedRecipientIds.includes(recipient.id)}
                         onChange={() => toggleSnapshotRecipient(recipient.id)}
                       />
@@ -563,9 +563,9 @@ export default function SettingsTab({
                   ))}
                 </div>
                 <div style={{ marginTop: 10, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
-                  <strong style={{ fontSize: 12 }}>Share DairyOS Snapshot</strong>
+                  <strong style={{ fontSize: 12 }}>Share Daily Summary</strong>
                   <div style={{ color: '#64748b', fontSize: 9, margin: '5px 0 8px' }}>
-                    Sends the current governed DairyOS snapshot through the configured DairyOS Sender. This does not replace or suppress the automatic nightly summary.
+                    Sends the current governed Daily Summary PDF through the configured DairyOS Sender. This does not replace or suppress the automatic nightly summary.
                   </div>
                   <button
                     type="button"
@@ -573,7 +573,7 @@ export default function SettingsTab({
                     onClick={() => void shareSnapshot()}
                     style={{ ...button, opacity: snapshotSending || selectedRecipientIds.length === 0 ? 0.5 : 1 }}
                   >
-                    <Mail size={13} />{snapshotSending ? 'Sharing Snapshot…' : 'Share DairyOS Snapshot'}
+                    <Mail size={13} />{snapshotSending ? 'Sharing Daily Summary…' : 'Share Daily Summary'}
                   </button>
                 </div>
               </section>
