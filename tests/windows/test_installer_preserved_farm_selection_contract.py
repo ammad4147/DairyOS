@@ -86,6 +86,19 @@ def test_matching_existing_installation_allows_application_refresh():
     assert "preserving ProgramData" in block
 
 
+def test_matching_existing_installation_compares_windows_paths_case_insensitively():
+    source = _source()
+
+    start = source.index("function ExistingDairyOSInstallationMatches(): Boolean;")
+    end = source.index("function StopInstalledDairyOSForUninstall(): Boolean; forward;")
+    block = source[start:end]
+
+    assert "Pos(Uppercase(" in block
+    assert "CanonicalData" in block
+    assert "CanonicalInstall" in block
+    assert "Uppercase(Manifest)" in block
+
+
 def test_collision_guard_keeps_unknown_state_fail_closed():
     source = _source()
 

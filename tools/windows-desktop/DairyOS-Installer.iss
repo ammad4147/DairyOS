@@ -335,9 +335,13 @@ begin
   StringChangeEx(Manifest, '\\', '\', True);
   CanonicalData := CanonicalDairyOSDataRoot();
   CanonicalInstall := ExpandConstant('{app}');
+  { Windows paths are case-insensitive. Compare the normalized identity
+    case-insensitively so a keep-data uninstall followed by reinstall cannot
+    reject the lifecycle marker written by the immediately preceding install
+    merely because a path component changed case. }
   Result :=
-    (Pos('"data_root": "' + CanonicalData + '"', Manifest) > 0) and
-    (Pos('"installation_root": "' + CanonicalInstall + '"', Manifest) > 0);
+    (Pos(Uppercase('"data_root": "' + CanonicalData + '"'), Uppercase(Manifest)) > 0) and
+    (Pos(Uppercase('"installation_root": "' + CanonicalInstall + '"'), Uppercase(Manifest)) > 0);
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean; forward;
