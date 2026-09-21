@@ -20,13 +20,13 @@ class ClinicalReceiptRequest(BaseModel):
 
 
 @router.post("/receipts")
-def record_receipt(payload: ClinicalReceiptRequest, container=Depends(get_container)) -> dict[str, Any]:
+def record_receipt(payload: ClinicalReceiptRequest, container=Depends(get_container)) -> dict[str, Any]:  # noqa: B008
     row = record_clinical_receipt(container, **payload.model_dump())
     return {"id": row.id, "item": row.item, "quantity": row.quantity, "unit": row.unit, "movement_type": row.movement_type}
 
 
 @router.get("/balance")
-def clinical_balance(container=Depends(get_container)) -> list[dict[str, Any]]:
+def clinical_balance(container=Depends(get_container)) -> list[dict[str, Any]]:  # noqa: B008
     rows = container.repository_factory.inventory().get_all()
     clinical_types = {"CLINICAL_RECEIPT", "TREATMENT_CONSUMPTION", "VACCINATION_CONSUMPTION"}
     items = sorted({row.item for row in rows if row.source_type in clinical_types})

@@ -131,8 +131,8 @@ def build_current_tmr(ctx: ReportContext) -> ReportResult:
                  Metric("milk", "Milk Today", summary.get("milk_production_today_liters"), "litres"),
                  Metric("per_litre", "Feed Cost per Litre Today", summary.get("feed_cost_per_litre_today"), "rate",
                         "Not available until milk is recorded today")],
-        notes=["Category cost averages the feeding stages that make up the category, then multiplies by the animals "
-               "currently in that category. This is the TMR authority's own method."]
+        notes=[("Category cost averages the feeding stages that make up the category, then multiplies by the animals "
+                "currently in that category. This is the TMR authority's own method.")]
         + (["Feed cost here covers the priced part of the ration only. "
             + ", ".join(str(name) for name in unpriced)
             + " has no Finance purchase price, no confirmed manual rate and no catalogue price, so it is shown as "
@@ -249,8 +249,8 @@ def build_inventory(ctx: ReportContext) -> ReportResult:
                  Metric("shortage", "In Shortage", sum(1 for r in rows if r["status"] == "Shortage"), "integer"),
                  Metric("value", "Stock Value", sum((r["stock_value"] for r in rows if r["stock_value"] is not None), money(0)),
                         "money", "Stock on hand at the latest Finance purchase price")],
-        notes=["Stock Value is a derived figure: stock on hand multiplied by the latest Finance purchase price. "
-               "Items never purchased through Finance carry no value."],
+        notes=[("Stock Value is a derived figure: stock on hand multiplied by the latest Finance purchase price. "
+                "Items never purchased through Finance carry no value.")],
     )
 
 

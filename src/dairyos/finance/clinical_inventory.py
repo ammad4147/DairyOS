@@ -40,7 +40,7 @@ def record_clinical_consumption(
     if existing is not None:
         return existing
 
-    balance = Decimal("0")
+    balance = Decimal(0)
     for row in repo.get_all():
         if row.item != item:
             continue

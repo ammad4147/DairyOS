@@ -30,11 +30,11 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.finance.classification.transaction_classifier import is_expense
-from dairyos.finance.opex_attribution import attributed_amount
 from dairyos.finance.expense_measurement import measurement_policy
-from dairyos.data.models.inventory_transaction import InventoryTransaction
+from dairyos.finance.opex_attribution import attributed_amount
 
 SEMEN_PURCHASE_ITEM = "Semen Straws (Sexed / Conventional)"
 

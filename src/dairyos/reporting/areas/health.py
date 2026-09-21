@@ -17,9 +17,9 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from dairyos.data.models.health_case import HealthCase
+from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.treatment_record import TreatmentRecord
 from dairyos.data.models.vaccination_record import VaccinationRecord
-from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.reporting.context import (
     ReportContext,
     ReportParameterError,
