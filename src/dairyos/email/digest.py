@@ -285,7 +285,7 @@ class DashboardDigestService:
         factory = RepositoryFactory.create()
         try:
             findings = factory.operational_findings().get_open()
-            return [
+            items = [
                 {
                     "finding_id": getattr(item, "finding_id", None),
                     "area": str(getattr(item, "source_module", None) or "Operational").title(),
@@ -301,6 +301,29 @@ class DashboardDigestService:
                 }
                 for item in findings
             ]
+            # The one-page report can display only the first few findings.
+            # Preserve the governed finding values while deterministically
+            # putting the most urgent severities first.
+            severity_rank = {
+                "CRITICAL": 0,
+                "HIGH": 1,
+                "MAJOR": 1,
+                "WARNING": 2,
+                "MEDIUM": 2,
+                "MODERATE": 2,
+                "LOW": 3,
+                "MINOR": 3,
+                "INFO": 4,
+            }
+            return sorted(
+                items,
+                key=lambda item: (
+                    severity_rank.get(str(item.get("severity") or "INFO").upper(), 4),
+                    str(item.get("area") or ""),
+                    str(item.get("subject_id") or ""),
+                    str(item.get("title") or ""),
+                ),
+            )
         finally:
             factory.close()
 
