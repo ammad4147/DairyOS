@@ -111,7 +111,8 @@ def test_collision_guard_keeps_unknown_state_fail_closed():
 def test_installer_never_deletes_existing_programdata_to_make_room():
     source = _source()
 
-    assert "DelTree(CanonicalDairyOSDataRoot()" not in source
+    prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in prepare
     assert "RemoveDir(" not in source
 
 

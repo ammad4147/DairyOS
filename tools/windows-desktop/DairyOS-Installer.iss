@@ -69,7 +69,6 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 Type: filesandordirs; Name: "{app}"
 ; ProgramData contains farm data and is deleted only after the operator's
 ; explicit NO preservation decision.
-Type: filesandordirs; Name: "{commonappdata}\DairyOS"; Check: ShouldDeleteFarmData
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
 
@@ -700,11 +699,6 @@ begin
   end;
 end;
 
-function ShouldDeleteFarmData(): Boolean;
-begin
-  Result := not PreserveFarmDataOnUninstall;
-end;
-
 function InitializeUninstall(): Boolean;
 var
   Choice: String;
@@ -754,5 +748,18 @@ begin
   begin
     DeleteFile(ExpandConstant('{localappdata}\DairyOS-installation-state.json'));
     RegDeleteValue(HKLM, 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers', ExpandConstant('{app}\DairyOS.exe'));
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  { ProgramData is deliberately outside declarative [UninstallDelete]
+    processing. The resolved choice is available here, after preservation
+    has succeeded and the application tree has been removed. }
+  if (CurUninstallStep = usPostUninstall) and
+     (not PreserveFarmDataOnUninstall) then
+  begin
+    Log('DairyOS uninstall: explicit remove-data choice; deleting ProgramData farm state.');
+    DelTree(CanonicalDairyOSDataRoot(), True, True, True);
   end;
 end;
