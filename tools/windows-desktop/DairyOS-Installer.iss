@@ -410,7 +410,7 @@ begin
   if not Exec(
     PowerShellExe,
     Params,
-    ExpandConstant('{app}'),
+    ExpandConstant('{tmp}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
@@ -441,7 +441,7 @@ begin
   ExecResult := Exec(
     SchtasksExe,
     '/Delete /F /TN "DairyOS-Automatic-Backup"',
-    ExpandConstant('{app}'),
+    ExpandConstant('{tmp}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
@@ -595,7 +595,7 @@ begin
     if (not Exec(
       PgCtl,
       '-D "' + DataDir + '" stop -m fast -w -t 30',
-      ExpandConstant('{app}'),
+      ExpandConstant('{tmp}'),
       SW_HIDE,
       ewWaitUntilTerminated,
       ResultCode
@@ -608,7 +608,7 @@ begin
       if Exec(
         PgCtl,
         '-D "' + DataDir + '" status',
-        ExpandConstant('{app}'),
+        ExpandConstant('{tmp}'),
         SW_HIDE,
         ewWaitUntilTerminated,
         StatusCode
