@@ -455,6 +455,16 @@ jobs:
             throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
           }
 
+          # The preflight above intentionally poisoned inherited path
+          # variables to prove that startup discovers its own private runtime.
+          # Restore the real installed authority before invoking the packaged
+          # export directly.  Otherwise the export process would inspect the
+          # disposable preflight root and correctly find no runtime credential.
+          $env:DAIRYOS_DATA_DIR = $dataRoot
+          $env:DAIRYOS_INSTALL_ROOT = $installRoot
+          $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $installRoot "runtime\PostgreSQL"
+          $env:DAIRYOS_ENV = "production"
+
           # Create a sentinel inside the DairyOS-owned farm state. The explicit
           # NO path is destructive for DairyOS-owned state, so it must not be
           # mistaken for preservation certification.
