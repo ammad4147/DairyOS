@@ -398,7 +398,7 @@ begin
     '$target = [IO.Path]::GetFullPath(''' + SafePath + '''); ' +
     'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and ' +
       '[IO.Path]::GetFullPath($_.ExecutablePath) -ieq $target } | ' +
-    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }';
+      'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
   Params :=
     '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
     PowerShellCommand + '"';

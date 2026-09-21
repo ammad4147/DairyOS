@@ -20,6 +20,7 @@ def test_uninstall_retains_runtime_safety_and_removes_application_tree():
     source = ISS.read_text(encoding="utf-8-sig")
     assert "StopInstalledDairyOSForUninstall()" in source
     assert "StopInstalledProcessByPath" in source
+    assert "-ErrorAction SilentlyContinue" in source
     assert "RemoveInstalledBackupTask()" in source
     assert 'Type: filesandordirs; Name: "{app}"' in source
     assert "farm data remains under its independent backup/recovery ownership" in source
