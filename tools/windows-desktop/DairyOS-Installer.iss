@@ -69,7 +69,7 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoo
 Type: filesandordirs; Name: "{app}"
 ; ProgramData contains farm data and is deleted only after the operator's
 ; explicit NO preservation decision.
-Type: filesandordirs; Name: "{commonappdata}\DairyOS"
+Type: filesandordirs; Name: "{commonappdata}\DairyOS"; Check: ShouldDeleteFarmData
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
 
@@ -700,12 +700,18 @@ begin
   end;
 end;
 
+function ShouldDeleteFarmData(): Boolean;
+begin
+  Result := not PreserveFarmDataOnUninstall;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   Choice: String;
   CommandLineDestination: String;
   Response: Integer;
 begin
+  PreserveFarmDataOnUninstall := False;
   Choice := UninstallPreservationChoiceFromCommandLine();
   if Choice = '' then
   begin
@@ -727,6 +733,7 @@ begin
 
   if Choice = 'YES' then
   begin
+    PreserveFarmDataOnUninstall := True;
     CommandLineDestination := PreservationDestinationFromCommandLine();
     if CommandLineDestination <> '' then
       PreservedFarmDataPath := CommandLineDestination

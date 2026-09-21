@@ -61,6 +61,14 @@ def test_uninstall_removes_runtime_generated_application_files():
     assert 'Type: filesandordirs; Name: "{app}"' in uninstall_delete
 
 
+def test_programdata_deletion_is_bound_to_explicit_remove_choice():
+    source = ISS.read_text(encoding="utf-8-sig")
+    assert 'Name: "{commonappdata}\\DairyOS"; Check: ShouldDeleteFarmData' in source
+    assert "function ShouldDeleteFarmData(): Boolean;" in source
+    assert "Result := not PreserveFarmDataOnUninstall;" in source
+    assert "PreserveFarmDataOnUninstall := True;" in source
+
+
 def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
