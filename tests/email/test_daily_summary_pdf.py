@@ -322,3 +322,89 @@ def test_active_findings_prioritize_urgent_severity(monkeypatch):
         "WARNING",
         "LOW",
     ]
+
+
+def test_daily_summary_pdf_text_is_searchable_without_ocr():
+    payload = daily_summary_pdf(
+        _summary(
+            milk={
+                "total_yield": 135.0,
+                "session_totals": {
+                    "MORNING": 45.0,
+                    "AFTERNOON": 44.0,
+                    "EVENING": 46.0,
+                },
+                "sold": 135.0,
+                "calf_feed": 0.0,
+                "domestic_use": 0.0,
+                "wastage": 0.0,
+                "unaccounted": 0.0,
+                "watchlist": [],
+            },
+            completeness={"status": "COMPLETE"},
+        )
+    )
+
+    # ReportLab emits literal text-showing operators when page compression is
+    # disabled. This certifies that the report contains selectable/searchable
+    # PDF text rather than a rasterized page.
+    assert b"(DAILY FARM SUMMARY)" in payload
+    assert b"(Total Milk Produced)" in payload
+    assert b"(45.0 L / 44.0 L / 46.0 L)" in payload
+
+
+def test_exception_heavy_daily_summary_remains_one_a4_page():
+    attention = [
+        {
+            "area": "HealthAndOperationalExceptionAreaWithLongName",
+            "subject_id": f"ANIMAL-WITH-A-VERY-LONG-IDENTIFIER-{index:03d}",
+            "severity": "CRITICAL" if index < 4 else "WARNING",
+            "title": (
+                "Exception title deliberately made very long to certify "
+                "bounded one-page rendering without adding another page "
+                f"{index}"
+            ),
+        }
+        for index in range(40)
+    ]
+    payload = daily_summary_pdf(
+        _summary(
+            milk={
+                "total_yield": 987654321.9,
+                "session_totals": {
+                    "MORNING": 329218107.3,
+                    "AFTERNOON": 329218107.3,
+                    "EVENING": 329218107.3,
+                },
+                "sold": 987650000.0,
+                "calf_feed": 1234.5,
+                "domestic_use": 987.6,
+                "wastage": 432.1,
+                "unaccounted": 1667.7,
+                "watchlist": list(range(250)),
+            },
+            herd={
+                "total": 999999,
+                "counts": {
+                    "Milking": 888888,
+                    "Dry": 11111,
+                    "Heifer": 22222,
+                    "Female Calf": 33333,
+                    "Male Calf": 44444,
+                    "Bull": 555,
+                },
+                "mortalities": list(range(123)),
+            },
+            finance={
+                "revenue_received": 987654321098.76,
+                "expenses": 876543210987.65,
+            },
+            attention=attention,
+            completeness={"status": "INCOMPLETE"},
+        )
+    )
+
+    assert payload.startswith(b"%PDF-")
+    assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
+    assert b"(40 item\(s\) require attention)" in payload
+    assert b"(+ 37 more in DairyOS)" in payload
