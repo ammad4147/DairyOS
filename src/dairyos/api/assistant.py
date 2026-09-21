@@ -77,7 +77,7 @@ async def install_assistant(files: list[UploadFile] | None = File(default=None))
     temporary: Path | None = None
     try:
         if not files:
-            result = assistant_package.install()
+                result = assistant_package.install(before_activate=bridge.stop)
         else:
             if len(files) != 1:
                 raise ValueError("Select one approved .dairyassistant package file.")
@@ -88,7 +88,7 @@ async def install_assistant(files: list[UploadFile] | None = File(default=None))
             package_path = temporary / "assistant-package.dairyassistant"
             with package_path.open("wb") as handle:
                 shutil.copyfileobj(package.file, handle)
-            result = assistant_package.install(package_path)
+            result = assistant_package.install(package_path, before_activate=bridge.stop)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     finally:

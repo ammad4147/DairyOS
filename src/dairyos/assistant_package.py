@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import Callable
 
 ASSISTANT_ROOT = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "DairyOS" / "assistant"
 PACKAGE_SOURCE = Path(
@@ -60,7 +61,11 @@ def _compatible(manifest: dict) -> bool:
     return str(manifest.get("compatible_core", "")).startswith(">=0.1.0")
 
 
-def install(source: Path | None = None) -> dict:
+def install(
+    source: Path | None = None,
+    *,
+    before_activate: Callable[[], None] | None = None,
+) -> dict:
     package = source or PACKAGE_SOURCE
     if package is None or not package.is_file():
         raise FileNotFoundError("No approved Assistant package source is configured.")
@@ -115,6 +120,12 @@ def install(source: Path | None = None) -> dict:
         payload = candidates[0].parent
         if not (payload / "DairyOSAssistant.exe").is_file():
             raise ValueError("Assistant package executable is missing.")
+        # Windows cannot replace DLLs that are still loaded by the running
+        # Assistant/model process. Stop that owner only after validation and
+        # immediately before activation, so rejected packages do not disrupt
+        # a working installation.
+        if before_activate is not None:
+            before_activate()
         target = ASSISTANT_ROOT.parent / ".assistant-active"
         backup = ASSISTANT_ROOT.parent / ".assistant-previous"
         if target.exists():

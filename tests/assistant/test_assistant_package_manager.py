@@ -155,3 +155,13 @@ def test_windows_utf8_manifest_is_reported_as_installed(tmp_path, monkeypatch):
         "\ufeff" + manifest.read_text(encoding="utf-8"), encoding="utf-8"
     )
     assert assistant_package.status()["installed"] is True
+
+
+def test_valid_package_stops_runtime_before_activation(tmp_path, monkeypatch):
+    package = _single_file_package(tmp_path)
+    monkeypatch.setattr(assistant_package, "ASSISTANT_ROOT", tmp_path / "assistant")
+    calls = []
+
+    assistant_package.install(package, before_activate=lambda: calls.append("stop"))
+
+    assert calls == ["stop"]
