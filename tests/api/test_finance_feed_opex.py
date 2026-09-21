@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import dairyos.api.finance_ledger as finance_ledger_api
 from dairyos.finance.expense_taxonomy import (
     EXPENSE_TAXONOMIES,
@@ -167,6 +169,7 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
     )
     assert milk.status_code == 200, milk.text
 
+    expense_day = date.today() - timedelta(days=29)
     assert _post_expense(
         client,
         quantity=100,
@@ -183,8 +186,8 @@ def test_feed_opex_cost_endpoint_uses_governed_tmr_and_finance_opex(
         unit_rate=500,
         cop_classification="OPEX",
         cop_attribution_method="PERIODIC",
-        cop_coverage_start="2026-08-23",
-        cop_coverage_end="2026-08-23",
+        cop_coverage_start=expense_day.isoformat(),
+        cop_coverage_end=expense_day.isoformat(),
     ).status_code == 200
 
     monkeypatch.setattr(

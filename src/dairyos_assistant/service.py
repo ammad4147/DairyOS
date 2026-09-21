@@ -37,7 +37,7 @@ from dairyos_assistant.generation import (
     generate_general_answer,
     generate_operational_guidance_answer,
 )
-from dairyos_assistant.model import ModelProvider, NullProvider
+from dairyos_assistant.model import LlamaServerProvider, ModelProvider, NullProvider
 from dairyos_assistant.policy import Decision, classify, is_instructional
 from dairyos_assistant.retrieval import (
     NO_EVIDENCE_TEXT,
@@ -166,11 +166,26 @@ class Assistant:
                 }
                 for hit in hits
             ]
-            answer, failure = generate_operational_guidance_answer(
-                self.provider,
-                question,
-                [hit.item for hit in hits],
-            )
+            # Refusing access to live farm data is deterministic. Use the
+            # optional model for helpful phrasing when it is ready, but do not
+            # block the refusal on model startup or failure.
+            # The production loopback provider may report a live server while
+            # its generation worker is still wedged. Refusal must not wait on
+            # that optional process; deterministic test/dedicated providers
+            # still exercise the useful guidance generation path.
+            if isinstance(self.provider, LlamaServerProvider):
+                model_available = False
+            else:
+                health = getattr(self.provider, "health", None)
+                model_available = health() if callable(health) else True
+            if model_available:
+                answer, failure = generate_operational_guidance_answer(
+                    self.provider,
+                    question,
+                    [hit.item for hit in hits],
+                )
+            else:
+                answer, failure = None, "model unavailable"
             response = {
                 "decision": verdict.decision.value,
                 "stage": "GUIDANCE_ANSWERED" if answer else "RELATED_GUIDANCE",
@@ -193,6 +208,7 @@ class Assistant:
                     if hits
                     else "Open the relevant DairyOS screen to review the current record, then apply the related dairy best-practice guidance shown there."
                 )
+                response["verbatim"] = True
                 response["model_error"] = failure
             return response
 

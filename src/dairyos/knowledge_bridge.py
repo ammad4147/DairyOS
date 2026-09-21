@@ -285,11 +285,10 @@ class AssistantBridge:
                 return {"ok": False, "error": f"unreadable response from the Assistant: {exc}"}
 
     def ask(self, question: str) -> dict[str, Any]:
-        # Start first, then wait. On the very first question the model process
-        # does not exist yet, so waiting before starting would skip the wait
-        # entirely and lose the answer it exists to protect.
+        # Start the isolated Assistant first and let it classify the question.
+        # In particular, operational-data refusals are deterministic and must
+        # not wait for the optional model to finish loading.
         self.start()
-        self._await_model_once()
         return self._exchange({"type": "ask", "question": question})
 
     def _await_model_once(self) -> None:
