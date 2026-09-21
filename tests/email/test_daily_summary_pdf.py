@@ -408,3 +408,116 @@ def test_exception_heavy_daily_summary_remains_one_a4_page():
     assert payload.count(b"/Type /Page") - payload.count(b"/Type /Pages") == 1
     assert b"(40 item\(s\) require attention)" in payload
     assert b"(+ 37 more in DairyOS)" in payload
+
+
+def test_scheduled_delivery_uses_canonical_summary_and_pdf_attachment(monkeypatch):
+    digest_date = date(2026, 9, 20)
+    summary = _summary(
+        completeness={"status": "COMPLETE"},
+        milk={
+            "total_yield": 135.0,
+            "session_totals": {
+                "MORNING": 45.0,
+                "AFTERNOON": 44.0,
+                "EVENING": 46.0,
+            },
+            "sold": 135.0,
+            "calf_feed": 0.0,
+            "domestic_use": 0.0,
+            "wastage": 0.0,
+            "unaccounted": 0.0,
+            "watchlist": [],
+        },
+    )
+    sent = []
+    payload_calls = []
+
+    class Query:
+        def __init__(self):
+            self.model = None
+
+        def filter_by(self, **kwargs):
+            return self
+
+        def filter(self, *args):
+            return self
+
+        def first(self):
+            return None
+
+    class Session:
+        def __init__(self):
+            self.next_id = 1
+
+        def query(self, model):
+            return Query()
+
+        def add(self, value):
+            if getattr(value, "id", None) is None and value.__class__.__name__ == "EmailDigestRun":
+                value.id = self.next_id
+                self.next_id += 1
+
+        def commit(self):
+            return None
+
+        def refresh(self, value):
+            if getattr(value, "id", None) is None:
+                value.id = 1
+
+    factory = SimpleNamespace(
+        session=Session(),
+        users=lambda: SimpleNamespace(get_all=lambda: []),
+        app_settings=lambda: SimpleNamespace(
+            get=lambda key: (
+                '[{"email":"manager@example.com"}]'
+                if key == "email_notification_recipients"
+                else None
+            )
+        ),
+        close=lambda: None,
+    )
+    monkeypatch.setattr("dairyos.email.digest.RepositoryFactory.create", lambda: factory)
+
+    service = DashboardDigestService(
+        container=SimpleNamespace(repository_factory=SimpleNamespace())
+    )
+    service.mail.get_config = lambda: EmailSenderConfig(
+        sender_email="dairyos@example.com",
+        sender_display_name="DairyOS",
+        smtp_host="smtp.example.com",
+        smtp_port=587,
+        smtp_username="user",
+        smtp_password="secret",
+        use_tls=True,
+    )
+
+    def fake_payload(*, digest_date, user_permissions):
+        payload_calls.append((digest_date, user_permissions))
+        return summary
+
+    service._pdf_payload = fake_payload
+    service.mail.send = lambda **kwargs: sent.append(kwargs)
+
+    result = service.send_for_date(digest_date)
+
+    assert result["status"] == "COMPLETED"
+    assert result["delivered"] == 1
+    assert result["failed"] == 0
+    assert payload_calls == [
+        (
+            digest_date,
+            {"dashboard.view", "dashboard.view_finance"},
+        )
+    ]
+    assert len(sent) == 1
+    message = sent[0]
+    assert message["recipient"] == "manager@example.com"
+    assert message["subject"].startswith("DairyOS Daily Summary")
+    assert "Data status: Complete" in message["body"]
+    assert len(message["attachments"]) == 1
+    filename, payload, maintype, subtype = message["attachments"][0]
+    assert filename == "DairyOS-Daily-Summary-2026-09-20.pdf"
+    assert payload.startswith(b"%PDF-")
+    assert maintype == "application"
+    assert subtype == "pdf"
+    assert b"(DAILY FARM SUMMARY)" in payload
