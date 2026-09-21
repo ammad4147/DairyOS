@@ -712,6 +712,7 @@ jobs:
           $taskAfterUninstall = schtasks.exe /Query /TN 'DairyOS-Automatic-Backup' 2>&1
           if ($LASTEXITCODE -eq 0) { throw 'DairyOS backup task remained after uninstall.' }
           Write-Host 'SIMPLIFIED INSTALL / UNINSTALL CERTIFICATION: PASS'
+          $global:LASTEXITCODE = 0
 
       - name: Publish installer artifact
         uses: actions/upload-artifact@v4
