@@ -622,6 +622,20 @@ begin
     end;
   end;
 
+  { pg_ctl normally waits for the exact cluster to stop. Also enforce that
+    no bundled postgres.exe remains from this installation, without touching
+    unrelated PostgreSQL installations elsewhere on the machine. }
+  if not StopInstalledProcessByPath(ExpandConstant('{app}\runtime\PostgreSQL\bin\postgres.exe')) then
+  begin
+    MsgBox(
+      'DairyOS bundled PostgreSQL processes could not be stopped by installed path. ' +
+      'Uninstall is blocked so unrelated processes are not affected.',
+      mbError,
+      MB_OK
+    );
+    exit;
+  end;
+
   { Stop only processes whose executable path is inside the installed
     DairyOS directory. Image-name matching could terminate an unrelated
     process that happens to use the same filename. }

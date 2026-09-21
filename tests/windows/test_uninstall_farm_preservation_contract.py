@@ -45,6 +45,16 @@ def test_silent_preservation_success_does_not_block_uninstall():
     assert "Complete DairyOS farm data was saved and verified" in export
 
 
+def test_uninstall_stops_only_bundled_postgres_runtime():
+    source = ISS.read_text(encoding="utf-8-sig")
+    start = source.index("function StopInstalledDairyOSForUninstall(): Boolean;")
+    body = source.index("begin", start)
+    end = source.index("function UninstallPreservationChoiceFromCommandLine", body)
+    section = source[body:end]
+    assert "runtime\\PostgreSQL\\bin\\postgres.exe" in section
+    assert "StopInstalledProcessByPath" in section
+
+
 def test_clean_installer_still_never_imports_or_discovers_farm_package():
     source = ISS.read_text(encoding="utf-8-sig")
     prepare = source[source.index("function PrepareToInstall"):source.index("function ShouldLaunchDairyOS")]
