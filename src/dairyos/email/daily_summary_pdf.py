@@ -53,7 +53,7 @@ def _row(c: canvas.Canvas, x: float, y: float, label: str, value: str, width: fl
 def daily_summary_pdf(summary: dict[str, Any]) -> bytes:
     """Render the governed daily-summary payload as exactly one A4 page."""
     output = BytesIO()
-    c = canvas.Canvas(output, pagesize=A4, pageCompression=1)
+    c = canvas.Canvas(output, pagesize=A4, pageCompression=0)
     width, height = A4
     margin = 9 * mm
     usable = width - 2 * margin
