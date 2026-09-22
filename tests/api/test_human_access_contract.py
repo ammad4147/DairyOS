@@ -57,6 +57,13 @@ def test_initial_pin_is_self_service_without_a_setup_code():
     assert "one-time setup code" not in admin.lower()
 
 
+def test_milk_operator_reuses_milk_fields_without_loading_finance_ledger():
+    console = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanOperatorConsole.tsx").read_text(encoding="utf-8")
+    milk = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "MilkTab.tsx").read_text(encoding="utf-8")
+    assert "<MilkTab operatorMode />" in console
+    assert "operatorMode" in milk and "Promise.resolve({" in milk
+
+
 def test_production_routes_require_named_human_session_and_capability():
     source = APP.read_text(encoding="utf-8")
     assert "X-DairyOS-Human-Session" in source

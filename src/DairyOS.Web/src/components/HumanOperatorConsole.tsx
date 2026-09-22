@@ -18,7 +18,7 @@ export default function HumanOperatorConsole({ identity, onLogout }: Props) {
           <button type="button" onClick={onLogout} style={button}>Logout</button>
         </div>
       </header>
-      {view === 'reports' ? <ReportingTab /> : milk ? <MilkTab /> : <FinanceTab />}
+      {view === 'reports' ? <ReportingTab /> : milk ? <MilkTab operatorMode /> : <FinanceTab />}
     </div>
   );
 }

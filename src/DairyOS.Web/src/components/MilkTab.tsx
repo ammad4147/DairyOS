@@ -137,6 +137,7 @@ type SelectedPanel =
   | null;
 
 type Props = {
+  operatorMode?: boolean;
   initialOpenModal?: boolean;
   onModalClose?: () => void;
   herdMasterList?: HerdAnimal[];
@@ -346,6 +347,7 @@ const monthOptions = () => {
 };
 
 export default function MilkTab({
+  operatorMode = false,
   initialOpenModal = false,
   onModalClose,
   herdMasterList = [],
@@ -669,11 +671,11 @@ export default function MilkTab({
           `/farm/milk/quality?quality_date=${qualityDate}`,
         ),
 
-        request<{
-          transactions: FinanceRow[];
-        }>(
-          '/farm/finance-ledger',
-        ),
+        operatorMode
+          ? Promise.resolve({ transactions: [] as FinanceRow[] })
+          : request<{
+              transactions: FinanceRow[];
+            }>('/farm/finance-ledger'),
 
         request<MilkCapacity>(
           `/farm/milk/capacity?through_date=${bounds.end > today() ? today() : bounds.end}`,
