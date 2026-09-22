@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from dairyos.platform.paths import logs_dir
+
 logger = logging.getLogger(__name__)
 
 # Variables that would give the child a route to operational state, or the
@@ -334,7 +336,16 @@ class AssistantBridge:
         if runtime is not None:
             model, server = runtime
             if self._model is None or self._model.poll() is not None:
-                log_dir = Path(os.environ.get("DAIRYOS_RUNTIME_LOG_DIR", _bundle_root() / "logs"))
+                # The bundle directory is read-only in a normal Windows
+                # installation (``C:\\Program Files\\DairyOS``).  Keep an
+                # explicit runtime override for tests/portable deployments,
+                # but default to the managed writable data area so model
+                # startup cannot fail merely because the install is packaged.
+                log_dir = (
+                    Path(os.environ["DAIRYOS_RUNTIME_LOG_DIR"])
+                    if os.environ.get("DAIRYOS_RUNTIME_LOG_DIR")
+                    else logs_dir()
+                )
                 log_dir.mkdir(parents=True, exist_ok=True)
                 profile, profile_flags = _model_profile(server, log_dir)
                 llama_log = (log_dir / "assistant-llama.log").open("a", encoding="utf-8")
