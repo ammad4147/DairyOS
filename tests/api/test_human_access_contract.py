@@ -37,6 +37,12 @@ def test_human_access_audit_events_supply_repository_timestamp():
     assert "created_at=utcnow()" not in source
 
 
+def test_human_access_login_uses_json_request_body_not_query_pin():
+    source = ACCESS.read_text(encoding="utf-8")
+    assert "class LoginRequest(BaseModel)" in source
+    assert "def login(payload: LoginRequest)" in source
+
+
 def test_production_routes_require_named_human_session_and_capability():
     source = APP.read_text(encoding="utf-8")
     assert "X-DairyOS-Human-Session" in source

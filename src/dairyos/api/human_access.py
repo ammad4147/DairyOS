@@ -62,6 +62,11 @@ class InitialPinRequest(PinRequest):
     setup_code: str = Field(min_length=16)
 
 
+class LoginRequest(BaseModel):
+    identity_id: int
+    pin: str
+
+
 def _validate_pin(pin: str, confirmation: str | None = None) -> str:
     if not pin.isdigit() or len(pin) != 4:
         raise HTTPException(status_code=422, detail="PIN must contain exactly four digits")
@@ -241,11 +246,11 @@ def set_active(identity_id: int, active: bool, x_dairyos_human_session: str | No
 
 
 @router.post("/login")
-def login(identity_id: int, pin: str) -> dict[str, Any]:
-    pin = _validate_pin(pin)
+def login(payload: LoginRequest) -> dict[str, Any]:
+    pin = _validate_pin(payload.pin)
     factory = RepositoryFactory.create()
     try:
-        identity = factory.session.get(HumanIdentity, identity_id)
+        identity = factory.session.get(HumanIdentity, payload.identity_id)
         now = utcnow()
         if identity is None or not identity.active:
             raise HTTPException(status_code=401, detail="Identity is unavailable")
