@@ -28,6 +28,7 @@ import sys
 import threading
 import time
 import ctypes
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -70,15 +71,31 @@ def _ram_gb() -> float:
 
 
 def _model_profile(server: Path, log_dir: Path) -> tuple[str, list[str]]:
-    """Choose a conservative local profile; GPU is used only when enumerated."""
+    """Choose a profile from the runtime's capabilities, never a GPU model.
+
+    ``llama-server --list-devices`` is the source of truth for accelerator
+    support.  This deliberately recognises backend names, not vendors or
+    device IDs, so the same package adapts to any supported accelerator and
+    remains usable on CPU-only machines.
+    """
     devices = ""
     try:
         probe = subprocess.run([str(server), "--list-devices"], capture_output=True, text=True, timeout=10, check=False)
         devices = (probe.stdout or "") + (probe.stderr or "")
     except (OSError, subprocess.TimeoutExpired):
         pass
-    if devices and "Vulkan" in devices and "7900" in devices:
-        return "GPU", ["-ngl", "99", "-c", "8192", "--flash-attn", "on"]
+    # llama.cpp prefixes enumerated devices with a backend identifier, e.g.
+    # Vulkan0, CUDA0, Metal0, or SYCL0.  Do not match a vendor/model string:
+    # the package must adapt to the capabilities available on each machine.
+    accelerator = re.search(
+        r"(?im)^\s*(Vulkan|CUDA|ROCm|HIP|SYCL|Metal|OpenCL)\d*\s*:",
+        devices,
+    )
+    if accelerator:
+        backend = accelerator.group(1).upper()
+        logger.info("Assistant accelerator probe: backend=%s", backend)
+        return "ACCELERATOR", ["-ngl", "99", "-c", "8192", "--flash-attn", "on"]
+    logger.info("Assistant accelerator probe: no usable accelerator enumerated")
     cores = _physical_cores()
     if cores >= 8 and _ram_gb() >= 8:
         return "DESKTOP_CPU", ["-t", str(cores), "-c", "4096"]
