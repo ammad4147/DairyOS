@@ -21,12 +21,14 @@ if model.is_file():
 elif not ALLOW_MISSING_RUNTIME:
     raise FileNotFoundError(f"Assistant runtime artifact missing: {model}")
 
-llama_files = list((runtime / "llama").glob("*")) if (runtime / "llama").is_dir() else []
-if not llama_files and not ALLOW_MISSING_RUNTIME:
-    raise FileNotFoundError(f"Assistant runtime directory missing: {runtime / 'llama'}")
-for path in llama_files:
-    if path.is_file():
-        assistant_runtime_datas.append((str(path), "assistant-runtime/llama"))
+for runtime_name in ("llama", "llama-vulkan"):
+    runtime_dir = runtime / runtime_name
+    runtime_files = list(runtime_dir.glob("*")) if runtime_dir.is_dir() else []
+    if runtime_name == "llama" and not runtime_files and not ALLOW_MISSING_RUNTIME:
+        raise FileNotFoundError(f"Assistant runtime directory missing: {runtime_dir}")
+    for path in runtime_files:
+        if path.is_file():
+            assistant_runtime_datas.append((str(path), f"assistant-runtime/{runtime_name}"))
 
 assistant = Analysis(
     [str(ROOT / "src" / "dairyos_assistant" / "service.py")],
