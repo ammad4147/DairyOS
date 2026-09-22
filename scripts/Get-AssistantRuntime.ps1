@@ -31,6 +31,7 @@ $RepoRoot    = Split-Path -Parent $PSScriptRoot
 $RuntimeRoot = Join-Path $RepoRoot "runtime\assistant"
 $ModelDir    = Join-Path $RuntimeRoot "model"
 $LlamaDir    = Join-Path $RuntimeRoot "llama"
+$VulkanDir   = Join-Path $RuntimeRoot "llama-vulkan"
 $WorkDir     = Join-Path $RuntimeRoot "_download"
 
 $ModelPath   = Join-Path $ModelDir "Qwen3-1.7B-Q4_K_M.gguf"
@@ -43,6 +44,9 @@ $ModelBytes  = 1282439264
 
 $ZipUrl      = "https://github.com/ggml-org/llama.cpp/releases/download/b10456/llama-b10456-bin-win-cpu-x64.zip"
 $ServerSha   = "B3A37101C241635E5F6183FA88B1286B477FAAA4B573FB00EC484E0C6346B10F"
+$VulkanZipUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b10456/llama-b10456-bin-win-vulkan-x64.zip"
+$VulkanZipSha = "60F3D31CC7C2FE62DE8F34F8D75FFD06655B4DE83BCC5AA6F08DF56BE42EBB91"
+$VulkanServerSha = "B3A37101C241635E5F6183FA88B1286B477FAAA4B573FB00EC484E0C6346B10F"
 
 function Test-Pinned {
     param([string]$Path, [string]$ExpectedSha, [long]$ExpectedBytes = 0)
@@ -63,7 +67,7 @@ function Test-Pinned {
     return $true
 }
 
-New-Item -ItemType Directory -Force -Path $ModelDir, $LlamaDir, $WorkDir | Out-Null
+New-Item -ItemType Directory -Force -Path $ModelDir, $LlamaDir, $VulkanDir, $WorkDir | Out-Null
 
 # -- model ------------------------------------------------------------------
 
@@ -107,6 +111,34 @@ if ((-not $Force) -and (Test-Pinned -Path $ServerPath -ExpectedSha $ServerSha)) 
         throw "llama-server.exe failed verification against the pinned sha256. Refusing to ship an untested artefact."
     }
     Write-Host "llama-server verified."
+}
+
+# -- optional Vulkan llama-server ------------------------------------------
+
+$VulkanServerPath = Join-Path $VulkanDir "llama-server.exe"
+if ((-not $Force) -and (Test-Pinned -Path $VulkanServerPath -ExpectedSha $VulkanServerSha)) {
+    Write-Host "Vulkan llama-server already present and verified."
+} else {
+    $vulkanZipPath = Join-Path $WorkDir "llama-b10456-bin-win-vulkan-x64.zip"
+    Write-Host "Downloading llama.cpp b10456 Vulkan runtime..."
+    & curl.exe -L -C - --fail --retry 3 -o $vulkanZipPath $VulkanZipUrl
+    if ($LASTEXITCODE -ne 0) { throw "llama.cpp Vulkan download failed (curl exit $LASTEXITCODE)" }
+    if (-not (Test-Pinned -Path $vulkanZipPath -ExpectedSha $VulkanZipSha)) {
+        throw "Vulkan archive failed verification against the pinned sha256. Refusing to extract it."
+    }
+
+    $vulkanExtractDir = Join-Path $WorkDir "b10456-vulkan"
+    if (Test-Path -LiteralPath $vulkanExtractDir) { Remove-Item -Recurse -Force $vulkanExtractDir }
+    Expand-Archive -LiteralPath $vulkanZipPath -DestinationPath $vulkanExtractDir -Force
+
+    $vulkanFound = Get-ChildItem -Path $vulkanExtractDir -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+    if (-not $vulkanFound) { throw "Vulkan llama-server.exe not found in the downloaded archive" }
+    Copy-Item -Path (Join-Path $vulkanFound.DirectoryName "*") -Destination $VulkanDir -Recurse -Force
+
+    if (-not (Test-Pinned -Path $VulkanServerPath -ExpectedSha $VulkanServerSha)) {
+        throw "Vulkan llama-server.exe failed verification against the pinned sha256. Refusing to ship an untested artefact."
+    }
+    Write-Host "Vulkan llama-server verified."
 }
 
 Remove-Item -Recurse -Force $WorkDir -ErrorAction SilentlyContinue

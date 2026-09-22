@@ -109,6 +109,25 @@ def _model_profile(server: Path, log_dir: Path) -> tuple[str, list[str]]:
     return "LOW_SPEC_CPU", ["-t", str(cores), "-c", "2048"]
 
 
+def _has_accelerator(server: Path) -> bool:
+    """Return whether this exact server binary enumerates an accelerator."""
+    try:
+        probe = subprocess.run(
+            [str(server), "--list-devices"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    devices = (probe.stdout or "") + (probe.stderr or "")
+    return bool(re.search(
+        r"(?im)^\s*(Vulkan|CUDA|ROCm|HIP|SYCL|Metal|OpenCL)\d*\s*:",
+        devices,
+    ))
+
+
 def stop_orphaned_assistant_processes() -> None:
     """Stop stale Windows Assistant owners before package activation.
 
@@ -260,11 +279,23 @@ def model_paths() -> tuple[Path, Path] | None:
             ]
         )
     server_name = "llama-server.exe" if os.name == "nt" else "llama-server"
+    found_cpu: tuple[Path, Path] | None = None
     for base, _ in candidates:
         model = next(iter(sorted((base / "model").glob("*.gguf"))), None) if (base / "model").is_dir() else None
-        server = base / "llama" / server_name
-        if model and server.is_file():
-            return model, server
+        if not model:
+            continue
+        for server_dir in (base / "llama-vulkan", base / "llama"):
+            server = server_dir / server_name
+            if not server.is_file():
+                continue
+            # Prefer a separately packaged accelerator runtime only when its
+            # own binary confirms a usable device. Keep CPU as a real fallback
+            # for machines where Vulkan/CUDA/etc. is absent or unusable.
+            if server_dir.name == "llama-vulkan" and _has_accelerator(server):
+                return model, server
+            if server_dir.name == "llama" and found_cpu is None:
+                found_cpu = (model, server)
+    return found_cpu
     return None
 
 
