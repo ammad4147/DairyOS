@@ -267,7 +267,7 @@ def assistant_command() -> list[str] | None:
     return None
 
 
-def model_paths() -> tuple[Path, Path] | None:
+def model_paths(*, probe_accelerator: bool = True) -> tuple[Path, Path] | None:
     """The bundled model and server, wherever this build keeps them."""
     candidates = []
     for root in _assistant_roots():
@@ -291,7 +291,7 @@ def model_paths() -> tuple[Path, Path] | None:
             # Prefer a separately packaged accelerator runtime only when its
             # own binary confirms a usable device. Keep CPU as a real fallback
             # for machines where Vulkan/CUDA/etc. is absent or unusable.
-            if server_dir.name == "llama-vulkan" and _has_accelerator(server):
+            if server_dir.name == "llama-vulkan" and probe_accelerator and _has_accelerator(server):
                 return model, server
             if server_dir.name == "llama" and found_cpu is None:
                 found_cpu = (model, server)
@@ -521,7 +521,10 @@ class AssistantBridge:
             "corpus_loads": False,
             "retrieval_works": False,
             "refuses_operational": False,
-            "model_bundled": model_paths() is not None,
+            # The health self-test must remain model-free.  Checking that a
+            # model file exists must not launch an accelerator binary merely
+            # to enumerate devices.
+            "model_bundled": model_paths(probe_accelerator=False) is not None,
             "error": "",
         }
 
