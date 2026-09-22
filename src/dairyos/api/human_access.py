@@ -59,7 +59,7 @@ class PinRequest(BaseModel):
 
 
 class InitialPinRequest(PinRequest):
-    setup_code: str = Field(min_length=16)
+    """Self-service first PIN for an active identity without a PIN."""
 
 
 class LoginRequest(BaseModel):
@@ -171,15 +171,12 @@ def create_person(payload: PersonRequest, x_dairyos_human_session: str | None = 
     role = payload.role or GROUPS[payload.entry_group][1]
     factory = RepositoryFactory.create()
     try:
-        setup_code = secrets.token_urlsafe(18)
-        identity = HumanIdentity(display_name=payload.display_name.strip(), entry_group=payload.entry_group, role=role, pin_setup_hash=_session_hash(setup_code))
+        identity = HumanIdentity(display_name=payload.display_name.strip(), entry_group=payload.entry_group, role=role)
         factory.session.add(identity)
         factory.session.commit()
         factory.session.refresh(identity)
         _audit(factory, "identity_created", current.display_name, f"Identity created id={identity.id} group={identity.entry_group} role={identity.role}")
-        result = _public_identity(identity)
-        result["one_time_setup_code"] = setup_code
-        return result
+        return _public_identity(identity)
     finally:
         factory.close()
 
@@ -214,10 +211,9 @@ def establish_initial_pin(identity_id: int, payload: InitialPinRequest) -> dict[
         identity = factory.session.get(HumanIdentity, identity_id)
         if identity is None or not identity.active:
             raise HTTPException(status_code=404, detail="Identity not found")
-        if identity.pin_hash or not identity.pin_setup_hash or not hmac.compare_digest(identity.pin_setup_hash, _session_hash(payload.setup_code)):
+        if identity.pin_hash:
             raise HTTPException(status_code=409, detail="Initial PIN setup is unavailable")
         identity.pin_hash, identity.pin_salt = _hash_pin(pin)
-        identity.pin_setup_hash = None
         factory.session.add(identity)
         factory.session.commit()
         _audit(factory, "pin_established", identity.display_name, "Initial PIN established")

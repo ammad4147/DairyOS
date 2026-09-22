@@ -25,7 +25,7 @@ def test_gate_contains_required_entry_groups_and_safe_states():
 
 def test_human_access_api_contains_bootstrap_pin_lockout_and_logout_contract():
     source = ACCESS.read_text(encoding="utf-8")
-    for marker in ("/status", "/bootstrap", "/login", "/logout", "MAX_PIN_FAILURES", "locked_until", "pin_setup_hash"):
+    for marker in ("/status", "/bootstrap", "/login", "/logout", "MAX_PIN_FAILURES", "locked_until"):
         assert marker in source
     assert "PIN" in source
     assert "session_token" in source
@@ -46,6 +46,15 @@ def test_human_access_login_uses_json_request_body_not_query_pin():
 def test_person_creation_keeps_authenticated_admin_for_audit_actor():
     source = ACCESS.read_text(encoding="utf-8")
     assert "_, current = _require_admin(x_dairyos_human_session)" in source
+
+
+def test_initial_pin_is_self_service_without_a_setup_code():
+    api = ACCESS.read_text(encoding="utf-8")
+    gate = GATE.read_text(encoding="utf-8")
+    admin = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanIdentityAdmin.tsx").read_text(encoding="utf-8")
+    assert "setup_code" not in api
+    assert "One-time PIN setup code" not in gate
+    assert "one-time setup code" not in admin.lower()
 
 
 def test_production_routes_require_named_human_session_and_capability():
