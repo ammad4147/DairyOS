@@ -147,6 +147,14 @@ def test_grounding_gate_rules():
     assert not check("I checked your records and PD is due.", evidence).ok
 
 
+def test_grounding_gate_rejects_decoder_repetition():
+    evidence = "PD becomes due 35 days after the last insemination."
+    repeated = "PD becomes due 35 days after the last insemination. " * 3
+    verdict = check(repeated, evidence)
+    assert not verdict.ok
+    assert any("repeated generated sentence" in violation for violation in verdict.violations)
+
+
 # -- protocol ------------------------------------------------------------------------
 
 

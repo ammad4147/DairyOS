@@ -57,6 +57,27 @@ _DATA_ACCESS = re.compile(
     re.I,
 )
 _SCAFFOLD = re.compile(r"REFERENCE:|EVIDENCE:|Rules you must follow|Reasoning task|\[\d+\]|The applicable fact is", re.I)
+_SENTENCE_SPLIT = re.compile(r"(?:[.!?\u0964\u06d4]+|\n+)")
+
+
+def _repetition_violation(text: str) -> str | None:
+    """Reject decoder loops while allowing ordinary short lists and emphasis.
+
+    Small local models can enter a loop and repeat one sentence many times.
+    Such a draft may still share enough words with the evidence to pass the
+    grounding overlap check, but it is not an answer an operator can use.
+    Require a meaningful sentence (at least 12 characters) and three repeats;
+    this avoids rejecting normal duplicated labels or short acknowledgements.
+    """
+    units = [re.sub(r"\s+", " ", unit).strip().casefold() for unit in _SENTENCE_SPLIT.split(text)]
+    units = [unit for unit in units if len(unit) >= 12]
+    counts: dict[str, int] = {}
+    for unit in units:
+        counts[unit] = counts.get(unit, 0) + 1
+    repeated = max(counts.values(), default=0)
+    if repeated >= 3:
+        return f"repeated generated sentence ({repeated} times)"
+    return None
 
 
 @dataclass(frozen=True)
@@ -104,6 +125,9 @@ def check(
     if not text:
         return Verdict(False, ("empty answer",), (), 0.0, record_ids)
     violations: list[str] = []
+    repeated = _repetition_violation(text)
+    if repeated:
+        violations.append(repeated)
     if len(text) > MAX_ANSWER_CHARACTERS:
         violations.append(f"answer is {len(text)} characters, over the {MAX_ANSWER_CHARACTERS} limit")
     if not evidence.strip():
