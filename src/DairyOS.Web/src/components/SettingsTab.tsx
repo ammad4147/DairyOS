@@ -9,7 +9,6 @@ import NavigationVisibilityControl from './NavigationVisibilityControl';
 import AIAssistant from './AIAssistant';
 import ReportingTab from './ReportingTab';
 import HumanIdentityAdmin from './HumanIdentityAdmin';
-import WelcomeScreenAdmin from './WelcomeScreenAdmin';
 
 interface SettingsTabProps {
   onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
@@ -513,7 +512,7 @@ export default function SettingsTab({
         </div>
       )}
 
-      {activeTab === 'IDENTITY' && <><HumanIdentityAdmin /><WelcomeScreenAdmin /></>}
+      {activeTab === 'IDENTITY' && <HumanIdentityAdmin />}
 
       {activeTab === 'EMAIL' && (
         <div style={{ display: 'grid', gap: 12 }}>
