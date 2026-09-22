@@ -61,6 +61,9 @@ _DAIRYOS_HINTS = frozenset(
 _GENERAL_DAIRY_EFFECT_WORDS = frozenset(
     ["weather", "climate", "heat", "humidity", "temperature", "season"]
 )
+_GENERAL_ANIMAL_KNOWLEDGE_WORDS = frozenset(
+    ["mastitis", "ketosis", "lameness", "pneumonia", "diarrhea", "diarrhoea", "calf", "disease"]
+)
 
 
 def _is_dairyos_question(question: str) -> bool:
@@ -147,6 +150,24 @@ class Assistant:
         if str(mode).strip().lower() == "general":
             answer, failure = generate_general_answer(self.provider, question)
             return {"decision": verdict.decision.value, "stage": "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE", "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": [], "unreviewed": False, "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure}
+
+        question_words = set(re.findall(r"[a-z0-9]+", question.lower()))
+        animal_definition = bool(re.search(r"\b(?:what is|define|tell me about|entry for)\b", question, re.IGNORECASE))
+        if (
+            question_words & _GENERAL_ANIMAL_KNOWLEDGE_WORDS
+            and animal_definition
+            and not _is_dairyos_question(question)
+        ):
+            return {
+                "decision": verdict.decision.value,
+                "stage": "DAIRYOS_CLARIFICATION",
+                "answer": None,
+                "text": "Please ask a DairyOS workflow or capability question. For general dairy or animal knowledge, select General AI.",
+                "reason": "The question is not clearly about a DairyOS workflow or capability.",
+                "signals": list(verdict.signals), "evidence": [],
+                "unreviewed": False, "general_knowledge": False,
+                "route": "DAIRYOS_CLARIFICATION",
+            }
 
         # The refusal is decided before the corpus is consulted. A question
         # about this farm's records cannot be answered with an invented current

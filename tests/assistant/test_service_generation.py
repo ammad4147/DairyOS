@@ -74,6 +74,16 @@ def test_general_mode_bypasses_dairyos_retrieval_and_sources(assistant):
     assert result["general_knowledge"] is True
 
 
+def test_dairyos_mode_does_not_invent_workflow_for_animal_question(assistant):
+    model = ScriptedModel("This must never be shown.")
+    result = assistant(model).answer("What is mastitis?", mode="dairyos")
+
+    assert result["route"] == "DAIRYOS_CLARIFICATION"
+    assert "select General AI" in result["text"]
+    assert result["evidence"] == []
+    assert not model.calls
+
+
 def test_a_fabricated_answer_never_reaches_the_operator(assistant):
     """The single most important assertion in the subsystem."""
     model = ScriptedModel("The withdrawal period is 96 hours after treatment.")
