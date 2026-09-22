@@ -37,7 +37,7 @@ $manifest = [ordered]@{
     source_commit = $head
     source_tree = $tree
 }
-$corpusManifestPath = Join-Path $packRoot "assistant-knowledge\manifest.json"
+$corpusManifestPath = Join-Path $packRoot "_internal\assistant-knowledge\manifest.json"
 if (-not (Test-Path $corpusManifestPath -PathType Leaf)) { throw "Assistant corpus manifest is missing from the frozen package." }
 $corpusManifest = Get-Content $corpusManifestPath -Raw | ConvertFrom-Json
 if ([string]$corpusManifest.dairyos_source_commit -notmatch '^[0-9a-f]{40}$') {
