@@ -104,6 +104,10 @@ finally {
     Remove-Item -LiteralPath $assistantZipAlias -Force -ErrorAction SilentlyContinue
 }
 if (-not (Test-Path (Join-Path $assistantBundle "DairyOSAssistant.exe") -PathType Leaf)) { throw "Bundled Assistant executable is missing." }
+$assistantManifest = Get-Content (Join-Path $assistantBundle "assistant-manifest.json") -Raw | ConvertFrom-Json
+if ([string]$assistantManifest.source_commit -notmatch '^[0-9a-f]{40}$' -or [string]$assistantManifest.corpus_source_commit -notmatch '^[0-9a-f]{40}$') {
+    throw "Bundled Assistant manifest has incomplete source provenance."
+}
 
 Write-Host "=== COPY DAIRYOS LAUNCHER ICON ===" -ForegroundColor Cyan
 $iconTarget = Join-Path $bundle "dairyos-cow.ico"
@@ -173,6 +177,8 @@ $releaseManifest = [ordered]@{
     backup_exe_sha256 = $backupHash
     postgresql_version = $declaredVersion
     frontend_index_sha256 = $frontendIndexHash
+    assistant_source_commit = [string]$assistantManifest.source_commit
+    assistant_corpus_source_commit = [string]$assistantManifest.corpus_source_commit
     schema_migration_files = $schemaMigrations
     build_timestamp_utc = (Get-Date).ToUniversalTime().ToString("o")
 }

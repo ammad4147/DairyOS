@@ -37,6 +37,13 @@ $manifest = [ordered]@{
     source_commit = $head
     source_tree = $tree
 }
+$corpusManifestPath = Join-Path $packRoot "assistant-knowledge\manifest.json"
+if (-not (Test-Path $corpusManifestPath -PathType Leaf)) { throw "Assistant corpus manifest is missing from the frozen package." }
+$corpusManifest = Get-Content $corpusManifestPath -Raw | ConvertFrom-Json
+if ([string]$corpusManifest.dairyos_source_commit -notmatch '^[0-9a-f]{40}$') {
+    throw "Assistant corpus manifest has no exact source commit."
+}
+$manifest.corpus_source_commit = [string]$corpusManifest.dairyos_source_commit
 $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $packRoot "assistant-manifest.json") -Encoding utf8
 $integrityFiles = [ordered]@{}
 Get-ChildItem -LiteralPath $packRoot -File -Recurse | ForEach-Object {
