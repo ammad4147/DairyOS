@@ -30,7 +30,7 @@ LOCKOUT_MINUTES = 15
 
 
 def _audit(factory: RepositoryFactory, event_type: str, actor: str, detail: str) -> None:
-    factory.operational_events().add(SimpleNamespace(event_type=event_type, source="HUMAN_ACCESS", description=f"{detail} actor={actor}", created_at=utcnow(), actor=actor))
+    factory.operational_events().add(SimpleNamespace(event_type=event_type, source="HUMAN_ACCESS", description=f"{detail} actor={actor}", timestamp=utcnow(), actor=actor))
 
 
 class BootstrapRequest(BaseModel):

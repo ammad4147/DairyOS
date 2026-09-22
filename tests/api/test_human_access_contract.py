@@ -31,6 +31,12 @@ def test_human_access_api_contains_bootstrap_pin_lockout_and_logout_contract():
     assert "session_token" in source
 
 
+def test_human_access_audit_events_supply_repository_timestamp():
+    source = ACCESS.read_text(encoding="utf-8")
+    assert "timestamp=utcnow()" in source
+    assert "created_at=utcnow()" not in source
+
+
 def test_production_routes_require_named_human_session_and_capability():
     source = APP.read_text(encoding="utf-8")
     assert "X-DairyOS-Human-Session" in source
