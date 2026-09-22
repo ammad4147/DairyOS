@@ -620,7 +620,7 @@
   },
   {
    "anchor_hashes": {
-    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+    "src/dairyos/api/assistant.py::ask_assistant": "21e9a7601b58ff681a76762408b5edb90b5c66f2366ed2a106f1b6763f0c3acd"
    },
    "anchors": [
     {
@@ -669,7 +669,7 @@
   },
   {
    "anchor_hashes": {
-    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+    "src/dairyos/api/assistant.py::ask_assistant": "21e9a7601b58ff681a76762408b5edb90b5c66f2366ed2a106f1b6763f0c3acd"
    },
    "anchors": [
     {

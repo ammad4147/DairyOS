@@ -100,18 +100,18 @@
   },
   "assistant.about": {
    "anchors": {
-    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+    "src/dairyos/api/assistant.py::ask_assistant": "21e9a7601b58ff681a76762408b5edb90b5c66f2366ed2a106f1b6763f0c3acd"
    },
    "verified_at": "2026-09-22",
-   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_by": "DairyOS engineering",
    "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
   },
   "assistant.farm-data-boundary": {
    "anchors": {
-    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+    "src/dairyos/api/assistant.py::ask_assistant": "21e9a7601b58ff681a76762408b5edb90b5c66f2366ed2a106f1b6763f0c3acd"
    },
    "verified_at": "2026-09-22",
-   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_by": "DairyOS engineering",
    "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
   },
   "breeding.ai": {

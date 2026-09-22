@@ -15,8 +15,10 @@ type AssistantReply = {
   general_knowledge?: boolean;
   related_evidence?: boolean;
   grounding_note?: string | null;
+  follow_ups?: string[];
 };
 type AssistantMode = 'dairyos' | 'general';
+type Turn = { question: string; records: string[] };
 
 type AssistantStatus = {
   status?: string;
@@ -31,7 +33,8 @@ export default function AIAssistant() {
   const [packageStatus, setPackageStatus] = useState<AssistantStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [packageFile, setPackageFile] = useState<File | null>(null);
-  const [mode, setMode] = useState<AssistantMode>('dairyos');
+  const [mode] = useState<AssistantMode>('dairyos');
+  const [history, setHistory] = useState<Turn[]>([]);
 
   async function refreshPackageStatus() {
     try {
@@ -84,13 +87,14 @@ export default function AIAssistant() {
       const response = await fetch(apiUrl('/assistant/ask'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: asked, mode }),
+        body: JSON.stringify({ question: asked, mode, history: history.slice(-4) }),
       });
       const body = await response.json();
       if (!response.ok) {
         setError(typeof body?.detail === 'string' ? body.detail : 'The AI Assistant is unavailable.');
       } else {
         setReply(body as AssistantReply);
+        setHistory((previous) => [...previous, { question: asked, records: (body.evidence || []).map((item: Evidence) => item.id) }].slice(-4));
       }
     } catch {
       setError('The AI Assistant could not be reached.');
@@ -121,19 +125,8 @@ export default function AIAssistant() {
         AI Assistant
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        {([['dairyos', 'DairyOS'], ['general', 'General AI']] as const).map(([value, label]) => (
-          <button key={value} type="button" onClick={() => { setMode(value); setReply(null); setError(null); }}
-            style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #475569', background: mode === value ? '#1d4ed8' : '#1e293b', color: '#e2e8f0', fontWeight: 700 }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
       <div style={{ lineHeight: 1.6 }}>
-        {mode === 'dairyos'
-          ? 'Ask about DairyOS capabilities, workflows, screens, or calculations.'
-          : 'Ask about dairy, animals, farming, or any general topic.'}
+        Ask about DairyOS capabilities, workflows, screens, or general dairy knowledge. The Assistant chooses the appropriate knowledge collection.
       </div>
 
       <div style={{ marginTop: 10, padding: 10, border: '1px solid #334155', borderRadius: 6 }}>
@@ -234,6 +227,12 @@ export default function AIAssistant() {
           {mode === 'dairyos' && reply.evidence?.length > 0 && (
             <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
               Sources: {reply.evidence.map((e) => e.id).join(', ')}
+            </div>
+          )}
+          {reply.follow_ups && reply.follow_ups.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>You could also ask:</div>
+              {reply.follow_ups.map((suggestion) => <button key={suggestion} type="button" onClick={() => setQuestion(suggestion)} style={{ display: 'block', marginTop: 5, background: 'transparent', border: 0, color: '#93c5fd', padding: 0, textAlign: 'left' }}>{suggestion}</button>)}
             </div>
           )}
         </div>

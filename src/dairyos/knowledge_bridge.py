@@ -326,12 +326,12 @@ class AssistantBridge:
             except json.JSONDecodeError as exc:
                 return {"ok": False, "error": f"unreadable response from the Assistant: {exc}"}
 
-    def ask(self, question: str, *, mode: str = "dairyos") -> dict[str, Any]:
+    def ask(self, question: str, *, mode: str = "dairyos", history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         # Start the isolated Assistant first and let it classify the question.
         # In particular, operational-data refusals are deterministic and must
         # not wait for the optional model to finish loading.
         self.start()
-        return self._exchange({"type": "ask", "question": question, "mode": mode})
+        return self._exchange({"type": "ask", "question": question, "mode": mode, "history": history or []})
 
     def _await_model_once(self) -> None:
         """Give the model one bounded chance to finish loading.

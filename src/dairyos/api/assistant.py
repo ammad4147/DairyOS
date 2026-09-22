@@ -44,6 +44,7 @@ MAX_QUESTION_CHARACTERS = 600
 class AssistantQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARACTERS)
     mode: str = Field(default="dairyos", pattern="^(dairyos|general)$")
+    history: list[dict[str, Any]] = Field(default_factory=list, max_length=4)
 
     @field_validator("question")
     @classmethod
@@ -106,9 +107,9 @@ async def install_assistant(files: list[UploadFile] | None = File(default=None))
 @router.post("/ask")
 def ask_assistant(payload: AssistantQuestion) -> dict[str, Any]:
     response = (
-        bridge.ask(payload.question)
+        bridge.ask(payload.question, history=payload.history)
         if payload.mode == "dairyos"
-        else bridge.ask(payload.question, mode=payload.mode)
+        else bridge.ask(payload.question, mode=payload.mode, history=payload.history)
     )
 
     if not response.get("ok"):
