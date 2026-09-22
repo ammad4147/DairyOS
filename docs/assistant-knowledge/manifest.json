@@ -1,5 +1,5 @@
 {
- "corpus_sha256": "168bc8376c43d2469a506ba426991e3d995487962a83f6c2e43d0a8b109650bf",
+ "corpus_sha256": "d407e11f5142cc99903e3d6f48c2336ba27d38986a039f2d6e68942f6122e7b8",
  "counts": {
   "by_collection": {
    "dairy": 70,
@@ -48,7 +48,7 @@
   "sources_cited": 44,
   "total": 159
  },
- "dairyos_source_commit": "421fdccf305ad1fd6ac6fc7441775ecddfc972b1",
+ "dairyos_source_commit": "f46edef0409069a4646c4db4e59213093cfd7413",
  "files": [
   {
    "collection": "dairy",
@@ -204,4 +204,3 @@
   "WOAH-LSD"
  ]
 }
-
