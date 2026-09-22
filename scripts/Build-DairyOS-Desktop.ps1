@@ -60,8 +60,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "pywebview is unavailable in the active build environment."
 }
 
-Write-Host "=== OPTIONAL ASSISTANT SEPARATE ===" -ForegroundColor Cyan
-Write-Host "Core build does not download, package, or require the optional Assistant runtime." -ForegroundColor DarkGray
+Write-Host "=== BUILD BUNDLED ASSISTANT ===" -ForegroundColor Cyan
+$assistantBuild = Join-Path $repo "scripts\Build-DairyOS-Assistant.ps1"
+& $assistantBuild -OutputRoot "dist\DairyOS-Assistant-Release"
+if ($LASTEXITCODE -ne 0) { throw "Bundled Assistant build failed." }
+$assistantPackage = Join-Path $repo "dist\DairyOS-Assistant-Release\DairyOS-Assistant.dairyassistant"
+if (-not (Test-Path $assistantPackage -PathType Leaf)) { throw "Bundled Assistant package was not produced." }
 
 Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
 
@@ -82,6 +86,13 @@ $exe = Join-Path $bundle "DairyOS.exe"
 $backupExe = Join-Path $bundle "DairyOSBackup.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "Frozen DairyOS.exe was not produced: $exe" }
 if (-not (Test-Path $backupExe -PathType Leaf)) { throw "Frozen DairyOSBackup.exe was not produced: $backupExe" }
+
+Write-Host "=== EMBED SAME-COMMIT ASSISTANT ===" -ForegroundColor Cyan
+$assistantBundle = Join-Path $bundle "assistant"
+Remove-Item $assistantBundle -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $assistantBundle -Force | Out-Null
+Expand-Archive -LiteralPath $assistantPackage -DestinationPath $assistantBundle -Force
+if (-not (Test-Path (Join-Path $assistantBundle "DairyOSAssistant.exe") -PathType Leaf)) { throw "Bundled Assistant executable is missing." }
 
 Write-Host "=== COPY DAIRYOS LAUNCHER ICON ===" -ForegroundColor Cyan
 $iconTarget = Join-Path $bundle "dairyos-cow.ico"

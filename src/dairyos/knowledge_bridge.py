@@ -142,16 +142,16 @@ def _bundle_root() -> Path:
 
 
 def _assistant_roots() -> list[Path]:
-    """Return approved Core/source and separately managed Assistant roots."""
+    """Return Assistant roots, preferring the same-release bundled copy."""
     roots = []
     configured = os.environ.get("DAIRYOS_ASSISTANT_ROOT", "").strip()
     if configured:
         roots.append(Path(configured))
-    if os.name == "nt":
-        roots.append(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "DairyOS" / "assistant")
     roots.append(_bundle_root() / "assistant")
     roots.append(_bundle_root())
-    return roots
+    if os.name == "nt":
+        roots.append(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "DairyOS" / "assistant")
+    return list(dict.fromkeys(roots))
 
 
 def assistant_command() -> list[str] | None:

@@ -191,20 +191,20 @@ def test_core_spec_does_not_collect_the_optional_assistant():
 # ---------------------------------------------------------------------------
 
 
-def test_core_spec_does_not_build_or_bundle_the_optional_assistant():
-    """Core packaging must remain independent of the optional Assistant."""
+def test_core_spec_keeps_assistant_out_of_the_core_pyinstaller_executable():
+    """The Assistant is bundled beside Core, not imported into its executable."""
     source = CORE_SPEC.read_text(encoding="utf-8")
     assert "assistant_runtime_datas" not in source
     assert "Get-AssistantRuntime.ps1" not in source
     assert "DairyOSAssistant" not in source
 
 
-def test_core_build_does_not_fetch_optional_assistant_runtime():
+def test_core_build_embeds_the_same_commit_assistant_package():
     source = (ROOT / "scripts" / "Build-DairyOS-Desktop.ps1").read_text(
         encoding="utf-8"
     )
-    assert "Get-AssistantRuntime.ps1" not in source
-    assert "Core build does not download" in source
+    assert "Build-DairyOS-Assistant.ps1" in source
+    assert "EMBED SAME-COMMIT ASSISTANT" in source
 
 
 def test_the_runtime_is_downloaded_and_verified_against_pinned_hashes():
