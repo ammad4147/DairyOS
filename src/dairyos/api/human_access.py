@@ -95,7 +95,7 @@ def _public_identity(identity: HumanIdentity) -> dict[str, Any]:
     return {
         "id": identity.id,
         "display_name": identity.display_name,
-        "workspace": "MANAGEMENT" if identity.entry_group == "MANAGEMENT" else "OPERATOR",
+        "workspace": identity.entry_group,
         "entry_group": identity.entry_group,
         "role": identity.role,
         "active": bool(identity.active),
