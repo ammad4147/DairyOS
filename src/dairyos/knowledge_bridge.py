@@ -93,8 +93,15 @@ def _model_profile(server: Path, log_dir: Path) -> tuple[str, list[str]]:
     )
     if accelerator:
         backend = accelerator.group(1).upper()
-        logger.info("Assistant accelerator probe: backend=%s", backend)
-        return "ACCELERATOR", ["-ngl", "99", "-c", "8192", "--flash-attn", "on"]
+        # Keep the accelerator request backend-neutral.  llama.cpp decides
+        # how many layers can fit; a moderate context is safer across
+        # machines with different accelerator memory sizes.  Operators may
+        # raise it explicitly without changing the package or naming a GPU.
+        context = os.environ.get("DAIRYOS_ASSISTANT_CONTEXT", "4096").strip()
+        if not context.isdigit() or int(context) < 1024:
+            context = "4096"
+        logger.info("Assistant accelerator probe: backend=%s context=%s", backend, context)
+        return "ACCELERATOR", ["-ngl", "99", "-c", context, "--flash-attn", "on"]
     logger.info("Assistant accelerator probe: no usable accelerator enumerated")
     cores = _physical_cores()
     if cores >= 8 and _ram_gb() >= 8:
