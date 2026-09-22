@@ -139,6 +139,8 @@ focused follow-up question when the missing detail changes the answer.
 For medical, veterinary, legal, or safety-sensitive matters, provide general
 educational information and recommend an appropriately qualified professional.
 Do not claim to have inspected files, databases, devices, or live systems.
+Do not reproduce corpus item identifiers (such as [AN-001] or [DA-012]) or
+source labels from the reference material in your answer.
 """
 
 OPERATIONAL_GUIDANCE_RULES = """You are the same DairyOS Assistant: one coherent,

@@ -62,7 +62,23 @@ _GENERAL_DAIRY_EFFECT_WORDS = frozenset(
     ["weather", "climate", "heat", "humidity", "temperature", "season"]
 )
 _GENERAL_ANIMAL_KNOWLEDGE_WORDS = frozenset(
-    ["mastitis", "ketosis", "lameness", "pneumonia", "diarrhea", "diarrhoea", "calf", "disease"]
+    [
+        "mastitis", "ketosis", "lameness", "pneumonia", "diarrhea", "diarrhoea",
+        "calf", "disease", "scours", "bloat", "metritis", "acidosis",
+        "somatic", "colostrum", "respiratory", "hypocalcemia", "laminitis",
+        "milk fever", "retained", "placenta", "dystocia", "listeria",
+    ]
+)
+
+# Explicit DairyOS workflow signals. If a question contains one of these even
+# while mentioning an animal-health term, the intent is to understand a
+# DairyOS capability and the question belongs in the corpus path.
+_DAIRYOS_WORKFLOW_SIGNAL = re.compile(
+    r"\b(?:in\s+dairyos|how\s+do\s+i|where\s+do\s+i|record|"
+    r"enter\s+(?:a|an|the)|add\s+(?:a|an|the)|create\s+(?:a|an|the)|"
+    r"edit|void|search|find\s+(?:in|the)|report|reconcil|set\s+up|"
+    r"configure|use\s+dairyos|track\s+in|log\s+(?:a|an|the))\b",
+    re.IGNORECASE,
 )
 
 
@@ -152,10 +168,9 @@ class Assistant:
             return {"decision": verdict.decision.value, "stage": "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE", "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": [], "unreviewed": False, "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure}
 
         question_words = set(re.findall(r"[a-z0-9]+", question.lower()))
-        animal_definition = bool(re.search(r"\b(?:what is|define|tell me about|entry for)\b", question, re.IGNORECASE))
         if (
             question_words & _GENERAL_ANIMAL_KNOWLEDGE_WORDS
-            and animal_definition
+            and not _DAIRYOS_WORKFLOW_SIGNAL.search(question)
             and not _is_dairyos_question(question)
         ):
             return {

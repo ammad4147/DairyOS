@@ -196,3 +196,58 @@ def test_the_protocol_carries_the_stage_end_to_end():
     assert payload["ok"] is True
     assert payload["stage"] == "WITHHELD"
     assert payload["answer"] is None
+
+
+# ---------------------------------------------------------------------------
+# Regression: non-definitional animal-health questions in DairyOS mode
+# ---------------------------------------------------------------------------
+# The original guard used an `animal_definition` regex that only caught
+# "what is", "define", "tell me about", "entry for".  Questions phrased as
+# "Mastitis symptoms", "Explain mastitis", "ketosis treatment", etc. escaped
+# the guard and fell through to DairyOS corpus retrieval.  The fix replaced
+# the flag with a _DAIRYOS_WORKFLOW_SIGNAL check: animal-health words in
+# DairyOS mode are redirected to the clarification prompt UNLESS the question
+# explicitly asks about a DairyOS workflow.
+
+@pytest.mark.parametrize("question", [
+    "Mastitis symptoms",
+    "Explain mastitis",
+    "mastitis causes",
+    "how to treat mastitis",
+    "ketosis treatment in cows",
+    "signs of ketosis",
+    "lameness in dairy cattle",
+    "scours prevention",
+    "bloat causes",
+])
+def test_non_definitional_animal_health_goes_to_clarification_in_dairyos_mode(
+    assistant, question
+):
+    """Non-definitional animal-health questions in DairyOS mode should be
+    redirected to the clarification prompt, not answered from the DairyOS corpus.
+    """
+    model = ScriptedModel("This must never be shown.")
+    result = assistant(model).answer(question, mode="dairyos")
+    assert result["route"] == "DAIRYOS_CLARIFICATION", (
+        f"Expected DAIRYOS_CLARIFICATION for {question!r}, got {result['route']!r}"
+    )
+    assert "select General AI" in result["text"]
+    assert result["evidence"] == []
+    assert not model.calls, "model must not be called for a clarification redirect"
+
+
+@pytest.mark.parametrize("question", [
+    "How do I record a mastitis treatment in DairyOS?",
+    "Where do I enter a ketosis event in DairyOS?",
+    "How do I log a lameness case in DairyOS?",
+])
+def test_dairyos_workflow_animal_health_is_not_redirected(assistant, question):
+    """When the question asks about a DairyOS workflow involving an animal-health
+    term, it must NOT be sent to the clarification prompt — it is a legitimate
+    DairyOS capability question.
+    """
+    model = ScriptedModel(FAITHFUL)
+    result = assistant(model).answer(question, mode="dairyos")
+    assert result["route"] != "DAIRYOS_CLARIFICATION", (
+        f"DairyOS workflow question {question!r} must not be redirected to clarification"
+    )

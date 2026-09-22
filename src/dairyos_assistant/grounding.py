@@ -74,6 +74,15 @@ _DATA_ACCESS_CLAIMS = (
     "your current herd",
     "based on your farm",
     "i can see that your",
+    # additional farm-data claim phrases
+    "your animals show",
+    "the farm records show",
+    "i see that your",
+    "your milk records show",
+    "according to your records",
+    "your herd data shows",
+    "from your farm data",
+    "your farm data shows",
 )
 
 
