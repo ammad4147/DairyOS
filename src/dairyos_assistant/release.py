@@ -1,48 +1,24 @@
-"""The pre-release switch, and the single place it can be turned off.
+"""Release gate for the knowledge the Assistant serves.
 
-The certified corpus serves only ``APPROVED`` items. The current consolidated
-corpus contains 141 approved items, including the independently source-verified
-non-clinical DairyOS how-to set and the veterinary-reviewed educational/triage
-set. The Assistant is not a veterinarian and must not diagnose, prescribe, or
-provide dosing.
+V2 serves only records whose review status is in
+``corpus.validation.SERVABLE_REVIEW_STATUSES`` and which are not STALE:
 
-So the gate is left alone and a separate, deliberate, single-valued switch is
-provided instead. While ``PRE_RELEASE`` is true the index additionally serves
-items that have passed implementation review, and every one of those items is
-marked ``unreviewed`` so the distinction survives into the API response and
-into whatever the operator sees.
+* ``ENGINEERING_VERIFIED`` DairyOS capability records, verified against hashed
+  source anchors (a source change makes them STALE and fails the build);
+* ``SOURCE_CURATED`` general dairy records, curated from cited authoritative
+  sources and labelled in the UI as not yet reviewed by the farm's veterinarian;
+* ``VET_REVIEWED`` / ``OWNER_CONFIRMED`` records once a named reviewer signs off.
 
-This is a build-time constant rather than an environment variable on purpose.
-An environment variable can be set on a customer's machine by accident, by a
-support script, or by a well-meaning operator following a forum post. A
-constant can only change by a commit, which is reviewable, and which the
-certification test at AA-16 asserts against.
-
-**Before certification this must be false.** ``tests/assistant/test_certification.py``
-asserts exactly that, and is the gate that stops an unreviewed corpus shipping.
+``PRE_RELEASE`` remains as the single, reviewable switch that would widen this
+to ``PENDING`` drafts. It must stay false; ``tests/assistant/test_benchmark_quality.py``
+asserts it.
 """
 
 from __future__ import annotations
 
-# Set false before AA-16 certification. Nothing else in the package may
-# override this at runtime.
 PRE_RELEASE = False
-
-# What a pre-release build additionally serves. Domain review is included
-# because an item that has passed it is strictly better evidenced than one that
-# has only passed implementation review; neither is approved, and both are
-# flagged.
-PRE_RELEASE_STATUSES: tuple[str, ...] = (
-    "IMPLEMENTATION_REVIEW",
-    "DOMAIN_REVIEW",
-    "APPROVED",
-)
-
-# The reason, recorded here so that a reader of a pre-release build knows why
-# it is one without having to find the decision in a chat log.
+PRE_RELEASE_STATUSES: tuple[str, ...] = ("PENDING",)
 PRE_RELEASE_REASON = (
-    "Closed 20 September 2026. Corpus v0.8.0-unified-approved contains 141 "
-    "approved items. Animal-health content is educational and triage guidance "
-    "only; diagnosis, prescribing, and dosing remain with a veterinarian. The "
-    "switch is off and this build serves only approved knowledge."
+    "Assistant V2: serves engineering-verified DairyOS knowledge and source-curated dairy knowledge "
+    "(labelled pending veterinary review). Diagnosis, prescribing and dosing remain with the veterinarian."
 )

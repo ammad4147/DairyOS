@@ -1,25 +1,22 @@
 """The Assistant process: one question in, one grounded response out.
 
-This module is the entry point of the Assistant executable. It exists so that
-the Assistant can be frozen separately from DairyOS, with its own dependency
-graph, and so the claim that it cannot reach farm data is a property of the
-shipped binary rather than of the source tree alone.
+This module is the entry point of the separately frozen Assistant executable.
+It talks to DairyOS over standard input and output (one JSON object per line),
+opens no listening socket, imports nothing from ``dairyos`` and can reach only
+a loopback model server. Those properties are asserted by the boundary and
+packaging suites.
 
-**The channel is standard input and standard output, not a socket.** That is a
-security decision, not a convenience one. The boundary suite asserts that the
-Assistant opens no socket at all, and a process that listens on a port would
-make that assertion impossible to keep. The DairyOS backend starts this process
-and talks to it over pipes, so the Assistant has no address, nothing can connect
-to it, and it can initiate nothing.
+Pipeline for every question::
 
-The protocol is one JSON object per line in each direction. Standard output
-carries protocol only; anything diagnostic goes to standard error, so a stray
-print cannot corrupt a response.
+    normalise -> classify intent -> retrieve (hybrid lexical, collection prior,
+    conversation context, relation expansion) -> evidence package (claim-sized
+    facts) -> route decision -> model phrasing (optional) -> grounding gate ->
+    deterministic composed fallback -> response with evidence and trace
 
-**What this does not do yet.** Answer generation arrives at AA-7 with the local
-model and the grounding gate. Until then a response carries ``answer: null`` and
-``stage: "RETRIEVAL_ONLY"``, and the evidence that was retrieved. Nothing here
-composes prose, so nothing here can fabricate it.
+The farm-data boundary is structural: the Assistant has no farm data, so a
+request for it is answered with where DairyOS shows the figure and how DairyOS
+calculates it, never with a figure. Clinical requests for medicines or doses
+are answered with safe education and a veterinary referral.
 """
 
 from __future__ import annotations
@@ -27,86 +24,89 @@ from __future__ import annotations
 import json
 import re
 import sys
-from collections.abc import Iterable, Sequence
+import time
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, TextIO
 
 from dairyos_assistant import __version__
-from dairyos_assistant.generation import (
-    generate_answer,
-    generate_general_answer,
-    generate_operational_guidance_answer,
-)
-from dairyos_assistant.model import LlamaServerProvider, ModelProvider, NullProvider
-from dairyos_assistant.policy import Decision, classify, is_instructional
-from dairyos_assistant.retrieval import (
-    NO_EVIDENCE_TEXT,
-    KnowledgeIndex,
-)
+from dairyos_assistant.compose import EvidenceItem, EvidencePackage, build_package, compose, select_facts
+from dairyos_assistant.generation import generate_general, generate_grounded
+from dairyos_assistant.intent import Intent, classify
+from dairyos_assistant.model import LlamaServerProvider, ModelProvider, NullProvider, Timeouts
+from dairyos_assistant.policy import classify as policy_classify
+from dairyos_assistant.retrieval import Hit, KnowledgeIndex
 
 CORPUS_DIRNAME = "assistant-knowledge"
+PROTOCOL_VERSION = 2
+EVIDENCE_LIMIT = 5
 
-PROTOCOL_VERSION = 1
+# Retrieval confidence below which a dairy or DairyOS question is treated as not
+# covered. Tuned on the development split only.
+NOT_COVERED_SCORE = 3.0
 
-# How many items of evidence a single answer may rest on. Kept small
-# deliberately: an answer assembled from eight loosely related items is how a
-# knowledge system starts sounding authoritative about things it has not been
-# told.
-EVIDENCE_LIMIT = 4
-
-_DAIRYOS_HINTS = frozenset(
-    ["dairyos", "milk", "feed", "tmr", "animal", "herd", "cow", "health", "breeding", "finance", "dashboard", "report", "settings", "backup", "restore", "installation", "farm", "record", "session", "ration", "cop", "opex", "vaccination", "calving", "pasture"]
+_FOLLOW_UP = re.compile(
+    r"^\s*(?:and|also|what about|how about|then|so|but|when is it|where is it|is it|does it|do they|what should i look for first|"
+    r"why would it|and with|and the|what level|where do i record it|how do i record them|is there)\b|\b(?:it|that|this|them|they|her|his|those)\b",
+    re.I,
 )
+_HOWTO = re.compile(r"\b(?:how (?:do|can|should) i|where (?:do|can|should) i|how to|steps|record|enter|add|entry|kaise|kahan)\b", re.I)
+_CALC = re.compile(r"\b(?:calculat\w*|formula|worked out|how is .{0,30} (?:decided|determined|counted))\b", re.I)
+_FLOW = re.compile(r"\b(?:where does .{0,30} go|goes? where|flow|what happens (?:after|when|to)|affect\w*|connect\w*|link\w* (?:to|with)|reach\w*)\b", re.I)
 
-_GENERAL_DAIRY_EFFECT_WORDS = frozenset(
-    ["weather", "climate", "heat", "humidity", "temperature", "season"]
+
+def kind_prior_for(question: str) -> dict[str, float]:
+    prior: dict[str, float] = {}
+    if _HOWTO.search(question):
+        prior["HOWTO"] = 1.2
+    if _CALC.search(question):
+        prior["CALCULATION"] = 1.2
+    if _FLOW.search(question):
+        prior["DATA_FLOW"] = 1.25
+    return prior
+
+BOUNDARY_ID = "assistant.farm-data-boundary"
+MEDICINE_ID = "dairy.medicine.boundary"
+ABOUT_ID = "assistant.about"
+
+NOT_COVERED_TEXT = (
+    "I don't have reliable knowledge on that yet, so I won't guess. I can explain how DairyOS works (Milk, Feed/TMR, "
+    "Animals, Breeding, Health, Vaccination, Finance, COP, Dashboard, Reports, Settings) and give general dairy guidance "
+    "on calves, cows, milk, feeding, breeding and animal health. Try asking with the animal, stage, sign or screen you mean."
 )
-_GENERAL_ANIMAL_KNOWLEDGE_WORDS = frozenset(
-    [
-        "mastitis", "ketosis", "lameness", "pneumonia", "diarrhea", "diarrhoea",
-        "calf", "disease", "scours", "bloat", "metritis", "acidosis",
-        "somatic", "colostrum", "respiratory", "hypocalcemia", "laminitis",
-        "milk fever", "retained", "placenta", "dystocia", "listeria",
-    ]
+HEALTH_NOT_COVERED = (
+    " If an animal is unwell, check its temperature, appetite, breathing, manure and milk, keep it separated if it could "
+    "be infectious, and contact your veterinarian."
 )
-
-# Explicit DairyOS workflow signals. If a question contains one of these even
-# while mentioning an animal-health term, the intent is to understand a
-# DairyOS capability and the question belongs in the corpus path.
-_DAIRYOS_WORKFLOW_SIGNAL = re.compile(
-    r"\b(?:in\s+dairyos|how\s+do\s+i|where\s+do\s+i|record|"
-    r"enter\s+(?:a|an|the)|add\s+(?:a|an|the)|create\s+(?:a|an|the)|"
-    r"edit|void|search|find\s+(?:in|the)|report|reconcil|set\s+up|"
-    r"configure|use\s+dairyos|track\s+in|log\s+(?:a|an|the))\b",
-    re.IGNORECASE,
+OUT_OF_SCOPE_TEXT = (
+    "That is outside what I cover. I explain how DairyOS works and give general dairy-farming guidance; I can't help "
+    "reliably with unrelated topics."
 )
-
-
-def _is_dairyos_question(question: str) -> bool:
-    words = set(re.findall(r"[a-z0-9]+", question.lower()))
-    return bool(words & _DAIRYOS_HINTS)
-
-
-def _is_general_dairy_effect_question(question: str) -> bool:
-    """Recognise industry questions that mention a DairyOS topic incidentally.
-
-    For example, ``weather effect on milk`` should receive general dairy
-    guidance with related DairyOS context, not be misrepresented as a DairyOS
-    weather capability merely because ``milk`` is in the question.
-    """
-    words = set(re.findall(r"[a-z0-9]+", question.lower()))
-    return bool(words & _GENERAL_DAIRY_EFFECT_WORDS) and not bool(
-        re.search(r"\b(?:dairyos|in\s+dairyos|how\s+do\s+i|where\s+do\s+i)\b", question, re.IGNORECASE)
-    )
+FARM_DATA_LEAD = (
+    "I can't see this farm's records, so I can't give you that figure or tell you which animals it applies to. "
+    "Here is where DairyOS shows it and how DairyOS works it out."
+)
+CLINICAL_LEAD = (
+    "I can't recommend a medicine, a dose or a withdrawal time; that has to come from your veterinarian and the product "
+    "label. Here is the safe general guidance."
+)
+INJECTION_TEXT = (
+    "I can't do that. I have no access to this farm's records, settings or passwords, I can't change or delete anything, "
+    "and I can't set my rules aside. I can explain how DairyOS works and where to find or record information yourself."
+)
+PASSWORD_TEXT = (
+    "I can't see or share passwords. If the DairyOS administrator password is lost, the administrator can recover it "
+    "with the saved one-time recovery code on the DairyOS computer (System Settings > Navigation Visibility > Recover Password)."
+)
+META_TEXT = (
+    "Hello. I'm the DairyOS Assistant. I can explain how DairyOS works (for example how COP is calculated, where milk "
+    "goes after you record it, or what happens after calving) and give general dairy guidance (calves, fresh cows, "
+    "mastitis, feeding, breeding). I can't see your farm's records, and medicines and doses are for your veterinarian."
+)
 
 
 def corpus_root() -> Path:
-    """Where the knowledge corpus lives, frozen or from source.
-
-    PyInstaller unpacks bundled data under ``sys._MEIPASS``. Running from a
-    checkout, the corpus sits under ``docs/`` at the repository root. Both are
-    tried in that order, and the first that exists wins.
-    """
+    """Where the knowledge corpus lives, frozen or from source."""
     candidates: list[Path] = []
     bundled = getattr(sys, "_MEIPASS", None)
     if bundled:
@@ -115,313 +115,282 @@ def corpus_root() -> Path:
     candidates.append(here.parents[2] / "docs" / CORPUS_DIRNAME)
     candidates.append(Path.cwd() / "docs" / CORPUS_DIRNAME)
     for candidate in candidates:
-        if candidate.is_dir():
+        if (candidate / "corpus.json").is_file():
             return candidate
-    # Returned rather than raised so the process can start and report a
-    # missing corpus through the protocol, instead of dying before it can say
-    # why. An Assistant that will not start is harder to diagnose on a farm
-    # machine than one that starts and says its knowledge is missing.
     return candidates[-1]
 
 
-def approved_text(hits: Sequence[Any]) -> str:
-    """The reviewed answer, as written, for when the model cannot phrase one.
+def provider_from_url(url: str | None, *, timeout: float | None = None, timeouts: dict | None = None) -> ModelProvider:
+    if not url:
+        return NullProvider()
+    if timeouts:
+        return LlamaServerProvider(base_url=url, timeouts=Timeouts.from_mapping(timeouts))
+    return LlamaServerProvider(base_url=url, timeout=timeout) if timeout else LlamaServerProvider(base_url=url)
 
-    Every corpus item carries an ``answer`` written for an operator to read and
-    approved by a named reviewer. When the model is unreachable, that text is
-    the best available response and it is strictly safer than a generated one:
-    nothing is composed, so nothing can be invented.
 
-    The explanation of the leading item is included because the answer alone is
-    often a single sentence, and a question worth asking usually deserves the
-    reason as well as the rule.
-    """
-    if not hits:
-        return NO_EVIDENCE_TEXT
-
-    leading = hits[0].item
-    parts = [str(leading.get("answer") or "").strip()]
-    for field in ("explanation", "clinical_safety", "safety"):
-        value = str(leading.get(field) or "").strip()
-        if value:
-            parts.append(value)
-
-    body = "\n\n".join(part for part in parts if part)
-    return body or NO_EVIDENCE_TEXT
+def _evidence_rows(hits: list[Hit], used: set[str]) -> list[dict[str, Any]]:
+    rows = []
+    for hit in hits:
+        record = hit.record
+        review = record.get("review") or {}
+        provenance = record.get("provenance") or []
+        rows.append({
+            "id": hit.id,
+            "title": record.get("title"),
+            "collection": record.get("collection"),
+            "domain": record.get("domain"),
+            "kind": record.get("kind"),
+            "score": hit.score,
+            "matched_terms": list(hit.matched_terms),
+            "via": hit.via,
+            "used": hit.id in used,
+            "review_status": review.get("status"),
+            "freshness": record.get("freshness"),
+            "sources": [p.get("publisher") for p in provenance if isinstance(p, dict)][:3],
+            "unreviewed": review.get("status") not in {"VET_REVIEWED", "ENGINEERING_VERIFIED", "OWNER_CONFIRMED"},
+        })
+    return rows
 
 
 class Assistant:
-    """Policy, then retrieval. In that order, always."""
-
-    def __init__(
-        self,
-        index: KnowledgeIndex | None = None,
-        provider: ModelProvider | None = None,
-    ) -> None:
+    def __init__(self, index: KnowledgeIndex | None = None, provider: ModelProvider | None = None) -> None:
         self.index = index if index is not None else KnowledgeIndex.load(corpus_root())
         self.provider = provider if provider is not None else NullProvider()
 
-    def answer(self, question: str, mode: str = "dairyos") -> dict[str, Any]:
-        verdict = classify(question)
-        if str(mode).strip().lower() == "general":
-            general_hits = [
-                hit for hit in self.index.search(question, limit=EVIDENCE_LIMIT)
-                if hit.item_class == "DAIRY_KNOWLEDGE"
-            ]
-            answer, failure = generate_general_answer(
-                self.provider,
-                question,
-                [hit.item for hit in general_hits],
-            )
-            if answer is None and general_hits:
-                answer = approved_text(general_hits)
-                failure = failure or "model unavailable"
-                stage = "APPROVED_TEXT"
-                verbatim = True
-            else:
-                stage = "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE"
-                verbatim = False
-            evidence = [
-                {
-                    "id": hit.knowledge_id,
-                    "title": hit.title,
-                    "domain": hit.domain,
-                    "capability": hit.capability,
-                    "class": hit.item_class,
-                    "status": hit.status,
-                    "score": hit.score,
-                    "matched_terms": list(hit.matched_terms),
-                    "unreviewed": hit.unreviewed,
-                }
-                for hit in general_hits
-            ]
-            return {"decision": verdict.decision.value, "stage": stage, "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": evidence, "unreviewed": any(item["unreviewed"] for item in evidence), "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure, "verbatim": verbatim}
+    # ------------------------------------------------------------------
+    def _model_ready(self) -> bool:
+        health = getattr(self.provider, "health", None)
+        if isinstance(self.provider, NullProvider):
+            return False
+        return bool(health()) if callable(health) else True
 
-        question_words = set(re.findall(r"[a-z0-9]+", question.lower()))
-        if (
-            question_words & _GENERAL_ANIMAL_KNOWLEDGE_WORDS
-            and not _DAIRYOS_WORKFLOW_SIGNAL.search(question)
-            and not _is_dairyos_question(question)
-        ):
-            return {
-                "decision": verdict.decision.value,
-                "stage": "DAIRYOS_CLARIFICATION",
-                "answer": None,
-                "text": "Please ask a DairyOS workflow or capability question. For general dairy or animal knowledge, select General AI.",
-                "reason": "The question is not clearly about a DairyOS workflow or capability.",
-                "signals": list(verdict.signals), "evidence": [],
-                "unreviewed": False, "general_knowledge": False,
-                "route": "DAIRYOS_CLARIFICATION",
-            }
+    def _context(self, question: str, history: list[dict] | None):
+        if not history:
+            return [], [], []
+        previous = history[-1]
+        prev_question = str(previous.get("question") or "")
+        is_follow_up = bool(_FOLLOW_UP.search(question)) or len(self.index.normaliser.normalise(question).tokens) <= 3
+        if not is_follow_up:
+            return [], [], []
+        prev_terms = self.index.normaliser.normalise(prev_question)
+        return prev_terms.tokens + prev_terms.expansions, list(previous.get("records") or []), [prev_question]
 
-        # The refusal is decided before the corpus is consulted. A question
-        # about this farm's records cannot be answered with an invented current
-        # value. It is still routed to useful workflow guidance rather than a
-        # dead-end disclaimer.
-        if verdict.decision is Decision.REFUSE_OPERATIONAL_DATA:
-            hits = self.index.search(question, limit=EVIDENCE_LIMIT)
-            evidence = [
-                {
-                    "id": hit.knowledge_id,
-                    "title": hit.title,
-                    "domain": hit.domain,
-                    "capability": hit.capability,
-                    "class": hit.item_class,
-                    "status": hit.status,
-                    "score": hit.score,
-                    "matched_terms": list(hit.matched_terms),
-                    "unreviewed": hit.unreviewed,
-                    "related_only": True,
-                }
-                for hit in hits
-            ]
-            # Refusing access to live farm data is deterministic. Use the
-            # optional model for helpful phrasing when it is ready, but do not
-            # block the refusal on model startup or failure.
-            # The production loopback provider may report a live server while
-            # its generation worker is still wedged. Refusal must not wait on
-            # that optional process; deterministic test/dedicated providers
-            # still exercise the useful guidance generation path.
-            if isinstance(self.provider, LlamaServerProvider):
-                model_available = False
-            else:
-                health = getattr(self.provider, "health", None)
-                model_available = health() if callable(health) else True
-            if model_available:
-                answer, failure = generate_operational_guidance_answer(
-                    self.provider,
-                    question,
-                    [hit.item for hit in hits],
-                )
-            else:
-                answer, failure = None, "model unavailable"
-            response = {
-                "decision": verdict.decision.value,
-                "stage": "GUIDANCE_ANSWERED" if answer else "RELATED_GUIDANCE",
-                "answer": None,
-                "text": answer,
-                "reason": verdict.reason,
-                "signals": list(verdict.signals),
-                "instructional_phrasing": is_instructional(question),
-                "evidence": evidence,
-                "unreviewed": any(item["unreviewed"] for item in evidence),
-                "route": "DAIRYOS_GUIDED_GENERAL",
-                "operational_data_access": "NONE",
-                "general_knowledge": bool(answer),
-            }
-            if answer:
-                response["answer"] = answer
-            else:
-                response["text"] = (
-                    approved_text(hits)
-                    if hits
-                    else "Open the relevant DairyOS screen to review the current record, then apply the related dairy best-practice guidance shown there."
-                )
-                response["verbatim"] = True
-                response["model_error"] = failure
-            return response
+    def answer(self, question: str, mode: str | None = None, history: list[dict] | None = None) -> dict[str, Any]:
+        started = time.perf_counter()
+        trace: dict[str, Any] = {"question": question}
+        normalised = self.index.normaliser.normalise(question)
+        intent = classify(question, normalised)
+        context_terms, context_records, history_questions = self._context(question, history)
+        if history_questions and intent.intent in {"AMBIGUOUS", "OUT_OF_SCOPE"}:
+            # A bare follow-up inherits the previous question's intent.
+            combined = self.index.normaliser.normalise(history_questions[-1] + " " + question)
+            intent = classify(history_questions[-1] + " " + question, combined)
+        # Follow-ups that are themselves farm-data lookups keep that intent.
+        trace.update({
+            "normalised": normalised.tokens, "expansions": normalised.expansions, "corrections": normalised.corrections,
+            "intent": intent.intent, "intent_confidence": intent.confidence, "signals": intent.signals,
+            "scores": {"dairyos": intent.dairyos_score, "dairy": intent.dairy_score},
+            "follow_up": bool(history_questions),
+        })
 
-        hits = self.index.search(question, limit=EVIDENCE_LIMIT)
-        evidence = [
-            {
-                "id": hit.knowledge_id,
-                "title": hit.title,
-                "domain": hit.domain,
-                "capability": hit.capability,
-                "class": hit.item_class,
-                "status": hit.status,
-                "score": hit.score,
-                "matched_terms": list(hit.matched_terms),
-                "unreviewed": hit.unreviewed,
-            }
-            for hit in hits
-        ]
-        # A single broad word such as "milk" is a topic, not a complete
-        # capability question. Treat weak lexical matches as related context
-        # so the local model can explain the likely area and ask for the
-        # missing detail instead of presenting the first hit as authoritative.
-        if (
-            evidence
-            and _is_dairyos_question(question)
-            and float(evidence[0].get("score", 0.0)) < 2.0
-        ):
-            for item in evidence:
-                item["related_only"] = True
-        if evidence and _is_general_dairy_effect_question(question):
-            for item in evidence:
-                item["related_only"] = True
-        if not evidence and _is_dairyos_question(question):
-            related_hits = self.index.search(
-                question, limit=3, min_score=0.0, min_matched_terms=1
-            )
-            if related_hits:
-                hits = related_hits
-                evidence = [
-                    {
-                        "id": hit.knowledge_id,
-                        "title": hit.title,
-                        "domain": hit.domain,
-                        "capability": hit.capability,
-                        "class": hit.item_class,
-                        "status": hit.status,
-                        "score": hit.score,
-                        "matched_terms": list(hit.matched_terms),
-                        "unreviewed": hit.unreviewed,
-                        "related_only": True,
+        hits = self.index.search(
+            normalised,
+            limit=EVIDENCE_LIMIT,
+            collection_prior=intent.collection_prior(),
+            context_terms=context_terms,
+            context_records=context_records,
+            expand_related=intent.intent in {"DAIRYOS", "HYBRID"},
+            kind_prior=kind_prior_for(question),
+        )
+        trace["retrieval"] = [{"id": h.id, "score": h.score, "via": h.via, "terms": list(h.matched_terms)} for h in hits]
+        top_score = hits[0].score if hits else 0.0
+
+        route, lead, package, text, generation = self._route(question, normalised, intent, hits, top_score)
+        stage = "COMPOSED"
+        model_error = None
+        verdict = None
+        gen_meta = None
+        final_text = text
+        used_ids: set[str] = set(package.ids) if package else set()
+
+        if route in {"DAIRYOS", "DAIRY", "HYBRID", "FARM_DATA", "CLINICAL", "AMBIGUOUS"} and package and package.items:
+            composed = compose(package, question_is_howto=bool(_HOWTO.search(question)), lead=lead)
+            final_text = composed
+            if route not in {"AMBIGUOUS"} and self._model_ready():
+                model_route = route if route != "AMBIGUOUS" else "DAIRYOS"
+                result = generate_grounded(self.provider, question, package, model_route, history=history_questions,
+                                           extra_evidence=lead or "")
+                verdict = result.verdict
+                if result.generation:
+                    gen_meta = {
+                        "ttft_s": result.generation.ttft_s, "total_s": result.generation.total_s,
+                        "tokens": result.generation.tokens, "tokens_per_s": result.generation.tokens_per_s,
+                        "prompt_tokens": result.generation.prompt_tokens,
                     }
-                    for hit in hits
-                ]
+                if result.text:
+                    body = result.text
+                    already_bounded = re.search(
+                        r"can(?:no|')t (?:see|recommend|give)|cannot (?:see|recommend|give)|no access", body, re.I
+                    )
+                    if lead and route in {"FARM_DATA", "CLINICAL"} and not already_bounded:
+                        body = lead.split(". Here is")[0] + ".\n\n" + body
+                    final_text = body
+                    stage = "ANSWERED"
+                    generation = "MODEL"
+                else:
+                    model_error = result.failure
+                    trace["model_failure_kind"] = result.failure_kind
+                    generation = "COMPOSED"
+            else:
+                generation = "COMPOSED"
+                if route != "AMBIGUOUS":
+                    model_error = "model unavailable"
+        elif route == "OUT_OF_SCOPE":
+            stage = "OUT_OF_SCOPE"
+            if self._model_ready():
+                result = generate_general(self.provider, question)
+                if result.text:
+                    final_text = "General information (not from DairyOS knowledge): " + result.text
+                    stage = "GENERAL_ANSWERED"
+                    generation = "MODEL_GENERAL"
+                else:
+                    model_error = result.failure
+        else:
+            stage = {"FARM_DATA": "BOUNDARY", "INJECTION": "BOUNDARY", "META": "META", "NOT_COVERED": "NOT_COVERED",
+                     "CLINICAL": "BOUNDARY"}.get(route, "COMPOSED")
 
-        response: dict[str, Any] = {
-            "decision": verdict.decision.value,
-            "stage": "RETRIEVAL_ONLY",
-            "answer": None,
-            "text": None if evidence else NO_EVIDENCE_TEXT,
-            "reason": verdict.reason,
-            "signals": list(verdict.signals),
+        if route in {"FARM_DATA", "CLINICAL", "INJECTION"} and stage == "COMPOSED":
+            stage = "BOUNDARY"
+        if route == "NOT_COVERED":
+            stage = "NOT_COVERED"
+        if route == "AMBIGUOUS":
+            stage = "CLARIFY"
+
+        label = {
+            "DAIRYOS": "DairyOS", "DAIRY": "Dairy guidance", "HYBRID": "DairyOS and dairy guidance",
+            "FARM_DATA": "Farm records not accessible", "CLINICAL": "Veterinary decision", "INJECTION": "Not permitted",
+            "OUT_OF_SCOPE": "Outside DairyOS", "META": "DairyOS Assistant", "NOT_COVERED": "Not covered",
+            "AMBIGUOUS": "Please clarify",
+        }.get(route, route)
+        follow_ups = self._follow_ups(hits, used_ids)
+        hit_ids = {h.id for h in hits}
+        package_hits = [
+            Hit(record=item.record, score=0.0, lexical=0.0, matched_terms=(), via="boundary")
+            for item in (package.items if package else [])
+            if item.id not in hit_ids
+        ]
+        ordered = package_hits + [h for h in hits if h.id in used_ids] + [h for h in hits if h.id not in used_ids]
+        evidence = _evidence_rows(ordered, used_ids)
+        elapsed = time.perf_counter() - started
+        trace.update({
+            "route": route, "stage": stage, "generation": generation, "evidence_ids": sorted(used_ids),
+            "evidence_text": package.text() + "\n" + (lead or "") if package else (lead or ""),
+            "grounding": {"ok": verdict.ok, "violations": list(verdict.violations), "overlap": verdict.overlap} if verdict else None,
+            "model": gen_meta, "model_error": model_error, "latency_s": round(elapsed, 3),
+        })
+        legacy_policy = policy_classify(question)
+        dairy_used = any((self.index.get(i) or {}).get("collection") == "dairy" for i in used_ids)
+        return {
+            "decision": legacy_policy.decision.value,
+            "intent": intent.intent,
+            "route": route,
+            "stage": stage,
+            "label": label,
+            "text": final_text,
+            "answer": final_text if stage in {"ANSWERED", "COMPOSED", "BOUNDARY", "GENERAL_ANSWERED", "CLARIFY", "META"} else None,
+            "generation": generation,
             "evidence": evidence,
-            "unreviewed": any(item["unreviewed"] for item in evidence),
+            "follow_ups": follow_ups,
+            "unreviewed": any(r["unreviewed"] and r["used"] for r in evidence),
+            "general_knowledge": route in {"DAIRY", "OUT_OF_SCOPE"} or dairy_used,
+            "verbatim": False,
+            "model_error": model_error,
+            "operational_data_access": "NONE",
+            "trace": trace,
         }
 
-        if evidence:
-            response["route"] = (
-                "CURATED_DAIRY_VETERINARY"
-                if any(item["class"] == "DAIRY_KNOWLEDGE" for item in evidence)
-                else "DAIRYOS_CAPABILITY"
-            )
-            if any(item.get("related_only") for item in evidence):
-                response["route"] = "DAIRYOS_GUIDED_GENERAL"
-                response["related_evidence"] = True
-        else:
-            response["route"] = "GENERAL_AI"
+    # ------------------------------------------------------------------
+    def _boundary_package(self, hits: list[Hit], normalised, extra_ids: Iterable[str], exclude: set[str]) -> EvidencePackage:
+        package = EvidencePackage()
+        for record_id in extra_ids:
+            record = self.index.get(record_id)
+            if record is not None:
+                package.items.append(EvidenceItem(record, select_facts(record, normalised, 3), [], "boundary"))
+        for hit in hits:
+            if len(package.items) >= 4:
+                break
+            if hit.id in exclude or hit.id in package.ids:
+                continue
+            package.items.append(EvidenceItem(hit.record, select_facts(hit.record, normalised, 3),
+                                              [], "secondary" if package.items else "primary"))
+        return package
 
-        calculating = verdict.decision is Decision.CALCULATE
-        if not evidence and not calculating:
-            answer, failure = generate_general_answer(self.provider, question)
-            if answer is not None:
-                response["stage"] = "GENERAL_ANSWERED"
-                response["text"] = answer
-                response["answer"] = answer
-                response["general_knowledge"] = True
+    def _route(self, question: str, normalised, intent: Intent, hits: list[Hit], top_score: float):
+        route = intent.intent
+        if route == "META":
+            about = self.index.get(ABOUT_ID)
+            package = EvidencePackage([EvidenceItem(about, [], [], "primary")]) if about else EvidencePackage()
+            return "META", None, package, META_TEXT, "FIXED"
+        if route == "INJECTION":
+            text = PASSWORD_TEXT if re.search(r"password", question, re.I) else INJECTION_TEXT
+            package = EvidencePackage()
+            if intent.farm_data or re.search(r"\b(?:milk|cow|finance|records?|animals?)\b", question, re.I):
+                boundary = self.index.get(BOUNDARY_ID)
+                if boundary:
+                    package.items.append(EvidenceItem(boundary, select_facts(boundary, normalised, 2), [], "boundary"))
+                    text += "\n\n" + "\n".join(f"- {f}" for f in package.items[0].facts)
+            return "INJECTION", None, package, text, "FIXED"
+        if route == "FARM_DATA":
+            # Primary evidence: where DairyOS shows it; then how it is calculated; then any health guidance.
+            content = [h for h in hits if h.id != BOUNDARY_ID and h.record.get("collection") == "dairyos"][:1]
+            dairy = [h for h in hits if h.record.get("collection") == "dairy"][:1] if intent.health else []
+            package = self._boundary_package(content + dairy, normalised, [BOUNDARY_ID], set())
+            return "FARM_DATA", FARM_DATA_LEAD, package, None, None
+        if route == "CLINICAL":
+            dairy = [h for h in hits if h.record.get("collection") == "dairy" and h.id != MEDICINE_ID][:1]
+            dairyos = [h for h in hits if h.id in {"health.treatment", "health.withdrawal"}][:1]
+            package = self._boundary_package(dairy + dairyos, normalised, [MEDICINE_ID], set())
+            return "CLINICAL", CLINICAL_LEAD, package, None, None
+        if route == "OUT_OF_SCOPE":
+            # Only override the classifier when the match is substantive: several
+            # distinct query terms, not one shared word ("capital").
+            if hits and top_score >= NOT_COVERED_SCORE * 1.5 and len(hits[0].matched_terms) >= 2:
+                route = "DAIRYOS" if hits[0].collection == "dairyos" else "DAIRY"
             else:
-                response["model_error"] = failure
-            return response
-
-        if any(item.get("related_only") for item in evidence):
-            answer, failure = generate_general_answer(
-                self.provider, question, [hit.item for hit in hits]
-            )
-            if answer is not None:
-                response["stage"] = "GENERAL_ANSWERED"
-                response["text"] = answer
-                response["answer"] = answer
-                response["general_knowledge"] = True
-                response["grounding_note"] = (
-                    "DairyOS evidence shown is related context; the remainder is general dairy guidance."
-                )
+                return "OUT_OF_SCOPE", None, EvidencePackage(), OUT_OF_SCOPE_TEXT, "FIXED"
+        if not hits or top_score < NOT_COVERED_SCORE:
+            text = NOT_COVERED_TEXT + (HEALTH_NOT_COVERED if intent.health else "")
+            return "NOT_COVERED", None, EvidencePackage(), text, "FIXED"
+        package = build_package(hits, normalised)
+        if route == "AMBIGUOUS":
+            second = hits[1].score if len(hits) > 1 else 0.0
+            if top_score >= 1.6 * second:
+                # A bare but specific term ("COP?", "BVD"): answer it, and offer neighbours.
+                route = "DAIRYOS" if hits[0].collection == "dairyos" else "DAIRY"
             else:
-                response["stage"] = "RELATED_GUIDANCE"
-                response["text"] = (
-                    "I could not find a direct approved DairyOS answer. The related "
-                    "DairyOS topics above may help; general dairy best practice "
-                    "requires the local Assistant model, which is currently unavailable."
-                )
-                response["model_error"] = failure
-            return response
+                titles = [h.record.get("title") for h in hits[1:4]]
+                text = compose(package) + ("\n\nDid you mean: " + "; ".join(t for t in titles if t) + "?" if titles else "")
+                return "AMBIGUOUS", None, package, text, "COMPOSED"
+        # The route follows the evidence actually used: the primary record's
+        # collection, or HYBRID when strong evidence from both is in play.
+        primary = package.items[0].record.get("collection")
+        others = {item.record.get("collection") for item in package.items[1:] if item.role != "boundary"}
+        route = "DAIRYOS" if primary == "dairyos" else "DAIRY"
+        if others - {primary} and intent.intent == "HYBRID":
+            route = "HYBRID"
+        return route, None, package, None, None
 
-        answer, gate, failure = generate_answer(
-            self.provider,
-            question,
-            [hit.item for hit in hits],
-            allow_derived_numbers=calculating,
-        )
-        if answer is not None:
-            response["answer"] = answer
-            response["stage"] = "ANSWERED"
-            response["text"] = answer
-            response["grounded_in"] = list(gate.checked_against) if gate else []
-        elif gate is not None:
-            # The model produced something the evidence does not support. It is
-            # withheld rather than repaired, and the reason is carried so the
-            # diagnostics surface can show what was caught.
-            response["stage"] = "WITHHELD"
-            response["text"] = failure
-            response["grounding_violations"] = list(gate.violations)
-            response["unsupported_numbers"] = list(gate.unsupported_numbers)
-        else:
-            # The model could not be reached. The knowledge was found, and it
-            # is reviewed, approved text written to be read by an operator, so
-            # it is shown as it stands rather than withheld.
-            #
-            # This is not a fallback invented to hide a failure. Showing the
-            # approved answer verbatim cannot fabricate anything, because
-            # nothing is composed. The model's contribution is phrasing, and
-            # phrasing is what is lost here, not substance.
-            response["stage"] = "APPROVED_TEXT"
-            response["text"] = approved_text(hits)
-            response["verbatim"] = True
-            response["model_error"] = failure
-        return response
+    def _follow_ups(self, hits: list[Hit], used: set[str]) -> list[str]:
+        suggestions = []
+        for hit in hits:
+            if hit.id in used or hit.id in {BOUNDARY_ID, ABOUT_ID}:
+                continue
+            questions = hit.record.get("questions") or []
+            if questions:
+                suggestions.append(str(questions[0]))
+            if len(suggestions) >= 3:
+                break
+        return suggestions
 
     def status(self) -> dict[str, Any]:
         report = dict(self.index.status_report())
@@ -429,6 +398,8 @@ class Assistant:
         report["protocol_version"] = PROTOCOL_VERSION
         report["corpus_root"] = str(corpus_root())
         report["operational_data_access"] = "NONE"
+        report["model_configured"] = not isinstance(self.provider, NullProvider)
+        report["model_ready"] = self._model_ready()
         return report
 
 
@@ -440,42 +411,31 @@ def handle(request: dict[str, Any], assistant: Assistant) -> dict[str, Any]:
         question = request.get("question")
         if not isinstance(question, str) or not question.strip():
             return {"ok": False, "type": "ask", "error": "question is required"}
-        mode = request.get("mode", "dairyos")
-        if mode not in {"dairyos", "general"}:
-            return {"ok": False, "type": "ask", "error": "unsupported assistant mode"}
-        return {"ok": True, "type": "ask", **assistant.answer(question, mode)}
+        history = request.get("history") or []
+        if not isinstance(history, list):
+            return {"ok": False, "type": "ask", "error": "history must be a list"}
+        clean_history = []
+        for turn in history[-3:]:
+            if isinstance(turn, dict) and isinstance(turn.get("question"), str):
+                clean_history.append({
+                    "question": turn["question"][:600],
+                    "records": [str(r) for r in (turn.get("records") or [])][:5],
+                })
+        reply = assistant.answer(question, request.get("mode"), clean_history)
+        if not request.get("diagnostics"):
+            reply = {k: v for k, v in reply.items() if k != "trace"}
+        return {"ok": True, "type": "ask", **reply}
     return {"ok": False, "type": kind, "error": f"unknown request type: {kind!r}"}
 
 
-def serve(
-    stdin: TextIO | Iterable[str] | None = None,
-    stdout: TextIO | None = None,
-    assistant: Assistant | None = None,
-) -> None:
-    """Read requests until the input closes.
-
-    A malformed line is answered with an error and the loop continues, because
-    one bad request from the backend should not take the Assistant down and
-    leave the operator with a dead panel and no explanation.
-    """
+def serve(stdin: TextIO | Iterable[str] | None = None, stdout: TextIO | None = None, assistant: Assistant | None = None) -> None:
+    """Read requests until the input closes; a bad line gets an error, never a crash."""
     source = sys.stdin if stdin is None else stdin
     sink = sys.stdout if stdout is None else stdout
-
-    # A windowed PyInstaller executable can start with no usable standard
-    # streams. Without this the loop would raise immediately, the process would
-    # vanish, and the parent would be left reading a pipe that never produces a
-    # line. Saying so on stderr turns a silent disappearance into something
-    # diagnosable.
     if source is None or sink is None:
-        print(
-            "DairyOS Assistant: no standard input or output; it must be started "
-            "by DairyOS rather than run directly.",
-            file=sys.stderr,
-        )
+        print("DairyOS Assistant: no standard input or output; it must be started by DairyOS.", file=sys.stderr)
         return
-
     worker = assistant if assistant is not None else Assistant()
-
     for line in source:
         line = line.strip()
         if not line:
@@ -496,32 +456,19 @@ def serve(
             sink.write(json.dumps(response, ensure_ascii=False) + "\n")
             sink.flush()
         except (BrokenPipeError, OSError) as exc:
-            # A windowed PyInstaller process can expose a TextIOWrapper whose
-            # underlying Windows handle is invalid when the executable is
-            # launched directly instead of through DairyOS. Do not surface an
-            # unhandled Errno 22 dialog; the parent will observe EOF and can
-            # report the Assistant as unavailable.
             if isinstance(exc, OSError) and getattr(exc, "errno", None) not in {22, 9}:
                 print(f"DairyOS Assistant: output stream failed: {exc}", file=sys.stderr)
             return
 
 
+def _arg(argv: list[str], name: str) -> str | None:
+    return argv[argv.index(name) + 1] if name in argv and argv.index(name) + 1 < len(argv) else None
+
+
 def _provider_from(argv: list[str]) -> ModelProvider:
-    """Build the model provider from the command line, or none at all.
-
-    The URL arrives as an argument rather than an environment variable because
-    the Assistant is started with a scrubbed environment on purpose, and
-    reading configuration from it would invite putting other things there.
-    """
-    if "--model-url" not in argv:
-        return NullProvider()
-    url = argv[argv.index("--model-url") + 1]
-    from dairyos_assistant.model import LlamaServerProvider
-
-    # An endpoint that is not loopback raises here, before the service starts,
-    # so a misconfigured Assistant fails at once instead of at the first
-    # question an operator asks.
-    return LlamaServerProvider(base_url=url)
+    url = _arg(argv, "--model-url")
+    timeouts = _arg(argv, "--model-timeouts")
+    return provider_from_url(url, timeouts=json.loads(timeouts) if timeouts else None)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -529,6 +476,11 @@ def main(argv: list[str] | None = None) -> int:
     provider = _provider_from(argv)
     if "--status" in argv:
         print(json.dumps(Assistant(provider=provider).status(), indent=2))
+        return 0
+    question = _arg(argv, "--diagnose")
+    if question:
+        reply = Assistant(provider=provider).answer(question)
+        print(json.dumps(reply, indent=2, ensure_ascii=False))
         return 0
     serve(assistant=Assistant(provider=provider))
     return 0

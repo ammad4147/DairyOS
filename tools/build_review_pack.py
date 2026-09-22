@@ -1,170 +1,94 @@
-"""Build the veterinary review pack.
+"""Build the veterinary review pack from the compiled Assistant knowledge.
 
-Domain review is the gate between an authored corpus and an approved one, and
+Domain review is the gate between curated knowledge and approved knowledge, and
 it cannot be satisfied by a name typed into a field. This produces the document
-a veterinarian can actually read: every clinical item, in full, with a place to
-record a verdict against each one.
+a veterinarian can actually read: every dairy record the Assistant serves, in
+full, with its sources, its escalation wording and a place to record a verdict.
 
-Deprecated items are excluded. They exist to redirect, never to answer, so they
-are not served and reviewing them would waste the reviewer's time.
+Records are grouped by safety class so the reviewer can start with the items
+that carry the most risk (VET_ONLY, then TRIAGE, then EDUCATIONAL).
+
+The verdicts are applied back to the YAML sources by an engineer (review status
+VET_REVIEWED with the reviewer's name and date); ``tools/assistant_kb.py build``
+then recomputes the manifest. Nothing in this pack changes the corpus by itself.
 
 Output is a single self-contained HTML file that prints cleanly, so it can be
-emailed, printed, or saved as PDF without anything being installed.
+emailed, printed or saved as PDF without anything being installed.
+
+    python tools/build_review_pack.py [--out PATH]
 """
 
 from __future__ import annotations
 
-import glob
+import argparse
 import html
 import json
 from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CORPUS = ROOT / "docs" / "assistant-knowledge"
-OUT = ROOT / "docs" / "assistant-knowledge" / "veterinary-review-pack.html"
+KB = ROOT / "docs" / "assistant-knowledge"
+OUT = KB / "veterinary-review-pack.html"
+ORDER = ("VET_ONLY", "TRIAGE", "EDUCATIONAL")
 
-CLINICAL_DOMAINS = ("health", "vaccination", "breeding")
-
-SECTIONS = (
-    ("question", "Question as an operator would ask it"),
-    ("answer", "Answer the Assistant gives"),
-    ("explanation", "Explanation"),
-    ("exceptions", "Exceptions"),
-    ("correction_path", "How a mistake is corrected"),
-)
-
-
-def load_items() -> dict[str, dict]:
-    items: dict[str, dict] = {}
-
-    def walk(node):
-        if isinstance(node, dict):
-            if "id" in node and "status" in node:
-                items[node["id"]] = node
-            for value in node.values():
-                walk(value)
-        elif isinstance(node, list):
-            for value in node:
-                walk(value)
-
-    for path in glob.glob(str(CORPUS / "**" / "*.json"), recursive=True):
-        if path.endswith("manifest.json"):
-            continue
-        walk(json.loads(Path(path).read_text(encoding="utf-8")))
-    return items
+CSS = """
+body{font-family:Segoe UI,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#1b1b1b;line-height:1.45}
+h1{font-size:22px;margin-bottom:4px} h2{font-size:18px;border-bottom:2px solid #2f5d50;padding-bottom:4px;margin-top:32px}
+.rec{border:1px solid #c8c8c8;border-radius:6px;padding:12px 16px;margin:14px 0;page-break-inside:avoid}
+.rec h3{font-size:15px;margin:0 0 4px} .meta{color:#555;font-size:12px} .esc{background:#fff4e5;border-left:4px solid #d9822b;padding:6px 10px;margin:8px 0}
+.verdict{border-top:1px dashed #999;margin-top:10px;padding-top:8px;font-size:13px}
+.box{display:inline-block;width:12px;height:12px;border:1px solid #333;margin:0 4px 0 12px;vertical-align:middle}
+.line{border-bottom:1px solid #999;height:22px;margin-top:6px} small a{color:#2f5d50}
+"""
 
 
-def render_value(value) -> str:
-    if isinstance(value, list):
-        parts = []
-        for entry in value:
-            if isinstance(entry, dict):
-                condition = entry.get("condition", "")
-                behaviour = entry.get("behaviour", "")
-                parts.append(f"<li><b>{html.escape(str(condition))}</b> {html.escape(str(behaviour))}</li>")
-            else:
-                parts.append(f"<li>{html.escape(str(entry))}</li>")
-        return "<ul>" + "".join(parts) + "</ul>"
-    return f"<p>{html.escape(str(value))}</p>"
+def _e(value) -> str:
+    return html.escape(str(value or ""))
 
 
-def main() -> int:
-    items = load_items()
-    clinical = [
-        item
-        for key, item in sorted(items.items())
-        if key.split(".")[0] in CLINICAL_DOMAINS
-        and item.get("status") != "DEPRECATED"
-        and "redirect_to" not in item
-    ]
+def _record(r: dict) -> str:
+    safety = r.get("safety") or {}
+    parts = [f'<div class="rec"><h3>{_e(r["title"])}</h3>',
+             f'<div class="meta">{_e(r["id"])} &middot; {_e(r["kind"])} &middot; safety {_e(safety.get("class"))}'
+             f' &middot; current status {_e(r["review"]["status"])}</div>']
+    if r.get("questions"):
+        parts.append("<p><b>Operators ask:</b> " + "; ".join(_e(q) for q in r["questions"][:4]) + "</p>")
+    parts.append(f"<p><b>Summary served:</b> {_e(r['summary'])}</p>")
+    if r.get("facts"):
+        parts.append("<ol>" + "".join(f"<li>{_e(f)}</li>" for f in r["facts"]) + "</ol>")
+    if safety.get("escalate"):
+        parts.append(f'<div class="esc"><b>Veterinary escalation wording:</b> {_e(safety["escalate"])}</div>')
+    sources = [f'<a href="{_e(p.get("url"))}">{_e(p.get("publisher"))}: {_e(p.get("title"))}</a>'
+               + (f" ({_e(p['revised'])})" if p.get("revised") else "") for p in r.get("provenance") or []]
+    if sources:
+        parts.append("<small><b>Sources:</b> " + "; ".join(sources) + "</small>")
+    parts.append('<div class="verdict">Verdict:<span class="box"></span>Approve'
+                 '<span class="box"></span>Approve with changes<span class="box"></span>Reject'
+                 '<div class="line">Changes / comments:</div><div class="line"></div></div></div>')
+    return "".join(parts)
 
-    blocks = []
-    for index, item in enumerate(clinical, start=1):
-        rows = []
-        for field, label in SECTIONS:
-            value = item.get(field)
-            if not value:
-                continue
-            rows.append(f"<h4>{html.escape(label)}</h4>{render_value(value)}")
-        blocks.append(
-            f"""
-<section>
-  <h3>{index}. {html.escape(str(item.get('title', item['id'])))}
-      <span class="id">{html.escape(item['id'])}</span></h3>
-  {''.join(rows)}
-  <table class="verdict">
-    <tr><th>Verdict</th><td>Correct as written &nbsp;&nbsp; / &nbsp;&nbsp; Correct with the change below
-        &nbsp;&nbsp; / &nbsp;&nbsp; Not correct</td></tr>
-    <tr><th>Correction or comment</th><td class="write"></td></tr>
-  </table>
-</section>"""
-        )
 
-    document = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<title>DairyOS Assistant: veterinary review pack</title>
-<style>
-  body {{ font-family: Georgia, 'Times New Roman', serif; max-width: 46em; margin: 2em auto;
-         padding: 0 1.5em; line-height: 1.55; color: #111; }}
-  h1 {{ font-size: 1.6em; margin-bottom: 0.2em; }}
-  h3 {{ margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; font-size: 1.1em; }}
-  h4 {{ margin: 1.1em 0 0.3em; font-size: 0.85em; text-transform: uppercase;
-        letter-spacing: 0.06em; color: #555; font-weight: normal; }}
-  .id {{ float: right; font-family: monospace; font-size: 0.7em; color: #888; font-weight: normal; }}
-  .intro {{ background: #f6f6f4; border-left: 3px solid #999; padding: 1em 1.2em; margin: 1.5em 0; }}
-  table.verdict {{ width: 100%; border-collapse: collapse; margin-top: 1.2em; }}
-  table.verdict th {{ text-align: left; width: 11em; vertical-align: top; padding: 0.5em 0.6em;
-                      font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em;
-                      color: #555; font-weight: normal; border: 1px solid #bbb; background: #fafafa; }}
-  table.verdict td {{ padding: 0.5em 0.6em; border: 1px solid #bbb; font-size: 0.9em; }}
-  td.write {{ height: 4.5em; }}
-  ul {{ margin: 0.3em 0 0.3em 1.2em; padding: 0; }}
-  section {{ page-break-inside: avoid; }}
-  @media print {{ body {{ margin: 0; max-width: none; }} }}
-</style></head><body>
-
-<h1>DairyOS Assistant: veterinary review</h1>
-<p><b>Reviewer:</b> Dr Umair Shaffi &nbsp;&nbsp;|&nbsp;&nbsp;
-   <b>Corpus version:</b> 0.4.0 &nbsp;&nbsp;|&nbsp;&nbsp;
-   <b>Prepared:</b> {date.today().isoformat()} &nbsp;&nbsp;|&nbsp;&nbsp;
-   <b>Items:</b> {len(clinical)}</p>
-
-<div class="intro">
-<p>This is the clinical content of a knowledge assistant built into DairyOS. The
-assistant teaches farm staff how the software works and what the terms mean. It
-has no access to any farm's records and cannot see a single animal, so nothing
-here is advice about a patient; it is general guidance that will be repeated to
-operators verbatim.</p>
-
-<p>What matters in this review is whether each statement is correct as a general
-statement of dairy practice, and whether anything here could lead an operator to
-act unsafely. Software behaviour, screen names and record-keeping rules have
-already been checked against the source code and are not the subject of this
-review.</p>
-
-<p>Mark each item and return the document. An item is only made available to
-operators once it carries a reviewer's name, so anything left unmarked stays
-withheld rather than being published unreviewed.</p>
-</div>
-
-{''.join(blocks)}
-
-<section>
-  <h3>Reviewer declaration</h3>
-  <table class="verdict">
-    <tr><th>Name and qualification</th><td class="write"></td></tr>
-    <tr><th>Signature</th><td class="write"></td></tr>
-    <tr><th>Date</th><td class="write"></td></tr>
-  </table>
-</section>
-
-</body></html>"""
-
-    OUT.write_text(document, encoding="utf-8", newline="\n")
-    print(f"{len(clinical)} clinical items written to {OUT}")
-    return 0
+def build(out: Path = OUT) -> Path:
+    corpus = json.loads((KB / "corpus.json").read_text(encoding="utf-8"))
+    records = [r for r in corpus["records"] if r["collection"] == "dairy" and r.get("servable", True)]
+    body = [f"<h1>DairyOS Assistant: veterinary review pack</h1>",
+            f"<p class='meta'>Generated {date.today().isoformat()} from corpus schema "
+            f"{_e(corpus.get('schema_version'))}. {len(records)} dairy records.</p>",
+            "<p>Each record below is what the Assistant may tell an operator. It is general education and "
+            "triage; the Assistant never diagnoses, names a medicine or gives a dose. Please mark each record, "
+            "correct any wording, and confirm that the escalation text sends the operator to a veterinarian "
+            "at the right point. Reviewer name, registration and date:</p><div class='line'></div>"]
+    for cls in ORDER:
+        group = sorted((r for r in records if (r.get("safety") or {}).get("class") == cls), key=lambda r: r["id"])
+        if group:
+            body.append(f"<h2>{cls.replace('_', ' ').title()} ({len(group)})</h2>")
+            body.extend(_record(r) for r in group)
+    out.write_text(f"<!doctype html><html><head><meta charset='utf-8'><title>Veterinary review pack</title>"
+                   f"<style>{CSS}</style></head><body>{''.join(body)}</body></html>", encoding="utf-8")
+    return out
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--out", type=Path, default=OUT)
+    print(build(parser.parse_args().out))

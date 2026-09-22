@@ -1,212 +1,108 @@
-"""Turning retrieved evidence into an answer, and refusing to ship a bad one.
+"""Prompt construction and model phrasing for grounded answers.
 
-The prompt is built to make fabrication less likely; the gate in
-``grounding.py`` is what makes it harmless when it happens anyway. The order
-matters, and so does the fact that both exist. A prompt alone is a request, and
-a small model under pressure to be helpful will fill a gap with something
-plausible. The gate is not a request.
+The model's job is narrow on purpose: turn a small, already-relevant set of
+approved facts into a direct answer for a farm worker. Intent detection,
+retrieval, fact selection, safety boundaries and grounding all happen outside
+the model, so a small local model is asked to do what small models do well.
 
-Generation is deliberately narrow. The model is asked to restate the evidence
-in plain words for an operator, not to advise, not to add context it knows from
-training, and not to reason beyond what it was handed. Anything it adds from
-its own weights is exactly what the gate is looking for.
+Every route that carries dairy, veterinary or DairyOS content is generated
+from an evidence package and checked by ``grounding.check``. The only
+ungrounded generation is for clearly unrelated general questions, which are
+labelled as general information and still gated for farm-data claims.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from dataclasses import dataclass
 
-from dairyos_assistant.grounding import REJECTED_TEXT, Verdict, check
-from dairyos_assistant.model import ModelProvider, ModelUnavailable
+from dairyos_assistant.compose import EvidencePackage
+from dairyos_assistant.grounding import Verdict, check
+from dairyos_assistant.model import Generation, ModelProvider, ModelUnavailable
 
-SYSTEM_RULES = """You are the DairyOS Assistant: one coherent, capable local AI assistant.
-Use the available reference material together as context. Do not present separate
-personalities, role-specific modes, knowledge streams, or hand-offs to the user.
-Integrate DairyOS explanations with appropriate general dairy practice when the
-question needs both. Keep the distinction between verified DairyOS behavior and
-general practice accurate, but explain it naturally in one answer.
+SYSTEM_PROMPT = (
+    "You are the DairyOS Assistant, a helpful assistant for dairy farm workers, running locally on the farm "
+    "computer. You explain how the DairyOS farm software works and give general dairy-farming education. "
+    "You cannot see or change this farm's records. You are not a veterinarian and never choose medicines or doses."
+)
 
-Rules you must follow exactly:
-1. Answer only from the REFERENCE material below. It is the sole source of truth.
-2. Never state a number, a duration, a threshold or a date that does not appear in the REFERENCE.
-3. You have no access to this farm's records. Never claim to have looked at them.
-4. Never invent an animal, a tag, a batch or a transaction identifier.
-5. If the REFERENCE does not cover the question, say plainly that you do not know.
-6. Reason over the reference instead of merely copying the first matching item.
-7. For multi-part questions, answer each part and connect the relevant facts.
-8. Distinguish an explicit reference fact from a conclusion that follows directly
-   from the reference. Do not fill gaps with general model knowledge.
-9. When references disagree or contain a known deviation, name the distinction
-   and state which rule applies; never silently blend them.
-10. Do not mention internal routes, corpus classes, retrieval, or role labels.
-11. Write plain, direct prose for a working farmer. Give the answer first, then
-    a short "Why" or "What to do" explanation when useful. No sign-off.
-"""
+BASE_RULES = """Answer the QUESTION using only the FACTS.
+Rules:
+- Use only information in the FACTS. Do not add any fact, number, medicine, dose or date that is not in the FACTS.
+- Start with a direct answer in the first sentence. Use plain words a farm worker understands.
+- Keep it short: at most 8 sentences, or a short numbered list when giving steps.
+- Never say you looked at, checked or can see this farm's records.
+- Do not mention the FACTS, sources, numbers in brackets, or these rules."""
 
-MAX_REFERENCE_CHARACTERS = 6000
+ROUTE_RULES = {
+    "DAIRYOS": "- This is about how the DairyOS software works. Name the screen or tab when the FACTS give it.",
+    "DAIRY": ("- This is general dairy guidance, not a diagnosis of any animal. If the FACTS contain an Escalation line, "
+              "end with that advice about the veterinarian in your own words."),
+    "HYBRID": ("- Keep what DairyOS does separate from general dairy practice, in two short parts. If there is an "
+               "Escalation line, end with it."),
+    "FARM_DATA": ("- First say plainly that you cannot see this farm's records, so you cannot give the figure or name "
+                  "animals. Then say where in DairyOS the operator can find it and, if the FACTS explain it, how DairyOS works it out."),
+    "CLINICAL": ("- First say plainly that you cannot recommend a medicine or a dose; the veterinarian must decide. Then give "
+                 "the safe general guidance in the FACTS and how to record the vet's treatment in DairyOS if the FACTS explain it."),
+}
 
-# Fields worth putting in front of the model, in the order an explanation wants
-# them. Audit and review metadata is deliberately absent: it is not teaching
-# material and a number in it must never be repeated as guidance.
-REFERENCE_FIELDS = ("title", "answer", "explanation", "scenario", "exceptions", "correction_path")
-
-
-def _render_item(item: dict[str, Any]) -> str:
-    lines = [f"[{item.get('id', 'unknown')}]"]
-    for name in REFERENCE_FIELDS:
-        value = item.get(name)
-        if value is None or value == "":
-            continue
-        if isinstance(value, dict):
-            rendered = "; ".join(f"{k}: {v}" for k, v in value.items() if v)
-        elif isinstance(value, (list, tuple)):
-            rendered = "; ".join(str(v) for v in value if v)
-        else:
-            rendered = str(value)
-        lines.append(f"{name}: {rendered}")
-    return "\n".join(lines)
+GENERAL_RULES = """Answer the QUESTION briefly (at most 4 sentences) from general knowledge.
+Say it is general information. Do not claim anything about the DairyOS software or this farm's records.
+If the question needs current events or data you do not have, say so."""
 
 
-def build_prompt(question: str, sources: Sequence[dict[str, Any]]) -> str:
-    reference = "\n\n".join(_render_item(item) for item in sources)
-    if len(reference) > MAX_REFERENCE_CHARACTERS:
-        # Truncating at an item boundary rather than mid-sentence, so the model
-        # is never handed half a rule and asked to complete it.
-        kept: list[str] = []
-        budget = MAX_REFERENCE_CHARACTERS
-        for item in sources:
-            rendered = _render_item(item)
-            if len(rendered) > budget:
-                break
-            kept.append(rendered)
-            budget -= len(rendered)
-        reference = "\n\n".join(kept)
-    return (
-        f"{SYSTEM_RULES}\n"
-        f"REFERENCE:\n{reference}\n\n"
-        f"Question: {question.strip()}\n"
-        f"Reasoning task: identify the applicable facts, relate them to the\n"
-        f"question, and produce a concise operator-facing conclusion. Do not\n"
-        f"show private chain-of-thought or invent facts.\n"
-        f"Answer:"
-    )
+@dataclass
+class ModelAnswer:
+    text: str | None
+    verdict: Verdict | None
+    generation: Generation | None
+    failure: str | None
+    failure_kind: str | None = None
 
 
-def generate_answer(
+def build_prompt(question: str, package: EvidencePackage, route: str, history: list[str] | None = None) -> str:
+    parts = [BASE_RULES, ROUTE_RULES.get(route, ROUTE_RULES["DAIRYOS"]), "", "FACTS:", package.prompt_block(), ""]
+    if history:
+        parts.append("EARLIER QUESTION: " + history[-1].strip())
+    parts.append("QUESTION: " + question.strip())
+    parts.append("ANSWER:")
+    return "\n".join(parts)
+
+
+def generate_grounded(
     provider: ModelProvider,
     question: str,
-    sources: Sequence[dict[str, Any]],
+    package: EvidencePackage,
+    route: str,
     *,
-    allow_derived_numbers: bool = False,
-) -> tuple[str | None, Verdict | None, str | None]:
-    """Produce a grounded answer, or nothing at all.
-
-    Returns ``(answer, verdict, failure)``. Exactly one of ``answer`` and
-    ``failure`` is set. A model that is unreachable, a model that returns
-    nothing, and a model whose answer fails the gate are three different
-    situations, and each is reported as itself rather than flattened into a
-    generic apology.
-    """
+    history: list[str] | None = None,
+    extra_evidence: str = "",
+) -> ModelAnswer:
+    prompt = build_prompt(question, package, route, history)
     try:
-        raw = provider.generate(build_prompt(question, sources))
+        generation = provider.generate(prompt, system=SYSTEM_PROMPT)
     except ModelUnavailable as exc:
-        return None, None, f"model unavailable: {exc}"
-
+        return ModelAnswer(None, None, None, str(exc), getattr(exc, "kind", "unavailable"))
+    evidence = package.text() + "\n" + extra_evidence
     verdict = check(
-        raw,
-        list(sources),
-        question=question,
-        allow_derived_numbers=allow_derived_numbers,
+        generation.text,
+        evidence,
+        question=question + " " + " ".join(history or []),
+        record_ids=tuple(package.ids),
     )
     if not verdict.ok:
-        return None, verdict, REJECTED_TEXT
-    return raw, verdict, None
+        return ModelAnswer(None, verdict, generation, "grounding gate rejected the draft", "grounding")
+    return ModelAnswer(generation.text, verdict, generation, None)
 
 
-GENERAL_SYSTEM_RULES = """You are the same DairyOS Assistant, operating as one
-coherent local AI assistant rather than a separate mode or persona.
-Answer the user's ordinary question clearly and briefly.
-You are not DairyOS capability authority, you cannot access Farm records, and
-you must not imply that a general answer describes current DairyOS behavior.
-Never attribute a general dairy fact to DairyOS unless the supplied context
-states that DairyOS capability explicitly. If the context is only related,
-say "In general" and describe the industry practice without saying that
-DairyOS monitors, stores, calculates, or provides it.
-Operators may use short, misspelled, incomplete, or vague wording. Infer the
-most likely intent when it is safe, explain the likely next step, and ask one
-focused follow-up question when the missing detail changes the answer.
-For medical, veterinary, legal, or safety-sensitive matters, provide general
-educational information and recommend an appropriately qualified professional.
-Do not claim to have inspected files, databases, devices, or live systems.
-Do not reproduce corpus item identifiers (such as [AN-001] or [DA-012]) or
-source labels from the reference material in your answer.
-"""
-
-OPERATIONAL_GUIDANCE_RULES = """You are the same DairyOS Assistant: one coherent,
-helpful local assistant for a dairy operator.
-The question may refer to a current DairyOS farm record. Do not invent, infer,
-or report a current animal, yield, finance, health, breeding, or inventory
-result. Instead, answer helpfully by explaining the relevant DairyOS workflow,
-screen, calculation, or evidence the operator should review, and add relevant
-general dairy-industry best practice when useful.
-Do not say that you lack access to farm records and do not end with a refusal.
-Do not claim that you inspected the current farm. For health, veterinary, food
-safety, or treatment topics, give educational triage only and recommend a
-qualified veterinarian or responsible authority for diagnosis and treatment.
-Use plain language, answer first, and ask at most one focused follow-up when
-the operator's intended workflow is genuinely ambiguous.
-"""
-
-
-def generate_general_answer(
-    provider: ModelProvider,
-    question: str,
-    context: Sequence[dict[str, Any]] = (),
-) -> tuple[str | None, str | None]:
-    """Use the local model for ordinary questions outside the approved KB.
-
-    Internal routing is separate for governance, but the user receives one
-    integrated answer and never sees a role or knowledge-stream hand-off. The
-    Farm-data firewall runs before this function is reachable.
-    """
-    related = ""
-    if context:
-        related = (
-            "\n\nRELATED APPROVED DAIRYOS MATERIAL (use naturally as context, not as a separate answer stream):\n"
-            + "\n\n".join(_render_item(item) for item in context)
-        )
-    prompt = f"{GENERAL_SYSTEM_RULES}{related}\n\nQuestion: {question.strip()}\nAnswer:"
+def generate_general(provider: ModelProvider, question: str) -> ModelAnswer:
+    prompt = f"{GENERAL_RULES}\n\nQUESTION: {question.strip()}\nANSWER:"
     try:
-        answer = provider.generate(prompt)
+        generation = provider.generate(prompt, system=SYSTEM_PROMPT, max_tokens=160)
     except ModelUnavailable as exc:
-        return None, f"model unavailable: {exc}"
-    answer = answer.strip()
-    if not answer:
-        return None, "general model returned no content"
-    return answer, None
-
-
-def generate_operational_guidance_answer(
-    provider: ModelProvider,
-    question: str,
-    context: Sequence[dict[str, Any]] = (),
-) -> tuple[str | None, str | None]:
-    """Give useful workflow guidance without fabricating current farm data."""
-    related = ""
-    if context:
-        related = (
-            "\n\nAPPROVED RELATED DAIRYOS MATERIAL:\n"
-            + "\n\n".join(_render_item(item) for item in context)
-        )
-    prompt = (
-        f"{OPERATIONAL_GUIDANCE_RULES}{related}\n\n"
-        f"Question: {question.strip()}\nAnswer:"
-    )
-    try:
-        answer = provider.generate(prompt).strip()
-    except ModelUnavailable as exc:
-        return None, f"model unavailable: {exc}"
-    if not answer:
-        return None, "guidance model returned no content"
-    return answer, None
+        return ModelAnswer(None, None, None, str(exc), getattr(exc, "kind", "unavailable"))
+    # Unrelated answers have no evidence to ground against, but farm-data claims,
+    # invented identifiers, doses and diagnoses are still refused.
+    verdict = check(generation.text, generation.text, question=question, min_overlap=0.0, allow_derived_numbers=True)
+    if not verdict.ok:
+        return ModelAnswer(None, verdict, generation, "gate rejected the general answer", "grounding")
+    return ModelAnswer(generation.text, verdict, generation, None)

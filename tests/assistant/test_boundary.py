@@ -231,11 +231,8 @@ def test_corpus_validation_runs_without_the_application():
     Assistant could not load its own knowledge."""
     payload = _run_isolated(
         "import json\n"
-        "from dairyos_assistant.corpus.validation import (\n"
-        "    validate_corpus, errors, legacy_identifiers)\n"
-        "pending = frozenset()\n"
-        "f = validate_corpus('docs/assistant-knowledge', '.',\n"
-        "                    check_manifest=False, pending_external_ids=pending)\n"
+        "from dairyos_assistant.corpus.validation import validate_corpus, errors\n"
+        "f = validate_corpus('docs/assistant-knowledge')\n"
         "print(json.dumps({'errors': len(errors(f)), 'findings': len(f)}))\n"
     )
     assert payload["errors"] == 0, "the corpus must validate inside the isolated environment"

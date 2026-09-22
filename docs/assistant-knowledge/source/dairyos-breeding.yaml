@@ -1,0 +1,200 @@
+# DairyOS capability knowledge: Breeding and reproduction.
+collection: dairyos
+domain: breeding
+records:
+- id: breeding.cycle
+  kind: DATA_FLOW
+  title: The breeding cycle in DairyOS
+  questions:
+  - What is the breeding cycle in DairyOS?
+  - explain breeding workflow
+  - how breeding works in dairyos
+  keywords: [breeding cycle, insemination, pd, pregnancy, calving, open, workflow]
+  summary: A cycle runs insemination (AI) -> pregnancy diagnosis about 35 days later -> confirmed pregnant or open -> calving (or a pregnancy loss) -> a 45-day voluntary waiting period -> eligible for the next insemination.
+  location: Breeding tab > Save Breeding Entry
+  facts:
+  - Recorded events are insemination, pregnancy diagnosis (positive or negative), pregnancy loss (miscarriage), abortion and calving.
+  - Current reproductive state is derived from the saved chronology of events, never typed as a status.
+  - Status values are OPEN, INSEMINATED (bred, awaiting PD), PREGNANT, LACTATING after calving and DRY_OFF.
+  - A negative PD, pregnancy loss or abortion returns the animal to OPEN.
+  - Heat or estrus events are retired in DairyOS; record the insemination directly.
+  related: [breeding.ai, breeding.pd, breeding.calving, breeding.vwp, breeding.pregnancy-loss]
+  anchors:
+  - {path: src/dairyos/farm/reproduction/services/reproductive_state_service.py, symbol: ReproductiveStateService.resolve}
+  - {path: src/dairyos/api/breeding_biology.py, symbol: record_breeding_entry}
+
+- id: breeding.ai
+  kind: HOWTO
+  title: Recording an artificial insemination
+  questions:
+  - How do I record AI?
+  - where do I record semen used
+  - record insemination
+  keywords: [ai, insemination, semen lot, straw, technician, inseminator]
+  summary: In Breeding, select the animal, choose insemination, pick the purchased semen lot, enter the inseminator/vet, and save. DairyOS draws one straw from that lot.
+  location: Breeding tab > Save Breeding Entry (Available Purchased Semen)
+  facts:
+  - Only active females that are Heifer, Lactating (Milking) or Dry can be inseminated; calves, bulls and Close-Up animals are excluded.
+  - An animal already INSEMINATED or PREGNANT cannot be inseminated again until PD or calving is recorded.
+  - Insemination is blocked until the voluntary waiting period after the last calving or pregnancy loss has ended.
+  - The semen lot must be active, have straws left, not be expired and not have been purchased after the AI date.
+  - If no purchased semen stock exists, DairyOS asks you to record the semen purchase in Finance first.
+  - Sexed semen is labelled "Sexed Semen (90% Female)"; conventional semen is labelled Conventional, with the sire code.
+  related: [breeding.semen, breeding.pd, breeding.vwp, dairy.repro.ai-timing]
+  anchors:
+  - {path: src/dairyos/api/breeding_biology.py, symbol: _validate_transition}
+  - {path: src/DairyOS.Web/src/components/BreedingTab.tsx, text: Available Purchased Semen}
+
+- id: breeding.semen
+  kind: DATA_FLOW
+  title: How semen inventory relates to AI and Finance
+  questions:
+  - How does DairyOS handle semen inventory?
+  - where do I record semen purchase
+  - semen stock
+  - where do i record semen
+  keywords: [semen, semen inventory, straws, semen lot, sire code, sexed, conventional, stock]
+  summary: Semen is bought in Finance (OPEX > Breeding & reproduction > Semen Straws). That creates a semen lot with the straws purchased. Each AI recorded in Breeding draws one straw from the chosen lot, and the straw's cost counts in COP when it is used.
+  location: Finance > Record Expense > Semen Purchase Details; Breeding > Available Purchased Semen
+  facts:
+  - The semen purchase needs sire/bull code, semen type (Sexed or Conventional), batch/lot number, supplier, straws purchased and cost per straw; bull name, breed, expiry, storage tank/location and country/source are optional.
+  - The lot code is SEM-{Finance transaction number}-{batch number}.
+  - Stock on hand for a lot is its purchased straws minus straws consumed by AI.
+  - Each AI writes a consumption movement of one straw linked to that breeding record.
+  - Semen cost uses the Consumption attribution rule; it enters COP in the period the straw is used, not the purchase date.
+  - Reports include Semen Inventory & Usage, Semen Lot Performance and Semen Purchases.
+  related: [breeding.ai, finance.attribution, finance.flow]
+  anchors:
+  - {path: src/dairyos/api/finance_ledger.py, symbol: create_finance_ledger_entry}
+  - {path: src/dairyos/api/breeding_biology.py, symbol: record_breeding_entry}
+
+- id: breeding.pd
+  kind: HOWTO
+  title: Pregnancy diagnosis (PD) and when it is due
+  questions:
+  - When is PD due?
+  - what does pending pd mean
+  - how does dairyos know cow is pregnant
+  - how does PD eligibility work
+  keywords: [pd, pregnancy diagnosis, pregnancy check, pd due, pending pd, positive, negative]
+  summary: PD becomes due 35 days after the last insemination. Record it in Breeding as PD Check / Review Result, Positive (confirmed pregnant) or Negative (open). DairyOS only knows a cow is pregnant when a positive PD is recorded.
+  facts:
+  - PD can be recorded only for an animal currently INSEMINATED, awaiting its first diagnosis after insemination.
+  - A PD cannot be dated before the insemination.
+  - A positive PD makes the animal PREGNANT and sets the expected calving date.
+  - A negative PD closes the cycle and returns the animal to OPEN so it can be inseminated again.
+  - The PD due date is a reminder; it never changes state by itself.
+  - Reporting > Breeding > Pregnancy Diagnosis Due lists animals by PD due date.
+  related: [breeding.cycle, breeding.expected-calving, dairy.repro.pregnancy-diagnosis]
+  anchors:
+  - {path: src/dairyos/farm/reproduction/services/reproductive_state_service.py, symbol: DEFAULT_REPRODUCTIVE_POLICY}
+  - {path: src/DairyOS.Web/src/components/BreedingTab.tsx, text: PD Check / Review Result}
+
+- id: breeding.expected-calving
+  kind: CALCULATION
+  title: Expected calving and dry-off dates
+  questions:
+  - How is expected calving date calculated?
+  - when will cow calve
+  - when should i dry off cow
+  keywords: [expected calving, gestation, 283 days, dry-off date, days pregnant]
+  summary: Expected calving is the last insemination date plus 283 days, unless the pregnancy record carries a specific expected calving date. Expected dry-off is expected calving minus 60 days.
+  facts:
+  - Expected calving is calculated from the insemination date, not from the calving or PD date.
+  - Days pregnant counts from the insemination date.
+  - Dry period status is NOT_DUE before the expected dry-off date and DUE_OR_ACTIVE from it.
+  - Expected dates are planning aids; only recorded events change the animal's state.
+  related: [breeding.pd, animals.dry-off, dairy.transition.dry-period]
+  anchors:
+  - {path: src/dairyos/farm/reproduction/services/reproductive_state_service.py, symbol: ReproductiveStateService.resolve}
+
+- id: breeding.vwp
+  kind: CALCULATION
+  title: Voluntary waiting period and breeding eligibility
+  questions:
+  - When can a cow be bred again after calving?
+  - voluntary waiting period
+  - why is insemination blocked
+  keywords: [voluntary waiting period, vwp, eligible to breed, post-terminal waiting period, 45 days]
+  summary: After a calving, pregnancy loss, abortion or stillbirth, DairyOS blocks insemination for a 45-day voluntary waiting period. The animal is eligible to breed on or after that end date.
+  facts:
+  - The waiting period counts from the latest calving or pregnancy-ending event.
+  - Eligible for breeding means not pregnant and on or after the waiting period end.
+  - The Passport shows Eligible for breeding and the waiting period end.
+  - Reporting > Breeding > Animals Due for AI lists eligible animals.
+  related: [breeding.ai, breeding.calving, dairy.repro.vwp-principles]
+  anchors:
+  - {path: src/dairyos/farm/reproduction/services/reproductive_state_service.py, symbol: DEFAULT_REPRODUCTIVE_POLICY}
+
+- id: breeding.calving
+  kind: DATA_FLOW
+  title: What happens after calving is recorded
+  questions:
+  - What happens after calving?
+  - what happens after cow calves in dairyos
+  - how does a calf receive an ID
+  - record calving
+  keywords: [calving, calf id, new calf, dam, planned return to milking, lactation]
+  summary: Record calving in Breeding with the calf's sex and the mother's planned return-to-milking date. DairyOS ends the pregnancy, sets the mother to Dry (not milking), and automatically creates the calf with a new permanent Animal ID linked to its dam.
+  location: Breeding tab > Save Breeding Entry (Calf Sex, Mother Planned Return to Milking)
+  facts:
+  - Calving can be recorded only for an animal currently confirmed pregnant, and not dated before the pregnancy confirmation.
+  - Calf sex (Female or Male) and a planned return-to-milking date on or after the calving date are required.
+  - The calf gets the next permanent ID in the farm's series (farm prefix plus a sequential number), date of birth equal to the calving date, lifecycle CALF, the dam's breed and the dam as mother.
+  - The mother's lactation number increases by one and days in milk count from the calving date.
+  - On the planned return date DairyOS automatically returns the mother to Lactating (milking) at the farm's most common milking frequency, if she is still Dry.
+  - A 45-day voluntary waiting period starts from the calving date.
+  - The breeding event, dam update and calf creation are saved in one transaction and propagated to the Passport, herd counts and Dashboard through a durable outbox.
+  related: [breeding.post-calving-return, animals.calf-id, breeding.vwp, dairy.transition.fresh-cow-watch]
+  anchors:
+  - {path: src/dairyos/api/breeding_biology.py, symbol: record_breeding_entry}
+  - {path: src/dairyos/api/animal_registration.py, symbol: _new_animal_id}
+
+- id: breeding.post-calving-return
+  kind: CONCEPT
+  title: Return to milking after calving
+  questions:
+  - When does a fresh cow start showing in milk?
+  - cow calved but not in milking list
+  keywords: [return to milking, planned return, fresh cow, milking frequency after calving]
+  summary: After calving the mother is set to Dry and not milking. On the planned return-to-milking date entered with the calving, DairyOS sets her to Lactating and milking automatically.
+  facts:
+  - The return uses the farm's most common milking frequency among lactating animals, or THRICE_DAILY if none exist.
+  - The change is recorded in her milking frequency history with reason POST_CALVING_PLANNED_RETURN.
+  - It applies only if she is still Dry and not milking on that date, and only once.
+  - Colostrum and transition milk before the return date are not recorded as her milk production.
+  related: [breeding.calving, animals.milking-frequency]
+  anchors:
+  - {path: src/dairyos/farm/reproduction/services/post_calving_return_service.py, symbol: reconcile_due_post_calving_returns}
+
+- id: breeding.pregnancy-loss
+  kind: HOWTO
+  title: Recording a pregnancy loss or abortion
+  questions:
+  - How do I record an abortion?
+  - cow lost pregnancy
+  keywords: [abortion, miscarriage, pregnancy loss, early embryonic loss]
+  summary: Record Pregnancy Loss Outcome in Breeding as Miscarriage or Aborted Pregnancy with the actual date. The pregnancy ends and the animal becomes open after a 45-day waiting period.
+  facts:
+  - A loss can be recorded only for an animal currently confirmed pregnant and not before the confirmation date.
+  - Expected calving and days pregnant stop applying once a loss is recorded.
+  - Abortion clusters, or any suspected notifiable disease such as brucellosis, need prompt veterinary investigation.
+  related: [breeding.vwp, dairy.disease.brucellosis, dairy.repro.abortion]
+  anchors:
+  - {path: src/dairyos/api/breeding_biology.py, symbol: _normalize_requested_event}
+
+- id: breeding.analytics
+  kind: CONCEPT
+  title: Breeding analytics and conception rate
+  questions:
+  - How is conception rate calculated?
+  - breeding analytics meaning
+  keywords: [conception rate, insemination success, pregnancy outcome, repeat breeder, technician performance, sire performance]
+  summary: Breeding analytics are cycle-linked; each governed AI cycle is followed to conception, negative PD or loss. Conception rate is the share of AI cycles with a documented outcome (confirmed pregnancy, negative PD, loss or calving) that reached a confirmed pregnancy, with breakdowns by animal, technician, semen lot and sire.
+  facts:
+  - Cycles still awaiting a PD result are not counted in the rate.
+  - The Breeding tab shows Insemination Success Analytics, Pregnancy Outcome Analytics and Patterns requiring review.
+  - Reports include Repeat Breeders, AI Technician Performance, Sire Performance and Semen Lot Performance.
+  related: [breeding.cycle, reports.catalog]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/BreedingTab.tsx, text: Breeding Analytics}

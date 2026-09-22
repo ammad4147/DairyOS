@@ -1,0 +1,262 @@
+# DairyOS capability knowledge: Dashboard, findings, Analytics, Reporting, Settings, data protection, Assistant.
+collection: dairyos
+domain: platform
+records:
+- id: dashboard.cards
+  kind: CONCEPT
+  title: What the Dashboard shows
+  questions:
+  - What does the dashboard show?
+  - average yield milking animals meaning
+  - what is total adults
+  keywords: [dashboard, cards, herd strength, average yield, farm yield trend, production extremes, receivables]
+  summary: The Dashboard is a command view built from the governed records; herd category counts, milking animals, average yield, cost of milk per litre, receivables, yield-drop watchlist, production extremes, farm yield trend, unreconciled milk, health, vaccinations due and reproductive status, plus quick data entry.
+  location: Dashboard tab
+  facts:
+  - Average Yield is shown for milking animals and for the total herd.
+  - The farm yield trend can be viewed over 7 days, 30 days, 3 months, 6 months or 1 year (default 7 days).
+  - Reproductive Health shows inseminated and pregnant animals and the conception rate.
+  - Vaccinations show items due today and overdue.
+  - Data Entry offers Enter Milk Production and Enter Milk Sale.
+  - Each card is a projection of source records; open the detail before acting on it.
+  - Which cards are visible is a Settings preference; hiding a card does not stop its calculation.
+  related: [dashboard.findings, milk.yield-drop, milk.reconciliation]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/UnifiedDashboard.tsx, text: Yield Drop Watchlist}
+
+- id: dashboard.findings
+  kind: CONCEPT
+  title: Dashboard warnings (findings) and their lifecycle
+  questions:
+  - What does a dashboard finding mean?
+  - acknowledge vs resolve warning
+  - how to clear a warning
+  - reinstate warning
+  keywords: [finding, warning, alert, acknowledge, resolve, reinstate, audit register, bell]
+  summary: Findings are warnings raised by DairyOS checks (for example missed milking, yield drop, veterinary non-milking directives, equipment). Acknowledge means someone reviewed it; Resolve means the underlying condition was fixed and needs a resolution note; an administrator can Reinstate a resolved finding with a reason.
+  location: Bell icon (Active Warnings) > Open Full Audit Register (Warning Audit Register)
+  facts:
+  - Finding statuses are RAISED, ACKNOWLEDGED, RESOLVED and REINSTATED.
+  - Acknowledging is not resolving; the finding stays active.
+  - Some findings resolve automatically when the missing record is entered, such as a missed milk entry.
+  - Reinstating marks the warning active again across all dashboards and records an immutable administrator override.
+  - The Warning Audit Register lists every warning with its resolution and override trail.
+  - A finding is a decision aid; trace it to its source record before acting.
+  related: [milk.missed-session, milk.yield-drop, health.non-milking-directive]
+  anchors:
+  - {path: src/dairyos/api/operational_findings.py, symbol: router}
+  - {path: src/DairyOS.Web/src/components/AuditTab.tsx, text: Warning Audit Register}
+
+- id: analytics.overview
+  kind: CONCEPT
+  title: The Analytics tab
+  questions:
+  - What is in analytics?
+  - analytics period
+  keywords: [analytics, herd dynamics, health outcomes, breeding cycle analytics, withdrawal burden]
+  summary: Analytics shows server-calculated projections for a chosen period; milk litres, Feed Cost/L, OPEX/L, COP/L, open health cases, conception rate, herd dynamics, health outcomes and breeding cycle analytics by animal, technician, semen lot and sire.
+  facts:
+  - When the daily TMR cost authority is incomplete for part of the period, Analytics says Feed Cost/L and COP/L are unavailable for that part rather than substituting Finance purchases or zero.
+  related: [cop.estimated, breeding.analytics]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/AnalyticsTab.tsx, text: Breeding cycle analytics}
+
+- id: reports.catalog
+  kind: CONCEPT
+  title: What reports are available
+  questions:
+  - What reports are available?
+  - where are reports
+  - how to export report to excel
+  keywords: [reports, reporting, export, excel, print, report catalogue]
+  summary: Reporting is in System Settings > Reporting. Choose an area (Herd, Milk, Feed, Breeding, Health, Finance, Cost of Milk, Management), then a report, set the period, and Generate, Print or export to Excel.
+  location: System Settings (gear) > Reporting
+  facts:
+  - Herd reports include Herd Register, each category list, Herd by Category, Herd Movement, Exits & Mortality, Individual Animal Passport and Animal Identification.
+  - Milk reports include Daily Milk Production, Milk Production by Animal, Individual Animal Milk History, Monthly Milk Summary, Milk Utilisation, Milk Quality Log, Yield Drop Watchlist and Lactation & Production Performance.
+  - Feed reports include Current TMR & Feed Cost by Category, Daily Feed Cost & Feed Cost per Litre, Feed Inventory, Feed Stock Movement and Feed Purchases.
+  - Breeding reports include Breeding Status, Animals Due for AI, Pregnancy Diagnosis Due, Confirmed Pregnancies & Expected Calvings, Insemination History, Calving History, Pregnancy Losses, Repeat Breeders, AI Technician Performance, Sire Performance, Semen Lot Performance, Semen Inventory & Usage and Reproductive History by Animal.
+  - Health reports include Active Health Cases, Health Cases by Period, Treatment History, Milk Withdrawal Status, Withdrawal History, Vaccination Due, Vaccination History, Health History by Animal and Clinical Inventory.
+  - Finance reports include reconciliations, Monthly / Quarterly Financial Summary, Daily Financial Activity, Transaction Ledger, Receivables, Payables, Settlements, Milk Sales, Animal Sales, Semen Purchases, OPEX & Cost of Milk Reconciliation, Capital & Cash Movements and VOID Transaction History.
+  - Cost of Milk reports include Cost of Milk & Component Breakdown, Monthly Cost Summary, Daily Cost of Milk and Official COML History; Management reports include Daily Farm Summary, Farm Performance Summary and Attention Report.
+  - Columns can be customised, and totals and exports always cover every record, not just the visible page.
+  related: [reports.reconciliation-controls, settings.email]
+  anchors:
+  - {path: src/dairyos/reporting/registry.py, symbol: AREAS}
+  - {path: src/DairyOS.Web/src/components/ReportingTab.tsx, text: Customize Columns}
+
+- id: reports.reconciliation-controls
+  kind: CONCEPT
+  title: Reconciliation controls in reports
+  questions:
+  - what does reconciliation controls pass mean
+  keywords: [reconciliation controls, expected, actual, difference, pass]
+  summary: Some reports include Reconciliation Controls that compare an expected total with the actual total and show the difference and a PASS or difference result.
+  facts:
+  - The OPEX & Cost of Milk Reconciliation report recalculates OPEX row by row and compares it with the COP authority; the difference should be PKR 0.00.
+  related: [reports.catalog, finance.attribution]
+  anchors:
+  - {path: src/dairyos/finance/opex_period_attribution.py, symbol: attribute_opex_for_period}
+
+- id: settings.operational-date
+  kind: CONCEPT
+  title: How DairyOS uses the operational date
+  questions:
+  - How does DairyOS use the operational date?
+  - which day does late night milk go to
+  - system date wrong
+  keywords: [operational date, system date, timezone, farm day, future date]
+  summary: DairyOS's operational date is the Windows computer's local date and time. It decides which day today's entries belong to, blocks future-dated milk, exits and vaccinations, and bounds COP and missed-milking checks.
+  facts:
+  - The default farm timezone is the operating system's; audit timestamps are stored in UTC.
+  - If the Windows clock or timezone is wrong, entries land on the wrong farm day, so correct the Windows date and time.
+  - Historical dates remain available where the workflow permits late entries.
+  - The daily TMR cost lock and the automatic backup run on farm local time.
+  related: [milk.late-entry, feed.daily-snapshot, settings.farm-profile]
+  anchors:
+  - {path: src/dairyos/farm/settings/services/farm_settings_service.py, symbol: FarmSettingsService.get_operational_datetime}
+
+- id: settings.farm-profile
+  kind: HOWTO
+  title: Farm profile and System Settings
+  questions:
+  - where are settings
+  - change farm name
+  keywords: [settings, farm name, location, farm profile, gear]
+  summary: System Settings (gear icon) has tabs for Farm & System, System Health, Email & Notifications, Data Management, Reporting, AI Assistant and Operator Access. Farm & System holds the farm name, location, system date and time and farm data protection status.
+  facts:
+  - The Animal ID prefix used for new permanent IDs is a farm setting (default TD).
+  related: [settings.operational-date, settings.system-health, settings.backup]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/SettingsTab.tsx, text: Farm & System}
+
+- id: settings.system-health
+  kind: CONCEPT
+  title: Read-only System Health check
+  questions:
+  - what does system health check do
+  keywords: [system health, database check, integrity, read-only]
+  summary: Run System Health Check performs read-only checks of the database, schema, persistence and projection integrity. It changes nothing; it does not reset, repair, delete or restore data.
+  facts:
+  - A failed check is diagnostic evidence for support, not permission to reset data.
+  related: [settings.backup, support.troubleshooting]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/SettingsTab.tsx, text: Run System Health Check}
+
+- id: settings.backup
+  kind: CONCEPT
+  title: Automatic backups and farm data export/import
+  questions:
+  - Does DairyOS back up my data?
+  - how to move dairyos to new computer
+  - restore farm data
+  keywords: [backup, restore, export farm data, import, archive, data protection]
+  summary: DairyOS backs up the farm database automatically every farm day at 00:01 (with catch-up), verifies it, and keeps a mirror copy. Data Management can export a complete verified farm package and import one after validation.
+  location: System Settings > Data Management; Farm & System > Farm Data Protection
+  facts:
+  - Each run creates a verified PostgreSQL backup plus a checksum-verified mirror copy.
+  - The first successful run each month also creates a monthly archive.
+  - DairyOS keeps up to 120 rolling backups and 60 monthly archives (five years).
+  - If a second physical drive exists, DairyOS uses it automatically; otherwise protection is reported as degraded because one disk failure could lose both copies.
+  - Import validates the package manifest, file hashes and PostgreSQL archive before it is enabled, and creates a rollback snapshot first.
+  - Keep exported packages outside the DairyOS data folder, ideally on another device.
+  related: [settings.zero-reset, settings.system-health]
+  anchors:
+  - {path: src/dairyos/data/database/automatic_backups.py, symbol: ROLLING_KEEP}
+  - {path: src/DairyOS.Web/src/components/SettingsTab.tsx, text: Export Complete Farm Data}
+
+- id: settings.zero-reset
+  kind: CONCEPT
+  title: Reset to Zero State
+  questions:
+  - how to delete all data and start fresh
+  keywords: [reset, zero state, wipe data, delete all]
+  summary: Reset to Zero State permanently removes operational farm records. It needs the administrator to unlock Navigation Visibility, type RESET DAIRYOS TO ZERO STATE, and is queued for the next DairyOS start after a verified recovery snapshot.
+  facts:
+  - It is not a troubleshooting step; use System Health and support first.
+  related: [settings.backup, settings.navigation-visibility]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx, text: Queue Reset for Next Start}
+
+- id: settings.navigation-visibility
+  kind: CONCEPT
+  title: Hiding navigation tabs and the administrator password
+  questions:
+  - how to hide a tab
+  - forgot admin password
+  - tab missing from top menu
+  keywords: [hide tab, navigation visibility, administrator password, recovery code, hidden tab]
+  summary: Navigation Visibility is password-protected. Hiding a tab removes only its top navigation button; the module, calculations and records keep working.
+  facts:
+  - The administrator password must be at least 12 characters.
+  - A one-time recovery code is shown once and must be saved; recovery is accepted only on the local DairyOS computer.
+  - A missing tab usually means it was hidden, not that its data is gone.
+  related: [settings.zero-reset]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx, text: Navigation Visibility}
+
+- id: settings.email
+  kind: HOWTO
+  title: Email notifications and the Daily Summary
+  questions:
+  - how to email daily report
+  keywords: [email, smtp, daily summary, notification recipients, test email]
+  summary: In Email & Notifications, set the DairyOS Sender (SMTP), send a test email, add notification recipients, and use Share Daily Summary to email the current Daily Summary PDF.
+  facts:
+  - A successful test email only proves the delivery path.
+  - Sharing manually does not replace the automatic nightly summary.
+  related: [reports.catalog]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/SettingsTab.tsx, text: Share Daily Summary}
+
+- id: support.troubleshooting
+  kind: TROUBLESHOOTING
+  title: When a save fails or a number looks wrong
+  questions:
+  - my entry did not save
+  - dashboard not updating
+  - number looks wrong what do i check
+  keywords: [save failed, error, not updating, wrong number, stale view]
+  summary: First check whether the record was actually saved (open the register or Passport), then refresh the screen. Do not re-enter the same record to make a screen change, because that creates duplicates. For a wrong total, trace the period, the source records and any voids or missing entries.
+  facts:
+  - Some updates reach dashboards through a durable outbox; a short delay is not a lost record.
+  - Capture the exact error message, time and screen for support.
+  - Never delete or manually edit the database as a first response.
+  related: [settings.system-health, cop.troubleshooting]
+  anchors:
+  - {path: src/dairyos/api/breeding_biology.py, symbol: record_breeding_entry}
+
+- id: assistant.about
+  kind: CONCEPT
+  title: What the DairyOS Assistant can and cannot do
+  questions:
+  - What can you do?
+  - can you see my farm data
+  - who are you
+  keywords: [assistant, ai, help, capabilities, farm data access]
+  summary: The Assistant explains how DairyOS works (screens, workflows, calculations and where data goes) and gives general dairy-farming education. It cannot see or change your farm records, so it cannot tell you today's milk, which cow is sick or any other farm figure.
+  facts:
+  - The Assistant runs locally on this computer in a separate process with no connection to the farm database.
+  - Animal-health information is educational triage; diagnosis, medicines and doses are decisions for your veterinarian.
+  - Answers show which knowledge they came from.
+  related: [assistant.farm-data-boundary]
+  anchors:
+  - {path: src/dairyos/api/assistant.py, symbol: ask_assistant}
+
+- id: assistant.farm-data-boundary
+  kind: POLICY
+  title: Finding farm figures yourself in DairyOS
+  questions:
+  - how much milk did we produce today
+  - which cow is sick
+  - show my finance records
+  keywords: [farm data, today milk, which cow, records, lookup]
+  summary: The Assistant has no access to your farm's records, so it cannot give farm figures or name animals. It can tell you where DairyOS shows the answer and how DairyOS calculates it.
+  facts:
+  - Today's milk is on the Dashboard and in the Milk tab; herd counts on the Dashboard and Animals tab; sick animals in Health (Active Sick Animals); withdrawals in Health (Animals in Milk Withdrawal); money in Finance; COP in the COP tab.
+  - A single animal's status, pregnancy, treatments and milk history are in its Animal Passport (open it from the Animals tab).
+  - Lists such as animals due for PD, active health cases or receivables are in System Settings > Reporting.
+  - The Assistant runs in a separate process with no connection to the farm database, so it cannot look up, change or delete records.
+  related: [assistant.about, dashboard.cards]
+  anchors:
+  - {path: src/dairyos/api/assistant.py, symbol: ask_assistant}

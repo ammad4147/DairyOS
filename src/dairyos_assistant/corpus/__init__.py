@@ -1,4 +1,4 @@
-"""Knowledge corpus loading and integrity validation.
+"""Compiled knowledge corpus validation.
 
 Standard library only. This subpackage must never import ``dairyos``, a
 database driver, or an HTTP client.

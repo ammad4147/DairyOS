@@ -1,0 +1,171 @@
+# DairyOS capability knowledge: Health, withdrawal and Vaccination.
+collection: dairyos
+domain: health
+records:
+- id: health.treatment
+  kind: HOWTO
+  title: Recording a sick animal and its treatment
+  questions:
+  - How do I record a sick cow in DairyOS?
+  - record treatment
+  - enter mastitis case
+  - where do i record medicine given
+  keywords: [record treatment, clinical case, health case, sick cow, medicine, diagnosis, severity]
+  summary: In Health, use Record Clinical Treatment. Enter the animal, veterinarian, diagnosis, symptoms, medicine, dose and route, milk withdrawal days, severity and next check-up. One save opens the clinical case, records the symptoms and links the treatment.
+  location: Health tab > Record Clinical Treatment
+  facts:
+  - The standard diagnosis list includes Mastitis, Metritis / Endometritis, Lameness / Hoof Disorder, Ketosis, Milk Fever / Hypocalcemia, Retained Placenta, Displaced Abomasum, Respiratory Disease / Pneumonia, Diarrhea / Enteritis, Foot Rot, Bloat / Tympany, Ruminal Acidosis, Fever / Pyrexia, Injury / Trauma and Other.
+  - Severity values are NORMAL, LOW, MODERATE, SEVERE and CRITICAL.
+  - Each case receives an ID of the form HL-YYMMDD-NNN.
+  - A treatment links to the animal's open case; if the animal has more than one open case DairyOS refuses to guess and asks for the case.
+  - DairyOS records what the veterinarian decided; it does not diagnose or choose medicines or doses.
+  related: [health.withdrawal, health.mark-healthy, health.flow, dairy.triage.sick-cow]
+  anchors:
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: record_treatment}
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: open_health_case}
+  - {path: src/DairyOS.Web/src/components/HealthTab.tsx, text: Record Clinical Treatment}
+
+- id: health.withdrawal
+  kind: CALCULATION
+  title: How DairyOS handles milk withdrawal periods
+  questions:
+  - How does DairyOS handle withdrawal periods?
+  - withdrawal days meaning
+  - when can I sell milk after treatment
+  keywords: [withdrawal, milk withdrawal days, withdrawal until, drug reference, residue]
+  summary: Each treatment carries milk withdrawal days. DairyOS starts the withdrawal when the treatment is recorded, ends it after that many days, and while it is active automatically posts that animal's milk to WASTAGE.
+  facts:
+  - The withdrawal days come from the product label or the veterinarian's instruction; DairyOS does not invent them.
+  - If the medicine is in DairyOS's drug withdrawal reference table, that value is the minimum; the operator can extend it but not shorten it.
+  - A medicine not in the reference table must have withdrawal days entered, otherwise the treatment is refused.
+  - The withdrawal runs from the time the treatment is recorded until that time plus the withdrawal days; the animal is clear from the end time.
+  - A health case shows the latest withdrawal end across all its treatments, and that date is never lowered by a later treatment.
+  - Marking the animal healthy does not end an active withdrawal early.
+  - Health shows Animals in Milk Withdrawal, and Reports include Milk Withdrawal Status and Withdrawal History.
+  - Enter the treatment promptly; a late entry starts the withdrawal late.
+  related: [milk.withdrawal-milk, health.treatment, dairy.milk-safety.residues]
+  anchors:
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: record_treatment}
+  - {path: src/dairyos/farm/production/services/withdrawal_milk_wastage_service.py, symbol: animal_withdrawn_on_date}
+
+- id: health.mark-healthy
+  kind: HOWTO
+  title: Closing a clinical case (Mark Healthy)
+  questions:
+  - how to close health case
+  - mark cow healthy
+  keywords: [mark healthy, resolve case, close case, recovery]
+  summary: Use Mark Healthy in the Health tab after the animal has recovered. The case is resolved with a note; the history and Passport record stay.
+  facts:
+  - Resolving requires resolution text and records who resolved it.
+  - An already resolved case cannot be resolved again.
+  - Resolving clears the active case from the Dashboard but does not shorten a milk withdrawal.
+  related: [health.treatment, health.follow-up]
+  anchors:
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: resolve_health_case}
+
+- id: health.follow-up
+  kind: CONCEPT
+  title: Follow-up checks for open cases
+  questions:
+  - where are follow ups due
+  keywords: [follow up, next check-up, overdue, open case]
+  summary: The Next Check-up date on a treatment sets the case's follow-up due date. Health shows Follow-ups Due / Overdue so open cases are rechecked.
+  facts:
+  - Recording a treatment does not close a case.
+  - Acknowledging a Dashboard warning does not close a case.
+  related: [health.mark-healthy, dashboard.findings]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/HealthTab.tsx, text: Follow-ups Due / Overdue}
+
+- id: health.observation
+  kind: HOWTO
+  title: Recording a health observation without treatment
+  questions:
+  - record symptoms only
+  - cow looks dull how to note it
+  keywords: [observation, symptoms, triage, yield drop triage]
+  summary: Symptoms are saved as a health observation linked to the case. From a yield-drop warning, Quick Triage records the observed signs as an observation (Normal / Monitoring, Warning or Critical).
+  facts:
+  - An observation is evidence, not a diagnosis, and does not start a withdrawal.
+  related: [milk.yield-drop, dairy.triage.sick-cow]
+  anchors:
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: record_health_observation}
+
+- id: health.analytics
+  kind: CONCEPT
+  title: Health tab summaries
+  questions:
+  - what does active sick animals mean
+  keywords: [active sick animals, clinical events, most used treatments, health analytics]
+  summary: Health summarises Active Sick Animals (open cases), Follow-ups Due / Overdue, Animals in Milk Withdrawal, Clinical Events in the last 7 days, most recorded diagnoses and most used treatments.
+  facts:
+  - The summaries are projections of recorded cases, treatments and withdrawals, not an independent diagnosis.
+  related: [health.treatment]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/HealthTab.tsx, text: Active Sick Animals}
+
+- id: health.non-milking-directive
+  kind: CONCEPT
+  title: Veterinary non-milking directives
+  questions:
+  - vet said do not milk this cow
+  keywords: [non-milking directive, do not milk, separate milk, permanently non-milking]
+  summary: A veterinary non-milking directive can stop an animal being milked temporarily, require its milk to be kept separate, or make it permanently non-milking. Animals under a directive are excluded from expected milking and completeness.
+  facts:
+  - Directive events raise HIGH Health findings on the Dashboard.
+  - The directive controls participation; it does not create milk disposition records.
+  related: [milk.daily-total, health.withdrawal]
+  anchors:
+  - {path: src/dairyos/farm/production/services/non_milking_directive_service.py, symbol: NonMilkingDirectiveService}
+
+- id: health.flow
+  kind: DATA_FLOW
+  title: Where a treatment record goes
+  questions:
+  - what happens after i record treatment
+  keywords: [treatment flow, withdrawal, passport, dashboard, milk]
+  summary: A treatment is saved to the case and the Passport, starts the withdrawal, makes later milk from that animal go to WASTAGE until the withdrawal ends, updates Health counts and the Dashboard, and optionally deducts clinical inventory.
+  facts:
+  - Treatment cost is recorded separately in Finance (for example Antibiotics & General Medications, allocated over its consumption period).
+  - Reports include Treatment History, Active Health Cases and Health History by Animal.
+  related: [health.treatment, health.withdrawal, milk.withdrawal-milk]
+  anchors:
+  - {path: src/dairyos/api/farm_data_entry.py, symbol: record_treatment}
+
+- id: vaccination.schedule
+  kind: HOWTO
+  title: Scheduling and recording vaccinations
+  questions:
+  - How do I record a vaccination?
+  - add vaccine schedule
+  - mark vaccine given
+  - where do I enter a vaccination
+  keywords: [vaccination, vaccination entry, vaccine schedule, mark given, due date, overdue, booster]
+  summary: In the Vaccination tab, Add Vaccination Schedule for an animal with the vaccine, dose, purpose and one or more scheduled dates. When given, use Mark Given on that occurrence. Due Next 30 Days and the overall log show coverage.
+  location: Vaccination tab
+  facts:
+  - The vaccine purpose list includes FMD, Hemorrhagic Septicemia (HS), Black Quarter (BQ), Lumpy Skin Disease (LSD), Brucellosis, BVD, IBR / respiratory complex, clostridial disease and calf scours / enteric disease.
+  - Each scheduled date becomes an occurrence with its own ID.
+  - An administered date cannot be later than the farm's operational date; an occurrence cannot be given twice.
+  - Administered or VOID occurrences cannot be amended.
+  - Inactive or exited animals cannot be vaccinated.
+  - A vaccination is a preventive record; it does not open a health case or start a milk withdrawal.
+  - DairyOS does not decide the vaccination programme; the farm's veterinarian does.
+  related: [dairy.vaccination.principles, vaccination.flow]
+  anchors:
+  - {path: src/dairyos/api/animal_management/router.py, symbol: record_vaccination}
+  - {path: src/DairyOS.Web/src/components/VaccinationTab.tsx, text: Add Vaccination Schedule}
+
+- id: vaccination.flow
+  kind: DATA_FLOW
+  title: Vaccination data flow
+  questions:
+  - where do vaccination records show
+  keywords: [vaccination flow, due today, overdue, passport, vaccine cost]
+  summary: Vaccination schedules and administrations appear in the Passport's Vaccination History, the Dashboard's Vaccinations card (due today and overdue) and Reports (Vaccination Due, Vaccination History).
+  facts:
+  - Vaccine purchases are recorded in Finance under OPEX > Veterinary & herd health > Vaccinations, with direct attribution.
+  related: [vaccination.schedule]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/VaccinationTab.tsx, text: Due Next 30 Days}

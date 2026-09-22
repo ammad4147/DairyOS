@@ -1,0 +1,80 @@
+# General dairy knowledge: second batch (herd health, welfare, parasites, BVD).
+collection: dairy
+domain: herd-health
+records:
+- id: dairy.disease.bvd
+  kind: TRIAGE
+  title: Bovine viral diarrhoea (BVD)
+  questions:
+  - What is BVD?
+  - persistently infected calf BVD
+  keywords: [bvd, bovine viral diarrhoea, bovine viral diarrhea, persistently infected, pi calf, mucosal disease]
+  summary: BVD is a viral disease of cattle whose main effect is suppressing the immune system. Calves infected in the womb during the first 4 months of pregnancy can be born persistently infected (PI); they carry and shed the virus for life and are the main source of spread.
+  facts:
+  - Signs in infected cattle can include fever, dullness, lower milk, diarrhoea, respiratory disease and abortion.
+  - PI calves often grow poorly and many die before 2 years of age, sometimes from severe mucosal disease with mouth lesions.
+  - PI animals shed large amounts of virus and infect herd-mates; the virus can also spread through insects, equipment and semen.
+  - Control means testing replacements and bulls, removing PI animals, biosecurity, and vaccination planned with the veterinarian.
+  provenance:
+  - {source: MSD-BVD}
+  safety: {class: TRIAGE, escalate: "Unexplained abortions, poor-doing calves or several animals with diarrhoea or breathing problems need veterinary testing."}
+  related: [dairy.biosecurity.new-animals, dairy.vaccination.principles, dairy.repro.abortion]
+
+- id: dairy.disease.parasites
+  kind: TOPIC
+  title: Worms and parasite control
+  questions:
+  - How often should I deworm my cows?
+  - worm control in cattle
+  - do all animals need deworming
+  keywords: [worms, parasites, deworming, dewormer, drench, faecal egg count, fecal egg count, resistance]
+  summary: Routine blanket deworming of every animal is discouraged because it breeds dewormer-resistant worms. Work with the veterinarian to target the animals most at risk (mainly young stock under about 16 months, especially on pasture) and use faecal egg counts to decide and to check that the product still works.
+  facts:
+  - A faecal egg count reduction test compares worm eggs before and after treatment; at least a 95 percent reduction means the dewormer is working.
+  - Under-dosing, often from guessing body weight, drives resistance; weigh animals and follow the product label and veterinarian.
+  - Leaving some of the best-performing animals untreated and resting pastures for 4 to 5 weeks help slow resistance.
+  - Older cattle usually develop tolerance and handle infections better than young stock.
+  - Dewormer purchases are recorded in DairyOS Finance under OPEX (Dewormers & Parasiticides).
+  provenance:
+  - {source: UMD-DEWORMING}
+  safety: {class: VET_ONLY, escalate: "Choice of dewormer, dose and timing should be set with your veterinarian, including any milk or meat withdrawal."}
+  related: [dairy.medicine.boundary, dairy.calf.housing-hygiene]
+
+- id: dairy.welfare.cow-comfort
+  kind: TOPIC
+  title: Cow comfort and lying time
+  questions:
+  - How many hours should cows lie down?
+  - cow comfort tips
+  - what bedding is best for cows
+  keywords: [cow comfort, lying time, rest, bedding, stall, freestall, stocking density, overcrowding, ventilation]
+  summary: Dairy cows need about 10 to 14 hours of lying down each day. Clean, dry, soft bedding, enough stalls, avoiding overcrowding and good ventilation protect milk, health and fertility.
+  facts:
+  - University of Kentucky notes cows need at least 40 hours to recover after being deprived of 2 to 4 hours of rest.
+  - Deep sand bedding is regarded as the gold standard for reducing hock injuries and lameness; mattresses need bedding on top.
+  - Stocking close to 100 percent (one stall per cow) is optimal, and fresh cows should never be crowded.
+  - Ventilation needs rise from at least 4 air changes per hour in winter to 40 to 60 per hour in hot weather.
+  - Long standing times are linked to lameness.
+  provenance:
+  - {source: UKY-COW-COMFORT}
+  - {source: UMD-HEAT-STRESS}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.welfare.lameness, dairy.welfare.heat-stress]
+
+- id: dairy.welfare.handling
+  kind: TOPIC
+  title: Low-stress cattle handling
+  questions:
+  - How should cows be handled calmly?
+  - how to move cows without stress
+  keywords: [handling, low stress, flight zone, point of balance, moving cows, milk letdown, safety]
+  summary: Move cows slowly and calmly with a low voice, work from where they can see you, and use the flight zone and the point of balance at the shoulder instead of shouting, hitting or tail twisting.
+  facts:
+  - Standing behind the shoulder moves a cow forward; standing in front of it slows or stops her.
+  - Cows see about 330 degrees around them but not directly behind, so approach from the front or side.
+  - Sudden or high-pitched noise, hitting, slapping and tail twisting cause fear and stress.
+  - Calm handling reduces injuries to animals and people and helps milk let-down.
+  provenance:
+  - {source: UW-HANDLING}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.milking.routine, dairy.welfare.cow-comfort]

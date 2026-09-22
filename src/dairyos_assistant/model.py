@@ -1,231 +1,254 @@
 """Transport to the local model, and the refusal to talk to anything else.
 
-The Assistant reaches ``llama-server`` over loopback HTTP. That is a socket,
-and it is the only one the Assistant is permitted to open.
+The Assistant reaches ``llama-server`` over loopback HTTP. That socket is the
+only one it may open. An endpoint is rejected unless its host is loopback and
+its port is not an operational data port, before any connection is attempted.
 
-This module is where that permission is enforced rather than assumed. A model
-endpoint is rejected unless its host is a loopback address, so a configuration
-value, an environment variable or a tampered settings file cannot redirect the
-Assistant at a remote service, at the operational API, or at the database. The
-check happens before any connection attempt, so a forbidden endpoint never
-reaches the network stack at all.
+Timeouts are separated because they fail for different reasons and deserve
+different limits:
 
-Only the standard library is used. ``urllib`` is sufficient for a local JSON
-POST, and adding an HTTP client to the Assistant's dependency graph would widen
-exactly the surface the packaging work spent AA-6 narrowing.
+``connect``      the server is not listening (seconds)
+``first_token``  the server accepted the request but prompt processing has not
+                 produced a token (covers prompt evaluation on slow CPUs)
+``stall``        tokens stopped arriving mid-answer (a hung worker)
+``total``        the whole answer took too long to be useful to an operator
+
+Generation streams (server-sent events), so time-to-first-token and tokens per
+second are measured on every call and reported in diagnostics. The limits come
+from a runtime profile chosen by the DairyOS bridge from measured hardware, not
+from a fixed constant.
+
+Only the standard library is used.
 """
 
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import json
 import re
-import urllib.error
-import urllib.request
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlparse
 
 # Ports that must never be reached from the Assistant, whatever the host.
-# PostgreSQL and the Elasticsearch index are the two routes to operational farm
-# data, and a loopback address is exactly where both of them live, so being on
-# localhost is not on its own a reason to allow a connection.
+# PostgreSQL and the Elasticsearch index are the two routes to operational farm data.
 FORBIDDEN_PORTS = frozenset({5432, 9200})
 
-# Model generation is optional for refusal/guidance paths: reviewed corpus
-# text remains available when the local model is slow or unavailable. Keep the
-# transport bounded so the operator and API do not sit behind a dead model
-# server for the bridge's much longer process timeout.
-DEFAULT_TIMEOUT_SECONDS = 10.0
-
-# Generation is deliberately cold. The Assistant restates reviewed knowledge; it
-# is not asked to be imaginative, and sampling variety would make its answers
-# harder to test and easier to drift.
 DEFAULT_TEMPERATURE = 0.0
-DEFAULT_MAX_TOKENS = 400
+DEFAULT_MAX_TOKENS = 380
+
+
+@dataclass(frozen=True)
+class Timeouts:
+    connect: float = 3.0
+    first_token: float = 45.0
+    stall: float = 20.0
+    total: float = 120.0
+
+    @classmethod
+    def from_mapping(cls, values: dict | None) -> Timeouts:
+        values = values or {}
+        return cls(**{k: float(v) for k, v in values.items() if k in {"connect", "first_token", "stall", "total"}})
 
 
 class ModelUnavailable(RuntimeError):
-    """The model could not be reached. Never a reason to answer anyway."""
+    """The model could not be reached or did not answer in time. Never a reason to answer anyway."""
+
+    def __init__(self, message: str, kind: str = "unavailable"):
+        super().__init__(message)
+        self.kind = kind
 
 
 class ForbiddenEndpoint(ValueError):
     """The configured endpoint is one the Assistant may not open."""
 
 
+@dataclass
+class Generation:
+    text: str
+    ttft_s: float | None = None
+    total_s: float = 0.0
+    tokens: int = 0
+    tokens_per_s: float | None = None
+    prompt_tokens: int | None = None
+    prompt_ms: float | None = None
+    finish_reason: str | None = None
+    timings: dict = field(default_factory=dict)
+
+
 _REASONING_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
 def strip_reasoning(text: str) -> str:
-    """Remove a model's visible reasoning block.
-
-    Thinking is disabled by request, but a model can still emit the block if a
-    build ignores the flag or a template changes. Reasoning is working-out, not
-    an answer: it is full of discarded candidate figures, and letting it reach
-    the grounding gate would mean rejecting answers over numbers the model had
-    already decided against.
-    """
-    return _REASONING_BLOCK.sub("", text or "").strip()
+    """Remove a model's visible reasoning block; it is working-out, not an answer."""
+    return _REASONING_BLOCK.sub("", text or "").replace("<think>", "").replace("</think>", "").strip()
 
 
 class ModelProvider(Protocol):
-    def generate(self, prompt: str, *, max_tokens: int = ..., temperature: float = ...) -> str: ...
+    def generate(self, prompt: str, *, system: str | None = ..., max_tokens: int = ..., temperature: float = ...) -> Generation: ...
 
 
 def assert_endpoint_allowed(url: str) -> None:
-    """Reject any endpoint that is not a loopback model server.
-
-    Raises before a socket is created, so a rejected endpoint produces no
-    network activity whatsoever. This is the single place the Assistant's
-    outbound permission is defined.
-    """
+    """Reject any endpoint that is not a loopback model server, before any socket exists."""
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         raise ForbiddenEndpoint(f"model endpoint must be http or https, got {parsed.scheme!r}")
-
     host = parsed.hostname
     if not host:
         raise ForbiddenEndpoint(f"model endpoint has no host: {url!r}")
-
     if host not in {"localhost", "localhost.localdomain"}:
         try:
             address = ipaddress.ip_address(host)
         except ValueError as exc:
-            # A name that is not plainly loopback is refused without being
-            # resolved. Resolution itself is a network act, and a hostname
-            # that resolves to loopback today can resolve elsewhere tomorrow.
-            raise ForbiddenEndpoint(
-                f"model endpoint host must be a loopback address, got {host!r}"
-            ) from exc
+            raise ForbiddenEndpoint(f"model endpoint host must be a loopback address, got {host!r}") from exc
         if not address.is_loopback:
-            raise ForbiddenEndpoint(
-                f"model endpoint host must be loopback, got {host!r}"
-            )
-
-    port = parsed.port
-    if port in FORBIDDEN_PORTS:
-        raise ForbiddenEndpoint(
-            f"port {port} is an operational data port and is never permitted"
-        )
+            raise ForbiddenEndpoint(f"model endpoint host must be loopback, got {host!r}")
+    if parsed.port in FORBIDDEN_PORTS:
+        raise ForbiddenEndpoint(f"port {parsed.port} is an operational data port and is never permitted")
 
 
 @dataclass
 class LlamaServerProvider:
-    """A llama.cpp ``llama-server`` reached over loopback.
-
-    The endpoint is validated on construction, so an instance of this class
-    cannot exist pointing somewhere it should not.
-    """
+    """A llama.cpp ``llama-server`` reached over loopback with streamed chat completions."""
 
     base_url: str = "http://127.0.0.1:8080"
-    timeout: float = DEFAULT_TIMEOUT_SECONDS
-    # "chat" applies the model's own template, which is correct for an
-    # instruction-tuned model. "completion" posts a raw prompt and exists only
-    # for a base model or for comparing the two.
-    endpoint_style: str = "chat"
+    timeouts: Timeouts = field(default_factory=Timeouts)
+    # Backwards-compatible single timeout; when given it bounds every phase.
+    timeout: float | None = None
 
     def __post_init__(self) -> None:
         assert_endpoint_allowed(self.base_url)
-        if self.endpoint_style not in {"chat", "completion"}:
-            raise ValueError(f"unknown endpoint_style: {self.endpoint_style!r}")
+        if self.timeout is not None:
+            t = float(self.timeout)
+            self.timeouts = Timeouts(connect=min(3.0, t), first_token=t, stall=t, total=t)
+        parsed = urlparse(self.base_url)
+        self._host = parsed.hostname or "127.0.0.1"
+        self._port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        self._https = parsed.scheme == "https"
 
-    @property
-    def chat_url(self) -> str:
-        return self.base_url.rstrip("/") + "/v1/chat/completions"
-
-    @property
-    def completion_url(self) -> str:
-        return self.base_url.rstrip("/") + "/completion"
+    def _connection(self) -> http.client.HTTPConnection:
+        cls = http.client.HTTPSConnection if self._https else http.client.HTTPConnection
+        return cls(self._host, self._port, timeout=self.timeouts.connect)
 
     def generate(
         self,
         prompt: str,
         *,
+        system: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
-    ) -> str:
-        """Ask the model, through its own chat template.
-
-        The chat endpoint is used rather than raw completion because the pinned
-        model is instruction-tuned: llama-server applies the template stored in
-        the GGUF, which is how the model was trained to receive instructions.
-        Posting a raw string to ``/completion`` skips that and measurably
-        degrades instruction-following, which for this subsystem means more
-        work for the grounding gate and more withheld answers.
-        """
-        url = self.chat_url if self.endpoint_style == "chat" else self.completion_url
-        assert_endpoint_allowed(url)
-
-        if self.endpoint_style == "chat":
-            payload: dict[str, object] = {
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "stream": False,
-                # Qwen3 reasons aloud by default. The Assistant restates
-                # reviewed text; there is nothing to reason about, and the
-                # thinking block would be latency spent producing tokens the
-                # operator must never see.
-                "chat_template_kwargs": {"enable_thinking": False},
-            }
-        else:
-            payload = {
-                "prompt": prompt,
-                "n_predict": max_tokens,
-                "temperature": temperature,
-                "cache_prompt": True,
-                "stop": ["\n\nQuestion:", "\n\nOperator:", "<|im_end|>"],
-            }
-
-        request = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
+    ) -> Generation:
+        assert_endpoint_allowed(self.base_url)
+        messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        payload = {
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "cache_prompt": True,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        started = time.perf_counter()
+        connection = self._connection()
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                body = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise ModelUnavailable(f"model server unreachable: {exc}") from exc
-        except json.JSONDecodeError as exc:
-            raise ModelUnavailable(f"model server returned invalid JSON: {exc}") from exc
-
-        if self.endpoint_style == "chat":
-            choices = body.get("choices") or []
-            content = choices[0].get("message", {}).get("content") if choices else None
-        else:
-            content = body.get("content")
-
-        if not isinstance(content, str):
-            raise ModelUnavailable("model server returned no content")
-        return strip_reasoning(content).strip()
+            try:
+                connection.connect()
+            except OSError as exc:
+                raise ModelUnavailable(f"model server not reachable: {exc}", "connect") from exc
+            # Keep our own reference: http.client may drop connection.sock once the
+            # response is marked to close, but the socket stays live for reading.
+            sock = connection.sock
+            sock.settimeout(self.timeouts.first_token)
+            body = json.dumps(payload).encode("utf-8")
+            connection.request("POST", "/v1/chat/completions", body=body, headers={"Content-Type": "application/json"})
+            try:
+                response = connection.getresponse()
+            except TimeoutError as exc:
+                raise ModelUnavailable("model did not start answering in time", "first_token") from exc
+            except OSError as exc:
+                raise ModelUnavailable(f"model server error: {exc}", "connect") from exc
+            if response.status != 200:
+                raise ModelUnavailable(f"model server returned HTTP {response.status}", "http")
+            pieces: list[str] = []
+            first_token_at: float | None = None
+            finish_reason = None
+            timings: dict = {}
+            usage: dict = {}
+            while True:
+                if time.perf_counter() - started > self.timeouts.total:
+                    raise ModelUnavailable("model answer exceeded the total time limit", "total")
+                try:
+                    raw = response.readline()
+                except TimeoutError as exc:
+                    kind = "first_token" if first_token_at is None else "stall"
+                    raise ModelUnavailable(f"model stopped responding ({kind})", kind) from exc
+                if not raw:
+                    break
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    event = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                choices = event.get("choices") or []
+                if choices:
+                    delta = choices[0].get("delta") or {}
+                    content = delta.get("content")
+                    if content:
+                        if first_token_at is None:
+                            first_token_at = time.perf_counter()
+                            sock.settimeout(self.timeouts.stall)
+                        pieces.append(content)
+                    finish_reason = choices[0].get("finish_reason") or finish_reason
+                timings = event.get("timings") or timings
+                usage = event.get("usage") or usage
+        except TimeoutError as exc:
+            raise ModelUnavailable("model timed out", "stall") from exc
+        finally:
+            connection.close()
+        total = time.perf_counter() - started
+        text = strip_reasoning("".join(pieces)).strip()
+        if not text:
+            raise ModelUnavailable("model returned no content", "empty")
+        predicted = timings.get("predicted_n") or usage.get("completion_tokens") or len(pieces)
+        tps = timings.get("predicted_per_second")
+        if tps is None and first_token_at is not None and total > (first_token_at - started):
+            tps = predicted / max(total - (first_token_at - started), 1e-6)
+        return Generation(
+            text=text,
+            ttft_s=round(first_token_at - started, 3) if first_token_at else None,
+            total_s=round(total, 3),
+            tokens=int(predicted or 0),
+            tokens_per_s=round(float(tps), 2) if tps else None,
+            prompt_tokens=timings.get("prompt_n") or usage.get("prompt_tokens"),
+            prompt_ms=timings.get("prompt_ms"),
+            finish_reason=finish_reason,
+            timings=timings,
+        )
 
     def health(self) -> bool:
         try:
-            assert_endpoint_allowed(self.base_url)
-            request = urllib.request.Request(
-                self.base_url.rstrip("/") + "/health", method="GET"
-            )
-            with urllib.request.urlopen(request, timeout=5.0) as response:
-                return 200 <= response.status < 300
+            connection = http.client.HTTPConnection(self._host, self._port, timeout=min(2.0, self.timeouts.connect))
+            connection.request("GET", "/health")
+            ok = 200 <= connection.getresponse().status < 300
+            connection.close()
+            return ok
         except Exception:  # noqa: BLE001 - health is advisory, never fatal
             return False
 
 
 class NullProvider:
-    """No model configured.
+    """No model configured. Raising, rather than returning '', keeps callers honest."""
 
-    Raising rather than returning an empty string is deliberate. A caller that
-    forgets to check would otherwise emit a blank answer as though the model
-    had produced one.
-    """
+    def generate(self, prompt: str, *, system: str | None = None, max_tokens: int = DEFAULT_MAX_TOKENS,
+                 temperature: float = DEFAULT_TEMPERATURE) -> Generation:
+        raise ModelUnavailable("no model provider is configured", "none")
 
-    def generate(
-        self,
-        prompt: str,
-        *,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        temperature: float = DEFAULT_TEMPERATURE,
-    ) -> str:
-        raise ModelUnavailable("no model provider is configured")
+    def health(self) -> bool:
+        return False

@@ -1,0 +1,189 @@
+# General dairy knowledge: nutrition, TMR, water, body condition, welfare and environment.
+collection: dairy
+domain: nutrition-welfare
+records:
+- id: dairy.nutrition.tmr-basics
+  kind: TOPIC
+  title: TMR (total mixed ration) management basics
+  questions:
+  - What is TMR?
+  - how to mix tmr properly
+  - tmr management tips
+  keywords: [tmr, total mixed ration, mixing, feed mixer, dry matter, consistency]
+  summary: A TMR mixes forages, concentrates and minerals so every bite is similar. The key is consistency; weigh ingredients accurately, check forage dry matter regularly, follow the mixer's mixing time, and avoid over- or under-mixing.
+  facts:
+  - Penn State Extension advises checking feed dry matter weekly because moisture changes alter what cows actually receive.
+  - Over-mixing chops forage too fine; under-mixing leaves clumps that cows sort.
+  - Feed costs typically exceed 50 percent of milk production expenses.
+  - Ration formulation is a nutritionist's job; DairyOS stores the ration and prices it but does not balance it.
+  provenance:
+  - {source: PSU-TMR}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.nutrition.bunk, feed.tmr-tool]
+
+- id: dairy.nutrition.bunk
+  kind: TOPIC
+  title: Feed bunk management, refusals and sorting
+  questions:
+  - How much feed should be left over?
+  - feed refusal percentage
+  - cows sorting feed
+  keywords: [refusals, leftovers, sorting, bunk, push up, particle size, separator]
+  summary: Aim for small, consistent refusals; Penn State suggests about 1 to 3 percent for high-producing cows and 0.5 to 3 percent for dry or low-producing cows. Weigh refusals daily, and investigate big swings.
+  facts:
+  - Daily refusal weights let you calculate actual intake per cow.
+  - Sorting of long particles can cause subacute ruminal acidosis and milk fat depression.
+  - The Penn State Particle Size Separator checks TMR particle distribution.
+  provenance:
+  - {source: PSU-TMR}
+  - {source: MSD-SARA}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.nutrition.tmr-basics, dairy.nutrition.sara, dairy.nutrition.intake-drop]
+
+- id: dairy.nutrition.intake-drop
+  kind: TRIAGE
+  title: Cows eating less (herd intake drop)
+  questions:
+  - Cows are not eating the TMR, what should I check?
+  - feed intake dropped
+  keywords: [intake drop, not eating tmr, refusals up, off feed herd]
+  summary: Check the basics in order; water supply, heat stress, what was actually delivered and when, mixing, spoiled or heated feed, a recent ingredient or ration change, sorting, bunk space and overcrowding, and whether the right group got the right ration. Then look for sick cows.
+  facts:
+  - Drastic swings in refusals warrant investigation of feed changes or herd changes.
+  - Heat stress reduces feed intake.
+  - Empty bunks, overcrowding and heat stress are stressors that raise ketosis risk in fresh cows.
+  provenance:
+  - {source: PSU-TMR}
+  - {source: UMD-HEAT-STRESS}
+  - {source: MSD-KETOSIS}
+  safety: {class: TRIAGE, escalate: "If several cows are sick, bloated, down or scouring, call the veterinarian; involve the nutritionist for ration changes."}
+  related: [dairy.nutrition.bunk, dairy.nutrition.water, dairy.welfare.heat-stress]
+
+- id: dairy.nutrition.water
+  kind: TOPIC
+  title: Water for dairy cows
+  questions:
+  - How much water does a dairy cow need?
+  - water trough space cows
+  keywords: [water, drinking water, trough, water intake, water quality]
+  summary: Water is the most important nutrient; a high-producing cow may drink up to about 50 gallons (roughly 190 L) a day, and more in hot weather. Give easy access, especially right after milking, with enough trough space and clean water.
+  facts:
+  - A lactating cow drinks 30 to 60 percent of her daily water shortly after milking.
+  - Water intake rises by about 0.9 pounds for each pound of milk produced and increases with temperature.
+  - Heat can raise consumption by 50 to 100 percent.
+  - Test water for total dissolved solids, nitrates, sulphates and bacteria.
+  - Provide at least about 3 inches of accessible trough space per cow, per University of Maryland Extension.
+  provenance:
+  - {source: SDSU-WATER}
+  - {source: UMD-HEAT-STRESS}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.welfare.heat-stress, dairy.milk.sudden-drop]
+
+- id: dairy.nutrition.bcs
+  kind: TOPIC
+  title: Body condition scoring
+  questions:
+  - What body condition score should a cow have?
+  - bcs at calving
+  - thin cow body condition
+  keywords: [body condition score, bcs, thin, fat cow, 1 to 5 scale, tailhead, pins, hooks]
+  summary: Body condition is scored 1 (very thin) to 5 (very fat) by feeling the tailhead, pins, hooks and short ribs. Penn State targets about 3.5 at calving and dry-off, about 3.0 in early lactation and 2.75 at peak milk, with no more than 0.5 to 1.0 point lost after calving.
+  facts:
+  - Over-conditioned cows face more metabolic disease, calving difficulty and fertility problems.
+  - Thin cows show weaker heats, lower conception and too little reserve for milk.
+  - DairyOS records BCS and the measurement method under Record Body Development in the Passport.
+  provenance:
+  - {source: PSU-BCS}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.transition.ketosis, animals.passport]
+
+- id: dairy.nutrition.sara
+  kind: TOPIC
+  title: Subacute ruminal acidosis (SARA)
+  questions:
+  - What is acidosis in cows?
+  - loose manure low milk fat
+  keywords: [acidosis, sara, rumen ph, grain overload, low milk fat, loose dung]
+  summary: Subacute ruminal acidosis is repeated periods of low rumen pH (about 5.6 to 5.2) from too much rapidly fermentable carbohydrate, too little effective fibre, sorting or slug feeding. It shows at herd level as variable intake, lower milk and milk fat, loose manure and lameness.
+  facts:
+  - It is diagnosed at herd level, for example by measuring rumen pH in at-risk cows.
+  - Prevention relies on balanced fibre and carbohydrate, good bunk management to prevent sorting and slug feeding, and adequate buffering.
+  - Sudden access to large amounts of grain (grain overload) is an emergency.
+  provenance:
+  - {source: MSD-SARA}
+  safety: {class: TRIAGE, escalate: "A cow that has broken into grain, is bloated, staggering or down needs the veterinarian immediately."}
+  related: [dairy.nutrition.bunk, dairy.milk-quality.components]
+
+- id: dairy.nutrition.bloat
+  kind: TRIAGE
+  title: Bloat
+  questions:
+  - Cow belly swollen on left side, what to do?
+  - bloat in cows
+  keywords: [bloat, tympany, left side swollen, frothy bloat, legume, lucerne, berseem]
+  summary: Bloat is gas trapped in the rumen, causing sudden swelling of the left flank, distress, laboured breathing and death within hours if not relieved. Frothy bloat follows lush legume pasture or grain; free-gas bloat often comes from an obstruction such as choke.
+  facts:
+  - The Merck Veterinary Manual notes death commonly occurs 3 to 4 hours after signs begin.
+  - Introduce legumes such as lucerne or berseem gradually, feed hay before turning onto legume pasture, and avoid finely ground grain.
+  provenance:
+  - {source: MSD-BLOAT}
+  safety: {class: TRIAGE, escalate: "Bloat is an emergency. Call the veterinarian immediately, keep the animal standing and walking gently, and do not attempt stomach puncture unless trained and directed."}
+  related: [dairy.nutrition.sara]
+
+- id: dairy.welfare.heat-stress
+  kind: TRIAGE
+  title: Heat stress in dairy cows
+  questions:
+  - How do I know my cows have heat stress?
+  - heat stress signs cows
+  - how to cool cows in summer
+  - THI meaning
+  keywords: [heat stress, thi, panting, open mouth breathing, shade, fans, sprinklers, summer]
+  summary: Signs include panting, open-mouth breathing, drooling, standing and bunching, crowding at water, and reduced intake and milk. For high-producing cows the temperature-humidity index (THI) threshold is about 68. Provide shade, water, ventilation and then evaporative cooling.
+  facts:
+  - Heat stress reduces heat expression, egg quality and embryo survival, increasing days open.
+  - Heat stress during the dry period can reduce the next lactation's milk by as much as 8 to 11 lb/day.
+  - High-producing cows may need up to 50 gallons of water a day, and heat raises intake by 50 to 100 percent.
+  - Apply sprinklers or misters only after shade and ventilation are adequate.
+  - DairyOS's Farm Intelligence panel shows persisted THI observations as mild, high or severe stress.
+  provenance:
+  - {source: UMD-HEAT-STRESS}
+  safety: {class: TRIAGE, escalate: "Collapse, severe laboured breathing, or several distressed animals is an emergency; cool the animals and call the veterinarian."}
+  related: [dairy.nutrition.water, dairy.milk.sudden-drop]
+
+- id: dairy.welfare.lameness
+  kind: TRIAGE
+  title: Lameness and locomotion scoring
+  questions:
+  - How do I spot lameness early?
+  - cow limping what to do
+  - locomotion score
+  keywords: [lameness, limping, locomotion score, arched back, hoof, foot rot, hoof trimming]
+  summary: Locomotion is scored 1 (normal, level back) to 5 (severely lame, unwilling to bear weight). An arched back when walking is an early sign; score 3 shows an arched back standing and walking with short strides.
+  facts:
+  - Scores 2 and 3 are subclinical lameness; scores 4 and 5 are clinical lameness.
+  - UC Davis cites intake losses of about 17 percent at score 4 and 36 percent at score 5, with milk losses of 7 and 16 percent.
+  - Cows scoring 3 were four times more likely to score 4 or 5 a month later, so early hoof examination pays.
+  - Long standing times from heat stress or poor stalls are linked to lameness.
+  provenance:
+  - {source: UCD-LOCOMOTION}
+  - {source: UMD-HEAT-STRESS}
+  safety: {class: TRIAGE, escalate: "A cow that will not bear weight, has a swollen or open wound, or cannot reach feed and water needs prompt attention from the veterinarian or hoof trimmer."}
+  related: [dairy.welfare.heat-stress, health.treatment]
+
+- id: dairy.welfare.down-cow
+  kind: TRIAGE
+  title: A cow that cannot get up (down cow)
+  questions:
+  - Cow is down and cannot get up, what should I do?
+  - downer cow care
+  keywords: [down cow, downer cow, cannot stand, recumbent, lying down]
+  summary: Find and treat the cause quickly with the veterinarian (milk fever is common around calving). While she is down, keep her on deep soft bedding, help her lie on her chest rather than flat, shift her from side to side every 6 to 8 hours, and give feed and water within reach.
+  facts:
+  - The Merck Veterinary Manual defines secondary recumbency as inability to rise for at least 12 to 24 hours after a delayed or unsuccessful treatment of the primary cause.
+  - Pressure damage to hind-leg muscles and nerves develops when a cow lies on a hard surface for long periods.
+  - A bright cow that tries to rise and keeps eating has a better outlook; listlessness, no interest in feed and pressure sores are bad signs and euthanasia on welfare grounds may need to be considered with the veterinarian.
+  provenance:
+  - {source: MSD-DOWNER}
+  safety: {class: TRIAGE, escalate: "A down cow is an emergency; call the veterinarian. Lifting devices must only be used as directed to avoid injury."}
+  related: [dairy.transition.milk-fever]

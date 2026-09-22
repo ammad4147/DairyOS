@@ -1,73 +1,206 @@
 {
-  "schema_version": 2,
-  "corpus_version": "0.9.0-assistant-owned-rebuild",
-  "generated_at": "2026-09-20T05:00:00+05:00",
-  "dairyos_source_authority": "3632a283c1269443716a9906b0bba7d7d53946de",
-  "servable_statuses": [
-    "APPROVED"
-  ],
-  "counts": {
-    "total": 145,
-    "by_status": {
-      "DRAFT": 0,
-      "DEPRECATED": 3,
-      "APPROVED": 141
-    },
-    "by_class": {
-      "DAIRY_KNOWLEDGE": 20,
-      "DAIRYOS_INSTRUCTION": 124
-    }
+ "corpus_sha256": "a31b8a5270049678a397ff56640d83f735f2df4d673baddbd55eeb1a021fc8b8",
+ "counts": {
+  "by_collection": {
+   "dairy": 70,
+   "dairyos": 89
   },
-  "files": [
-    {
-      "path": "dairyos/animals-and-herd.json",
-      "class": "DAIRYOS_INSTRUCTION",
-      "domain": "animals-and-herd",
-      "sha256": "9800a3cdfb4a9ba4d84306a7b69e6c827b796dddac0009d6f3d4a8d917e9bf7c",
-      "item_count": 7
-    },
-    {
-      "path": "dairyos/breeding-and-reproduction.json",
-      "class": "DAIRYOS_INSTRUCTION",
-      "domain": "breeding-and-reproduction",
-      "sha256": "91a6d9934037cd8a3709b4f380a5725804234f860fb03ae2b67b7627781b3a17",
-      "item_count": 9
-    },
-    {
-      "path": "dairyos/finance-and-expenses.json",
-      "class": "DAIRYOS_INSTRUCTION",
-      "domain": "finance-and-expenses",
-      "sha256": "e178717fcccdb2a4bd0885f0e5329fa54924dbbab26ac262e885503799eb35dc",
-      "item_count": 9
-    },
-    {
-      "path": "dairyos/health-and-veterinary.json",
-      "class": "DAIRYOS_INSTRUCTION",
-      "domain": "health-and-veterinary",
-      "sha256": "e97fbc49c2917d2f4b80fd81733ac98ec0ac394143e6ba506fe0747d603dd888",
-      "item_count": 13
-    },
-    {
-      "path": "dairyos/milk-production.json",
-      "class": "DAIRYOS_INSTRUCTION",
-      "domain": "milk-production",
-      "sha256": "928c3d372169b084ce16eccd0e3dde23271ac772c45ae66d01dcf1a896dae954",
-      "item_count": 9
-    },
-    {
-      "path": "dairyos/practical-dairy-management.json",
-      "class": "DAIRY_KNOWLEDGE",
-      "domain": "practical-dairy-management",
-      "sha256": "2094955ef0629cf718d5e2be43130715c32e650c15cb9fef08ad30885bf9552c",
-      "item_count": 6
-    },
-    {
-      "path": "dairyos/how-to-consolidated-draft.json",
-      "class": "MIXED",
-      "domain": "cross-domain-how-to",
-      "sha256": "c8a1ebd72502461008599346612121a2aa65e5955e05d828af2613b45ebb05cb",
-      "item_count": 91
-    }
-  ],
-  "note": "Assistant-owned corpus rebuilt from current DairyOS repository capability review plus general dairy-industry guidance; legacy training and simulator material is not a source."
+  "by_domain": {
+   "dairy:calves": 13,
+   "dairy:herd-health": 19,
+   "dairy:nutrition-welfare": 10,
+   "dairy:reproduction": 8,
+   "dairy:transition": 11,
+   "dairy:udder-milk": 9,
+   "dairyos:animals": 11,
+   "dairyos:breeding": 10,
+   "dairyos:feed": 7,
+   "dairyos:finance": 20,
+   "dairyos:health": 10,
+   "dairyos:milk": 16,
+   "dairyos:platform": 15
+  },
+  "by_freshness": {
+   "CURRENT": 159
+  },
+  "by_kind": {
+   "CALCULATION": 11,
+   "CONCEPT": 31,
+   "DATA_FLOW": 9,
+   "HOWTO": 35,
+   "POLICY": 2,
+   "TOPIC": 44,
+   "TRIAGE": 25,
+   "TROUBLESHOOTING": 2
+  },
+  "by_review_status": {
+   "ENGINEERING_VERIFIED": 89,
+   "SOURCE_CURATED": 70
+  },
+  "by_safety_class": {
+   "EDUCATIONAL": 34,
+   "NONE": 89,
+   "TRIAGE": 33,
+   "VET_ONLY": 3
+  },
+  "facts": 621,
+  "servable": 159,
+  "sources_cited": 44,
+  "total": 159
+ },
+ "dairyos_source_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62",
+ "files": [
+  {
+   "collection": "dairy",
+   "domain": "calves",
+   "path": "source/dairy-calves.yaml",
+   "record_count": 13,
+   "sha256": "ac6eeab90d3af46c0fde60a58d715940d9301e498a7e9b3ebb562aa4a9b59289"
+  },
+  {
+   "collection": "dairy",
+   "domain": "herd-health",
+   "path": "source/dairy-health.yaml",
+   "record_count": 15,
+   "sha256": "37e502a14c4f7c88fafa4f12f4563ad4dc98d262a3ff5e4c6b800826b0cb6051"
+  },
+  {
+   "collection": "dairy",
+   "domain": "herd-health",
+   "path": "source/dairy-herd-extra.yaml",
+   "record_count": 4,
+   "sha256": "5bc5e8b67f83bd0c90a94b240abe59bd3022037ba53954d4de11a4b32d6b0579"
+  },
+  {
+   "collection": "dairy",
+   "domain": "nutrition-welfare",
+   "path": "source/dairy-nutrition-welfare.yaml",
+   "record_count": 10,
+   "sha256": "2a35fbc53f62e3f6d5a048ff5ec9e8137cac7d4f7832633257e2d7e2531171ae"
+  },
+  {
+   "collection": "dairy",
+   "domain": "reproduction",
+   "path": "source/dairy-reproduction.yaml",
+   "record_count": 8,
+   "sha256": "c72a4f839f3749be95bdb31e80c535f847887876345d3fbea02368c5a7f23921"
+  },
+  {
+   "collection": "dairy",
+   "domain": "transition",
+   "path": "source/dairy-transition.yaml",
+   "record_count": 11,
+   "sha256": "6dea916381b932787daba9ecf5f07a07dc7b87b673060b1131d7d3beec1491b5"
+  },
+  {
+   "collection": "dairy",
+   "domain": "udder-milk",
+   "path": "source/dairy-udder-milk.yaml",
+   "record_count": 9,
+   "sha256": "2a9dc5cc93d6edf313752739038af0f56584a8edddfa610cfa4d7b74d961e529"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "animals",
+   "path": "source/dairyos-animals.yaml",
+   "record_count": 11,
+   "sha256": "a07d425d426e2a9c14c9226ea8cc2ad3af545cc0ed77007636293b53de002cd4"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "breeding",
+   "path": "source/dairyos-breeding.yaml",
+   "record_count": 10,
+   "sha256": "ce9d33cf152efd2d64daa1e1030e4b7402432e6440193abde43bb65e2d39114a"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "finance",
+   "path": "source/dairyos-extra.yaml",
+   "record_count": 1,
+   "sha256": "b40743320f9e759bc2db71f62fde01d70fa1e9d3e2b7e74b764e0e6e2ca4430a"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "feed",
+   "path": "source/dairyos-feed.yaml",
+   "record_count": 7,
+   "sha256": "b4a50db7656d91981bea5849f28b318e10ccdf5be5e621bdd9ea51bc83aad7ac"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "finance",
+   "path": "source/dairyos-finance-cop.yaml",
+   "record_count": 19,
+   "sha256": "57e8ca33abc550041eaa5294f1597e3060b1a31897a48395e4c9c06899b62556"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "health",
+   "path": "source/dairyos-health.yaml",
+   "record_count": 10,
+   "sha256": "e05a0ba0f3a2c5fb8a8e6552a0e4ee26812d875164dd53d1686c8e95107feae0"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "milk",
+   "path": "source/dairyos-milk.yaml",
+   "record_count": 16,
+   "sha256": "8689cdb9d477aed34b64a079176cfb87317077d1b1e41597ec28db64e3567e66"
+  },
+  {
+   "collection": "dairyos",
+   "domain": "platform",
+   "path": "source/dairyos-platform.yaml",
+   "record_count": 15,
+   "sha256": "79a806977e00dd83da7bdaed800483c6b16b82b202e8c2b11c2f926c3fe4e16e"
+  }
+ ],
+ "schema_version": 3,
+ "sources_cited": [
+  "ACES-DRY-COW",
+  "DAIREXNET-BRD-SCORE",
+  "ILLINOIS-CALF-FLUIDS",
+  "MSD-BLOAT",
+  "MSD-BRUCELLOSIS",
+  "MSD-BVD",
+  "MSD-CALF-PNEUMONIA",
+  "MSD-DA",
+  "MSD-DOWNER",
+  "MSD-GESTATION",
+  "MSD-HEIFER-FEEDING",
+  "MSD-KETOSIS",
+  "MSD-MASTITIS",
+  "MSD-METRITIS",
+  "MSD-MILK-FEVER",
+  "MSD-NEONATAL-DIARRHEA",
+  "MSD-RECTAL-TEMP",
+  "MSD-SARA",
+  "MSD-YOUNG-CALVES",
+  "MU-G2021",
+  "NADIS-PD",
+  "NMC-MILKING",
+  "OKSTATE-DEHYDRATION",
+  "OSU-VME29-CALVING",
+  "PSU-BCS",
+  "PSU-NEWBORN-CALF",
+  "PSU-TMR",
+  "PSU-VACCINE-HANDLING",
+  "SDSU-WATER",
+  "UCD-LOCOMOTION",
+  "UKY-COW-COMFORT",
+  "UMD-DEWORMING",
+  "UMD-HEAT-STRESS",
+  "UMN-RESIDUE",
+  "UMN-TRANSITION",
+  "UNH-LACTATION",
+  "UW-BIOSECURITY",
+  "UW-HANDLING",
+  "UW-HEIFER-BREEDING",
+  "UW-NAVEL",
+  "VA-MILK-COOLING",
+  "WOAH-FMD",
+  "WOAH-HS",
+  "WOAH-LSD"
+ ]
 }

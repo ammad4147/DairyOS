@@ -1,0 +1,282 @@
+# General dairy knowledge: health triage, infectious disease, biosecurity, vaccination and residues.
+collection: dairy
+domain: herd-health
+records:
+- id: dairy.vitals.temperature
+  kind: TOPIC
+  title: Normal temperature of a cow
+  questions:
+  - What is a cow's normal temperature?
+  - cow temperature high what should I do
+  - fever in cow how much
+  keywords: [temperature, fever, rectal temperature, thermometer, normal temperature]
+  summary: A dairy cow's normal rectal temperature is about 38.0 to 39.3 C (100.4 to 102.8 F). A reading above this range suggests fever; confirm it with a proper rectal reading before acting.
+  facts:
+  - Take the temperature rectally with a clean thermometer left in place for the time the thermometer needs, with the bulb against the rectal wall.
+  - Hot weather, exercise and excitement can raise temperature without infection, so read it in context.
+  - A low temperature with weakness after calving can indicate milk fever, which is an emergency.
+  - In calves, the respiratory scoring system treats above 39.2 C (102.6 F) as fever.
+  provenance:
+  - {source: MSD-RECTAL-TEMP}
+  - {source: DAIREXNET-BRD-SCORE}
+  - {source: MSD-MILK-FEVER}
+  safety: {class: TRIAGE, escalate: "Fever with dullness, not eating, laboured breathing, abnormal milk, foul discharge or recent calving needs the veterinarian. Do not start antibiotics or anti-inflammatories without veterinary direction."}
+  related: [dairy.triage.sick-cow, dairy.transition.fresh-cow-watch]
+
+- id: dairy.triage.sick-cow
+  kind: TRIAGE
+  title: First checks for a cow that seems unwell
+  questions:
+  - My cow is sick, what should I check first?
+  - cow has temperature what should I do
+  - cow dull and not eating
+  - how to examine a sick cow
+  keywords: [sick cow, unwell, dull, not eating, examine, triage, fever]
+  summary: Observe from a distance, then check, confirm the temperature, appetite and rumen fill, attitude, breathing, manure, udder and milk, discharge, gait and feet, hydration, and whether she calved recently. Isolate her if infection is possible, note whether other animals show the same signs, and involve the veterinarian.
+  facts:
+  - Normal rectal temperature for a dairy cow is about 38.0 to 39.3 C.
+  - Recent calving points toward transition diseases such as milk fever, ketosis, metritis and displaced abomasum.
+  - Abnormal milk points toward mastitis.
+  - Several animals sick at once suggests an infectious, feed or water problem and needs urgent investigation.
+  - Record the observation in DairyOS Health so the case and follow-up are tracked.
+  provenance:
+  - {source: MSD-RECTAL-TEMP}
+  - {source: UMN-TRANSITION}
+  - {source: MSD-MASTITIS}
+  - {source: UW-BIOSECURITY}
+  safety: {class: TRIAGE, escalate: "Seek prompt veterinary care when a cow is down, breathing with difficulty, bloated, bleeding, very dull, has a high fever, has stopped eating, or when several animals are affected. Diagnosis, medicines and doses are for the veterinarian."}
+  related: [dairy.vitals.temperature, health.treatment, dairy.biosecurity.isolation]
+
+- id: dairy.triage.emergencies
+  kind: TRIAGE
+  title: Signs that need the veterinarian urgently
+  questions:
+  - When should I call the vet immediately?
+  - emergency signs in cattle
+  keywords: [emergency, urgent, call vet, danger signs]
+  summary: Call the veterinarian urgently for a cow that is down or cannot rise, bloated, struggling to breathe, calving without progress, bleeding heavily, in severe pain, having seizures or staggering, with severe diarrhoea or dehydration, a severely swollen udder with fever, or when several animals fall sick or die suddenly.
+  facts:
+  - Bloat can kill within 3 to 4 hours of signs appearing.
+  - Milk fever around calving can progress to unconsciousness.
+  - Blisters in the mouth or on the feet with drooling and lameness must be reported as suspected foot-and-mouth disease.
+  provenance:
+  - {source: MSD-BLOAT}
+  - {source: MSD-MILK-FEVER}
+  - {source: WOAH-FMD}
+  safety: {class: TRIAGE, escalate: "These are emergencies; contact the veterinarian or veterinary authority now."}
+  related: [dairy.triage.sick-cow, dairy.welfare.down-cow, dairy.nutrition.bloat]
+
+- id: dairy.medicine.boundary
+  kind: POLICY
+  title: Medicines, doses and treatment decisions
+  questions:
+  - Which antibiotic should I give?
+  - give me the dose for my cow
+  - what injection for mastitis
+  keywords: [antibiotic, dose, dosage, injection, medicine, drug, prescription]
+  summary: The Assistant does not choose medicines or doses. Treatment depends on an examination, the likely cause, the product's label, withdrawal times and local law, so the veterinarian must decide. Use products only as the label or the veterinarian directs.
+  facts:
+  - Withdrawal periods are set by the drug manufacturer or, for extra-label use, by the prescribing veterinarian.
+  - Keep treatment records, identify treated animals before treating, and keep treated milk out of the tank until the withdrawal ends.
+  - DairyOS records the treatment and withdrawal the veterinarian decides; it does not calculate doses.
+  provenance:
+  - {source: UMN-RESIDUE}
+  safety: {class: VET_ONLY, escalate: "Ask your veterinarian for the medicine, dose, route and withdrawal time."}
+  related: [dairy.milk-safety.residues, health.treatment, health.withdrawal]
+
+- id: dairy.milk-safety.residues
+  kind: TOPIC
+  title: Drug residues and withdrawal times
+  questions:
+  - What is a withdrawal period?
+  - why can't I sell milk after antibiotics
+  - residue in milk
+  keywords: [withdrawal period, residue, antibiotic milk, treated cow, bulk tank test]
+  summary: A withdrawal period is the time after a treatment during which milk (or meat) must not enter the food supply. It is set on the product label or by the veterinarian for extra-label use, and must be followed exactly.
+  facts:
+  - University of Minnesota Extension advises keeping treatment records for at least 3 years.
+  - Identify the animal before treating and mark treated cows so their milk is kept separate.
+  - Test milk from treated cows before returning it to the bulk tank, and test the bulk tank before it leaves the farm, per the extension guidance.
+  - DairyOS automatically posts milk from animals under an active withdrawal to WASTAGE.
+  provenance:
+  - {source: UMN-RESIDUE}
+  safety: {class: EDUCATIONAL}
+  related: [health.withdrawal, milk.withdrawal-milk, dairy.medicine.boundary]
+
+- id: dairy.biosecurity.principles
+  kind: TOPIC
+  title: Biosecurity on a dairy farm
+  questions:
+  - How do I keep disease out of my farm?
+  - biosecurity tips dairy
+  keywords: [biosecurity, closed herd, quarantine, visitors, footwear, disinfection, disease prevention]
+  summary: Keep a closed herd where possible, quarantine new or returning animals for about 30 days, control visitors, vehicles and footwear, separate sick animals, protect feed and water from contamination, control pests, and dispose of dead animals properly.
+  facts:
+  - University of Wisconsin Extension recommends isolating new or returning animals for approximately 30 days before they join the herd.
+  - Do not feed calves unpasteurised milk or colostrum from cows that may carry disease.
+  - Keep visitor and staff logs, and require hand hygiene, clean clothing and disinfected footwear.
+  - Establish a line of separation and routes that keep feed and manure from cross-contaminating.
+  provenance:
+  - {source: UW-BIOSECURITY}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.biosecurity.isolation, dairy.biosecurity.new-animals]
+
+- id: dairy.biosecurity.new-animals
+  kind: TOPIC
+  title: Bringing new animals onto the farm
+  questions:
+  - What should I do with a newly purchased cow?
+  - quarantine new animals
+  keywords: [new animals, purchased cow, quarantine, isolation, testing]
+  summary: Isolate purchased or returning animals for about 30 days, ask the veterinarian which tests and vaccinations they need, and only then mix them with the herd.
+  facts:
+  - Movement of infected animals is a main route for diseases such as lumpy skin disease and foot-and-mouth disease to spread.
+  - Replacement animals should be isolated and retested where brucellosis control is in place.
+  - In DairyOS, record the purchase in Finance (Animal Purchase) and register the animal before recording events for it.
+  provenance:
+  - {source: UW-BIOSECURITY}
+  - {source: WOAH-LSD}
+  - {source: MSD-BRUCELLOSIS}
+  safety: {class: EDUCATIONAL}
+  related: [finance.animal-purchase, dairy.biosecurity.principles]
+
+- id: dairy.biosecurity.isolation
+  kind: TOPIC
+  title: Isolating sick animals
+  questions:
+  - Should I separate a sick cow?
+  - isolation pen
+  keywords: [isolation, hospital pen, separate sick animal, contagious]
+  summary: Separate animals with possibly infectious disease (diarrhoea, coughing, fever, abortions, skin lesions, blisters) in a hospital pen, handle them last, and clean equipment and boots after contact.
+  facts:
+  - Keep maternity, calf and hospital areas separate.
+  - Some cattle diseases, including brucellosis and certain calf diarrhoea organisms, can infect people; use gloves and hand hygiene.
+  provenance:
+  - {source: MSD-NEONATAL-DIARRHEA}
+  - {source: MSD-BRUCELLOSIS}
+  - {source: UW-BIOSECURITY}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.biosecurity.principles]
+
+- id: dairy.biosecurity.carcass
+  kind: TOPIC
+  title: Handling dead animals
+  questions:
+  - what to do with dead cow
+  keywords: [dead animal, carcass, disposal, mortality, deadstock]
+  summary: Dispose of dead animals promptly and safely according to local rules, keep dogs and wildlife away, and ask the veterinarian about a post-mortem when the cause is unknown or several animals die.
+  facts:
+  - Dead animal disposal is emphasised as a critical biosecurity practice.
+  - Disposal costs are recorded in DairyOS Finance under OPEX (Mortality Disposal / Burial or Deadstock / Biosecurity Disposal).
+  provenance:
+  - {source: UW-BIOSECURITY}
+  safety: {class: TRIAGE, escalate: "Sudden or multiple deaths must be investigated by a veterinarian; suspected notifiable disease must be reported."}
+  related: [animals.exit]
+
+- id: dairy.vaccination.principles
+  kind: TOPIC
+  title: Vaccination principles for dairy herds
+  questions:
+  - What vaccinations do calves normally need?
+  - vaccination schedule for cows
+  - which vaccines for dairy cattle
+  keywords: [vaccination, vaccine, schedule, booster, calves vaccination, programme]
+  summary: There is no universal schedule; the right programme depends on the diseases present in your area, the animals' ages and pregnancy status, product authorisation and your veterinarian's plan. In Pakistan-type settings programmes commonly cover diseases such as FMD, haemorrhagic septicaemia, black quarter and lumpy skin disease, but the veterinarian decides.
+  facts:
+  - Young animals usually need a second (booster) dose, often two to four weeks after the first, as the label directs.
+  - Modified-live vaccines may be unsafe for pregnant animals; killed vaccines are generally safe for them; follow the label and veterinarian.
+  - Vaccinating dams about 6 and 3 weeks before calving is one strategy to strengthen colostrum against calf scours organisms, if the veterinarian recommends it.
+  - Colostrum gives newborn calves their early protection, which affects when calf vaccines work.
+  - DairyOS schedules vaccination occurrences and records them as given; it does not design the programme.
+  provenance:
+  - {source: PSU-VACCINE-HANDLING}
+  - {source: MSD-NEONATAL-DIARRHEA, section: Prevention}
+  safety: {class: VET_ONLY, escalate: "Vaccine choice, timing and schedule must come from your veterinarian for your area and herd."}
+  applicability: Disease prevalence and licensed vaccines differ by country; the named diseases are examples, not a schedule.
+  related: [vaccination.schedule, dairy.vaccination.handling]
+
+- id: dairy.vaccination.handling
+  kind: TOPIC
+  title: Handling and storing vaccines
+  questions:
+  - How should vaccines be stored?
+  - vaccine left out of fridge
+  keywords: [vaccine storage, refrigerate, cold chain, freezing, mixing vaccine]
+  summary: Keep most vaccines refrigerated and never let them freeze or warm up; protect them from sunlight, mix only what you will use immediately, use clean needles and syringes, and follow the label's route and site.
+  facts:
+  - Some reconstituted vaccines lose effectiveness within one to two hours after mixing.
+  - Use only the diluent packaged with the vaccine.
+  - Subcutaneous injection in the neck is generally preferred over intramuscular to limit tissue damage where the label allows.
+  - Record the product, batch and date in DairyOS when marking a vaccination given.
+  provenance:
+  - {source: PSU-VACCINE-HANDLING}
+  safety: {class: EDUCATIONAL}
+  related: [dairy.vaccination.principles, vaccination.schedule]
+
+- id: dairy.disease.fmd
+  kind: TRIAGE
+  title: Foot-and-mouth disease (FMD)
+  questions:
+  - What are the signs of foot and mouth disease?
+  - blisters in mouth cow drooling
+  keywords: [fmd, foot and mouth, blisters, drooling, lameness, vesicles]
+  summary: FMD is a highly contagious viral disease of cloven-hoofed animals causing fever, blisters on the tongue, lips, mouth, teats and between the claws, drooling, lameness and a sharp fall in milk. It is a WOAH-listed disease that must be reported.
+  facts:
+  - Young animals have higher mortality (20 percent or more) than adults (1 to 5 percent).
+  - It spreads through infected animals' secretions, contaminated feed, water, equipment and vehicles.
+  - Control relies on biosecurity, movement restrictions and vaccination with inactivated vaccines.
+  - FMD is not readily transmissible to humans.
+  provenance:
+  - {source: WOAH-FMD}
+  safety: {class: TRIAGE, escalate: "Suspected FMD must be reported to the veterinary authority immediately; isolate animals and stop movements."}
+  related: [dairy.biosecurity.principles, dairy.vaccination.principles]
+
+- id: dairy.disease.lsd
+  kind: TRIAGE
+  title: Lumpy skin disease (LSD)
+  questions:
+  - What is lumpy skin disease?
+  - lumps on cow skin fever
+  keywords: [lumpy skin disease, lsd, skin nodules, lumps, fever, flies]
+  summary: Lumpy skin disease is a pox virus of cattle and buffalo spread mainly by biting flies, mosquitoes and ticks. Signs include fever, firm skin nodules, enlarged lymph nodes, weight loss and a marked fall in milk.
+  facts:
+  - Nodules typically appear 7 to 19 days after infection.
+  - Long-distance spread is mainly through movement of infected cattle.
+  - Prevention uses vaccination, insect control, movement control and early detection.
+  - It is a WOAH-listed notifiable disease; it does not infect people.
+  provenance:
+  - {source: WOAH-LSD}
+  safety: {class: TRIAGE, escalate: "Report suspected LSD to the veterinarian or veterinary authority and isolate affected animals."}
+  related: [dairy.vaccination.principles]
+
+- id: dairy.disease.hs
+  kind: TRIAGE
+  title: Haemorrhagic septicaemia (HS)
+  questions:
+  - What is HS in cattle?
+  - galghotu
+  keywords: [haemorrhagic septicaemia, hs, pasteurella, monsoon, buffalo, sudden death]
+  summary: Haemorrhagic septicaemia is an acute, often fatal bacterial septicaemia of cattle and buffalo caused by certain types of Pasteurella multocida. In Asia outbreaks mostly occur in monsoon conditions of high heat and humidity.
+  facts:
+  - It is a WOAH-listed disease with high illness and death rates.
+  - Vaccination before the high-risk season is the usual preventive approach, as planned with the veterinarian.
+  provenance:
+  - {source: WOAH-HS}
+  safety: {class: TRIAGE, escalate: "Sudden high fever, throat or brisket swelling, breathing difficulty or sudden deaths need immediate veterinary attention."}
+  related: [dairy.vaccination.principles]
+
+- id: dairy.disease.brucellosis
+  kind: TRIAGE
+  title: Brucellosis
+  questions:
+  - What is brucellosis?
+  - can brucellosis spread to people
+  keywords: [brucellosis, brucella, abortion, zoonosis, raw milk]
+  summary: Brucellosis (Brucella abortus) causes contagious abortion, weak or stillborn calves, retained placenta and reduced milk in cattle and buffalo. People can catch it from aborted material or raw milk.
+  facts:
+  - Infection spreads mainly through aborted fetuses, fetal membranes and birth fluids.
+  - Control uses calf vaccination, test-and-removal and isolation and retesting of replacements, under government veterinary programmes.
+  provenance:
+  - {source: MSD-BRUCELLOSIS}
+  safety: {class: TRIAGE, escalate: "Suspected brucellosis must go to the veterinarian and the veterinary authority; wear gloves and never drink raw milk from suspect animals."}
+  related: [dairy.repro.abortion]

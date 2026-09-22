@@ -1,0 +1,752 @@
+{
+ "records": {
+  "analytics.overview": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/AnalyticsTab.tsx::text:Breeding cycle analytics": "c8c0ac9778e6434662419000993949725d6b91e4d6aca7c13286e690cbf1c2ed"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.calf-id": {
+   "anchors": {
+    "src/dairyos/api/animal_registration.py::_new_animal_id": "6cbd9df476fbdf5f31008170c0bc3448a70eaf53e13476dc983822d6a1fd5e2c",
+    "src/dairyos/farm/settings/services/farm_settings_service.py::FarmSettingsService.get_animal_id_prefix": "37d35be27f2b1f2c63419e683fd31eadcbab084ea7d29ecc58c9959eff79ff10"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.categories": {
+   "anchors": {
+    "src/dairyos/farm/herd/services/animal_classification_service.py::AnimalClassificationService": "ec55bee41cc6bd3a04a9a351304f8dd27c907db200c906843546fc33c44b9b97"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.dry-off": {
+   "anchors": {
+    "src/dairyos/api/animal_management/router.py::change_lifecycle": "51e175070f7c5dbab87925fe423cad93ecf47af5ae577ff6c5786280e7851a97"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.edit-identity": {
+   "anchors": {
+    "src/dairyos/api/animal_management/router.py::update_animal": "1fc3264294a792cfeffeacf20d6e557a5d6c0cf397eea2faeb2fb3f1414028e3"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.exit": {
+   "anchors": {
+    "src/dairyos/api/animal_management/router.py::record_animal_disposition": "04ad8ede720c8e2929b4aec560231ed4f7c58e107b52c511fa9cb76ca3832e4e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.lifecycle": {
+   "anchors": {
+    "src/dairyos/api/animal_management/router.py::change_lifecycle": "51e175070f7c5dbab87925fe423cad93ecf47af5ae577ff6c5786280e7851a97"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.milking-frequency": {
+   "anchors": {
+    "src/dairyos/api/animal_management/router.py::change_milking_frequency": "64e3eaef1a1212df38053509b513dc2f764b112b050681f899c32a3403242e6e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.passport": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/AnimalPassportModal.tsx::text:Lineage & Pedigree": "0e9db4cdfbda51244c2802d579908b4070c5e86287a6a1c93ac0b4ca7880b72f"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.register": {
+   "anchors": {
+    "src/dairyos/api/animal_registration.py::register_animal": "6368fb2ae58b5b7054f2b56c7fc519b558a681d94a2351c5a2208a5e54c4742e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.search": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/AnimalTab.tsx::text:Open Passport": "8f155e1658f0bebf08915b885a18ee21c9735cb108a06b5963658f0da8bd3392"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "animals.youngstock": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/AnimalPassportModal.tsx::text:Record Newborn Care": "9f85cf4b30477e900f931a0f48419f9f90bdb267792eb232e699b7b407d83136",
+    "src/dairyos/api/youngstock_management.py::router": "51e0f5854ff34141182c0365520f3d5b761005d338e560abcb06160452285fa2"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "assistant.about": {
+   "anchors": {
+    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "assistant.farm-data-boundary": {
+   "anchors": {
+    "src/dairyos/api/assistant.py::ask_assistant": "bf8b5b42303c45c6e857abcd94e98f9fac0abfd3fc44444c34b8558a0513e4de"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.ai": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/BreedingTab.tsx::text:Available Purchased Semen": "cfe395627d66badd472b2762253090c2f74693587432fd57a07828d99bd69f63",
+    "src/dairyos/api/breeding_biology.py::_validate_transition": "bdcdfaa61d457e6c549d9f5fe316826f5923add4c02cd3889733c5d16ab8ea4d"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.analytics": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/BreedingTab.tsx::text:Breeding Analytics": "73e393f3f478edcc92959f7fc51d95441bb9f82d99b4af99a2e95c37a95afa85"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.calving": {
+   "anchors": {
+    "src/dairyos/api/animal_registration.py::_new_animal_id": "6cbd9df476fbdf5f31008170c0bc3448a70eaf53e13476dc983822d6a1fd5e2c",
+    "src/dairyos/api/breeding_biology.py::record_breeding_entry": "512dda4ef626eb7a5fad4cc375ceb3dfa2843f49b33f223a892ac8f8b88a2693"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.cycle": {
+   "anchors": {
+    "src/dairyos/api/breeding_biology.py::record_breeding_entry": "512dda4ef626eb7a5fad4cc375ceb3dfa2843f49b33f223a892ac8f8b88a2693",
+    "src/dairyos/farm/reproduction/services/reproductive_state_service.py::ReproductiveStateService.resolve": "a9a1dff7e783e8c81a297fed74c14432a9f8519070ba3d45fa1bb17229396dea"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.expected-calving": {
+   "anchors": {
+    "src/dairyos/farm/reproduction/services/reproductive_state_service.py::ReproductiveStateService.resolve": "a9a1dff7e783e8c81a297fed74c14432a9f8519070ba3d45fa1bb17229396dea"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.pd": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/BreedingTab.tsx::text:PD Check / Review Result": "bdfc062cb2db2c54754579fbe3966848fec5bff393343d6c8b038e050d28b607",
+    "src/dairyos/farm/reproduction/services/reproductive_state_service.py::DEFAULT_REPRODUCTIVE_POLICY": "837eb1eec9be6f35673101c7c3686fec4ef25524d20758d5baff20d77727dcc7"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.post-calving-return": {
+   "anchors": {
+    "src/dairyos/farm/reproduction/services/post_calving_return_service.py::reconcile_due_post_calving_returns": "dba40be3d35b07b4f4d4eb00bc59553d6edf97351974d5551be6c93076f31849"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.pregnancy-loss": {
+   "anchors": {
+    "src/dairyos/api/breeding_biology.py::_normalize_requested_event": "0b4f66598452b34e67ffac183bedd1d684d51f500c248bbf39e01a645b867797"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.semen": {
+   "anchors": {
+    "src/dairyos/api/breeding_biology.py::record_breeding_entry": "512dda4ef626eb7a5fad4cc375ceb3dfa2843f49b33f223a892ac8f8b88a2693",
+    "src/dairyos/api/finance_ledger.py::create_finance_ledger_entry": "280e98f2db57ac0bbf69f4eeca4f29f0785f81117d6a66bc7fc3989fa7d30a74"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "breeding.vwp": {
+   "anchors": {
+    "src/dairyos/farm/reproduction/services/reproductive_state_service.py::DEFAULT_REPRODUCTIVE_POLICY": "837eb1eec9be6f35673101c7c3686fec4ef25524d20758d5baff20d77727dcc7"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.daily-log": {
+   "anchors": {
+    "src/dairyos/api/coml.py::get_coml_period_history": "eac1b705d9284eaee7a589a88b43ced58c58834e73be643201ff365fe0788aa5"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.estimated": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/COML.tsx::text:Estimated COP / L": "610e2468bf46f71a62c732c10efc9a18ff79a20b7e602167b440289b064a829a",
+    "src/dairyos/api/coml.py::get_integrated_coml": "11aa739901244331cae1e65305028b798357a53836a337544bf3bc11055fba8c"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.feed-cost-per-litre": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::tmr_feed_cost_for_period": "e4da525ccb50f869b4f6c3115e2c13abbd9e0be31cc04cb8da8661fd5b7b9e47"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.feed-price-effect": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::_finance_price_authority": "b34cf25e8ea05e99224e335ad4653a376cd40140fe7a51bbbe79e0fa809f4bb3",
+    "src/dairyos/api/tmr.py::promote_tmr_price_source_for_finance_purchase": "8b2aaa8bac26ad355632786afdcd6e7bbc8004b089cd2a1310d865a8c8c54c01"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.official": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/COML.tsx::text:Make Estimated COP / L Official": "ecb89d1e904ae0a98d7fbc99bed56c0cb043d914cf9c6f04f777298813fbfd5e",
+    "src/dairyos/api/coml.py::lock_coml": "c406f484d32753649f77c4c5a34ca1f1be5d5c0ef2cf960d53ed781855f37c98"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "cop.troubleshooting": {
+   "anchors": {
+    "src/dairyos/api/coml.py::_integrated_cop_status": "ea9ef0d9ef4b5bf181ab0dc78d54e0863eb0b22ce033f5a5f799d367948c79cf"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "dashboard.cards": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/UnifiedDashboard.tsx::text:Yield Drop Watchlist": "5026de52f27eff546ac6dbd6208778bb2ab4488529833226f04025a7ef951ec4"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "dashboard.findings": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/AuditTab.tsx::text:Warning Audit Register": "67da7985698a45558376e91d58a2a73f1c4574986c1465152a389df54776752d",
+    "src/dairyos/api/operational_findings.py::router": "b284b4af225b6a7537e478f14e10e0a78bcc910d63573bf9a5410c2df24cb1f9"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.daily-snapshot": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::lock_daily_tmr_cost_snapshot": "cb4ae774d67c82ad69aa91b296abbacee15221c31584f9671084d40d3f04d08a",
+    "src/dairyos/tmr_daily_cost_scheduler.py::RUN_AFTER_LOCAL_TIME": "24a8dd55c97567c36fb3d942f4bfb0965ee5d6c3672379d8846845e03be49a53"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.flow": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::tmr_feed_cost_for_period": "e4da525ccb50f869b4f6c3115e2c13abbd9e0be31cc04cb8da8661fd5b7b9e47"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.prices": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::_finance_price_authority": "b34cf25e8ea05e99224e335ad4653a376cd40140fe7a51bbbe79e0fa809f4bb3",
+    "src/dairyos/api/tmr.py::_priced_stage": "722f20fdadc504e48cc36590aa35cb881db68d1772859530a63cf3c4edb9c968"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.storage": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FeedTab.tsx::text:Feed Storage Status": "1420311a32b0d97b08bfd3a08f58b8b915bf615b215960eee1d4bc30f8e8ec31"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.tmr-cost": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::CATEGORY_STAGE_MAP": "0ecf84b0bcde9a06645b5c15038748bb01542d952a2537b2efde84d9d9a022b0",
+    "src/dairyos/api/tmr.py::_category_costs": "6661840533a87ce3faefefb01c74fc4420591e40e3c835d726e459620a42825e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.tmr-tool": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/TMRPreparationTool.tsx::text:TMR Preparation Tool": "dcb799344084c958b062af57ad289a3d1ce4f1f8306078ce8cf16da83c104d0a",
+    "src/dairyos/api/tmr.py::STAGE_LABELS": "ba1b529a895401558752e3716f63a4b090b355977d54fce23f71c141373c7fda"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "feed.weekly-vet-review": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/TMRPreparationTool.tsx::text:Vet Endorse TMR Review": "c8b897cd202ac00c96d652d3e6c02c729ea859fd98d6268d188ec1417349c1b5"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.amendment": {
+   "anchors": {
+    "src/dairyos/api/finance_ledger.py::_sync_existing_milk_sale_status": "cea4fa2b44d756b4e9c51f3d36caef3af9bf44574740b12d3cec6825fd9a639f"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.animal-purchase": {
+   "anchors": {
+    "src/dairyos/api/finance_ledger.py::link_animal_purchase": "22fbc64fccf9b7cf4eb51f5eb4755752f715146b449d0cfa0e8175e5e14bdfbc"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.animal-sale": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FinanceTab.tsx::text:Select Animal ID being sold": "bed69d973aad15b6abc89ae2d4d04049fce04a3eea1bd7a416877cb2b6a9b048"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.attribution": {
+   "anchors": {
+    "src/dairyos/finance/opex_attribution.py::attributed_amount": "de9c5efa9f390d0fc29f3231595de9807f1a216934e167de9a266a204421043d",
+    "src/dairyos/finance/opex_period_attribution.py::attribute_opex_for_period": "aa7654f1c2d8267536bac4dabac839cbb2c1e6bfa0898ca970eadf24592f217e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.expense-category": {
+   "anchors": {
+    "src/dairyos/finance/expense_taxonomy.py::EXPENSE_TAXONOMIES": "228e5cd8fff3a8d0c83f1abcfcbc2f8c777a1a9e54641a4db7169e5eaa6a489b"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.feed-purchase": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FinanceTab.tsx::text:Feed purchases are entered here and automatically appear in the Feed tab.": "77df8190c4af8d8dc9721a064ef207547c6037cffd813af29bbe3445fa3bdfca",
+    "src/dairyos/api/finance_ledger.py::_ensure_feed_catalog_authority": "966cd3894886195f417175d7b4a18e3c899bee5b560cc6e7c093b79d0af9f674"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.financial-entry": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FinanceTab.tsx::text:Record Expense": "1bbce4e625e7040f5de5c0110ffe618720fab5cd6bb46154e1bd642aabc00f81",
+    "src/dairyos/api/finance_ledger.py::create_finance_ledger_entry": "280e98f2db57ac0bbf69f4eeca4f29f0785f81117d6a66bc7fc3989fa7d30a74"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.flow": {
+   "anchors": {
+    "src/dairyos/api/finance_ledger.py::_ensure_feed_catalog_authority": "966cd3894886195f417175d7b4a18e3c899bee5b560cc6e7c093b79d0af9f674"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.milk-sale": {
+   "anchors": {
+    "src/dairyos/api/finance_ledger.py::create_finance_ledger_entry": "280e98f2db57ac0bbf69f4eeca4f29f0785f81117d6a66bc7fc3989fa7d30a74"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.opex": {
+   "anchors": {
+    "src/dairyos/finance/opex_attribution.py::NON_OPEX_ITEMS": "54f4ddf8229bbc77b9663fb50faae4c029ea008e0314bfbf7165fff2be2a1e70",
+    "src/dairyos/finance/opex_attribution.py::default_cop_classification": "a785731ebc0465e20ff8869926ee183afd3926ad0abe4398b5e047b35945ad02"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.payment-status": {
+   "anchors": {
+    "src/dairyos/api/finance_ledger.py::create_finance_ledger_entry": "280e98f2db57ac0bbf69f4eeca4f29f0785f81117d6a66bc7fc3989fa7d30a74"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.payroll": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/PayrollWindow.tsx::text:Mark Paid": "8f595b7601ec18db0d09440d009e5bc2340b5e6bc137a0be365278d74377a905",
+    "src/dairyos/api/payroll.py::router": "447aeb34eb6d4f7dea3c988a797131cf86ef85ee3f1b9b28f1cb314bd2e9ad97"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.running-status": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FinanceTab.tsx::text:Net Cash Position": "7eaef338db3f06067bc97636ee053b734c72c5207c08938548a891f645e66baa"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "finance.void": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/FinanceTab.tsx::text:Confirm Void": "fdb4347ffd2c9e11668490d1e888e886a9c3d6925d92456f471cd8865567b4eb",
+    "src/dairyos/api/finance_ledger.py::_append_status_transition": "73365093334176e79b6e259e15048eba22df4f6c4b90dab7ae1ea6a850ac7104"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.analytics": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/HealthTab.tsx::text:Active Sick Animals": "5535e1b9713e370cb9da9caaeba9e7f024f958f8133486f4d7cca54496f0bbe0"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.flow": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::record_treatment": "34fb354ab4276265e18323823a72ff00eec7080a3b923dcd8acee64eee6a2703"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.follow-up": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/HealthTab.tsx::text:Follow-ups Due / Overdue": "fecfa5c20ce16e8d275f6729ccf4f381f1d8ee8937e929e51b5c668f01d49f58"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.mark-healthy": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::resolve_health_case": "8ead75c6de86acf460d2f338f81615a8015b3dc480384377dc2d7a6ef65acee5"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.non-milking-directive": {
+   "anchors": {
+    "src/dairyos/farm/production/services/non_milking_directive_service.py::NonMilkingDirectiveService": "a8829120ba79b56cb18f207fd076074ab9cc2985cb85a00631edd4f9cf7e0452"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.observation": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::record_health_observation": "d9daef450ea34e6ad9f04e736c6154f92f5834af183b4d89ac77e0481dbdf14f"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.treatment": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/HealthTab.tsx::text:Record Clinical Treatment": "5fa1252d6f7341627e7c01f546e45cc37f369ea9c317456f3d43ef2f44222e59",
+    "src/dairyos/api/farm_data_entry.py::open_health_case": "434b5049beb3e4bf1b05012748ba4d2e106b6fa72a22b06a03ef88fe244e0156",
+    "src/dairyos/api/farm_data_entry.py::record_treatment": "34fb354ab4276265e18323823a72ff00eec7080a3b923dcd8acee64eee6a2703"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "health.withdrawal": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::record_treatment": "34fb354ab4276265e18323823a72ff00eec7080a3b923dcd8acee64eee6a2703",
+    "src/dairyos/farm/production/services/withdrawal_milk_wastage_service.py::animal_withdrawn_on_date": "ffb36d1ffcb7b57bc1fb816d056b8343dab43287ed3e15d3dd618cfae62fd76c"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.amendment": {
+   "anchors": {
+    "src/dairyos/api/milk_traceability.py::update_milk_production": "732897765e0b7ab2860a444a5f6cc34a69fa986425095d3bc91fc84dd8d24464"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.daily-total": {
+   "anchors": {
+    "src/dairyos/farm/production/services/milk_daily_semantics.py::evaluate_sessions": "f4a8161f11d720058c2c3097c28cedb1bdb4ffcfb1827ef81697b5506da1dcaa"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.dispositions": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/MilkTab.tsx::text:Enter Milk for Calves": "76ecc6b7c96a550dbefa1e936a87f446d23dfb4a9eba4aa6e8b022231e3a45a4",
+    "src/dairyos/farm/production/services/milk_reconciliation_service.py::MilkReconciliationService.validate_disposition_quantity": "3e68b9004b54effa65af69d2417cae48df3f100e474538341b2afb9d30ae2ff7"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.flow": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::record_milk_entry": "ab0065209d1933cb6646b0a676362fbb7ce901e4c75dc5e829c96fedb9e8a750",
+    "src/dairyos/api/tmr.py::milk_litres_for_period": "5cf64115811f8f07e68dd70ac267200cdec8593f768cfe3b8f709adc7a059fde"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.late-entry": {
+   "anchors": {
+    "src/dairyos/farm/production/services/missed_milking_control_service.py::MissedMilkingControlService.reconcile": "e80f04baf081482c8a8c817c1aee2b05609fc4f9658c2c1bd814990e82f49b42"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.missed-session": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/MilkTab.tsx::text:Enter Missing Milk": "757c8f2db0b2c7bc719627d465cce8964907d47feb6e1ee1f0534023c73be5e2",
+    "src/dairyos/farm/production/services/missed_milking_control_service.py::MissedMilkingControlService": "036f0cbd4a352918219a46a3ce47f105a4818297d145557b6477347faeb09833"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.not-milked": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::declare_session_not_milked": "55532d99c1cdea418538a106ddafc0059b4563e2d6773a51983889b44b615712"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.period-total": {
+   "anchors": {
+    "src/dairyos/api/tmr.py::milk_litres_for_period": "5cf64115811f8f07e68dd70ac267200cdec8593f768cfe3b8f709adc7a059fde"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.quality": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/MilkTab.tsx::text:Milk Quality Log": "9cfee5ba191253518f27873533389f0cc0797d78b21891b341eeee2038b9b08c",
+    "src/dairyos/api/milk_quality.py::router": "4c57fc296838e4c72f2381180800622be78162a9f9bbeefa403e88d9bc9f2141"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.reconciliation": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/MilkTab.tsx::text:Closing Milk Balance": "0df070a4ec92cb936173f82963b5ba63bba49511810bc9ff0c22ba2d060f8538",
+    "src/dairyos/farm/production/services/milk_reconciliation_service.py::MilkReconciliationService": "20a8b9f04f6e2e8b11d081618acf81ffb2f389d2df70e79e76b017319c30fb38"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.record.session": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/MilkTab.tsx::text:Enter Milk Production": "1b87b15063a1d97a10c77c94d10a402e9cdee4415607ae1eb42bb426f879242d",
+    "src/dairyos/api/farm_data_entry.py::record_milk_entry": "ab0065209d1933cb6646b0a676362fbb7ce901e4c75dc5e829c96fedb9e8a750",
+    "src/dairyos/milk/services/milk_session_sequence_service.py::MilkSessionSequenceService.assert_can_record": "042a30ae0ca6bb4355c07911e24396628c481068d76271cf5b7fdb1c5a32cf2b"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.saleable": {
+   "anchors": {
+    "src/dairyos/farm/production/services/milk_inventory_capacity_service.py::overall_saleable_capacity": "e36c959a2c619dd41b2358ae974177ea2b194e26fe82bc03b69ea45194a9dd6f"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.session-plan": {
+   "anchors": {
+    "src/dairyos/farm/herd/services/animal_milking_schedule_service.py::AnimalMilkingScheduleService": "e36b8983e566401ed828d861a119c731880672112175d0d4f48d3d0dafc2e9ed"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.void": {
+   "anchors": {
+    "src/dairyos/api/milk_traceability.py::void_milk_production": "6e3e504b46415ca8a3a6dbcb0748afcc8896693d319216cfa08fdc303b538609"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.withdrawal-milk": {
+   "anchors": {
+    "src/dairyos/api/farm_data_entry.py::record_milk_entry": "ab0065209d1933cb6646b0a676362fbb7ce901e4c75dc5e829c96fedb9e8a750",
+    "src/dairyos/farm/production/services/withdrawal_milk_wastage_service.py::ensure_withdrawal_wastage": "33c5baaebdc4618acb17600f9564e6a54c1e2c649e6f868ed8acb727e2f04c2b"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "milk.yield-drop": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/YieldDropAlertModal.tsx::text:Prior 3-Day Avg": "faf7ee91bfc9a944e7e5576611b2ca53752249dacfdb3426bfeae28ed38fd9db",
+    "src/dairyos/farm/production/services/milk_drop_detection_service.py::detect_drop": "ca9e18a71ce2d8a5bae9ba04511a4bac26809ca50fdc5a8285f4c1de2c8cbe18"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "reports.catalog": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/ReportingTab.tsx::text:Customize Columns": "4062dd665ddb34c5d9ee71295a06e9a339d37f1d8cab67645f7b04da38c5240e",
+    "src/dairyos/reporting/registry.py::AREAS": "588e4ce7d75dced5f2ac28fd9d19fa11fe51c373e12ad0ceb4a49389c2f74139"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "reports.reconciliation-controls": {
+   "anchors": {
+    "src/dairyos/finance/opex_period_attribution.py::attribute_opex_for_period": "aa7654f1c2d8267536bac4dabac839cbb2c1e6bfa0898ca970eadf24592f217e"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.backup": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/SettingsTab.tsx::text:Export Complete Farm Data": "24f3f8d8a3e9f97275a1648789d0819909feb9989d42229e979b18934b48359c",
+    "src/dairyos/data/database/automatic_backups.py::ROLLING_KEEP": "06a15f99264633d4cb975356c5c5981b56cdbcd7835f5706c52b26c057e13622"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.email": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/SettingsTab.tsx::text:Share Daily Summary": "585947f832bcde49fab2f424abcb3f1ba20e1c8667c7fb665b8b54a5fc0c622f"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.farm-profile": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/SettingsTab.tsx::text:Farm & System": "c5990efb63c0b29cd2bcc0b5dd3baa73398c49f8a65343e5a295e0a7ffc0a282"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.navigation-visibility": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx::text:Navigation Visibility": "821d02b350364b27d78cfa7054cf586914e1655a59cd535b6b1a56b02cf0dc8a"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.operational-date": {
+   "anchors": {
+    "src/dairyos/farm/settings/services/farm_settings_service.py::FarmSettingsService.get_operational_datetime": "1010bd46af69d9d0f8731cbd69c4e2af0c99061842835926c6bf9b691dd9a702"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.system-health": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/SettingsTab.tsx::text:Run System Health Check": "70de246e40be80cc946222595c3d8bf0d54df204de666b063f1aaffe53a34f16"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "settings.zero-reset": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/NavigationVisibilityControl.tsx::text:Queue Reset for Next Start": "6325ceb10872d86783210242e1fad02f6458c321d9a015994e2df7808476dee2"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "support.troubleshooting": {
+   "anchors": {
+    "src/dairyos/api/breeding_biology.py::record_breeding_entry": "512dda4ef626eb7a5fad4cc375ceb3dfa2843f49b33f223a892ac8f8b88a2693"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "vaccination.flow": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/VaccinationTab.tsx::text:Due Next 30 Days": "44f9dc01a85d348d113a1368a6505b6105281ecca3c8b7edbd539a2b65f83d46"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  },
+  "vaccination.schedule": {
+   "anchors": {
+    "src/DairyOS.Web/src/components/VaccinationTab.tsx::text:Add Vaccination Schedule": "ed46099c6c8b8d393f6eef5f66ccbb4c6370a8d1c4398f9071185c9b1abf778a",
+    "src/dairyos/api/animal_management/router.py::record_vaccination": "0b8b28c88ba6308e88d9fa69ba78bbcc34810319cb35310c3bc1517c97b98623"
+   },
+   "verified_at": "2026-09-22",
+   "verified_by": "DairyOS Assistant V2 engineering review (source-read against anchors)",
+   "verified_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62"
+  }
+ }
+}

@@ -1,0 +1,127 @@
+# DairyOS capability knowledge: Feed and TMR.
+collection: dairyos
+domain: feed
+records:
+- id: feed.tmr-tool
+  kind: HOWTO
+  title: The TMR Preparation Tool
+  questions:
+  - Where do I set the TMR ration?
+  - how to change ration quantities
+  - tmr preparation tool
+  keywords: [tmr, ration, formulation, stage, ingredient, kg per head per day]
+  summary: In Feed, the TMR Preparation Tool holds the ration per head per day for eight feeding stages. Edit the ingredient quantities and price source, then save to create a new governed TMR version.
+  location: Feed tab > Total Mixed Ration Preparation (TMR Preparation Tool)
+  facts:
+  - The eight stages are Early Lactation, Mid Lactation, Late Lactation, Far-Off Dry, Close-Up Dry, Growing Heifer, Calf Starter and Bull.
+  - Quantities are entered per head per day in kg or grams.
+  - Saving creates a new governed TMR version and keeps the earlier versions in history.
+  - Add Ingredient adds a governed feed ingredient to the catalog.
+  - The TMR in DairyOS is a costing and planning record; it does not prove the ration is nutritionally balanced, which remains the nutritionist's decision.
+  related: [feed.tmr-cost, feed.prices, feed.daily-snapshot, dairy.nutrition.tmr-basics]
+  anchors:
+  - {path: src/dairyos/api/tmr.py, symbol: STAGE_LABELS}
+  - {path: src/DairyOS.Web/src/components/TMRPreparationTool.tsx, text: TMR Preparation Tool}
+
+- id: feed.tmr-cost
+  kind: CALCULATION
+  title: How TMR feed cost is calculated per category and for the whole herd
+  questions:
+  - How is whole herd feed cost per day calculated?
+  - how does DairyOS calculate feed cost of dry cows
+  - feed cost per category
+  keywords: [whole herd feed cost, cost per head per day, category cost, herd counts]
+  summary: Cost per head per day for each stage is the sum of ingredient kg times price per kg. Stages are averaged into DairyOS animal categories, multiplied by the active animal count in each category, and added up as Whole Herd Feed Cost / Day.
+  facts:
+  - Milking uses the average of Early, Mid and Late Lactation; Dry uses the average of Far-Off Dry and Close-Up Dry; Heifer uses Growing Heifer; Female and Male Calves use Calf Starter; Bulls use Bull.
+  - Category counts come from the active Animal Register, so sold or deceased animals are not fed in the calculation.
+  - Averaging the stages into categories is a deliberate management-estimate simplification.
+  - An ingredient without any price is reported as unpriced; the rest of the ration still costs normally.
+  related: [feed.tmr-tool, cop.feed-cost-per-litre, animals.categories]
+  anchors:
+  - {path: src/dairyos/api/tmr.py, symbol: CATEGORY_STAGE_MAP}
+  - {path: src/dairyos/api/tmr.py, symbol: _category_costs}
+
+- id: feed.prices
+  kind: CONCEPT
+  title: Feed ingredient prices (Finance or Manual)
+  questions:
+  - Where does the TMR get feed prices from?
+  - manual price vs finance price
+  - no finance price available
+  keywords: [feed price, price source, finance price, manual pkr/kg, fallback, unpriced]
+  summary: Each ingredient's price source is Finance or Manual. Finance uses the newest active Finance purchase rate per kg for that ingredient; Manual uses the PKR/kg you enter. The choice is shared across every TMR stage.
+  facts:
+  - If Finance is selected but no Finance purchase exists, DairyOS uses the manual rate as an explicit fallback.
+  - A new Finance feed purchase makes that ingredient Finance-priced across all stages, superseding a previous Manual choice for that ingredient.
+  - Only purchases in kilograms with a positive rate are used as Finance price authority.
+  - The TMR table shows both the Finance and manual rates so they can be compared.
+  related: [cop.feed-price-effect, finance.expense-category, feed.tmr-cost]
+  anchors:
+  - {path: src/dairyos/api/tmr.py, symbol: _finance_price_authority}
+  - {path: src/dairyos/api/tmr.py, symbol: _priced_stage}
+
+- id: feed.daily-snapshot
+  kind: CONCEPT
+  title: The daily TMR cost snapshot (12:00 lock)
+  questions:
+  - What is the daily TMR snapshot?
+  - why yesterday feed cost did not change after I edited TMR
+  - tmr lock 12
+  keywords: [daily snapshot, 12:00 lock, locked tmr, history, feed cost history]
+  summary: Once each farm day, at 12:00 local time, DairyOS locks the whole-herd TMR cost into an immutable snapshot of formulation, prices, herd counts and costs. COP uses these snapshots, so later ration or herd changes never rewrite past days.
+  facts:
+  - Before today's lock, today's feed cost is the live TMR, shown as provisional.
+  - Past days are never reconstructed from today's TMR or today's herd count.
+  - A day with no snapshot makes the period's feed cost incomplete rather than zero.
+  - Calculation Log shows persisted daily calculations for 7, 30 or 90 days.
+  - The Weekly Vet TMR Review endorsement is an advisory review record and never changes feed cost.
+  related: [cop.feed-cost-per-litre, feed.tmr-tool]
+  anchors:
+  - {path: src/dairyos/api/tmr.py, symbol: lock_daily_tmr_cost_snapshot}
+  - {path: src/dairyos/tmr_daily_cost_scheduler.py, symbol: RUN_AFTER_LOCAL_TIME}
+
+- id: feed.storage
+  kind: CONCEPT
+  title: Feed storage status and stock
+  questions:
+  - How do I see feed stock?
+  - feed storage balance wrong
+  - manual stock override
+  keywords: [feed storage, stock, inventory, balance, override, purchased, consumed]
+  summary: Feed Storage Status shows each ingredient's Finance Purchased quantity, TMR Consumed quantity, any Manual Override and the resulting Storage Balance.
+  facts:
+  - Finance is the purchase-quantity authority; the TMR is the consumption authority.
+  - A Manual Storage Override needs a non-zero signed quantity and a physical stock correction reason.
+  related: [feed.prices, finance.expense-category]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/FeedTab.tsx, text: Feed Storage Status}
+
+- id: feed.weekly-vet-review
+  kind: CONCEPT
+  title: Weekly Vet TMR Review
+  questions:
+  - what is vet endorse tmr
+  keywords: [vet review, endorsement, weekly review]
+  summary: Weekly Vet TMR Review lets a veterinarian or nutritionist endorse the current herd week's TMR by name or ID with notes. It is an advisory audit record.
+  facts:
+  - The status is DUE until the current herd week is endorsed.
+  - The endorsement never contributes to COP or feed cost.
+  related: [feed.tmr-tool]
+  anchors:
+  - {path: src/DairyOS.Web/src/components/TMRPreparationTool.tsx, text: Vet Endorse TMR Review}
+
+- id: feed.flow
+  kind: DATA_FLOW
+  title: How feed data flows through DairyOS
+  questions:
+  - how does feed connect to cop
+  - where does tmr data go
+  keywords: [feed flow, tmr to cop, feed purchase flow]
+  summary: Finance feed purchases set ingredient prices and stock; the TMR sets ration per head per day; the active herd count sets how many heads are fed; the daily 12:00 snapshot fixes the whole-herd cost; COP divides the period's feed cost by the period's milk.
+  facts:
+  - Changing a ration or price changes cost from the next locked day, not past days.
+  - Feed Cost/L also appears in Analytics, the Dashboard and Reporting > Feed > Daily Feed Cost & Feed Cost per Litre.
+  related: [feed.tmr-cost, feed.daily-snapshot, cop.feed-cost-per-litre, feed.prices]
+  anchors:
+  - {path: src/dairyos/api/tmr.py, symbol: tmr_feed_cost_for_period}

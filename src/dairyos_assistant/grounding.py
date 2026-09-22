@@ -1,98 +1,70 @@
 """The grounding gate: what a generated answer is allowed to say.
 
-A language model asked to explain a withdrawal period will produce a confident
-sentence whether or not it was told the figure. On a dairy farm that sentence
-can put milk carrying antibiotic residue into a tank. The gate exists so that
-the Assistant's fluency is never mistaken for knowledge.
+A small language model asked about a withdrawal period or a sick calf will
+write a confident sentence whether or not it was given the facts. The gate
+compares every generated draft with the evidence package it was given and
+rejects the draft when it:
 
-The checks here are deterministic and adversarial. They do not ask the model
-whether it was faithful, because a model that fabricates a figure will also
-attest to it. They compare the produced text against the retrieved evidence and
-reject anything the evidence does not carry.
+* states a number that is not in the evidence or the question (doses, day
+  counts, thresholds and farm figures are almost always numbers);
+* claims to have consulted this farm's records;
+* invents a record identifier (an animal tag, a case number);
+* gives a dose, a dosing unit, or an instruction to administer a named drug
+  that the evidence does not contain;
+* asserts a diagnosis of the operator's animal;
+* drifts away from the evidence (too few of its content words appear in it);
+* echoes the prompt's scaffolding or rules back to the operator;
+* is empty or unreasonably long.
 
-The strongest rule is the numeric one. Fabrication in this domain is almost
-always a number: a day count, a dose, a withdrawal interval, a threshold. Any
-number in the answer that does not appear in the evidence is grounds for
-rejection on its own, and that single rule catches the class of error that
-matters most while being impossible to argue with.
-
-A rejected answer is not repaired and not shown. The Assistant says it does not
-know, which is always a true statement and never a dangerous one.
+The gate applies to every route that produces dairy, veterinary or DairyOS
+content. A rejected draft is never repaired; the service replaces it with the
+deterministic composed answer, which is built only from approved text.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
 
 from dairyos_assistant.policy import REAL_IDENTIFIER
+from dairyos_assistant.text import index_terms
 
-# Fields of a corpus item whose text counts as evidence. Metadata such as the
-# reviewer name is excluded: a number in an audit field is not a fact the
-# Assistant may repeat as guidance.
-EVIDENCE_FIELDS = (
-    "question",
-    "answer",
-    "explanation",
-    "scenario",
-    "alternatives",
-    "perspectives",
-    "exceptions",
-    "effects",
-    "correction_path",
-    "title",
-    "capability",
-    "domain",
-)
-
-MAX_ANSWER_CHARACTERS = 2400
+MAX_ANSWER_CHARACTERS = 2600
+MIN_EVIDENCE_OVERLAP = 0.55
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 _LIST_MARKER = re.compile(r"^[ \t]*\d{1,2}[.)]\s+", re.MULTILINE)
-
-# A concrete record identifier outside the reserved fictional namespace. The
-# Assistant has no records, so producing one means inventing it.
-#
-# Imported from the policy layer rather than restated, so the rule that decides
-# what counts as a record identifier cannot say one thing when classifying a
-# question and another when checking an answer.
-_REAL_IDENTIFIER = REAL_IDENTIFIER
-
-# Claims to have consulted farm data. The Assistant cannot have done so, which
-# makes any of these false regardless of what follows them.
-_DATA_ACCESS_CLAIMS = (
-    "your farm's records",
-    "your farm records",
-    "your records show",
-    "according to your data",
-    "i checked your",
-    "i looked at your",
-    "looking at your herd",
-    "in your database",
-    "your current herd",
-    "based on your farm",
-    "i can see that your",
-    # additional farm-data claim phrases
-    "your animals show",
-    "the farm records show",
-    "i see that your",
-    "your milk records show",
-    "according to your records",
-    "your herd data shows",
-    "from your farm data",
-    "your farm data shows",
+_DOSE = re.compile(
+    r"\b\d+(?:\.\d+)?\s?(?:mg|mcg|ml|mL|cc|iu|IU|units?)\b|\b(?:mg|ml|cc)\s?/\s?kg\b|\bper (?:kg|kilogram) (?:of )?body ?weight\b",
 )
+_DRUG = re.compile(
+    r"\b(?:oxytetracycline|penicillin|streptomycin|ceftiofur|amoxicillin|ampicillin|cloxacillin|flunixin|meloxicam|"
+    r"ketoprofen|borogluconate|ivermectin|albendazole|oxytocin|dexamethasone|enrofloxacin|tylosin|gentamicin|"
+    r"sulfa\w*|trimethoprim|tetracycline|cephalexin|cefquinome|marbofloxacin)\b",
+    re.I,
+)
+_ADMINISTER = re.compile(r"\b(?:give|inject|administer|dose|drench|infuse|treat (?:her|him|it|the cow) with|use)\b", re.I)
+_DIAGNOSIS = re.compile(
+    r"\b(?:your cow|your animal|your calf|she|it) (?:definitely |probably |certainly )?(?:has|is suffering from|is infected with)\b"
+    r"[^.]{0,30}\b(?:mastitis|ketosis|milk fever|metritis|pneumonia|brucellosis|fmd|foot.and.mouth|lsd|bvd|acidosis)\b|"
+    r"\bi (?:can )?confirm (?:that )?(?:she|it|the cow|your cow)\b|\bthe diagnosis is\b",
+    re.I,
+)
+_DATA_ACCESS = re.compile(
+    r"your (?:farm'?s? )?records show|according to your (?:records|data|farm)|i (?:have )?checked your|i looked at your|"
+    r"looking at your herd|in your database|i can see (?:that )?your|your herd data shows|from your farm data|"
+    r"the farm records show|your milk records show|based on your farm'?s? (?:data|records)",
+    re.I,
+)
+_SCAFFOLD = re.compile(r"REFERENCE:|EVIDENCE:|Rules you must follow|Reasoning task|\[\d+\]|The applicable fact is", re.I)
 
 
 @dataclass(frozen=True)
 class Verdict:
-    """Whether an answer may be shown, and if not, precisely why."""
-
     ok: bool
     violations: tuple[str, ...] = ()
     unsupported_numbers: tuple[str, ...] = ()
+    overlap: float = 1.0
     checked_against: tuple[str, ...] = field(default=())
 
     def __bool__(self) -> bool:
@@ -100,11 +72,6 @@ class Verdict:
 
 
 def _normalise_number(token: str) -> str:
-    """Compare numbers by value, not by typography.
-
-    ``1,000``, ``1000`` and ``1000.0`` are the same figure, and an answer should
-    not be rejected for reformatting one the evidence stated differently.
-    """
     cleaned = token.replace(",", "")
     if "." in cleaned:
         cleaned = cleaned.rstrip("0").rstrip(".")
@@ -112,93 +79,58 @@ def _normalise_number(token: str) -> str:
 
 
 def numbers_in(text: str) -> set[str]:
-    """Every number in the text, ignoring list markers.
-
-    ``1.`` and ``2)`` at the start of a line enumerate steps; they assert
-    nothing and must not have to be supported by evidence.
-    """
     without_markers = _LIST_MARKER.sub("", text or "")
     return {_normalise_number(m.group(0)) for m in _NUMBER.finditer(without_markers)}
 
 
-def evidence_text(sources: Iterable[dict[str, Any]]) -> str:
-    """Flatten the evidence to the text a claim may be grounded in."""
-    parts: list[str] = []
-    for item in sources:
-        for name in EVIDENCE_FIELDS:
-            value = item.get(name)
-            if value is None:
-                continue
-            if isinstance(value, dict):
-                parts.extend(str(v) for v in value.values() if v is not None)
-            elif isinstance(value, (list, tuple)):
-                parts.extend(str(v) for v in value if v is not None)
-            else:
-                parts.append(str(value))
-    return "\n".join(parts)
+def evidence_overlap(answer: str, evidence: str, question: str = "") -> float:
+    answer_terms = set(index_terms(answer))
+    if not answer_terms:
+        return 0.0
+    allowed = set(index_terms(evidence)) | set(index_terms(question))
+    return len(answer_terms & allowed) / len(answer_terms)
 
 
 def check(
     answer: str,
-    sources: Sequence[dict[str, Any]],
+    evidence: str,
     *,
     question: str = "",
+    record_ids: tuple[str, ...] = (),
     allow_derived_numbers: bool = False,
+    min_overlap: float = MIN_EVIDENCE_OVERLAP,
 ) -> Verdict:
-    """Decide whether a generated answer may be shown.
-
-    ``allow_derived_numbers`` is for the calculation carve-out only. When the
-    operator supplies figures in the question and asks for arithmetic, the
-    result is by definition a number that appears in no corpus item, so the
-    numeric rule cannot apply. Every other rule still does, which is what stops
-    the carve-out being used to smuggle an invented fact past the gate.
-    """
-    violations: list[str] = []
     text = (answer or "").strip()
-
     if not text:
-        return Verdict(False, ("empty answer",), (), tuple(s.get("id", "") for s in sources))
-
+        return Verdict(False, ("empty answer",), (), 0.0, record_ids)
+    violations: list[str] = []
     if len(text) > MAX_ANSWER_CHARACTERS:
-        violations.append(
-            f"answer is {len(text)} characters, over the {MAX_ANSWER_CHARACTERS} limit"
-        )
-
-    if not sources and not allow_derived_numbers:
-        violations.append("no evidence was retrieved, so nothing can be grounded")
-
-    lowered = text.lower()
-    for claim in _DATA_ACCESS_CLAIMS:
-        if claim in lowered:
-            violations.append(f"claims access to farm data: {claim!r}")
-
-    invented = _REAL_IDENTIFIER.findall(text)
-    # An identifier the operator themselves put in the question is theirs, not
-    # an invention, though the policy layer will normally have refused such a
-    # question long before it reached here.
-    invented = [i for i in invented if i not in (question or "")]
+        violations.append(f"answer is {len(text)} characters, over the {MAX_ANSWER_CHARACTERS} limit")
+    if not evidence.strip():
+        violations.append("no evidence was supplied, so nothing can be grounded")
+    if _DATA_ACCESS.search(text):
+        violations.append("claims access to farm data")
+    invented = [i for i in REAL_IDENTIFIER.findall(text) if i not in (question or "") and i not in evidence]
     if invented:
         violations.append(f"invented record identifiers: {sorted(set(invented))}")
-
+    dose = _DOSE.search(text)
+    if dose and dose.group(0) not in evidence and dose.group(0) not in question:
+        violations.append(f"dose or dosing unit not in evidence: {dose.group(0)!r}")
+    for drug in {m.group(0).lower() for m in _DRUG.finditer(text)}:
+        if drug not in evidence.lower() and _ADMINISTER.search(text):
+            violations.append(f"medicine instruction not in evidence: {drug}")
+    if _DIAGNOSIS.search(text):
+        violations.append("asserts a diagnosis of the operator's animal")
+    if _SCAFFOLD.search(text):
+        violations.append("echoes prompt scaffolding")
     unsupported: tuple[str, ...] = ()
     if not allow_derived_numbers:
-        supported = numbers_in(evidence_text(sources)) | numbers_in(question)
-        produced = numbers_in(text)
-        missing = sorted(produced - supported)
+        supported = numbers_in(evidence) | numbers_in(question)
+        missing = sorted(numbers_in(text) - supported)
         if missing:
             unsupported = tuple(missing)
             violations.append(f"numbers not present in the evidence: {missing}")
-
-    return Verdict(
-        ok=not violations,
-        violations=tuple(violations),
-        unsupported_numbers=unsupported,
-        checked_against=tuple(str(s.get("id", "")) for s in sources),
-    )
-
-
-REJECTED_TEXT = (
-    "I could not give you a reliable answer to that. What I drafted was not "
-    "fully supported by the approved knowledge base, so I have withheld it "
-    "rather than risk telling you something incorrect."
-)
+    overlap = evidence_overlap(text, evidence, question)
+    if overlap < min_overlap:
+        violations.append(f"answer drifts from the evidence (overlap {overlap:.2f} < {min_overlap})")
+    return Verdict(not violations, tuple(violations), unsupported, round(overlap, 3), record_ids)

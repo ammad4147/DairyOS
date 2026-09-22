@@ -86,7 +86,9 @@ def stop_orphaned_assistant_processes() -> None:
 # How long the first question of a session will wait for the model to
 # finish loading before being answered from approved knowledge instead.
 MODEL_FIRST_USE_WAIT = 180.0
-REQUEST_TIMEOUT = 90.0
+# Must exceed the Assistant's own model total limit (120 s) so a slow but progressing
+# answer is not killed by the bridge; the Assistant falls back to a composed answer itself.
+REQUEST_TIMEOUT = 150.0
 
 # Kept deliberately small. A question that has not been answered in this long
 # has failed, and an operator staring at a spinner is worse served than one

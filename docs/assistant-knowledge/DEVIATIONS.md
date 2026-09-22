@@ -1,106 +1,115 @@
-# Assistant corpus: deviations from the project brief
+# Assistant knowledge: deviations from the brief
 
-This file records every place where the delivered Assistant knowledge corpus
-departs from the project brief, together with the reason and the operator
-decision that settled it. It exists so that a reviewer comparing the brief to
-the corpus can tell a deliberate omission from an oversight without having to
-reconstruct the reasoning from commit messages.
+This file records every place where the delivered Assistant knowledge and
+runtime depart from the brief, with the reason and what would close the gap.
+An entry is an admission that a stated requirement is not met; nothing is
+listed here to excuse it.
 
-Nothing is added here to excuse a gap. An entry is an admission that a stated
-requirement is not met, and each one names what would have to change for it to
-be met.
+Revised 22 September 2026 for Assistant V2 (knowledge schema v3). Entries
+D-002 and D-003 were rewritten because the V1 corpus they described was
+retired; their history is kept in git.
 
 ## D-001. The Simulator is not taught
 
-**Brief sections:** 7 and 26, which require the Assistant to explain the
-DairyOS Simulator to operators.
-
 **Finding:** there is no Simulator in the promoted DairyOS source. The feature
-is named in the brief and referenced by the legacy training corpus, but no
-module, service, route or UI surface implements it. This was confirmed by
-searching the promoted tree rather than inferred from its absence in one place.
+is named in the brief, but no module, service, route or UI surface implements
+it.
 
-**Decision (operator, 2026-09-18):** omit Simulator knowledge entirely and log
-the deviation.
+**Decision (operator, 2026-09-18):** omit Simulator knowledge and log the
+deviation. Teaching behaviour that no code implements would be fabrication
+carrying a citation.
 
-**Reasoning:** the corpus rule is that every claim is traced to source. Writing
-Simulator items from the brief's prose would mean the Assistant teaching
-behaviour that no code implements, which is fabrication carrying a citation,
-and it is precisely the failure the grounding gate exists to catch. An operator
-acting on such an answer would look for a feature that is not there.
+**To close:** if a Simulator ships, author records anchored on its
+implementation and remove this entry. Until then Simulator questions return
+NOT_COVERED, which is accurate.
 
-**To close:** if a Simulator ships, author items against its implementation and
-remove this entry. Until then the Assistant returns no evidence for Simulator
-questions and says it does not know, which is accurate.
+## D-002. General dairy knowledge is served before veterinary review
 
-## D-002. The corpus is served before domain review
+**Finding:** V2 serves 70 general dairy records with review status
+`SOURCE_CURATED`. Each carries provenance to named authoritative sources in
+`sources/registry.json` (Merck/MSD Veterinary Manual, university extension
+services, NMC, WOAH and others), and the safety class of each record controls
+how it may be used (EDUCATIONAL, TRIAGE, VET_ONLY). None has yet been signed by
+a veterinarian.
 
-**Brief sections:** the status schema, which makes `APPROVED` the only servable
-status.
+**Decision:** serve them, because the V1 alternative (serve nothing general)
+left operators with no dairy guidance at all, and because the pipeline never
+lets these records diagnose, name a medicine or give a dose. The review status
+travels with every evidence item so the UI can label it.
 
-**Finding:** all 47 items have passed implementation review against traced
-DairyOS source. None has passed domain review, because no qualified reviewer
-has yet been appointed.
+**Implementation:** `release.PRE_RELEASE` stays `False`; PENDING drafts are
+never served. `SERVABLE_REVIEW_STATUSES` in `corpus/validation.py` lists what
+may be served. `test_knowledge_governance.py` asserts that dairy records are
+never marked `ENGINEERING_VERIFIED` and that each carries provenance.
 
-**Decision (operator, 2026-09-18):** run gates AA-6 to AA-12 as a pre-release
-build that additionally serves implementation-reviewed content, with every item
-flagged `unreviewed`, and require approval before AA-16 certification.
+**To close:** Dr Umair Shaffi reviews `veterinary-review-pack.html`
+(regenerate with `python tools/build_review_pack.py`); approved records are set
+to `VET_REVIEWED` with reviewer and date in their YAML source, then
+`python tools/assistant_kb.py build`.
 
-**Implementation:** `src/dairyos_assistant/release.py` holds a single build-time
-constant, `PRE_RELEASE`. It is a constant rather than an environment variable so
-that it cannot be set by accident on a customer machine, by a support script, or
-by an operator following advice found online. The manifest default is unchanged
-at `["APPROVED"]`.
+## D-003. The V1 veterinary sign-off does not transfer to V2
 
-**To close:** set `PRE_RELEASE = False` and run
-`DAIRYOS_ASSISTANT_CERTIFY=1 pytest tests/assistant/test_certification.py`.
-That module fails today, deliberately, and is the gate that stops an unreviewed
-corpus shipping.
+**Finding:** on 18 September 2026 Dr Umair Shaffi, DVM reviewed nineteen V1
+clinical items. V2 replaced that corpus. Its dairy records are new text drawn
+from cited sources, so the V1 approval does not cover them, and claiming it
+would misstate the review.
 
-## D-003. Clinical content awaits a named veterinary reviewer
+**Decision:** no V2 record carries `VET_REVIEWED`. The V1 review is recorded
+here and in git history only.
 
-**Brief sections:** the requirement that approved items carry
-`domain_reviewed_by`, and the requirement for evidence-backed veterinary,
-vaccination and breeding knowledge.
-
-**Finding:** the health, vaccination and breeding-science items make clinical
-claims. The implementer is not competent to review them and neither is the
-agent that authored them.
-
-**Decision (operator, 2026-09-18):** a named veterinarian signs the clinical
-items; the operator signs the DairyOS mechanics items, which are traced to
-source and require no clinical judgement.
-
-**Closed, 18 September 2026.** Dr Umair Shaffi, DVM reviewed the nineteen
-clinical items in `veterinary-review-pack.html` and endorsed them. All nineteen
-now carry his name and that date in `domain_reviewed_by` and
-`domain_reviewed_at`, and are `APPROVED`.
-
-**Consequence, and it is not a small one.** Approving the clinical items alone
-made the corpus more dangerous rather than less. Retrieval serves the best
-approved match, so with the twenty-five mechanics items still unapproved, "How
-do I record milk for a session?" returned `breeding.dry-off` in a certified
-build: a confident answer from the wrong item. A partly approved corpus is
-worse than an unapproved one, because an unapproved one returns nothing.
-
-The pre-release flag therefore stays on until the mechanics items are signed
-too. This is recorded here because it is a trap anyone repeating this sequence
-on a later corpus will walk into.
+**To close:** as D-002.
 
 ## D-004. Elasticsearch is treated as an operational data route
 
-**Brief sections:** section 1, which enumerates the operational data the
-Assistant must never reach, and does not mention the search index.
+**Finding:** `api/search.py` maintains a `dairyos-animals` Elasticsearch index on
+loopback port 9200 containing animal records. The brief names the database but
+not this index.
 
-**Finding:** `api/search.py` maintains a `dairyos-animals` Elasticsearch index
-on loopback port 9200. It contains animal records. The brief's prohibition
-names the database but not this index, so a literal reading of the brief would
-have left a second route to operational data uncovered.
+**Decision:** treated as named. `elasticsearch` is a forbidden import, and
+ports 5432 and 9200 are refused by `model.assert_endpoint_allowed` before any
+socket is opened. Both are asserted by `tests/assistant/test_boundary.py` and
+`test_model_endpoint.py`.
 
-**Decision:** treated as named. `elasticsearch` is in the forbidden import list,
-9200 is in the forbidden port list, and both are asserted by
-`tests/assistant/test_boundary.py`.
+## D-005. Retrieval is lexical (BM25F), not hybrid with embeddings
 
-**Note:** this is a deviation in the direction of more restriction than the
-brief requires, recorded here so that the boundary certification can be audited
-against what was actually enforced rather than against what was written down.
+**Finding:** the brief sets hybrid retrieval as the direction. V2 ships a
+field-weighted BM25 index with Roman-Urdu and shorthand phrase expansion,
+spelling correction against the corpus vocabulary, collection and kind priors
+from the intent classifier, and relation expansion. No embedding model is
+shipped.
+
+**Reason:** on the 605-question gold benchmark the lexical index reaches a
+held-out Recall@5 of 0.967 in about 3 ms, with no second model to package,
+pin and audit. An embedding model would have to beat that on the same split to
+justify its footprint, and that comparison has not been run.
+
+**To close:** evaluate a small local embedding model (for example
+bge-small or multilingual-e5-small in GGUF) as a re-ranker on the test split,
+and ship it only if recall on Roman-Urdu and paraphrase styles improves without
+raising wrong-confident answers.
+
+## D-006. Runtime profiles and GPU offload are not yet implemented
+
+**Finding:** the bundled llama-server (b10456) is a CPU build and the bridge
+passes only `-c 4096`. The certification workstation (i7-13700K, 64 GB,
+RX 7900 XTX 24 GB) has not been measured, and the "2 cores" behaviour seen in
+earlier runs was traced to the 2-vCPU cloud sandbox used for development, not
+to DairyOS.
+
+**Done:** the model client now separates connect (3 s), first-token (45 s),
+stall (20 s) and total (120 s) limits, streams, and records TTFT and tokens/s;
+the bridge's process-hang limit is 150 s. A model that misses a limit produces
+the composed, grounded answer rather than no answer.
+
+**To close:** see the handoff: a Vulkan llama.cpp build, hardware-aware
+profiles (GPU, desktop CPU, low-spec CPU) selected by the bridge, llama-server
+log capture, and a model comparison on the full benchmark.
+
+## D-007. The Assistant screen still shows the V1 layout
+
+**Finding:** the V2 service accepts conversation history and returns review
+status and sources per evidence item, but `AIAssistant.tsx` and the API route
+have not been updated to send history or display them.
+
+**To close:** see the handoff (single mode, history, source and review labels,
+follow-ups, model status). The top navigation is not to change.

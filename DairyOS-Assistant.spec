@@ -32,7 +32,12 @@ assistant = Analysis(
     [str(ROOT / "src" / "dairyos_assistant" / "service.py")],
     pathex=[str(ROOT / "src")],
     binaries=[],
-    datas=[(str(ROOT / "docs" / "assistant-knowledge"), "assistant-knowledge")] + assistant_runtime_datas,
+    # Only the compiled knowledge ships. The YAML sources, provenance registry,
+    # anchor lock and review documents are build-time inputs, not runtime data.
+    datas=[
+        (str(ROOT / "docs" / "assistant-knowledge" / "corpus.json"), "assistant-knowledge"),
+        (str(ROOT / "docs" / "assistant-knowledge" / "manifest.json"), "assistant-knowledge"),
+    ] + assistant_runtime_datas,
     hiddenimports=collect_submodules("dairyos_assistant") + ["encodings.idna"],
     excludes=[
         "dairyos", "sqlalchemy", "alembic", "psycopg", "psycopg2",

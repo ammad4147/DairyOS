@@ -1,0 +1,494 @@
+# Gold benchmark: DairyOS capability questions (part A: Milk, COP, Feed, Finance).
+# Each group shares expectations; each phrasing is a separately scored question.
+# required_facts: list of fact slots; each slot is a list of alternative regexes (any match satisfies the slot).
+# required_records: list of slots; each slot lists acceptable record ids (any one retrieved in top 5 satisfies it).
+groups:
+# ---------------------------------------------------------------- Milk (40)
+- gid: milk.record
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.record.session]]
+  required_facts: [["enter milk production", "milk tab|open milk"], ["session|morning|evening"], ["litre|liter"]]
+  phrasings:
+  - {q: "How do I record milk for a cow?", style: proper}
+  - {q: "how to enter milk", style: short}
+  - {q: "where i put morning milk of cow", style: shorthand}
+  - {q: "how do i recrod milk entery", style: misspelled}
+- gid: milk.session-plan
+  domain: milk
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[milk.session-plan]]
+  required_facts: [["morning"], ["evening"], ["afternoon|thrice"]]
+  phrasings:
+  - {q: "Which milking sessions should I enter for a twice daily cow?", style: proper}
+  - {q: "why there is no afternoon session for some cows", style: operator}
+  - {q: "twice daily vs thrice daily sessions", style: comparison}
+- gid: milk.missed
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.missed-session]]
+  required_facts: [["missed milking|missing milk|enter missing"], ["reject|close with reason|reason"], ["zero|0"]]
+  prohibited: ["enter (a )?zero (to|so)"]
+  phrasings:
+  - {q: "What do I do if I missed the evening milk entry?", style: proper}
+  - {q: "what do i do if i missed evening milk entry?", style: operator}
+  - {q: "forgot to put yesterday milk", style: shorthand}
+  - {q: "missed milking entry warning how to clear", style: operator}
+- gid: milk.not-milked
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.not-milked]]
+  required_facts: [["not.?milked"], ["reason|power|equipment"]]
+  phrasings:
+  - {q: "Power failed and we could not milk the evening session. What do I record?", style: proper}
+  - {q: "whole farm skipped milking today how to enter", style: shorthand}
+- gid: milk.flow
+  domain: milk
+  intent: DAIRYOS_DATA_FLOW
+  route: DAIRYOS
+  required_records: [[milk.flow]]
+  required_facts: [["dashboard"], ["cop|cost of production|denominator"], ["passport"], ["report|analytics"]]
+  phrasings:
+  - {q: "Where does milk go after I record it?", style: proper}
+  - {q: "where does milk record go?", style: operator}
+  - {q: "what happens to milk after i save evening entry", style: operator}
+  - {q: "which modules use milk production", style: proper}
+- gid: milk.daily-total
+  domain: milk
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[milk.daily-total]]
+  required_facts: [["sum|add"], ["session"], ["void|empty|not.*zero|zero"]]
+  phrasings:
+  - {q: "How does DairyOS calculate today's milk production?", style: proper}
+  - {q: "how daily milk total is worked out", style: operator}
+  - {q: "daily milk calculation?", style: short}
+- gid: milk.saleable
+  domain: milk
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[milk.saleable, milk.withdrawal-milk]]
+  required_facts: [["withdrawal"], ["wastage"], ["sale|sold"]]
+  phrasings:
+  - {q: "How is saleable milk determined?", style: proper}
+  - {q: "why some milk not available for sale", style: operator}
+  - {q: "saleable milk meaning", style: short}
+- gid: milk.withdrawal-milk
+  domain: milk
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[milk.withdrawal-milk, health.withdrawal]]
+  required_facts: [["wastage"], ["recorded|production"], ["not.*(sale|sold)|not available"]]
+  phrasings:
+  - {q: "What happens when I record milk from a cow under withdrawal?", style: proper}
+  - {q: "treated cow milk entry where it goes", style: shorthand}
+  - {q: "can i sell milk of cow on antibiotic in dairyos", style: operator}
+- gid: milk.dispositions
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.dispositions]]
+  required_facts: [["calves|calf"], ["domestic"], ["wastage"]]
+  phrasings:
+  - {q: "How do I record milk given to calves?", style: proper}
+  - {q: "milk used at home how to enter", style: operator}
+  - {q: "milk thrown away record", style: shorthand}
+- gid: milk.reconciliation
+  domain: milk
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[milk.reconciliation]]
+  required_facts: [["produced"], ["sold"], ["closing|balance"]]
+  phrasings:
+  - {q: "How does milk reconciliation work?", style: proper}
+  - {q: "what is closing milk balance", style: operator}
+  - {q: "unreconciled milk on dashboard meaning", style: operator}
+- gid: milk.amend
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.amendment, milk.void]]
+  required_facts: [["reason"], ["correct|edit|void"]]
+  phrasings:
+  - {q: "I entered the wrong litres, how do I correct it?", style: proper}
+  - {q: "wrong milk entry fix", style: shorthand}
+  - {q: "how to delete milk record", style: operator}
+- gid: milk.quality
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.quality]]
+  required_facts: [["fat"], ["snf"]]
+  phrasings:
+  - {q: "Where do I record fat and SNF?", style: proper}
+  - {q: "milk test result entry fat snf", style: shorthand}
+- gid: milk.yield-drop
+  domain: dashboard
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[milk.yield-drop]]
+  required_facts: [["10"], ["20"], ["critical|high"]]
+  phrasings:
+  - {q: "What does the yield drop watchlist mean?", style: proper}
+  - {q: "why cow showing in yield drop", style: operator}
+  - {q: "yeild drop critical meaning", style: misspelled}
+- gid: milk.late
+  domain: milk
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[milk.late-entry, milk.missed-session]]
+  required_facts: [["production date|actual date|that date"]]
+  phrasings:
+  - {q: "Can I enter yesterday's milk today?", style: proper}
+  - {q: "backdate milk entry possible?", style: shorthand}
+- gid: milk.period
+  domain: milk
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[milk.period-total, cop.estimated]]
+  required_facts: [["period"], ["void|late"]]
+  phrasings:
+  - {q: "How is monthly milk total calculated for COP?", style: proper}
+  - {q: "milk denominator cop", style: short}
+# ---------------------------------------------------------------- COP / COML (35)
+- gid: cop.formula
+  domain: cop
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[cop.estimated]]
+  required_facts: [["feed cost"], ["opex"], ["litre|liter|milk"]]
+  phrasings:
+  - {q: "How is COP calculated?", style: proper}
+  - {q: "COP?", style: short}
+  - {q: "how cop calculate", style: shorthand}
+  - {q: "what is cost of production per litre in dairyos", style: proper}
+  - {q: "how is cost of milk calclated", style: misspelled}
+- gid: cop.feed-per-litre
+  domain: cop
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[cop.feed-cost-per-litre, feed.tmr-cost, feed.daily-snapshot]]
+  required_facts: [["tmr"], ["divid|per litre|/l|milk"]]
+  phrasings:
+  - {q: "Where does feed cost per litre come from?", style: proper}
+  - {q: "How does TMR feed cost reach COP?", style: proper}
+  - {q: "feed/L source?", style: short}
+- gid: cop.feed-high
+  domain: cop
+  intent: DAIRYOS_TROUBLESHOOTING
+  route: DAIRYOS
+  required_records: [[cop.feed-cost-per-litre, cop.troubleshooting]]
+  required_facts: [["milk|litre"], ["ration|price|tmr"], ["count|dry|heifer|animal"]]
+  phrasings:
+  - {q: "why feed per litre went high", style: operator}
+  - {q: "Why is my feed cost per litre higher this week?", style: proper}
+  - {q: "milk dropped but feed same why cop up", style: shorthand}
+- gid: cop.feed-price
+  domain: cop
+  intent: DAIRYOS_DATA_FLOW
+  route: DAIRYOS
+  required_records: [[cop.feed-price-effect, feed.prices]]
+  required_facts: [["finance|manual"], ["tmr"], ["snapshot|lock|next|history|past"]]
+  phrasings:
+  - {q: "how feed price affects cop?", style: operator}
+  - {q: "If I buy feed at a new price, how does it change COP?", style: proper}
+  - {q: "feed price change effect on cost of milk", style: operator}
+- gid: cop.equipment
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.opex]]
+  required_facts: [["non.?opex"], ["capital|asset|many years"]]
+  prohibited: ["equipment purchase (is|are) (included|counted) in (opex|cop)"]
+  phrasings:
+  - {q: "Why isn't equipment purchase OPEX?", style: proper}
+  - {q: "why my equipment purchase not coming in opex?", style: operator}
+  - {q: "Does equipment purchase count in OPEX?", style: negative}
+  - {q: "equipment purchase why not opex", style: shorthand}
+- gid: cop.loan-interest
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.opex]]
+  required_facts: [["non.?opex|excluded"]]
+  phrasings:
+  - {q: "Is loan interest part of COP?", style: proper}
+  - {q: "loan interest opex or not", style: shorthand}
+- gid: cop.attribution
+  domain: finance
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[finance.attribution]]
+  required_facts: [["direct"], ["periodic"], ["allocat"], ["consumption|semen"]]
+  phrasings:
+  - {q: "How does DairyOS decide which period an expense counts in for COP?", style: proper}
+  - {q: "electricity bill spread over the month in cop?", style: operator}
+  - {q: "attribution method meaning", style: short}
+- gid: cop.official
+  domain: cop
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[cop.official]]
+  required_facts: [["official|lock"], ["operator.?assessed|estimated"]]
+  phrasings:
+  - {q: "How do I make the monthly COP official?", style: proper}
+  - {q: "what is operator assessed cop", style: operator}
+- gid: cop.unavailable
+  domain: cop
+  intent: DAIRYOS_TROUBLESHOOTING
+  route: DAIRYOS
+  required_records: [[cop.troubleshooting, cop.estimated, cop.daily-log]]
+  required_facts: [["milk"], ["tmr|snapshot"]]
+  phrasings:
+  - {q: "Why does COP say unavailable?", style: proper}
+  - {q: "cop not showing", style: short}
+- gid: cop.daily-log
+  domain: cop
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[cop.daily-log]]
+  required_facts: [["daily|day"]]
+  phrasings:
+  - {q: "Where can I see COP for each day?", style: proper}
+- gid: cop.feed-purchase
+  domain: cop
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[cop.feed-cost-per-litre, finance.flow, cop.estimated]]
+  required_facts: [["tmr|feeding"], ["not|never"]]
+  prohibited: ["feed purchases? (are|is) (counted|included) (in|as) (feed cost|cop)"]
+  phrasings:
+  - {q: "Do feed purchases in Finance count directly in COP?", style: negative}
+  - {q: "i bought lot of feed this month will cop go up?", style: operator}
+- gid: cop.premise
+  domain: cop
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[cop.estimated, finance.opex]]
+  required_facts: [["not|exclud"], ["non.?opex|capital"]]
+  prohibited: ["^yes"]
+  phrasings:
+  - {q: "Why does DairyOS add the tractor I bought into COP?", style: false_premise}
+# ---------------------------------------------------------------- Feed / TMR (40)
+- gid: feed.tmr-tool
+  domain: feed
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[feed.tmr-tool]]
+  required_facts: [["tmr"], ["stage|lactation|dry"], ["save|version"]]
+  phrasings:
+  - {q: "Where do I set the TMR ration?", style: proper}
+  - {q: "how to change ration kg in tmr", style: shorthand}
+  - {q: "tmr preperation tool how to use", style: misspelled}
+- gid: feed.stages
+  domain: feed
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[feed.tmr-cost, feed.tmr-tool]]
+  required_facts: [["early|mid|late"], ["far.?off|close.?up"], ["heifer|calf|bull"]]
+  phrasings:
+  - {q: "What feeding stages does the TMR have?", style: proper}
+  - {q: "tmr stages list", style: short}
+- gid: feed.category-cost
+  domain: feed
+  intent: DAIRYOS_CALCULATION
+  route: DAIRYOS
+  required_records: [[feed.tmr-cost]]
+  required_facts: [["average"], ["count|number of animals|active"], ["whole herd|category"]]
+  phrasings:
+  - {q: "How is whole herd feed cost per day calculated?", style: proper}
+  - {q: "how dairyos calculate feed cost of dry cows", style: operator}
+  - {q: "feed cost per category how", style: shorthand}
+- gid: feed.prices
+  domain: feed
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[feed.prices]]
+  required_facts: [["finance"], ["manual"]]
+  phrasings:
+  - {q: "Where does the TMR get feed prices from?", style: proper}
+  - {q: "manual price vs finance price tmr", style: comparison}
+  - {q: "no finance price available in tmr what to do", style: operator}
+- gid: feed.snapshot
+  domain: feed
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[feed.daily-snapshot]]
+  required_facts: [["12|noon|midday"], ["snapshot|lock"], ["history|past|rewrite"]]
+  phrasings:
+  - {q: "What is the daily TMR snapshot?", style: proper}
+  - {q: "I edited the TMR but yesterday's feed cost did not change, why?", style: troubleshooting}
+- gid: feed.storage
+  domain: feed
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[feed.storage]]
+  required_facts: [["purchased|finance"], ["consumed|tmr"], ["override|balance"]]
+  phrasings:
+  - {q: "How do I see how much feed stock is left?", style: proper}
+  - {q: "feed storage balance wrong how to fix", style: operator}
+- gid: feed.purchase
+  domain: feed
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.expense-category, finance.flow, feed.prices]]
+  required_facts: [["finance"], ["feed tab|appear|catalog|price"]]
+  phrasings:
+  - {q: "Where do I enter a silage purchase?", style: proper}
+  - {q: "bought wanda where to enter", style: local}
+  - {q: "feed buying record", style: short}
+- gid: feed.vet-review
+  domain: feed
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[feed.weekly-vet-review]]
+  required_facts: [["endorse|review"], ["not|never|advisory"]]
+  phrasings:
+  - {q: "What does Vet Endorse TMR Review do?", style: proper}
+  - {q: "does vet endorsement change feed cost", style: negative}
+- gid: feed.flow
+  domain: feed
+  intent: DAIRYOS_DATA_FLOW
+  route: DAIRYOS
+  required_records: [[feed.flow, cop.feed-cost-per-litre]]
+  required_facts: [["tmr"], ["cop|cost"], ["count|herd|animal"]]
+  phrasings:
+  - {q: "How does feed data flow through DairyOS?", style: proper}
+  - {q: "how tmr connected with cop and herd", style: operator}
+- gid: feed.multipart
+  domain: feed
+  intent: DAIRYOS_DATA_FLOW
+  route: DAIRYOS
+  required_records: [[cop.feed-cost-per-litre, feed.daily-snapshot]]
+  required_facts: [["tmr"], ["12|lock|snapshot"], ["cop|feed cost"]]
+  phrasings:
+  - {q: "How does feed cost reach COP and what happens if today's TMR is wrong?", style: multipart}
+# ---------------------------------------------------------------- Finance (45)
+- gid: fin.entry
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.financial-entry]]
+  required_facts: [["record expense|record revenue"], ["categor"]]
+  phrasings:
+  - {q: "How do I record an expense?", style: proper}
+  - {q: "how to add income in finance", style: operator}
+  - {q: "expence entry kaise", style: local}
+- gid: fin.categories
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.expense-category]]
+  required_facts: [["feed"], ["opex"], ["non.?opex"]]
+  phrasings:
+  - {q: "What are the expense categories in DairyOS?", style: proper}
+  - {q: "which category for diesel", style: operator}
+  - {q: "expense groups list", style: short}
+- gid: fin.void
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.void]]
+  required_facts: [["reason"], ["exclud|not count|balance"], ["retain|visible|kept|stays"]]
+  phrasings:
+  - {q: "How does VOID work?", style: proper}
+  - {q: "how to cancel a wrong expense", style: operator}
+  - {q: "delete finance entry", style: short}
+  - {q: "what happens when I void a transaction", style: proper}
+- gid: fin.correct
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.amendment, finance.void]]
+  required_facts: [["edit|correct"], ["category|linked|milk sale"]]
+  phrasings:
+  - {q: "What happens when an operator corrects a transaction?", style: proper}
+  - {q: "edit finance entry wrong amount", style: shorthand}
+- gid: fin.payment-status
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.payment-status]]
+  required_facts: [["payable"], ["receivable"], ["paid|received"]]
+  phrasings:
+  - {q: "What is the difference between payable and paid?", style: comparison}
+  - {q: "credit sale how to mark received", style: operator}
+  - {q: "receivable meaning", style: short}
+- gid: fin.milk-sale
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.milk-sale]]
+  required_facts: [["rate"], ["quantity|litre"], ["sold|disposition|milk"]]
+  phrasings:
+  - {q: "How do I record milk sold?", style: proper}
+  - {q: "milk sale calculation", style: short}
+  - {q: "sold milk to dodhi how to enter", style: local}
+- gid: fin.animal-sale
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.animal-sale, animals.exit]]
+  required_facts: [["sold"], ["passport|history|retain"]]
+  phrasings:
+  - {q: "How do I record a cow sale?", style: proper}
+  - {q: "sold a heifer how to enter", style: operator}
+- gid: fin.animal-purchase
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.animal-purchase]]
+  required_facts: [["animal purchase"], ["register|passport"]]
+  phrasings:
+  - {q: "How do I record a purchased cow?", style: proper}
+  - {q: "bought new cow entry", style: shorthand}
+- gid: fin.payroll
+  domain: finance
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[finance.payroll]]
+  required_facts: [["payroll"], ["paid|mark paid"]]
+  phrasings:
+  - {q: "How do I pay staff salaries?", style: proper}
+  - {q: "where is payroll", style: short}
+  - {q: "labour wages entry", style: shorthand}
+- gid: fin.semen-purchase
+  domain: breeding
+  intent: DAIRYOS_HOWTO
+  route: DAIRYOS
+  required_records: [[breeding.semen]]
+  required_facts: [["finance"], ["semen"], ["lot|straw"]]
+  phrasings:
+  - {q: "Where do I record a semen purchase?", style: proper}
+  - {q: "where do i record semen", style: operator}
+- gid: fin.running
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.running-status]]
+  required_facts: [["net cash|cash"]]
+  phrasings:
+  - {q: "What is net cash position?", style: proper}
+  - {q: "how to see all expenses this month", style: operator}
+- gid: fin.owner
+  domain: finance
+  intent: DAIRYOS_CONCEPT
+  route: DAIRYOS
+  required_records: [[finance.financial-entry]]
+  required_facts: [["owner"], ["not.*(revenue|expense|opex|cop)|exclud"]]
+  phrasings:
+  - {q: "Is owner investment counted as revenue?", style: negative}
+  - {q: "owner draw effect on profit", style: operator}
+- gid: fin.flow
+  domain: finance
+  intent: DAIRYOS_DATA_FLOW
+  route: DAIRYOS
+  required_records: [[finance.flow]]
+  required_facts: [["feed"], ["semen"], ["cop|opex"]]
+  phrasings:
+  - {q: "How does Finance connect to other modules?", style: proper}
+  - {q: "finance entry goes where else", style: operator}
