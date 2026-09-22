@@ -91,7 +91,18 @@ Write-Host "=== EMBED SAME-COMMIT ASSISTANT ===" -ForegroundColor Cyan
 $assistantBundle = Join-Path $bundle "assistant"
 Remove-Item $assistantBundle -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $assistantBundle -Force | Out-Null
-Expand-Archive -LiteralPath $assistantPackage -DestinationPath $assistantBundle -Force
+# The package is a ZIP container with a product-specific extension. Windows
+# PowerShell's Expand-Archive validates the filename extension before reading
+# the container, so give it a temporary .zip alias without changing the
+# distributed artifact name.
+$assistantZipAlias = Join-Path $env:TEMP ("DairyOS-Assistant-" + [guid]::NewGuid().ToString("N") + ".zip")
+try {
+    Copy-Item -LiteralPath $assistantPackage -Destination $assistantZipAlias -Force
+    Expand-Archive -LiteralPath $assistantZipAlias -DestinationPath $assistantBundle -Force
+}
+finally {
+    Remove-Item -LiteralPath $assistantZipAlias -Force -ErrorAction SilentlyContinue
+}
 if (-not (Test-Path (Join-Path $assistantBundle "DairyOSAssistant.exe") -PathType Leaf)) { throw "Bundled Assistant executable is missing." }
 
 Write-Host "=== COPY DAIRYOS LAUNCHER ICON ===" -ForegroundColor Cyan
