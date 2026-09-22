@@ -67,11 +67,6 @@ class LoginRequest(BaseModel):
     pin: str
 
 
-class HelpRequest(BaseModel):
-    display_name: str = Field(min_length=1, max_length=120)
-    message: str = Field(min_length=1, max_length=1000)
-
-
 def _validate_pin(pin: str, confirmation: str | None = None) -> str:
     if not pin.isdigit() or len(pin) != 4:
         raise HTTPException(status_code=422, detail="PIN must contain exactly four digits")
@@ -136,22 +131,6 @@ def access_status() -> dict[str, Any]:
         identities = factory.session.query(HumanIdentity).all()
         primary = [x for x in identities if x.role == "PRIMARY_ADMIN" and x.active]
         return {"bootstrap_required": not primary, "bootstrap_complete": bool(primary), "entry_groups": [{"id": key, "label": value[0]} for key, value in GROUPS.items()]}
-    finally:
-        factory.close()
-
-
-@router.post("/help")
-def request_help(payload: HelpRequest) -> dict[str, Any]:
-    """Record an access-assistance request without granting or resetting access."""
-    factory = RepositoryFactory.create()
-    try:
-        _audit(
-            factory,
-            "human_access_help_requested",
-            payload.display_name.strip(),
-            f"Administrator review requested: {payload.message.strip()}",
-        )
-        return {"recorded": True, "status": "PENDING_ADMIN_REVIEW"}
     finally:
         factory.close()
 
