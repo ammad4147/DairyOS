@@ -357,10 +357,13 @@ begin
     merely because a path component changed case. }
   DataMatch := Pos(Uppercase('"data_root": "' + CanonicalData + '"'), Uppercase(Manifest)) > 0;
   InstallMatch := Pos(Uppercase('"installation_root": "' + CanonicalInstall + '"'), Uppercase(Manifest)) > 0;
-  Log('DairyOS lifecycle identity: data_match=' + BoolToStr(DataMatch, True));
-  Log('DairyOS lifecycle identity: installation_match=' + BoolToStr(InstallMatch, True));
+  if DataMatch then Log('DairyOS lifecycle identity: data_match=TRUE')
+  else Log('DairyOS lifecycle identity: data_match=FALSE');
+  if InstallMatch then Log('DairyOS lifecycle identity: installation_match=TRUE')
+  else Log('DairyOS lifecycle identity: installation_match=FALSE');
   Result := DataMatch and InstallMatch;
-  Log('DairyOS lifecycle identity: final_match=' + BoolToStr(Result, True));
+  if Result then Log('DairyOS lifecycle identity: final_match=TRUE')
+  else Log('DairyOS lifecycle identity: final_match=FALSE');
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean; forward;
