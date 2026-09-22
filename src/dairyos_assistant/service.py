@@ -164,8 +164,38 @@ class Assistant:
     def answer(self, question: str, mode: str = "dairyos") -> dict[str, Any]:
         verdict = classify(question)
         if str(mode).strip().lower() == "general":
-            answer, failure = generate_general_answer(self.provider, question)
-            return {"decision": verdict.decision.value, "stage": "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE", "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": [], "unreviewed": False, "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure}
+            general_hits = [
+                hit for hit in self.index.search(question, limit=EVIDENCE_LIMIT)
+                if hit.item_class == "DAIRY_KNOWLEDGE"
+            ]
+            answer, failure = generate_general_answer(
+                self.provider,
+                question,
+                [hit.item for hit in general_hits],
+            )
+            if answer is None and general_hits:
+                answer = approved_text(general_hits)
+                failure = failure or "model unavailable"
+                stage = "APPROVED_TEXT"
+                verbatim = True
+            else:
+                stage = "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE"
+                verbatim = False
+            evidence = [
+                {
+                    "id": hit.knowledge_id,
+                    "title": hit.title,
+                    "domain": hit.domain,
+                    "capability": hit.capability,
+                    "class": hit.item_class,
+                    "status": hit.status,
+                    "score": hit.score,
+                    "matched_terms": list(hit.matched_terms),
+                    "unreviewed": hit.unreviewed,
+                }
+                for hit in general_hits
+            ]
+            return {"decision": verdict.decision.value, "stage": stage, "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": evidence, "unreviewed": any(item["unreviewed"] for item in evidence), "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure, "verbatim": verbatim}
 
         question_words = set(re.findall(r"[a-z0-9]+", question.lower()))
         if (

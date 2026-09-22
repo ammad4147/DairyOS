@@ -60,7 +60,7 @@ def test_practical_dairy_questions_retrieve_and_answer_usefully(
     expected_id: str,
     expected_terms: tuple[str, ...],
 ):
-    result = assistant.answer(question)
+    result = assistant.answer(question, mode="general")
 
     assert result["stage"] == "APPROVED_TEXT"
     assert result["evidence"][0]["id"] == expected_id or (
@@ -90,7 +90,7 @@ def test_practical_assistant_preserves_operational_data_boundary(
 def test_practical_answers_do_not_prescribe_treatment_or_doses(
     assistant: Assistant,
 ):
-    result = assistant.answer("A calf has scours. What medicine dose should I give?")
+    result = assistant.answer("A calf has scours. What medicine dose should I give?", mode="general")
 
     text = result["text"].lower()
     assert "dose" in text
