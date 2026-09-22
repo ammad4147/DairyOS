@@ -317,19 +317,30 @@ var
   Manifest: String;
   CanonicalData: String;
   CanonicalInstall: String;
+  DataMatch: Boolean;
+  InstallMatch: Boolean;
 begin
   Result := False;
   LifecyclePath := CanonicalDairyOSDataRoot() + '\lifecycle.json';
+  Log('DairyOS lifecycle identity: manifest=' + LifecyclePath);
 
   { A keep-data uninstall removes the application directory but intentionally
     retains this durable manifest. The manifest is the installation identity;
     requiring the old executable here incorrectly blocks reinstall. }
   if not FileExists(LifecyclePath) then
+  begin
+    Log('DairyOS lifecycle identity: manifest_exists=FALSE');
     exit;
+  end;
+  Log('DairyOS lifecycle identity: manifest_exists=TRUE');
 
   if not LoadStringFromFile(LifecyclePath, AnsiManifest) then
+  begin
+    Log('DairyOS lifecycle identity: manifest_read=FALSE');
     exit;
+  end;
   Manifest := AnsiManifest;
+  Log('DairyOS lifecycle identity: manifest_read=TRUE');
   if Manifest = '' then
     exit;
 
@@ -338,13 +349,18 @@ begin
   StringChangeEx(Manifest, '\\', '\', True);
   CanonicalData := CanonicalDairyOSDataRoot();
   CanonicalInstall := ExpandConstant('{app}');
+  Log('DairyOS lifecycle identity: expected_data=' + CanonicalData);
+  Log('DairyOS lifecycle identity: expected_install=' + CanonicalInstall);
   { Windows paths are case-insensitive. Compare the normalized identity
     case-insensitively so a keep-data uninstall followed by reinstall cannot
     reject the lifecycle marker written by the immediately preceding install
     merely because a path component changed case. }
-  Result :=
-    (Pos(Uppercase('"data_root": "' + CanonicalData + '"'), Uppercase(Manifest)) > 0) and
-    (Pos(Uppercase('"installation_root": "' + CanonicalInstall + '"'), Uppercase(Manifest)) > 0);
+  DataMatch := Pos(Uppercase('"data_root": "' + CanonicalData + '"'), Uppercase(Manifest)) > 0;
+  InstallMatch := Pos(Uppercase('"installation_root": "' + CanonicalInstall + '"'), Uppercase(Manifest)) > 0;
+  Log('DairyOS lifecycle identity: data_match=' + BoolToStr(DataMatch, True));
+  Log('DairyOS lifecycle identity: installation_match=' + BoolToStr(InstallMatch, True));
+  Result := DataMatch and InstallMatch;
+  Log('DairyOS lifecycle identity: final_match=' + BoolToStr(Result, True));
 end;
 
 function StopInstalledDairyOSForUninstall(): Boolean; forward;
