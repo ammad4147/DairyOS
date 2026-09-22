@@ -19,6 +19,22 @@ def test_finance_record_expense_uses_two_part_category_selector():
     assert "<optgroup" not in source
 
 
+def test_expense_search_uses_complete_ledger_and_preserves_category_filters():
+    source = text("src/DairyOS.Web/src/components/FinanceTab.tsx")
+
+    # The API returns the complete persisted ledger; the expense search must
+    # operate on all expenseRows rather than the current-month projection or a
+    # presentation slice.
+    assert 'fetch(`${API_BASE}/farm/finance-ledger`)' in source
+    assert "const expenseRows = useMemo(() => transactions.filter(isExpense), [transactions]);" in source
+    assert "? expenseRows" in source
+    assert "expenseRows.filter(t => String(t.cop_classification || '').toUpperCase() === 'NON_OPEX')" in source
+    assert "expenseRows.filter(t => t.master_category === ledgerFilter" in source
+    assert ".slice(0, 100)" not in source
+    assert 'aria-label="Search expenses"' in source
+    assert 'placeholder="Search expenses…"' in source
+
+
 def test_opex_taxonomy_is_refined_for_dairy_operating_expenses():
     source = text("src/dairyos/finance/expense_taxonomy.py")
 

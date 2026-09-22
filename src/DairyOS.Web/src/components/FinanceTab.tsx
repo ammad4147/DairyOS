@@ -458,10 +458,10 @@ export default function FinanceTab({
   const filteredExpenses = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = ledgerFilter === 'ALL'
-      ? currentMonthExpenseRows
+      ? expenseRows
       : ledgerFilter === 'NON_OPEX'
-        ? currentMonthExpenseRows.filter(t => String(t.cop_classification || '').toUpperCase() === 'NON_OPEX')
-        : currentMonthExpenseRows.filter(t => t.master_category === ledgerFilter && (ledgerFilter !== 'OPEX' || String(t.cop_classification || '').toUpperCase() !== 'NON_OPEX'));
+        ? expenseRows.filter(t => String(t.cop_classification || '').toUpperCase() === 'NON_OPEX')
+        : expenseRows.filter(t => t.master_category === ledgerFilter && (ledgerFilter !== 'OPEX' || String(t.cop_classification || '').toUpperCase() !== 'NON_OPEX'));
     return base.filter(t => !q || [
       t.id,
       t.master_category,
@@ -488,7 +488,7 @@ export default function FinanceTab({
       t.cop_classification,
       t.cop_attribution_method,
     ].some(v => String(v ?? '').toLowerCase().includes(q)));
-  }, [currentMonthExpenseRows, ledgerFilter, search]);
+  }, [expenseRows, ledgerFilter, search]);
 
   const cashRevenue = activeRevenueRows
     .filter(isRevenue)
@@ -1439,7 +1439,13 @@ export default function FinanceTab({
 
         <div style={{ display: 'grid', gap: 10 }}>
           <form onSubmit={saveExpense} style={card}>
-            <div style={sectionTitle}>Record Expense</div>
+            <div style={{ ...sectionTitle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span>Record Expense</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: '1 1 190px', maxWidth: 300, minWidth: 170, background: '#1e293b', border: '1px solid #334155', padding: '4px 6px', borderRadius: 4 }}>
+                <Search size={11} color="#94a3b8" />
+                <input aria-label="Search expenses" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search expenses…" style={{ ...inputStyle, border: 0, padding: 0, background: 'transparent' }} />
+              </div>
+            </div>
             <div style={{ fontSize: 9, color: '#64748b', marginBottom: 7 }}>Feed purchases are entered here and automatically appear in the Feed tab. Farm expenses are classified here as OPEX or Non-OPEX for Estimated COP.</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button type="button" onClick={() => setMasterCategory('FEED')} style={{ background: masterCategory === 'FEED' ? '#0369a1' : '#1e293b', border: '1px solid', borderColor: masterCategory === 'FEED' ? '#38bdf8' : '#334155', color: '#fff', padding: '10px 10px', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Feed Expenses</button>
@@ -1494,14 +1500,13 @@ export default function FinanceTab({
           </form>
 
           <section style={card}>
-            <div style={{ ...sectionTitle, display: 'flex', justifyContent: 'space-between', gap: 6 }}><span>Accounting Expense Ledger</span><span style={{ fontSize: 8, color: '#64748b' }}>Current month · {currentMonthStart} → {currentMonthEnd}</span></div>
+            <div style={{ ...sectionTitle, display: 'flex', justifyContent: 'space-between', gap: 6 }}><span>Accounting Expense Ledger</span><span style={{ fontSize: 8, color: '#64748b' }}>{search.trim() ? 'Search results across all recorded expenses' : 'All recorded expenses'}</span></div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 7 }}>
               {(['ALL', 'FEED', 'OPEX', 'NON_OPEX'] as LedgerFilter[]).map(value => <button key={value} type="button" onClick={() => setLedgerFilter(value)} style={{ ...smallButton, background: ledgerFilter === value ? '#0ea5e9' : '#1e293b', color: '#fff' }}>{value === 'NON_OPEX' ? 'Non-OPEX' : value}</button>)}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 150, background: '#1e293b', border: '1px solid #334155', padding: '4px 6px', borderRadius: 4 }}><Search size={11} color="#94a3b8" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search ledger…" style={{ ...inputStyle, border: 0, padding: 0, background: 'transparent' }} /></div>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <div style={{ ...ledgerLine, minWidth: 2100, color: '#64748b', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #1f2937', padding: '0 8px 5px', alignItems: 'flex-start' }}><span style={{ width: 62, flex: '0 0 62px' }}>Transaction #</span><span style={{ width: 88, flex: '0 0 88px' }}>Date</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Item / Specification</span><span style={{ width: 86, flex: '0 0 86px' }}>Master Category</span><span style={{ width: 78, flex: '0 0 78px' }}>Quantity</span><span style={{ width: 70, flex: '0 0 70px' }}>Unit</span><span style={{ width: 105, flex: '0 0 105px', textAlign: 'right' }}>Unit Rate</span><span style={{ width: 125, flex: '0 0 125px', textAlign: 'right' }}>Amount</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>Counterparty</span><span style={{ width: 95, flex: '0 0 95px' }}>Payment Method</span><span style={{ ...ledgerEllipsis, flexBasis: 120 }}>Reference</span><span style={{ width: 94, flex: '0 0 94px' }}>Status</span><span style={{ width: 95, flex: '0 0 95px' }}>Due Date</span><span style={{ width: 95, flex: '0 0 95px' }}>Settled Date</span><span style={{ ...ledgerEllipsis, flexBasis: 135 }}>COP / Attribution</span><span style={{ ...ledgerEllipsis, flexBasis: 250 }}>Animal / Other Details</span><span style={{ ...ledgerEllipsis, flexBasis: 210 }}>Notes</span><span style={{ width: 130, flex: '0 0 130px', textAlign: 'right' }}>Actions</span></div>
-              {loading ? <div style={empty}>Loading persistent ledger…</div> : filteredExpenses.slice(0, 100).map(renderExpenseLedgerRow)}
+              {loading ? <div style={empty}>Loading persistent ledger…</div> : filteredExpenses.map(renderExpenseLedgerRow)}
               {!loading && filteredExpenses.length === 0 && <div style={empty}>No expenses match this view.</div>}
             </div>
           </section>
