@@ -22,7 +22,7 @@ treated as installed-runtime acceptance.
 | Veterinary review | PASS | 70 dairy records approved by Dr Umair Shaffi on 2026-09-22 and rebuilt as `VET_REVIEWED` |
 | Desktop bundle | PASS | Rebuilt from the approval commit; embedded Assistant package and private PostgreSQL runtime validated |
 | Windows installer compile | PASS | Inno Setup 7.1.0; `DairyOS-Windows-Installer.exe` and release manifest produced |
-| Installed acceptance | PASS | Installer exit 0; exact commit `b503f96d2646fefd4c6872d33bdcd88842e29954`; installer SHA256 `61766E03FA1F11F4AF355772ECC52D0458A5FDB4C2AC36561895AFAE8227A830`; CPU/Vulkan probes passed |
+| Installed acceptance | PASS | Installer exit 0; exact commit `976b4dd2d2aa5538826b564c90a9f309299f561b`; installer SHA256 `60594B88A0526F7E949AD8EF3269AFE1CD4689BE3F912E188AC7BC0D9067D096`; CPU/Vulkan probes passed |
 | Runtime profiles | PASS on installed workstation; hardware-neutral by design | Capability probe selected Vulkan; CPU fallback retained; `assistant-llama.log` capture added |
 
 ## Remaining deployment coverage
