@@ -27,6 +27,7 @@ import subprocess
 import sys
 import threading
 import time
+import ctypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,45 @@ STRIPPED_NAMES = frozenset({
 
 MODEL_PORT = 8477
 MODEL_READY_TIMEOUT = 180.0
+
+
+def _physical_cores() -> int:
+    logical = os.cpu_count() or 1
+    return max(1, logical // 2)
+
+
+def _ram_gb() -> float:
+    if os.name != "nt":
+        return 0.0
+    class _Status(ctypes.Structure):
+        _fields_ = [("length", ctypes.c_ulong), ("memory_load", ctypes.c_ulong),
+                    ("total", ctypes.c_ulonglong), ("available", ctypes.c_ulonglong),
+                    ("total_page", ctypes.c_ulonglong), ("available_page", ctypes.c_ulonglong),
+                    ("total_virtual", ctypes.c_ulonglong), ("available_virtual", ctypes.c_ulonglong),
+                    ("available_extended", ctypes.c_ulonglong)]
+    status = _Status()
+    status.length = ctypes.sizeof(_Status)
+    try:
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+        return status.total / (1024 ** 3)
+    except Exception:  # pragma: no cover - defensive Windows API fallback
+        return 0.0
+
+
+def _model_profile(server: Path, log_dir: Path) -> tuple[str, list[str]]:
+    """Choose a conservative local profile; GPU is used only when enumerated."""
+    devices = ""
+    try:
+        probe = subprocess.run([str(server), "--list-devices"], capture_output=True, text=True, timeout=10, check=False)
+        devices = (probe.stdout or "") + (probe.stderr or "")
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    if devices and "Vulkan" in devices and "7900" in devices:
+        return "GPU", ["-ngl", "99", "-c", "8192", "--flash-attn", "on"]
+    cores = _physical_cores()
+    if cores >= 8 and _ram_gb() >= 8:
+        return "DESKTOP_CPU", ["-t", str(cores), "-c", "4096"]
+    return "LOW_SPEC_CPU", ["-t", str(cores), "-c", "2048"]
 
 
 def stop_orphaned_assistant_processes() -> None:
@@ -239,17 +279,21 @@ class AssistantBridge:
         if runtime is not None:
             model, server = runtime
             if self._model is None or self._model.poll() is not None:
+                log_dir = Path(os.environ.get("DAIRYOS_RUNTIME_LOG_DIR", _bundle_root() / "logs"))
+                log_dir.mkdir(parents=True, exist_ok=True)
+                profile, profile_flags = _model_profile(server, log_dir)
+                llama_log = (log_dir / "assistant-llama.log").open("a", encoding="utf-8")
                 self._model = subprocess.Popen(
                     [
                         str(server), "-m", str(model),
                         "--host", "127.0.0.1", "--port", str(self.model_port),
-                        "-c", "4096",
-                    ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    ] + profile_flags,
+                    stdout=llama_log,
+                    stderr=llama_log,
                     env=environment,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
+                logger.info("Assistant model profile=%s log=%s", profile, log_dir / "assistant-llama.log")
             model_url = f"http://127.0.0.1:{self.model_port}"
         else:
             # No model bundled. The Assistant still retrieves and still refuses
