@@ -6,10 +6,9 @@ import './HumanAccessGate.css';
 
 const API = API_BASE_URL || '';
 const HUMAN_SESSION_KEY = 'dairyos.human.session';
-type Person = { id: number; display_name: string; entry_group: string; role: string; pin_set: boolean; active: boolean };
+type Person = { id: number; display_name: string; workspace: string; role: string; pin_set: boolean; active: boolean };
 type GateState = 'loading' | 'bootstrap' | 'welcome' | 'pin' | 'management' | 'operator' | 'help' | 'error';
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
-const accent = (id: number) => [205, 145, 38, 270, 355, 181][Math.abs(id) % 6];
 
 export default function HumanAccessGate() {
   const [state, setState] = useState<GateState>('loading');
@@ -21,26 +20,23 @@ export default function HumanAccessGate() {
   const [confirmPin, setConfirmPin] = useState('');
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
-  const [clock, setClock] = useState(new Date());
-  const [wallpaper, setWallpaper] = useState<string | null>(null);
+
+  const routeIdentity = (person: Person) => {
+    setIdentity(person);
+    setState(person.workspace === 'MANAGEMENT' ? 'management' : 'operator');
+  };
 
   const load = async () => {
     try {
       const statusResponse = await fetch(`${API}/human-access/status`);
       if (!statusResponse.ok) throw new Error('Unable to resolve DairyOS access state.');
       const status = await statusResponse.json();
-      const wallpaperResponse = await fetch(`${API}/settings/welcome-screen`);
-      if (wallpaperResponse.ok) {
-        const wallpaperPayload = await wallpaperResponse.json();
-        setWallpaper(typeof wallpaperPayload.wallpaper === 'string' ? wallpaperPayload.wallpaper : null);
-      }
       const existing = sessionStorage.getItem(HUMAN_SESSION_KEY);
       if (existing) {
         const me = await fetch(`${API}/human-access/me`, { headers: { 'X-DairyOS-Human-Session': existing } });
         if (me.ok) {
           const body = await me.json();
-          setIdentity(body.identity);
-          setState(body.identity?.entry_group === 'MANAGEMENT' ? 'management' : 'operator');
+          routeIdentity(body.identity);
           return;
         }
         sessionStorage.removeItem(HUMAN_SESSION_KEY);
@@ -58,10 +54,6 @@ export default function HumanAccessGate() {
   };
 
   useEffect(() => { void load(); }, []);
-  useEffect(() => {
-    const timer = window.setInterval(() => setClock(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   const filteredPeople = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -93,8 +85,8 @@ export default function HumanAccessGate() {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) { setMessage(payload.detail || 'Unable to authenticate.'); return; }
     sessionStorage.setItem(HUMAN_SESSION_KEY, payload.session_token);
-    setIdentity(payload.identity); setPin(''); setConfirmPin('');
-    setState(payload.identity?.entry_group === 'MANAGEMENT' ? 'management' : 'operator');
+    setPin(''); setConfirmPin('');
+    routeIdentity(payload.identity);
   };
 
   const logout = async () => {
@@ -126,11 +118,11 @@ export default function HumanAccessGate() {
   if (state === 'help') return <HelpFlow people={people} onBack={() => { setMessage(''); setState('welcome'); }} />;
 
   if (state === 'pin' && selected) return (
-    <form onSubmit={login} className="welcome-screen" style={wallpaper ? { '--welcome-wallpaper': `url("${wallpaper}")` } as React.CSSProperties : undefined}>
+    <form onSubmit={login} className="welcome-screen">
       <div className="welcome-panel-wrap"><div className="welcome-panel">
         <Brand />
         <button type="button" className="welcome-link welcome-back" onClick={() => setState('welcome')}>← Choose another person</button>
-        <div className="welcome-avatar welcome-selected-avatar" style={{ '--accent': accent(selected.id) } as React.CSSProperties}>{initials(selected.display_name)}</div>
+        <div className="welcome-selected-initials">{initials(selected.display_name)}</div>
         <h1>{selected.pin_set ? `Welcome back, ${selected.display_name}` : selected.display_name}</h1>
         <p>{selected.pin_set ? 'Enter your PIN to continue.' : 'Create your four-digit PIN to continue.'}</p>
         <input aria-label="PIN" type="password" inputMode="numeric" maxLength={4} placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} required autoFocus />
@@ -144,53 +136,34 @@ export default function HumanAccessGate() {
 
   const identityCard = 'welcome-identity-card';
   return (
-    <div className="welcome-screen" style={wallpaper ? { '--welcome-wallpaper': `url("${wallpaper}")` } as React.CSSProperties : undefined}>
+    <div className="welcome-screen">
       <div className="welcome-shell">
-        <header className="welcome-top">
-          <Brand />
-          <div className="welcome-motto" aria-hidden="true">Healthy Animals<br />Productive Farms<br />A Brighter Tomorrow</div>
-        </header>
-
+        <header className="welcome-top"><Brand /></header>
         <main className="welcome-main">
           <h1 className="welcome-title">Welcome to DairyOS</h1>
           <p className="welcome-prompt">Select your name to continue</p>
           <div className="welcome-identity-grid">
             {filteredPeople.map(person => (
               <button type="button" key={person.id} className={identityCard} onClick={() => choose(person)} aria-label={`Continue as ${person.display_name}`}>
-                <span className="welcome-avatar" style={{ '--accent': accent(person.id) } as React.CSSProperties}>{initials(person.display_name)}</span>
+                <span className="welcome-initials">{initials(person.display_name)}</span>
                 <span className="welcome-name">{person.display_name}</span>
               </button>
             ))}
           </div>
           {filteredPeople.length === 0 && <p className="welcome-empty">No matching active identities.</p>}
-          <div className="welcome-search-wrap">
-            <span className="welcome-search-icon" aria-hidden="true">⌕</span>
-            <input className="welcome-search" aria-label="Find your name" placeholder="Find your name..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
+          <input className="welcome-search" aria-label="Find your name" placeholder="Find your name..." value={search} onChange={e => setSearch(e.target.value)} />
         </main>
-
         <div className="welcome-bottom">
           <button type="button" className="welcome-help" onClick={() => setState('help')}><strong>Need help?</strong><span>Contact Administrator</span></button>
-          <div className="welcome-footer" aria-hidden="true">
-            <div className="welcome-farm-mark">⌂ ─ ◇ ─ ⌂</div>
-            <div className="welcome-footer-line">BETTER DATA • BETTER DECISIONS • A STRONGER DAIRY FUTURE</div>
-          </div>
-          <div className="welcome-clock">
-            <div className="welcome-clock-date">{clock.toLocaleDateString('en-PK', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</div>
-            <div className="welcome-clock-time">{clock.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}</div>
-          </div>
+          <div className="welcome-footer">BETTER DATA • BETTER DECISIONS • A STRONGER DAIRY FUTURE</div>
         </div>
       </div>
-      <svg className="welcome-wave" viewBox="0 0 1600 180" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 110 C280 45 430 145 720 100 C980 58 1180 112 1600 48 V180 H0Z" fill="rgba(4,31,57,.78)" />
-        <path d="M0 140 C310 85 520 160 820 124 C1110 88 1320 130 1600 92 V180 H0Z" fill="rgba(4,22,42,.88)" />
-      </svg>
     </div>
   );
 }
 
 function Brand() {
-  return <div className="welcome-brand"><img src="/dairyos-cow.svg" alt="" aria-hidden="true" /><div className="welcome-brand-copy"><div className="welcome-wordmark">Dairy<span>OS</span></div><div className="welcome-subbrand">FARM MANAGEMENT SYSTEM</div></div></div>;
+  return <div className="welcome-brand"><div className="welcome-wordmark">Dairy<span>OS</span></div><div className="welcome-subbrand">FARM MANAGEMENT SYSTEM</div></div>;
 }
 
 function WelcomePanel({ children }: { children: React.ReactNode }) {
