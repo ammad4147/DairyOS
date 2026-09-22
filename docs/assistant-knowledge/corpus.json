@@ -988,7 +988,8 @@
    "questions": [
     "How is expected calving date calculated?",
     "when will cow calve",
-    "when should i dry off cow"
+    "when should i dry off cow",
+    "delivery date kaise calculate hoti"
    ],
    "related": [
     "breeding.pd",
@@ -3586,7 +3587,8 @@
    "questions": [
     "Milk suddenly dropped but feed is the same, why?",
     "milk production down suddenly",
-    "herd milk drop"
+    "herd milk drop",
+    "doodh achanak kam ho gaya"
    ],
    "related": [
     "milk.yield-drop",
@@ -6825,7 +6827,9 @@
    "questions": [
     "How do I record an expense?",
     "how to add income in finance",
-    "where do I enter a payment"
+    "where do I enter a payment",
+    "how to enter vet bill",
+    "record vet bill"
    ],
    "related": [
     "finance.expense-category",
@@ -7786,7 +7790,9 @@
     "How do I record milk given to calves?",
     "enter milk for domestic use",
     "record milk wastage",
-    "milk thrown away"
+    "milk thrown away",
+    "milk used at home how to enter",
+    "ghar ke liye doodh entry"
    ],
    "related": [
     "milk.saleable",
