@@ -66,7 +66,9 @@ def test_database_initialization_registers_complete_runtime_model_catalog():
         "semen_lots",
         "semen_stock_movements",
         "treatment_record",
-        "users",
+            "users",
+            "human_identities",
+            "human_sessions",
         "vaccinations",
     }
 

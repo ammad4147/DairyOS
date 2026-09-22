@@ -52,6 +52,7 @@ export function installDesktopSession(): void {
   }
 
   const originalFetch = window.fetch.bind(window);
+  const humanSession = () => window.sessionStorage.getItem('dairyos.human.session');
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const target = new URL(input instanceof Request ? input.url : String(input), window.location.href);
     if (target.origin !== window.location.origin) return originalFetch(input, init);
@@ -61,6 +62,8 @@ export function installDesktopSession(): void {
     if (token) {
       headers.set('X-DairyOS-Desktop-Session', token);
     }
+    const identitySession = humanSession();
+    if (identitySession) headers.set('X-DairyOS-Human-Session', identitySession);
 
     const response = await originalFetch(input, { ...init, headers });
 
@@ -70,6 +73,8 @@ export function installDesktopSession(): void {
       if (freshToken && freshToken !== token) {
         const retryHeaders = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
         retryHeaders.set('X-DairyOS-Desktop-Session', freshToken);
+        const retryIdentitySession = humanSession();
+        if (retryIdentitySession) retryHeaders.set('X-DairyOS-Human-Session', retryIdentitySession);
         return originalFetch(input, { ...init, headers: retryHeaders });
       }
     }

@@ -28,7 +28,7 @@ interface BackendAnimal { animal_id:string; animal_type?:string|null; animal_cat
 function ageFromBirthDate(value?:string|null){if(!value)return 'Unknown';const birth=new Date(value);if(Number.isNaN(birth.getTime()))return 'Unknown';const now=new Date();let years=now.getFullYear()-birth.getFullYear();const before=now.getMonth()<birth.getMonth()||(now.getMonth()===birth.getMonth()&&now.getDate()<birth.getDate());if(before)years-=1;if(years>=1)return `${years} Years`;return `${Math.max(0,Math.floor((now.getTime()-birth.getTime())/2592000000))} Months`}
 function toUiAnimal(animal:BackendAnimal):HerdAnimal{return{id:animal.animal_id,breed:animal.breed||'Unknown',category:animal.animal_category||'Unclassified',age:ageFromBirthDate(animal.date_of_birth),status:animal.active===false?(animal.status||'Inactive'):(animal.status||animal.lifecycle_status||'Active'),frequency:animal.milking_frequency||'NONE',earTag:animal.ear_tag||animal.animal_id,gender:(animal.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:animal.lifecycle_status||undefined}}
 
-export default function MainAppShell(){
+export function MainAppShell(){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false),[treatmentAnimalId,setTreatmentAnimalId]=useState<string|null>(null);
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount,refresh:refreshAlerts}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
@@ -88,3 +88,5 @@ export default function MainAppShell(){
    </AnimalContextProvider>
  );
 }
+
+export default MainAppShell;

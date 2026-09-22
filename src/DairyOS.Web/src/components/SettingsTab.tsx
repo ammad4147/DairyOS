@@ -8,6 +8,7 @@ import { formatFarmDateTime } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
 import AIAssistant from './AIAssistant';
 import ReportingTab from './ReportingTab';
+import HumanIdentityAdmin from './HumanIdentityAdmin';
 
 interface SettingsTabProps {
   onFarmProfileUpdate?: (profile: { farmName: string; location: string }) => void;
@@ -90,7 +91,7 @@ export default function SettingsTab({
   hiddenNavigationTabs = [],
   onHiddenNavigationTabsChange,
 }: SettingsTabProps) {
-  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'DATA' | 'REPORTING' | 'ASSISTANT'>('FARM');
+  const [activeTab, setActiveTab] = useState<'FARM' | 'SYSTEM' | 'EMAIL' | 'DATA' | 'REPORTING' | 'ASSISTANT' | 'IDENTITY'>('FARM');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
   const [farmLoaded, setFarmLoaded] = useState(false);
@@ -463,6 +464,7 @@ export default function SettingsTab({
         <button type="button" onClick={() => setActiveTab('DATA')} style={tab(activeTab === 'DATA')}><DatabaseBackup size={13} />Data Management</button>
         <button type="button" onClick={() => setActiveTab('REPORTING')} style={tab(activeTab === 'REPORTING')}><FileText size={13} />Reporting</button>
         <button type="button" onClick={() => setActiveTab('ASSISTANT')} style={{ ...tab(activeTab === 'ASSISTANT'), background: '#312e81', borderColor: '#818cf8' }}><Bot size={13} />AI Assistant</button>
+        <button type="button" onClick={() => setActiveTab('IDENTITY')} style={tab(activeTab === 'IDENTITY')}>Operator Access</button>
       </div>
       {error && <div style={{ background: '#450a0a', border: '1px solid #7f1d1d', color: '#fecaca', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{error}</div>}
       {message && <div style={{ background: '#064e3b', border: '1px solid #065f46', color: '#a7f3d0', padding: 8, borderRadius: 6, marginBottom: 8, fontSize: 10 }}>{message}</div>}
@@ -509,6 +511,8 @@ export default function SettingsTab({
           />
         </div>
       )}
+
+      {activeTab === 'IDENTITY' && <HumanIdentityAdmin />}
 
       {activeTab === 'EMAIL' && (
         <div style={{ display: 'grid', gap: 12 }}>

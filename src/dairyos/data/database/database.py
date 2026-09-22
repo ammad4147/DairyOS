@@ -46,6 +46,7 @@ from dairyos.data.models.inventory_transaction import InventoryTransaction
 from dairyos.data.models.semen_inventory import SemenLot, SemenStockMovement
 from dairyos.data.models.vaccination_record import VaccinationRecord
 from dairyos.data.models.user import User
+from dairyos.data.models.human_identity import HumanIdentity, HumanSession
 
 
 def initialize_database() -> None:

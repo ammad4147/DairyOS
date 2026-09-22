@@ -167,7 +167,7 @@ def test_fresh_runtime_bootstrap_creates_complete_active_schema_and_head(client)
                     opts={"version_table_schema": schema},
                 ).get_current_heads()
             )
-        ) == ("20260915_01",)
+            ) == ("20260922_01",)
 
 
 def test_alembic_environment_preserves_existing_application_loggers(client):
@@ -216,7 +216,7 @@ def test_supported_create_all_baseline_upgrades_to_current_head(client):
                     opts={"version_table_schema": schema},
                 ).get_current_heads()
             )
-        ) == ("20260915_01",)
+            ) == ("20260922_01",)
 
 
 def test_supported_upgrade_preserves_active_schema_parity_with_fresh_bootstrap(

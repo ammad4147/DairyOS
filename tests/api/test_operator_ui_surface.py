@@ -110,8 +110,8 @@ def test_digital_twin_scenario_lab_is_completely_retired(client: TestClient):
 
 def test_main_bootstrap_mounts_app_not_duplicate_shell():
     source = MAIN_TSX.read_text(encoding="utf-8-sig")
-    assert "import App from './App'" in source
-    assert "<App />" in source
+    assert "HumanAccessGate" in source
+    assert "<HumanAccessGate />" in source
     assert "DairyOSShell" not in source
 
 

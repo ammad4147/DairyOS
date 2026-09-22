@@ -23,6 +23,42 @@ INVENTORY_SOURCE_COLUMNS = {"source_type": "VARCHAR", "source_id": "VARCHAR"}
 FEED_RECORD_COST_COLUMNS = {"unit_cost_per_kg": "DOUBLE PRECISION", "total_feed_cost": "DOUBLE PRECISION", "cost_basis": "VARCHAR", "cost_source_financial_transaction_id": "INTEGER"}
 
 
+def migrate_human_access() -> list[str]:
+    """Additive schema for named people and desktop human sessions."""
+    changed = []
+    with engine.begin() as connection:
+        tables = set(inspect(connection).get_table_names())
+        if "human_identities" not in tables:
+            connection.execute(text("""CREATE TABLE human_identities (
+                id SERIAL PRIMARY KEY,
+                display_name VARCHAR NOT NULL,
+                entry_group VARCHAR NOT NULL,
+                role VARCHAR NOT NULL,
+                permissions_json TEXT NULL,
+                pin_hash VARCHAR NULL,
+                pin_salt VARCHAR NULL,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )"""))
+            connection.execute(text("CREATE INDEX ix_human_identities_entry_group ON human_identities (entry_group)"))
+            changed.append("human_identities")
+        if "human_sessions" not in tables:
+            connection.execute(text("""CREATE TABLE human_sessions (
+                id SERIAL PRIMARY KEY,
+                session_hash VARCHAR NOT NULL UNIQUE,
+                identity_id INTEGER NOT NULL,
+                role VARCHAR NOT NULL,
+                entry_group VARCHAR NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                revoked_at TIMESTAMP NULL
+            )"""))
+            connection.execute(text("CREATE INDEX ix_human_sessions_identity_id ON human_sessions (identity_id)"))
+            changed.append("human_sessions")
+    return changed
+
+
 def migrate_finance_feed_opex() -> list[str]:
     changed = []
     with engine.begin() as connection:

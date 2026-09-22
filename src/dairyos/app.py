@@ -122,6 +122,30 @@ async def enforce_animal_identity(request: Request, call_next):
     return response
 
 from dairyos.middleware.desktop_session import enforce_desktop_session
+from dairyos.api.human_access import _current_session
+from dairyos.api.authorization import permission_for_request
+from dairyos.auth.permissions import permissions_for_role
+
+
+@app.middleware("http")
+async def enforce_human_access(request: Request, call_next):
+    """Require a named human session for farm/application operations."""
+    production = bool(getattr(__import__('sys'), "frozen", False)) or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
+    path = request.url.path
+    protected = path == "/dashboard" or path.startswith(("/dashboard/", "/farm", "/settings", "/audit", "/authz"))
+    if production and protected:
+        token = request.headers.get("X-DairyOS-Human-Session")
+        try:
+            _, identity = _current_session(token)
+            required = permission_for_request(request.method, request.url.path)
+            if required and required not in permissions_for_role(identity.role):
+                return JSONResponse({"detail": f"Permission required: {required}"}, status_code=403)
+        except Exception as exc:
+            from fastapi import HTTPException
+            if isinstance(exc, HTTPException):
+                return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+            return JSONResponse({"detail": "Human authentication required."}, status_code=401)
+    return await call_next(request)
 
 # Register after identity middleware so authentication runs before any farm reads.
 app.middleware("http")(enforce_desktop_session)
@@ -133,6 +157,7 @@ from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
 from dairyos.api.assistant import router as assistant_router
 from dairyos.api.auth import router as auth_router
+from dairyos.api.human_access import router as human_access_router
 from dairyos.api.authorization import router as authorization_router
 from dairyos.api.breeding_biology import router as breeding_biology_router
 from dairyos.api.coml import router as coml_router
@@ -245,6 +270,7 @@ app.include_router(tmr_router)
 app.include_router(coml_router)
 app.include_router(payroll_router)
 app.include_router(auth_router)
+app.include_router(human_access_router)
 app.include_router(authorization_router)
 app.include_router(search_router)
 app.include_router(assistant_router)

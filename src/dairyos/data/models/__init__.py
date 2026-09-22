@@ -16,6 +16,7 @@ from .milk_production_correction import MilkProductionCorrection
 from .milk_quality_sample import MilkQualitySample
 from .payroll import PayrollRecord
 from .user import User
+from .human_identity import HumanIdentity, HumanSession
 from .vaccination_record import VaccinationRecord
 
 __all__ = [
@@ -37,5 +38,7 @@ __all__ = [
     "MilkQualitySample",
     "PayrollRecord",
     "User",
+    "HumanIdentity",
+    "HumanSession",
     "VaccinationRecord",
 ]

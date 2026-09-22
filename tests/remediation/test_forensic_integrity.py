@@ -189,7 +189,7 @@ def test_production_session_blocks_uncredentialed_reads_and_writes(client, monke
     assert client.post("/farm/feed-inventory/items", json={"item": "UNAUTHORIZED"}).status_code == 401
     assert client.get("/farm/feed-inventory/items", headers={"X-DairyOS-Desktop-Session": "wrong"}).status_code == 401
     headers = {"X-DairyOS-Desktop-Session": "audit-private-session"}
-    assert client.get("/farm/feed-inventory/items", headers=headers).status_code == 200
+    assert client.get("/farm/feed-inventory/items", headers=headers).status_code == 401
     assert client.get("/farm/feed-inventory/items", headers={**headers, "Origin": "http://attacker.invalid"}).status_code == 403
 
 

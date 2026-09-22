@@ -44,6 +44,11 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         "health.view",
         "breeding.view",
     }),
+    "PRIMARY_ADMIN": frozenset(PERMISSIONS),
+    "ACCOUNTS_OPERATOR": frozenset({
+        "dashboard.view", "finance.view", "finance.create_feed", "finance.create_opex",
+        "finance.edit", "finance.view_cash", "audit.view", "analytics.view",
+    }),
     "CUSTOM": frozenset(),
 }
 
