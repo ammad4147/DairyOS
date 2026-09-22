@@ -43,6 +43,11 @@ def test_human_access_login_uses_json_request_body_not_query_pin():
     assert "def login(payload: LoginRequest)" in source
 
 
+def test_person_creation_keeps_authenticated_admin_for_audit_actor():
+    source = ACCESS.read_text(encoding="utf-8")
+    assert "_, current = _require_admin(x_dairyos_human_session)" in source
+
+
 def test_production_routes_require_named_human_session_and_capability():
     source = APP.read_text(encoding="utf-8")
     assert "X-DairyOS-Human-Session" in source

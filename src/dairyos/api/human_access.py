@@ -167,7 +167,7 @@ def people(entry_group: str | None = None) -> dict[str, Any]:
 
 @router.post("/people")
 def create_person(payload: PersonRequest, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
-    _require_admin(x_dairyos_human_session)
+    _, current = _require_admin(x_dairyos_human_session)
     role = payload.role or GROUPS[payload.entry_group][1]
     factory = RepositoryFactory.create()
     try:
