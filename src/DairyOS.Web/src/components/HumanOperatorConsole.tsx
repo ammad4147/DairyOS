@@ -3,11 +3,11 @@ import FinanceTab from './FinanceTab';
 import MilkTab from './MilkTab';
 import ReportingTab from './ReportingTab';
 
-type Props = { identity: { display_name: string; role: string; entry_group: string }; onLogout: () => void };
+type Props = { identity: { display_name: string; role: string; workspace: string }; onLogout: () => void };
 
 /** Human operator entry point using the same authoritative domain forms as Management. */
 export default function HumanOperatorConsole({ identity, onLogout }: Props) {
-  const milk = identity.entry_group === 'MILK_OPERATOR';
+  const milk = identity.workspace === 'MILK_OPERATOR';
   const [view, setView] = useState<'domain' | 'reports'>('domain');
   return (
     <div style={shell}>
