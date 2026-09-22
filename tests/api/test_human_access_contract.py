@@ -18,7 +18,7 @@ def test_gate_contains_identity_cards_and_safe_states():
     source = GATE.read_text(encoding="utf-8")
     for marker in ("Welcome to DairyOS", "Find your name...", "BETTER DATA"):
         assert marker in source
-    assert "identityCard" in source
+    assert "welcome-identity-card" in source
     assert "entry_group" not in source.split("return <div style={screen}", 1)[-1]
     assert "bootstrap" in source
     assert "dairyos.human.session" in source
