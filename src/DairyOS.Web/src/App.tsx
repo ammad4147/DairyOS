@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import FinanceTab, { type AnimalPurchaseRegistrationRequest } from './components/FinanceTab';
 import FeedTab from './components/FeedTab';
@@ -46,7 +46,10 @@ export function MainAppShell(){
  const openPayroll=()=>window.open(desktopWindowUrl(`${window.location.origin}${window.location.pathname}?window=payroll`),'DairyOSPayroll','width=1280,height=900,noopener,noreferrer');
  const openLinkedPassport=(id:string)=>setSelectedPassportAnimalId(id);
 
- const herdMasterList=animals.filter(animal=>animal.active!==false).map(toUiAnimal);
+ const herdMasterList=useMemo(
+   ()=>animals.filter(animal=>animal.active!==false).map(toUiAnimal),
+   [animals],
+ );
  const navigationIcons:Record<NavigationTabId,React.ReactNode>={dashboard:<LayoutDashboard size={14}/>,animals:<Users size={14}/>,milk:<Milk size={14}/>,feed:<Wheat size={14}/>,finance:<DollarSign size={14}/>,breeding:<Activity size={14}/>,health:<HeartPulse size={14}/>,vaccination:<ShieldCheck size={14}/>,cop:<Calculator size={14}/>,analytics:<BarChart3 size={14}/>};
  const navItems=NAVIGATION_TABS.map(tab=>({...tab,icon:navigationIcons[tab.id]}));
  const visibleNavItems=navItems.filter(tab=>!hiddenNavigationTabs.includes(tab.id));
