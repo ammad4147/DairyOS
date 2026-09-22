@@ -14,12 +14,13 @@ def test_startup_mounts_human_access_gate_not_dashboard_shell():
     assert "<HumanAccessGate />" in source
 
 
-def test_gate_contains_required_entry_groups_and_safe_states():
+def test_gate_contains_identity_cards_and_safe_states():
     source = GATE.read_text(encoding="utf-8")
-    for label in ("DAIRYOS MANAGEMENT", "MILK OPERATOR", "ACCOUNTS OPERATOR"):
-        assert label in source
+    for marker in ("Welcome to DairyOS", "Find your name...", "Need help? Contact Administrator", "BETTER DATA"):
+        assert marker in source
+    assert "identityCard" in source
+    assert "entry_group" not in source.split("return <div style={screen}", 1)[-1]
     assert "bootstrap" in source
-    assert "PIN NOT SET" in source or "PIN NOT YET SET" in source
     assert "dairyos.human.session" in source
 
 
@@ -29,6 +30,12 @@ def test_human_access_api_contains_bootstrap_pin_lockout_and_logout_contract():
         assert marker in source
     assert "PIN" in source
     assert "session_token" in source
+
+
+def test_human_access_help_records_a_review_request_without_resetting_access():
+    source = ACCESS.read_text(encoding="utf-8")
+    assert '"/help"' in source
+    assert "PENDING_ADMIN_REVIEW" in source
 
 
 def test_human_access_audit_events_supply_repository_timestamp():

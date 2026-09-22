@@ -8,7 +8,7 @@ import secrets
 import tempfile
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from dairyos.admin.data_management import (
@@ -39,6 +39,7 @@ from dairyos.farm.settings.services.deployment_control_service import (
     DeploymentControlService,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+from dairyos.api.human_access import _require_admin
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -47,6 +48,8 @@ _NAVIGATION_RECOVERY_SALT_KEY = "navigation_admin_recovery_salt"
 _MIN_ADMIN_PASSWORD_LENGTH = 12
 RESET_CONFIRMATION = "RESET DAIRYOS TO ZERO STATE"
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
+WELCOME_WALLPAPER_KEY = "welcome_screen_wallpaper"
+MAX_WALLPAPER_BYTES = 2_000_000
 
 
 def _write_reset_request_atomically(path, payload: dict[str, object]) -> None:
@@ -211,6 +214,10 @@ class UpdateNavigationPreferencesRequest(BaseModel):
     hidden_tabs: list[str] = Field(default_factory=list)
 
 
+class WelcomeWallpaperRequest(BaseModel):
+    data_url: str | None = None
+
+
 class NavigationCredentialSetupRequest(BaseModel):
     username: str = Field(min_length=1)
     new_password: str = Field(min_length=1)
@@ -253,6 +260,35 @@ def get_settings():
         return service.get_public_settings()
     finally:
         rf.close()
+
+
+@router.get("/welcome-screen")
+def get_welcome_screen_settings():
+    factory = RepositoryFactory.create()
+    try:
+        return {"wallpaper": factory.app_settings().get(WELCOME_WALLPAPER_KEY)}
+    finally:
+        factory.close()
+
+
+@router.put("/welcome-screen")
+def update_welcome_screen_settings(
+    payload: WelcomeWallpaperRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
+):
+    _, current = _require_admin(x_dairyos_human_session)
+    value = (payload.data_url or "").strip()
+    if value:
+        if not value.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+            raise HTTPException(status_code=422, detail="Welcome wallpaper must be a PNG, JPEG, or WebP data image.")
+        if len(value.encode("utf-8")) > MAX_WALLPAPER_BYTES:
+            raise HTTPException(status_code=422, detail="Welcome wallpaper must be no larger than 2 MB.")
+    factory = RepositoryFactory.create()
+    try:
+        factory.app_settings().set(WELCOME_WALLPAPER_KEY, value, updated_by=current.display_name)
+        return {"wallpaper": value or None}
+    finally:
+        factory.close()
 
 
 @router.put("")
