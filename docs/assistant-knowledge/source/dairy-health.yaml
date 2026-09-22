@@ -1,6 +1,7 @@
 # General dairy knowledge: health triage, infectious disease, biosecurity, vaccination and residues.
 collection: dairy
 domain: herd-health
+review: {status: VET_REVIEWED, reviewer: "Dr Umair Shaffi", date: "2026-09-22", note: "Clinical responses approved by the named veterinarian."}
 records:
 - id: dairy.vitals.temperature
   kind: TOPIC

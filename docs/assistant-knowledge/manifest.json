@@ -1,5 +1,5 @@
 {
- "corpus_sha256": "98770423e96ca855496eb94ae325559b5fa2571bdff26430852e95cc5a32fcb0",
+ "corpus_sha256": "d407e11f5142cc99903e3d6f48c2336ba27d38986a039f2d6e68942f6122e7b8",
  "counts": {
   "by_collection": {
    "dairy": 70,
@@ -35,7 +35,7 @@
   },
   "by_review_status": {
    "ENGINEERING_VERIFIED": 89,
-   "SOURCE_CURATED": 70
+   "VET_REVIEWED": 70
   },
   "by_safety_class": {
    "EDUCATIONAL": 34,
@@ -48,56 +48,56 @@
   "sources_cited": 44,
   "total": 159
  },
- "dairyos_source_commit": "21ec0056af1f7d6222e2aa3770a23e2178061b62",
+ "dairyos_source_commit": "65ee2fea96f74c6785eef90dc34955368a5573cd",
  "files": [
   {
    "collection": "dairy",
    "domain": "calves",
    "path": "source/dairy-calves.yaml",
    "record_count": 13,
-   "sha256": "ac6eeab90d3af46c0fde60a58d715940d9301e498a7e9b3ebb562aa4a9b59289"
+   "sha256": "23bc9b50dbfc385a389c54cc4cf855ab6bc9697332899e11b89cf8cd7f0d1a32"
   },
   {
    "collection": "dairy",
    "domain": "herd-health",
    "path": "source/dairy-health.yaml",
    "record_count": 15,
-   "sha256": "37e502a14c4f7c88fafa4f12f4563ad4dc98d262a3ff5e4c6b800826b0cb6051"
+   "sha256": "761db22a4ed038431e6c48d9f8996190b42d89805ba2836e6075aafd0e5231f1"
   },
   {
    "collection": "dairy",
    "domain": "herd-health",
    "path": "source/dairy-herd-extra.yaml",
    "record_count": 4,
-   "sha256": "5bc5e8b67f83bd0c90a94b240abe59bd3022037ba53954d4de11a4b32d6b0579"
+   "sha256": "c2196e0ef208b718b2b6d548909a1bb6c726080b646b0190866e70a2aaac35b0"
   },
   {
    "collection": "dairy",
    "domain": "nutrition-welfare",
    "path": "source/dairy-nutrition-welfare.yaml",
    "record_count": 10,
-   "sha256": "2a35fbc53f62e3f6d5a048ff5ec9e8137cac7d4f7832633257e2d7e2531171ae"
+   "sha256": "95deed17dd2e4049a263b444cdacfe6f6159bc9338a98e88d70ef518e4956833"
   },
   {
    "collection": "dairy",
    "domain": "reproduction",
    "path": "source/dairy-reproduction.yaml",
    "record_count": 8,
-   "sha256": "c72a4f839f3749be95bdb31e80c535f847887876345d3fbea02368c5a7f23921"
+   "sha256": "a1825fda12bb7501710df7a5404ff3dea7d20122840809e5452dc8e05b70549c"
   },
   {
    "collection": "dairy",
    "domain": "transition",
    "path": "source/dairy-transition.yaml",
    "record_count": 11,
-   "sha256": "6dea916381b932787daba9ecf5f07a07dc7b87b673060b1131d7d3beec1491b5"
+   "sha256": "27fbcd362fc8c9040bba4d2623f692d9f4930a3eef606dbf757aa6fc5a5799f3"
   },
   {
    "collection": "dairy",
    "domain": "udder-milk",
    "path": "source/dairy-udder-milk.yaml",
    "record_count": 9,
-   "sha256": "2a9dc5cc93d6edf313752739038af0f56584a8edddfa610cfa4d7b74d961e529"
+   "sha256": "d7062b0683bf9fe03211ab098c1520a407608b7ad213efd267b0417a3d157819"
   },
   {
    "collection": "dairyos",

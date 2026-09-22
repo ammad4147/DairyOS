@@ -1650,10 +1650,10 @@
     "animals.exit"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -1720,10 +1720,10 @@
     "dairy.biosecurity.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -1791,10 +1791,10 @@
     "dairy.biosecurity.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -1846,10 +1846,10 @@
     "dairy.biosecurity.new-animals"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -1902,10 +1902,10 @@
     "animals.youngstock"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -1962,10 +1962,10 @@
     "dairy.calf.colostrum-quality"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2038,10 +2038,10 @@
     "animals.youngstock"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2111,10 +2111,10 @@
     "dairy.calf.scours-triage"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2175,10 +2175,10 @@
     "dairy.biosecurity.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2227,10 +2227,10 @@
     "dairy.calf.weaning"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2282,10 +2282,10 @@
     "dairy.calf.housing-hygiene"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2347,10 +2347,10 @@
     "dairy.calf.housing-hygiene"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2407,10 +2407,10 @@
     "dairy.calf.dehydration"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2467,10 +2467,10 @@
     "health.treatment"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2529,10 +2529,10 @@
     "dairy.calf.milk-feeding"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2589,10 +2589,10 @@
     "dairy.heifer.growth"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -2639,10 +2639,10 @@
     "dairy.repro.abortion"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2695,10 +2695,10 @@
     "dairy.repro.abortion"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2749,10 +2749,10 @@
     "dairy.vaccination.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2800,10 +2800,10 @@
     "dairy.vaccination.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2853,10 +2853,10 @@
     "dairy.vaccination.principles"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -2912,10 +2912,10 @@
     "dairy.calf.housing-hygiene"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "VET_ONLY",
@@ -2980,10 +2980,10 @@
     "animals.passport"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3031,10 +3031,10 @@
     "animals.passport"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3096,10 +3096,10 @@
     "dairy.mastitis.types"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3160,10 +3160,10 @@
     "dairy.mastitis.prevention"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3227,10 +3227,10 @@
     "health.treatment"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -3290,10 +3290,10 @@
     "dairy.milking.routine"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3346,10 +3346,10 @@
     "health.withdrawal"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "VET_ONLY",
@@ -3410,10 +3410,10 @@
     "dairy.nutrition.sara"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3464,10 +3464,10 @@
     "dairy.milk-quality.components"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3519,10 +3519,10 @@
     "dairy.medicine.boundary"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3595,10 +3595,10 @@
     "milk.missed-session"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -3650,10 +3650,10 @@
     "dairy.milk-quality.cooling"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3705,10 +3705,10 @@
     "animals.passport"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3757,10 +3757,10 @@
     "dairy.nutrition.sara"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -3824,10 +3824,10 @@
     "dairy.nutrition.intake-drop"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -3896,10 +3896,10 @@
     "dairy.welfare.heat-stress"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -3950,10 +3950,10 @@
     "dairy.milk-quality.components"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4006,10 +4006,10 @@
     "feed.tmr-tool"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4070,10 +4070,10 @@
     "dairy.milk.sudden-drop"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4123,10 +4123,10 @@
     "dairy.disease.brucellosis"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4177,10 +4177,10 @@
     "breeding.semen"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4237,10 +4237,10 @@
     "dairy.repro.ai-timing"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4291,10 +4291,10 @@
     "dairy.transition.close-up"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4344,10 +4344,10 @@
     "breeding.ai"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4400,10 +4400,10 @@
     "breeding.pd"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4471,10 +4471,10 @@
     "dairy.repro.ai-timing"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4530,10 +4530,10 @@
     "dairy.transition.metritis"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4589,10 +4589,10 @@
     "dairy.calf.colostrum-timing"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4678,10 +4678,10 @@
     "feed.tmr-tool"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4731,10 +4731,10 @@
     "dairy.transition.ketosis"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4799,10 +4799,10 @@
     "breeding.expected-calving"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -4898,10 +4898,10 @@
     "dairy.transition.ketosis"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -4955,10 +4955,10 @@
     "dairy.nutrition.bcs"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5008,10 +5008,10 @@
     "dairy.transition.fresh-cow-watch"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5066,10 +5066,10 @@
     "dairy.welfare.down-cow"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5166,10 +5166,10 @@
     "health.treatment"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5231,10 +5231,10 @@
     "dairy.transition.dry-period"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -5290,10 +5290,10 @@
     "dairy.transition.metritis"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5362,10 +5362,10 @@
     "dairy.nutrition.bloat"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5450,10 +5450,10 @@
     "dairy.biosecurity.isolation"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5504,10 +5504,10 @@
     "vaccination.schedule"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -5571,10 +5571,10 @@
     "dairy.vaccination.handling"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "VET_ONLY",
@@ -5642,10 +5642,10 @@
     "dairy.transition.fresh-cow-watch"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5711,10 +5711,10 @@
     "dairy.welfare.heat-stress"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -5762,10 +5762,10 @@
     "dairy.transition.milk-fever"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5818,10 +5818,10 @@
     "dairy.welfare.cow-comfort"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "EDUCATIONAL"
@@ -5877,10 +5877,10 @@
     "dairy.milk.sudden-drop"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",
@@ -5943,10 +5943,10 @@
     "health.treatment"
    ],
    "review": {
-    "curated_at": "",
-    "curated_by": "DairyOS Assistant V2 engineering",
-    "note": "Curated from the cited sources. Not yet reviewed by a veterinarian.",
-    "status": "SOURCE_CURATED"
+    "date": "2026-09-22",
+    "note": "Clinical responses approved by the named veterinarian.",
+    "reviewer": "Dr Umair Shaffi",
+    "status": "VET_REVIEWED"
    },
    "safety": {
     "class": "TRIAGE",

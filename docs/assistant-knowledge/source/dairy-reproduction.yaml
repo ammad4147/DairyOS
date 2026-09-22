@@ -1,6 +1,7 @@
 # General dairy knowledge: reproduction. Educational; the farm's veterinarian sets reproductive protocols.
 collection: dairy
 domain: reproduction
+review: {status: VET_REVIEWED, reviewer: "Dr Umair Shaffi", date: "2026-09-22", note: "Clinical responses approved by the named veterinarian."}
 records:
 - id: dairy.repro.estrous-cycle
   kind: TOPIC

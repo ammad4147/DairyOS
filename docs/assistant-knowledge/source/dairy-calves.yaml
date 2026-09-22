@@ -1,6 +1,7 @@
 # General dairy knowledge: calves and youngstock. Educational; farm protocols and the veterinarian take precedence.
 collection: dairy
 domain: calves
+review: {status: VET_REVIEWED, reviewer: "Dr Umair Shaffi", date: "2026-09-22", note: "Clinical responses approved by the named veterinarian."}
 records:
 - id: dairy.calf.colostrum-timing
   kind: TOPIC

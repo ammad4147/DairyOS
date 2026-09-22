@@ -238,6 +238,8 @@ def build(repo_root: Path | str) -> BuildResult:
             record["collection"] = collection
             record["domain"] = record.get("domain") or domain
             record["source_file"] = filename
+            if document.get("review"):
+                record["_source_review"] = dict(document["review"])
             records.append(record)
 
     ids = Counter(r.get("id") for r in records)
@@ -308,7 +310,7 @@ def build(repo_root: Path | str) -> BuildResult:
                     findings.append(Finding("STALE", "source changed since verification: " + ", ".join(changed), rid))
 
         lock_entry = locked.get(rid) or {}
-        review = record.get("review") or lock_entry.get("review") or _default_review(
+        review = record.get("review") or record.get("_source_review") or lock_entry.get("review") or _default_review(
             record["collection"], lock_entry.get("verified_commit", ""), lock_entry.get("verified_at", "")
         )
         if review.get("status") not in REVIEW_STATUSES:
@@ -318,6 +320,7 @@ def build(repo_root: Path | str) -> BuildResult:
         if record["collection"] == "dairy" and review.get("status") == "ENGINEERING_VERIFIED":
             findings.append(Finding("REVIEW_MISMATCH", "clinical content cannot be engineering-verified", rid))
         record["review"] = review
+        record.pop("_source_review", None)
         record["servable"] = review.get("status") in SERVABLE_REVIEW_STATUSES
 
     records.sort(key=lambda r: r.get("id", ""))

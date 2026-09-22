@@ -1,6 +1,7 @@
 # General dairy knowledge: dry period, transition, calving and fresh cows.
 collection: dairy
 domain: transition
+review: {status: VET_REVIEWED, reviewer: "Dr Umair Shaffi", date: "2026-09-22", note: "Clinical responses approved by the named veterinarian."}
 records:
 - id: dairy.transition.overview
   kind: TOPIC
