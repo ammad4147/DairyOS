@@ -213,6 +213,8 @@ def classify(question: str, normalised: Normalised) -> Intent:
         farm_data = True
     if explanation and not re.search(r"\b(?:how (?:much|many)|which of)\b", text, re.I):
         farm_data = False
+    if re.search(r"\b(?:which|what) report\b|\breport shows\b|\bwhere is the report\b", text, re.I):
+        farm_data = False
     if farm_data:
         signals.append("farm-data-lookup")
 

@@ -3890,7 +3890,8 @@
    ],
    "questions": [
     "Cows are not eating the TMR, what should I check?",
-    "feed intake dropped"
+    "feed intake dropped",
+    "cows leaving more feed than usual"
    ],
    "related": [
     "dairy.nutrition.bunk",
@@ -4339,7 +4340,8 @@
    "questions": [
     "What are the signs of heat in a cow?",
     "how to detect heat",
-    "cow in heat signs"
+    "cow in heat signs",
+    "The old manual says record heat first, then AI. How do I record heat now?"
    ],
    "related": [
     "dairy.repro.ai-timing",
