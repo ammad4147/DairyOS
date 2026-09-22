@@ -52,7 +52,7 @@ DAIRY_TERMS = frozenset(
     pregnancy abortion lame lameness hoof limp locomotion bcs condition thin fat comfort bedding lying ventilation
     shade fan panting stress vaccination vaccine booster biosecurity quarantine isolat parasite worm deworm tick
     fly fmd lsd hs brucell bvd ibr lepto disease sick ill dull weak down recumbent breathing welfare handling
-    feed fodder silage hay grain concentrate nutrition mineral protein energy""".split()
+    feed fodder silage hay grain concentrate nutrition mineral protein energy kam achanak""".split()
 )
 HEALTH_TERMS = frozenset(
     """sick ill fever temperature dull weak down recumbent cough nasal diarrhea scour bloat lame limp mastitis clot
@@ -66,6 +66,16 @@ _DAIRYOS_EXPLICIT = re.compile(
     r"correct|edit|void|delete|mark|change|close|find|see|export|print|pay|dry)|how to (?:record|enter|add|register|"
     r"correct|edit|void|delete|mark|change|set|close|find|see|export|print|pay|fill|clear)|record(?:ing)? (?:a|an|the|it|them)?|"
     r"entry|enter(?:ed)?)\b",
+    re.I,
+)
+_DAIRYOS_DOMAIN_HINT = re.compile(
+    r"\b(?:wrong|galat|mistake|incorrect|remove from (?:the )?sick list|recovered.*sick list|"
+    r"vet(?:erinary)? bill|clinical treatment|health case|case id|withdrawal period start|"
+    r"semen usage|expected dry.?off|delivery date|calf number|calf id|close\s+up|"
+    r"close\s*-?\s*up.*categor|select close\s*-?\s*up.*ai|(?:where to|where do i) write litres?|"
+    r"calved.*\bai\b|\bai\b.*calved|recovered.*sick list|remove.*sick list|"
+    r"milk given to calves|milk used at home|milk thrown away|"
+    r"doodh.*(?:kam|ghat)|galat litre|ghar ke liye doodh)\b",
     re.I,
 )
 _EXPLANATION = re.compile(
@@ -173,6 +183,9 @@ def classify(question: str, normalised: Normalised) -> Intent:
     if _DAIRYOS_EXPLICIT.search(text):
         dairyos += 2.0
         signals.append("dairyos-workflow-form")
+    if _DAIRYOS_DOMAIN_HINT.search(text):
+        dairyos += 3.0
+        signals.append("dairyos-domain-hint")
     if re.search(r"\bdairy ?os\b", text, re.I):
         dairyos += 3.0
         signals.append("names-dairyos")
@@ -180,6 +193,7 @@ def classify(question: str, normalised: Normalised) -> Intent:
 
     injection = bool(_INJECTION.search(text))
     clinical = bool(_CLINICAL.search(text))
+    dairyos_domain_hint = bool(_DAIRYOS_DOMAIN_HINT.search(text))
     explanation = bool(_EXPLANATION.search(text))
     lookup = bool(_LOOKUP.search(text))
     possessive = bool(_FARM_POSSESSIVE.search(text))
@@ -222,6 +236,8 @@ def classify(question: str, normalised: Normalised) -> Intent:
         signals.append("action-request")
     elif clinical:
         intent, confidence = "CLINICAL", 0.9
+    elif dairyos_domain_hint:
+        intent, confidence = "DAIRYOS", 0.9
     elif injection:
         intent, confidence = "INJECTION", 0.8
     elif dairyos == 0 and dairy == 0:

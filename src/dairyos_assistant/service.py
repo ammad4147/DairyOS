@@ -216,7 +216,13 @@ class Assistant:
         if route in {"DAIRYOS", "DAIRY", "HYBRID", "FARM_DATA", "CLINICAL", "AMBIGUOUS"} and package and package.items:
             composed = compose(package, question_is_howto=bool(_HOWTO.search(question)), lead=lead)
             final_text = composed
-            if route not in {"AMBIGUOUS"} and self._model_ready():
+            # The packaged local model is an optional phrasing aid, not an
+            # authority.  Its short-model drafts can omit approved workflow
+            # steps even when they pass lexical grounding.  Production uses
+            # the deterministic approved composition; injected/scripted
+            # providers remain available for tests and controlled evaluation.
+            model_allowed = not isinstance(self.provider, LlamaServerProvider)
+            if route not in {"AMBIGUOUS"} and model_allowed and self._model_ready():
                 model_route = route if route != "AMBIGUOUS" else "DAIRYOS"
                 result = generate_grounded(self.provider, question, package, model_route, history=history_questions,
                                            extra_evidence=lead or "")
