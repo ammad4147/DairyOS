@@ -1,7 +1,7 @@
 # DairyOS AI Assistant V2 Certification Report
 
 Date: 2026-09-22  
-Status: **NOT CERTIFIED — evidence assembled; external gates remain open**
+Status: **CONDITIONALLY CLEARED FOR INSTALLATION TESTING — GPU and installed acceptance remain open**
 
 ## Scope
 
@@ -18,7 +18,10 @@ treated as installed-runtime acceptance.
 | Full backend regression | PASS | 3,476 passed, 2 skipped; disposable PostgreSQL cluster on a dynamic loopback port |
 | Frontend type check | PASS | `npm run typecheck` |
 | Runtime artifact verification | PASS | Qwen3-1.7B-Q4_K_M and llama.cpp b10456 CPU runtime matched pinned hashes |
-| Assistant package | PASS | `dist/DairyOS-Assistant-Release/DairyOS-Assistant.dairyassistant`; source commit `860b5d79` |
+| Assistant package | PASS | `dist/DairyOS-Assistant-Release/DairyOS-Assistant.dairyassistant`; rebuilt from the approval commit |
+| Veterinary review | PASS | 70 dairy records approved by Dr Umair Shaffi on 2026-09-22 and rebuilt as `VET_REVIEWED` |
+| Desktop bundle | PASS | Rebuilt from the approval commit; embedded Assistant package and private PostgreSQL runtime validated |
+| Windows installer compile | PASS | Inno Setup 7.1.0; `DairyOS-Windows-Installer.exe` and release manifest produced |
 | Runtime profiles | IMPLEMENTED, not hardware-certified | GPU/Desktop CPU/Low-spec CPU selection and `assistant-llama.log` capture added |
 
 ## Open gates
@@ -34,22 +37,20 @@ live GPU/VRAM observation during an answer.
 
 ### Veterinary review
 
-The 70 dairy records remain `SOURCE_CURATED`. The review pack exists at
-`veterinary-review-pack.html`, but no veterinarian verdict, reviewer identity,
-or review date was supplied. No record was changed to `VET_REVIEWED`, and no
-veterinary approval is claimed.
+Dr Umair Shaffi approved the clinical responses in the review packet. All 70
+dairy records are now marked `VET_REVIEWED` with reviewer and approval date;
+the 89 DairyOS engineering records remain `ENGINEERING_VERIFIED`.
 
 ### Packaged installer acceptance
 
-The existing desktop bundle manifest points to source commit
-`21ec0056af1f7d6222e2aa3770a23e2178061b62`, while the current Assistant package
-was built from `860b5d79`. Inno Setup (`ISCC.exe`) is unavailable. The installer
-must be rebuilt from a clean matching source/build, then installed on the
-certification workstation and one low-spec PC with first-start, second-start,
-30-question, model-absent, slow-model, and farm-data refusal acceptance.
+The desktop bundle and installer are now rebuilt from the approval commit using
+Inno Setup 7.1.0. Installed-runtime acceptance is still pending: install on the
+certification workstation and one low-spec PC, then complete first-start,
+second-start, 30-question, model-absent, slow-model, and farm-data refusal
+acceptance.
 
 ## Clearance decision
 
-The implementation is suitable for continued engineering evaluation and the
-Assistant package is reproducibly built. It is not cleared as an installed
-DairyOS release until the three open gates above are completed and evidenced.
+The implementation, veterinary review, source regression, package build, and
+installer compile are complete. It is not certified as an installed DairyOS
+release until GPU offload evidence and installed-runtime acceptance are recorded.
