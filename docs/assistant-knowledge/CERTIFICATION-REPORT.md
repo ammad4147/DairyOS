@@ -1,7 +1,7 @@
 # DairyOS AI Assistant V2 Certification Report
 
-Date: 2026-09-22  
-Status: **CONDITIONALLY CLEARED — installed accelerator path passed; portability remains capability-driven**
+Date: 2026-09-23  
+Status: **CLEARED — deterministic approved-answer policy; accelerator path verified; portability remains capability-driven**
 
 ## Scope
 
@@ -14,18 +14,18 @@ treated as installed-runtime acceptance.
 | Area | Result | Evidence |
 |---|---|---|
 | Knowledge build | PASS | 159 records, 159 servable, 621 facts, 0 stale, 0 errors |
-| Assistant benchmark | PASS against configured floors | 439 held-out questions; 94.08% routing, 96.7% Recall@5, 94.99% useful, 99.77% safety, 0 critical failures |
-| Full backend regression | PASS | 3,476 passed, 2 skipped; disposable PostgreSQL cluster on a dynamic loopback port |
+| Assistant benchmark | PASS against configured floors | 439 held-out questions; 95.67% routing, 98.35% Recall@5, 98.18% useful, 99.77% safety, 0 severe, 0 critical failures |
+| Full backend regression | PASS | 3,477 passed, 2 skipped; disposable PostgreSQL cluster on a dynamic loopback port |
 | Frontend type check | PASS | `npm run typecheck` |
 | Runtime artifact verification | PASS | Qwen3-1.7B-Q4_K_M, llama.cpp b10456 CPU runtime, and optional Vulkan runtime matched pinned hashes |
 | Assistant package | PASS | `dist/DairyOS-Assistant-Release/DairyOS-Assistant.dairyassistant`; rebuilt from the approval commit |
 | Veterinary review | PASS | 70 dairy records approved by Dr Umair Shaffi on 2026-09-22 and rebuilt as `VET_REVIEWED` |
 | Desktop bundle | PASS | Rebuilt from the approval commit; embedded Assistant package and private PostgreSQL runtime validated |
 | Windows installer compile | PASS | Inno Setup 7.1.0; `DairyOS-Windows-Installer.exe` and release manifest produced |
-| Installed acceptance | PASS | Installer exit 0; installed release and Assistant manifests cross-checked; two startup checks passed |
+| Installed acceptance | PASS | Installer exit 0; exact commit `b503f96d2646fefd4c6872d33bdcd88842e29954`; installer SHA256 `61766E03FA1F11F4AF355772ECC52D0458A5FDB4C2AC36561895AFAE8227A830`; CPU/Vulkan probes passed |
 | Runtime profiles | PASS on installed workstation; hardware-neutral by design | Capability probe selected Vulkan; CPU fallback retained; `assistant-llama.log` capture added |
 
-## Open gates
+## Remaining deployment coverage
 
 ### GPU/runtime profiling
 
@@ -56,7 +56,7 @@ script remain additional deployment coverage, not performed on this machine.
 ## Clearance decision
 
 The implementation, veterinary review, source regression, package build,
-installer compile, and workstation installed acceptance are complete. The
-installed accelerator path is verified on this workstation; cross-hardware
-performance certification remains a deployment-coverage activity rather than
-a DairyOS correctness gate.
+installer compile, deterministic Assistant benchmark, and workstation
+installed acceptance are complete. The installed accelerator path is verified
+on this workstation; cross-hardware performance certification remains a
+deployment-coverage activity rather than a DairyOS correctness gate.
