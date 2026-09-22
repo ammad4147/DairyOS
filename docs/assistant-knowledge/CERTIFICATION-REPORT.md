@@ -1,7 +1,7 @@
 # DairyOS AI Assistant V2 Certification Report
 
 Date: 2026-09-22  
-Status: **CONDITIONALLY CLEARED FOR INSTALLATION TESTING — GPU and installed acceptance remain open**
+Status: **CONDITIONALLY CLEARED — installed acceptance passed; GPU offload remains open**
 
 ## Scope
 
@@ -22,6 +22,7 @@ treated as installed-runtime acceptance.
 | Veterinary review | PASS | 70 dairy records approved by Dr Umair Shaffi on 2026-09-22 and rebuilt as `VET_REVIEWED` |
 | Desktop bundle | PASS | Rebuilt from the approval commit; embedded Assistant package and private PostgreSQL runtime validated |
 | Windows installer compile | PASS | Inno Setup 7.1.0; `DairyOS-Windows-Installer.exe` and release manifest produced |
+| Installed acceptance | PASS | Installer exit 0; installed release and Assistant manifests cross-checked; two startup checks passed |
 | Runtime profiles | IMPLEMENTED, not hardware-certified | GPU/Desktop CPU/Low-spec CPU selection and `assistant-llama.log` capture added |
 
 ## Open gates
@@ -43,14 +44,17 @@ the 89 DairyOS engineering records remain `ENGINEERING_VERIFIED`.
 
 ### Packaged installer acceptance
 
-The desktop bundle and installer are now rebuilt from the approval commit using
-Inno Setup 7.1.0. Installed-runtime acceptance is still pending: install on the
-certification workstation and one low-spec PC, then complete first-start,
-second-start, 30-question, model-absent, slow-model, and farm-data refusal
-acceptance.
+The desktop bundle and installer were rebuilt using Inno Setup 7.1.0 and
+installed successfully. The installed release manifest records the release and
+Assistant package commits, while the Assistant package records the corpus
+generation commit explicitly. Two installed startup checks passed and the
+installed Assistant status reported 70 `VET_REVIEWED` records and no
+operational-data access. A second low-spec PC and the full 30-question UI
+script remain additional deployment coverage, not performed on this machine.
 
 ## Clearance decision
 
-The implementation, veterinary review, source regression, package build, and
-installer compile are complete. It is not certified as an installed DairyOS
-release until GPU offload evidence and installed-runtime acceptance are recorded.
+The implementation, veterinary review, source regression, package build,
+installer compile, and workstation installed acceptance are complete. GPU
+offload evidence remains open because the bundled runtime reports no GPU
+devices; the current installed profile is correctly CPU-only.
