@@ -16,6 +16,7 @@ type AssistantReply = {
   related_evidence?: boolean;
   grounding_note?: string | null;
 };
+type AssistantMode = 'dairyos' | 'general';
 
 type AssistantStatus = {
   status?: string;
@@ -30,6 +31,7 @@ export default function AIAssistant() {
   const [packageStatus, setPackageStatus] = useState<AssistantStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [packageFile, setPackageFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<AssistantMode>('dairyos');
 
   async function refreshPackageStatus() {
     try {
@@ -82,7 +84,7 @@ export default function AIAssistant() {
       const response = await fetch(apiUrl('/assistant/ask'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: asked }),
+        body: JSON.stringify({ question: asked, mode }),
       });
       const body = await response.json();
       if (!response.ok) {
@@ -119,8 +121,19 @@ export default function AIAssistant() {
         AI Assistant
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {([['dairyos', 'DairyOS'], ['general', 'General AI']] as const).map(([value, label]) => (
+          <button key={value} type="button" onClick={() => { setMode(value); setReply(null); setError(null); }}
+            style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #475569', background: mode === value ? '#1d4ed8' : '#1e293b', color: '#e2e8f0', fontWeight: 700 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ lineHeight: 1.6 }}>
-        Ask how DairyOS works: a workflow, a term, or how a figure is calculated.
+        {mode === 'dairyos'
+          ? 'Ask about DairyOS capabilities, workflows, screens, or calculations.'
+          : 'Ask about dairy, animals, farming, or any general topic.'}
       </div>
 
       <div style={{ marginTop: 10, padding: 10, border: '1px solid #334155', borderRadius: 6 }}>
@@ -218,7 +231,7 @@ export default function AIAssistant() {
             </div>
           )}
 
-          {reply.evidence?.length > 0 && (
+          {mode === 'dairyos' && reply.evidence?.length > 0 && (
             <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
               Sources: {reply.evidence.map((e) => e.id).join(', ')}
             </div>

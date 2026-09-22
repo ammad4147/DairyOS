@@ -64,6 +64,16 @@ def test_a_grounded_answer_reaches_the_operator(assistant):
     assert model.calls, "the model should have been consulted"
 
 
+def test_general_mode_bypasses_dairyos_retrieval_and_sources(assistant):
+    model = ScriptedModel("Lahore is a major city in Pakistan.")
+    result = assistant(model).answer("Where is Lahore located?", mode="general")
+
+    assert result["route"] == "GENERAL_AI"
+    assert result["answer"] == "Lahore is a major city in Pakistan."
+    assert result["evidence"] == []
+    assert result["general_knowledge"] is True
+
+
 def test_a_fabricated_answer_never_reaches_the_operator(assistant):
     """The single most important assertion in the subsystem."""
     model = ScriptedModel("The withdrawal period is 96 hours after treatment.")

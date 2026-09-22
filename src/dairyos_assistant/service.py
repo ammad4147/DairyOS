@@ -142,8 +142,11 @@ class Assistant:
         self.index = index if index is not None else KnowledgeIndex.load(corpus_root())
         self.provider = provider if provider is not None else NullProvider()
 
-    def answer(self, question: str) -> dict[str, Any]:
+    def answer(self, question: str, mode: str = "dairyos") -> dict[str, Any]:
         verdict = classify(question)
+        if str(mode).strip().lower() == "general":
+            answer, failure = generate_general_answer(self.provider, question)
+            return {"decision": verdict.decision.value, "stage": "GENERAL_ANSWERED" if answer else "GENERAL_UNAVAILABLE", "answer": answer, "text": answer, "reason": verdict.reason, "signals": list(verdict.signals), "evidence": [], "unreviewed": False, "general_knowledge": bool(answer), "route": "GENERAL_AI", "model_error": failure}
 
         # The refusal is decided before the corpus is consulted. A question
         # about this farm's records cannot be answered with an invented current
@@ -371,7 +374,10 @@ def handle(request: dict[str, Any], assistant: Assistant) -> dict[str, Any]:
         question = request.get("question")
         if not isinstance(question, str) or not question.strip():
             return {"ok": False, "type": "ask", "error": "question is required"}
-        return {"ok": True, "type": "ask", **assistant.answer(question)}
+        mode = request.get("mode", "dairyos")
+        if mode not in {"dairyos", "general"}:
+            return {"ok": False, "type": "ask", "error": "unsupported assistant mode"}
+        return {"ok": True, "type": "ask", **assistant.answer(question, mode)}
     return {"ok": False, "type": kind, "error": f"unknown request type: {kind!r}"}
 
 

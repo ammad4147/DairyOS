@@ -43,6 +43,7 @@ MAX_QUESTION_CHARACTERS = 600
 
 class AssistantQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARACTERS)
+    mode: str = Field(default="dairyos", pattern="^(dairyos|general)$")
 
     @field_validator("question")
     @classmethod
@@ -104,7 +105,11 @@ async def install_assistant(files: list[UploadFile] | None = File(default=None))
 
 @router.post("/ask")
 def ask_assistant(payload: AssistantQuestion) -> dict[str, Any]:
-    response = bridge.ask(payload.question)
+    response = (
+        bridge.ask(payload.question)
+        if payload.mode == "dairyos"
+        else bridge.ask(payload.question, mode=payload.mode)
+    )
 
     if not response.get("ok"):
         # The Assistant being unavailable is a 503 and says why. It is never
@@ -124,7 +129,7 @@ def ask_assistant(payload: AssistantQuestion) -> dict[str, Any]:
         # What the operator is shown. Never assembled here.
         "text": response.get("text") or response.get("answer"),
         "answer": response.get("answer"),
-        "evidence": response.get("evidence", []),
+        "evidence": response.get("evidence", []) if payload.mode == "dairyos" else [],
         "unreviewed": bool(response.get("unreviewed")),
         "general_knowledge": bool(response.get("general_knowledge")),
         "related_evidence": bool(response.get("related_evidence")),
