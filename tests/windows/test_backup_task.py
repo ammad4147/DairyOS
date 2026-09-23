@@ -143,3 +143,15 @@ def test_backup_worker_stops_only_cluster_it_started(monkeypatch):
 
     assert backup_task.run_backup_once() == 0
     assert stopped == [private]
+
+
+def test_backup_worker_dry_run_has_no_side_effects(monkeypatch, caplog):
+    monkeypatch.setattr(backup_task, "run_backup_once", lambda: pytest.fail("dry-run started a backup"))
+    assert backup_task.main(["--dry-run"]) == 0
+
+
+def test_backup_worker_help_has_no_side_effects(capsys):
+    with pytest.raises(SystemExit) as exc:
+        backup_task.main(["--help"])
+    assert exc.value.code == 0
+    assert "Run one DairyOS automatic backup safely" in capsys.readouterr().out

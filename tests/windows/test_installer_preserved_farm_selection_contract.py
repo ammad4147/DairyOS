@@ -191,7 +191,7 @@ def test_installer_farm_movement_is_absent_by_design():
     assert "DataChoicePage" not in source
 
 
-def test_retired_assistant_cleanup_is_narrow_and_runs_before_collision_guard():
+def test_retired_assistant_cleanup_is_narrow_and_runs_after_collision_guard():
     source = _source()
 
     start = source.index("procedure RemoveRetiredAssistantState();")
@@ -233,7 +233,7 @@ def test_retired_assistant_cleanup_is_narrow_and_runs_before_collision_guard():
         "CanonicalDairyOSDataRootHasExistingState()"
     )
 
-    assert cleanup_call < collision_check
+    assert cleanup_call > collision_check
 
 
 def test_uninstall_removes_retired_assistant_state_without_deleting_farm_root():

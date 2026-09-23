@@ -37,6 +37,7 @@ UninstallDisplayIcon={app}\dairyos-cow.ico
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
+ChangesEnvironment=yes
 SetupLogging=yes
 ; Source commit and tree are bound in the release manifests. Inno Setup does
 ; not support VersionInfoComments; keeping provenance in the manifest avoids
@@ -47,6 +48,13 @@ Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recurse
 ; Recovery-only copy. This makes pg_ctl available before {app} is recreated
 ; when retained DairyOS data outlives the application directory.
 Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\pg_ctl.exe"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libpq.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libintl-9.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libiconv-2.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libssl-3-x64.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libwinpthread-1.dll"; Flags: dontcopy
+Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\zlib1.dll"; Flags: dontcopy
 
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.
@@ -389,8 +397,6 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
 
-  RemoveRetiredAssistantState();
-
   if CanonicalDairyOSDataRootHasExistingState() then
   begin
     if not ExistingDairyOSInstallationMatches() then
@@ -420,6 +426,10 @@ begin
       exit;
     end;
   end;
+
+  { Only clean retired state after a new/known DairyOS root has passed the
+    identity guard. Unknown farm-shaped roots must remain byte-for-byte intact. }
+  RemoveRetiredAssistantState();
 end;
 
 function ShouldLaunchDairyOS(): Boolean;
@@ -623,6 +633,13 @@ begin
     { The application directory may be absent after keep-data uninstall.
       Extract the exact packaged pg_ctl before touching the retained cluster. }
     ExtractTemporaryFile('pg_ctl.exe');
+    ExtractTemporaryFile('libpq.dll');
+    ExtractTemporaryFile('libintl-9.dll');
+    ExtractTemporaryFile('libiconv-2.dll');
+    ExtractTemporaryFile('libssl-3-x64.dll');
+    ExtractTemporaryFile('libcrypto-3-x64.dll');
+    ExtractTemporaryFile('libwinpthread-1.dll');
+    ExtractTemporaryFile('zlib1.dll');
     RecoveryPgCtl := ExpandConstant('{tmp}\pg_ctl.exe');
     if FileExists(RecoveryPgCtl) then
       PgCtl := RecoveryPgCtl;

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import argparse
 import os
 import subprocess
 import sys
@@ -200,11 +201,33 @@ def run_backup_once() -> int:
                 LOG.exception("Failed to stop private PostgreSQL started by scheduled backup")
 
 
-def main() -> int:
+def _argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Run one DairyOS automatic backup safely.",
+    )
+    parser.add_argument(
+        "--data-root",
+        help="Override the DairyOS data root for this invocation.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate the worker invocation without starting PostgreSQL or writing a backup.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _argument_parser().parse_args(argv)
+    if args.data_root:
+        os.environ["DAIRYOS_DATA_DIR"] = str(Path(args.data_root).expanduser().resolve())
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    if args.dry_run:
+        LOG.info("DairyOS automatic backup dry run completed; no backup was created.")
+        return 0
     return run_backup_once()
 
 
