@@ -38,7 +38,7 @@ jobs:
         run: npm --prefix src/DairyOS.Web ci
 
       - name: Cache Assistant runtime (model and llama-server)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: runtime/assistant
           # Keyed on the pinned artefact hashes, so a change to either pin
