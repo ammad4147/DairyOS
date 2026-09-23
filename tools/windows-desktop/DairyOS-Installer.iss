@@ -1,4 +1,4 @@
-﻿; DairyOS Windows release installer
+; DairyOS Windows release installer
 ; Packages the already-built frozen desktop bundle. Farm data lives outside
 ; the application directory and must survive uninstall/reinstall.
 
@@ -83,6 +83,26 @@ end;
 function DairyOSDataRoot(Param: String): String;
 begin
   Result := CanonicalDairyOSDataRoot();
+end;
+
+procedure RemoveRetiredAssistantState();
+var
+  Root: String;
+begin
+  Root := CanonicalDairyOSDataRoot();
+
+  { Permanently retired AI Assistant application state only.
+    Never broaden this allowlist to farm-owned ProgramData. }
+  DelTree(Root + '\assistant', True, True, True);
+  DelTree(Root + '\.assistant-staging', True, True, True);
+  DelTree(Root + '\.assistant-active', True, True, True);
+  DelTree(Root + '\.assistant-previous', True, True, True);
+
+  { This exact historical Assistant log is retired. The shared logs
+    directory itself remains under normal DairyOS ownership. }
+  DeleteFile(Root + '\logs\assistant-llama.log');
+
+  Log('DairyOS lifecycle: retired AI Assistant state cleanup completed.');
 end;
 
 procedure ProvisionLifecycleState();
@@ -294,11 +314,8 @@ begin
   begin
     try
       repeat
-        { The optional Assistant is application-owned and may be installed
-          before Core. It is not farm state and must not block Core setup. }
         if (FindRec.Name <> '.') and
-           (FindRec.Name <> '..') and
-           (CompareText(FindRec.Name, 'assistant') <> 0) then
+           (FindRec.Name <> '..') then
         begin
           Result := True;
           exit;
@@ -371,6 +388,8 @@ function StopInstalledDairyOSForUninstall(): Boolean; forward;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
+
+  RemoveRetiredAssistantState();
 
   if CanonicalDairyOSDataRootHasExistingState() then
   begin
@@ -735,5 +754,8 @@ begin
   { Farm data is not part of uninstall. Recovery is provided by automatic
     backups and deliberate Settings Export/Import operations. }
   if CurUninstallStep = usPostUninstall then
+  begin
+    RemoveRetiredAssistantState();
     Log('DairyOS uninstall: application cleanup complete; farm data remains under its independent backup/recovery ownership.');
+  end;
 end;

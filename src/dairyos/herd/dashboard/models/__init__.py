@@ -2,7 +2,6 @@ from .adaptive_learning import AdaptiveLearning
 from .advisory import Advisory
 from .daily_operating_board import DailyOperatingBoard
 from .dashboard import Dashboard, DashboardView, HerdDashboard
-from .decision_assistant import DecisionAssistant
 from .decision_learning import DecisionLearning
 from .decision_optimization import DecisionOptimization
 from .escalation import Escalation
@@ -20,7 +19,6 @@ __all__ = [
     "DailyOperatingBoard",
     "Dashboard",
     "DashboardView",
-    "DecisionAssistant",
     "DecisionLearning",
     "DecisionOptimization",
     "Escalation",

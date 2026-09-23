@@ -66,110 +66,6 @@ def _health_check(
     return payload
 
 
-def _knowledge_assistant_check() -> dict[str, Any]:
-    """Whether the knowledge Assistant is installed and what it may reach.
-
-    This check probes rather than asks. Asking the Assistant for its status
-    would start it, and starting it loads the bundled model, so opening a
-    diagnostic screen would trigger a heavyweight load as a side effect. An
-    Assistant that has not started is reported as healthy, because it starts on
-    the first question by design.
-
-    The two constants below are the point of showing this here at all. An
-    auditor reading System Health should be able to see that this subsystem
-    holds no route to farm data, stated by the running installation rather than
-    only in documentation.
-    """
-    from dairyos.knowledge_bridge import bridge
-
-    try:
-        result = bridge.self_test()
-    except Exception as exc:  # noqa: BLE001 - a diagnostic must never fail the page
-        return _health_check(
-            "knowledge assistant",
-            "WARNING",
-            f"Assistant state could not be determined ({type(exc).__name__}).",
-            mode="KNOWLEDGE_ONLY",
-            operational_data_access="NONE",
-        )
-
-    evidence = {"mode": "KNOWLEDGE_ONLY", "operational_data_access": "NONE"}
-    evidence.update(
-        {k: v for k, v in result.items() if k != "error" and v is not None}
-    )
-
-    # Ordered by what the operator most needs to know. A broken refusal comes
-    # before a missing model, because one is a safety property and the other is
-    # a degraded feature.
-    if not result["installed"]:
-        return _health_check(
-            "knowledge assistant",
-            "WARNING",
-            "The optional Assistant is not installed in this Core installation. "
-            "Install the separately distributed, checksum-verified Assistant "
-            "package to enable knowledge assistance. Core DairyOS remains usable; "
-            "no farm data is affected and no other feature depends on it.",
-            **evidence,
-        )
-
-    if not result["process_starts"] or not result["corpus_loads"]:
-        return _health_check(
-            "knowledge assistant",
-            "FAIL",
-            "The Assistant is installed but did not answer a test question"
-            + (f": {result['error']}." if result["error"] else ". Its knowledge base may be missing from the package."),
-            **evidence,
-        )
-
-    if not result["refuses_operational"]:
-        return _health_check(
-            "knowledge assistant",
-            "FAIL",
-            "The Assistant did not refuse a question about this farm's records. "
-            "It is designed to have no route to farm data, so this is a defect in "
-            "the subsystem that must be reported before the Assistant is used.",
-            **evidence,
-        )
-
-    if not result["retrieval_works"]:
-        return _health_check(
-            "knowledge assistant",
-            "WARNING",
-            "The Assistant runs and refuses farm-data questions correctly, but "
-            "found no knowledge for a question it should answer. Its knowledge "
-            "base may be incomplete in this package.",
-            **evidence,
-        )
-
-    if result.get("serving_unreviewed"):
-        return _health_check(
-            "knowledge assistant",
-            "WARNING",
-            "The Assistant is serving knowledge that has not completed review. "
-            "Answers are marked accordingly, but a released installation should "
-            "serve approved knowledge only.",
-            **evidence,
-        )
-
-    if not result["model_bundled"]:
-        return _health_check(
-            "knowledge assistant",
-            "WARNING",
-            "The Assistant answers from approved knowledge and correctly refuses "
-            "farm-data questions, but no local model is bundled beside it, so it "
-            "cannot phrase an answer in its own words.",
-            **evidence,
-        )
-
-    return _health_check(
-        "knowledge assistant",
-        "PASS",
-        f"Assistant answered a test question from {result.get('servable_items', 0)} approved "
-        "knowledge items and refused a farm-data question. Tested without loading "
-        "the language model, which is checked when the Assistant is first used.",
-        **evidence,
-    )
-
 
 def _as_utc_datetime(value: Any) -> datetime | None:
     if isinstance(value, datetime):
@@ -692,9 +588,6 @@ def get_system_health(container=Depends(get_container)):  # noqa: B008
             started=runtime_started,
         )
     )
-
-    checks.append(_knowledge_assistant_check())
-
     factory.close()
 
     counts = {

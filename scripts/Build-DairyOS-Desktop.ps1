@@ -60,12 +60,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "pywebview is unavailable in the active build environment."
 }
 
-Write-Host "=== BUILD BUNDLED ASSISTANT ===" -ForegroundColor Cyan
-$assistantBuild = Join-Path $repo "scripts\Build-DairyOS-Assistant.ps1"
-& $assistantBuild -OutputRoot "dist\DairyOS-Assistant-Release"
-if ($LASTEXITCODE -ne 0) { throw "Bundled Assistant build failed." }
-$assistantPackage = Join-Path $repo "dist\DairyOS-Assistant-Release\DairyOS-Assistant.dairyassistant"
-if (-not (Test-Path $assistantPackage -PathType Leaf)) { throw "Bundled Assistant package was not produced." }
 
 Write-Host "=== BUILD FROZEN DESKTOP ===" -ForegroundColor Cyan
 
@@ -87,27 +81,6 @@ $backupExe = Join-Path $bundle "DairyOSBackup.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "Frozen DairyOS.exe was not produced: $exe" }
 if (-not (Test-Path $backupExe -PathType Leaf)) { throw "Frozen DairyOSBackup.exe was not produced: $backupExe" }
 
-Write-Host "=== EMBED SAME-COMMIT ASSISTANT ===" -ForegroundColor Cyan
-$assistantBundle = Join-Path $bundle "assistant"
-Remove-Item $assistantBundle -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $assistantBundle -Force | Out-Null
-# The package is a ZIP container with a product-specific extension. Windows
-# PowerShell's Expand-Archive validates the filename extension before reading
-# the container, so give it a temporary .zip alias without changing the
-# distributed artifact name.
-$assistantZipAlias = Join-Path $env:TEMP ("DairyOS-Assistant-" + [guid]::NewGuid().ToString("N") + ".zip")
-try {
-    Copy-Item -LiteralPath $assistantPackage -Destination $assistantZipAlias -Force
-    Expand-Archive -LiteralPath $assistantZipAlias -DestinationPath $assistantBundle -Force
-}
-finally {
-    Remove-Item -LiteralPath $assistantZipAlias -Force -ErrorAction SilentlyContinue
-}
-if (-not (Test-Path (Join-Path $assistantBundle "DairyOSAssistant.exe") -PathType Leaf)) { throw "Bundled Assistant executable is missing." }
-$assistantManifest = Get-Content (Join-Path $assistantBundle "assistant-manifest.json") -Raw | ConvertFrom-Json
-if ([string]$assistantManifest.source_commit -notmatch '^[0-9a-f]{40}$' -or [string]$assistantManifest.corpus_source_commit -notmatch '^[0-9a-f]{40}$') {
-    throw "Bundled Assistant manifest has incomplete source provenance."
-}
 
 Write-Host "=== COPY DAIRYOS LAUNCHER ICON ===" -ForegroundColor Cyan
 $iconTarget = Join-Path $bundle "dairyos-cow.ico"
@@ -177,8 +150,6 @@ $releaseManifest = [ordered]@{
     backup_exe_sha256 = $backupHash
     postgresql_version = $declaredVersion
     frontend_index_sha256 = $frontendIndexHash
-    assistant_source_commit = [string]$assistantManifest.source_commit
-    assistant_corpus_source_commit = [string]$assistantManifest.corpus_source_commit
     schema_migration_files = $schemaMigrations
     build_timestamp_utc = (Get-Date).ToUniversalTime().ToString("o")
 }

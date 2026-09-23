@@ -25,7 +25,6 @@ def test_protected_settings_replaces_the_operator_facing_admin_surface():
     settings = SETTINGS.read_text(encoding="utf-8-sig")
     assert "Read-only System Health" in settings
     assert "/settings/system-reset" in settings
-    assert "AI Assistant" in settings
     assert "TrainingSimulator" not in settings
 
 

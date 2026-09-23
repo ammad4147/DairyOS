@@ -1,4 +1,4 @@
-﻿
+
 # Python
 __pycache__/
 *.py[cod]
@@ -172,5 +172,4 @@ Claude outputs/
 runtime/assistant/
 
 # Output of tools/assistant_bench.py. The summary that matters is recorded in
-# docs/assistant-knowledge/MEASUREMENTS.md; the raw run is machine-specific.
 assistant_bench.json

@@ -114,7 +114,9 @@ def test_collision_guard_keeps_unknown_state_fail_closed():
     assert "FindFirst(AddBackslash(Root) + '*', FindRec)" in block
     assert "FindNext(FindRec)" in block
     assert "Result := True;" in block
-    assert "CompareText(FindRec.Name, 'assistant') <> 0" in block
+    # Retired Assistant debris must no longer be ignored by the collision
+    # guard. It is removed explicitly before the guard executes.
+    assert "CompareText(FindRec.Name, 'assistant') <> 0" not in block
 
     assert "lifecycle.json" in block
     assert "LoadStringFromFile(LifecyclePath, AnsiManifest)" in block
@@ -187,3 +189,60 @@ def test_installer_farm_movement_is_absent_by_design():
     assert "Saved Backups" not in source
     assert "BackupChoicePage" not in source
     assert "DataChoicePage" not in source
+
+
+def test_retired_assistant_cleanup_is_narrow_and_runs_before_collision_guard():
+    source = _source()
+
+    start = source.index("procedure RemoveRetiredAssistantState();")
+    end = source.index("procedure ProvisionLifecycleState();", start)
+    cleanup = source[start:end]
+
+    for retired_path in (
+        "\\assistant",
+        "\\.assistant-staging",
+        "\\.assistant-active",
+        "\\.assistant-previous",
+    ):
+        assert retired_path in cleanup
+
+    assert "\\logs\\assistant-llama.log" in cleanup
+
+    # The retirement routine must never delete farm-owned state.
+    for protected_path in (
+        "\\postgres",
+        "\\storage",
+        "\\backups",
+        "\\lifecycle.json",
+    ):
+        assert f"DelTree(Root + '{protected_path}'" not in cleanup
+
+    assert "DelTree(Root, " not in cleanup
+    assert "RemoveDir(Root" not in cleanup
+
+    prepare_start = source.index(
+        "function PrepareToInstall(var NeedsRestart: Boolean): String;"
+    )
+    prepare_end = source.index(
+        "function ShouldLaunchDairyOS(): Boolean;"
+    )
+    prepare = source[prepare_start:prepare_end]
+
+    cleanup_call = prepare.index("RemoveRetiredAssistantState();")
+    collision_check = prepare.index(
+        "CanonicalDairyOSDataRootHasExistingState()"
+    )
+
+    assert cleanup_call < collision_check
+
+
+def test_uninstall_removes_retired_assistant_state_without_deleting_farm_root():
+    source = _source()
+
+    start = source.index(
+        "procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);"
+    )
+    block = source[start:]
+
+    assert "RemoveRetiredAssistantState();" in block
+    assert "DelTree(CanonicalDairyOSDataRoot()" not in block

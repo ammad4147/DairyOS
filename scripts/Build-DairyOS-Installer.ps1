@@ -25,10 +25,8 @@ if (-not (Test-Path $releaseManifestPath -PathType Leaf)) { throw "Certified des
 $releaseManifest = Get-Content $releaseManifestPath -Raw | ConvertFrom-Json
 if ([string]$releaseManifest.source_commit -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source commit." }
 if ([string]$releaseManifest.source_tree -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source tree." }
-if ([string]$releaseManifest.assistant_source_commit -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no Assistant source commit." }
-if ([string]$releaseManifest.assistant_corpus_source_commit -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no Assistant corpus source commit." }
 
-Write-Host "DairyOS Core and AI Assistant are bundled from the same release source." -ForegroundColor DarkGray
+Write-Host "DairyOS installer is bound to the certified desktop release source." -ForegroundColor DarkGray
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
 
 $programFiles = [Environment]::GetFolderPath("ProgramFiles")
@@ -72,8 +70,6 @@ $artifactManifest = [ordered]@{
     installer_sha256 = $installerHash
     postgresql_version = [string]$releaseManifest.postgresql_version
     frontend_index_sha256 = [string]$releaseManifest.frontend_index_sha256
-    assistant_source_commit = [string]$releaseManifest.assistant_source_commit
-    assistant_corpus_source_commit = [string]$releaseManifest.assistant_corpus_source_commit
     schema_migration_files = @($releaseManifest.schema_migration_files)
     build_timestamp_utc = [string]$releaseManifest.build_timestamp_utc
     installer_built_at_utc = (Get-Date).ToUniversalTime().ToString("o")

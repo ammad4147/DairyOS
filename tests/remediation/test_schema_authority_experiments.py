@@ -167,7 +167,7 @@ def test_fresh_runtime_bootstrap_creates_complete_active_schema_and_head(client)
                     opts={"version_table_schema": schema},
                 ).get_current_heads()
             )
-            ) == ("20260922_01",)
+            ) == ("20260923_01",)
 
 
 def test_alembic_environment_preserves_existing_application_loggers(client):
@@ -205,9 +205,9 @@ def test_supported_create_all_baseline_upgrades_to_current_head(client):
 
         active_tables = _tables(connection, schema) - {
             "alembic_version",
-            "ai_assistant_conversations",
-            "ai_assistant_messages",
         }
+        assert "ai_assistant_conversations" not in active_tables
+        assert "ai_assistant_messages" not in active_tables
         assert active_tables == set(Base.metadata.tables)
         assert tuple(
             sorted(
@@ -216,7 +216,7 @@ def test_supported_create_all_baseline_upgrades_to_current_head(client):
                     opts={"version_table_schema": schema},
                 ).get_current_heads()
             )
-            ) == ("20260922_01",)
+            ) == ("20260923_01",)
 
 
 def test_supported_upgrade_preserves_active_schema_parity_with_fresh_bootstrap(

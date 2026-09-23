@@ -155,7 +155,6 @@ from dairyos.api.animal_management.router import router as animal_router
 from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
-from dairyos.api.assistant import router as assistant_router
 from dairyos.api.auth import router as auth_router
 from dairyos.api.human_access import router as human_access_router
 from dairyos.api.authorization import router as authorization_router
@@ -273,7 +272,6 @@ app.include_router(auth_router)
 app.include_router(human_access_router)
 app.include_router(authorization_router)
 app.include_router(search_router)
-app.include_router(assistant_router)
 app.include_router(reports_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")
