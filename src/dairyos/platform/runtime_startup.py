@@ -19,10 +19,13 @@ def run_production_startup_gates(mode: RuntimeMode) -> None:
         migrate_if_needed()
         return
     if mode is RuntimeMode.HOSTED:
-        raise RuntimeStartupError(
-            "Hosted startup is not ready: a platform-neutral migration adapter "
-            "must be configured before the hosted server can start."
-        )
+        from dairyos.platform.hosted_migrations import migrate_hosted_database
+
+        try:
+            migrate_hosted_database()
+        except Exception as exc:
+            raise RuntimeStartupError(str(exc)) from exc
+        return
     raise RuntimeStartupError(
         f"Production startup gates are not available for runtime mode '{mode.value}'."
     )

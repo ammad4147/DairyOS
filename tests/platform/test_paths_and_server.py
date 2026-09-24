@@ -211,10 +211,26 @@ def test_browser_client_mode_cannot_start_server():
         resolve_configuration(build_parser().parse_args(["--runtime-mode", "browser-client"]))
 
 
-def test_hosted_production_gate_fails_before_importing_windows_adapter(monkeypatch):
+def test_hosted_server_does_not_restrict_worker_count(monkeypatch):
+    monkeypatch.setenv("DAIRYOS_WORKERS", "4")
+    args = build_parser().parse_args(["--runtime-mode", "hosted"])
+
+    assert args.runtime_mode == "hosted"
+    assert "workers" not in resolve_configuration(args)
+
+
+def test_hosted_production_gate_uses_neutral_migration_adapter(monkeypatch):
     import builtins
+    from types import SimpleNamespace
 
     original_import = builtins.__import__
+    calls = []
+
+    monkeypatch.setitem(
+        sys.modules,
+        "dairyos.platform.hosted_migrations",
+        SimpleNamespace(migrate_hosted_database=lambda: calls.append("hosted")),
+    )
 
     def deny_windows_adapter(name, *args, **kwargs):
         if name.startswith("dairyos.windows"):
@@ -222,8 +238,8 @@ def test_hosted_production_gate_fails_before_importing_windows_adapter(monkeypat
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", deny_windows_adapter)
-    with pytest.raises(RuntimeStartupError, match="platform-neutral migration adapter"):
-        run_production_startup_gates(RuntimeMode.HOSTED)
+    run_production_startup_gates(RuntimeMode.HOSTED)
+    assert calls == ["hosted"]
 
 
 def test_windows_appliance_gate_still_delegates_to_windows_adapter(monkeypatch):
@@ -250,11 +266,17 @@ def test_shared_entrypoints_do_not_import_windows_runtime_directly():
 
 
 def test_hosted_server_entrypoint_fails_closed_before_serving(monkeypatch, capsys):
+    import dairyos.server as server_module
+
+    def block_startup(_mode):
+        raise RuntimeStartupError("expected disposable test gate")
+
+    monkeypatch.setattr(server_module, "run_production_startup_gates", block_startup)
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     exit_code = main(["--runtime-mode", "hosted"])
 
     assert exit_code == 1
-    assert "platform-neutral migration adapter" in capsys.readouterr().err
+    assert "expected disposable test gate" in capsys.readouterr().err
 
 
 def test_non_windows_modes_do_not_write_windows_install_marker():

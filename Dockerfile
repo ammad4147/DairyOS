@@ -34,4 +34,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "dairyos.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "dairyos.server", "--runtime-mode", "hosted", "--host", "0.0.0.0", "--port", "8000"]
