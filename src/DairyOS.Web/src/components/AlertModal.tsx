@@ -6,7 +6,7 @@ export default function AlertModal({ onClose }: { onClose: () => void }) {
   const { alerts, markResolved } = useAlertAudit();
   
   return (
-    <div style={{ position: 'fixed', top: 0, right: 0, width: '420px', height: '100vh', background: '#0f172a', borderLeft: '1px solid #1f2937', zIndex: 9999, display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.5)' }}>
+    <div style={{ position: 'fixed', top: 0, right: 0, width: 'min(420px, 100vw)', height: '100vh', maxHeight: '100dvh', background: '#0f172a', borderLeft: '1px solid #1f2937', zIndex: 9999, display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.5)' }}>
       
       {/* Header (Fixed) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>

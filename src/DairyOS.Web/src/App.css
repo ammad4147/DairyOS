@@ -1,8 +1,17 @@
 @media (max-width: 760px) {
+  .app-shell {
+    height: 100vh !important;
+    height: 100dvh !important;
+  }
+
   .dairyos-main-navigation {
     justify-content: flex-start !important;
     overflow-x: auto !important;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
+  }
+
+  .cmd-dash-wrapper {
+    height: calc(100dvh - 60px) !important;
   }
 }

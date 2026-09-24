@@ -115,6 +115,19 @@ def test_main_bootstrap_mounts_app_not_duplicate_shell():
     assert "DairyOSShell" not in source
 
 
+def test_mobile_shell_uses_live_viewport_and_allows_keyboard_scrolling():
+    app_css = (WEB_ROOT / "App.css").read_text(encoding="utf-8")
+    gate_css = (WEB_ROOT / "components" / "HumanAccessGate.css").read_text(encoding="utf-8")
+    app_source = APP_TSX.read_text(encoding="utf-8")
+    alert_source = (WEB_ROOT / "components" / "AlertModal.tsx").read_text(encoding="utf-8")
+
+    assert "height: 100dvh !important" in app_css
+    assert "height: calc(100dvh - 60px) !important" in app_css
+    assert ".welcome-panel-wrap{height:auto;min-height:100vh;min-height:100dvh;overflow-y:auto" in gate_css
+    assert "overflowY:'auto'" in app_source
+    assert "width: 'min(420px, 100vw)'" in alert_source
+
+
 def test_operational_presentation_and_api_surface_are_reachable(client: TestClient):
     for path in ("/health", "/readiness", "/version", "/dashboard", "/command-center"):
         response = client.get(path)

@@ -183,6 +183,7 @@ def test_database_rejects_nonfinite_inventory(column):
 
 def test_production_session_blocks_uncredentialed_reads_and_writes(client, monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
     monkeypatch.setenv("DAIRYOS_DESKTOP_SESSION_TOKEN", "audit-private-session")
     assert client.get("/health").status_code == 200
     assert client.get("/farm/feed-inventory/items").status_code == 401
