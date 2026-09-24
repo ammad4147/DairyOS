@@ -1,1 +1,13 @@
+@media (max-width: 760px) {
+  .dairyos-main-navigation {
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
 
+  .dairyos-main-navigation::-webkit-scrollbar {
+    display: none;
+  }
+}
