@@ -54,6 +54,30 @@ function New-SecretValue {
     return [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes($byteCount))
 }
 
+function Test-ExistingDatabasePassword {
+    param(
+        [Parameter(Mandatory)][string]$Password,
+        [Parameter(Mandatory)][string]$DatabaseUser,
+        [Parameter(Mandatory)][string]$DatabaseName
+    )
+
+    # Pass the candidate as a process environment value, never in Docker's
+    # command line or logs. A successful SELECT proves it belongs to the
+    # existing DB; an unverified candidate cannot replace the saved setting.
+    $previousPassword = [Environment]::GetEnvironmentVariable("PGPASSWORD", "Process")
+    try {
+        [Environment]::SetEnvironmentVariable("PGPASSWORD", $Password, "Process")
+        $probe = & docker @compose exec -T -e PGPASSWORD db psql -h 127.0.0.1 --username $DatabaseUser --dbname $DatabaseName --tuples-only --no-align --command "SELECT 1" 2>$null
+        $probeExit = $LASTEXITCODE
+        $probeValue = ([string]($probe -join "")).Trim()
+        $probeSucceeded = $probeExit -eq 0 -and $probeValue -eq "1"
+        if (-not $probeSucceeded) { Write-Host "Credential check diagnostic: exit $probeExit; query result length $($probeValue.Length)." }
+        return $probeSucceeded
+    } finally {
+        [Environment]::SetEnvironmentVariable("PGPASSWORD", $previousPassword, "Process")
+    }
+}
+
 function Resolve-DeploymentSettings {
     & git -C $repoRoot check-ignore --quiet .env
     if ($LASTEXITCODE -ne 0) {
@@ -69,6 +93,32 @@ function Resolve-DeploymentSettings {
     $pgVolume = "{0}_dairyos_postgres_data" -f $ProjectName
     & docker volume inspect $pgVolume *> $null
     $hasExistingDatabase = $LASTEXITCODE -eq 0
+
+    # The per-user value may be the credential that initialized an existing
+    # database even when an older .env contains a different value. Prefer it
+    # only after a live, read-only authentication check succeeds.
+    $savedUserPassword = [Environment]::GetEnvironmentVariable("POSTGRES_PASSWORD", "User")
+    if (
+        $hasExistingDatabase -and
+        -not [string]::IsNullOrWhiteSpace($savedUserPassword) -and
+        $values.ContainsKey("POSTGRES_PASSWORD") -and
+        -not [string]::IsNullOrWhiteSpace($values["POSTGRES_PASSWORD"]) -and
+        $values["POSTGRES_PASSWORD"] -cne $savedUserPassword
+    ) {
+        $dbId = & docker @compose ps -q db 2>$null
+        if ($LASTEXITCODE -eq 0 -and $dbId) {
+            Write-Host "Checking the saved database setting against the existing DairyOS database."
+            $databaseUser = if ($values.ContainsKey("POSTGRES_USER")) { $values["POSTGRES_USER"] } else { "dairyos" }
+            $databaseName = if ($values.ContainsKey("POSTGRES_DB")) { $values["POSTGRES_DB"] } else { "dairyos" }
+            if (Test-ExistingDatabasePassword -Password $savedUserPassword -DatabaseUser $databaseUser -DatabaseName $databaseName) {
+                $values["POSTGRES_PASSWORD"] = $savedUserPassword
+                Write-Host "Verified the saved database setting against the existing DairyOS database."
+            } else {
+                Write-Host "The saved database setting did not match; the current .env value was preserved."
+            }
+        }
+    }
+
     $kinds = @{
         POSTGRES_PASSWORD = "database"
         DAIRYOS_AUTH_SECRET = "auth"
@@ -197,6 +247,7 @@ try {
         throw "DairyOS could not reach its service engine. Start Docker Desktop and wait until it says it is running, then double-click Start-DairyOS-Web again. Your farm data is unchanged."
     }
 
+    if (-not $ValidateOnly) { Wait-ForDatabase }
     $settings = Resolve-DeploymentSettings
     if (-not $env:DAIRYOS_WEB_PORT) { $env:DAIRYOS_WEB_PORT = "8000" }
     if ($ValidateOnly) {
@@ -206,7 +257,6 @@ try {
     }
 
     Write-Host "Starting DairyOS... please wait."
-    Wait-ForDatabase
     $bootstrapRequired = Test-DatabaseIsEmpty -Settings $settings
     if ($bootstrapRequired) {
         $env:DAIRYOS_HOSTED_BOOTSTRAP_DATABASE = $settings.POSTGRES_DB
