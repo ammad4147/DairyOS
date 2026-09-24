@@ -90,16 +90,14 @@ function Resolve-DeploymentSettings {
             $value = New-SecretValue -Kind $kinds[$name]
         }
         $values[$name] = $value
+    }
 
-        $updated = $false
-        for ($i = 0; $i -lt $lines.Count; $i++) {
-            if ($lines[$i] -match ('^\s*{0}\s*=' -f [regex]::Escape($name))) {
-                $lines[$i] = "${name}=$value"
-                $updated = $true
-                break
-            }
-        }
-        if (-not $updated) { $lines += "${name}=$value" }
+    # Persist values obtained from per-user settings too: a fresh Compose
+    # process cannot inherit values set in a terminal opened before them.
+    $lines = @($lines | Where-Object { $_ -notmatch '^\s*(POSTGRES_PASSWORD|DAIRYOS_AUTH_SECRET|DAIRYOS_EMAIL_SECRET)\s*=' })
+    foreach ($name in $requiredSecrets) {
+        $lines += "${name}=$($values[$name])"
+        [Environment]::SetEnvironmentVariable($name, $values[$name], "Process")
     }
 
     if ($WebPort -gt 0) {
@@ -114,7 +112,9 @@ function Resolve-DeploymentSettings {
         if ($values[$name] -notmatch '^[A-Za-z0-9_-]+$') {
             throw "The configured $name is not supported by the guided DairyOS starter. Contact your DairyOS administrator."
         }
+        [Environment]::SetEnvironmentVariable($name, $values[$name], "Process")
     }
+    if (-not $env:DAIRYOS_WEB_PORT) { $env:DAIRYOS_WEB_PORT = "8000" }
 
     # This confirmation is intentionally transient and never retained in .env.
     $lines = @($lines | Where-Object { $_ -notmatch '^\s*DAIRYOS_HOSTED_BOOTSTRAP_DATABASE\s*=' })
