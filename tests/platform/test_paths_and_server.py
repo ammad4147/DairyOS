@@ -8,6 +8,7 @@ can orphan data a farm already has.
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 import pytest
@@ -171,7 +172,6 @@ def test_defaults_bind_to_loopback_only():
     [
         ("development", RuntimeMode.DEVELOPMENT),
         ("hosted", RuntimeMode.HOSTED),
-        ("windows-appliance", RuntimeMode.WINDOWS_APPLIANCE),
         ("browser-client", RuntimeMode.BROWSER_CLIENT),
     ],
 )
@@ -179,11 +179,36 @@ def test_runtime_mode_accepts_explicit_modes(value, expected):
     assert resolve_runtime_mode(value, frozen=False) is expected
 
 
+def test_explicit_windows_appliance_mode_is_accepted_on_windows():
+    assert (
+        resolve_runtime_mode(
+            "windows-appliance", frozen=False, platform="win32"
+        )
+        is RuntimeMode.WINDOWS_APPLIANCE
+    )
+
+
 def test_frozen_windows_defaults_to_appliance_mode():
     assert (
         resolve_runtime_mode(frozen=True, platform="win32")
         is RuntimeMode.WINDOWS_APPLIANCE
     )
+
+
+@pytest.mark.parametrize(
+    "platform,expected",
+    [
+        ("win32", RuntimeMode.WINDOWS_APPLIANCE),
+        ("linux", RuntimeMode.HOSTED),
+    ],
+)
+def test_production_environment_selects_platform_runtime(
+    platform, expected, monkeypatch
+):
+    monkeypatch.delenv("DAIRYOS_RUNTIME_MODE", raising=False)
+    monkeypatch.setenv("DAIRYOS_ENV", "production")
+
+    assert resolve_runtime_mode(frozen=False, platform=platform) is expected
 
 
 def test_frozen_appliance_cannot_be_overridden_to_hosted():
@@ -265,10 +290,13 @@ def test_hosted_server_entrypoint_fails_closed_before_serving(monkeypatch, capsy
 
     monkeypatch.setattr(server_module, "run_production_startup_gates", block_startup)
     monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
     exit_code = main(["--runtime-mode", "hosted"])
 
     assert exit_code == 1
     assert "expected disposable test gate" in capsys.readouterr().err
+    assert os.environ["DAIRYOS_RUNTIME_MODE"] == "hosted"
+    assert os.environ["DAIRYOS_ENV"] == "production"
 
 
 def test_non_windows_modes_do_not_write_windows_install_marker():

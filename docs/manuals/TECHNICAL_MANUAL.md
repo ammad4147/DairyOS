@@ -85,6 +85,17 @@ Typical local configuration uses PostgreSQL on localhost:5432. The web applicati
 
 Production compose supplies explicit PostgreSQL credentials and an authentication secret through environment variables. The API waits for a healthy database service before starting.
 
+For a genuinely new, empty database only, set `DAIRYOS_HOSTED_BOOTSTRAP_DATABASE` to the exact configured `POSTGRES_DB` name for the first `docker compose up`. The hosted migration gate compares the values exactly and refuses to initialize any other database. Once startup reports healthy, remove the variable from the shell or `.env`; later starts do not need it. Never set it as a substitute for upgrading or recovering an existing database.
+
+Example in PowerShell when using the default database name:
+
+```powershell
+$env:DAIRYOS_HOSTED_BOOTSTRAP_DATABASE = 'dairyos'
+docker compose up -d
+Remove-Item Env:\DAIRYOS_HOSTED_BOOTSTRAP_DATABASE
+docker compose up -d --force-recreate api
+```
+
 ### Frontend build
 
 Run `npm ci` followed by `npm run build` in `src/DairyOS.Web`. TypeScript checking must pass before Vite emits production assets.

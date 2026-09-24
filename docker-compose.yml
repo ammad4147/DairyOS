@@ -31,6 +31,8 @@ services:
       DAIRYOS_DB_USER: ${POSTGRES_USER:-dairyos}
       DAIRYOS_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       DAIRYOS_AUTH_SECRET: ${DAIRYOS_AUTH_SECRET:?set DAIRYOS_AUTH_SECRET in .env}
+      # Set to the exact POSTGRES_DB name only for an explicitly authorized empty-database bootstrap.
+      DAIRYOS_HOSTED_BOOTSTRAP_DATABASE: ${DAIRYOS_HOSTED_BOOTSTRAP_DATABASE:-}
     ports:
       - "8000:8000"
     volumes:

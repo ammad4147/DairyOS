@@ -19,7 +19,9 @@ from dairyos.platform.hosted_migrations import (
 
 @pytest.fixture()
 def empty_hosted_test_database():
-    configured = os.environ["DAIRYOS_DATABASE_URL"]
+    configured = os.environ.get("DAIRYOS_DATABASE_URL")
+    if not configured:
+        pytest.skip("Hosted migration integration needs the isolated test database URL")
     source_url = make_url(configured)
     database_name = f"dairyos_hosted_migration_test_{uuid4().hex[:12]}"
     admin_url = source_url.set(database="postgres")

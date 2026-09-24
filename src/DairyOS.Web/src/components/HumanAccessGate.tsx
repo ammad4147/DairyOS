@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MainAppShell } from '../App';
+import { clearUncertainWriteMarkers } from '../api/farmEntryClient';
 import HumanOperatorConsole from './HumanOperatorConsole';
 import { API_BASE_URL } from '../config/api';
 import './HumanAccessGate.css';
@@ -84,8 +85,14 @@ export default function HumanAccessGate() {
 
   const logout = async () => {
     const token = sessionStorage.getItem(HUMAN_SESSION_KEY);
-    await fetch(`${API}/human-access/logout`, { method: 'POST', headers: token ? { 'X-DairyOS-Human-Session': token } : {} });
-    sessionStorage.removeItem(HUMAN_SESSION_KEY); setIdentity(null); setSelected(null); await load();
+    try {
+      await fetch(`${API}/human-access/logout`, { method: 'POST', headers: token ? { 'X-DairyOS-Human-Session': token } : {} });
+    } catch {
+      // End this browser session locally even when the server cannot be reached.
+    } finally {
+      clearUncertainWriteMarkers();
+      sessionStorage.removeItem(HUMAN_SESSION_KEY); setIdentity(null); setSelected(null); await load();
+    }
   };
 
   if (state === 'management') return <MainAppShell />;

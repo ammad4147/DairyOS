@@ -29,7 +29,7 @@ from dairyos.farm.settings.services.operational_date_authority import (
 from dairyos.feed_storage_scheduler import FeedStorageScheduler
 from dairyos.frontend import frontend_index_response, mount_frontend
 from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
-from dairyos.platform.runtime_mode import resolve_runtime_mode
+from dairyos.platform.runtime_mode import RuntimeMode, resolve_runtime_mode
 from dairyos.platform.runtime_startup import record_successful_start
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.tmr_daily_cost_scheduler import DailyTMRCostScheduler
@@ -174,7 +174,11 @@ def _is_public_human_access_request(method: str, path: str) -> bool:
 @app.middleware("http")
 async def enforce_human_access(request: Request, call_next):
     """Require a named human session for every non-public production route."""
-    production = bool(getattr(__import__('sys'), "frozen", False)) or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
+    production = (
+        bool(getattr(__import__('sys'), "frozen", False))
+        or resolve_runtime_mode() is RuntimeMode.HOSTED
+        or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
+    )
     path = request.url.path
     if production and not _is_public_human_access_request(request.method, path):
         token = request.headers.get("X-DairyOS-Human-Session")

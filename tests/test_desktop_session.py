@@ -13,6 +13,7 @@ from dairyos.middleware.desktop_session import enforce_desktop_session
 @pytest.mark.parametrize("path", ["/serviceWorker.js", "/manifest.json", "/dairyos-cow.svg"])
 async def test_public_pwa_static_assets_are_available_in_production(monkeypatch, path):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
     request = SimpleNamespace(
         method="GET",
         url=SimpleNamespace(path=path),
@@ -33,6 +34,7 @@ async def test_public_pwa_static_assets_are_available_in_production(monkeypatch,
 @pytest.mark.anyio
 async def test_other_production_routes_still_require_desktop_session(monkeypatch):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
     request = SimpleNamespace(
         method="GET",
         url=SimpleNamespace(path="/ai-assistant/tools"),
@@ -58,6 +60,7 @@ async def test_other_production_routes_still_require_desktop_session(monkeypatch
 )
 async def test_data_management_routes_reject_non_desktop_access(monkeypatch, path):
     monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
     monkeypatch.setenv("DAIRYOS_DESKTOP_SESSION_TOKEN", "desktop-capability")
     request = SimpleNamespace(
         method="POST",

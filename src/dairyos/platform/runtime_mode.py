@@ -57,6 +57,13 @@ def resolve_runtime_mode(
 
     if is_frozen:
         return RuntimeMode.WINDOWS_APPLIANCE
+    environment = os.environ.get("DAIRYOS_ENV", "development").strip().lower()
+    if environment in {"production", "staging", "preprod"}:
+        return (
+            RuntimeMode.WINDOWS_APPLIANCE
+            if current_platform == "win32"
+            else RuntimeMode.HOSTED
+        )
     return RuntimeMode.DEVELOPMENT
 
 

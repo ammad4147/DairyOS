@@ -91,7 +91,11 @@ def main(argv: list[str] | None = None) -> int:
 
     environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
     runtime_mode = RuntimeMode(configuration["runtime_mode"])
-    if runtime_mode is RuntimeMode.HOSTED or environment in {
+    os.environ[RUNTIME_MODE_ENV] = runtime_mode.value
+    if runtime_mode in {RuntimeMode.HOSTED, RuntimeMode.WINDOWS_APPLIANCE}:
+        os.environ["DAIRYOS_ENV"] = "production"
+        environment = "production"
+    if runtime_mode in {RuntimeMode.HOSTED, RuntimeMode.WINDOWS_APPLIANCE} or environment in {
         "production",
         "staging",
         "preprod",

@@ -1,5 +1,8 @@
 .git
 .github
+.gitignore
+.vscode
+.idea
 .venv
 venv
 env
@@ -7,6 +10,10 @@ __pycache__
 *.py[cod]
 .pytest_cache
 .pytest_tmp
+.ruff_cache
+.certification
+work
+tmp
 htmlcov
 .coverage
 node_modules
@@ -19,9 +26,13 @@ build
 .env.*
 !.env.example
 data
+runtime
+Claude outputs
 backups
 logs
 *.log
 *.db
 *.sqlite
 *.sqlite3
+tests
+docs

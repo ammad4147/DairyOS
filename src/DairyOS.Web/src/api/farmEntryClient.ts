@@ -31,7 +31,65 @@ export interface HealthEntryRequest extends OperationalEntry {
 }
 
 const RETRY_PREFIX = "dairyos:uncertain-write:";
-const uncertainRequestIds = new Map<string, string>();
+const RETRY_WINDOW_MS = 10 * 60 * 1000;
+interface UncertainWriteMarker {
+    requestId: string;
+    expiresAt: number;
+}
+const uncertainRequestIds = new Map<string, UncertainWriteMarker>();
+
+function removeUncertainMarker(key: string): void {
+    uncertainRequestIds.delete(key);
+    try { sessionStorage.removeItem(key); } catch { /* storage can be unavailable */ }
+}
+
+function getUncertainRequestId(key: string): string | undefined {
+    const now = Date.now();
+    const cached = uncertainRequestIds.get(key);
+    if (cached) {
+        if (cached.expiresAt > now) return cached.requestId;
+        removeUncertainMarker(key);
+    }
+    try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) return undefined;
+        const marker = JSON.parse(raw) as Partial<UncertainWriteMarker>;
+        if (
+            typeof marker.requestId === "string" &&
+            typeof marker.expiresAt === "number" &&
+            marker.expiresAt > now
+        ) {
+            uncertainRequestIds.set(key, {
+                requestId: marker.requestId,
+                expiresAt: marker.expiresAt,
+            });
+            return marker.requestId;
+        }
+        removeUncertainMarker(key);
+    } catch {
+        // Discard legacy/raw or malformed markers; they have no trustworthy expiry.
+        removeUncertainMarker(key);
+    }
+    return undefined;
+}
+
+function rememberUncertainRequest(key: string, requestId: string): void {
+    const marker = { requestId, expiresAt: Date.now() + RETRY_WINDOW_MS };
+    uncertainRequestIds.set(key, marker);
+    try { sessionStorage.setItem(key, JSON.stringify(marker)); } catch { /* memory retry remains available in this tab */ }
+}
+
+export function clearUncertainWriteMarkers(): void {
+    for (const key of uncertainRequestIds.keys()) uncertainRequestIds.delete(key);
+    try {
+        for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+            const key = sessionStorage.key(index);
+            if (key?.startsWith(RETRY_PREFIX)) sessionStorage.removeItem(key);
+        }
+    } catch {
+        // Storage can be unavailable; in-memory markers have already been cleared.
+    }
+}
 
 async function retryKey(url: string, payload: unknown): Promise<string | null> {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
@@ -49,11 +107,7 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
         ? (payload as Record<string, unknown>).request_id as string | undefined
         : undefined;
     if (!requestId && key) {
-        try {
-            requestId = uncertainRequestIds.get(key) || sessionStorage.getItem(key) || undefined;
-        } catch {
-            requestId = uncertainRequestIds.get(key);
-        }
+        requestId = getUncertainRequestId(key);
     }
     requestId ||= crypto.randomUUID();
     const requestPayload = payload && typeof payload === "object" && !Array.isArray(payload)
@@ -69,18 +123,15 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
     } catch (error) {
         // The server may have committed before the connection was lost. Retain
         // this ID only for an explicit retry of this identical request.
-        if (key) {
-            uncertainRequestIds.set(key, requestId);
-            try { sessionStorage.setItem(key, requestId); } catch { /* in-memory retry remains available in this tab */ }
-        }
+        if (key) rememberUncertainRequest(key, requestId);
         throw new Error("DairyOS lost the server response. The outcome is unconfirmed—check the register before retrying.", { cause: error });
     }
 
     // A success or a definitive client rejection ends the uncertain attempt.
     // A server failure can happen after commit, so retain its ID for retry.
-    if (key && response.status < 500) {
-        uncertainRequestIds.delete(key);
-        try { sessionStorage.removeItem(key); } catch { /* no durable retry marker to clear */ }
+    if (key) {
+        if (response.status >= 500) rememberUncertainRequest(key, requestId);
+        else removeUncertainMarker(key);
     }
 
     if (!response.ok) {

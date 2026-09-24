@@ -19,6 +19,7 @@ from dairyos.auth.permissions import (
     permissions_from_json,
 )
 from dairyos.data.repositories.repository_factory import RepositoryFactory
+from dairyos.platform.runtime_mode import RUNTIME_MODE_ENV, RuntimeMode
 
 router = APIRouter(prefix="/authz", tags=["authorization"])
 
@@ -68,6 +69,8 @@ def permission_for_request(method: str, path: str, payload: dict[str, Any] | Non
 
 
 def _deployment_enforcement_enabled() -> bool:
+    if os.getenv(RUNTIME_MODE_ENV, "").strip().lower() == RuntimeMode.HOSTED.value:
+        return True
     explicit = os.getenv("DAIRYOS_ENFORCE_AUTHZ")
     if explicit is not None:
         return explicit.strip().lower() in {"1", "true", "yes", "on"}

@@ -6,6 +6,8 @@ import sys
 
 from starlette.responses import JSONResponse
 
+from dairyos.platform.runtime_mode import RuntimeMode, resolve_runtime_mode
+
 SESSION_ENV = "DAIRYOS_DESKTOP_SESSION_TOKEN"
 SESSION_HEADER = "X-DairyOS-Desktop-Session"
 
@@ -49,6 +51,11 @@ def _is_public_read(method: str, path: str) -> bool:
 
 
 async def enforce_desktop_session(request, call_next):
+    # Hosted requests use the named-operator authentication gate instead of the
+    # per-launch capability that only the Windows supervisor can provide.
+    if resolve_runtime_mode() is RuntimeMode.HOSTED:
+        return await call_next(request)
+
     token = os.environ.get(SESSION_ENV, "")
     production = bool(getattr(sys, "frozen", False)) or os.getenv(
         "DAIRYOS_ENV", "development"
