@@ -72,7 +72,7 @@ Name: "{autodesktop}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: 
 Name: "{commonappdata}\DairyOS"
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
+Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS Web in your browser"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
 ; Remove the complete application tree, including runtime-generated files

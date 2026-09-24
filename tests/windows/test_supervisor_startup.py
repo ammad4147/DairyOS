@@ -311,8 +311,33 @@ def test_backend_child_never_receives_migration_database_url(monkeypatch, tmp_pa
     assert result is process
     assert url == "http://127.0.0.1:8123"
     assert "DAIRYOS_MIGRATION_DATABASE_URL" not in captured["env"]
+    assert "DAIRYOS_BROWSER_MODE" not in captured["env"]
     assert captured["env"]["DAIRYOS_DATABASE_URL"] == "postgresql+psycopg://dairyos:runtime@127.0.0.1/dairyos"
     assert captured["log"].closed is True
+
+
+def test_browser_backend_child_uses_human_access_mode(monkeypatch, tmp_path):
+    captured = {}
+    process = _FakeProcess()
+
+    class _AssigningJob:
+        def assign(self, received):
+            assert received is process
+
+    def popen(_command, **kwargs):
+        captured["env"] = kwargs["env"]
+        return process
+
+    monkeypatch.setenv("DAIRYOS_RUNTIME_LOG_DIR", str(tmp_path))
+    monkeypatch.setattr(supervisor.subprocess, "Popen", popen)
+    monkeypatch.setattr(supervisor, "backend_command", lambda host, port: ["backend"])
+
+    supervisor.start_backend(
+        supervisor.SupervisorConfig(host="127.0.0.1", port=8123, browser_mode=True),
+        _AssigningJob(),
+    )
+
+    assert captured["env"]["DAIRYOS_BROWSER_MODE"] == "1"
 
 
 def test_backend_child_receives_private_auth_signing_secret(monkeypatch, tmp_path):

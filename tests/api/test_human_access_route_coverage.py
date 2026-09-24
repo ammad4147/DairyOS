@@ -101,3 +101,16 @@ def test_hosted_mode_enforces_human_access_without_dairyos_env(client, monkeypat
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Human authentication required"
+
+
+def test_browser_mode_allows_pin_signin_but_still_protects_farm_data(client, monkeypatch):
+    monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
+    monkeypatch.setenv("DAIRYOS_BROWSER_MODE", "1")
+    monkeypatch.setenv("DAIRYOS_DESKTOP_SESSION_TOKEN", "browser-mode-desktop-token")
+
+    status = client.get("/human-access/status")
+    protected = client.get("/farm/animals")
+
+    assert status.status_code == 200
+    assert protected.status_code == 401

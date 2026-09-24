@@ -175,10 +175,13 @@ def test_shortcuts_and_postinstall_launch_use_canonical_resolver():
         'Parameters: "--data-root ""{code:DairyOSDataRoot}"""'
     )
 
-    # Start menu, desktop and post-install launch all use the
-    # same resolver. Exact count may grow only if another
-    # legitimate launcher is intentionally added.
-    assert source.count(launch_parameter) >= 3
+    # The existing native DairyOS shortcuts keep their established launch;
+    # setup opens the browser-first option after installation.
+    assert source.count(launch_parameter) == 2
+    assert (
+        'Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; '
+        'Description: "Launch DairyOS Web in your browser"'
+    ) in source
 
 
 def test_installer_farm_movement_is_absent_by_design():

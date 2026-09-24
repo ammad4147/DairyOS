@@ -50,6 +50,28 @@ async def test_other_production_routes_still_require_desktop_session(monkeypatch
 
 
 @pytest.mark.anyio
+async def test_explicit_browser_mode_uses_human_access_gate_not_desktop_token(monkeypatch):
+    monkeypatch.setenv("DAIRYOS_ENV", "production")
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "development")
+    monkeypatch.setenv("DAIRYOS_BROWSER_MODE", "1")
+    request = SimpleNamespace(
+        method="GET",
+        url=SimpleNamespace(path="/human-access/status"),
+        headers={},
+        base_url="http://127.0.0.1:8123/",
+    )
+    called = False
+
+    async def call_next(received):
+        nonlocal called
+        called = received is request
+        return "served by human-access gate"
+
+    assert await enforce_desktop_session(request, call_next) == "served by human-access gate"
+    assert called is True
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     "path",
     [

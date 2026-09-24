@@ -141,6 +141,7 @@ def process_pending_system_reset() -> None:
 class SupervisorConfig:
     host: str = "127.0.0.1"
     port: int = 0
+    browser_mode: bool = False
     health_timeout: float = 60.0
     health_interval: float = 0.5
     restart_attempts: int = 2
@@ -422,6 +423,10 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
     env["DAIRYOS_AUTH_SECRET"] = _auth_signing_secret()
     env["DAIRYOS_HOST"] = config.host
     env["DAIRYOS_PORT"] = str(selected_port)
+    if config.browser_mode:
+        env["DAIRYOS_BROWSER_MODE"] = "1"
+    else:
+        env.pop("DAIRYOS_BROWSER_MODE", None)
     # The frozen executable is both the desktop supervisor and the backend
     # entry point.  Keep the child-mode marker explicit so the backend applies
     # windowed-process stream handling and disables Uvicorn's console logging
@@ -1222,6 +1227,7 @@ def main(argv: list[str] | None = None) -> int:
     config = SupervisorConfig(
         host=args.host,
         port=args.port,
+        browser_mode=args.browser,
         health_timeout=args.health_timeout,
         restart_attempts=max(0, args.restart_attempts),
         postgres_timeout=max(1.0, args.postgres_timeout),

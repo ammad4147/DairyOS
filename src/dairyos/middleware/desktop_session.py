@@ -56,6 +56,12 @@ async def enforce_desktop_session(request, call_next):
     if resolve_runtime_mode() is RuntimeMode.HOSTED:
         return await call_next(request)
 
+    # Browser mode is explicitly selected by the local Windows supervisor.
+    # It must use the named human-session/PIN middleware instead of the
+    # login-free native desktop capability.
+    if os.getenv("DAIRYOS_BROWSER_MODE") == "1":
+        return await call_next(request)
+
     token = os.environ.get(SESSION_ENV, "")
     production = bool(getattr(sys, "frozen", False)) or os.getenv(
         "DAIRYOS_ENV", "development"
