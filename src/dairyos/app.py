@@ -4,6 +4,7 @@ from dairyos.middleware.enum_normalizer import PayloadNormalizationMiddleware
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import date
 
@@ -127,13 +128,54 @@ from dairyos.api.authorization import permission_for_request
 from dairyos.auth.permissions import permissions_for_role
 
 
+_HUMAN_ACCESS_PUBLIC_EXACT = {
+    ("GET", "/"),
+    ("GET", "/index.html"),
+    ("GET", "/health"),
+    ("GET", "/readiness"),
+    ("GET", "/version"),
+    ("GET", "/favicon.ico"),
+    ("GET", "/manifest.json"),
+    ("GET", "/dairyos-cow.svg"),
+    ("GET", "/serviceWorker.js"),
+    ("HEAD", "/"),
+    ("HEAD", "/index.html"),
+    ("HEAD", "/health"),
+    ("HEAD", "/readiness"),
+    ("HEAD", "/version"),
+    ("HEAD", "/favicon.ico"),
+    ("HEAD", "/manifest.json"),
+    ("HEAD", "/dairyos-cow.svg"),
+    ("HEAD", "/serviceWorker.js"),
+    ("GET", "/human-access/status"),
+    ("GET", "/human-access/people"),
+    ("POST", "/human-access/help"),
+    ("POST", "/human-access/bootstrap"),
+    ("POST", "/human-access/login"),
+    ("POST", "/auth/login"),
+    ("POST", "/login"),
+}
+
+
+def _is_public_human_access_request(method: str, path: str) -> bool:
+    """Explicitly identify resources needed before a human session exists."""
+    method = method.upper()
+    if (method, path) in _HUMAN_ACCESS_PUBLIC_EXACT:
+        return True
+    if method in {"GET", "HEAD"} and path.startswith("/assets/"):
+        return True
+    return (
+        method == "POST"
+        and re.fullmatch(r"/human-access/people/\d+/pin/initial", path) is not None
+    )
+
+
 @app.middleware("http")
 async def enforce_human_access(request: Request, call_next):
-    """Require a named human session for farm/application operations."""
+    """Require a named human session for every non-public production route."""
     production = bool(getattr(__import__('sys'), "frozen", False)) or os.getenv("DAIRYOS_ENV", "development").lower() != "development"
     path = request.url.path
-    protected = path == "/dashboard" or path.startswith(("/dashboard/", "/farm", "/settings", "/audit", "/authz"))
-    if production and protected:
+    if production and not _is_public_human_access_request(request.method, path):
         token = request.headers.get("X-DairyOS-Human-Session")
         try:
             _, identity = _current_session(token)
