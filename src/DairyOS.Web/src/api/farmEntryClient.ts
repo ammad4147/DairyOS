@@ -30,9 +30,34 @@ export interface HealthEntryRequest extends OperationalEntry {
     operator: string;
 }
 
+const RETRY_PREFIX = "dairyos:uncertain-write:";
+const uncertainRequestIds = new Map<string, string>();
+
+async function retryKey(url: string, payload: unknown): Promise<string | null> {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    const stablePayload = { ...(payload as Record<string, unknown>) };
+    delete stablePayload.request_id;
+    const bytes = new TextEncoder().encode(`${url}\n${JSON.stringify(stablePayload)}`);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${RETRY_PREFIX}${fingerprint}`;
+}
+
 export async function postRequest<T>(url: string, payload: unknown): Promise<T> {
+    const key = await retryKey(url, payload);
+    let requestId = payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>).request_id as string | undefined
+        : undefined;
+    if (!requestId && key) {
+        try {
+            requestId = uncertainRequestIds.get(key) || sessionStorage.getItem(key) || undefined;
+        } catch {
+            requestId = uncertainRequestIds.get(key);
+        }
+    }
+    requestId ||= crypto.randomUUID();
     const requestPayload = payload && typeof payload === "object" && !Array.isArray(payload)
-        ? { ...(payload as Record<string, unknown>), request_id: (payload as Record<string, unknown>).request_id || crypto.randomUUID() }
+        ? { ...(payload as Record<string, unknown>), request_id: requestId }
         : payload;
     let response: Response;
     try {
@@ -42,10 +67,20 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
             body: JSON.stringify(requestPayload),
         });
     } catch (error) {
-        // A network failure is not an accepted farm write. Keep the mutation
-        // identifier available for an operator retry, but never queue it for
-        // replay until per-workflow authorization and idempotency are proven.
-        throw new Error("DairyOS could not reach the server. This entry was not saved; reconnect and submit it again.", { cause: error });
+        // The server may have committed before the connection was lost. Retain
+        // this ID only for an explicit retry of this identical request.
+        if (key) {
+            uncertainRequestIds.set(key, requestId);
+            try { sessionStorage.setItem(key, requestId); } catch { /* in-memory retry remains available in this tab */ }
+        }
+        throw new Error("DairyOS lost the server response. The outcome is unconfirmed—check the register before retrying.", { cause: error });
+    }
+
+    // A success or a definitive client rejection ends the uncertain attempt.
+    // A server failure can happen after commit, so retain its ID for retry.
+    if (key && response.status < 500) {
+        uncertainRequestIds.delete(key);
+        try { sessionStorage.removeItem(key); } catch { /* no durable retry marker to clear */ }
     }
 
     if (!response.ok) {
@@ -55,6 +90,9 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
             if (body.detail) detail = body.detail;
         } catch {
             // Keep the HTTP error when the response is not JSON.
+        }
+        if (response.status >= 500) {
+            detail = `${detail}. The write outcome is unconfirmed—check the register before retrying.`;
         }
         throw new Error(detail);
     }
