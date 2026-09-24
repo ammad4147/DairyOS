@@ -7,7 +7,7 @@ from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 
 from dairyos.data.database.base import Base
-from dairyos.windows.private_postgres import isolated_postgres_environment
+from dairyos.platform.postgres_environment import isolated_postgres_environment
 
 __all__ = ["DATABASE_URL", "Base", "SessionLocal", "engine", "get_session"]
 

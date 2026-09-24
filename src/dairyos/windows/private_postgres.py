@@ -8,13 +8,15 @@ import re
 import socket
 import subprocess
 import sys
-import threading
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 from dairyos.platform import paths
+from dairyos.platform.postgres_environment import (
+    POSTGRES_ENVIRONMENT_VARIABLES as _POSTGRES_ENVIRONMENT_VARIABLES,
+    isolated_postgres_environment,
+)
 from dairyos.windows.components import compare_versions
 
 
@@ -52,41 +54,6 @@ _VERSION_RE = re.compile(r"PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})", re.IGNORE
 # Ambient libpq/PostgreSQL variables from the launching shell, desktop,
 # installer, scheduled task, or service must not redirect or poison that
 # private runtime.
-_POSTGRES_ENVIRONMENT_VARIABLES = frozenset(
-    {
-        "PGAPPNAME",
-        "PGCHANNELBINDING",
-        "PGCLIENTENCODING",
-        "PGCONNECT_TIMEOUT",
-        "PGDATABASE",
-        "PGDATA",
-        "PGGSSENCMODE",
-        "PGGSSLIB",
-        "PGHOST",
-        "PGHOSTADDR",
-        "PGKRBSRVNAME",
-        "PGOPTIONS",
-        "PGPASSFILE",
-        "PGPASSWORD",
-        "PGPORT",
-        "PGREQUIREPEER",
-        "PGREQUIRESSL",
-        "PGSERVICE",
-        "PGSERVICEFILE",
-        "PGSYSCONFDIR",
-        "PGSSLCERT",
-        "PGSSLCRL",
-        "PGSSLCRLDIR",
-        "PGSSLKEY",
-        "PGSSLMODE",
-        "PGSSLROOTCERT",
-        "PGSSLSNI",
-        "PGTARGETSESSIONATTRS",
-        "PGUSER",
-    }
-)
-
-
 def _postgres_subprocess_environment(
     *,
     user: str | None = None,
@@ -101,46 +68,6 @@ def _postgres_subprocess_environment(
         environment["PGUSER"] = user
 
     return environment
-
-
-_POSTGRES_ENVIRONMENT_LOCK = threading.RLock()
-
-
-@contextmanager
-def isolated_postgres_environment():
-    """Temporarily remove ambient libpq authority.
-
-    libpq can consume PostgreSQL environment settings even when core
-    connection parameters are supplied explicitly. DairyOS' packaged
-    private PostgreSQL connections therefore establish their libpq
-    connection while the governed PostgreSQL environment variables are
-    absent.
-
-    The exact prior environment state is restored on every exit path.
-    The scope is serialized because os.environ is process-global.
-    """
-    with _POSTGRES_ENVIRONMENT_LOCK:
-        previous = {
-            name: (
-                name in os.environ,
-                os.environ.get(name),
-            )
-            for name in _POSTGRES_ENVIRONMENT_VARIABLES
-        }
-
-        try:
-            for name in _POSTGRES_ENVIRONMENT_VARIABLES:
-                os.environ.pop(name, None)
-
-            yield
-        finally:
-            for name, (existed, value) in previous.items():
-                if existed:
-                    os.environ[name] = (
-                        "" if value is None else value
-                    )
-                else:
-                    os.environ.pop(name, None)
 
 
 def runtime_root() -> Path:

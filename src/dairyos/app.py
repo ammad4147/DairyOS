@@ -31,7 +31,6 @@ from dairyos.frontend import frontend_index_response, mount_frontend
 from dairyos.missed_milking_scheduler import DailyMissedMilkingScheduler
 from dairyos.runtime.container import RuntimeContainer
 from dairyos.tmr_daily_cost_scheduler import DailyTMRCostScheduler
-from dairyos.windows.startup_integrity import record_successful_start
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 application_runtime = ApplicationRuntime()
@@ -52,7 +51,11 @@ async def lifespan(_app: FastAPI):
     missed_milking_scheduler.start()
     tmr_daily_cost_scheduler.start()
     email_scheduler.start()
-    marker = record_successful_start()
+    marker = None
+    if bool(getattr(__import__("sys"), "frozen", False)):
+        from dairyos.windows.startup_integrity import record_successful_start
+
+        marker = record_successful_start()
     if marker is not None:
         logging.info("DairyOS successful packaged installation marker written: %s", marker)
     logging.info("RuntimeContainer and operational schedulers started - operations ready.")
