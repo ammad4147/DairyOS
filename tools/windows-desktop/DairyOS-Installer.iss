@@ -63,16 +63,15 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: string; ValueName: "DAIRYOS_INSTALL_ROOT"; ValueData: "{app}"; Flags: uninsdeletevalue
 
 [Icons]
-Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
-Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
-Name: "{autoprograms}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
-Name: "{autodesktop}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autoprograms}\DairyOS (Desktop)"; Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autoprograms}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: "--network-access --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; Parameters: "--network-access --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
 
 [Dirs]
 Name: "{commonappdata}\DairyOS"
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS Web in your browser"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
+Filename: "{app}\{#AppExeName}"; Parameters: "--network-access --data-root ""{code:DairyOSDataRoot}"""; Description: "Launch DairyOS Web for this PC and farm network"; Flags: nowait postinstall skipifsilent; Check: ShouldLaunchDairyOS
 
 [UninstallDelete]
 ; Remove the complete application tree, including runtime-generated files
@@ -81,6 +80,12 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:Dair
 ; choice below and is never inferred from this application-tree cleanup.
 Type: filesandordirs; Name: "{app}"
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
+
+[InstallDelete]
+; Remove only the previous installer-owned desktop shortcuts. The single
+; desktop entry now starts the browser-first local network application.
+Type: files; Name: "{autodesktop}\DairyOS.lnk"
+Type: files; Name: "{autodesktop}\DairyOS Web.lnk"
 
 
 [Code]
@@ -297,6 +302,53 @@ begin
 end;
 
 
+function RunDairyOSFirewallCommand(Parameters: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(
+    ExpandConstant('{sys}\netsh.exe'),
+    Parameters,
+    ExpandConstant('{tmp}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = 0);
+end;
+
+
+procedure ProvisionDairyOSLANFirewallRule();
+var
+  Parameters: String;
+begin
+  { Replace only DairyOS's named rule. The listener is restricted to the
+    directly connected local subnet; never open it to the internet. }
+  RunDairyOSFirewallCommand(
+    'advfirewall firewall delete rule name="DairyOS Local Network Access"'
+  );
+  Parameters :=
+    'advfirewall firewall add rule name="DairyOS Local Network Access" ' +
+    'dir=in action=allow protocol=TCP localport=8000 ' +
+    'program="' + ExpandConstant('{app}\{#AppExeName}') + '" ' +
+    'profile=any remoteip=localsubnet';
+  if not RunDairyOSFirewallCommand(Parameters) then
+    RaiseException(
+      'DairyOS could not enable safe same-network browser access. ' +
+      'Setup cannot finish without the local-subnet-only firewall rule.'
+    );
+  Log('DairyOS local network firewall rule installed for local subnet only.');
+end;
+
+
+procedure RemoveDairyOSLANFirewallRule();
+begin
+  RunDairyOSFirewallCommand(
+    'advfirewall firewall delete rule name="DairyOS Local Network Access"'
+  );
+  Log('DairyOS local network firewall rule removed.');
+end;
+
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
@@ -306,6 +358,7 @@ begin
     ProvisionStorageTreeAcl();
     ProvisionBackupTreeAcl();
     ProvisionAutomaticBackupTask();
+    ProvisionDairyOSLANFirewallRule();
   end;
 end;
 
@@ -774,6 +827,7 @@ begin
     backups and deliberate Settings Export/Import operations. }
   if CurUninstallStep = usPostUninstall then
   begin
+    RemoveDairyOSLANFirewallRule();
     RemoveRetiredAssistantState();
     Log('DairyOS uninstall: application cleanup complete; farm data remains under its independent backup/recovery ownership.');
   end;

@@ -176,12 +176,20 @@ def test_shortcuts_and_postinstall_launch_use_canonical_resolver():
     )
 
     # The existing native DairyOS shortcuts keep their established launch;
-    # setup opens the browser-first option after installation.
-    assert source.count(launch_parameter) == 2
+    # the browser-first option now serves only the farm's private LAN.
+    assert source.count(launch_parameter) == 1
     assert (
-        'Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; '
-        'Description: "Launch DairyOS Web in your browser"'
+        'Parameters: "--network-access --data-root ""{code:DairyOSDataRoot}"""; '
+        'Description: "Launch DairyOS Web for this PC and farm network"'
     ) in source
+    assert source.count('Parameters: "--network-access --data-root') == 3
+    assert 'Name: "{autodesktop}\\DairyOS"' in source
+    assert 'Name: "{autodesktop}\\DairyOS Web"' not in source
+    assert 'Name: "{autodesktop}\\DairyOS.lnk"' in source
+    assert 'Name: "{autodesktop}\\DairyOS Web.lnk"' in source
+    assert 'localport=8000' in source
+    assert 'profile=any remoteip=localsubnet' in source
+    assert 'RemoveDairyOSLANFirewallRule();' in source
 
 
 def test_installer_farm_movement_is_absent_by_design():

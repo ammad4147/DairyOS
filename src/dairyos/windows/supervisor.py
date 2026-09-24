@@ -10,6 +10,7 @@ import argparse
 import base64
 import binascii
 import ctypes
+import ipaddress
 import json
 import logging
 import os
@@ -48,6 +49,7 @@ from dairyos.windows.system_postgres_admin import (
 
 LOG = logging.getLogger("dairyos.windows.supervisor")
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
+LAN_WEB_PORT = 8000
 _AUTH_SIGNING_SECRET: str | None = None
 
 
@@ -354,12 +356,55 @@ def choose_port(host: str = "127.0.0.1") -> int:
         return int(sock.getsockname()[1])
 
 
+def lan_ipv4_addresses() -> list[str]:
+    """Return private IPv4 addresses suitable for same-network browser access."""
+    # A UDP connect selects the source interface from the Windows route table
+    # without sending a packet. This avoids accidentally advertising a Docker
+    # or VPN adapter simply because it sorts before the active farm LAN NIC.
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route_probe:
+            route_probe.connect(("192.0.2.1", 9))  # IANA TEST-NET; route lookup only.
+            selected = route_probe.getsockname()[0]
+        parsed = ipaddress.ip_address(selected)
+        if parsed.is_private and not parsed.is_loopback and not parsed.is_link_local:
+            return [selected]
+    except OSError:
+        pass
+
+    addresses: set[str] = set()
+    try:
+        candidates = socket.getaddrinfo(
+            socket.gethostname(), None, socket.AF_INET, socket.SOCK_STREAM
+        )
+    except OSError:
+        return []
+    for candidate in candidates:
+        address = candidate[4][0]
+        parsed = ipaddress.ip_address(address)
+        if parsed.is_private and not parsed.is_loopback and not parsed.is_link_local:
+            addresses.add(address)
+    return sorted(addresses)
+
+
 def probe(url: str, timeout: float = 1.0) -> bool:
     try:
         with urlopen(url, timeout=timeout) as response:
             return 200 <= response.status < 300
     except (OSError, URLError):
         return False
+
+
+def reopen_existing_network_application(config: SupervisorConfig) -> bool:
+    """Open the live LAN instance instead of silently rejecting a second click."""
+    if config.host != "0.0.0.0" or config.port <= 0:
+        return False
+    addresses = lan_ipv4_addresses()
+    candidates = [f"http://{address}:{config.port}" for address in addresses]
+    candidates.append(f"http://127.0.0.1:{config.port}")
+    for url in candidates:
+        if probe(f"{url}/health"):
+            return bool(webbrowser.open(url, new=2))
+    return False
 
 
 def wait_for_ready(base_url: str, config: SupervisorConfig) -> None:
@@ -465,7 +510,9 @@ def start_backend(config: SupervisorConfig, job: JobObject, port: int | None = N
         backend_log.close()
 
     LOG.info("DairyOS backend child log: %s", backend_log_path)
-    return process, f"http://{config.host}:{selected_port}"
+    # Wildcard addresses are bind targets, not usable browser destinations.
+    browser_host = "127.0.0.1" if config.host in {"0.0.0.0", "::"} else config.host
+    return process, f"http://{browser_host}:{selected_port}"
 
 
 def terminate_backend(process: subprocess.Popen | None) -> None:
@@ -905,7 +952,15 @@ def database_preflight(config: SupervisorConfig) -> int:
 def run(config: SupervisorConfig, *, browser: bool = False) -> int:
     instance = SingleInstance()
     if not instance.acquire():
+        if browser and reopen_existing_network_application(config):
+            LOG.info("Reopened the existing DairyOS network page in the browser.")
+            return 0
         LOG.warning("Another DairyOS instance is already running")
+        show_startup_error(
+            "DairyOS is already running",
+            "DairyOS is already running. Use its open window or browser page. "
+            "If it is not visible, close DairyOS from the taskbar and open it again.",
+        )
         return 2
 
     LOG.info("startup stage=single-instance-acquired pid=%s", os.getpid())
@@ -1080,9 +1135,24 @@ def run(config: SupervisorConfig, *, browser: bool = False) -> int:
 
         try:
             if browser:
-                LOG.info("startup stage=browser-launch url=%s", url)
+                browser_url = url
+                if config.host == "0.0.0.0":
+                    addresses = lan_ipv4_addresses()
+                    for address in addresses:
+                        LOG.info(
+                            "DairyOS same-network address: http://%s:%s",
+                            address,
+                            backend_port,
+                        )
+                    if addresses:
+                        browser_url = f"http://{addresses[0]}:{backend_port}"
+                    else:
+                        LOG.warning(
+                            "No private IPv4 address was found; opening DairyOS on this PC only."
+                        )
+                LOG.info("startup stage=browser-launch url=%s", browser_url)
                 watchdog.start()
-                if not webbrowser.open(url, new=2):
+                if not webbrowser.open(browser_url, new=2):
                     raise RuntimeError("Windows could not open the DairyOS page in your browser.")
                 while watchdog.thread and watchdog.thread.is_alive():
                     time.sleep(0.5)
@@ -1130,6 +1200,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Open DairyOS in the default web browser instead of its desktop window.",
     )
+    parser.add_argument(
+        "--network-access",
+        action="store_true",
+        help=(
+            "Open DairyOS in a browser and allow access from devices on the "
+            "same private network."
+        ),
+    )
     parser.add_argument("--health-timeout", type=float, default=60.0)
     parser.add_argument("--restart-attempts", type=int, default=2)
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
@@ -1140,6 +1218,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", default="")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "INFO"))
     return parser
+
+
+def config_from_args(args: argparse.Namespace) -> SupervisorConfig:
+    """Resolve safe loopback defaults and the explicit same-network mode."""
+    network_access = bool(args.network_access)
+    return SupervisorConfig(
+        host="0.0.0.0" if network_access else args.host,
+        port=(args.port or LAN_WEB_PORT) if network_access else args.port,
+        browser_mode=bool(args.browser or network_access),
+        health_timeout=args.health_timeout,
+        restart_attempts=max(0, args.restart_attempts),
+        postgres_timeout=max(1.0, args.postgres_timeout),
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1224,20 +1315,13 @@ def main(argv: list[str] | None = None) -> int:
     if os.name != "nt":
         LOG.warning("Desktop supervisor is running on a non-Windows host; Job Object and WebView2 are unavailable.")
 
-    config = SupervisorConfig(
-        host=args.host,
-        port=args.port,
-        browser_mode=args.browser,
-        health_timeout=args.health_timeout,
-        restart_attempts=max(0, args.restart_attempts),
-        postgres_timeout=max(1.0, args.postgres_timeout),
-    )
+    config = config_from_args(args)
     if args.database_preflight:
         if not getattr(sys, "frozen", False):
             LOG.error("--database-preflight is reserved for the packaged DairyOS executable.")
             return 64
         return database_preflight(config)
-    return run(config, browser=args.browser)
+    return run(config, browser=args.browser or args.network_access)
 
 
 if __name__ == "__main__":

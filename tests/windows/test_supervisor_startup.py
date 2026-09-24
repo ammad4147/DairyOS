@@ -85,6 +85,106 @@ def test_browser_launcher_option_is_available_without_changing_desktop_default()
     assert parser.parse_args([]).browser is False
 
 
+def test_network_access_is_explicit_and_uses_stable_private_network_listener():
+    parser = supervisor.build_parser()
+
+    desktop = supervisor.config_from_args(parser.parse_args([]))
+    network = supervisor.config_from_args(
+        parser.parse_args(["--network-access"])
+    )
+
+    assert (desktop.host, desktop.port, desktop.browser_mode) == (
+        "127.0.0.1",
+        0,
+        False,
+    )
+    assert (network.host, network.port, network.browser_mode) == (
+        "0.0.0.0",
+        supervisor.LAN_WEB_PORT,
+        True,
+    )
+
+
+def test_network_mode_browser_uses_private_ipv4_not_wildcard(monkeypatch):
+    calls = []
+    job = _FakeJob()
+    process = _FakeProcess()
+    config = supervisor.SupervisorConfig(
+        host="0.0.0.0",
+        port=supervisor.LAN_WEB_PORT,
+        health_timeout=1,
+        restart_attempts=0,
+        postgres_timeout=1,
+    )
+
+    monkeypatch.setattr(
+        supervisor,
+        "SingleInstance",
+        lambda: SimpleNamespace(acquire=lambda: True, release=lambda: None),
+    )
+    monkeypatch.setattr(supervisor, "JobObject", lambda: job)
+    monkeypatch.setattr(supervisor, "ensure_postgresql_running", lambda timeout: "postgresql-test")
+    monkeypatch.setattr(supervisor, "stage_runtime_database_url", lambda: None)
+    monkeypatch.setattr(supervisor, "stage_migration_database_url", lambda: None)
+    monkeypatch.setattr(supervisor, "migrate_if_needed", lambda: SimpleNamespace(
+        migrated=False, current_heads=("head",), target_heads=("head",), backup_path=None
+    ))
+    monkeypatch.setattr(supervisor, "process_pending_system_reset", lambda: None)
+    monkeypatch.setattr(supervisor, "start_backend", lambda cfg, fake_job, port=None: (
+        process, f"http://127.0.0.1:{port}"
+    ))
+    monkeypatch.setattr(supervisor, "wait_for_ready", lambda url, cfg: calls.append(("ready", url)))
+    monkeypatch.setattr(supervisor, "lan_ipv4_addresses", lambda: ["192.168.100.15"])
+
+    class BrowserWatchdog(_FakeWatchdog):
+        def start(self):
+            self.thread = SimpleNamespace(is_alive=lambda: False)
+
+    monkeypatch.setattr(supervisor, "BackendWatchdog", BrowserWatchdog)
+    monkeypatch.setattr(
+        supervisor.webbrowser,
+        "open",
+        lambda url, new: calls.append(("browser", url, new)) or True,
+    )
+
+    assert supervisor.run(config, browser=True) == 0
+    assert calls == [
+        ("ready", f"http://127.0.0.1:{supervisor.LAN_WEB_PORT}"),
+        ("browser", f"http://192.168.100.15:{supervisor.LAN_WEB_PORT}", 2),
+    ]
+    assert process.terminated is True
+    assert job.closed is True
+
+
+def test_second_network_launch_reopens_the_running_browser(monkeypatch):
+    opened = []
+    config = supervisor.SupervisorConfig(
+        host="0.0.0.0",
+        port=supervisor.LAN_WEB_PORT,
+        browser_mode=True,
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "SingleInstance",
+        lambda: SimpleNamespace(acquire=lambda: False, release=lambda: None),
+    )
+    monkeypatch.setattr(supervisor, "lan_ipv4_addresses", lambda: ["192.168.100.15"])
+    monkeypatch.setattr(supervisor, "probe", lambda url: url.endswith("/health"))
+    monkeypatch.setattr(
+        supervisor.webbrowser,
+        "open",
+        lambda url, new: opened.append((url, new)) or True,
+    )
+    monkeypatch.setattr(
+        supervisor,
+        "show_startup_error",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("No error should be shown")),
+    )
+
+    assert supervisor.run(config, browser=True) == 0
+    assert opened == [("http://192.168.100.15:8000", 2)]
+
+
 def test_browser_mode_opens_local_application_and_keeps_supervisor_alive(monkeypatch):
     calls = []
     job = _FakeJob()
