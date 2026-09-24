@@ -92,9 +92,54 @@ def test_a_second_animal_does_not_open_a_second_ledger_row(
     client, registered_animal
 ):
     _record_milk(client, registered_animal, "MORNING", morning_yield=9.0)
-    _record_milk(client, registered_animal, "MORNING", morning_yield=4.0)
+    second_animal = client.post(
+        "/farm/animals",
+        json={
+            "animal_type": "COW",
+            "breed": "Sahiwal",
+            "lifecycle_status": "LACTATING",
+            "is_currently_milking": True,
+            "milking_frequency": "TWICE_DAILY",
+            "ear_tag": "LEDGER-TWICE-002",
+        },
+    )
+    assert second_animal.status_code == 200, second_animal.text
+    response = _record_milk(
+        client, second_animal.json()["animal_id"], "MORNING", morning_yield=4.0
+    )
+    assert response.status_code == 200, response.text
 
     assert len(_ledger_rows()) == 1
+
+
+def test_duplicate_animal_session_with_new_request_id_is_rejected_without_overwrite(
+    client, registered_animal
+):
+    first = _record_milk(
+        client,
+        registered_animal,
+        "MORNING",
+        morning_yield=9.0,
+        request_id="milk-morning-first-device",
+    )
+    assert first.status_code == 200, first.text
+
+    duplicate = _record_milk(
+        client,
+        registered_animal,
+        "MORNING",
+        morning_yield=14.0,
+        request_id="milk-morning-second-device",
+    )
+
+    assert duplicate.status_code == 409
+    assert (
+        duplicate.json()["detail"]["error"]
+        == "MILKING_SESSION_ALREADY_RECORDED"
+    )
+    rows = _milk_rows(registered_animal)
+    assert len(rows) == 1
+    assert rows[0].morning_yield == 9.0
 
 
 # ----------------------------------------------------------------------
