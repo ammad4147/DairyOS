@@ -79,6 +79,60 @@ def test_direct_backend_dispatch_marks_windowed_backend_mode(monkeypatch):
     }
 
 
+def test_browser_launcher_option_is_available_without_changing_desktop_default():
+    parser = supervisor.build_parser()
+    assert parser.parse_args(["--browser"]).browser is True
+    assert parser.parse_args([]).browser is False
+
+
+def test_browser_mode_opens_local_application_and_keeps_supervisor_alive(monkeypatch):
+    calls = []
+    job = _FakeJob()
+    process = _FakeProcess()
+    config = supervisor.SupervisorConfig(
+        host="127.0.0.1",
+        port=8000,
+        health_timeout=1,
+        restart_attempts=0,
+        postgres_timeout=1,
+    )
+
+    monkeypatch.setattr(
+        supervisor,
+        "SingleInstance",
+        lambda: SimpleNamespace(acquire=lambda: True, release=lambda: None),
+    )
+    monkeypatch.setattr(supervisor, "JobObject", lambda: job)
+    monkeypatch.setattr(supervisor, "ensure_postgresql_running", lambda timeout: "postgresql-test")
+    monkeypatch.setattr(supervisor, "stage_runtime_database_url", lambda: None)
+    monkeypatch.setattr(supervisor, "stage_migration_database_url", lambda: None)
+    monkeypatch.setattr(supervisor, "migrate_if_needed", lambda: SimpleNamespace(
+        migrated=False, current_heads=("head",), target_heads=("head",), backup_path=None
+    ))
+    monkeypatch.setattr(supervisor, "process_pending_system_reset", lambda: None)
+    monkeypatch.setattr(supervisor, "start_backend", lambda cfg, fake_job, port=None: (
+        process, f"http://127.0.0.1:{port}"
+    ))
+    monkeypatch.setattr(supervisor, "wait_for_ready", lambda url, cfg: calls.append(("ready", url)))
+
+    class BrowserWatchdog(_FakeWatchdog):
+        def start(self):
+            calls.append("watchdog-start")
+            self.thread = SimpleNamespace(is_alive=lambda: False)
+
+    monkeypatch.setattr(supervisor, "BackendWatchdog", BrowserWatchdog)
+    monkeypatch.setattr(supervisor.webbrowser, "open", lambda url, new: calls.append(("browser", url, new)) or True)
+
+    assert supervisor.run(config, browser=True) == 0
+    assert calls == [
+        ("ready", "http://127.0.0.1:8000"),
+        "watchdog-start",
+        ("browser", "http://127.0.0.1:8000", 2),
+    ]
+    assert process.terminated is True
+    assert job.closed is True
+
+
 def test_successful_migration_continues_to_backend_startup(monkeypatch):
     calls = []
     job = _FakeJob()

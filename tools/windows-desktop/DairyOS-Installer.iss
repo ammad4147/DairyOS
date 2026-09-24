@@ -65,6 +65,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 [Icons]
 Name: "{autoprograms}\DairyOS"; Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
 Name: "{autodesktop}\DairyOS"; Filename: "{app}\{#AppExeName}"; Parameters: "--data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autoprograms}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
+Name: "{autodesktop}\DairyOS Web"; Filename: "{app}\{#AppExeName}"; Parameters: "--browser --data-root ""{code:DairyOSDataRoot}"""; WorkingDir: "{app}"; IconFilename: "{app}\dairyos-cow.ico"
 
 [Dirs]
 Name: "{commonappdata}\DairyOS"

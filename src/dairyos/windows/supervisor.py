@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import webbrowser
 from ctypes import wintypes
 from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
@@ -896,7 +897,7 @@ def database_preflight(config: SupervisorConfig) -> int:
     return exit_code
 
 
-def run(config: SupervisorConfig) -> int:
+def run(config: SupervisorConfig, *, browser: bool = False) -> int:
     instance = SingleInstance()
     if not instance.acquire():
         LOG.warning("Another DairyOS instance is already running")
@@ -1073,13 +1074,21 @@ def run(config: SupervisorConfig) -> int:
         )
 
         try:
-            LOG.info("startup stage=webview-launch-enter url=%s", url)
-            launch_webview(
-                url,
-                watchdog,
-                lambda: terminate_backend(watchdog.process),
-            )
-            LOG.info("startup stage=webview-launch-returned")
+            if browser:
+                LOG.info("startup stage=browser-launch url=%s", url)
+                watchdog.start()
+                if not webbrowser.open(url, new=2):
+                    raise RuntimeError("Windows could not open the DairyOS page in your browser.")
+                while watchdog.thread and watchdog.thread.is_alive():
+                    time.sleep(0.5)
+            else:
+                LOG.info("startup stage=webview-launch-enter url=%s", url)
+                launch_webview(
+                    url,
+                    watchdog,
+                    lambda: terminate_backend(watchdog.process),
+                )
+                LOG.info("startup stage=webview-launch-returned")
         except Exception as exc:
             LOG.exception("DairyOS desktop runtime failure")
             show_startup_error(
@@ -1111,6 +1120,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dairyos-desktop")
     parser.add_argument("--host", default=os.environ.get("DAIRYOS_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("DAIRYOS_PORT", "0")))
+    parser.add_argument(
+        "--browser",
+        action="store_true",
+        help="Open DairyOS in the default web browser instead of its desktop window.",
+    )
     parser.add_argument("--health-timeout", type=float, default=60.0)
     parser.add_argument("--restart-attempts", type=int, default=2)
     parser.add_argument("--postgres-timeout", type=float, default=30.0)
@@ -1217,7 +1231,7 @@ def main(argv: list[str] | None = None) -> int:
             LOG.error("--database-preflight is reserved for the packaged DairyOS executable.")
             return 64
         return database_preflight(config)
-    return run(config)
+    return run(config, browser=args.browser)
 
 
 if __name__ == "__main__":
