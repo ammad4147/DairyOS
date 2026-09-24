@@ -1,12 +1,40 @@
-import { Cloud, CloudOff } from 'lucide-react';
+import { Cloud, CloudOff, Clock } from 'lucide-react';
 import { useConnectivity } from '../offline/connectivity';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePendingMutations } from '../offline/outboxStatus';
 
 export default function ConnectivityStatus() {
-  const online = useConnectivity() === 'ONLINE';
+  const { state, lastOnlineAt } = useConnectivity();
+  const online = state === 'ONLINE';
   const pending = usePendingMutations();
   const [exportError, setExportError] = useState('');
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const dateText = new Intl.DateTimeFormat('en-PK', { dateStyle: 'medium' }).format(now);
+  const timeText = new Intl.DateTimeFormat('en-PK', { timeStyle: 'short' }).format(now);
+  const lastOnlineText = lastOnlineAt
+    ? new Intl.DateTimeFormat('en-PK', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(lastOnlineAt))
+    : null;
+  const statusText = state === 'CHECKING' ? 'Checking…' : online ? 'Online' : 'Offline';
+  const shortLastOnlineText = lastOnlineAt
+    ? new Intl.DateTimeFormat('en-PK', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(lastOnlineAt))
+    : null;
+  const statusTitle = online
+    ? 'Connected to the DairyOS master server'
+    : state === 'CHECKING'
+      ? 'Checking connection to the DairyOS master server'
+      : `DairyOS master server is unreachable. Last online: ${lastOnlineText || 'not yet recorded'}`;
 
   const exportPending = () => {
     try {
@@ -29,14 +57,26 @@ export default function ConnectivityStatus() {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-    <div role="status" aria-live="polite" title={online ? 'Connected to DairyOS host' : 'Offline: new entries cannot be saved until the DairyOS host is reachable'} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 7px', borderRadius: 5, color: online ? '#86efac' : '#fde68a', background: online ? '#14532d' : '#713f12', border: `1px solid ${online ? '#166534' : '#92400e'}`, fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      {online ? <Cloud size={13} /> : <CloudOff size={13} />}
-      {online ? 'Online' : 'Offline'}
+    <div className="dairyos-connectivity-status" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#cbd5e1', fontSize: 9, whiteSpace: 'nowrap' }}>
+        <Clock size={11} aria-hidden="true" />
+        <span className="dairyos-status-time" title="Device date and time" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', color: '#cbd5e1', fontSize: 8, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+          <time>{dateText}</time>
+          <time>{timeText}</time>
+        </span>
+      </div>
+      {!online && state !== 'CHECKING' && <span className="dairyos-last-online" title={`Last online: ${lastOnlineText || 'not yet recorded'}`} style={{ color: '#cbd5e1', fontSize: 8, whiteSpace: 'nowrap' }}>
+        Last: {shortLastOnlineText || 'Not yet connected'}
+      </span>}
+    </div>
+    <div role="status" aria-live="polite" title={statusTitle} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 7px', borderRadius: 5, color: online ? '#86efac' : state === 'CHECKING' ? '#bfdbfe' : '#fde68a', background: online ? '#14532d' : state === 'CHECKING' ? '#1e3a5f' : '#713f12', border: `1px solid ${online ? '#166534' : state === 'CHECKING' ? '#1d4ed8' : '#92400e'}`, fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      {state === 'OFFLINE' ? <CloudOff size={13} /> : <Cloud size={13} />}
+      {statusText}
     </div>
     {pending.length > 0 && <details style={{ position: 'relative', color: '#fde68a', fontSize: 10 }}>
-      <summary style={{ cursor: 'pointer', padding: '5px 7px', borderRadius: 5, background: '#713f12', border: '1px solid #92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
-        {pending.length} local entr{pending.length === 1 ? 'y' : 'ies'} need review
+      <summary title="Locally stored entries that were not confirmed by the DairyOS server" style={{ cursor: 'pointer', padding: '5px 7px', borderRadius: 5, background: '#713f12', border: '1px solid #92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
+        Review {pending.length}
       </summary>
       <div style={{ position: 'absolute', top: 28, right: 0, width: 'min(360px, calc(100vw - 24px))', padding: 12, borderRadius: 7, background: '#111827', border: '1px solid #92400e', color: '#e2e8f0', whiteSpace: 'normal', boxShadow: '0 12px 24px rgba(0,0,0,.45)' }}>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Stored on this device; delivery was never confirmed.</div>

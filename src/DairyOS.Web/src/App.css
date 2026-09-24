@@ -11,7 +11,36 @@
     touch-action: pan-x;
   }
 
+  .dairyos-connectivity-status {
+    gap: 4px !important;
+  }
+
+  .dairyos-connectivity-status time {
+    font-size: 8px;
+  }
+
+  .dairyos-status-time,
+  .dairyos-last-online {
+    font-size: 7px !important;
+  }
+
+  .dairyos-farm-location {
+    display: none;
+  }
+
   .cmd-dash-wrapper {
     height: calc(100dvh - 60px) !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .dairyos-connectivity-status {
+    flex-direction: column;
+    align-items: flex-end !important;
+    gap: 1px !important;
+  }
+
+  .dairyos-last-online {
+    font-size: 6px !important;
   }
 }
