@@ -28,6 +28,12 @@
     display: none;
   }
 
+  .dairyos-farm-name {
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .cmd-dash-wrapper {
     height: calc(100dvh - 60px) !important;
   }
