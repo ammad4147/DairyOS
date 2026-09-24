@@ -85,6 +85,8 @@ Typical local configuration uses PostgreSQL on localhost:5432. The web applicati
 
 Production compose supplies explicit PostgreSQL credentials, an authentication secret, and a separate stable `DAIRYOS_EMAIL_SECRET` through environment variables. The hosted startup gate refuses to migrate/start without the email secret, so SMTP credential protection is not coupled to authentication-token rotation. Store both secrets securely in the deployment `.env`; never commit it. Back up the email secret with the database recovery material and do not rotate it without re-entering the SMTP password in DairyOS Settings.
 
+Compose publishes the web port on loopback only by default (`127.0.0.1:8000`). Keep this default while hosted authentication, TLS, and network acceptance are incomplete. Put an HTTPS reverse proxy in front for browser access; do not expose port 8000 directly to a LAN or the internet. If a reviewed cross-origin frontend is used, set `DAIRYOS_ALLOWED_ORIGINS` to a comma-separated list of exact `https://` origins (scheme and port included, no paths or wildcard). Same-origin proxy deployments do not need CORS origins. `DAIRYOS_WEB_PORT` changes the loopback host port without changing the container port.
+
 When moving an existing Windows installation to hosted mode, re-enter its SMTP password in DairyOS Settings after hosted startup. Windows DPAPI-protected ciphertext is bound to the Windows account and cannot be decrypted by the hosted server. Likewise, if a previous hosted deployment encrypted SMTP credentials using `DAIRYOS_AUTH_SECRET`, re-enter the password using the dedicated `DAIRYOS_EMAIL_SECRET` before rotating the auth secret.
 
 For a genuinely new, empty database only, set `DAIRYOS_HOSTED_BOOTSTRAP_DATABASE` to the exact configured `POSTGRES_DB` name for the first `docker compose up`. The hosted migration gate compares the values exactly and refuses to initialize any other database. Once startup reports healthy, remove the variable from the shell or `.env`; later starts do not need it. Never set it as a substitute for upgrading or recovering an existing database.
@@ -104,7 +106,7 @@ Run `npm ci` followed by `npm run build` in `src/DairyOS.Web`. TypeScript checki
 
 ### CORS
 
-Browser origins are intentionally constrained to the reviewed local operator-development port range. Production deployments should set an explicit frontend origin policy.
+Hosted browser origins are empty by default and must be explicitly configured through `DAIRYOS_ALLOWED_ORIGINS` when the frontend is cross-origin. The localhost Vite development-origin range is enabled only in development/browser-client modes, not hosted mode. Credentialed wildcard origins are rejected.
 
 ## 5. Sensors and device integration
 

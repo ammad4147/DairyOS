@@ -7,6 +7,7 @@ import os
 import re
 from contextlib import asynccontextmanager
 from datetime import date
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,10 +78,60 @@ async def inventory_integrity_error(request: Request, exc: InventoryIntegrityErr
     return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 app.add_middleware(PayloadNormalizationMiddleware)
+
+
+def _cors_configuration(mode: RuntimeMode, raw_origins: str) -> tuple[list[str], str | None]:
+    origins: list[str] = []
+    for candidate in (origin.strip() for origin in raw_origins.split(",")):
+        if not candidate:
+            continue
+        parsed = urlsplit(candidate)
+        allowed_schemes = {"https"}
+        if mode in {RuntimeMode.DEVELOPMENT, RuntimeMode.BROWSER_CLIENT}:
+            allowed_schemes.add("http")
+        if (
+            candidate == "*"
+            or parsed.scheme not in allowed_schemes
+            or not parsed.netloc
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ValueError(
+                "DAIRYOS_ALLOWED_ORIGINS must contain exact origins; hosted origins must use HTTPS"
+            )
+        try:
+            hostname = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise ValueError("DAIRYOS_ALLOWED_ORIGINS contains an invalid port") from exc
+        if not hostname:
+            raise ValueError("DAIRYOS_ALLOWED_ORIGINS must contain a hostname")
+        if parsed.scheme == "http" and hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("HTTP CORS origins are allowed only on loopback in development")
+        normalized_host = f"[{hostname.lower()}]" if ":" in hostname else hostname.lower()
+        origin = f"{parsed.scheme}://{normalized_host}"
+        if port is not None:
+            origin += f":{port}"
+        if origin not in origins:
+            origins.append(origin)
+    development_origin_regex = (
+        r"https?://(localhost|127\.0\.0\.1):517[3-9]"
+        if mode in {RuntimeMode.DEVELOPMENT, RuntimeMode.BROWSER_CLIENT}
+        else None
+    )
+    return origins, development_origin_regex
+
+
+_configured_origins, _configured_origin_regex = _cors_configuration(
+    resolve_runtime_mode(), os.getenv("DAIRYOS_ALLOWED_ORIGINS", "")
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517[3-9]",
+    allow_origins=_configured_origins,
+    allow_origin_regex=_configured_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"] ,

@@ -33,10 +33,13 @@ services:
       DAIRYOS_AUTH_SECRET: ${DAIRYOS_AUTH_SECRET:?set DAIRYOS_AUTH_SECRET in .env}
       # Keep this key stable across restarts and independent of auth-secret rotation.
       DAIRYOS_EMAIL_SECRET: ${DAIRYOS_EMAIL_SECRET:?set DAIRYOS_EMAIL_SECRET in .env}
+      # Comma-separated exact browser origins; same-origin deployments need none.
+      DAIRYOS_ALLOWED_ORIGINS: ${DAIRYOS_ALLOWED_ORIGINS:-}
       # Set to the exact POSTGRES_DB name only for an explicitly authorized empty-database bootstrap.
       DAIRYOS_HOSTED_BOOTSTRAP_DATABASE: ${DAIRYOS_HOSTED_BOOTSTRAP_DATABASE:-}
     ports:
-      - "8000:8000"
+      # Loopback-only until an authenticated HTTPS reverse-proxy/LAN setup is approved.
+      - "127.0.0.1:${DAIRYOS_WEB_PORT:-8000}:8000"
     volumes:
       - dairyos_farm_data:/var/lib/dairyos
 

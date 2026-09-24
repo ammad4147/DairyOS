@@ -128,6 +128,33 @@ def test_mobile_shell_uses_live_viewport_and_allows_keyboard_scrolling():
     assert "width: 'min(420px, 100vw)'" in alert_source
 
 
+def test_hosted_cors_uses_only_explicit_origins():
+    import pytest
+
+    from dairyos.app import _cors_configuration
+    from dairyos.platform.runtime_mode import RuntimeMode
+
+    origins, regex = _cors_configuration(
+        RuntimeMode.HOSTED,
+        " https://farm.example.test,https://mobile.example.test ",
+    )
+    assert origins == ["https://farm.example.test", "https://mobile.example.test"]
+    assert regex is None
+
+    dev_origins, dev_regex = _cors_configuration(RuntimeMode.DEVELOPMENT, "")
+    assert dev_origins == []
+    assert dev_regex == r"https?://(localhost|127\.0\.0\.1):517[3-9]"
+
+    for invalid in (
+        "*",
+        "http://farm.example.test",
+        "https://farm.example.test/app",
+        "https://user:password@farm.example.test",
+    ):
+        with pytest.raises(ValueError, match="exact origins"):
+            _cors_configuration(RuntimeMode.HOSTED, invalid)
+
+
 def test_operational_presentation_and_api_surface_are_reachable(client: TestClient):
     for path in ("/health", "/readiness", "/version", "/dashboard", "/command-center"):
         response = client.get(path)
