@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:http-retry-fallback": "node scripts/test-http-retry-fallback.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.33.0",

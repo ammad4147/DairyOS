@@ -38,6 +38,36 @@ interface UncertainWriteMarker {
 }
 const uncertainRequestIds = new Map<string, UncertainWriteMarker>();
 
+function fallbackFingerprint(bytes: Uint8Array): string {
+    // This is only a local sessionStorage lookup key, not an authentication
+    // primitive. Private-LAN HTTP origins do not expose SubtleCrypto.
+    let first = 0x811c9dc5;
+    let second = 0x9e3779b9;
+    for (const byte of bytes) {
+        first = Math.imul(first ^ byte, 0x01000193) >>> 0;
+        second = Math.imul(second ^ byte, 0x85ebca6b) >>> 0;
+    }
+    return `${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+}
+
+function newRequestId(): string {
+    const cryptoApi = globalThis.crypto;
+    if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+
+    const bytes = new Uint8Array(16);
+    if (typeof cryptoApi?.getRandomValues === "function") {
+        cryptoApi.getRandomValues(bytes);
+    } else {
+        for (let index = 0; index < bytes.length; index += 1) {
+            bytes[index] = Math.floor(Math.random() * 256);
+        }
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function removeUncertainMarker(key: string): void {
     uncertainRequestIds.delete(key);
     try { sessionStorage.removeItem(key); } catch { /* storage can be unavailable */ }
@@ -96,8 +126,13 @@ async function retryKey(url: string, payload: unknown): Promise<string | null> {
     const stablePayload = { ...(payload as Record<string, unknown>) };
     delete stablePayload.request_id;
     const bytes = new TextEncoder().encode(`${url}\n${JSON.stringify(stablePayload)}`);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const subtle = globalThis.crypto?.subtle;
+    const fingerprint = subtle
+        ? Array.from(
+            new Uint8Array(await subtle.digest("SHA-256", bytes)),
+            (byte) => byte.toString(16).padStart(2, "0"),
+        ).join("")
+        : fallbackFingerprint(bytes);
     return `${RETRY_PREFIX}${fingerprint}`;
 }
 
@@ -109,7 +144,7 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
     if (!requestId && key) {
         requestId = getUncertainRequestId(key);
     }
-    requestId ||= crypto.randomUUID();
+    requestId ||= newRequestId();
     const requestPayload = payload && typeof payload === "object" && !Array.isArray(payload)
         ? { ...(payload as Record<string, unknown>), request_id: requestId }
         : payload;
