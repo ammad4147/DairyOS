@@ -12,6 +12,9 @@
 #ifndef SourceTree
   #define SourceTree "unknown"
 #endif
+#ifndef BundlePath
+  #define BundlePath ..\..\dist\DairyOS-Release\DairyOS
+#endif
 
 [Setup]
 AppId={{D7F1A4D7-5F15-4CC5-B0D0-DA1A05000001}
@@ -44,17 +47,17 @@ SetupLogging=yes
 ; compiler-version-specific directives in the executable version resource.
 
 [Files]
-Source: "..\..\dist\DairyOS-Release\DairyOS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#BundlePath}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 ; Recovery-only copy. This makes pg_ctl available before {app} is recreated
 ; when retained DairyOS data outlives the application directory.
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\pg_ctl.exe"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libpq.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libintl-9.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libiconv-2.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libssl-3-x64.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\libwinpthread-1.dll"; Flags: dontcopy
-Source: "..\..\dist\DairyOS-Release\DairyOS\runtime\PostgreSQL\bin\zlib1.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\pg_ctl.exe"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libpq.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libintl-9.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libiconv-2.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libssl-3-x64.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libwinpthread-1.dll"; Flags: dontcopy
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\zlib1.dll"; Flags: dontcopy
 
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.

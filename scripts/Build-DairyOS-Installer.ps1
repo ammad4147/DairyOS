@@ -52,6 +52,7 @@ Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
 Write-Host "=== BUILD WINDOWS INSTALLER ===" -ForegroundColor Cyan
 $isccArgs = @(
     ("/O" + (Split-Path -Parent $outputPath)),
+    ("/DBundlePath=" + $bundlePath),
     ("/DSourceCommit=$($releaseManifest.source_commit)"),
     ("/DSourceTree=$($releaseManifest.source_tree)"),
     $iss
