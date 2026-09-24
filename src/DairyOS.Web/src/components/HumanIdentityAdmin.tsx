@@ -17,8 +17,9 @@ export default function HumanIdentityAdmin() {
   const [resetPinConfirmations, setResetPinConfirmations] = useState<Record<number, string>>({});
 
   const load = async () => {
-    const response = await fetch(`${API}/human-access/people`);
+    const response = await fetch(`${API}/human-access/people/manage`);
     const payload = await response.json();
+    if (!response.ok) { setMessage(payload.detail || 'Unable to load operator accounts.'); return; }
     setPeople(payload.people || []);
   };
   useEffect(() => {
@@ -84,6 +85,19 @@ export default function HumanIdentityAdmin() {
     await load();
   };
 
+  const remove = async (person: Person) => {
+    if (person.id === currentPerson?.id) return;
+    const confirmed = window.confirm(
+      `Permanently delete ${person.display_name}'s DairyOS account? Their access and PIN will be removed. Farm records and history will be kept. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    const response = await fetch(`${API}/human-access/people/${person.id}`, { method: 'DELETE' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(payload.detail || 'Unable to delete operator account.'); return; }
+    setMessage(`${person.display_name}'s account was deleted. Farm records were kept.`);
+    await load();
+  };
+
   return <section style={{ background: '#111827', padding: 15, borderRadius: 8, border: '1px solid #1f2937' }}>
     <h3 style={{ marginTop: 0 }}>Operator Access</h3>
     <form onSubmit={create} style={{ display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: 8, alignItems: 'end' }}>
@@ -97,7 +111,7 @@ export default function HumanIdentityAdmin() {
       <button type="submit" style={button}>Update My PIN</button>
     </form>}
     {message && <p role="status">{message}</p>}
-    <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>{people.map(person => <div key={person.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 150px minmax(180px, auto) auto', gap: 8, padding: 8, background: '#1e293b', borderRadius: 5, fontSize: 11, alignItems: 'center' }}>
+    <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>{people.map(person => <div key={person.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 150px minmax(180px, auto) auto auto', gap: 8, padding: 8, background: '#1e293b', borderRadius: 5, fontSize: 11, alignItems: 'center' }}>
       <span>{person.display_name}</span><span>{person.entry_group}</span><span>{person.role}</span>
       {person.pin_set ? person.id === currentPerson?.id ? <span>YOUR PIN · use Update My PIN above</span> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'end' }}>
         <label style={label}>New PIN<input aria-label={`New PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={resetPins[person.id] || ''} onChange={event => setResetPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /></label>
@@ -105,6 +119,7 @@ export default function HumanIdentityAdmin() {
         <button type="button" onClick={() => void savePin(person, resetPins[person.id] || '', resetPinConfirmations[person.id] || '')} style={button}>Reset PIN</button>
       </div> : <label style={label}>Initial PIN<input aria-label={`Initial PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={initialPins[person.id] || ''} onChange={event => setInitialPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /><button type="button" onClick={() => void setInitialPin(person)} style={button}>Set Initial PIN</button></label>}
       <button type="button" onClick={() => void toggle(person)} style={button}>{person.active ? 'Deactivate' : 'Activate'}</button>
+      <button type="button" onClick={() => void remove(person)} disabled={person.id === currentPerson?.id} title={person.id === currentPerson?.id ? 'You cannot delete the signed-in Primary Administrator account.' : undefined} style={{ ...button, background: '#b91c1c', opacity: person.id === currentPerson?.id ? 0.5 : 1 }}>Delete</button>
     </div>)}</div>
   </section>;
 }

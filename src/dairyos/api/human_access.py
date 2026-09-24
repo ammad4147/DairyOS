@@ -204,6 +204,18 @@ def people(entry_group: str | None = None) -> dict[str, Any]:
         factory.close()
 
 
+@router.get("/people/manage")
+def manageable_people(x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
+    """Return the full operator roster only to the Primary Administrator."""
+    _require_admin(x_dairyos_human_session)
+    factory = RepositoryFactory.create()
+    try:
+        rows = factory.session.query(HumanIdentity).order_by(HumanIdentity.display_name).all()
+        return {"people": [_public_identity(row) for row in rows]}
+    finally:
+        factory.close()
+
+
 @router.post("/people")
 def create_person(payload: PersonRequest, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
     _, current = _require_admin(x_dairyos_human_session)
@@ -281,6 +293,47 @@ def set_active(identity_id: int, active: bool, x_dairyos_human_session: str | No
         factory.session.commit()
         _audit(factory, "identity_activation" if active else "identity_deactivation", current.display_name, f"Identity id={identity.id} active={bool(active)}")
         return _public_identity(identity)
+    finally:
+        factory.close()
+
+
+@router.delete("/people/{identity_id}")
+def delete_person(identity_id: int, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
+    """Remove an operator's access identity while preserving farm records."""
+    _, current = _require_admin(x_dairyos_human_session)
+    if current.id == identity_id:
+        raise HTTPException(status_code=409, detail="The signed-in Primary Administrator cannot delete their own account")
+    factory = RepositoryFactory.create()
+    try:
+        # Serialize administrator deletion with bootstrap and other deletes so
+        # two concurrent requests cannot remove the last active administrator.
+        factory.session.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"),
+            {"key": PRIMARY_ADMIN_BOOTSTRAP_LOCK_KEY},
+        )
+        identity = factory.session.get(HumanIdentity, identity_id)
+        if identity is None:
+            raise HTTPException(status_code=404, detail="Identity not found")
+        if identity.role == "PRIMARY_ADMIN" and identity.active:
+            active_admins = factory.session.query(HumanIdentity).filter_by(
+                role="PRIMARY_ADMIN", active=True
+            ).count()
+            if active_admins <= 1:
+                raise HTTPException(status_code=409, detail="At least one active Primary Administrator must remain")
+
+        deleted_name = identity.display_name
+        factory.session.query(HumanSession).filter_by(identity_id=identity.id).filter(
+            HumanSession.revoked_at.is_(None)
+        ).update({HumanSession.revoked_at: utcnow()}, synchronize_session=False)
+        factory.session.delete(identity)
+        factory.session.commit()
+        _audit(
+            factory,
+            "identity_deleted",
+            current.display_name,
+            f"Identity id={identity_id} name={deleted_name!r} deleted; farm operational records retained",
+        )
+        return {"deleted": True, "identity_id": identity_id}
     finally:
         factory.close()
 
