@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import text
 
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.human_identity import HumanIdentity, HumanSession
@@ -27,6 +28,7 @@ PIN_ITERATIONS = 200_000
 SESSION_HOURS = 8
 MAX_PIN_FAILURES = 5
 LOCKOUT_MINUTES = 15
+PRIMARY_ADMIN_BOOTSTRAP_LOCK_KEY = 882344101
 
 
 def _audit(factory: RepositoryFactory, event_type: str, actor: str, detail: str) -> None:
@@ -162,6 +164,12 @@ def bootstrap(payload: BootstrapRequest) -> dict[str, Any]:
     pin = _validate_pin(payload.pin, payload.pin_confirmation)
     factory = RepositoryFactory.create()
     try:
+        # The empty-database first-admin check must be serialized across API
+        # processes; otherwise simultaneous first-use requests can both pass.
+        factory.session.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"),
+            {"key": PRIMARY_ADMIN_BOOTSTRAP_LOCK_KEY},
+        )
         if factory.session.query(HumanIdentity).filter_by(role="PRIMARY_ADMIN", active=True).first() is not None:
             raise HTTPException(status_code=409, detail="Primary Administrator already exists")
         digest, salt = _hash_pin(pin)
