@@ -58,12 +58,7 @@ export default function AnimalPassportModal({animalId,onClose,onSave,onOpenPassp
    const classification=await resolveCategory();
    const payload={legacy_animal_id:form.legacyId||null,ear_tag:form.earTag||null,rfid:form.rfid||null,breed:form.breed||null,date_of_birth:form.birthDate||null,date_of_acquisition:form.acquisitionDate||null,sire_id:form.sire||null,dam_id:form.dam||null,lifecycle_status:classification.lifecycle_status,sex:classification.sex,milking_frequency:classification.lifecycle_status==='LACTATING'?form.frequency:null,production_group:form.productionGroup||null,location:form.location||null,photo_data:photoData,operator:'Operator UI'};
     if(isNew&&!purchaseTransactionId){
-      const queuedOrSaved=await postRequest<BackendAnimal|{status?:string}>('/farm/animals',{...payload,animal_type:'CATTLE'});
-      if('status' in queuedOrSaved&&queuedOrSaved.status==='offline_queued'){
-        setSaved(true);setError('Animal registration saved locally and will synchronize when the DairyOS host is reachable.');
-        setTimeout(onClose,1400);return;
-      }
-      const savedAnimal=queuedOrSaved as BackendAnimal;setAnimal(savedAnimal);
+      const savedAnimal=await postRequest<BackendAnimal>('/farm/animals',{...payload,animal_type:'CATTLE'});setAnimal(savedAnimal);
       if(purchaseTransactionId){setCreatedPurchaseAnimalId(savedAnimal.animal_id);await linkPurchaseAnimal(savedAnimal.animal_id);}
       setSaved(true);onSave?.(toUi(savedAnimal));setTimeout(onClose,900);return;
     }

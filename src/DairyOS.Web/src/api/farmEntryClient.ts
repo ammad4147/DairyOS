@@ -1,5 +1,4 @@
 import { apiUrl } from "../config/api";
-import { enqueueMutation } from "../offline/outbox";
 
 export interface OperationalEntry {
     [key: string]: unknown;
@@ -43,8 +42,10 @@ export async function postRequest<T>(url: string, payload: unknown): Promise<T> 
             body: JSON.stringify(requestPayload),
         });
     } catch (error) {
-        await enqueueMutation(url, requestPayload);
-        return { status: "offline_queued", offline: true } as T;
+        // A network failure is not an accepted farm write. Keep the mutation
+        // identifier available for an operator retry, but never queue it for
+        // replay until per-workflow authorization and idempotency are proven.
+        throw new Error("DairyOS could not reach the server. This entry was not saved; reconnect and submit it again.", { cause: error });
     }
 
     if (!response.ok) {

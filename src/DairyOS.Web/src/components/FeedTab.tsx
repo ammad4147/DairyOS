@@ -356,10 +356,7 @@ export default function FeedTab() {
     setMessage('');
 
     try {
-      const body = await postRequest<{
-        status?: string;
-        offline?: boolean;
-      }>('/farm/feed-inventory/manual-override', {
+      await postRequest('/farm/feed-inventory/manual-override', {
         item: selectedOverrideItem.item,
         quantity_delta: delta,
         notes: overrideNotes.trim() || null,
@@ -369,15 +366,8 @@ export default function FeedTab() {
       setOverrideQuantity('');
       setOverrideNotes('');
 
-      setMessage(
-        body?.status === 'offline_queued'
-          ? `Manual physical-stock override saved locally for ${selectedOverrideItem.item}. It will sync automatically.`
-          : `Manual physical-stock override recorded for ${selectedOverrideItem.item}.`,
-      );
-
-      if (body?.status !== 'offline_queued') {
-        await load(true);
-      }
+      setMessage(`Manual physical-stock override recorded for ${selectedOverrideItem.item}.`);
+      await load(true);
     } catch (exc) {
       setError(
         exc instanceof Error
@@ -409,10 +399,7 @@ export default function FeedTab() {
     setMessage('');
 
     try {
-      const body = await postRequest<{
-        status?: string;
-        offline?: boolean;
-      }>(
+      await postRequest(
         `/farm/feed-equipment/${item.finance_transaction_id}/status`,
         {
           status,
@@ -420,15 +407,8 @@ export default function FeedTab() {
         },
       );
 
-      setMessage(
-        body?.status === 'offline_queued'
-          ? `${item.equipment_name} status change saved locally. It will sync automatically.`
-          : `${item.equipment_name} status set to ${status === 'OPERATIONAL' ? 'Operational' : 'Non-Operational'}.`,
-      );
-
-      if (body?.status !== 'offline_queued') {
-        await load(true);
-      }
+      setMessage(`${item.equipment_name} status set to ${status === 'OPERATIONAL' ? 'Operational' : 'Non-Operational'}.`);
+      await load(true);
     } catch (exc) {
       setError(
         exc instanceof Error

@@ -23,13 +23,20 @@
 <script type="module" src="/src/main.tsx"></script>
 
     <script>
+      // Disable legacy workers that could serve stale application/API data.
+      // DairyOS remains network-only until a reviewed offline mode is enabled.
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/serviceWorker.js').then(reg => {
-            console.log('[DairyOS] Courier registered! Ready for offline mode.', reg.scope);
-          }).catch(err => {
-            console.error('[DairyOS] Courier registration failed:', err);
-          });
+        window.addEventListener('load', async () => {
+          try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(registration => registration.unregister()));
+            if ('caches' in window) {
+              const keys = await caches.keys();
+              await Promise.all(keys.filter(key => key.startsWith('dairyos-')).map(key => caches.delete(key)));
+            }
+          } catch (error) {
+            console.error('[DairyOS] Could not clear legacy offline state:', error);
+          }
         });
       }
     </script>
