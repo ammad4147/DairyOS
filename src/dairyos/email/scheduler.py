@@ -10,6 +10,7 @@ from dairyos.farm.settings.services.deployment_control_service import (
     DeploymentControlService,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+from dairyos.platform.scheduler.leases import scheduler_lease
 
 from .digest import DashboardDigestService, expected_digest_date
 
@@ -142,7 +143,12 @@ class NightlyEmailScheduler:
 
     def _send(self, digest_date) -> None:
         try:
-            result = DashboardDigestService(container=self.container).send_for_date(digest_date)
-            log.info("DairyOS nightly digest result: %s", result)
+            with scheduler_lease("nightly_email") as acquired:
+                if not acquired:
+                    return
+                result = DashboardDigestService(container=self.container).send_for_date(
+                    digest_date
+                )
+                log.info("DairyOS nightly digest result: %s", result)
         except Exception:
             log.exception("DairyOS nightly digest failed for %s", digest_date)

@@ -6,6 +6,7 @@ import threading
 from dairyos.data.repositories.repository_factory import (
     RepositoryFactory,
 )
+from dairyos.platform.scheduler.leases import scheduler_lease
 
 log = logging.getLogger(__name__)
 
@@ -88,27 +89,27 @@ class FeedStorageScheduler:
             reconcile_tmr_feed_storage,
         )
 
-        factory = RepositoryFactory.create()
-
         try:
-            result = reconcile_tmr_feed_storage(
-                factory
-            )
-
-            log.info(
-                "Feed Storage automatic TMR "
-                "reconciliation result: %s",
-                result,
-            )
+            with scheduler_lease("feed_storage") as acquired:
+                if not acquired:
+                    return
+                factory = RepositoryFactory.create()
+                try:
+                    result = reconcile_tmr_feed_storage(factory)
+                    log.info(
+                        "Feed Storage automatic TMR reconciliation result: %s",
+                        result,
+                    )
+                except Exception:
+                    try:
+                        factory.session.rollback()
+                    except Exception:
+                        log.warning(
+                            "Failed to roll back Feed Storage scheduler session",
+                            exc_info=True,
+                        )
+                    log.exception("Feed Storage automatic TMR reconciliation failed")
+                finally:
+                    factory.close()
         except Exception:
-            try:
-                factory.session.rollback()
-            except Exception:
-                pass
-
-            log.exception(
-                "Feed Storage automatic TMR "
-                "reconciliation failed"
-            )
-        finally:
-            factory.close()
+            log.exception("Feed Storage scheduler lease or reconciliation failed")

@@ -13,6 +13,7 @@ from dairyos.farm.production.services.missed_milking_control_service import (
     MissedMilkingControlService,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
+from dairyos.platform.scheduler.leases import scheduler_lease
 
 log = logging.getLogger(__name__)
 
@@ -74,33 +75,36 @@ class DailyMissedMilkingScheduler:
 
         factory = None
         try:
-            factory = self.factory_provider()
-            settings_repository = factory.app_settings()
-            zone = FarmSettingsService(settings_repository).get_timezone_info()
-            now = self.now_provider(zone).astimezone(zone)
-            operational_date = now.date()
-            slot = operational_date.isoformat()
+            with scheduler_lease("missed_milking") as acquired:
+                if not acquired:
+                    return False
+                factory = self.factory_provider()
+                settings_repository = factory.app_settings()
+                zone = FarmSettingsService(settings_repository).get_timezone_info()
+                now = self.now_provider(zone).astimezone(zone)
+                operational_date = now.date()
+                slot = operational_date.isoformat()
 
-            if now.time().replace(tzinfo=None) < self.run_after_local_time:
-                return False
-            if settings_repository.get(LAST_RECONCILED_DATE_KEY) == slot:
-                return False
+                if now.time().replace(tzinfo=None) < self.run_after_local_time:
+                    return False
+                if settings_repository.get(LAST_RECONCILED_DATE_KEY) == slot:
+                    return False
 
-            result = MissedMilkingControlService(factory).reconcile(
-                as_of_date=operational_date,
-                lookback_days=31,
-            )
-            settings_repository.set(
-                LAST_RECONCILED_DATE_KEY,
-                slot,
-                updated_by="MISSED_MILKING_SCHEDULER",
-            )
-            log.info(
-                "Daily missed-milking reconciliation completed for farm date %s: %s",
-                slot,
-                result,
-            )
-            return True
+                result = MissedMilkingControlService(factory).reconcile(
+                    as_of_date=operational_date,
+                    lookback_days=31,
+                )
+                settings_repository.set(
+                    LAST_RECONCILED_DATE_KEY,
+                    slot,
+                    updated_by="MISSED_MILKING_SCHEDULER",
+                )
+                log.info(
+                    "Daily missed-milking reconciliation completed for farm date %s: %s",
+                    slot,
+                    result,
+                )
+                return True
         except Exception:
             if factory is not None:
                 try:

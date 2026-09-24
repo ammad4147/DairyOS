@@ -13,6 +13,7 @@ from dairyos.data.repositories.repository_factory import (
 from dairyos.farm.settings.services.operational_date_authority import (
     OperationalDateAuthority,
 )
+from dairyos.platform.scheduler.leases import scheduler_lease
 
 log = logging.getLogger(__name__)
 
@@ -81,39 +82,45 @@ class DailyTMRCostScheduler:
         factory = None
 
         try:
-            factory = self.factory_provider()
-            authority = OperationalDateAuthority(repository_factory=factory)
-            now = authority.current_datetime()
+            with scheduler_lease("tmr_daily_cost") as acquired:
+                if not acquired:
+                    return False
+                factory = self.factory_provider()
+                authority = OperationalDateAuthority(repository_factory=factory)
+                now = authority.current_datetime()
 
-            # A missed prior-day lock cannot be reconstructed safely from the
-            # current Animal Register. Before today's lock window, fail closed
-            # and let historical TMR authority remain explicitly missing.
-            if now.time().replace(tzinfo=None) < self.run_after_local_time:
-                return False
+                # A missed prior-day lock cannot be reconstructed safely from the
+                # current Animal Register. Before today's lock window, fail closed
+                # and let historical TMR authority remain explicitly missing.
+                if now.time().replace(tzinfo=None) < self.run_after_local_time:
+                    return False
 
-            from dairyos.api.tmr import lock_daily_tmr_cost_snapshot
+                from dairyos.api.tmr import lock_daily_tmr_cost_snapshot
 
-            operational_date = authority.current_date()
-            result = lock_daily_tmr_cost_snapshot(
-                factory,
-                operational_date=operational_date,
-            )
-
-            if result.get("created"):
-                log.info(
-                    "Daily TMR cost locked for farm date %s: %.4f",
-                    result["operational_date"],
-                    float(result["total_herd_feed_cost_per_day"]),
+                operational_date = authority.current_date()
+                result = lock_daily_tmr_cost_snapshot(
+                    factory,
+                    operational_date=operational_date,
                 )
 
-            return bool(result.get("created"))
+                if result.get("created"):
+                    log.info(
+                        "Daily TMR cost locked for farm date %s: %.4f",
+                        result["operational_date"],
+                        float(result["total_herd_feed_cost_per_day"]),
+                    )
+
+                return bool(result.get("created"))
 
         except Exception:
             if factory is not None:
                 try:
                     factory.session.rollback()
                 except Exception:
-                    pass
+                    log.warning(
+                        "Failed to roll back daily TMR scheduler session",
+                        exc_info=True,
+                    )
 
             log.exception("Daily TMR cost lock failed")
             return False
