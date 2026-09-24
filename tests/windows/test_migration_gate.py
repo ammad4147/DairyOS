@@ -6,7 +6,14 @@ from dairyos.windows import migrations
 
 
 class _Connection:
+    def __init__(self):
+        self.driver_statements = []
+
     def execute(self, *_args, **_kwargs):
+        return self
+
+    def exec_driver_sql(self, statement):
+        self.driver_statements.append(statement)
         return self
 
     def scalar_one(self):
@@ -38,7 +45,7 @@ class _Engine:
 def _patch_migration_environment(monkeypatch, current_heads, target_heads, application_tables):
     connection = _Connection()
     engine = _Engine(connection)
-    config = SimpleNamespace(attributes={})
+    config = SimpleNamespace(attributes={}, test_connection=connection)
     script = SimpleNamespace(get_heads=lambda: target_heads)
     context = SimpleNamespace(get_current_heads=lambda: current_heads)
 
@@ -140,6 +147,7 @@ def test_packaged_empty_database_bootstraps_after_private_cluster_proof(monkeypa
         migrations.MIGRATION_DATABASE_URL_ENV,
         governed_url,
     )
+    monkeypatch.setenv("DAIRYOS_DB_USER", "dairyos_app")
 
     proof_calls = []
     bootstrap_calls = []
@@ -172,6 +180,10 @@ def test_packaged_empty_database_bootstraps_after_private_cluster_proof(monkeypa
     assert len(bootstrap_calls) == 1
     assert bootstrap_calls[0][1] is config
     assert bootstrap_calls[0][2] == target
+    assert any(
+        'GRANT DELETE ON TABLE public.human_identities TO "dairyos_app"' in statement
+        for statement in bootstrap_calls[0][0].driver_statements
+    )
 
     assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
 
@@ -211,13 +223,14 @@ def test_current_head_runtime_verifies_guards_without_reinstall(monkeypatch):
 
 def test_current_head_privileged_gate_may_reinstall_guards(monkeypatch):
     target = ("20260905_04",)
-    _patch_migration_environment(monkeypatch, target, target, 1)
+    config = _patch_migration_environment(monkeypatch, target, target, 1)
     calls = []
 
     monkeypatch.setenv(
         migrations.MIGRATION_DATABASE_URL_ENV,
         "postgresql+psycopg://dairyos_admin:test@127.0.0.1:5432/dairyos",
     )
+    monkeypatch.setenv("DAIRYOS_DB_USER", "dairyos_app")
     monkeypatch.setattr(
         migrations,
         "verify_destructive_guards",
@@ -234,7 +247,21 @@ def test_current_head_privileged_gate_may_reinstall_guards(monkeypatch):
 
     assert result.migrated is False
     assert [kind for kind, _connection in calls] == ["install"]
+    assert any(
+        'GRANT DELETE ON TABLE public.human_identities TO "dairyos_app"' in statement
+        for statement in config.test_connection.driver_statements
+    )
     assert migrations.MIGRATION_DATABASE_URL_ENV not in __import__("os").environ
+
+
+def test_identity_delete_privilege_requires_a_safe_application_role(monkeypatch):
+    connection = _Connection()
+    monkeypatch.setenv("DAIRYOS_DB_USER", 'dairyos_app"; DROP TABLE human_identities; --')
+
+    with pytest.raises(migrations.MigrationGateError, match="restricted DairyOS database role"):
+        migrations._grant_human_identity_delete(connection)
+
+    assert connection.driver_statements == []
 
 
 def test_privileged_url_is_cleared_when_engine_creation_fails(monkeypatch):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -108,6 +109,23 @@ def _public_application_table_count(connection) -> int:
         )
     )
     return int(result.scalar_one())
+
+
+def _grant_human_identity_delete(connection) -> None:
+    """Grant only account-row deletion to the restricted private app role.
+
+    The private-security preflight revokes DELETE across the schema. After the
+    privileged migration gate confirms the schema, restore this one capability
+    required by Primary Administrators to remove operator access identities.
+    """
+    app_role = os.environ.get("DAIRYOS_DB_USER", "").strip()
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", app_role):
+        raise MigrationGateError(
+            "The restricted DairyOS database role is unavailable for the operator-account permission check."
+        )
+    connection.exec_driver_sql(
+        f'GRANT DELETE ON TABLE public.human_identities TO "{app_role}"'
+    )
 
 
 def _verify_private_bootstrap_target(connection, database_url: str) -> None:
@@ -257,11 +275,14 @@ def migrate_if_needed() -> MigrationResult:
                         _verify_private_bootstrap_target(connection, transient_admin_url)
 
                     _bootstrap_empty_database(connection, config, target)
+                    if transient_admin_url:
+                        _grant_human_identity_delete(connection)
                     return MigrationResult(True, current, target, None)
 
                 if current == target:
                     if transient_admin_url:
                         install_destructive_guards(connection)
+                        _grant_human_identity_delete(connection)
                     else:
                         verify_destructive_guards(connection)
                     return MigrationResult(False, current, target)
@@ -288,6 +309,8 @@ def migrate_if_needed() -> MigrationResult:
                 try:
                     command.upgrade(config, "heads")
                     install_destructive_guards(connection)
+                    if transient_admin_url:
+                        _grant_human_identity_delete(connection)
                 except Exception as exc:
                     raise MigrationGateError(
                         "DairyOS database migration failed. Startup is blocked. "
