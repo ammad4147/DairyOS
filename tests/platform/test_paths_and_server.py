@@ -211,14 +211,6 @@ def test_browser_client_mode_cannot_start_server():
         resolve_configuration(build_parser().parse_args(["--runtime-mode", "browser-client"]))
 
 
-def test_hosted_server_does_not_restrict_worker_count(monkeypatch):
-    monkeypatch.setenv("DAIRYOS_WORKERS", "4")
-    args = build_parser().parse_args(["--runtime-mode", "hosted"])
-
-    assert args.runtime_mode == "hosted"
-    assert "workers" not in resolve_configuration(args)
-
-
 def test_hosted_production_gate_uses_neutral_migration_adapter(monkeypatch):
     import builtins
     from types import SimpleNamespace

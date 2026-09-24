@@ -66,10 +66,22 @@ def _build_alembic_config() -> tuple[Config, ScriptDirectory]:
     return config, ScriptDirectory.from_config(config)
 
 
-def _database_url(database_url: str | None) -> str:
+def _database_url(database_url: str | None = None) -> str:
     value = (database_url or os.environ.get("DAIRYOS_DATABASE_URL", "")).strip()
     if not value:
-        raise HostedMigrationError("DAIRYOS_DATABASE_URL is required for hosted startup.")
+        try:
+            from dairyos.data.database.session import _build_database_url
+
+            value = _build_database_url().strip()
+        except Exception as exc:
+            raise HostedMigrationError(
+                "Hosted database configuration is missing or invalid. Set "
+                "DAIRYOS_DATABASE_URL or the DAIRYOS_DB_* settings."
+            ) from exc
+    if not value:
+        raise HostedMigrationError(
+            "Set DAIRYOS_DATABASE_URL or the DAIRYOS_DB_* settings for hosted startup."
+        )
     try:
         parsed = make_url(value)
     except Exception as exc:

@@ -1,3 +1,14 @@
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /web
+
+COPY src/DairyOS.Web/package.json src/DairyOS.Web/package-lock.json ./
+RUN npm ci
+
+COPY src/DairyOS.Web/ ./
+RUN npm run typecheck && npm run build
+
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -31,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /root/.local /root/.local
 
 COPY . .
+COPY --from=frontend-builder /web/dist /app/src/DairyOS.Web/dist
 
 EXPOSE 8000
 
