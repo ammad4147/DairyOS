@@ -79,6 +79,7 @@ jobs:
       POSTGRES_USER: dairyos_test_runner
       POSTGRES_PASSWORD: dairyos-test-password
       DAIRYOS_AUTH_SECRET: ci-compose-auth-secret
+      DAIRYOS_EMAIL_SECRET: ci-compose-email-encryption-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
