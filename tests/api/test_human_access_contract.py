@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).parents[2]
 GATE = ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanAccessGate.tsx"
 MAIN = ROOT / "src" / "DairyOS.Web" / "src" / "main.tsx"
@@ -55,13 +54,21 @@ def test_person_creation_keeps_authenticated_admin_for_audit_actor():
     assert "_, current = _require_admin(x_dairyos_human_session)" in source
 
 
-def test_initial_pin_is_self_service_without_a_setup_code():
+def test_initial_pin_claim_requires_primary_admin_and_is_not_prelogin_public():
     api = ACCESS.read_text(encoding="utf-8")
     gate = GATE.read_text(encoding="utf-8")
     admin = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanIdentityAdmin.tsx").read_text(encoding="utf-8")
-    assert "setup_code" not in api
-    assert "One-time PIN setup code" not in gate
-    assert "one-time setup code" not in admin.lower()
+    app = APP.read_text(encoding="utf-8")
+    endpoint = api.split('def establish_initial_pin', 1)[1].split('\n@router.', 1)[0]
+    assert "_require_admin(x_dairyos_human_session)" in endpoint
+    assert "pin/initial" in admin and "Set Initial PIN" in admin
+    assert "Ask the Primary Administrator to initialize your PIN." in gate
+    assert 're.fullmatch(r"/human-access/people/\\d+/pin/initial", path)' not in app
+    from dairyos.app import _is_public_human_access_request
+
+    assert not _is_public_human_access_request(
+        "POST", "/human-access/people/42/pin/initial"
+    )
 
 
 def test_milk_operator_reuses_milk_fields_without_loading_finance_ledger():

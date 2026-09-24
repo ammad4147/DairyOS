@@ -9,7 +9,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from dairyos.core.time_utils import utcnow
@@ -205,7 +205,7 @@ def create_person(payload: PersonRequest, x_dairyos_human_session: str | None = 
 
 @router.post("/people/{identity_id}/pin")
 def set_pin(identity_id: int, payload: PinRequest, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
-    session, current = _current_session(x_dairyos_human_session)
+    _session, current = _current_session(x_dairyos_human_session)
     if current.id != identity_id and current.role != "PRIMARY_ADMIN":
         raise HTTPException(status_code=403, detail="Cannot set another identity's PIN")
     pin = _validate_pin(payload.pin, payload.pin_confirmation)
@@ -226,19 +226,24 @@ def set_pin(identity_id: int, payload: PinRequest, x_dairyos_human_session: str 
 
 
 @router.post("/people/{identity_id}/pin/initial")
-def establish_initial_pin(identity_id: int, payload: InitialPinRequest) -> dict[str, Any]:
+def establish_initial_pin(
+    identity_id: int,
+    payload: InitialPinRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
+) -> dict[str, Any]:
+    _, current = _require_admin(x_dairyos_human_session)
     pin = _validate_pin(payload.pin, payload.pin_confirmation)
     factory = RepositoryFactory.create()
     try:
         identity = factory.session.get(HumanIdentity, identity_id)
         if identity is None or not identity.active:
             raise HTTPException(status_code=404, detail="Identity not found")
-        if identity.pin_hash:
+        if identity.pin_hash or identity.pin_salt:
             raise HTTPException(status_code=409, detail="Initial PIN setup is unavailable")
         identity.pin_hash, identity.pin_salt = _hash_pin(pin)
         factory.session.add(identity)
         factory.session.commit()
-        _audit(factory, "pin_established", identity.display_name, "Initial PIN established")
+        _audit(factory, "pin_established", current.display_name, f"Initial PIN established for identity id={identity.id}")
         return _public_identity(identity)
     finally:
         factory.close()

@@ -71,11 +71,7 @@ export default function HumanAccessGate() {
 
   const login = async (event: React.FormEvent) => {
     event.preventDefault(); if (!selected) return; setMessage('');
-    if (!selected.pin_set) {
-      const setup = await fetch(`${API}/human-access/people/${selected.id}/pin/initial`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin, pin_confirmation: confirmPin }) });
-      const setupPayload = await setup.json().catch(() => ({}));
-      if (!setup.ok) { setMessage(setupPayload.detail || 'Initial PIN setup failed.'); return; }
-    }
+    if (!selected.pin_set) { setMessage('Ask the Primary Administrator to initialize your PIN.'); return; }
     const response = await fetch(`${API}/human-access/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identity_id: selected.id, pin }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) { setMessage(payload.detail || 'Unable to authenticate.'); return; }
@@ -112,10 +108,9 @@ export default function HumanAccessGate() {
     <Brand /><button type="button" className="welcome-link welcome-back" onClick={() => setState('welcome')}>← Choose another person</button>
     <div className="welcome-selected-initials">{initials(selected.display_name)}</div>
     <h1>{selected.pin_set ? `Welcome back, ${selected.display_name}` : selected.display_name}</h1>
-    <p>{selected.pin_set ? 'Enter your PIN to continue.' : 'Create your four-digit PIN to continue.'}</p>
-    <input aria-label="PIN" type="password" inputMode="numeric" maxLength={4} placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} required autoFocus />
-    {!selected.pin_set && <input aria-label="Confirm PIN" type="password" inputMode="numeric" maxLength={4} placeholder="Confirm PIN" value={confirmPin} onChange={e => setConfirmPin(e.target.value)} required />}
-    <button className="welcome-primary" type="submit">{selected.pin_set ? 'Continue' : 'Create PIN'}</button>{message && <p className="welcome-alert" role="alert">{message}</p>}
+    <p>{selected.pin_set ? 'Enter your PIN to continue.' : 'Ask the Primary Administrator to initialize your PIN before signing in.'}</p>
+    {selected.pin_set && <><input aria-label="PIN" type="password" inputMode="numeric" maxLength={4} placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} required autoFocus /><button className="welcome-primary" type="submit">Continue</button></>}
+    {message && <p className="welcome-alert" role="alert">{message}</p>}
   </div></div></form>;
 
   const count = filteredPeople.length;

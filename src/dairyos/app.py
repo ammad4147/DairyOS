@@ -165,10 +165,7 @@ def _is_public_human_access_request(method: str, path: str) -> bool:
         return True
     if method in {"GET", "HEAD"} and path.startswith("/assets/"):
         return True
-    return (
-        method == "POST"
-        and re.fullmatch(r"/human-access/people/\d+/pin/initial", path) is not None
-    )
+    return False
 
 
 @app.middleware("http")
