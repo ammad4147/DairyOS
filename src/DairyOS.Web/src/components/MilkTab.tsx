@@ -14,6 +14,7 @@ import {
 import { API_BASE_URL } from '../config/api';
 import { farmToday, formatFarmDate } from '../utils/farmDate';
 import { useFarmDateField } from '../utils/farmDate';
+import { postRequest } from '../api/farmEntryClient';
 
 const API_BASE =
   API_BASE_URL || 'http://127.0.0.1:8000';
@@ -203,6 +204,10 @@ async function request<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
+  if (String(init?.method || 'GET').toUpperCase() === 'POST') {
+    const payload = typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body;
+    return postRequest<T>(url, payload);
+  }
   const response = await fetch(
     `${API_BASE}${url}`,
     {

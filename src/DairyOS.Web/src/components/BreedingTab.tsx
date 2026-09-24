@@ -3,6 +3,7 @@ import { Activity, Plus } from 'lucide-react';
 import AnimalPassportModal from './AnimalPassportModal';
 import { apiUrl } from '../config/api';
 import { useFarmDateField } from '../utils/farmDate';
+import { postRequest } from '../api/farmEntryClient';
 
 type Stage =
   | 'Inseminated (Pending PD)'
@@ -56,20 +57,7 @@ async function getJson<T>(path: string): Promise<T> {
   return r.json() as Promise<T>;
 }
 async function postJson<T>(path: string, payload: unknown): Promise<T> {
-  const r = await fetch(apiUrl(path), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!r.ok) {
-    let detail = `Request failed: ${r.status}`;
-    try {
-      const b = await r.json() as { detail?: string };
-      if (b.detail) detail = b.detail;
-    } catch {}
-    throw new Error(detail);
-  }
-  return r.json() as Promise<T>;
+  return postRequest<T>(path, payload);
 }
 const norm = (v: unknown) => String(v || '').trim().toUpperCase();
 const ev = (v: unknown) => String(v || '').trim().toLowerCase().replace(/[\s-]+/g, '_');

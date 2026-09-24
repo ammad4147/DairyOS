@@ -3,6 +3,7 @@ import {AlertTriangle,CheckCircle2,HeartPulse,Plus,Search,X} from 'lucide-react'
 import AnimalPassportModal from './AnimalPassportModal';
 import {apiUrl} from '../config/api';
 import {farmToday, formatFarmDate} from '../utils/farmDate';
+import {postRequest} from '../api/farmEntryClient';
 
 interface HerdAnimal{id:string;breed:string;category:string;status:string}
 type CaseRow={id?:number|string;case_id?:number|string;animal_id?:string;status?:string;severity?:string;diagnosis?:string;notes?:string;follow_up_due_at?:string|null;opened_at?:string|null;resolved_at?:string|null;resolution?:string|null};
@@ -22,7 +23,7 @@ const btn=(bg:string):React.CSSProperties=>({background:bg,color:'#fff',border:0
 function d(v:unknown){if(!v)return'';const raw=String(v);if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;const x=new Date(raw);return Number.isNaN(x.getTime())?raw.slice(0,10):formatFarmDate(x)}
 function ts(v:unknown){if(!v)return 0;const x=new Date(String(v));return Number.isNaN(x.getTime())?0:x.getTime()}
 async function get<T>(p:string):Promise<T>{const r=await fetch(apiUrl(p));if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json() as Promise<T>}
-async function post<T>(p:string,x:unknown):Promise<T>{const r=await fetch(apiUrl(p),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});if(!r.ok){let m=`Request failed: ${r.status}`;try{const b=await r.json() as {detail?:unknown};if(typeof b.detail==='string')m=b.detail}catch{}throw new Error(m)}return r.json() as Promise<T>}
+async function post<T>(p:string,x:unknown):Promise<T>{return postRequest<T>(p,x)}
 function counts<T>(rows:T[],key:(r:T)=>string){const m=new Map<string,number>();rows.forEach(r=>{const k=key(r).trim()||'Unspecified';m.set(k,(m.get(k)||0)+1)});return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6)}
 function caseId(c:CaseRow){return String(c.id??c.case_id??'')}
 function belongsToCase(row:{health_case_id?:number|string|null;animal_id?:string},c:CaseRow){const cid=caseId(c);return row.health_case_id!=null?String(row.health_case_id)===cid:String(row.animal_id||'')===String(c.animal_id||'')}

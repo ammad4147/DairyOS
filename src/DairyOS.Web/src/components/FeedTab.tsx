@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { API_BASE_URL } from '../config/api';
+import { postRequest } from '../api/farmEntryClient';
 import TMRPreparationTool from './TMRPreparationTool';
 
 
@@ -355,49 +356,28 @@ export default function FeedTab() {
     setMessage('');
 
     try {
-      const response = await fetch(
-        `${API_BASE}/farm/feed-inventory/manual-override`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify({
-            item:
-              selectedOverrideItem.item,
-            quantity_delta: delta,
-            notes:
-              overrideNotes.trim()
-              || null,
-            recorded_by:
-              'UI Operator',
-          }),
-        },
-      );
-
-      const body =
-        await response
-          .json()
-          .catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          typeof body?.detail === 'string'
-            ? body.detail
-            : body?.detail?.error
-              || 'Manual stock override failed.',
-        );
-      }
+      const body = await postRequest<{
+        status?: string;
+        offline?: boolean;
+      }>('/farm/feed-inventory/manual-override', {
+        item: selectedOverrideItem.item,
+        quantity_delta: delta,
+        notes: overrideNotes.trim() || null,
+        recorded_by: 'UI Operator',
+      });
 
       setOverrideQuantity('');
       setOverrideNotes('');
 
       setMessage(
-        `Manual physical-stock override recorded for ${selectedOverrideItem.item}.`,
+        body?.status === 'offline_queued'
+          ? `Manual physical-stock override saved locally for ${selectedOverrideItem.item}. It will sync automatically.`
+          : `Manual physical-stock override recorded for ${selectedOverrideItem.item}.`,
       );
 
-      await load(true);
+      if (body?.status !== 'offline_queued') {
+        await load(true);
+      }
     } catch (exc) {
       setError(
         exc instanceof Error
@@ -429,38 +409,26 @@ export default function FeedTab() {
     setMessage('');
 
     try {
-      const response = await fetch(
-        `${API_BASE}/farm/feed-equipment/${item.finance_transaction_id}/status`,
+      const body = await postRequest<{
+        status?: string;
+        offline?: boolean;
+      }>(
+        `/farm/feed-equipment/${item.finance_transaction_id}/status`,
         {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify({
-            status,
-            operator: 'UI Operator',
-          }),
+          status,
+          operator: 'UI Operator',
         },
       );
 
-      const body =
-        await response
-          .json()
-          .catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          body?.detail
-          || 'Equipment status could not be saved.',
-        );
-      }
-
       setMessage(
-        `${item.equipment_name} status set to ${status === 'OPERATIONAL' ? 'Operational' : 'Non-Operational'}.`,
+        body?.status === 'offline_queued'
+          ? `${item.equipment_name} status change saved locally. It will sync automatically.`
+          : `${item.equipment_name} status set to ${status === 'OPERATIONAL' ? 'Operational' : 'Non-Operational'}.`,
       );
 
-      await load(true);
+      if (body?.status !== 'offline_queued') {
+        await load(true);
+      }
     } catch (exc) {
       setError(
         exc instanceof Error

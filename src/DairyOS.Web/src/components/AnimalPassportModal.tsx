@@ -3,6 +3,7 @@ import { Activity, HeartPulse, Milk, Save, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import OperatorDataBlock from './OperatorDataBlock';
 import { useFarmDateField } from '../utils/farmDate';
+import { postRequest } from '../api/farmEntryClient';
 
 type AnimalData={id:string;category:string;breed:string;age:string;status:string;frequency:string;earTag:string;gender?:string;stage?:string};
 type BackendAnimal={animal_id:string;animal_type?:string|null;animal_category?:string|null;legacy_animal_id?:string|null;ear_tag?:string|null;rfid?:string|null;breed?:string|null;sex?:string|null;date_of_birth?:string|null;date_of_acquisition?:string|null;dam_id?:string|null;sire_id?:string|null;lifecycle_status?:string|null;status?:string|null;milking_frequency?:string|null;is_currently_milking?:boolean;production_group?:string|null;location?:string|null;photo_data?:string|null;active?:boolean};
@@ -56,12 +57,21 @@ export default function AnimalPassportModal({animalId,onClose,onSave,onOpenPassp
    }
    const classification=await resolveCategory();
    const payload={legacy_animal_id:form.legacyId||null,ear_tag:form.earTag||null,rfid:form.rfid||null,breed:form.breed||null,date_of_birth:form.birthDate||null,date_of_acquisition:form.acquisitionDate||null,sire_id:form.sire||null,dam_id:form.dam||null,lifecycle_status:classification.lifecycle_status,sex:classification.sex,milking_frequency:classification.lifecycle_status==='LACTATING'?form.frequency:null,production_group:form.productionGroup||null,location:form.location||null,photo_data:photoData,operator:'Operator UI'};
-   const url=isNew?`${API_BASE}/farm/animals`:`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`;
-   const response=await fetch(url,{method:isNew?'POST':'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(isNew?{...payload,animal_type:'CATTLE'}:payload)});
-   if(!response.ok)throw new Error((await response.text())||`Unable to save animal (${response.status})`);
-   const savedAnimal=await response.json() as BackendAnimal;setAnimal(savedAnimal);
-   if(isNew&&purchaseTransactionId){setCreatedPurchaseAnimalId(savedAnimal.animal_id);await linkPurchaseAnimal(savedAnimal.animal_id);}
-   setSaved(true);onSave?.(toUi(savedAnimal));if(isNew)setTimeout(onClose,900);else await load();
+    if(isNew&&!purchaseTransactionId){
+      const queuedOrSaved=await postRequest<BackendAnimal|{status?:string}>('/farm/animals',{...payload,animal_type:'CATTLE'});
+      if('status' in queuedOrSaved&&queuedOrSaved.status==='offline_queued'){
+        setSaved(true);setError('Animal registration saved locally and will synchronize when the DairyOS host is reachable.');
+        setTimeout(onClose,1400);return;
+      }
+      const savedAnimal=queuedOrSaved as BackendAnimal;setAnimal(savedAnimal);
+      if(purchaseTransactionId){setCreatedPurchaseAnimalId(savedAnimal.animal_id);await linkPurchaseAnimal(savedAnimal.animal_id);}
+      setSaved(true);onSave?.(toUi(savedAnimal));setTimeout(onClose,900);return;
+    }
+    const url=isNew?`${API_BASE}/farm/animals`:`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}`;
+    const response=await fetch(url,{method:isNew?'POST':'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(isNew?{...payload,animal_type:'CATTLE'}:payload)});
+    if(!response.ok)throw new Error((await response.text())||`Unable to save animal (${response.status})`);
+    const savedAnimal=await response.json() as BackendAnimal;setAnimal(savedAnimal);
+    setSaved(true);onSave?.(toUi(savedAnimal));await load();
   }catch(e){setError(e instanceof Error?e.message:'Unable to save animal')}finally{setSaving(false)}
  };
  const recordExit=async(e:React.FormEvent)=>{e.preventDefault();if(isNew||mortalityRecorded)return;setSaving(true);setError('');try{const response=await fetch(`${API_BASE}/farm/animals/${encodeURIComponent(animalId)}/disposition`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({disposition:'DECEASED',effective_date:exitEffectiveDate,veterinarian:exitForm.veterinarian||null,cause:exitForm.cause||null,notes:exitForm.notes||null,operator:'Operator UI'})});if(!response.ok)throw new Error((await response.text())||`Unable to record mortality (${response.status})`);const result=await response.json();setAnimal(result.animal);setSaved(true);onSave?.(toUi(result.animal));await load()}catch(e){setError(e instanceof Error?e.message:'Unable to record mortality')}finally{setSaving(false)}};

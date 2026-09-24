@@ -10,6 +10,7 @@ from dairyos.api.dependencies import get_container
 from dairyos.api.finance_ledger import (
     EQUIPMENT_PURCHASE_ITEM,
 )
+from dairyos.api.operational_write import operational_write
 from dairyos.data.models.feed_ration import FeedRation
 
 router = APIRouter(
@@ -26,6 +27,11 @@ class FeedEquipmentStatusUpdate(BaseModel):
     operator: str = Field(
         default="UI Operator",
         min_length=1,
+    )
+    request_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
     )
 
 
@@ -310,6 +316,7 @@ def feed_equipment_list(
 @router.post(
     "/{finance_transaction_id}/status"
 )
+@operational_write
 def set_feed_equipment_status(
     finance_transaction_id: int,
     payload: FeedEquipmentStatusUpdate,
