@@ -11,6 +11,14 @@ import json
 import os
 import sys
 
+from dairyos.platform.runtime_mode import (
+    RUNTIME_MODE_ENV,
+    RuntimeMode,
+    require_server_mode,
+    resolve_runtime_mode,
+)
+from dairyos.platform.runtime_startup import run_production_startup_gates
+
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 
@@ -23,6 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default=os.environ.get("DAIRYOS_HOST", DEFAULT_HOST))
     parser.add_argument("--port", type=int, default=int(os.environ.get("DAIRYOS_PORT", DEFAULT_PORT)))
     parser.add_argument("--data-dir", default=None)
+    parser.add_argument(
+        "--runtime-mode",
+        choices=[mode.value for mode in RuntimeMode],
+        default=None,
+        help=f"Runtime adapter selection (or {RUNTIME_MODE_ENV}).",
+    )
     parser.add_argument("--reload", action="store_true", help="Reload on source changes (development only).")
     parser.add_argument("--log-level", default=os.environ.get("DAIRYOS_LOG_LEVEL", "info"), choices=["critical", "error", "warning", "info", "debug", "trace"])
     parser.add_argument("--print-config", action="store_true")
@@ -33,19 +47,27 @@ def resolve_configuration(args: argparse.Namespace) -> dict[str, object]:
     if args.data_dir:
         os.environ["DAIRYOS_DATA_DIR"] = str(args.data_dir)
     from dairyos.platform import paths
-    return {"host": args.host, "port": args.port, "log_level": args.log_level, "reload": bool(args.reload), "paths": paths.describe()}
+
+    runtime_mode = resolve_runtime_mode(args.runtime_mode)
+    require_server_mode(runtime_mode)
+    return {
+        "host": args.host,
+        "port": args.port,
+        "log_level": args.log_level,
+        "reload": bool(args.reload),
+        "runtime_mode": runtime_mode.value,
+        "paths": paths.describe(),
+    }
 
 
-def _run_production_startup_gates() -> None:
+def _run_production_startup_gates(mode: RuntimeMode) -> None:
     """Run the production database startup gate.
 
     DairyOS is a local farm application. Database schema preparation remains
     mandatory, but application login/password configuration is intentionally
     outside the startup path.
     """
-    from dairyos.windows.migrations import migrate_if_needed
-
-    migrate_if_needed()
+    run_production_startup_gates(mode)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,9 +90,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     environment = os.getenv("DAIRYOS_ENV", "development").strip().lower()
-    if environment in {"production", "staging", "preprod"}:
+    runtime_mode = RuntimeMode(configuration["runtime_mode"])
+    if runtime_mode is RuntimeMode.HOSTED or environment in {
+        "production",
+        "staging",
+        "preprod",
+    }:
         try:
-            _run_production_startup_gates()
+            _run_production_startup_gates(runtime_mode)
         except Exception as exc:
             print(f"DairyOS startup blocked: {exc}", file=sys.stderr)
             return 1

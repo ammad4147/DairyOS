@@ -112,6 +112,7 @@ New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 
 $dairyOsEnvironmentNames = @(
     "DAIRYOS_ENV",
+    "DAIRYOS_RUNTIME_MODE",
     "DAIRYOS_DATABASE_URL",
     "DAIRYOS_MIGRATION_DATABASE_URL",
     "DAIRYOS_DB_HOST",

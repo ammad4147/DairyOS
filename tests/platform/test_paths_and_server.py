@@ -13,7 +13,17 @@ import sys
 import pytest
 
 from dairyos.platform import paths
-from dairyos.server import build_parser, resolve_configuration
+from dairyos.platform.runtime_mode import (
+    RuntimeMode,
+    RuntimeModeError,
+    resolve_runtime_mode,
+)
+from dairyos.platform.runtime_startup import (
+    RuntimeStartupError,
+    record_successful_start,
+    run_production_startup_gates,
+)
+from dairyos.server import build_parser, main, resolve_configuration
 
 # ----------------------------------------------------------------------
 # Data directory resolution
@@ -154,6 +164,101 @@ def test_defaults_bind_to_loopback_only():
 
     assert args.host == "127.0.0.1"
     assert args.port == 8000
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("development", RuntimeMode.DEVELOPMENT),
+        ("hosted", RuntimeMode.HOSTED),
+        ("windows-appliance", RuntimeMode.WINDOWS_APPLIANCE),
+        ("browser-client", RuntimeMode.BROWSER_CLIENT),
+    ],
+)
+def test_runtime_mode_accepts_explicit_modes(value, expected):
+    assert resolve_runtime_mode(value, frozen=False) is expected
+
+
+def test_frozen_windows_defaults_to_appliance_mode():
+    assert (
+        resolve_runtime_mode(frozen=True, platform="win32")
+        is RuntimeMode.WINDOWS_APPLIANCE
+    )
+
+
+def test_frozen_appliance_cannot_be_overridden_to_hosted():
+    with pytest.raises(RuntimeModeError, match="cannot override"):
+        resolve_runtime_mode("hosted", frozen=True, platform="win32")
+
+
+def test_windows_appliance_mode_is_rejected_on_non_windows():
+    with pytest.raises(RuntimeModeError, match="supported only on Windows"):
+        resolve_runtime_mode("windows-appliance", frozen=False, platform="linux")
+
+
+def test_frozen_non_windows_runtime_fails_clearly():
+    with pytest.raises(RuntimeModeError, match="requires.*Windows"):
+        resolve_runtime_mode(frozen=True, platform="linux")
+
+
+def test_invalid_runtime_mode_fails_closed():
+    with pytest.raises(RuntimeModeError, match="Invalid DAIRYOS_RUNTIME_MODE"):
+        resolve_runtime_mode("desktop-ish", frozen=False)
+
+
+def test_browser_client_mode_cannot_start_server():
+    with pytest.raises(RuntimeModeError, match="frontend deployment mode"):
+        resolve_configuration(build_parser().parse_args(["--runtime-mode", "browser-client"]))
+
+
+def test_hosted_production_gate_fails_before_importing_windows_adapter(monkeypatch):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def deny_windows_adapter(name, *args, **kwargs):
+        if name.startswith("dairyos.windows"):
+            raise AssertionError("Hosted startup imported a Windows adapter.")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", deny_windows_adapter)
+    with pytest.raises(RuntimeStartupError, match="platform-neutral migration adapter"):
+        run_production_startup_gates(RuntimeMode.HOSTED)
+
+
+def test_windows_appliance_gate_still_delegates_to_windows_adapter(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    calls = []
+    adapter = SimpleNamespace(migrate_if_needed=lambda: calls.append("migrated"))
+    monkeypatch.setitem(sys.modules, "dairyos.windows.migrations", adapter)
+
+    run_production_startup_gates(RuntimeMode.WINDOWS_APPLIANCE)
+
+    assert calls == ["migrated"]
+
+
+def test_shared_entrypoints_do_not_import_windows_runtime_directly():
+    from pathlib import Path
+
+    source_root = Path(__file__).resolve().parents[2] / "src" / "dairyos"
+    for relative in ("app.py", "server.py"):
+        source = (source_root / relative).read_text(encoding="utf-8")
+        assert "from dairyos.windows" not in source
+        assert "import dairyos.windows" not in source
+
+
+def test_hosted_server_entrypoint_fails_closed_before_serving(monkeypatch, capsys):
+    monkeypatch.setenv("DAIRYOS_ENV", "production")
+    exit_code = main(["--runtime-mode", "hosted"])
+
+    assert exit_code == 1
+    assert "platform-neutral migration adapter" in capsys.readouterr().err
+
+
+def test_non_windows_modes_do_not_write_windows_install_marker():
+    assert record_successful_start(RuntimeMode.HOSTED) is None
 
 
 def test_data_dir_flag_is_applied_before_paths_resolve(tmp_path, monkeypatch):
