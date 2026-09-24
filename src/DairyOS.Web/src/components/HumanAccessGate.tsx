@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MainAppShell } from '../App';
 import { clearUncertainWriteMarkers } from '../api/farmEntryClient';
 import HumanOperatorConsole from './HumanOperatorConsole';
@@ -7,6 +7,8 @@ import './HumanAccessGate.css';
 
 const API = API_BASE_URL || '';
 const HUMAN_SESSION_KEY = 'dairyos.human.session';
+const HUMAN_ACCESS_CHANNEL = 'dairyos.human-access';
+const HUMAN_ACCESS_TAB_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
 type Person = { id: number; display_name: string; workspace: string; role: string; pin_set: boolean; active: boolean };
 type GateState = 'loading' | 'bootstrap' | 'welcome' | 'pin' | 'management' | 'operator' | 'error';
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
@@ -22,6 +24,7 @@ export default function HumanAccessGate() {
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [clock, setClock] = useState(new Date());
+  const logoutRef = useRef<(notifyOtherTabs?: boolean) => Promise<void>>(async () => {});
 
   const routeIdentity = (person: Person) => {
     setIdentity(person);
@@ -79,17 +82,42 @@ export default function HumanAccessGate() {
     setPin(''); setConfirmPin(''); routeIdentity(payload.identity);
   };
 
-  const logout = async () => {
+  const logout = async (notifyOtherTabs = true) => {
     const token = sessionStorage.getItem(HUMAN_SESSION_KEY);
     try {
       await fetch(`${API}/human-access/logout`, { method: 'POST', headers: token ? { 'X-DairyOS-Human-Session': token } : {} });
     } catch {
       // End this browser session locally even when the server cannot be reached.
     } finally {
+      if (notifyOtherTabs && typeof BroadcastChannel !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel(HUMAN_ACCESS_CHANNEL);
+          channel.postMessage({ type: 'logout', sender: HUMAN_ACCESS_TAB_ID });
+          channel.close();
+        } catch {
+          // Local logout must complete even if peer-tab notification is unavailable.
+        }
+      }
       clearUncertainWriteMarkers();
       sessionStorage.removeItem(HUMAN_SESSION_KEY); setIdentity(null); setSelected(null); await load();
     }
   };
+  logoutRef.current = logout;
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel(HUMAN_ACCESS_CHANNEL);
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'logout' && event.data.sender !== HUMAN_ACCESS_TAB_ID) {
+        void logoutRef.current(false);
+      }
+    };
+    channel.addEventListener('message', onMessage);
+    return () => {
+      channel.removeEventListener('message', onMessage);
+      channel.close();
+    };
+  }, []);
 
   if (state === 'management') return <MainAppShell />;
   if (state === 'operator' && identity) return <HumanOperatorConsole identity={identity} onLogout={() => void logout()} />;

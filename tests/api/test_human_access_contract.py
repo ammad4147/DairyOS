@@ -31,6 +31,15 @@ def test_human_access_api_contains_bootstrap_pin_lockout_and_logout_contract():
     assert "session_token" in source
 
 
+def test_logout_notifies_peer_tabs_without_broadcasting_a_session_token():
+    source = GATE.read_text(encoding="utf-8")
+    assert "new BroadcastChannel(HUMAN_ACCESS_CHANNEL)" in source
+    assert "channel.postMessage({ type: 'logout', sender: HUMAN_ACCESS_TAB_ID })" in source
+    assert "event.data.sender !== HUMAN_ACCESS_TAB_ID" in source
+    assert "void logoutRef.current(false)" in source
+    assert "channel.postMessage({ type: 'logout', sender: HUMAN_ACCESS_TAB_ID, token" not in source
+
+
 def test_human_access_help_records_a_review_request_without_resetting_access():
     source = ACCESS.read_text(encoding="utf-8")
     assert '"/help"' in source
