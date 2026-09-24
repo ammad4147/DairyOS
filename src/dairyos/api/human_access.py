@@ -281,7 +281,12 @@ def login(payload: LoginRequest) -> dict[str, Any]:
     pin = _validate_pin(payload.pin)
     factory = RepositoryFactory.create()
     try:
-        identity = factory.session.get(HumanIdentity, payload.identity_id)
+        identity = (
+            factory.session.query(HumanIdentity)
+            .filter_by(id=payload.identity_id)
+            .with_for_update()
+            .first()
+        )
         now = utcnow()
         if identity is None or not identity.active:
             raise HTTPException(status_code=401, detail="Identity is unavailable")
