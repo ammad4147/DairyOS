@@ -83,7 +83,9 @@ Typical local configuration uses PostgreSQL on localhost:5432. The web applicati
 
 ### Docker Compose
 
-Production compose supplies explicit PostgreSQL credentials and an authentication secret through environment variables. The API waits for a healthy database service before starting.
+Production compose supplies explicit PostgreSQL credentials, an authentication secret, and a separate stable `DAIRYOS_EMAIL_SECRET` through environment variables. The hosted startup gate refuses to migrate/start without the email secret, so SMTP credential protection is not coupled to authentication-token rotation. Store both secrets securely in the deployment `.env`; never commit it. Back up the email secret with the database recovery material and do not rotate it without re-entering the SMTP password in DairyOS Settings.
+
+When moving an existing Windows installation to hosted mode, re-enter its SMTP password in DairyOS Settings after hosted startup. Windows DPAPI-protected ciphertext is bound to the Windows account and cannot be decrypted by the hosted server. Likewise, if a previous hosted deployment encrypted SMTP credentials using `DAIRYOS_AUTH_SECRET`, re-enter the password using the dedicated `DAIRYOS_EMAIL_SECRET` before rotating the auth secret.
 
 For a genuinely new, empty database only, set `DAIRYOS_HOSTED_BOOTSTRAP_DATABASE` to the exact configured `POSTGRES_DB` name for the first `docker compose up`. The hosted migration gate compares the values exactly and refuses to initialize any other database. Once startup reports healthy, remove the variable from the shell or `.env`; later starts do not need it. Never set it as a substitute for upgrading or recovering an existing database.
 

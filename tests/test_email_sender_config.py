@@ -25,6 +25,25 @@ def test_email_secret_requires_deployment_secret(monkeypatch):
         encrypt_secret("smtp-password")
 
 
+def test_hosted_email_encryption_requires_dedicated_secret(monkeypatch):
+    from types import SimpleNamespace
+
+    from dairyos.email import crypto
+
+    monkeypatch.setattr(crypto, "os", SimpleNamespace(name="posix", getenv=os.getenv))
+    monkeypatch.setenv("DAIRYOS_RUNTIME_MODE", "hosted")
+    monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "auth-only-disposable-secret")
+    monkeypatch.delenv("DAIRYOS_EMAIL_SECRET", raising=False)
+
+    with pytest.raises(RuntimeError, match="DAIRYOS_EMAIL_SECRET"):
+        encrypt_secret("smtp-password")
+
+    monkeypatch.setenv("DAIRYOS_EMAIL_SECRET", "stable-email-disposable-secret")
+    ciphertext = encrypt_secret("smtp-password")
+    monkeypatch.setenv("DAIRYOS_AUTH_SECRET", "rotated-auth-disposable-secret")
+    assert decrypt_secret(ciphertext) == "smtp-password"
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Requires actual Windows DPAPI")
 def test_windows_email_secret_needs_no_deployment_secret(monkeypatch):
     import json

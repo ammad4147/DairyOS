@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from dairyos.platform.runtime_mode import RuntimeMode
@@ -19,6 +20,10 @@ def run_production_startup_gates(mode: RuntimeMode) -> None:
         migrate_if_needed()
         return
     if mode is RuntimeMode.HOSTED:
+        if not os.getenv("DAIRYOS_EMAIL_SECRET"):
+            raise RuntimeStartupError(
+                "Hosted mode requires DAIRYOS_EMAIL_SECRET, a stable secret used only to protect saved SMTP credentials."
+            )
         from dairyos.platform.hosted_migrations import migrate_hosted_database
 
         try:

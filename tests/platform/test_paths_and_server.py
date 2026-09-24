@@ -248,6 +248,7 @@ def test_hosted_production_gate_uses_neutral_migration_adapter(monkeypatch):
         "dairyos.platform.hosted_migrations",
         SimpleNamespace(migrate_hosted_database=lambda: calls.append("hosted")),
     )
+    monkeypatch.setenv("DAIRYOS_EMAIL_SECRET", "disposable-email-encryption-secret")
 
     def deny_windows_adapter(name, *args, **kwargs):
         if name.startswith("dairyos.windows"):
@@ -257,6 +258,22 @@ def test_hosted_production_gate_uses_neutral_migration_adapter(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", deny_windows_adapter)
     run_production_startup_gates(RuntimeMode.HOSTED)
     assert calls == ["hosted"]
+
+
+def test_hosted_production_gate_requires_email_secret_before_migration(monkeypatch):
+    from types import SimpleNamespace
+
+    calls = []
+    monkeypatch.setitem(
+        sys.modules,
+        "dairyos.platform.hosted_migrations",
+        SimpleNamespace(migrate_hosted_database=lambda: calls.append("hosted")),
+    )
+    monkeypatch.delenv("DAIRYOS_EMAIL_SECRET", raising=False)
+
+    with pytest.raises(RuntimeStartupError, match="DAIRYOS_EMAIL_SECRET"):
+        run_production_startup_gates(RuntimeMode.HOSTED)
+    assert calls == []
 
 
 def test_windows_appliance_gate_still_delegates_to_windows_adapter(monkeypatch):

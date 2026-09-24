@@ -7,10 +7,19 @@ import os
 
 from cryptography.fernet import Fernet
 
+from dairyos.platform.runtime_mode import RuntimeMode, resolve_runtime_mode
+
 
 def _fernet() -> Fernet:
-    secret = os.getenv("DAIRYOS_EMAIL_SECRET") or os.getenv("DAIRYOS_AUTH_SECRET")
+    hosted = resolve_runtime_mode() is RuntimeMode.HOSTED
+    secret = os.getenv("DAIRYOS_EMAIL_SECRET")
+    if not secret and not hosted:
+        secret = os.getenv("DAIRYOS_AUTH_SECRET")
     if not secret:
+        if hosted:
+            raise RuntimeError(
+                "Hosted mode requires DAIRYOS_EMAIL_SECRET to store or read SMTP credentials"
+            )
         raise RuntimeError(
             "DAIRYOS_EMAIL_SECRET or DAIRYOS_AUTH_SECRET must be configured to store SMTP credentials"
         )
