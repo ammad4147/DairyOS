@@ -80,6 +80,17 @@ def test_initial_pin_claim_requires_primary_admin_and_is_not_prelogin_public():
     )
 
 
+def test_primary_admin_can_update_own_pin_and_reset_another_operators_pin():
+    api = ACCESS.read_text(encoding="utf-8")
+    admin = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanIdentityAdmin.tsx").read_text(encoding="utf-8")
+    endpoint = api.split("def set_pin(", 1)[1].split("\n@router.", 1)[0]
+    assert "current.id != identity_id and current.role != \"PRIMARY_ADMIN\"" in endpoint
+    assert "Your new PIN" in admin
+    assert "Update My PIN" in admin
+    assert "Reset PIN" in admin
+    assert "pin_confirmation: confirmation" in admin
+
+
 def test_milk_operator_reuses_milk_fields_without_loading_finance_ledger():
     console = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "HumanOperatorConsole.tsx").read_text(encoding="utf-8")
     milk = (ROOT / "src" / "DairyOS.Web" / "src" / "components" / "MilkTab.tsx").read_text(encoding="utf-8")

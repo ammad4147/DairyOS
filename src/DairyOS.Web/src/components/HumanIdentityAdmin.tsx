@@ -5,18 +5,48 @@ type Person = { id: number; display_name: string; entry_group: string; role: str
 const API = API_BASE_URL || '';
 
 export default function HumanIdentityAdmin() {
+  const [currentPerson, setCurrentPerson] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [name, setName] = useState('');
   const [group, setGroup] = useState('MILK_OPERATOR');
   const [message, setMessage] = useState('');
   const [initialPins, setInitialPins] = useState<Record<number, string>>({});
+  const [myPin, setMyPin] = useState('');
+  const [myPinConfirmation, setMyPinConfirmation] = useState('');
+  const [resetPins, setResetPins] = useState<Record<number, string>>({});
+  const [resetPinConfirmations, setResetPinConfirmations] = useState<Record<number, string>>({});
 
   const load = async () => {
     const response = await fetch(`${API}/human-access/people`);
     const payload = await response.json();
     setPeople(payload.people || []);
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    void fetch(`${API}/human-access/me`).then(response => response.ok ? response.json() : null).then(payload => setCurrentPerson(payload?.identity || null));
+  }, []);
+
+  const savePin = async (person: Person, pin: string, confirmation: string, ownPin = false) => {
+    if (!/^\d{4}$/.test(pin)) { setMessage('Enter a four-digit PIN.'); return; }
+    if (pin !== confirmation) { setMessage('PIN confirmation does not match.'); return; }
+    const response = await fetch(`${API}/human-access/people/${person.id}/pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin, pin_confirmation: confirmation }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(payload.detail || 'Unable to update PIN.'); return; }
+    if (ownPin) {
+      setMyPin('');
+      setMyPinConfirmation('');
+      setMessage('Your PIN has been updated.');
+    } else {
+      setResetPins(current => ({ ...current, [person.id]: '' }));
+      setResetPinConfirmations(current => ({ ...current, [person.id]: '' }));
+      setMessage(`PIN reset for ${person.display_name}. Give the new PIN to them privately.`);
+    }
+    await load();
+  };
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -61,10 +91,19 @@ export default function HumanIdentityAdmin() {
       <label style={label}>Entry group<select value={group} onChange={event => setGroup(event.target.value)} style={field}><option value="MANAGEMENT">DAIRYOS MANAGEMENT</option><option value="MILK_OPERATOR">MILK OPERATOR</option><option value="ACCOUNTS_OPERATOR">ACCOUNTS OPERATOR</option></select></label>
       <button type="submit" style={button}>Add Person</button>
     </form>
+    {currentPerson && <form onSubmit={event => { event.preventDefault(); void savePin(currentPerson, myPin, myPinConfirmation, true); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end', marginTop: 12, padding: 10, background: '#1e293b', borderRadius: 5 }}>
+      <label style={label}>Your new PIN<input aria-label="Your new PIN" type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={myPin} onChange={event => setMyPin(event.target.value)} style={field} /></label>
+      <label style={label}>Confirm new PIN<input aria-label="Confirm your new PIN" type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={myPinConfirmation} onChange={event => setMyPinConfirmation(event.target.value)} style={field} /></label>
+      <button type="submit" style={button}>Update My PIN</button>
+    </form>}
     {message && <p role="status">{message}</p>}
     <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>{people.map(person => <div key={person.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 150px minmax(180px, auto) auto', gap: 8, padding: 8, background: '#1e293b', borderRadius: 5, fontSize: 11, alignItems: 'center' }}>
       <span>{person.display_name}</span><span>{person.entry_group}</span><span>{person.role}</span>
-      {person.pin_set ? <span>PIN SET</span> : <label style={label}>Initial PIN<input aria-label={`Initial PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={initialPins[person.id] || ''} onChange={event => setInitialPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /><button type="button" onClick={() => void setInitialPin(person)} style={button}>Set Initial PIN</button></label>}
+      {person.pin_set ? person.id === currentPerson?.id ? <span>YOUR PIN · use Update My PIN above</span> : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'end' }}>
+        <label style={label}>New PIN<input aria-label={`New PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={resetPins[person.id] || ''} onChange={event => setResetPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /></label>
+        <label style={label}>Confirm<input aria-label={`Confirm new PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={resetPinConfirmations[person.id] || ''} onChange={event => setResetPinConfirmations(current => ({ ...current, [person.id]: event.target.value }))} style={field} /></label>
+        <button type="button" onClick={() => void savePin(person, resetPins[person.id] || '', resetPinConfirmations[person.id] || '')} style={button}>Reset PIN</button>
+      </div> : <label style={label}>Initial PIN<input aria-label={`Initial PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={initialPins[person.id] || ''} onChange={event => setInitialPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /><button type="button" onClick={() => void setInitialPin(person)} style={button}>Set Initial PIN</button></label>}
       <button type="button" onClick={() => void toggle(person)} style={button}>{person.active ? 'Deactivate' : 'Activate'}</button>
     </div>)}</div>
   </section>;

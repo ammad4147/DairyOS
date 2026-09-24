@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:16
-    container_name: dairyos_postgres
     restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dairyos}
@@ -17,7 +16,6 @@ services:
 
   api:
     build: .
-    container_name: dairyos_application
     restart: always
     depends_on:
       db:
