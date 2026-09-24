@@ -102,3 +102,31 @@ def test_concurrent_invalid_pins_preserve_identity_lockout_threshold(
             factory.close()
     finally:
         _clear_human_access_rows()
+
+
+def test_public_operator_picker_returns_only_login_required_identity_fields(
+    client: TestClient,
+):
+    _clear_human_access_rows()
+    factory = RepositoryFactory.create()
+    try:
+        factory.session.add(
+            HumanIdentity(
+                display_name="Picker Contract Operator",
+                entry_group="MILK_OPERATOR",
+                role="MILKER",
+            )
+        )
+        factory.session.commit()
+    finally:
+        factory.close()
+
+    try:
+        response = client.get("/human-access/people")
+        assert response.status_code == 200, response.text
+        people = response.json()["people"]
+        assert len(people) == 1
+        assert set(people[0]) == {"id", "display_name", "pin_set"}
+        assert people[0]["display_name"] == "Picker Contract Operator"
+    finally:
+        _clear_human_access_rows()

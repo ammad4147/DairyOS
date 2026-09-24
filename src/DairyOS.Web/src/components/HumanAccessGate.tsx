@@ -10,14 +10,15 @@ const HUMAN_SESSION_KEY = 'dairyos.human.session';
 const HUMAN_ACCESS_CHANNEL = 'dairyos.human-access';
 const HUMAN_ACCESS_TAB_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
 type Person = { id: number; display_name: string; workspace: string; role: string; pin_set: boolean; active: boolean };
+type LoginPerson = Pick<Person, 'id' | 'display_name' | 'pin_set'>;
 type GateState = 'loading' | 'bootstrap' | 'welcome' | 'pin' | 'management' | 'operator' | 'error';
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
 
 export default function HumanAccessGate() {
   const [state, setState] = useState<GateState>('loading');
   const [identity, setIdentity] = useState<Person | null>(null);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [selected, setSelected] = useState<Person | null>(null);
+  const [people, setPeople] = useState<LoginPerson[]>([]);
+  const [selected, setSelected] = useState<LoginPerson | null>(null);
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -46,7 +47,7 @@ export default function HumanAccessGate() {
       const response = await fetch(`${API}/human-access/people`);
       if (!response.ok) throw new Error('Unable to load active DairyOS identities.');
       const payload = await response.json();
-      setPeople((payload.people || []).filter((person: Person) => person.active !== false));
+      setPeople(payload.people || []);
       setState('welcome');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'DairyOS access initialization failed.');
@@ -62,7 +63,7 @@ export default function HumanAccessGate() {
     return people.filter(person => person.display_name.toLocaleLowerCase().includes(query));
   }, [people, search]);
 
-  const choose = (person: Person) => { setSelected(person); setPin(''); setConfirmPin(''); setMessage(''); setState('pin'); };
+  const choose = (person: LoginPerson) => { setSelected(person); setPin(''); setConfirmPin(''); setMessage(''); setState('pin'); };
 
   const bootstrap = async (event: React.FormEvent) => {
     event.preventDefault(); setMessage('');

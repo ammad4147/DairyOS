@@ -190,7 +190,16 @@ def people(entry_group: str | None = None) -> dict[str, Any]:
         query = factory.session.query(HumanIdentity).filter_by(active=True)
         if entry_group:
             query = query.filter_by(entry_group=entry_group.strip().upper())
-        return {"people": [_public_identity(row) for row in query.order_by(HumanIdentity.display_name).all()]}
+        return {
+            "people": [
+                {
+                    "id": row.id,
+                    "display_name": row.display_name,
+                    "pin_set": bool(row.pin_hash and row.pin_salt),
+                }
+                for row in query.order_by(HumanIdentity.display_name).all()
+            ]
+        }
     finally:
         factory.close()
 
