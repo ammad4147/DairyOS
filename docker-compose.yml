@@ -20,6 +20,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+        # A Compose-managed database restart/recreation invalidates the API's
+        # long-lived runtime session; restart the API with its database.
+        restart: true
     environment:
       DAIRYOS_ENV: production
       DAIRYOS_DATA_DIR: /var/lib/dairyos
