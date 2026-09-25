@@ -43,9 +43,6 @@ from dairyos.api.human_access import _require_admin
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
-_NAVIGATION_RECOVERY_HASH_KEY = "navigation_admin_recovery_hash"
-_NAVIGATION_RECOVERY_SALT_KEY = "navigation_admin_recovery_salt"
-_MIN_ADMIN_PASSWORD_LENGTH = 12
 RESET_CONFIRMATION = "RESET DAIRYOS TO ZERO STATE"
 RESET_REQUEST_FILENAME = "pending-system-reset.json"
 WELCOME_WALLPAPER_KEY = "welcome_screen_wallpaper"
@@ -97,32 +94,6 @@ def _deployment_service() -> tuple[DeploymentControlService, RepositoryFactory]:
     return DeploymentControlService(service), rf
 
 
-def _navigation_credential_status() -> dict[str, object]:
-    username = _configured_username()
-    persisted_user = _find_persisted_user(username)
-    password_override = _legacy_admin_password_override()
-    factory = RepositoryFactory.create()
-    try:
-        settings = factory.app_settings()
-        recovery_configured = bool(
-            settings.get(_NAVIGATION_RECOVERY_HASH_KEY)
-            and settings.get(_NAVIGATION_RECOVERY_SALT_KEY)
-        )
-    finally:
-        factory.close()
-
-    setup_required = (
-        persisted_user is None
-        and password_override is None
-        and _configured_password() == _DEFAULT_ADMIN_PASSWORD
-    )
-    return {
-        "username": username,
-        "setup_required": setup_required,
-        "recovery_configured": recovery_configured,
-    }
-
-
 def _require_local_console(request: Request) -> None:
     host = request.client.host if request.client is not None else ""
     if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
@@ -133,57 +104,6 @@ def _require_local_console(request: Request) -> None:
                 "only from the local DairyOS computer."
             ),
         )
-
-
-def _validate_admin_password(password: str) -> None:
-    if len(password) < _MIN_ADMIN_PASSWORD_LENGTH:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Administrator password must be at least "
-                f"{_MIN_ADMIN_PASSWORD_LENGTH} characters long."
-            ),
-        )
-    if password == _DEFAULT_ADMIN_PASSWORD:
-        raise HTTPException(
-            status_code=422,
-            detail="The development default password may not be used.",
-        )
-
-
-def _persist_legacy_admin_password(
-    settings,
-    password: str,
-    *,
-    updated_by: str,
-) -> None:
-    password_hash, salt = _hash_password(password)
-    settings.set(
-        _LEGACY_ADMIN_PASSWORD_HASH_KEY,
-        password_hash,
-        updated_by=updated_by,
-    )
-    settings.set(
-        _LEGACY_ADMIN_PASSWORD_SALT_KEY,
-        salt,
-        updated_by=updated_by,
-    )
-
-
-def _rotate_recovery_code(settings, *, updated_by: str) -> str:
-    recovery_code = secrets.token_urlsafe(24)
-    recovery_hash, recovery_salt = _hash_password(recovery_code)
-    settings.set(
-        _NAVIGATION_RECOVERY_HASH_KEY,
-        recovery_hash,
-        updated_by=updated_by,
-    )
-    settings.set(
-        _NAVIGATION_RECOVERY_SALT_KEY,
-        recovery_salt,
-        updated_by=updated_by,
-    )
-    return recovery_code
 
 
 class UpdateIdentityRequest(BaseModel):
@@ -235,7 +155,6 @@ class ResetTestDataRequest(BaseModel):
 
 
 class SystemResetRequest(BaseModel):
-    password: str = Field(min_length=1)
     confirm: str
     updated_by: str = Field(default="Settings Operator")
 
@@ -353,7 +272,7 @@ def update_alert_preferences(payload: UpdateAlertPreferencesRequest):
 
 @router.get("/navigation-credentials")
 def navigation_credential_status():
-    return _navigation_credential_status()
+    raise HTTPException(status_code=410, detail="Navigation Visibility uses the authenticated DairyOS operator session; legacy credentials are removed.")
 
 
 @router.post("/navigation-credentials/setup")
@@ -361,6 +280,7 @@ def setup_navigation_credentials(
     payload: NavigationCredentialSetupRequest,
     request: Request,
 ):
+    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports a separate password.")
     _require_local_console(request)
     status_payload = _navigation_credential_status()
     if not bool(status_payload["setup_required"]):
@@ -400,6 +320,7 @@ def recover_navigation_credentials(
     payload: NavigationCredentialRecoveryRequest,
     request: Request,
 ):
+    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports local credential recovery.")
     _require_local_console(request)
     if payload.username != _configured_username():
         raise HTTPException(status_code=401, detail="Invalid administrator recovery credentials.")
@@ -445,6 +366,7 @@ def recover_navigation_credentials(
 def rotate_navigation_recovery_code(
     admin=Depends(require_permission("settings.navigation")),
 ):
+    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports a separate recovery code.")
     factory = RepositoryFactory.create()
     try:
         recovery_code = _rotate_recovery_code(
@@ -463,13 +385,14 @@ def rotate_navigation_recovery_code(
 @router.put("/navigation")
 def update_navigation_preferences(
     payload: UpdateNavigationPreferencesRequest,
-    admin=Depends(require_permission("settings.navigation")),
+    x_dairyos_human_session: str | None = Header(default=None),
 ):
+    _, current = _require_admin(x_dairyos_human_session)
     service, rf = _service()
     try:
         return service.update_navigation_preferences(
             hidden_tabs=payload.hidden_tabs,
-            updated_by=str(admin.get("sub") or "ADMIN"),
+            updated_by=current.display_name,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -565,7 +488,7 @@ def reset_test_data(payload: ResetTestDataRequest, container=Depends(get_contain
 @router.post("/system-reset")
 def request_system_reset(
     payload: SystemResetRequest,
-    admin=Depends(require_permission("settings.navigation")),
+    x_dairyos_human_session: str | None = Header(default=None),
 ):
     """Queue a password-confirmed reset for the desktop maintenance boundary.
 
@@ -577,8 +500,7 @@ def request_system_reset(
             status_code=422,
             detail=f'confirm must be the literal string "{RESET_CONFIRMATION}"',
         )
-    if not _verify_legacy_admin_password(payload.password):
-        raise HTTPException(status_code=401, detail="Invalid administrator password.")
+    _, current = _require_admin(x_dairyos_human_session)
 
     from dairyos.platform.paths import data_root
 
@@ -602,7 +524,7 @@ def request_system_reset(
         request_path,
         {
             "confirm": payload.confirm,
-            "requested_by": str(admin.get("sub") or payload.updated_by),
+            "requested_by": current.display_name,
             "requested_at": requested_at_utc,
             "requested_at_utc": requested_at_utc,
             "requested_at_local": requested_at_local,

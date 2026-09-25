@@ -12,6 +12,27 @@ def admin_headers(client):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+def primary_admin_headers(client):
+    from dairyos.data.models.human_identity import HumanIdentity
+    from dairyos.data.repositories.repository_factory import RepositoryFactory
+
+    bootstrapped = client.post(
+        "/human-access/bootstrap",
+        json={"display_name": "ammad", "pin": "4826", "pin_confirmation": "4826"},
+    )
+    if bootstrapped.status_code == 200:
+        identity_id = bootstrapped.json()["id"]
+    else:
+        factory = RepositoryFactory.create()
+        try:
+            identity_id = factory.session.query(HumanIdentity).filter_by(role="PRIMARY_ADMIN", active=True).first().id
+        finally:
+            factory.close()
+    login = client.post("/human-access/login", json={"identity_id": identity_id, "pin": "4826"})
+    assert login.status_code == 200, login.text
+    return {"X-DairyOS-Human-Session": login.json()["session_token"]}
+
+
 def test_default_settings(client):
     response = client.get("/settings")
     assert response.status_code == 200, response.text
@@ -27,7 +48,7 @@ def test_default_settings(client):
     ]
 
 
-def test_navigation_visibility_requires_password_and_persists(client):
+def test_navigation_visibility_requires_primary_admin_session_and_persists(client):
     denied = client.put(
         "/settings/navigation",
         json={"hidden_tabs": ["feed", "finance"]},
@@ -37,20 +58,31 @@ def test_navigation_visibility_requires_password_and_persists(client):
     response = client.put(
         "/settings/navigation",
         json={"hidden_tabs": ["finance", "feed", "finance"]},
-        headers=admin_headers(client),
+        headers={**admin_headers(client), **primary_admin_headers(client)},
     )
     assert response.status_code == 200, response.text
     assert response.json()["navigation"]["hidden_tabs"] == ["feed", "finance"]
     assert client.get("/settings").json()["navigation"]["hidden_tabs"] == ["feed", "finance"]
 
 
-def test_navigation_visibility_rejects_unknown_tabs(client):
+def test_navigation_visibility_rejects_unknown_tabs_for_primary_admin(client):
     response = client.put(
         "/settings/navigation",
         json={"hidden_tabs": ["not-a-dairyos-tab"]},
-        headers=admin_headers(client),
+        headers=primary_admin_headers(client),
     )
     assert response.status_code == 422, response.text
+
+
+def test_system_reset_uses_primary_admin_session_without_password(client):
+    headers = primary_admin_headers(client)
+    queued = client.post(
+        "/settings/system-reset",
+        headers=headers,
+        json={"confirm": "RESET DAIRYOS TO ZERO STATE"},
+    )
+    assert queued.status_code == 200, queued.text
+    assert "password" not in queued.request.content.decode().lower()
 
 
 def test_email_settings_are_visible_and_editable_without_authentication(client, monkeypatch):

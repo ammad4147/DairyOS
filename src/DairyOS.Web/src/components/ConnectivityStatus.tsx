@@ -23,7 +23,6 @@ export default function ConnectivityStatus() {
       timeStyle: 'short',
     }).format(new Date(lastOnlineAt))
     : null;
-  const statusText = state === 'CHECKING' ? 'Checking…' : online ? 'Online' : 'Offline';
   const shortLastOnlineText = lastOnlineAt
     ? new Intl.DateTimeFormat('en-PK', {
       dateStyle: 'short',
@@ -70,9 +69,8 @@ export default function ConnectivityStatus() {
         Last: {shortLastOnlineText || 'Not yet connected'}
       </span>}
     </div>
-    <div role="status" aria-live="polite" title={statusTitle} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 7px', borderRadius: 5, color: online ? '#86efac' : state === 'CHECKING' ? '#bfdbfe' : '#fde68a', background: online ? '#14532d' : state === 'CHECKING' ? '#1e3a5f' : '#713f12', border: `1px solid ${online ? '#166534' : state === 'CHECKING' ? '#1d4ed8' : '#92400e'}`, fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      {state === 'OFFLINE' ? <CloudOff size={13} /> : <Cloud size={13} />}
-      {statusText}
+    <div role="status" aria-live="polite" title={statusTitle} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 3px', color: online ? '#86efac' : state === 'CHECKING' ? '#bfdbfe' : '#fca5a5', whiteSpace: 'nowrap' }}>
+      <span aria-label={state === 'CHECKING' ? 'Checking connection' : online ? 'Online' : 'Offline'} style={{ width: 9, height: 9, borderRadius: '50%', background: online ? '#22c55e' : state === 'CHECKING' ? '#60a5fa' : '#ef4444', boxShadow: `0 0 0 2px ${online ? 'rgba(34,197,94,.18)' : state === 'CHECKING' ? 'rgba(96,165,250,.18)' : 'rgba(239,68,68,.18)'}` }} />
     </div>
     {pending.length > 0 && <details style={{ position: 'relative', color: '#fde68a', fontSize: 10 }}>
       <summary title="Locally stored entries that were not confirmed by the DairyOS server" style={{ cursor: 'pointer', padding: '5px 7px', borderRadius: 5, background: '#713f12', border: '1px solid #92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>

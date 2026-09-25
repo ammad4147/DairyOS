@@ -24,6 +24,7 @@ GROUPS = {
     "MILK_OPERATOR": ("Milk Operations", "MILKER"),
     "ACCOUNTS_OPERATOR": ("Finance Entry", "ACCOUNTS_OPERATOR"),
 }
+ALLOWED_ROLES = {"PRIMARY_ADMIN", "MANAGER", "MILKER", "ACCOUNTS_OPERATOR"}
 PIN_ITERATIONS = 200_000
 SESSION_HOURS = 8
 MAX_PIN_FAILURES = 5
@@ -53,6 +54,10 @@ class PersonRequest(BaseModel):
         if value not in GROUPS:
             raise ValueError("Unknown entry group")
         return value
+
+
+class RenamePersonRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
 
 
 class PinRequest(BaseModel):
@@ -220,6 +225,8 @@ def manageable_people(x_dairyos_human_session: str | None = Header(default=None)
 def create_person(payload: PersonRequest, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
     _, current = _require_admin(x_dairyos_human_session)
     role = payload.role or GROUPS[payload.entry_group][1]
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=422, detail="Unknown authority role")
     factory = RepositoryFactory.create()
     try:
         identity = HumanIdentity(display_name=payload.display_name.strip(), entry_group=payload.entry_group, role=role)
@@ -249,6 +256,24 @@ def set_pin(identity_id: int, payload: PinRequest, x_dairyos_human_session: str 
         factory.session.add(identity)
         factory.session.commit()
         _audit(factory, "pin_established", current.display_name, f"PIN established for identity id={identity.id}")
+        return _public_identity(identity)
+    finally:
+        factory.close()
+
+
+@router.patch("/people/{identity_id}")
+def rename_person(identity_id: int, payload: RenamePersonRequest, x_dairyos_human_session: str | None = Header(default=None)) -> dict[str, Any]:
+    _, current = _require_admin(x_dairyos_human_session)
+    factory = RepositoryFactory.create()
+    try:
+        identity = factory.session.get(HumanIdentity, identity_id)
+        if identity is None:
+            raise HTTPException(status_code=404, detail="Identity not found")
+        old_name = identity.display_name
+        identity.display_name = payload.display_name.strip()
+        factory.session.add(identity)
+        factory.session.commit()
+        _audit(factory, "identity_renamed", current.display_name, f"Identity id={identity_id} renamed from {old_name!r} to {identity.display_name!r}")
         return _public_identity(identity)
     finally:
         factory.close()

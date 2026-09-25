@@ -9,6 +9,7 @@ export default function HumanIdentityAdmin() {
   const [people, setPeople] = useState<Person[]>([]);
   const [name, setName] = useState('');
   const [group, setGroup] = useState('MILK_OPERATOR');
+  const [role, setRole] = useState('');
   const [message, setMessage] = useState('');
   const [initialPins, setInitialPins] = useState<Record<number, string>>({});
   const [myPin, setMyPin] = useState('');
@@ -55,12 +56,21 @@ export default function HumanIdentityAdmin() {
     const response = await fetch(`${API}/human-access/people`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: name, entry_group: group }),
+      body: JSON.stringify({ display_name: name, entry_group: group, ...(role ? { role } : {}) }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) { setMessage(payload.detail || 'Unable to create person.'); return; }
     setName('');
     setMessage('Person created. Initialize their PIN below before they sign in.');
+    await load();
+  };
+
+  const rename = async (person: Person) => {
+    const displayName = window.prompt('Display name for this DairyOS identity:', person.display_name)?.trim();
+    if (!displayName || displayName === person.display_name) return;
+    const response = await fetch(`${API}/human-access/people/${person.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: displayName }) });
+    const payload = await response.json().catch(() => ({}));
+    setMessage(response.ok ? `Identity renamed to ${displayName}.` : (payload.detail || 'Unable to rename identity.'));
     await load();
   };
 
@@ -100,9 +110,10 @@ export default function HumanIdentityAdmin() {
 
   return <section style={{ background: '#111827', padding: 15, borderRadius: 8, border: '1px solid #1f2937' }}>
     <h3 style={{ marginTop: 0 }}>Operator Access</h3>
-    <form onSubmit={create} style={{ display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: 8, alignItems: 'end' }}>
+    <form onSubmit={create} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 180px auto', gap: 8, alignItems: 'end' }}>
       <label style={label}>Person name<input required value={name} onChange={event => setName(event.target.value)} style={field} /></label>
       <label style={label}>Entry group<select value={group} onChange={event => setGroup(event.target.value)} style={field}><option value="MANAGEMENT">DAIRYOS MANAGEMENT</option><option value="MILK_OPERATOR">MILK OPERATOR</option><option value="ACCOUNTS_OPERATOR">ACCOUNTS OPERATOR</option></select></label>
+      <label style={label}>Authority<select value={role} onChange={event => setRole(event.target.value)} style={field}><option value="">Default for group</option><option value="PRIMARY_ADMIN">PRIMARY_ADMIN</option><option value="MANAGER">MANAGER</option><option value="MILKER">MILKER</option><option value="ACCOUNTS_OPERATOR">ACCOUNTS_OPERATOR</option></select></label>
       <button type="submit" style={button}>Add Person</button>
     </form>
     {currentPerson && <form onSubmit={event => { event.preventDefault(); void savePin(currentPerson, myPin, myPinConfirmation, true); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end', marginTop: 12, padding: 10, background: '#1e293b', borderRadius: 5 }}>
@@ -118,7 +129,7 @@ export default function HumanIdentityAdmin() {
         <label style={label}>Confirm<input aria-label={`Confirm new PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={resetPinConfirmations[person.id] || ''} onChange={event => setResetPinConfirmations(current => ({ ...current, [person.id]: event.target.value }))} style={field} /></label>
         <button type="button" onClick={() => void savePin(person, resetPins[person.id] || '', resetPinConfirmations[person.id] || '')} style={button}>Reset PIN</button>
       </div> : <label style={label}>Initial PIN<input aria-label={`Initial PIN for ${person.display_name}`} type="password" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" required value={initialPins[person.id] || ''} onChange={event => setInitialPins(current => ({ ...current, [person.id]: event.target.value }))} style={field} /><button type="button" onClick={() => void setInitialPin(person)} style={button}>Set Initial PIN</button></label>}
-      <button type="button" onClick={() => void toggle(person)} style={button}>{person.active ? 'Deactivate' : 'Activate'}</button>
+      <button type="button" onClick={() => void rename(person)} style={button}>Rename</button><button type="button" onClick={() => void toggle(person)} style={button}>{person.active ? 'Deactivate' : 'Activate'}</button>
       <button type="button" onClick={() => void remove(person)} disabled={person.id === currentPerson?.id} title={person.id === currentPerson?.id ? 'You cannot delete the signed-in Primary Administrator account.' : undefined} style={{ ...button, background: '#b91c1c', opacity: person.id === currentPerson?.id ? 0.5 : 1 }}>Delete</button>
     </div>)}</div>
   </section>;

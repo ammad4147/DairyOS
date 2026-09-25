@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Building, DatabaseBackup, FileText, FolderOpen, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { readApiPayload } from '../api/response';
-import { getNavigationAccessToken } from '../auth';
 import type { NavigationTabId } from '../navigation';
 import { formatFarmDateTime } from '../utils/farmDate';
 import NavigationVisibilityControl from './NavigationVisibilityControl';
@@ -110,7 +109,6 @@ export default function SettingsTab({
   const [message, setMessage] = useState('');
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
-  const [resetPassword, setResetPassword] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [dataBusy, setDataBusy] = useState(false);
@@ -361,18 +359,12 @@ export default function SettingsTab({
   const requestSystemReset = async () => {
     setError(''); setMessage(''); setResetLoading(true);
     try {
-      const navigationToken = getNavigationAccessToken();
-      if (!navigationToken) {
-        throw new Error('Unlock Navigation Visibility before requesting a reset.');
-      }
-      const headers = new Headers({ 'Content-Type': 'application/json' });
-      headers.set('Authorization', `Bearer ${navigationToken}`);
       const response = await fetch(`${API_BASE}/settings/system-reset`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ password: resetPassword, confirm: resetConfirm }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: resetConfirm }),
       });
       const data = await readApiPayload<{ message?: unknown }>(response, 'Reset request failed.');
-      setResetPassword(''); setResetConfirm('');
+      setResetConfirm('');
       setMessage(String(data.message || 'Reset queued for the next DairyOS start.'));
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : 'Reset request failed.');
@@ -500,10 +492,8 @@ export default function SettingsTab({
             onHiddenNavigationTabsChange={onHiddenNavigationTabsChange}
             onError={setError}
             onMessage={setMessage}
-            resetPassword={resetPassword}
             resetConfirm={resetConfirm}
             resetLoading={resetLoading}
-            onResetPasswordChange={setResetPassword}
             onResetConfirmChange={setResetConfirm}
             onRequestSystemReset={() => void requestSystemReset()}
           />
