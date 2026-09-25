@@ -29,7 +29,7 @@ interface BackendAnimal { animal_id:string; animal_type?:string|null; animal_cat
 function ageFromBirthDate(value?:string|null){if(!value)return 'Unknown';const birth=new Date(value);if(Number.isNaN(birth.getTime()))return 'Unknown';const now=new Date();let years=now.getFullYear()-birth.getFullYear();const before=now.getMonth()<birth.getMonth()||(now.getMonth()===birth.getMonth()&&now.getDate()<birth.getDate());if(before)years-=1;if(years>=1)return `${years} Years`;return `${Math.max(0,Math.floor((now.getTime()-birth.getTime())/2592000000))} Months`}
 function toUiAnimal(animal:BackendAnimal):HerdAnimal{return{id:animal.animal_id,breed:animal.breed||'Unknown',category:animal.animal_category||'Unclassified',age:ageFromBirthDate(animal.date_of_birth),status:animal.active===false?(animal.status||'Inactive'):(animal.status||animal.lifecycle_status||'Active'),frequency:animal.milking_frequency||'NONE',earTag:animal.ear_tag||animal.animal_id,gender:(animal.sex||'').toUpperCase()==='MALE'?'Male':'Female',stage:animal.lifecycle_status||undefined}}
 
-export function MainAppShell(){
+export function MainAppShell({ operatorRole }: { operatorRole?: string }){
  const [currentView,setCurrentView]=useState('dashboard'),[selectedPassportAnimalId,setSelectedPassportAnimalId]=useState<string|null>(null),[autoOpenYieldModal,setAutoOpenYieldModal]=useState(false),[treatmentAnimalId,setTreatmentAnimalId]=useState<string|null>(null);
  const [farmName,setFarmName]=useState('DairyOS'),[farmLocation,setFarmLocation]=useState('');
  const {alerts,activeCount,refresh:refreshAlerts}=useAlertAudit();const [showNotifications,setShowNotifications]=useState(false);
@@ -54,7 +54,7 @@ export function MainAppShell(){
  const navigationIcons:Record<NavigationTabId,React.ReactNode>={dashboard:<LayoutDashboard size={14}/>,animals:<Users size={14}/>,milk:<Milk size={14}/>,feed:<Wheat size={14}/>,finance:<DollarSign size={14}/>,breeding:<Activity size={14}/>,health:<HeartPulse size={14}/>,vaccination:<ShieldCheck size={14}/>,cop:<Calculator size={14}/>,analytics:<BarChart3 size={14}/>};
  const navItems=NAVIGATION_TABS.map(tab=>({...tab,icon:navigationIcons[tab.id]}));
  const visibleNavItems=navItems.filter(tab=>!hiddenNavigationTabs.includes(tab.id));
- const canSettings=true;const canAudit=true;
+ const canSettings=operatorRole==='PRIMARY_ADMIN';const canAudit=true;
 
  const appContent = (
    <div className="app-shell" style={{display:'flex',flexDirection:'column',height:'100vh',minWidth:0,background:'#0b0f19',color:'#f8fafc',overflow:'hidden',fontFamily:'sans-serif'}}>
@@ -73,7 +73,7 @@ export function MainAppShell(){
      {currentView==='cop'&&<COML/>}
      {currentView==='analytics'&&<AnalyticsTab refreshVersion={dashboardRefreshVersion}/>}
      {currentView==='audit'&&<AuditTab/>}
-     {currentView==='settings'&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs}/>}
+     {currentView==='settings'&&canSettings&&<SettingsTab onFarmProfileUpdate={handleFarmProfileUpdate} hiddenNavigationTabs={hiddenNavigationTabs} onHiddenNavigationTabsChange={setHiddenNavigationTabs}/>}
      {currentView==='milk'&&<MilkTab initialOpenModal={autoOpenYieldModal} onModalClose={()=>setAutoOpenYieldModal(false)} herdMasterList={herdMasterList} onSaveYield={()=>setDashboardRefreshVersion(prev=>prev+1)} onOpenAnimalPassport={openLinkedPassport} onOperationalChanged={async()=>{setDashboardRefreshVersion(prev=>prev+1);await refreshAlerts()}}/>}
      {currentView==='health'&&<HealthTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} initialTreatmentAnimalId={treatmentAnimalId} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}
      {currentView==='vaccination'&&<VaccinationTab onOpenPassport={id=>setSelectedPassportAnimalId(id)} herdMasterList={herdMasterList} onChanged={()=>setDashboardRefreshVersion(prev=>prev+1)}/>}

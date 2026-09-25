@@ -120,7 +120,7 @@ export default function HumanAccessGate() {
     };
   }, []);
 
-  if (state === 'management') return <MainAppShell />;
+  if (state === 'management') return <MainAppShell operatorRole={identity?.role} />;
   if (state === 'operator' && identity) return <HumanOperatorConsole identity={identity} onLogout={() => void logout()} />;
   if (state === 'loading') return <WelcomePanel><p>Loading DairyOS access…</p></WelcomePanel>;
   if (state === 'error') return <WelcomePanel><h1>DairyOS access unavailable</h1><p className="welcome-alert">{message}</p></WelcomePanel>;

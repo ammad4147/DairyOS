@@ -90,7 +90,7 @@ def test_data_management_export_ignores_legacy_user_permission_requirement(
 def test_data_management_export_validate_import_share_desktop_session_boundary(
     monkeypatch,
 ):
-    """The packaged desktop round trip must not require a second bearer login."""
+    """The packaged desktop round trip remains available inside protected Settings."""
     calls = []
     monkeypatch.setattr(
         settings_api,
