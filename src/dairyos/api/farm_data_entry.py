@@ -3,12 +3,13 @@ from hashlib import sha256
 from math import isfinite
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.human_access import _current_session
 from dairyos.api.operational_write import operational_write
 from dairyos.api.reference_data import GOVERNED
 from dairyos.core.inventory_units import InventoryIntegrityError
@@ -880,11 +881,16 @@ def _animal_daily_settled_sessions(
 @operational_write
 def record_milk_entry(
     entry: LegacyCompatibleMilkEntryRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
     container=Depends(get_container),
     current_user: dict[str, Any] | None = Depends(
         get_optional_current_user
     ),
 ):
+    if x_dairyos_human_session:
+        _, human_identity = _current_session(x_dairyos_human_session)
+        current_user = {"sub": human_identity.display_name}
+
     try:
         sessions_to_record = _milk_sessions_for_entry(entry)
         governed_entry = entry.to_governed_request()
@@ -1047,6 +1053,7 @@ def record_milk_entry(
 @operational_write
 def declare_session_not_milked(
     entry: MilkNotMilkedRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
     container=Depends(get_container),
     current_user: dict[str, Any] | None = Depends(
         get_optional_current_user
@@ -1059,6 +1066,10 @@ def declare_session_not_milked(
     of the day or would invent a zero. A declared skip is a fact the farm can
     later explain; an invented zero is not.
     """
+
+    if x_dairyos_human_session:
+        _, human_identity = _current_session(x_dairyos_human_session)
+        current_user = {"sub": human_identity.display_name}
 
     if (
         entry.reason is MilkingSessionSkipReason.OTHER
