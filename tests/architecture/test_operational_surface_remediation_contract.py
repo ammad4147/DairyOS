@@ -35,14 +35,10 @@ def test_sender_settings_are_visible_without_auth_and_navigation_is_protected():
     assert 'require_permission("settings.email")' not in email_block
     assert "NavigationVisibilityControl" in settings_tab
     assert "Navigation Visibility" in navigation
-    assert "/auth/login" in navigation
-    assert "Authorization" in navigation
-    assert "Bearer ${token}" in navigation
-    assert "getNavigationAccessToken" in auth
-    assert "getNavigationAccessToken()" in settings_tab
-    assert "headers.set('Authorization', `Bearer ${navigationToken}`)" in settings_tab
-    assert "Unlock Navigation Visibility before requesting a reset." in settings_tab
-    assert 'require_permission("settings.navigation")' in backend
+    assert "PRIMARY_ADMIN operator session" in navigation
+    assert "No second password is required." in navigation
+    assert "getNavigationAccessToken" not in settings_tab
+    assert "navigation-credentials" not in backend
 
 
 def test_coml_selected_period_does_not_borrow_official_monthly_costs():

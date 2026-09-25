@@ -8,7 +8,7 @@ import secrets
 import tempfile
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from dairyos.admin.data_management import (
@@ -16,19 +16,6 @@ from dairyos.admin.data_management import (
     export_farm_data,
     import_farm_data,
     validate_package,
-)
-from dairyos.api.auth import (
-    _DEFAULT_ADMIN_PASSWORD,
-    _LEGACY_ADMIN_PASSWORD_HASH_KEY,
-    _LEGACY_ADMIN_PASSWORD_SALT_KEY,
-    _configured_password,
-    _configured_username,
-    _find_persisted_user,
-    _hash_password,
-    _legacy_admin_password_override,
-    _verify_legacy_admin_password,
-    _verify_password,
-    require_permission,
 )
 from dairyos.api.dependencies import get_container
 from dairyos.data.database.session import DATABASE_URL
@@ -94,18 +81,6 @@ def _deployment_service() -> tuple[DeploymentControlService, RepositoryFactory]:
     return DeploymentControlService(service), rf
 
 
-def _require_local_console(request: Request) -> None:
-    host = request.client.host if request.client is not None else ""
-    if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Administrator credential setup and recovery are available "
-                "only from the local DairyOS computer."
-            ),
-        )
-
-
 class UpdateIdentityRequest(BaseModel):
     farm_name: str | None = None
     location: str | None = None
@@ -136,17 +111,6 @@ class UpdateNavigationPreferencesRequest(BaseModel):
 
 class WelcomeWallpaperRequest(BaseModel):
     data_url: str | None = None
-
-
-class NavigationCredentialSetupRequest(BaseModel):
-    username: str = Field(min_length=1)
-    new_password: str = Field(min_length=1)
-
-
-class NavigationCredentialRecoveryRequest(BaseModel):
-    username: str = Field(min_length=1)
-    recovery_code: str = Field(min_length=1)
-    new_password: str = Field(min_length=1)
 
 
 class ResetTestDataRequest(BaseModel):
@@ -268,118 +232,6 @@ def update_alert_preferences(payload: UpdateAlertPreferencesRequest):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:
         rf.close()
-
-
-@router.get("/navigation-credentials")
-def navigation_credential_status():
-    raise HTTPException(status_code=410, detail="Navigation Visibility uses the authenticated DairyOS operator session; legacy credentials are removed.")
-
-
-@router.post("/navigation-credentials/setup")
-def setup_navigation_credentials(
-    payload: NavigationCredentialSetupRequest,
-    request: Request,
-):
-    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports a separate password.")
-    _require_local_console(request)
-    status_payload = _navigation_credential_status()
-    if not bool(status_payload["setup_required"]):
-        raise HTTPException(
-            status_code=409,
-            detail="Administrator password has already been configured.",
-        )
-    if payload.username != _configured_username():
-        raise HTTPException(status_code=422, detail="Administrator username does not match this DairyOS installation.")
-    _validate_admin_password(payload.new_password)
-
-    factory = RepositoryFactory.create()
-    try:
-        settings = factory.app_settings()
-        _persist_legacy_admin_password(
-            settings,
-            payload.new_password,
-            updated_by="navigation-initial-setup",
-        )
-        recovery_code = _rotate_recovery_code(
-            settings,
-            updated_by="navigation-initial-setup",
-        )
-        return {
-            "username": payload.username,
-            "password_configured": True,
-            "recovery_configured": True,
-            "recovery_code": recovery_code,
-            "recovery_code_display": "ONE_TIME",
-        }
-    finally:
-        factory.close()
-
-
-@router.post("/navigation-credentials/recover")
-def recover_navigation_credentials(
-    payload: NavigationCredentialRecoveryRequest,
-    request: Request,
-):
-    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports local credential recovery.")
-    _require_local_console(request)
-    if payload.username != _configured_username():
-        raise HTTPException(status_code=401, detail="Invalid administrator recovery credentials.")
-    _validate_admin_password(payload.new_password)
-
-    factory = RepositoryFactory.create()
-    try:
-        settings = factory.app_settings()
-        recovery_hash = settings.get(_NAVIGATION_RECOVERY_HASH_KEY)
-        recovery_salt = settings.get(_NAVIGATION_RECOVERY_SALT_KEY)
-        if not recovery_hash or not recovery_salt:
-            raise HTTPException(
-                status_code=409,
-                detail="No recovery code is configured. Unlock with the current password and generate one.",
-            )
-        if not _verify_password(
-            payload.recovery_code,
-            str(recovery_hash),
-            str(recovery_salt),
-        ):
-            raise HTTPException(status_code=401, detail="Invalid administrator recovery credentials.")
-
-        _persist_legacy_admin_password(
-            settings,
-            payload.new_password,
-            updated_by="navigation-recovery",
-        )
-        recovery_code = _rotate_recovery_code(
-            settings,
-            updated_by="navigation-recovery",
-        )
-        return {
-            "username": payload.username,
-            "password_recovered": True,
-            "recovery_code": recovery_code,
-            "recovery_code_display": "ONE_TIME",
-        }
-    finally:
-        factory.close()
-
-
-@router.post("/navigation-credentials/recovery-code")
-def rotate_navigation_recovery_code(
-    admin=Depends(require_permission("settings.navigation")),
-):
-    raise HTTPException(status_code=410, detail="Navigation Visibility no longer supports a separate recovery code.")
-    factory = RepositoryFactory.create()
-    try:
-        recovery_code = _rotate_recovery_code(
-            factory.app_settings(),
-            updated_by=str(admin.get("sub") or "ADMIN"),
-        )
-        return {
-            "username": str(admin.get("sub") or _configured_username()),
-            "recovery_code": recovery_code,
-            "recovery_code_display": "ONE_TIME",
-        }
-    finally:
-        factory.close()
 
 
 @router.put("/navigation")
