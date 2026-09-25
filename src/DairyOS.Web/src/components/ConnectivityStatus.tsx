@@ -33,7 +33,7 @@ export default function ConnectivityStatus() {
     ? 'Connected to the DairyOS master server'
     : state === 'CHECKING'
       ? 'Checking connection to the DairyOS master server'
-      : `DairyOS master server is unreachable. Last online: ${lastOnlineText || 'not yet recorded'}`;
+      : `DairyOS master server is unreachable. Last connected: ${lastOnlineText || 'not yet recorded'}`;
 
   const exportPending = () => {
     try {
@@ -65,12 +65,12 @@ export default function ConnectivityStatus() {
           <time>{timeText}</time>
         </span>
       </div>
-      {!online && state !== 'CHECKING' && <span className="dairyos-last-online" title={`Last online: ${lastOnlineText || 'not yet recorded'}`} style={{ color: '#cbd5e1', fontSize: 8, whiteSpace: 'nowrap' }}>
-        Last: {shortLastOnlineText || 'Not yet connected'}
+      {!online && state !== 'CHECKING' && <span className="dairyos-last-online" title={`Last connected: ${lastOnlineText || 'not yet recorded'}`} style={{ color: '#cbd5e1', fontSize: 8, whiteSpace: 'nowrap' }}>
+        Last connected: {shortLastOnlineText || 'Not yet connected'}
       </span>}
     </div>
     <div role="status" aria-live="polite" title={statusTitle} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 3px', color: online ? '#86efac' : state === 'CHECKING' ? '#bfdbfe' : '#fca5a5', whiteSpace: 'nowrap' }}>
-      <span aria-label={state === 'CHECKING' ? 'Checking connection' : online ? 'Online' : 'Offline'} style={{ width: 9, height: 9, borderRadius: '50%', background: online ? '#22c55e' : state === 'CHECKING' ? '#60a5fa' : '#ef4444', boxShadow: `0 0 0 2px ${online ? 'rgba(34,197,94,.18)' : state === 'CHECKING' ? 'rgba(96,165,250,.18)' : 'rgba(239,68,68,.18)'}` }} />
+      <span aria-label={state === 'CHECKING' ? 'Checking connection' : online ? 'Connected' : 'Disconnected'} style={{ width: 9, height: 9, borderRadius: '50%', background: online ? '#22c55e' : state === 'CHECKING' ? '#60a5fa' : '#ef4444', boxShadow: `0 0 0 2px ${online ? 'rgba(34,197,94,.18)' : state === 'CHECKING' ? 'rgba(96,165,250,.18)' : 'rgba(239,68,68,.18)'}` }} />
     </div>
     {pending.length > 0 && <details style={{ position: 'relative', color: '#fde68a', fontSize: 10 }}>
       <summary title="Locally stored entries that were not confirmed by the DairyOS server" style={{ cursor: 'pointer', padding: '5px 7px', borderRadius: 5, background: '#713f12', border: '1px solid #92400e', fontWeight: 700, whiteSpace: 'nowrap' }}>
