@@ -35,6 +35,16 @@ def _bootstrap_admin(client):
     return identity_id, login.json()["session_token"]
 
 
+def test_bootstrap_defaults_primary_admin_name_to_admin(client):
+    response = client.post(
+        "/human-access/bootstrap",
+        json={"pin": "4826", "pin_confirmation": "4826"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["display_name"] == "Admin"
+    assert response.json()["role"] == "PRIMARY_ADMIN"
+
+
 def test_management_roster_requires_admin_and_includes_inactive_accounts(client):
     admin_id, admin_token = _bootstrap_admin(client)
     headers = {"X-DairyOS-Human-Session": admin_token}

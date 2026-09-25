@@ -19,7 +19,7 @@ export default function HumanAccessGate() {
   const [identity, setIdentity] = useState<Person | null>(null);
   const [people, setPeople] = useState<LoginPerson[]>([]);
   const [selected, setSelected] = useState<LoginPerson | null>(null);
-  const [name, setName] = useState('');
+  const [name, setName] = useState('Admin');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [message, setMessage] = useState('');

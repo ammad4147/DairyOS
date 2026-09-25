@@ -37,7 +37,7 @@ def _audit(factory: RepositoryFactory, event_type: str, actor: str, detail: str)
 
 
 class BootstrapRequest(BaseModel):
-    display_name: str = Field(min_length=1, max_length=120)
+    display_name: str = Field(default="Admin", min_length=1, max_length=120)
     pin: str
     pin_confirmation: str
 
