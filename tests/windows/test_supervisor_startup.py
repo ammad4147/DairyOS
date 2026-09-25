@@ -283,6 +283,11 @@ def test_successful_migration_continues_to_backend_startup(monkeypatch):
     )
     monkeypatch.setattr(
         supervisor,
+        "process_pending_system_reset",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        supervisor,
         "start_backend",
         lambda cfg, fake_job, port=None: calls.append("start-backend")
         or (process, f"http://127.0.0.1:{port}"),
