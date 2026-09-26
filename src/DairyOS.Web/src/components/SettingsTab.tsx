@@ -119,6 +119,7 @@ export default function SettingsTab({
   const [serverPackages, setServerPackages] = useState<{ name: string; exported_at?: string | null }[] | null>(null);
   const [serverPackageFolder, setServerPackageFolder] = useState('');
   const [serverPackageName, setServerPackageName] = useState('');
+  const [importStatus, setImportStatus] = useState<{ pending?: { package?: string | null; requested_at?: string } | null; last_result?: { status?: string; package?: string; completed_at?: string; detail?: string } | null } | null>(null);
   const [backupHealth, setBackupHealth] = useState<BackupHealth>({
     status: 'NEVER_RUN', last_successful_backup: null, physically_redundant: false,
   });
@@ -378,6 +379,19 @@ export default function SettingsTab({
 
   const nativeApi = () => (window as any).pywebview?.api;
 
+  const loadImportStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/import-status`);
+      if (response.ok) setImportStatus(await response.json());
+    } catch {
+      // Status is informational; the import workflow itself reports errors.
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'DATA') void loadImportStatus();
+  }, [activeTab]);
+
   const loadServerPackages = async () => {
     const response = await fetch(`${API_BASE}/settings/data-management/packages`);
     const data = await response.json();
@@ -487,7 +501,8 @@ export default function SettingsTab({
         });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Farm data import failed.');
-      setMessage(`Farm data imported and verified from ${data.source || dataPackagePath || serverPackageName}. Restart DairyOS before further operation.`);
+      setMessage(String(data.message || 'Farm data import queued. Close DairyOS on this PC and start it again to apply it.'));
+      await loadImportStatus();
       setDataValidation(null);
     } catch (operationError) {
       setError(operationError instanceof Error ? operationError.message : 'Farm data import failed.');
@@ -649,8 +664,10 @@ export default function SettingsTab({
           </section>
           <section style={card}>
             <strong style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><FolderOpen size={14} />Import Farm Data</strong>
-            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Select a DairyOS farm package. DairyOS validates its manifest, file hashes and PostgreSQL archive before import is enabled. A pre-import rollback snapshot is created automatically.</div>
+            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Select a DairyOS farm package. DairyOS validates its manifest, file hashes and PostgreSQL archive before import is enabled. The import is applied the next time DairyOS starts on this PC, after a pre-import rollback snapshot is taken automatically.</div>
             <button type="button" disabled={dataBusy} onClick={() => void chooseImportPackage()} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}>Select & Validate Package</button>
+            {importStatus?.pending && <div style={{ color: '#fde68a', fontSize: 10, marginTop: 8 }}>Import queued{importStatus.pending.requested_at ? ` at ${String(importStatus.pending.requested_at)}` : ''}. Close DairyOS on this PC and start it again to apply it.</div>}
+            {importStatus?.last_result && <div style={{ color: importStatus.last_result.status === 'IMPORTED' ? '#86efac' : '#fca5a5', fontSize: 10, marginTop: 8 }}>Last import: {String(importStatus.last_result.status || '—')}{importStatus.last_result.completed_at ? ` · ${String(importStatus.last_result.completed_at)}` : ''}{importStatus.last_result.detail ? ` · ${String(importStatus.last_result.detail)}` : ''}</div>}
             {serverPackages && <div style={{ marginTop: 12, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
               <div style={{ color: '#94a3b8', fontSize: 10 }}>Packages on the DairyOS PC{serverPackageFolder ? ` (${serverPackageFolder})` : ''}. To import a package from elsewhere, copy its .dairypkg folder here first.</div>
               {serverPackages.length === 0 && <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>No farm packages found.</div>}
@@ -663,7 +680,7 @@ export default function SettingsTab({
               <div style={{ color: '#86efac', fontWeight: 900, fontSize: 11 }}>VALIDATION PASS</div>
               <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>Farm ID: {String(dataValidation.farm_instance_id || '—')}</div>
               <div style={{ color: '#94a3b8', fontSize: 9, marginTop: 3 }}>Exported: {String(dataValidation.exported_at || '—')} · DairyOS: {String(dataValidation.dairyos_version || '—')} · Files: {String(dataValidation.total_files || '—')}</div>
-              <button type="button" disabled={dataBusy} onClick={() => void importVerifiedPackage()} style={{ ...button, background: '#b91c1c', opacity: dataBusy ? 0.5 : 1 }}>Import Verified Farm Data</button>
+              <button type="button" disabled={dataBusy} onClick={() => void importVerifiedPackage()} style={{ ...button, background: '#b91c1c', opacity: dataBusy ? 0.5 : 1 }}>Queue Import of Verified Farm Data</button>
             </div>}
           </section>
         </div>

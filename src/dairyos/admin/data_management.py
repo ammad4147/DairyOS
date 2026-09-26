@@ -77,6 +77,16 @@ class DataManagementError(RuntimeError):
     """Raised when a data management operation fails."""
 
 
+class ImportRefusedUnchangedError(DataManagementError):
+    """PostgreSQL refused the package restore before anything was changed.
+
+    pg_restore runs with --single-transaction and --exit-on-error, and persistent
+    files are only replaced after a successful database restore. A restore
+    refusal therefore leaves the farm exactly as it was, and no rollback is
+    needed or attempted.
+    """
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -273,6 +283,41 @@ def validate_package(package_path: str | Path) -> dict[str, Any]:
     }
 
 
+def _session_for(database_url: str):
+    """Open a session on exactly the database this operation was given.
+
+    Import runs in the supervisor with the private admin URL; binding the
+    farm-identity reads and writes to that URL (instead of the process-wide
+    application engine) keeps every step of one import on one database.
+    """
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import Session
+    from sqlalchemy.pool import NullPool
+
+    from dairyos.data.database.session import (
+        _connect_with_isolated_postgres_environment,
+    )
+
+    engine = create_engine(database_url, poolclass=NullPool)
+    event.listen(
+        engine,
+        "do_connect",
+        _connect_with_isolated_postgres_environment,
+        retval=True,
+    )
+    session = Session(bind=engine)
+    original_close = session.close
+
+    def _close() -> None:
+        try:
+            original_close()
+        finally:
+            engine.dispose()
+
+    session.close = _close  # type: ignore[method-assign]
+    return session
+
+
 def import_farm_data(
     database_url: str,
     package_path: str | Path,
@@ -313,7 +358,7 @@ def import_farm_data(
             shutil.copytree(source, rollback_files_dir / dirname, dirs_exist_ok=True)
 
     # Save current farm identity
-    session = create_application_session()
+    session = _session_for(database_url)
     try:
         current_farm_id = read_farm_instance_id(session)
     finally:
@@ -339,7 +384,7 @@ def import_farm_data(
             if source.is_dir():
                 shutil.copytree(source, target, dirs_exist_ok=True)
         if current_farm_id:
-            rollback_session = create_application_session()
+            rollback_session = _session_for(database_url)
             try:
                 set_farm_instance_id(rollback_session, current_farm_id)
             finally:
@@ -352,7 +397,10 @@ def import_farm_data(
         try:
             pg_restore_backup(database_url, str(db_path))
         except PostgreSQLBackupError as exc:
-            raise DataManagementError(f"Database restore failed: {exc}") from exc
+            raise ImportRefusedUnchangedError(
+                "Import refused by the database; nothing was changed. "
+                f"Detail: {exc}"
+            ) from exc
 
         # 3b. Restore persistent files
         pkg_files = pkg / PACKAGE_FILES_DIRNAME
@@ -369,7 +417,7 @@ def import_farm_data(
         metadata = json.loads((pkg / PACKAGE_METADATA_FILENAME).read_text(encoding="utf-8"))
         imported_farm_id = metadata.get("farm_instance_id")
         if imported_farm_id:
-            session = create_application_session()
+            session = _session_for(database_url)
             try:
                 set_farm_instance_id(session, imported_farm_id)
             finally:
@@ -405,6 +453,12 @@ def import_farm_data(
             "semantic_fingerprint": post_fingerprint,
         }
 
+    except ImportRefusedUnchangedError:
+        LOG.error("DairyOS import refused before any change; farm data untouched.")
+        # The snapshot is an unneeded copy of unchanged data; remove it so it is
+        # not mistaken for evidence of a partial import.
+        shutil.rmtree(rollback_dir, ignore_errors=True)
+        raise
     except DataManagementError:
         LOG.error("DairyOS import failed; reverting to pre-import state.")
         try:
@@ -427,3 +481,148 @@ def import_farm_data(
                 f"Rollback snapshot retained at {rollback_dir}."
             ) from revert_exc
         raise DataManagementError(f"Import failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Queued import
+#
+# The installed web server deliberately connects as the restricted application
+# role, while every farm table belongs to the migration/admin role. pg_restore
+# --clean must drop and recreate those tables, so an in-process import from
+# Settings is refused by PostgreSQL ("must be owner of table ..."). Settings
+# therefore validates the package and queues the import; the Windows supervisor
+# applies it at the next start with the private admin authority, before the
+# web server runs, exactly like the queued zero-state reset.
+# ---------------------------------------------------------------------------
+
+IMPORT_CONFIRMATION = "IMPORT VERIFIED FARM DATA"
+IMPORT_REQUEST_FILENAME = "pending-farm-import.json"
+IMPORT_FAILED_REQUEST_FILENAME = "pending-farm-import.failed.json"
+IMPORT_RESULT_FILENAME = "farm-import-result.json"
+
+
+def _import_request_path(data_root: str | Path | None = None) -> Path:
+    return Path(data_root or paths.data_root(create=False)) / IMPORT_REQUEST_FILENAME
+
+
+def _import_result_path(data_root: str | Path | None = None) -> Path:
+    return Path(data_root or paths.data_root(create=False)) / "logs" / IMPORT_RESULT_FILENAME
+
+
+def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def queue_farm_import(
+    package_path: str | Path,
+    *,
+    requested_by: str = "Settings Operator",
+    data_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Validate a package now and queue its import for the next DairyOS start."""
+    validation = validate_package(package_path)
+    package = Path(package_path).expanduser().resolve()
+    requested_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    _write_json_atomically(
+        _import_request_path(data_root),
+        {
+            "package": str(package),
+            "confirm": IMPORT_CONFIRMATION,
+            "requested_by": requested_by,
+            "requested_at": requested_at,
+            "farm_instance_id": validation.get("farm_instance_id"),
+        },
+    )
+    return {
+        "queued": True,
+        "package": str(package),
+        "requested_at": requested_at,
+        "farm_instance_id": validation.get("farm_instance_id"),
+        "message": (
+            "Farm data package validated and import queued. Close DairyOS on this PC "
+            "and start it again; the import is applied during startup before anyone "
+            "can use the farm, with an automatic rollback if it fails."
+        ),
+    }
+
+
+def farm_import_status(data_root: str | Path | None = None) -> dict[str, Any]:
+    """Report any queued import and the result of the last applied one."""
+    root = Path(data_root or paths.data_root(create=False))
+    pending = None
+    request = _import_request_path(root)
+    if request.is_file():
+        try:
+            pending = json.loads(request.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pending = {"package": None}
+    last_result = None
+    result = _import_result_path(root)
+    if result.is_file():
+        try:
+            last_result = json.loads(result.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            last_result = None
+    return {"pending": pending, "last_result": last_result}
+
+
+def process_pending_farm_import(
+    database_url: str,
+    *,
+    data_root: str | Path | None = None,
+) -> dict[str, Any] | None:
+    """Apply one queued import with admin database authority.
+
+    Returns None when nothing is queued. When the import fails but the automatic
+    rollback succeeds, the farm stays on its pre-import data, the failure is
+    recorded, the request is cleared, and startup may continue. When rollback
+    itself fails, the request is set aside as *.failed.json and the error is
+    raised so startup is blocked for manual recovery.
+    """
+    root = Path(data_root or paths.data_root(create=False))
+    request_path = _import_request_path(root)
+    if not request_path.is_file():
+        return None
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    base = {
+        "package": request.get("package"),
+        "requested_by": request.get("requested_by"),
+        "requested_at": request.get("requested_at"),
+    }
+
+    def _finish(status: str, **extra: Any) -> dict[str, Any]:
+        outcome = {
+            **base,
+            "status": status,
+            "completed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            **extra,
+        }
+        _write_json_atomically(_import_result_path(root), outcome)
+        return outcome
+
+    if request.get("confirm") != IMPORT_CONFIRMATION or not request.get("package"):
+        request_path.unlink(missing_ok=True)
+        return _finish("REJECTED", detail="Queued import request is invalid; nothing was changed.")
+
+    try:
+        result = import_farm_data(database_url, request["package"], data_root=root)
+    except DataManagementError as exc:
+        detail = str(exc)
+        if "rollback could not be completed" in detail:
+            request_path.replace(root / IMPORT_FAILED_REQUEST_FILENAME)
+            _finish("FAILED_ROLLBACK_INCOMPLETE", detail=detail)
+            raise
+        request_path.unlink(missing_ok=True)
+        if isinstance(exc, ImportRefusedUnchangedError):
+            return _finish("REFUSED_UNCHANGED", detail=detail)
+        return _finish("FAILED_ROLLED_BACK", detail=detail)
+
+    request_path.unlink(missing_ok=True)
+    return _finish(
+        "IMPORTED",
+        farm_instance_id=result.get("farm_instance_id"),
+        detail="Farm data imported and verified.",
+    )

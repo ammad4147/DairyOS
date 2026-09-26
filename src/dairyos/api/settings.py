@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 from dairyos.admin.data_management import (
     DataManagementError,
     export_farm_data,
-    import_farm_data,
+    farm_import_status,
+    queue_farm_import,
     validate_package,
 )
 from dairyos.api.dependencies import get_container
@@ -28,7 +29,7 @@ from dairyos.farm.settings.services.deployment_control_service import (
     DeploymentControlService,
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
-from dairyos.api.human_access import _require_admin
+from dairyos.api.human_access import _current_session, _require_admin
 from dairyos.platform import paths
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -323,19 +324,46 @@ def validate_farm_package(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+def _import_requested_by(token: str | None) -> str:
+    if token:
+        try:
+            _, identity = _current_session(token)
+            name = getattr(identity, "display_name", None)
+            if name:
+                return str(name)
+        except HTTPException:
+            pass
+    return "Settings Operator"
+
+
 @router.post("/data-management/import")
 def import_farm_package(
     payload: DataManagementImportRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
 ):
+    """Validate the package and queue its import for the next DairyOS start.
+
+    The web server runs as the restricted application database role and cannot
+    replace tables owned by the admin role, so the import itself is applied by
+    the supervisor at startup with admin authority.
+    """
     if payload.confirm != "IMPORT VERIFIED FARM DATA":
         raise HTTPException(
             status_code=422,
             detail='confirm must be the literal string "IMPORT VERIFIED FARM DATA"',
         )
     try:
-        return import_farm_data(DATABASE_URL, payload.path)
+        return queue_farm_import(
+            payload.path,
+            requested_by=_import_requested_by(x_dairyos_human_session),
+        )
     except DataManagementError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/data-management/import-status")
+def farm_package_import_status():
+    return farm_import_status()
 
 
 @router.get("/data-management/packages")
@@ -382,7 +410,10 @@ def validate_farm_package_in_folder(payload: FarmPackageNameRequest):
 
 
 @router.post("/data-management/packages/import")
-def import_farm_package_from_folder(payload: FarmPackageImportRequest):
+def import_farm_package_from_folder(
+    payload: FarmPackageImportRequest,
+    x_dairyos_human_session: str | None = Header(default=None),
+):
     if payload.confirm != "IMPORT VERIFIED FARM DATA":
         raise HTTPException(
             status_code=422,
@@ -392,7 +423,10 @@ def import_farm_package_from_folder(payload: FarmPackageImportRequest):
     if not package.is_dir():
         raise HTTPException(status_code=404, detail="Farm package not found.")
     try:
-        return import_farm_data(DATABASE_URL, package)
+        return queue_farm_import(
+            package,
+            requested_by=_import_requested_by(x_dairyos_human_session),
+        )
     except DataManagementError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

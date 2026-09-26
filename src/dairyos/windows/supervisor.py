@@ -139,6 +139,44 @@ def process_pending_system_reset() -> None:
         raise
 
 
+def process_pending_farm_import() -> dict | None:
+    """Apply one queued Settings farm-data import before the backend starts.
+
+    Settings validates the package and queues it because the web server's
+    restricted database role cannot replace admin-owned tables. The import runs
+    here with the private admin authority and keeps its automatic rollback.
+    """
+    from dairyos.admin.data_management import (
+        IMPORT_REQUEST_FILENAME,
+        process_pending_farm_import as apply_pending_import,
+    )
+    from dairyos.platform.paths import data_root
+
+    if not (data_root(create=False) / IMPORT_REQUEST_FILENAME).is_file():
+        return None
+    from dairyos.admin.database import acquire_admin_database
+
+    lease = acquire_admin_database(
+        Path(sys.executable).resolve().parent,
+        data_root=data_root(create=False),
+    )
+    try:
+        outcome = apply_pending_import(
+            lease.manager.database_url,
+            data_root=data_root(create=False),
+        )
+    finally:
+        lease.close()
+    if outcome is not None:
+        LOG.info(
+            "Queued farm-data import finished: status=%s package=%s detail=%s",
+            outcome.get("status"),
+            outcome.get("package"),
+            outcome.get("detail"),
+        )
+    return outcome
+
+
 @dataclass(frozen=True)
 class SupervisorConfig:
     host: str = "127.0.0.1"
@@ -1080,6 +1118,24 @@ def run(config: SupervisorConfig, *, browser: bool = False) -> int:
                 f"{exc}\n\nExisting farm data was not intentionally deleted.",
             )
             return 5
+
+        try:
+            import_outcome = process_pending_farm_import()
+            if import_outcome is not None and import_outcome.get("status") == "IMPORTED":
+                # An imported package may come from an older DairyOS schema.
+                LOG.info("startup stage=post-import-migration-enter")
+                migrate_if_needed()
+                LOG.info("startup stage=post-import-migration-ready")
+        except Exception as exc:
+            LOG.exception("Queued farm-data import could not be completed safely")
+            show_startup_error(
+                "DairyOS farm data import needs attention",
+                "The queued farm data import failed and its automatic rollback did not "
+                "complete, so DairyOS has not started.\n\n"
+                f"{exc}\n\nThe pre-import snapshot is kept under backups\\pre-import-rollback. "
+                "Do not delete it.",
+            )
+            return 6
 
         # Select the desktop backend origin once for this supervisor lifetime.
         # Initial startup retries and all watchdog recoveries must reuse this

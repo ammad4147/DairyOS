@@ -104,8 +104,8 @@ def test_data_management_export_validate_import_share_desktop_session_boundary(
     )
     monkeypatch.setattr(
         settings_api,
-        "import_farm_data",
-        lambda database_url, path: calls.append(("import", path)) or {"imported": True},
+        "queue_farm_import",
+        lambda path, requested_by="": calls.append(("import", path)) or {"queued": True},
     )
 
     client = TestClient(app)
@@ -124,8 +124,8 @@ def test_data_management_export_validate_import_share_desktop_session_boundary(
 def test_data_management_import_requires_exact_confirmation(monkeypatch):
     monkeypatch.setattr(
         settings_api,
-        "import_farm_data",
-        lambda database_url, path: {"imported": True},
+        "queue_farm_import",
+        lambda path, requested_by="": {"queued": True},
     )
     app.dependency_overrides[get_current_user] = _admin_override
     try:
@@ -210,8 +210,8 @@ def test_browser_validate_and_import_resolve_names_only_inside_the_folder(monkey
         lambda path: calls.append(("validate", path)) or {"valid": True},
     )
     monkeypatch.setattr(
-        settings_api, "import_farm_data",
-        lambda database_url, path: calls.append(("import", path)) or {"imported": True},
+        settings_api, "queue_farm_import",
+        lambda path, requested_by="": calls.append(("import", path)) or {"queued": True},
     )
     client = TestClient(app)
 
@@ -248,8 +248,8 @@ def test_packaged_browser_mode_blocks_non_admins_from_farm_import(monkeypatch, t
     (folder / "DairyOS-Farm-1.dairypkg").mkdir(parents=True)
     imported = []
     monkeypatch.setattr(
-        settings_api, "import_farm_data",
-        lambda database_url, path: imported.append(path) or {"imported": True},
+        settings_api, "queue_farm_import",
+        lambda path, requested_by="": imported.append(path) or {"queued": True},
     )
     monkeypatch.setenv("DAIRYOS_ENV", "production")
     monkeypatch.setenv("DAIRYOS_BROWSER_MODE", "1")
