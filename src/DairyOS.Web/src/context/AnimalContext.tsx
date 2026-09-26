@@ -34,7 +34,7 @@ export function AnimalProvider({ children }: { children: ReactNode }) {
       return;
     }
     setIsLoadingTimeline(true);
-    fetch(apiUrl(`/api/v2/animals/${encodeURIComponent(selectedAnimalId)}/timeline`))
+    fetch(apiUrl(`/farm/animals/${encodeURIComponent(selectedAnimalId)}/timeline`))
       .then(r => (r.ok ? r.json() : { events: [] }))
       .then(data => {
         const events = Array.isArray(data?.events) ? data.events : Array.isArray(data) ? data : [];

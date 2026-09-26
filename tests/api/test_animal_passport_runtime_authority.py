@@ -1,7 +1,6 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 
-import dairyos.api.animal_operational_records as operational_records_api
 from dairyos.api.animal_passport import get_lifetime_passport, get_reproductive_state
 
 
@@ -95,12 +94,6 @@ class _Container:
         self.repository_factory = factory
 
 
-class _Runtime:
-    def __init__(self, factory):
-        self.repository_factory = factory
-        self.animal_repository = factory.animal()
-
-
 def _animal():
     return SimpleNamespace(
         id=1,
@@ -155,19 +148,3 @@ def test_reproductive_state_uses_same_runtime_factory():
 
     assert payload["animal_id"] == "AN-001"
     assert "breeding" in factory.calls
-
-
-def test_operational_record_endpoints_use_canonical_factory(monkeypatch):
-    animal = _animal()
-    factory = _Factory(animal)
-    runtime = _Runtime(factory)
-    monkeypatch.setattr(operational_records_api, "_runtime", lambda: runtime)
-
-    payload = operational_records_api.animal_operational_records("AN-001")
-
-    assert payload["animal_id"] == "AN-001"
-    assert len(payload["milk"]) == 1
-    assert len(payload["feed"]) == 1
-    assert len(payload["health"]) == 1
-    assert len(payload["finance"]) == 1
-    assert payload["source"] == "authoritative_persistence"

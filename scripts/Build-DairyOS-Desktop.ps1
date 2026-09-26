@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$DistRoot = "dist\DairyOS-Release",
-    [string]$BuildRoot = "build\DairyOS-Release"
+    [string]$BuildRoot = "build\DairyOS-Release",
+    [switch]$AllowDirtySourceForTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,8 +19,42 @@ if ($LASTEXITCODE -ne 0 -or $sourceTree -notmatch '^[0-9a-f]{40}$') {
     throw "Unable to resolve the source Git tree for the release manifest."
 }
 $dirtySource = (@(& git status --porcelain) -join "`n").Trim()
-if ($dirtySource) {
+if ($dirtySource -and -not $AllowDirtySourceForTest) {
     throw "DairyOS release builds require a clean worktree so binary provenance can bind to one exact source commit."
+}
+
+$dirtyPaths = @()
+$workingTreeFingerprint = $null
+if ($dirtySource) {
+    $dirtyPaths = @(& git status --porcelain --untracked-files=all | ForEach-Object { $_.Substring(3) })
+    $patchPath = Join-Path $env:TEMP ("DairyOS-source-diff-" + [guid]::NewGuid().ToString("N") + ".patch")
+    try {
+        & git diff HEAD --binary --output=$patchPath
+        if ($LASTEXITCODE -ne 0) { throw "Unable to fingerprint tracked source changes." }
+        $patchHash = (Get-FileHash $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    finally {
+        Remove-Item $patchPath -Force -ErrorAction SilentlyContinue
+    }
+    $untrackedEntries = @(
+        & git ls-files --others --exclude-standard |
+            Sort-Object |
+            ForEach-Object {
+                if (Test-Path $_ -PathType Leaf) {
+                    "$_=$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLowerInvariant())"
+                }
+            }
+    )
+    $fingerprintText = @("commit=$sourceRevision", "tree=$sourceTree", "patch=$patchHash") + $untrackedEntries
+    $fingerprintBytes = [Text.Encoding]::UTF8.GetBytes(($fingerprintText -join "`n"))
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $workingTreeFingerprint = [Convert]::ToHexString($sha256.ComputeHash($fingerprintBytes)).ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    Write-Warning "Building an explicitly requested uncommitted test candidate. Its manifest records a working-tree fingerprint and must not be treated as a clean release."
 }
 
 $webRoot = Join-Path $repo "src\\DairyOS.Web"
@@ -47,9 +82,6 @@ if ($LASTEXITCODE -ne 0) { throw "DairyOS frontend production build failed." }
 if (-not (Test-Path $webIndex -PathType Leaf)) { throw "Frontend build completed without dist/index.html." }
 
 Write-Host "=== PREPARE DESKTOP BUILD DEPENDENCIES ===" -ForegroundColor Cyan
-python -m pip install --upgrade pyinstaller
-if ($LASTEXITCODE -ne 0) { throw "Unable to install PyInstaller." }
-
 python -m pip install -e ".[desktop]"
 if ($LASTEXITCODE -ne 0) {
     throw "Unable to install DairyOS desktop dependencies."
@@ -146,6 +178,9 @@ $releaseManifest = [ordered]@{
     manifest_version = 1
     source_commit = $sourceRevision
     source_tree = $sourceTree
+    test_candidate = [bool]$dirtySource
+    working_tree_fingerprint_sha256 = $workingTreeFingerprint
+    dirty_source_paths = $dirtyPaths
     desktop_exe_sha256 = $desktopHash
     backup_exe_sha256 = $backupHash
     postgresql_version = $declaredVersion

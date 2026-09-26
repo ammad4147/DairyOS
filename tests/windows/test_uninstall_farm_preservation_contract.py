@@ -38,4 +38,6 @@ def test_ci_certifies_simplified_uninstall_and_six_hour_schedule():
     assert "Certify simplified install and uninstall" in active
     assert "PT6H" in active
     assert "PRESERVEFARMDATA" not in active
-    assert "keep-data uninstall" not in active
+    assert "GITHUB_STEP_SUMMARY" in active
+    assert "Not run: interactive UI open/close/relaunch" in active
+    assert "Not run: separate stopped-cluster and stale" in active

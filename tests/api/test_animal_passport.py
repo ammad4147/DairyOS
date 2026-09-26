@@ -3,7 +3,10 @@ from datetime import UTC, date, datetime, timedelta
 
 from dairyos.app import container
 from dairyos.data.database.models.breeding_record_model import BreedingRecordModel
+from dairyos.data.models.feed_record import FeedRecord
+from dairyos.data.models.financial_transaction import FinancialTransaction
 from dairyos.data.models.health_case import HealthCase
+from dairyos.data.models.health_observation import HealthObservation
 from dairyos.data.models.milk_production import MilkProduction
 from dairyos.data.models.treatment_record import TreatmentRecord
 
@@ -73,6 +76,49 @@ def test_lifetime_animal_passport_aggregates_persisted_history(
     assert data["animal"]["animal_id"] == registered_animal
     assert data["history"]["milk"]
 
+    # The mounted, database-aware Passport is the supported animal-centric
+    # read surface. Keep the former operational-record contract covered here
+    # so retirement of its unmounted legacy router cannot hide a regression.
+    session = container.repository_factory.session
+    session.add(
+        FeedRecord(
+            animal_id=registered_animal,
+            feed_type="TMR",
+            feeding_date=datetime.now(UTC),
+            quantity_kg=10,
+        )
+    )
+    session.add(
+        HealthObservation(
+            animal_id=registered_animal,
+            observed_at=datetime.now(UTC),
+            observation="Passport health observation",
+        )
+    )
+    session.add(
+        FinancialTransaction(
+            animal_id=registered_animal,
+            transaction_date=datetime.now(UTC),
+            category="OTHER_OPERATING",
+            amount=1000,
+            transaction_type="EXPENSE",
+            notes="Passport animal expense",
+        )
+    )
+    session.commit()
+
+    passport = client.get(f"/farm/animals/{registered_animal}/passport")
+    assert passport.status_code == 200, passport.text
+    data = passport.json()
+    for domain in ("milk", "feed", "health", "finance"):
+        assert data["history"][domain], domain
+        assert data["record_counts"][domain] >= 1, domain
+        assert any(item["domain"] == domain for item in data["timeline"]), domain
+        assert all(
+            record["animal_id"] == registered_animal
+            for record in data["history"][domain]
+        ), domain
+
     milk_record = data["history"]["milk"][0]
     assert milk_record["animal_id"] == registered_animal
     assert milk_record["milking_session"] == "MORNING"
@@ -80,6 +126,13 @@ def test_lifetime_animal_passport_aggregates_persisted_history(
 
     assert data["record_counts"]["milk"] >= 1
     assert any(item["domain"] == "milk" for item in data["timeline"])
+
+    timeline = client.get(f"/farm/animals/{registered_animal}/timeline")
+    assert timeline.status_code == 200, timeline.text
+    timeline_data = timeline.json()
+    assert timeline_data["animal_id"] == registered_animal
+    assert timeline_data["record_counts"]["milk"] >= 1
+    assert any(item["domain"] == "milk" for item in timeline_data["events"])
 
 
 def test_lifetime_animal_passport_exposes_recursive_lineage(

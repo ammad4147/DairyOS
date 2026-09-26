@@ -22,14 +22,13 @@ dependencies = [
   "uvicorn>=0.35",
   "PyYAML>=6.0",
   "cryptography>=45.0",
-  "elasticsearch>=8.11,<9",
   "openpyxl>=3.1.5",
   "reportlab>=4.4.0",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8.0", "httpx2>=2.12", "pypdf>=5.0"]
-desktop = ["pywebview>=6.2.1"]
+desktop = ["pywebview>=6.2.1", "pyinstaller==6.22.3"]
 
 [project.scripts]
 dairyos-server = "dairyos.server:main"

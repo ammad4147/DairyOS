@@ -2,7 +2,6 @@
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
-from PyInstaller.utils.hooks import collect_submodules
 
 
 # The spec is part of the repository and must remain portable across
@@ -15,39 +14,47 @@ if not ICON.is_file():
     raise FileNotFoundError(f"DairyOS launcher icon is missing: {ICON}")
 
 
+MIGRATION_DATA = [
+    (str(path), str(path.parent.relative_to(ROOT)))
+    for path in (ROOT / "db_migrations").rglob("*.py")
+    if path.is_file()
+]
 datas = [
     (str(ROOT / "alembic.ini"), "."),
-    (str(ROOT / "db_migrations"), "db_migrations"),
+    *MIGRATION_DATA,
     (str(ROOT / "src" / "DairyOS.Web" / "dist"), "src/DairyOS.Web/dist"),
 ]
 binaries = []
-hiddenimports = []
+# This reviewed inventory was extracted from the previous production archive's
+# bytecode graph using supervisor, backend, backup-worker and Alembic model
+# roots, with parent packages and from-package submodules included. Keeping the
+# complete known-live set explicit removes the blanket dairyos collector while
+# retaining every previously identified runtime module. Runtime/package tests
+# remain the release gate before any later inventory pruning.
+hidden_import_inventory = ROOT / "packaging" / "desktop-hiddenimports.txt"
+if not hidden_import_inventory.is_file():
+    raise FileNotFoundError(f"Desktop hidden-import inventory is missing: {hidden_import_inventory}")
+hiddenimports = [
+    line.strip()
+    for line in hidden_import_inventory.read_text(encoding="utf-8").splitlines()
+    if line.strip()
+]
+if len(hiddenimports) != len(set(hiddenimports)):
+    raise ValueError("Desktop hidden-import inventory contains duplicate module names")
 # URL handling can request this codec dynamically in a frozen build. Keep it
 # explicit so packaged Windows runtime does not report "unknown encoding: idna".
-hiddenimports += ["encodings.idna"]
-# The normal farm runtime carries the protected lifecycle and recovery
-# services used by Settings. There is no standalone operator Admin module to
-# package.
-hiddenimports += collect_submodules("dairyos")
-hiddenimports += collect_submodules("alembic")
-hiddenimports += collect_submodules("sqlalchemy")
+hiddenimports.append("encodings.idna")
 tmp_ret = collect_all("webview")
 datas += tmp_ret[0]
 binaries += tmp_ret[1]
 hiddenimports += tmp_ret[2]
 
-# Search is part of the normal application runtime. Collect the client package
-# explicitly so the frozen desktop does not depend on a developer Python
-# installation or dynamic import discovery at runtime.
-tmp_ret = collect_all("elasticsearch")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-
-
 PRODUCTION_EXCLUDES = [
     "pytest",
     "tests",
+    "alembic.testing",
+    "sqlalchemy.testing",
+    "mypy",
 ]
 
 a = Analysis(
@@ -93,7 +100,7 @@ backup_a = Analysis(
     binaries=binaries,
     datas=[
         (str(ROOT / "alembic.ini"), "."),
-        (str(ROOT / "db_migrations"), "db_migrations"),
+        *MIGRATION_DATA,
     ],
     hiddenimports=hiddenimports,
     hookspath=[],

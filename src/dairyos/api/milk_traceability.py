@@ -6,11 +6,12 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dairyos.api.auth import get_optional_current_user
 from dairyos.api.dependencies import get_container
+from dairyos.api.human_access import _current_session
 from dairyos.api.operational_write import operational_write
 from dairyos.core.time_utils import utcnow
 from dairyos.data.models.financial_transaction import FinancialTransaction
@@ -82,6 +83,13 @@ def _operator(
     fallback: str | None = None,
 ) -> str:
     return str(current_user["sub"]) if current_user else str(fallback or "API")
+
+
+def _human_operator(identity: Any | None, current_user: dict[str, Any] | None) -> str:
+    """Prefer a validated named DairyOS session over generic API identity."""
+    if identity is not None and getattr(identity, "display_name", None):
+        return str(identity.display_name)
+    return _operator(current_user)
 
 
 def _meaningful_correction_reason(
@@ -600,7 +608,14 @@ def create_milk_disposition(
     entry: DispositionCreate,
     container=Depends(get_container),
     current_user: dict[str, Any] | None = Depends(get_optional_current_user),
+    x_dairyos_human_session: str | None = Header(default=None),
 ):
+    human_identity = (
+        _current_session(x_dairyos_human_session)[1]
+        if x_dairyos_human_session
+        else None
+    )
+    operator = _human_operator(human_identity, current_user)
     try:
         item = MilkReconciliationService(
             container.repository_factory.milk_dispositions(),
@@ -613,14 +628,14 @@ def create_milk_disposition(
             counterparty=entry.counterparty,
             selling_price_per_litre=entry.selling_price_per_litre,
             notes=entry.notes,
-            recorded_by=_operator(current_user),
+            recorded_by=operator,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     container.input_gateway.record(
         "milk_disposition",
         entry.model_dump(mode="json"),
-        _operator(current_user),
+        operator,
     )
     return _disposition_payload(item)
 

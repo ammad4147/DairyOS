@@ -13,7 +13,11 @@ def test_duplicate_compatibility_routes_are_not_mounted_as_public_authorities():
         / "app.py"
     ).read_text(encoding="utf-8")
 
-    assert '_unmount_duplicate_routes(farm_router, {"/farm/breeding"})' in app_source
+    assert '_unmount_duplicate_routes(\n    farm_router,\n    {"/farm/breeding", "/farm/equipment"},\n)' in app_source
+    assert '"/farm/animals/{animal_id}/passport"' in app_source
+    assert '"/farm/kpis"' in app_source
+    assert '"/farm/milk/capacity"' in app_source
+    assert '"/farm/milk/dispositions"' in app_source
     assert (
         '_unmount_duplicate_routes(breeding_biology_router, {"/dashboard"})'
         in app_source

@@ -1237,6 +1237,12 @@ def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
 
+    if "--lifecycle" in argv:
+        if argv[0] != "--lifecycle":
+            print("--lifecycle must be the first command-line argument.", file=sys.stderr)
+            return 64
+        return run_packaged_lifecycle(argv[1:])
+
     if "--dairyos-backend" in argv:
         # Direct backend launches are used by diagnostics and packaged smoke
         # tests as well as by the supervisor's child process. Mark the mode
@@ -1322,6 +1328,80 @@ def main(argv: list[str] | None = None) -> int:
             return 64
         return database_preflight(config)
     return run(config, browser=args.browser or args.network_access)
+
+
+def run_packaged_lifecycle(arguments: list[str]) -> int:
+    """Run safe offline lifecycle actions against the private appliance DB."""
+    if not getattr(sys, "frozen", False):
+        print("Packaged lifecycle commands are available only in the installed application.", file=sys.stderr)
+        return 64
+    if not arguments or arguments[0] not in {"validate", "backup", "restore", "rollback"}:
+        print("Supported lifecycle commands: validate, backup, restore, rollback.", file=sys.stderr)
+        return 64
+    if any(
+        argument.startswith(("--database-url", "--install-root", "--data-root"))
+        for argument in arguments
+    ):
+        print("Lifecycle database and roots are fixed to this DairyOS installation.", file=sys.stderr)
+        return 64
+
+    instance = SingleInstance()
+    instance_acquired = False
+    try:
+        if not instance.acquire():
+            print("Close the running DairyOS application before offline lifecycle work.", file=sys.stderr)
+            return 73
+        instance_acquired = True
+
+        command = arguments[0]
+        if command in {"restore", "rollback"}:
+            if len(arguments) != 2:
+                print(f"Lifecycle {command} requires one backup directory.", file=sys.stderr)
+                return 64
+            from dairyos.platform import paths
+
+            backup_root = (paths.data_root(create=False) / "backups").resolve()
+            backup_path = Path(arguments[1]).expanduser().resolve()
+            try:
+                backup_path.relative_to(backup_root)
+            except ValueError:
+                print("Restore source must be inside this installation's backup folder.", file=sys.stderr)
+                return 64
+            if not backup_path.is_dir():
+                print("Restore source must be an existing backup directory under this installation.", file=sys.stderr)
+                return 64
+
+        database = prepare_database()
+        if database.private_postgres is None:
+            raise ApplianceDatabaseError("The installed lifecycle command requires the private DairyOS database.")
+
+        from dairyos.lifecycle.cli import main as lifecycle_main
+        from dairyos.platform import paths
+        from dairyos.windows.private_database_security import admin_database_url
+
+        previous_database_url = os.environ.get("DAIRYOS_DATABASE_URL")
+        os.environ["DAIRYOS_DATABASE_URL"] = admin_database_url(database.private_postgres)
+        try:
+            lifecycle_arguments = [
+                "--install-root",
+                str(Path(sys.executable).resolve().parent),
+                "--data-root",
+                str(paths.data_root(create=False).resolve()),
+                *arguments,
+            ]
+            return lifecycle_main(lifecycle_arguments)
+        finally:
+            if previous_database_url is None:
+                os.environ.pop("DAIRYOS_DATABASE_URL", None)
+            else:
+                os.environ["DAIRYOS_DATABASE_URL"] = previous_database_url
+    except Exception as exc:
+        LOG.exception("Packaged DairyOS lifecycle command failed")
+        print(f"DairyOS lifecycle command failed: {exc}", file=sys.stderr)
+        return 5
+    finally:
+        if instance_acquired:
+            instance.release()
 
 
 if __name__ == "__main__":

@@ -174,11 +174,10 @@ async def enforce_animal_identity(request: Request, call_next):
 
     return response
 
-from dairyos.middleware.desktop_session import enforce_desktop_session
-from dairyos.api.human_access import _current_session
 from dairyos.api.authorization import permission_for_request
+from dairyos.api.human_access import _current_session
 from dairyos.auth.permissions import permissions_for_role
-
+from dairyos.middleware.desktop_session import enforce_desktop_session
 
 _HUMAN_ACCESS_PUBLIC_EXACT = {
     ("GET", "/"),
@@ -251,12 +250,11 @@ from dairyos.api.animal_passport import router as animal_passport_router
 from dairyos.api.animal_registration import router as animal_registration_router
 from dairyos.api.animal_welfare import router as animal_welfare_router
 from dairyos.api.auth import router as auth_router
-from dairyos.api.human_access import router as human_access_router
 from dairyos.api.authorization import router as authorization_router
 from dairyos.api.breeding_biology import router as breeding_biology_router
+from dairyos.api.clinical_inventory import router as clinical_inventory_router
 from dairyos.api.coml import router as coml_router
 from dairyos.api.command_center import router as command_router
-from dairyos.api.clinical_inventory import router as clinical_inventory_router
 from dairyos.api.dairy_kpi import router as dairy_kpi_router
 from dairyos.api.dashboard import router as dashboard_router
 from dairyos.api.equipment_management import router as equipment_router
@@ -275,6 +273,7 @@ from dairyos.api.health import router as health_router
 from dairyos.api.heat_stress_intelligence import (
     router as heat_stress_intelligence_router,
 )
+from dairyos.api.human_access import router as human_access_router
 from dairyos.api.live_analytics import router as live_analytics_router
 from dairyos.api.milk_legacy_compat import router as milk_legacy_compat_router
 from dairyos.api.milk_production_analytics import (
@@ -289,7 +288,6 @@ from dairyos.api.payroll import router as payroll_router
 from dairyos.api.reference_data import router as reference_data_router
 from dairyos.api.reports import router as reports_router
 from dairyos.api.reproduction_management import router as reproduction_management_router
-from dairyos.api.search import router as search_router
 from dairyos.api.settings import router as settings_router
 from dairyos.api.system import router as system_router
 from dairyos.api.tab_state import router as tab_state_router
@@ -307,21 +305,34 @@ def _unmount_duplicate_routes(router, paths: set[str]) -> None:
     ]
 
 
-# Breeding lifecycle writes and current reproductive state have one public
-# authority: breeding_biology_router. Historical compatibility functions may
-# remain importable for internal callers, but they are deliberately not mounted
-# as competing HTTP routes. The established Dashboard remains owned by its
-# dedicated dashboard router.
-_unmount_duplicate_routes(farm_router, {"/farm/breeding"})
+# Keep one public handler for each duplicated method/path. These source
+# functions remain importable for internal compatibility, but mounting them
+# alongside another router made runtime dispatch and OpenAPI select different
+# handlers. The milk disposition duplicate also allowed a client-supplied
+# recorded_by value to become durable instead of using the authenticated user.
+_unmount_duplicate_routes(
+    farm_router,
+    {"/farm/breeding", "/farm/equipment"},
+)
 _unmount_duplicate_routes(
     animal_passport_router,
     {"/farm/animals/{animal_id}/reproduction"},
+)
+_unmount_duplicate_routes(
+    farm_intelligence_router,
+    {"/farm/animals/{animal_id}/passport"},
 )
 _unmount_duplicate_routes(
     farm_planning_router,
     {"/farm/animals/{animal_id}/reproduction"},
 )
 _unmount_duplicate_routes(breeding_biology_router, {"/dashboard"})
+_unmount_duplicate_routes(dairy_kpi_router, {"/farm/kpis"})
+_unmount_duplicate_routes(milk_legacy_compat_router, {"/farm/milk/capacity"})
+_unmount_duplicate_routes(
+    milk_production_analytics_router,
+    {"/farm/milk/dispositions"},
+)
 
 app.include_router(command_router)
 app.include_router(clinical_inventory_router)
@@ -366,7 +377,6 @@ app.include_router(payroll_router)
 app.include_router(auth_router)
 app.include_router(human_access_router)
 app.include_router(authorization_router)
-app.include_router(search_router)
 app.include_router(reports_router)
 
 FRONTEND_URL = os.getenv("DAIRYOS_FRONTEND_URL", "/")

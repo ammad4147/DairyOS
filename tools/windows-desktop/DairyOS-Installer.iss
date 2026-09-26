@@ -48,16 +48,16 @@ SetupLogging=yes
 
 [Files]
 Source: "{#BundlePath}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
-; Recovery-only copy. This makes pg_ctl available before {app} is recreated
-; when retained DairyOS data outlives the application directory.
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\pg_ctl.exe"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libpq.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libintl-9.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libiconv-2.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libssl-3-x64.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libwinpthread-1.dll"; Flags: dontcopy
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\zlib1.dll"; Flags: dontcopy
+; Keep recovery tools outside {app} so the uninstaller can stop only the
+; DairyOS private cluster after a damaged or removed application directory.
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\pg_ctl.exe"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libpq.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libintl-9.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libiconv-2.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libssl-3-x64.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libwinpthread-1.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\zlib1.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
 
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.
@@ -79,8 +79,8 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--network-access --data-root ""{co
 [UninstallDelete]
 ; Remove the complete application tree, including runtime-generated files
 ; such as PostgreSQL logs and state that were not present in the original
-; [Files] manifest. Farm data remains governed by the explicit preservation
-; choice below and is never inferred from this application-tree cleanup.
+; [Files] manifest. Farm data remains under independent backup/recovery
+; ownership and is never removed by the application-tree cleanup.
 Type: filesandordirs; Name: "{app}"
 Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 
@@ -589,91 +589,9 @@ begin
     Log('DairyOS uninstall: automatic backup task remains; uninstall blocked.');
 end;
 
-(* Obsolete uninstall-triggered preservation helpers retained temporarily for
-   review only; they are not compiled or reachable. *)
-(*
-function ChoosePreservationDestination(): Boolean;
-var
-  SuggestedName: String;
-begin
-  SuggestedName := 'DairyOS-Farm-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.dairypkg';
-  Result := GetSaveFileName(
-    'Choose where to save the complete DairyOS farm-data package',
-    PreservedFarmDataPath,
-    SuggestedName,
-    'DairyOS Farm Package (*.dairypkg)|*.dairypkg',
-    'dairypkg'
-  );
-  if Result and (CompareText(ExtractFileExt(PreservedFarmDataPath), '.dairypkg') <> 0) then
-    PreservedFarmDataPath := PreservedFarmDataPath + '.dairypkg';
-end;
-
-function PreservationDestinationFromCommandLine(): String;
-var
-  I: Integer;
-  Arg: String;
-begin
-  Result := '';
-  for I := 1 to ParamCount do
-  begin
-    Arg := ParamStr(I);
-    if CompareText(Copy(Arg, 1, 18), '/PRESERVEDATAPATH=') = 0 then
-    begin
-      Result := Copy(Arg, 19, Length(Arg));
-      exit;
-    end;
-  end;
-end;
-
-function ExportFarmDataForUninstall(): Boolean;
-var
-  DairyOSExe: String;
-  Params: String;
-  ResultCode: Integer;
-begin
-  Result := False;
-  DairyOSExe := ExpandConstant('{app}\\DairyOS.exe');
-  if not FileExists(DairyOSExe) then
-  begin
-    MsgBox('DairyOS.exe is missing. Farm data cannot be verified for preservation, so uninstall is blocked.', mbError, MB_OK);
-    exit;
-  end;
-
-  Params := '--farm-data-export "' + PreservedFarmDataPath + '" ' +
-    '--data-root "' + DairyOSDataRoot('') + '"';
-  if (not Exec(DairyOSExe, Params, ExpandConstant('{app}'), SW_HIDE,
-    ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
-  begin
-    Log('DairyOS uninstall: farm-data export failed with code ' + IntToStr(ResultCode) + '.');
-    SuppressibleMsgBox(
-      'DairyOS could not create and verify the requested farm-data package. ' +
-      'Uninstall is blocked and the installed farm state remains in place.',
-      mbError, MB_OK, IDOK
-    );
-    exit;
-  end;
-
-  if not DirExists(PreservedFarmDataPath) then
-  begin
-    MsgBox('The verified farm-data package was not found at the selected destination. Uninstall is blocked.', mbError, MB_OK);
-    exit;
-  end;
-
-  SuppressibleMsgBox(
-    'Complete DairyOS farm data was saved and verified at:' + #13#10#13#10 +
-    PreservedFarmDataPath + #13#10#13#10 +
-    'Keep this package safe. It can be imported later from Settings > Data Management.',
-    mbInformation, MB_OK, IDOK
-  );
-  Log('DairyOS uninstall: verified farm-data preservation package: ' + PreservedFarmDataPath);
-  Result := True;
-end;
-*)
-
 function StopInstalledDairyOSForUninstall(): Boolean;
 var
   PgCtl: String;
-  RecoveryPgCtl: String;
   DataDir: String;
   PidFile: String;
   ResultCode: Integer;
@@ -688,19 +606,9 @@ begin
   PgCtl := ExpandConstant('{app}\runtime\PostgreSQL\bin\pg_ctl.exe');
   if not FileExists(PgCtl) then
   begin
-    { The application directory may be absent after keep-data uninstall.
-      Extract the exact packaged pg_ctl before touching the retained cluster. }
-    ExtractTemporaryFile('pg_ctl.exe');
-    ExtractTemporaryFile('libpq.dll');
-    ExtractTemporaryFile('libintl-9.dll');
-    ExtractTemporaryFile('libiconv-2.dll');
-    ExtractTemporaryFile('libssl-3-x64.dll');
-    ExtractTemporaryFile('libcrypto-3-x64.dll');
-    ExtractTemporaryFile('libwinpthread-1.dll');
-    ExtractTemporaryFile('zlib1.dll');
-    RecoveryPgCtl := ExpandConstant('{tmp}\pg_ctl.exe');
-    if FileExists(RecoveryPgCtl) then
-      PgCtl := RecoveryPgCtl;
+    { Use the installer-owned recovery copy under ProgramData when the
+      application-tree pg_ctl.exe is missing. }
+    PgCtl := ExpandConstant('{commonappdata}\DairyOS\recovery\PostgreSQL\bin\pg_ctl.exe');
   end;
   DataDir := DairyOSDataRoot('') + '\postgres\data';
   PidFile := DataDir + '\postmaster.pid';

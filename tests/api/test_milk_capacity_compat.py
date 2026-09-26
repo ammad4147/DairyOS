@@ -2,24 +2,22 @@ from datetime import date
 from types import SimpleNamespace
 
 from dairyos.api import milk_legacy_compat
+from dairyos.app import app
 
 
-def test_capacity_route_is_registered():
-    assert any(
-        getattr(route, "path", None) == "/farm/milk/capacity"
-        and "GET" in getattr(route, "methods", set())
-        for route in milk_legacy_compat.router.routes
+def test_capacity_route_is_registered_with_the_traceability_owner():
+    operation = app.openapi()["paths"]["/farm/milk/capacity"]["get"]
+    assert operation["operationId"] == "milk_capacity_farm_milk_capacity_get"
+    through_date = next(
+        parameter
+        for parameter in operation["parameters"]
+        if parameter["name"] == "through_date"
     )
+    assert through_date["required"] is False
 
 
-def test_capacity_compatibility_route_has_a_distinct_openapi_identity():
-    route = next(
-        route
-        for route in milk_legacy_compat.router.routes
-        if getattr(route, "path", None) == "/farm/milk/capacity"
-    )
-
-    assert route.operation_id == "legacy_milk_capacity_farm_milk_capacity_get"
+def test_legacy_capacity_adapter_remains_callable_for_internal_compatibility():
+    assert callable(milk_legacy_compat.milk_capacity)
 
 
 def test_capacity_route_uses_authoritative_capacity_service(monkeypatch):

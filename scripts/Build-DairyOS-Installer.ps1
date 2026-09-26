@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Bundle = "dist\DairyOS-Release\DairyOS",
-    [string]$Output = "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
+    [string]$Output = "dist\DairyOS-Release\DairyOS-Windows-Installer.exe",
+    [switch]$AllowDirtySourceForTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,9 +23,20 @@ if (-not (Test-Path (Join-Path $bundlePath "DairyOS.exe") -PathType Leaf)) { thr
 if (-not (Test-Path (Join-Path $bundlePath "DairyOSBackup.exe") -PathType Leaf)) { throw "Certified desktop bundle is missing DairyOSBackup.exe: $bundlePath" }
 $releaseManifestPath = Join-Path $bundlePath "release-manifest.json"
 if (-not (Test-Path $releaseManifestPath -PathType Leaf)) { throw "Certified desktop bundle is missing release-manifest.json: $releaseManifestPath" }
-$releaseManifest = Get-Content $releaseManifestPath -Raw | ConvertFrom-Json
+$releaseManifestJson = Get-Content $releaseManifestPath -Raw
+$releaseManifest = $releaseManifestJson | ConvertFrom-Json
+$releaseManifestDocument = [System.Text.Json.JsonDocument]::Parse($releaseManifestJson)
+try {
+    $buildTimestampUtc = $releaseManifestDocument.RootElement.GetProperty("build_timestamp_utc").GetString()
+} finally {
+    $releaseManifestDocument.Dispose()
+}
+if ([string]::IsNullOrWhiteSpace($buildTimestampUtc)) { throw "Desktop release manifest has no build timestamp." }
 if ([string]$releaseManifest.source_commit -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source commit." }
 if ([string]$releaseManifest.source_tree -notmatch '^[0-9a-f]{40}$') { throw "Desktop release manifest has no exact source tree." }
+if ($releaseManifest.test_candidate -and -not $AllowDirtySourceForTest) {
+    throw "Refusing to package a dirty-source candidate without -AllowDirtySourceForTest."
+}
 
 Write-Host "DairyOS installer is bound to the certified desktop release source." -ForegroundColor DarkGray
 if (-not (Test-Path $iss -PathType Leaf)) { throw "Inno Setup definition is missing: $iss" }
@@ -66,13 +78,16 @@ $artifactManifest = [ordered]@{
     manifest_version = 1
     source_commit = [string]$releaseManifest.source_commit
     source_tree = [string]$releaseManifest.source_tree
+    test_candidate = [bool]$releaseManifest.test_candidate
+    working_tree_fingerprint_sha256 = $releaseManifest.working_tree_fingerprint_sha256
+    dirty_source_paths = @($releaseManifest.dirty_source_paths)
     desktop_exe_sha256 = [string]$releaseManifest.desktop_exe_sha256
     backup_exe_sha256 = [string]$releaseManifest.backup_exe_sha256
     installer_sha256 = $installerHash
     postgresql_version = [string]$releaseManifest.postgresql_version
     frontend_index_sha256 = [string]$releaseManifest.frontend_index_sha256
     schema_migration_files = @($releaseManifest.schema_migration_files)
-    build_timestamp_utc = [string]$releaseManifest.build_timestamp_utc
+    build_timestamp_utc = $buildTimestampUtc
     installer_built_at_utc = (Get-Date).ToUniversalTime().ToString("o")
 }
 $artifactManifestPath = Join-Path (Split-Path -Parent $outputPath) "DairyOS-Windows-Installer.release.json"

@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14.6"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -682,11 +682,15 @@ jobs:
 
       - name: Certify simplified install and uninstall
         shell: pwsh
-        timeout-minutes: 8
+        timeout-minutes: 15
         run: |
           $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
           $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Simplified-Cert"
           Remove-Item $installRoot -Recurse -Force -ErrorAction SilentlyContinue
+          $dataRoot = Join-Path $env:ProgramData "DairyOS"
+          if ((Test-Path $dataRoot) -and (Get-ChildItem $dataRoot -Force | Select-Object -First 1)) {
+            throw "Refusing to run installer lifecycle certification over existing ProgramData content: $dataRoot"
+          }
           $setup = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR=' + $installRoot)) -PassThru -Wait
           if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
           $installedExe = Join-Path $installRoot 'DairyOS.exe'
@@ -694,15 +698,74 @@ jobs:
           $taskXml = schtasks.exe /Query /TN 'DairyOS-Automatic-Backup' /XML 2>&1
           if ($LASTEXITCODE -ne 0) { throw 'Automatic backup task was not registered.' }
           if (([string]$taskXml) -notmatch 'PT6H') { throw 'Automatic backup task is not configured for six-hour repetition.' }
+
+          function Invoke-InstalledPreflight([string]$Label) {
+            $preflight = Start-Process -FilePath $installedExe -ArgumentList @('--database-preflight','--postgres-timeout','60') -PassThru
+            if (-not $preflight.WaitForExit(180000)) {
+              Stop-Process -Id $preflight.Id -Force -ErrorAction SilentlyContinue
+              throw "$Label installed database preflight exceeded 180 seconds."
+            }
+            if ($preflight.ExitCode -ne 0) { throw "$Label installed database preflight failed with code $($preflight.ExitCode)." }
+            Write-Host "$Label INSTALLED RUNTIME PREFLIGHT: PASS"
+          }
+
+          Invoke-InstalledPreflight 'FIRST START'
+          Invoke-InstalledPreflight 'SECOND START'
+          $marker = Join-Path $dataRoot 'lifecycle-certification-marker.txt'
+          'preserve-me' | Set-Content -Path $marker -Encoding ascii
+          $lifecyclePath = Join-Path $dataRoot 'lifecycle.json'
+          if (-not (Test-Path $lifecyclePath -PathType Leaf)) { throw 'Installed lifecycle manifest is missing before uninstall.' }
+
           $uninstaller = Join-Path $installRoot 'unins000.exe'
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
+          $uninstallLog = Join-Path $env:RUNNER_TEMP 'dairyos-simplified-uninstall.log'
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG=' + $uninstallLog)) -PassThru
+          if (-not $uninstall.WaitForExit(120000)) {
+            if (Test-Path $uninstallLog) { Get-Content $uninstallLog }
+            Stop-Process -Id $uninstall.Id -Force -ErrorAction SilentlyContinue
+            throw 'First installed uninstaller did not finish within 120 seconds.'
+          }
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
           $deadline = (Get-Date).AddSeconds(30)
           while ((Test-Path $installRoot) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 1 }
           if (Test-Path $installRoot) { throw "Application runtime remains after uninstall: $installRoot" }
           $taskAfterUninstall = schtasks.exe /Query /TN 'DairyOS-Automatic-Backup' 2>&1
           if ($LASTEXITCODE -eq 0) { throw 'DairyOS backup task remained after uninstall.' }
-          Write-Host 'SIMPLIFIED INSTALL / UNINSTALL CERTIFICATION: PASS'
+          if (-not (Test-Path $marker -PathType Leaf) -or -not (Test-Path $lifecyclePath -PathType Leaf)) { throw 'Uninstall failed to retain farm-data sentinel or lifecycle manifest.' }
+
+          $reinstall = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR=' + $installRoot)) -PassThru -Wait
+          if ($reinstall.ExitCode -ne 0) { throw "Reinstall over retained farm data exited with code $($reinstall.ExitCode)." }
+          if (-not (Test-Path $installedExe -PathType Leaf)) { throw 'Reinstall did not restore DairyOS.exe.' }
+          Invoke-InstalledPreflight 'REINSTALL'
+          if ((Get-Content $marker -Raw).Trim() -ne 'preserve-me') { throw 'Reinstall altered retained farm data.' }
+
+          # Exercise the durable recovery pg_ctl copy from ProgramData: the
+          # package cluster stays active after offline backup; deleting only
+          # the installed pg_ctl forces the uninstaller through its recovery path.
+          $lifecycleBackup = Start-Process -FilePath $installedExe -ArgumentList @('--lifecycle','backup','--label','installer-certification') -PassThru
+          if (-not $lifecycleBackup.WaitForExit(180000)) {
+            Stop-Process -Id $lifecycleBackup.Id -Force -ErrorAction SilentlyContinue
+            throw 'Packaged offline backup exceeded 180 seconds.'
+          }
+          if ($lifecycleBackup.ExitCode -ne 0) { throw "Packaged offline backup failed with code $($lifecycleBackup.ExitCode)." }
+          Remove-Item (Join-Path $installRoot 'runtime\PostgreSQL\bin\pg_ctl.exe') -Force
+          $uninstaller = Join-Path $installRoot 'unins000.exe'
+          $recoveryUninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru
+          if (-not $recoveryUninstall.WaitForExit(120000)) {
+            Stop-Process -Id $recoveryUninstall.Id -Force -ErrorAction SilentlyContinue
+            throw 'Damaged-install recovery uninstaller did not finish within 120 seconds.'
+          }
+          if ($recoveryUninstall.ExitCode -ne 0) { throw "Damaged-install recovery uninstall exited with code $($recoveryUninstall.ExitCode)." }
+          $deadline = (Get-Date).AddSeconds(30)
+          while ((Test-Path $installRoot) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 1 }
+          if (Test-Path $installRoot) { throw "Application runtime remains after damaged-install uninstall: $installRoot" }
+          if ((Get-Content $marker -Raw).Trim() -ne 'preserve-me') { throw 'Damaged-install uninstall altered retained farm data.' }
+          Write-Host 'INSTALL / FIRST-SECOND START / KEEP-DATA UNINSTALL / REINSTALL / DAMAGED-PG_CTL RECOVERY: PASS'
+          @(
+            '## DairyOS installed lifecycle checks',
+            '- Passed: install, first/second/reinstall database preflight, keep-data uninstall, reinstall data retention, offline backup, and damaged installed `pg_ctl.exe` recovery uninstall.',
+            '- Not run: interactive UI open/close/relaunch and rendered Animal Timeline acceptance.',
+            '- Not run: separate stopped-cluster and stale `postmaster.pid` damaged-uninstall cases.'
+          ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
           $global:LASTEXITCODE = 0
 
       - name: Publish installer artifact

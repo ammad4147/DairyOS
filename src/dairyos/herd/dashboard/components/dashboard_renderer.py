@@ -7,8 +7,8 @@ that integrates with existing modules and data sources.
 
 from typing import Any
 
-from src.dairyos.core.inputs.manager import InputManager
-from src.dairyos.herd.dashboard.components.dashboard import DashboardRenderer
+from dairyos.core.inputs.manager import InputManager
+from dairyos.herd.dashboard.components.dashboard import DashboardRenderer
 
 
 class DashboardService:

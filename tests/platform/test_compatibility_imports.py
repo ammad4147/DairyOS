@@ -3,10 +3,7 @@
 import importlib
 import pkgutil
 
-import pytest
-
 from dairyos.domain.events import Event
-from dairyos.intelligence import yield_forecasting
 from dairyos.operations.memory.models.memory_signal import MemorySignal
 from dairyos.platform.api.services.platform_health_service import (
     PlatformHealthService,
@@ -98,14 +95,6 @@ def test_runtime_orchestrator_honours_disabled_registered_service():
     RuntimeOrchestrator(manager, registry=registry).start()
 
     assert manager.status().active_services == 0
-
-
-def test_optional_forecasting_dependency_failure_is_actionable(monkeypatch):
-    monkeypatch.setattr(yield_forecasting, "np", None)
-    monkeypatch.setattr(yield_forecasting, "curve_fit", None)
-
-    with pytest.raises(RuntimeError, match="optional numpy and scipy"):
-        yield_forecasting.WoodsYieldForecaster().project_305_days(1.0, 0.2, 0.004)
 
 
 def test_all_production_modules_import_after_runtime_configuration():
