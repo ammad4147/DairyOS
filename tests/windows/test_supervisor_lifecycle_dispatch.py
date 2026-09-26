@@ -101,3 +101,45 @@ def test_packaged_lifecycle_uses_only_this_installation_private_database(
     assert str(data_root) in received
     assert received[-2:] == ["--label", "manual"]
     assert "DAIRYOS_DATABASE_URL" not in os.environ
+
+
+def test_packaged_lifecycle_output_is_logged_for_the_windowed_executable(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "ProgramData" / "DairyOS"
+    monkeypatch.setattr(paths, "data_root", lambda create=True: data_root)
+    monkeypatch.setattr(supervisor.sys, "stdout", None)
+    monkeypatch.setattr(supervisor.sys, "stderr", None)
+    monkeypatch.setattr(supervisor, "_attach_parent_console", lambda: None)
+    backup_path = data_root / "backups" / "20260927T000000Z-manual"
+
+    def fake_lifecycle(arguments):
+        print(backup_path)
+        return 0
+
+    monkeypatch.setattr(supervisor, "run_packaged_lifecycle", fake_lifecycle)
+
+    assert supervisor.main(["--lifecycle", "backup", "--label", "manual"]) == 0
+
+    log = (data_root / "logs" / "lifecycle-cli.log").read_text(encoding="utf-8")
+    assert "DairyOS lifecycle backup --label manual" in log
+    assert str(backup_path) in log
+    assert "finished with exit code 0" in log
+    assert supervisor.sys.stdout is None
+    assert supervisor.sys.stderr is None
+
+
+def test_misplaced_lifecycle_flag_is_reported_in_the_lifecycle_log(
+    monkeypatch,
+    tmp_path,
+):
+    data_root = tmp_path / "ProgramData" / "DairyOS"
+    monkeypatch.setattr(paths, "data_root", lambda create=True: data_root)
+    monkeypatch.setattr(supervisor, "_attach_parent_console", lambda: None)
+
+    assert supervisor.main(["backup", "--lifecycle"]) == 64
+
+    log = (data_root / "logs" / "lifecycle-cli.log").read_text(encoding="utf-8")
+    assert "--lifecycle must be the first command-line argument." in log
+    assert "finished with exit code 64" in log

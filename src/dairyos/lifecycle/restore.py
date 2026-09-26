@@ -13,6 +13,10 @@ from .manager import LifecycleError, LifecycleManager
 
 _DATABASE_ROOT_NAMES = {"postgres", "postgresql"}
 _RUNTIME_OWNED_FILES = {Path("logs") / "private-postgres.log"}
+# Installer-owned PostgreSQL tools that release fcf7dd42 placed in the data
+# root and older lifecycle backups may therefore contain. Restore never brings
+# program files back into farm data.
+_INSTALLER_OWNED_ROOT_NAMES = {"recovery"}
 
 
 def restore_snapshot(manager: LifecycleManager, backup: str | Path) -> None:
@@ -132,7 +136,9 @@ def _stage_non_database_files(
 ) -> None:
     for entry in entries:
         relative = Path(str(entry["path"]))
-        if relative.parts and relative.parts[0].lower() in _DATABASE_ROOT_NAMES:
+        if relative.parts and relative.parts[0].lower() in (
+            _DATABASE_ROOT_NAMES | _INSTALLER_OWNED_ROOT_NAMES
+        ):
             continue
         source = files_root / relative
         destination = staged_root / relative

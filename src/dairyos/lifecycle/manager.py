@@ -192,6 +192,10 @@ class LifecycleManager:
                     "backups",
                     "postgres",
                     "postgresql",
+                    # Installer-owned PostgreSQL tools that release fcf7dd42
+                    # placed in the data root. Program files are never farm
+                    # state and must not travel inside farm backups.
+                    "recovery",
                 }:
                     continue
                 # These are one-shot lifecycle commands, not farm state. A

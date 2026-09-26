@@ -51,10 +51,21 @@ hiddenimports += tmp_ret[2]
 
 PRODUCTION_EXCLUDES = [
     "pytest",
+    "_pytest",
     "tests",
     "alembic.testing",
     "sqlalchemy.testing",
     "mypy",
+    # collect_all("webview") also collects pywebview's own PyInstaller hook
+    # package, which pulls the build tool itself into the runtime archive.
+    # pywebview never imports it at runtime; anyio only imports _pytest from
+    # its pytest plugin, and mako falls back when pygments is absent.
+    "PyInstaller",
+    "webview.__pyinstaller",
+    "altgraph",
+    "pefile",
+    "ordlookup",
+    "pygments",
 ]
 
 a = Analysis(

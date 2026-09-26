@@ -1233,15 +1233,124 @@ def config_from_args(args: argparse.Namespace) -> SupervisorConfig:
     )
 
 
+class _OperatorStream:
+    """Write lifecycle output to the log file and, when present, a console."""
+
+    def __init__(self, *targets) -> None:
+        self._targets = [target for target in targets if target is not None]
+
+    def write(self, text: str) -> int:
+        for target in self._targets:
+            try:
+                target.write(text)
+                target.flush()
+            except (OSError, ValueError):
+                pass
+        return len(text)
+
+    def flush(self) -> None:
+        for target in self._targets:
+            try:
+                target.flush()
+            except (OSError, ValueError):
+                pass
+
+    def isatty(self) -> bool:
+        return False
+
+
+def _attach_parent_console():
+    """Return a writable stream for the launching console, if there is one.
+
+    The packaged executable is a windowed build, so it has no stdout/stderr.
+    When an operator runs it from Command Prompt or PowerShell, attaching to
+    that parent console makes lifecycle results visible where they typed.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        attach_parent_process = ctypes.c_uint32(-1).value
+        if not ctypes.windll.kernel32.AttachConsole(attach_parent_process):
+            return None
+        return open("CONOUT$", "w", encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        return None
+
+
+class _lifecycle_operator_output:
+    """Make offline lifecycle results readable from the windowed executable.
+
+    Every message, including the backup location printed by the lifecycle
+    CLI, is appended to <data root>/logs/lifecycle-cli.log and echoed to the
+    launching console when there is one. The final line records the command
+    and its exit code.
+    """
+
+    def __init__(self, arguments: list[str]) -> None:
+        self._arguments = arguments
+        self._log_file = None
+        self._console = None
+        self._saved: tuple | None = None
+        self._handler: logging.Handler | None = None
+        self.log_path: Path | None = None
+
+    def __enter__(self):
+        windowed = sys.stdout is None or sys.stderr is None
+        try:
+            from dairyos.platform import paths
+
+            logs = paths.data_root(create=True) / "logs"
+            logs.mkdir(parents=True, exist_ok=True)
+            self.log_path = logs / "lifecycle-cli.log"
+            self._log_file = open(self.log_path, "a", encoding="utf-8")
+        except OSError:
+            self._log_file = None
+        if windowed:
+            self._console = _attach_parent_console()
+        stream = _OperatorStream(
+            self._log_file,
+            self._console,
+            None if windowed else sys.__stderr__,
+        )
+        self._saved = (sys.stdout, sys.stderr)
+        sys.stdout = stream
+        sys.stderr = stream
+        self._handler = logging.StreamHandler(stream)
+        self._handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        logging.getLogger().addHandler(self._handler)
+        command = " ".join(self._arguments) or "(none)"
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} DairyOS lifecycle {command}")
+        return self._record_exit
+
+    def _record_exit(self, code: int) -> int:
+        location = f"; log: {self.log_path}" if self.log_path else ""
+        print(f"DairyOS lifecycle finished with exit code {code}{location}")
+        return code
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._handler is not None:
+            logging.getLogger().removeHandler(self._handler)
+        if self._saved is not None:
+            sys.stdout, sys.stderr = self._saved
+        for handle in (self._log_file, self._console):
+            if handle is not None:
+                try:
+                    handle.close()
+                except OSError:
+                    pass
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
 
     if "--lifecycle" in argv:
-        if argv[0] != "--lifecycle":
-            print("--lifecycle must be the first command-line argument.", file=sys.stderr)
-            return 64
-        return run_packaged_lifecycle(argv[1:])
+        with _lifecycle_operator_output(argv[1:]) as record_exit:
+            if argv[0] != "--lifecycle":
+                print("--lifecycle must be the first command-line argument.", file=sys.stderr)
+                return record_exit(64)
+            return record_exit(run_packaged_lifecycle(argv[1:]))
 
     if "--dairyos-backend" in argv:
         # Direct backend launches are used by diagnostics and packaged smoke

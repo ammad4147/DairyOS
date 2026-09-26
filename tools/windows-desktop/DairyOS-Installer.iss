@@ -50,14 +50,17 @@ SetupLogging=yes
 Source: "{#BundlePath}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 ; Keep recovery tools outside {app} so the uninstaller can stop only the
 ; DairyOS private cluster after a damaged or removed application directory.
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\pg_ctl.exe"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libpq.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libintl-9.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libiconv-2.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libssl-3-x64.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\libwinpthread-1.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
-Source: "{#BundlePath}\runtime\PostgreSQL\bin\zlib1.dll"; DestDir: "{commonappdata}\DairyOS\recovery\PostgreSQL\bin"; Flags: ignoreversion
+; They live in a sibling of the farm data root ({commonappdata}\DairyOS), never
+; inside it: backup, restore and first-install checks treat every entry in the
+; data root as farm state.
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\pg_ctl.exe"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libpq.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libintl-9.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libiconv-2.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libssl-3-x64.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libcrypto-3-x64.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\libwinpthread-1.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
+Source: "{#BundlePath}\runtime\PostgreSQL\bin\zlib1.dll"; DestDir: "{commonappdata}\DairyOS-Recovery\PostgreSQL\bin"; Flags: ignoreversion
 
 [Registry]
 ; Configuration only. Database passwords are deliberately never stored here.
@@ -89,6 +92,9 @@ Type: files; Name: "{localappdata}\DairyOS-installation-state.json"
 ; desktop entry now starts the browser-first local network application.
 Type: files; Name: "{autodesktop}\DairyOS.lnk"
 Type: files; Name: "{autodesktop}\DairyOS Web.lnk"
+; Release fcf7dd42 placed the recovery tools inside the farm data root. Remove
+; only that exact installer-owned folder; its replacement is DairyOS-Recovery.
+Type: filesandordirs; Name: "{commonappdata}\DairyOS\recovery"
 
 
 [Code]
@@ -380,8 +386,12 @@ begin
   begin
     try
       repeat
+        { 'recovery' is the installer-owned tool folder that release fcf7dd42
+          placed inside the data root. It is not farm state and is removed by
+          [InstallDelete]; never let it alone block a clean installation. }
         if (FindRec.Name <> '.') and
-           (FindRec.Name <> '..') then
+           (FindRec.Name <> '..') and
+           (CompareText(FindRec.Name, 'recovery') <> 0) then
         begin
           Result := True;
           exit;
@@ -608,7 +618,7 @@ begin
   begin
     { Use the installer-owned recovery copy under ProgramData when the
       application-tree pg_ctl.exe is missing. }
-    PgCtl := ExpandConstant('{commonappdata}\DairyOS\recovery\PostgreSQL\bin\pg_ctl.exe');
+    PgCtl := ExpandConstant('{commonappdata}\DairyOS-Recovery\PostgreSQL\bin\pg_ctl.exe');
   end;
   DataDir := DairyOSDataRoot('') + '\postgres\data';
   PidFile := DataDir + '\postmaster.pid';

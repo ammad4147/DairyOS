@@ -40,4 +40,5 @@ def test_ci_certifies_simplified_uninstall_and_six_hour_schedule():
     assert "PRESERVEFARMDATA" not in active
     assert "GITHUB_STEP_SUMMARY" in active
     assert "Not run: interactive UI open/close/relaunch" in active
-    assert "Not run: separate stopped-cluster and stale" in active
+    assert "DAMAGED PG_CTL, STOPPED CLUSTER: PASS" in active
+    assert "DAMAGED PG_CTL, STALE POSTMASTER.PID: PASS" in active

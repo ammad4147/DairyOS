@@ -83,7 +83,6 @@ dairyos.data.database.backup
 dairyos.data.database.base
 dairyos.data.database.database
 dairyos.data.database.destructive_guards
-dairyos.data.database.initialize
 dairyos.data.database.models
 dairyos.data.database.models.breeding_record_model
 dairyos.data.database.models.event_journal_model

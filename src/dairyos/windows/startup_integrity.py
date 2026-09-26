@@ -181,6 +181,8 @@ def inspect_startup_integrity(
             # "established installation" during the first-run gate.
             "runtime.json",
             "security.json",
+            # Installer-owned tools left in the data root by release fcf7dd42.
+            "recovery",
         }
         for item in root.iterdir():
             if item.name in ignored:

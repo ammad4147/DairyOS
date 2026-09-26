@@ -48,3 +48,23 @@ def test_strict_restore_rejects_tampered_backup(tmp_path: Path):
 
     with pytest.raises(LifecycleError, match="integrity check failed"):
         restore_snapshot(manager, backup)
+
+
+def test_installer_owned_recovery_tools_are_not_backed_up_or_restored(tmp_path: Path):
+    manager = LifecycleManager(
+        installation_root=tmp_path / "install",
+        data_root=tmp_path / "data",
+    )
+    manager.install()
+    state = manager.data_root / "storage" / "state.json"
+    state.write_text('{"safe":true}\n', encoding="utf-8")
+    legacy_tools = manager.data_root / "recovery" / "PostgreSQL" / "bin"
+    legacy_tools.mkdir(parents=True)
+    (legacy_tools / "pg_ctl.exe").write_bytes(b"binary")
+
+    backup = manager.backup("without-program-files")
+
+    assert not (backup / "files" / "recovery").exists()
+    restore_snapshot(manager, backup)
+    assert state.read_text(encoding="utf-8") == '{"safe":true}\n'
+    assert not (manager.data_root / "recovery").exists()

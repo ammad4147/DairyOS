@@ -39,6 +39,8 @@ def test_shadowed_handlers_are_not_mounted_and_openapi_matches_active_owner():
 
     assert _routes(milk_analytics_router, "/farm/milk/dispositions", "POST") == []
     assert _routes(milk_traceability_router, "/farm/milk/dispositions", "POST")
+    # The GET list has no other owner and must stay mounted.
+    assert _routes(milk_analytics_router, "/farm/milk/dispositions", "GET")
 
     operations = app.openapi()["paths"]
     assert operations["/farm/equipment"]["post"]["operationId"].startswith(
@@ -56,3 +58,10 @@ def test_shadowed_handlers_are_not_mounted_and_openapi_matches_active_owner():
     assert operations["/farm/milk/dispositions"]["post"]["operationId"].startswith(
         "create_milk_disposition_"
     )
+
+
+
+def test_method_scoped_unmount_keeps_the_unique_disposition_list():
+    operations = app.openapi()["paths"]["/farm/milk/dispositions"]
+    assert operations["get"]["operationId"].startswith("list_milk_dispositions_")
+    assert operations["post"]["operationId"].startswith("create_milk_disposition_")

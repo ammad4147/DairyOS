@@ -682,7 +682,7 @@ jobs:
 
       - name: Certify simplified install and uninstall
         shell: pwsh
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
           $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
           $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Simplified-Cert"
@@ -747,6 +747,13 @@ jobs:
             throw 'Packaged offline backup exceeded 180 seconds.'
           }
           if ($lifecycleBackup.ExitCode -ne 0) { throw "Packaged offline backup failed with code $($lifecycleBackup.ExitCode)." }
+          $lifecycleLog = Join-Path $dataRoot 'logs\lifecycle-cli.log'
+          if (-not (Test-Path $lifecycleLog -PathType Leaf) -or -not (Select-String -Path $lifecycleLog -Pattern 'finished with exit code 0' -Quiet)) { throw 'Packaged offline backup did not record its result in logs\lifecycle-cli.log.' }
+          $recoveryRoot = Join-Path $env:ProgramData 'DairyOS-Recovery\PostgreSQL\bin'
+          if (-not (Test-Path (Join-Path $recoveryRoot 'pg_ctl.exe') -PathType Leaf)) { throw "Recovery pg_ctl.exe is missing from $recoveryRoot." }
+          if (Test-Path (Join-Path $dataRoot 'recovery')) { throw 'Recovery tools must never be placed inside the farm data root.' }
+          $programFilesInBackups = Get-ChildItem (Join-Path $dataRoot 'backups') -Recurse -File -Include *.exe,*.dll -ErrorAction SilentlyContinue
+          if ($programFilesInBackups) { throw "Farm backups contain program files: $($programFilesInBackups[0].FullName)" }
           Remove-Item (Join-Path $installRoot 'runtime\PostgreSQL\bin\pg_ctl.exe') -Force
           $uninstaller = Join-Path $installRoot 'unins000.exe'
           $recoveryUninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru
@@ -759,12 +766,68 @@ jobs:
           while ((Test-Path $installRoot) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 1 }
           if (Test-Path $installRoot) { throw "Application runtime remains after damaged-install uninstall: $installRoot" }
           if ((Get-Content $marker -Raw).Trim() -ne 'preserve-me') { throw 'Damaged-install uninstall altered retained farm data.' }
-          Write-Host 'INSTALL / FIRST-SECOND START / KEEP-DATA UNINSTALL / REINSTALL / DAMAGED-PG_CTL RECOVERY: PASS'
+          Write-Host 'DAMAGED PG_CTL, RUNNING CLUSTER: PASS'
+
+          $dataDir = Join-Path $dataRoot 'postgres\data'
+          $pidFile = Join-Path $dataDir 'postmaster.pid'
+          $installedPgCtl = Join-Path $installRoot 'runtime\PostgreSQL\bin\pg_ctl.exe'
+
+          function Invoke-Reinstall([string]$Label) {
+            $step = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR=' + $installRoot)) -PassThru -Wait
+            if ($step.ExitCode -ne 0) { throw "$Label reinstall exited with code $($step.ExitCode)." }
+            Invoke-InstalledPreflight $Label
+            if ((Get-Content $marker -Raw).Trim() -ne 'preserve-me') { throw "$Label reinstall altered retained farm data." }
+          }
+
+          function Stop-PrivateCluster([string]$Label) {
+            if (Test-Path $pidFile -PathType Leaf) {
+              & $installedPgCtl -D $dataDir stop -m fast -w -t 60 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "$Label could not stop the private cluster." }
+            }
+            if (Test-Path $pidFile -PathType Leaf) { throw "$Label private cluster still has postmaster.pid after stop." }
+          }
+
+          function Invoke-DamagedUninstall([string]$Label) {
+            Remove-Item $installedPgCtl -Force
+            $log = Join-Path $env:RUNNER_TEMP ("dairyos-" + $Label.ToLowerInvariant().Replace(' ', '-') + "-uninstall.log")
+            $run = Start-Process -FilePath (Join-Path $installRoot 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG=' + $log)) -PassThru
+            if (-not $run.WaitForExit(120000)) {
+              if (Test-Path $log) { Get-Content $log }
+              Stop-Process -Id $run.Id -Force -ErrorAction SilentlyContinue
+              throw "$Label uninstaller did not finish within 120 seconds."
+            }
+            if ($run.ExitCode -ne 0) { if (Test-Path $log) { Get-Content $log }; throw "$Label uninstall exited with code $($run.ExitCode)." }
+            $deadline = (Get-Date).AddSeconds(30)
+            while ((Test-Path $installRoot) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 1 }
+            if (Test-Path $installRoot) { throw "$Label left the application runtime behind: $installRoot" }
+            if ((Get-Content $marker -Raw).Trim() -ne 'preserve-me') { throw "$Label uninstall altered retained farm data." }
+            if (-not (Test-Path $lifecyclePath -PathType Leaf)) { throw "$Label uninstall removed the lifecycle manifest." }
+          }
+
+          # Stopped cluster: pg_ctl.exe missing, nothing running, no PID file.
+          Invoke-Reinstall 'STOPPED CLUSTER'
+          Stop-PrivateCluster 'STOPPED CLUSTER'
+          Invoke-DamagedUninstall 'STOPPED CLUSTER'
+          Write-Host 'DAMAGED PG_CTL, STOPPED CLUSTER: PASS'
+
+          # Stale marker: cluster stopped but an interrupted launch left a
+          # postmaster.pid naming a process that does not exist. The uninstaller
+          # may remove it only after pg_ctl status independently reports stopped.
+          Invoke-Reinstall 'STALE MARKER'
+          Stop-PrivateCluster 'STALE MARKER'
+          @('999999', $dataDir, '0', '0', '', '', '', 'stopped') | Set-Content -Path $pidFile -Encoding ascii
+          Invoke-DamagedUninstall 'STALE MARKER'
+          if (Test-Path $pidFile -PathType Leaf) { throw 'Stale postmaster.pid was not recovered by the uninstaller.' }
+          Write-Host 'DAMAGED PG_CTL, STALE POSTMASTER.PID: PASS'
+
+          # Retained data must still start cleanly after all damaged uninstalls.
+          Invoke-Reinstall 'FINAL'
+          Write-Host 'INSTALL / FIRST-SECOND START / KEEP-DATA UNINSTALL / REINSTALL / DAMAGED-PG_CTL RUNNING-STOPPED-STALE: PASS'
           @(
             '## DairyOS installed lifecycle checks',
-            '- Passed: install, first/second/reinstall database preflight, keep-data uninstall, reinstall data retention, offline backup, and damaged installed `pg_ctl.exe` recovery uninstall.',
-            '- Not run: interactive UI open/close/relaunch and rendered Animal Timeline acceptance.',
-            '- Not run: separate stopped-cluster and stale `postmaster.pid` damaged-uninstall cases.'
+            '- Passed: install, first/second/reinstall database preflight, keep-data uninstall, reinstall data retention, offline backup with logged result, recovery tools outside the farm data root, no program files in farm backups.',
+            '- Passed: damaged installed `pg_ctl.exe` uninstall with the private cluster running, stopped, and with a stale `postmaster.pid`; retained data restarts afterwards.',
+            '- Not run: interactive UI open/close/relaunch and rendered Animal Timeline acceptance.'
           ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
           $global:LASTEXITCODE = 0
 

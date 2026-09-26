@@ -296,13 +296,30 @@ from dairyos.api.veterinary_non_milking import router as veterinary_non_milking_
 from dairyos.api.youngstock_management import router as youngstock_management_router
 
 
-def _unmount_duplicate_routes(router, paths: set[str]) -> None:
-    """Keep compatibility functions importable without mounting duplicate APIs."""
-    router.routes[:] = [
-        route
-        for route in router.routes
-        if str(getattr(route, "path", "")) not in paths
-    ]
+def _unmount_duplicate_routes(
+    router,
+    paths: set[str],
+    methods: set[str] | None = None,
+) -> None:
+    """Keep compatibility functions importable without mounting duplicate APIs.
+
+    When ``methods`` is given, only those HTTP methods are unmounted for the
+    listed paths, so a handler that is unique for another method on the same
+    path (for example a GET list beside a duplicated POST) stays mounted.
+    """
+    wanted = {method.upper() for method in methods} if methods else None
+
+    def _is_shadowed(route) -> bool:
+        if str(getattr(route, "path", "")) not in paths:
+            return False
+        if wanted is None:
+            return True
+        route_methods = {
+            str(method).upper() for method in (getattr(route, "methods", None) or set())
+        }
+        return bool(route_methods) and route_methods <= wanted
+
+    router.routes[:] = [route for route in router.routes if not _is_shadowed(route)]
 
 
 # Keep one public handler for each duplicated method/path. These source
@@ -332,6 +349,7 @@ _unmount_duplicate_routes(milk_legacy_compat_router, {"/farm/milk/capacity"})
 _unmount_duplicate_routes(
     milk_production_analytics_router,
     {"/farm/milk/dispositions"},
+    methods={"POST"},
 )
 
 app.include_router(command_router)
