@@ -44,3 +44,14 @@ def test_recovery_tools_never_live_inside_the_farm_data_root():
         source.index("function ExistingDairyOSInstallationMatches(): Boolean;")
     ]
     assert "CompareText(FindRec.Name, 'recovery') <> 0" in existing_state
+
+
+def test_code_section_has_no_line_that_inno_setup_reads_as_a_section_tag():
+    """Inno Setup treats any line starting with '[' as a section header, even
+    inside a Pascal comment, and aborts compilation with 'Invalid section tag'."""
+    source = INSTALLER.read_text(encoding="utf-8")
+    code = source[source.index("[Code]") + len("[Code]"):]
+    offending = [
+        line for line in code.splitlines() if line.lstrip().startswith("[")
+    ]
+    assert offending == []

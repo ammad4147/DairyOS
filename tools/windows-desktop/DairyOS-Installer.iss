@@ -388,7 +388,8 @@ begin
       repeat
         { 'recovery' is the installer-owned tool folder that release fcf7dd42
           placed inside the data root. It is not farm state and is removed by
-          [InstallDelete]; never let it alone block a clean installation. }
+          the InstallDelete section; never let it alone block a clean
+          installation. }
         if (FindRec.Name <> '.') and
            (FindRec.Name <> '..') and
            (CompareText(FindRec.Name, 'recovery') <> 0) then
