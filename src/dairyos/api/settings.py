@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import tempfile
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -27,6 +29,7 @@ from dairyos.farm.settings.services.deployment_control_service import (
 )
 from dairyos.farm.settings.services.farm_settings_service import FarmSettingsService
 from dairyos.api.human_access import _require_admin
+from dairyos.platform import paths
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -129,6 +132,42 @@ class DataManagementPathRequest(BaseModel):
 
 class DataManagementImportRequest(DataManagementPathRequest):
     confirm: str
+
+
+class FarmPackageNameRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class FarmPackageImportRequest(FarmPackageNameRequest):
+    confirm: str
+
+
+FARM_PACKAGE_FOLDER = ("backups", "farm-packages")
+_FARM_PACKAGE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,190}\.dairypkg$")
+
+
+def farm_package_folder(create: bool = False) -> Path:
+    """Server-side folder for farm packages used from a web browser.
+
+    It sits under the data root's backups folder, which lifecycle backup
+    excludes and lifecycle restore preserves, beside the pre-import rollback
+    snapshots. Browsers cannot open a Windows file dialog, so the browser
+    workflow exports into, and imports from, this one folder by name only.
+    """
+    folder = paths.data_root(create=create).joinpath(*FARM_PACKAGE_FOLDER)
+    if create:
+        folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _farm_package_path(name: str) -> Path:
+    if not _FARM_PACKAGE_NAME.fullmatch(name) or ".." in name:
+        raise HTTPException(status_code=422, detail="Invalid farm package name.")
+    folder = farm_package_folder().resolve()
+    package = (folder / name).resolve()
+    if package.parent != folder:
+        raise HTTPException(status_code=422, detail="Invalid farm package name.")
+    return package
 
 
 class DeployRequest(BaseModel):
@@ -295,6 +334,65 @@ def import_farm_package(
         )
     try:
         return import_farm_data(DATABASE_URL, payload.path)
+    except DataManagementError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/data-management/packages")
+def list_farm_packages():
+    """List farm packages held in the DairyOS PC's farm-package folder."""
+    folder = farm_package_folder()
+    packages: list[dict[str, object]] = []
+    if folder.is_dir():
+        for entry in sorted(folder.iterdir(), key=lambda item: item.name, reverse=True):
+            if not entry.is_dir() or not _FARM_PACKAGE_NAME.fullmatch(entry.name):
+                continue
+            exported_at = None
+            try:
+                metadata = json.loads((entry / "metadata.json").read_text(encoding="utf-8"))
+                exported_at = metadata.get("exported_at")
+            except (OSError, ValueError):
+                pass
+            packages.append({"name": entry.name, "exported_at": exported_at})
+    return {"folder": str(folder), "packages": packages}
+
+
+@router.post("/data-management/packages/export")
+def export_farm_package_to_folder():
+    """Export complete farm data into the farm-package folder on this PC."""
+    folder = farm_package_folder(create=True)
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    name = f"DairyOS-Farm-{stamp}.dairypkg"
+    try:
+        result = export_farm_data(DATABASE_URL, folder / name)
+    except DataManagementError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {**result, "name": name, "folder": str(folder)}
+
+
+@router.post("/data-management/packages/validate")
+def validate_farm_package_in_folder(payload: FarmPackageNameRequest):
+    package = _farm_package_path(payload.name)
+    if not package.is_dir():
+        raise HTTPException(status_code=404, detail="Farm package not found.")
+    try:
+        return {**validate_package(package), "name": payload.name}
+    except DataManagementError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/data-management/packages/import")
+def import_farm_package_from_folder(payload: FarmPackageImportRequest):
+    if payload.confirm != "IMPORT VERIFIED FARM DATA":
+        raise HTTPException(
+            status_code=422,
+            detail='confirm must be the literal string "IMPORT VERIFIED FARM DATA"',
+        )
+    package = _farm_package_path(payload.name)
+    if not package.is_dir():
+        raise HTTPException(status_code=404, detail="Farm package not found.")
+    try:
+        return import_farm_data(DATABASE_URL, package)
     except DataManagementError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

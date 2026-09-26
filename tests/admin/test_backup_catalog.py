@@ -184,3 +184,16 @@ def test_snapshot_without_database_checksum_is_not_verified(tmp_path, archive_ch
     (full / "backup.json").write_text(json.dumps(manifest))
     with pytest.raises(catalog.LifecycleError, match="checksum"):
         catalog.verify_restore_candidate(full)
+
+
+def test_farm_data_packages_are_not_scanned_as_restore_candidates(tmp_path):
+    from dairyos.admin.backup_catalog import discover_verified_backups
+
+    package = tmp_path / "backups" / "farm-packages" / "DairyOS-Farm-1.dairypkg"
+    package.mkdir(parents=True)
+    (package / "database.dump").write_bytes(b"not a lifecycle backup")
+
+    verified, problems = discover_verified_backups(tmp_path, roots=[tmp_path / "backups"])
+
+    assert verified == []
+    assert not any("dairypkg" in problem for problem in problems)

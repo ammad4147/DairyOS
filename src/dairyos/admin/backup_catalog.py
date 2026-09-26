@@ -133,6 +133,10 @@ def discover_verified_backups(
     def visit(path: Path, depth: int) -> None:
         if path.is_symlink() or path.name.startswith("."):
             return
+        # Farm data packages (Settings > Data Management) are imported through
+        # their own verified workflow and are never offered as restore points.
+        if path.suffix.lower() == ".dairypkg":
+            return
         resolved = path.resolve()
         if resolved in seen:
             return

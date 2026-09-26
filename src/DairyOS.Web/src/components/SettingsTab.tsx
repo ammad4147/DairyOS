@@ -114,6 +114,11 @@ export default function SettingsTab({
   const [dataBusy, setDataBusy] = useState(false);
   const [dataPackagePath, setDataPackagePath] = useState('');
   const [dataValidation, setDataValidation] = useState<Record<string, unknown> | null>(null);
+  // Browser workflow: packages live in one folder on the DairyOS PC and are
+  // chosen by name, because a web page cannot open a Windows file dialog.
+  const [serverPackages, setServerPackages] = useState<{ name: string; exported_at?: string | null }[] | null>(null);
+  const [serverPackageFolder, setServerPackageFolder] = useState('');
+  const [serverPackageName, setServerPackageName] = useState('');
   const [backupHealth, setBackupHealth] = useState<BackupHealth>({
     status: 'NEVER_RUN', last_successful_backup: null, physically_redundant: false,
   });
@@ -373,11 +378,50 @@ export default function SettingsTab({
 
   const nativeApi = () => (window as any).pywebview?.api;
 
+  const loadServerPackages = async () => {
+    const response = await fetch(`${API_BASE}/settings/data-management/packages`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Farm packages could not be listed.');
+    setServerPackages(Array.isArray(data.packages) ? data.packages : []);
+    setServerPackageFolder(String(data.folder || ''));
+  };
+
+  const exportToServerFolder = async () => {
+    setDataBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/packages/export`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Farm data export failed.');
+      setMessage(`Verified farm data package ${data.name} saved on the DairyOS PC in ${data.folder}. Copy it to a USB drive or another computer for safekeeping.`);
+      await loadServerPackages();
+    } catch (operationError) {
+      setError(operationError instanceof Error ? operationError.message : 'Farm data export failed.');
+    } finally { setDataBusy(false); }
+  };
+
+  const validateServerPackage = async (name: string) => {
+    setError(''); setMessage(''); setDataValidation(null); setDataPackagePath(''); setServerPackageName('');
+    setDataBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/settings/data-management/packages/validate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Farm data package validation failed.');
+      setServerPackageName(name);
+      setDataValidation(data);
+      setMessage('Farm data package validation passed. Review the package identity before importing.');
+    } catch (operationError) {
+      setError(operationError instanceof Error ? operationError.message : 'Farm data package validation failed.');
+    } finally { setDataBusy(false); }
+  };
+
   const chooseExportDestination = async () => {
     setError(''); setMessage('');
     const api = nativeApi();
     if (!api?.choose_farm_export_destination) {
-      setError('Farm data export destination selection is available in the installed DairyOS desktop application.');
+      await exportToServerFolder();
       return;
     }
     const stamp = new Date().toISOString().slice(0, 10);
@@ -402,7 +446,12 @@ export default function SettingsTab({
     setError(''); setMessage(''); setDataValidation(null);
     const api = nativeApi();
     if (!api?.choose_farm_import_package) {
-      setError('Farm data package selection is available in the installed DairyOS desktop application.');
+      setServerPackageName(''); setDataPackagePath('');
+      try {
+        await loadServerPackages();
+      } catch (operationError) {
+        setError(operationError instanceof Error ? operationError.message : 'Farm packages could not be listed.');
+      }
       return;
     }
     const selected = await api.choose_farm_import_package();
@@ -424,16 +473,21 @@ export default function SettingsTab({
   };
 
   const importVerifiedPackage = async () => {
-    if (!dataValidation || !dataPackagePath) return;
+    if (!dataValidation || (!dataPackagePath && !serverPackageName)) return;
     setError(''); setMessage(''); setDataBusy(true);
     try {
-      const response = await fetch(`${API_BASE}/settings/data-management/import`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: dataPackagePath, confirm: 'IMPORT VERIFIED FARM DATA' }),
-      });
+      const response = serverPackageName
+        ? await fetch(`${API_BASE}/settings/data-management/packages/import`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: serverPackageName, confirm: 'IMPORT VERIFIED FARM DATA' }),
+        })
+        : await fetch(`${API_BASE}/settings/data-management/import`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: dataPackagePath, confirm: 'IMPORT VERIFIED FARM DATA' }),
+        });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Farm data import failed.');
-      setMessage(`Farm data imported and verified from ${data.source || dataPackagePath}. Restart DairyOS before further operation.`);
+      setMessage(`Farm data imported and verified from ${data.source || dataPackagePath || serverPackageName}. Restart DairyOS before further operation.`);
       setDataValidation(null);
     } catch (operationError) {
       setError(operationError instanceof Error ? operationError.message : 'Farm data import failed.');
@@ -590,13 +644,21 @@ export default function SettingsTab({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12, alignItems: 'start' }}>
           <section style={card}>
             <strong style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><DatabaseBackup size={14} />Export Complete Farm Data</strong>
-            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Creates a verified portable DairyOS farm package containing the database, farm identity and governed persistent files. Choose the destination yourself and retain the package outside the DairyOS data folder.</div>
+            <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Creates a verified portable DairyOS farm package containing the database, farm identity and governed persistent files. In the desktop window you choose the destination; in a web browser the package is saved on the DairyOS PC and should then be copied to a USB drive or another computer.</div>
             <button type="button" disabled={dataBusy} onClick={() => void chooseExportDestination()} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}><FolderOpen size={13} />Choose Destination & Export</button>
           </section>
           <section style={card}>
             <strong style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><FolderOpen size={14} />Import Farm Data</strong>
             <div style={{ color: '#94a3b8', fontSize: 10, margin: '7px 0 10px' }}>Select a DairyOS farm package. DairyOS validates its manifest, file hashes and PostgreSQL archive before import is enabled. A pre-import rollback snapshot is created automatically.</div>
             <button type="button" disabled={dataBusy} onClick={() => void chooseImportPackage()} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}>Select & Validate Package</button>
+            {serverPackages && <div style={{ marginTop: 12, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
+              <div style={{ color: '#94a3b8', fontSize: 10 }}>Packages on the DairyOS PC{serverPackageFolder ? ` (${serverPackageFolder})` : ''}. To import a package from elsewhere, copy its .dairypkg folder here first.</div>
+              {serverPackages.length === 0 && <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>No farm packages found.</div>}
+              {serverPackages.map(pkg => <div key={pkg.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderTop: '1px solid #1f2937', paddingTop: 6, marginTop: 6, fontSize: 10 }}>
+                <span style={{ color: pkg.name === serverPackageName ? '#86efac' : '#e2e8f0' }}>{pkg.name}<span style={{ color: '#94a3b8' }}>{pkg.exported_at ? ` · ${String(pkg.exported_at)}` : ''}</span></span>
+                <button type="button" disabled={dataBusy} onClick={() => void validateServerPackage(pkg.name)} style={{ ...button, opacity: dataBusy ? 0.6 : 1 }}>Validate</button>
+              </div>)}
+            </div>}
             {dataValidation && <div style={{ marginTop: 12, borderTop: '1px solid #1f2937', paddingTop: 10 }}>
               <div style={{ color: '#86efac', fontWeight: 900, fontSize: 11 }}>VALIDATION PASS</div>
               <div style={{ color: '#e2e8f0', fontSize: 10, marginTop: 6 }}>Farm ID: {String(dataValidation.farm_instance_id || '—')}</div>

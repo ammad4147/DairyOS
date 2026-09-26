@@ -40,6 +40,11 @@ def permission_for_request(method: str, path: str, payload: dict[str, Any] | Non
     clean = path.rstrip("/") or "/"
     if clean.startswith("/authz") or clean in {"/login", "/me", "/auth/users", "/auth/users/"}:
         return None
+    if clean.startswith("/settings/data-management"):
+        # Export, validation and import touch the whole farm database and
+        # server-side files. The server enforces this permission for every
+        # named session, including LAN browser sessions, not just the UI.
+        return "settings.data_management"
     if clean.startswith("/farm/reports"):
         if m == "POST":
             return report_permission_for_request(str((payload or {}).get("report_id") or ""))
