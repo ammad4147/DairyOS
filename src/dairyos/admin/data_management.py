@@ -375,7 +375,7 @@ def import_farm_data(
     LOG.info("DairyOS pre-import rollback snapshot created: %s", rollback_dir)
 
     def restore_pre_import_state() -> None:
-        pg_restore_backup(database_url, str(rollback_db_path))
+        pg_restore_backup(database_url, str(rollback_db_path), allow_environment_password_override=False)
         for dirname in _PERSISTENT_DIRS:
             source = rollback_files_dir / dirname
             target = resolved_data_root / dirname
@@ -395,7 +395,7 @@ def import_farm_data(
         # 3a. Restore database
         db_path = pkg / PACKAGE_DATABASE_FILENAME
         try:
-            pg_restore_backup(database_url, str(db_path))
+            pg_restore_backup(database_url, str(db_path), allow_environment_password_override=False)
         except PostgreSQLBackupError as exc:
             raise ImportRefusedUnchangedError(
                 "Import refused by the database; nothing was changed. "

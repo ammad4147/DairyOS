@@ -192,9 +192,15 @@ def restore_backup(
     database_url: str,
     backup: str | Path,
     *,
-    allow_environment_password_override: bool = True,
+    allow_environment_password_override: bool = False,
 ) -> None:
-    """Restore a custom-format backup into an existing PostgreSQL database."""
+    """Restore a custom-format backup into an existing PostgreSQL database.
+
+    The credentials in ``database_url`` are authoritative. The packaged
+    supervisor exports the restricted application role's password in
+    DAIRYOS_DB_PASSWORD, so letting it override an administrative URL makes
+    pg_restore authenticate as the admin role with the wrong password.
+    """
     backup = Path(backup)
     if not backup.is_file() or backup.stat().st_size == 0:
         raise PostgreSQLBackupError(f"Backup artifact does not exist or is empty: {backup}")
