@@ -1,1 +1,0 @@
-"""DairyOS Enterprise Observability Platform."""

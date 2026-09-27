@@ -1,6 +1,3 @@
-from dairyos.farm.operations.services.operational_execution_history_compliance_service import (
-    OperationalExecutionHistoryComplianceService,
-)
 from dairyos.farm.operations.services.operational_execution_tracking_service import (
     OperationalExecutionTrackingService,
 )
@@ -15,7 +12,6 @@ class MockTimeline:
         return self.events
 
 
-
 class MockStateService:
 
     def __init__(self, state):
@@ -23,7 +19,6 @@ class MockStateService:
 
     def get_state(self):
         return self.state
-
 
 
 class ScheduleState:
@@ -43,13 +38,11 @@ class ScheduleState:
         self.completed_tasks = []
 
 
-
 class FarmState:
 
     def __init__(self):
 
         self.schedule_state = ScheduleState()
-
 
 
 def test_execution_tracking_detects_completed_activity():
@@ -85,7 +78,6 @@ def test_execution_tracking_detects_completed_activity():
     )
 
 
-
 def test_execution_tracking_detects_missing_activity():
 
     state = FarmState()
@@ -106,55 +98,3 @@ def test_execution_tracking_detects_missing_activity():
     assert result[0]["status"] == (
         "MISSED"
     )
-
-
-
-def test_execution_history_compliance_does_not_modify_state():
-
-    state = FarmState()
-
-    before = (
-        state.schedule_state.milking_schedule.copy()
-    )
-
-    service = OperationalExecutionHistoryComplianceService(
-        MockStateService(state),
-        MockTimeline(),
-    )
-
-    result = service.evaluate()
-
-    assert result["compliance_status"] == (
-        "COMPLIANT"
-    )
-
-    assert (
-        state.schedule_state.milking_schedule
-        ==
-        before
-    )
-
-
-
-def test_execution_history_reports_missing_activity():
-
-    state = FarmState()
-
-    state.schedule_state.task_schedule = [
-        {
-            "task_id": "TASK-001",
-        }
-    ]
-
-    service = OperationalExecutionHistoryComplianceService(
-        MockStateService(state),
-        MockTimeline(),
-    )
-
-    result = service.evaluate()
-
-    assert result["compliance_status"] == (
-        "ATTENTION_REQUIRED"
-    )
-
-    assert result["missed_activities"] == 1

@@ -1,9 +1,6 @@
 from dairyos.farm.operations.events.farm_operation_event_bridge import (
     FarmOperationEventBridge,
 )
-from dairyos.farm.operations.gateway.operational_event_adapter import (
-    OperationalEventAdapter,
-)
 from dairyos.farm.operations.gateway.operations_event_gateway import (
     OperationsEventGateway,
 )
@@ -49,15 +46,6 @@ def test_canonical_farm_event_bridge_translates_event():
     assert result.payload == {
         "litres": 25,
     }
-
-
-def test_legacy_operational_event_adapter_uses_canonical_bridge():
-    adapter = OperationalEventAdapter()
-
-    assert isinstance(
-        adapter,
-        FarmOperationEventBridge,
-    )
 
 
 def test_gateway_publishes_exactly_one_operational_event():

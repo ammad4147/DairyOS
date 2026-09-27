@@ -1,32 +1,16 @@
 from datetime import UTC, date, datetime, timedelta
 
-from dairyos.alerts.services.yield_drop_alert_service import (
-    YieldDropAlertService,
-)
 from dairyos.api.animal_management.router import serialize_animal
 from dairyos.data.models.animal import Animal
 from dairyos.data.models.financial_transaction import FinancialTransaction
-from dairyos.farm.intelligence.production.services.production_efficiency_service import (
-    ProductionEfficiencyService,
-)
 from dairyos.farm.operations.state.farm_operational_state_service import (
     FarmOperationalStateService,
-)
-from dairyos.feed.intelligence.models.feed_cost_metric import FeedCostMetric
-from dairyos.herd.calves.services.calf_management_service import (
-    CalfManagementService,
 )
 from dairyos.herd.reproduction.services.reproduction_kpi_service import (
     ReproductionKpiService,
 )
-from dairyos.herd.services.cow_lifetime_performance_service import (
-    CowLifetimePerformanceService,
-)
 from dairyos.milk.services.milk_production_intelligence_service import (
     MilkProductionIntelligenceService,
-)
-from dairyos.milk.services.milk_traceability_service import (
-    MilkTraceabilityService,
 )
 from dairyos.operations.intelligence.services.withdrawal_service import (
     WithdrawalPeriod,
@@ -119,23 +103,6 @@ def test_financial_transaction_linkage_and_pkr_currency():
     assert tx.milk_sale_id == "SALE-2026-08"
 
 
-def test_feed_cost_metric_formulas():
-    metric = FeedCostMetric(
-        animal_group="LACTATING",
-        feed_cost=50000.0,
-        milk_revenue=200000.0,
-        feed_quantity_kg=250.0,
-        milk_litres=200.0,
-    )
-
-    # Revenue share: 50,000 / 200,000 = 0.25 (25%)
-    assert metric.feed_cost_revenue_share == 0.25
-    assert metric.feed_cost_ratio == 0.25
-
-    # True FCR: 250kg feed / 200L milk = 1.25 kg/L
-    assert metric.feed_conversion_ratio == 1.25
-
-
 def test_reproduction_kpi_service():
     svc = ReproductionKpiService()
     
@@ -150,67 +117,3 @@ def test_reproduction_kpi_service():
 
     spc = svc.calculate_services_per_conception(5, 3)
     assert spc == 1.67
-
-
-def test_calf_adg_calculation():
-    svc = CalfManagementService()
-    adg = svc.calculate_adg(birth_weight_kg=35.0, current_weight_kg=80.0, age_days=60)
-    # (80 - 35) / 60 = 45 / 60 = 0.75 kg/day
-    assert adg == 0.75
-
-
-def test_production_efficiency_pkr_service():
-    svc = ProductionEfficiencyService(currency="PKR", feed_cost_threshold_per_litre=100.0)
-    eval_result = svc.evaluate(milk_litres=500.0, milking_animals=20, feed_cost=45000.0)
-    
-    # 45000 / 500 = PKR 90/L <= 100 threshold => normal
-    assert eval_result.feed_cost_per_litre == 90.0
-    assert eval_result.efficiency_status == "normal"
-    assert eval_result.currency == "PKR"
-
-
-def test_cow_lifetime_performance_service():
-    svc = CowLifetimePerformanceService(default_currency="PKR", milk_price_per_litre=220.0)
-    summary = svc.evaluate_cow_lifetime(
-        animal_id="COW-301",
-        total_milk_litres=12000.0,
-        feed_cost=1500000.0,
-        health_cost=100000.0,
-        current_lactation_days=150,
-        current_lactation_yield=4500.0,
-    )
-    assert summary.currency == "PKR"
-    # 12000 * 220 = 2,640,000 revenue
-    assert summary.total_lifetime_revenue == 2640000.0
-    # Net profit: 2,640,000 - 1,600,000 = 1,040,000 PKR
-    assert summary.net_lifetime_profitability == 1040000.0
-    assert summary.status == "PROFITABLE"
-    assert summary.projected_305_day_yield_litres > 4500.0
-
-
-def test_milk_traceability_service():
-    svc = MilkTraceabilityService()
-    svc.create_batch("BATCH-01", tank_id="TANK-A", shift="MORNING")
-    
-    svc.add_milking_to_batch("BATCH-01", animal_id="COW-101", litres=25.0)
-    svc.add_milking_to_batch("BATCH-01", animal_id="COW-102", litres=30.0)
-
-    batches = svc.trace_animal("COW-101")
-    assert len(batches) == 1
-    assert batches[0].total_litres == 55.0
-
-    svc.dispatch_delivery("BATCH-01", delivery_ticket_id="TICKET-999")
-    assert batches[0].status == "DISPATCHED"
-
-
-def test_yield_drop_alert_service():
-    svc = YieldDropAlertService(drop_threshold_pct=15.0)
-    
-    # 7-day baseline average: 30.0L
-    recent_7_days = [30.0, 29.5, 30.5, 30.0, 31.0, 29.0, 30.0]
-    
-    # Current yield drops to 20.0L (33.3% drop)
-    alert = svc.evaluate_cow_yield("COW-800", recent_7_days, current_yield_litres=20.0)
-    assert alert is not None
-    assert alert.severity == "CRITICAL"
-    assert alert.drop_pct == 33.3

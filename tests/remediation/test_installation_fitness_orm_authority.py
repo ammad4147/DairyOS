@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
 
 from sqlalchemy import create_engine, inspect
@@ -24,24 +25,24 @@ def test_canonical_registration_contains_active_installation_schema():
     assert required <= set(Base.metadata.tables)
 
 
-def test_legacy_orm_modules_do_not_register_duplicate_tables():
-    before = set(Base.metadata.tables)
+def test_legacy_orm_modules_are_retired():
+    # The duplicate legacy ORM modules were removed with the unused source
+    # retirement; they must not come back and register rival tables.
+    for name in (
+        "dairyos.core.models.farm",
+        "dairyos.core.models.audit_event",
+        "dairyos.data.database.models.animal_model",
+        "dairyos.data.database.models.milk_model",
+    ):
+        try:
+            spec = importlib.util.find_spec(name)
+        except ModuleNotFoundError:
+            spec = None
+        assert spec is None, name
 
-    importlib.import_module("dairyos.core.models.farm")
-    importlib.import_module("dairyos.core.models.audit_event")
-    importlib.import_module(
-        "dairyos.data.database.models.animal_model"
-    )
-    importlib.import_module(
-        "dairyos.data.database.models.milk_model"
-    )
-
-    after = set(Base.metadata.tables)
-
-    assert after == before
-    assert "animals" not in after
-    assert "milk_production_orm" not in after
-    assert "audit_events" not in after
+    tables = set(Base.metadata.tables)
+    assert "milk_production_orm" not in tables
+    assert "audit_events" not in tables
 
 
 def test_exactly_one_farms_table_authority():

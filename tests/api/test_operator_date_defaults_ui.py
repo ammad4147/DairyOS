@@ -7,7 +7,6 @@ MILK = (ROOT / "src/DairyOS.Web/src/components/MilkTab.tsx").read_text(encoding=
 PASSPORT = (ROOT / "src/DairyOS.Web/src/components/AnimalPassportModal.tsx").read_text(encoding="utf-8")
 FARM_DATE = (ROOT / "src/DairyOS.Web/src/utils/farmDate.ts").read_text(encoding="utf-8")
 DASHBOARD = (ROOT / "src/DairyOS.Web/src/api/commandDashboardClient.ts").read_text(encoding="utf-8")
-DEFAULTS = (ROOT / "src/dairyos/core/configuration/defaults.py").read_text(encoding="utf-8")
 
 
 def test_farm_date_helper_uses_windows_system_clock_only():
@@ -57,6 +56,5 @@ def test_settings_exposes_windows_system_clock_without_timezone_override():
     assert "SYSTEM or Area/City" not in source
     assert "Asia/Karachi" not in source
 
-def test_legacy_configuration_default_also_delegates_to_windows_local_time():
-    assert '"timezone": "SYSTEM"' in DEFAULTS
-    assert '"timezone": "Asia/Karachi"' not in DEFAULTS
+def test_legacy_configuration_defaults_module_is_retired():
+    assert not (ROOT / "src/dairyos/core/configuration/defaults.py").exists()

@@ -1,3 +1,0 @@
-"""
-DairyOS Intelligence Integration Layer.
-"""
