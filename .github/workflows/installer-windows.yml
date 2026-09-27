@@ -87,602 +87,9 @@ jobs:
           if ($artifactManifest.installer_sha256 -ne $installerHash) { throw "Installer hash is not bound consistently." }
           Write-Host "EXACT SOURCE / BINARY / INSTALLER MANIFEST: PASS"
 
-      - name: Certify silent install and keep-data uninstall
-        if: ${{ false }}
-        shell: pwsh
-        timeout-minutes: 8
-        run: |
-          $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
-          $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Cert"
-          $dataRoot = Join-Path $env:ProgramData "DairyOS"
-          $marker = Join-Path $dataRoot "installer-certification-marker.txt"
-
-          if (Test-Path $installRoot) { Remove-Item $installRoot -Recurse -Force }
-          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
-          Remove-Item $marker -Force -ErrorAction SilentlyContinue
-
-          $setupArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$installRoot")
-          $setup = Start-Process -FilePath $installer -ArgumentList $setupArgs -PassThru -Wait
-          if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
-
-          # lifecycle.json is created by elevated Setup but is intentionally
-          # mutable by the normal non-elevated DairyOS application runtime.
-          $lifecyclePath = Join-Path $dataRoot "lifecycle.json"
-          if (-not (Test-Path $lifecyclePath -PathType Leaf)) {
-            throw "Installer did not provision lifecycle.json."
-          }
-
-          $usersSid = "S-1-5-32-545"
-          $modify = [System.Security.AccessControl.FileSystemRights]::Modify
-          $lifecycleAllowsModify = $false
-
-          foreach ($rule in (Get-Acl $lifecyclePath).Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate(
-                [System.Security.Principal.SecurityIdentifier]
-              ).Value
-            }
-            catch {
-              continue
-            }
-
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq
-                [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $lifecycleAllowsModify = $true
-              break
-            }
-          }
-
-          if (-not $lifecycleAllowsModify) {
-            throw "Installed lifecycle.json is not modifiable by the built-in Users group."
-          }
-
-          Write-Host "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS"
-
-          # Bootstrap the actual ProgramData private cluster before seeding any
-          # operational storage fixtures. A non-empty storage tree is rightly
-          # treated by the packaged startup-integrity gate as existing farm
-          # state; the first preflight must therefore see a genuinely fresh
-          # data root so it can create the application schema safely.
-          $installedExe = Join-Path $installRoot "DairyOS.exe"
-          $env:DAIRYOS_DATA_DIR = $dataRoot
-          $programDataInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-ProgramData-installation-state.json"
-          Remove-Item $programDataInstallationState -Force -ErrorAction SilentlyContinue
-          $env:DAIRYOS_INSTALLATION_STATE = $programDataInstallationState
-          $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-programdata-preflight.txt"
-          Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
-          $programDataPreflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
-          if (-not $programDataPreflight.WaitForExit(180000)) {
-            Stop-Process -Id $programDataPreflight.Id -Force -ErrorAction SilentlyContinue
-            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
-              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
-            }
-            throw "ProgramData database preflight exceeded 180 seconds."
-          }
-          $programDataPreflight.Refresh()
-          if ($programDataPreflight.ExitCode -ne 0) {
-            if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
-              Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
-            }
-            throw "ProgramData database preflight failed with code $($programDataPreflight.ExitCode)."
-          }
-          Write-Host "PROGRAMDATA DATABASE PREFLIGHT: PASS"
-
-
-          # Operational projections are written by the ordinary runtime. The
-          # storage tree must remain writable after elevated Setup creates it,
-          # including files that already existed before a later non-elevated
-          # atomic replacement.
-          $storageRoot = Join-Path $dataRoot "storage"
-          $operationalInputs = Join-Path $storageRoot "operational_inputs.json"
-          if (-not (Test-Path $storageRoot -PathType Container)) {
-            throw "Installer did not provision DairyOS operational storage root."
-          }
-          if (-not (Test-Path $operationalInputs -PathType Leaf)) {
-            '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $operationalInputs -Encoding utf8
-          }
-          $storageAcl = Get-Acl $storageRoot
-          $storageAllowsModify = $false
-          foreach ($rule in $storageAcl.Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-            } catch {
-              continue
-            }
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $storageAllowsModify = $true
-              break
-            }
-          }
-          if (-not $storageAllowsModify) {
-            throw "Installed operational storage tree is not modifiable by the built-in Users group."
-          }
-          $storageFileAcl = Get-Acl $operationalInputs
-          $storageFileAllowsModify = $false
-          foreach ($rule in $storageFileAcl.Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-            } catch {
-              continue
-            }
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $storageFileAllowsModify = $true
-              break
-            }
-          }
-          if (-not $storageFileAllowsModify) {
-            throw "Existing operational_inputs.json is not modifiable by the built-in Users group."
-          }
-          Write-Host "OPERATIONAL STORAGE ACL CERTIFICATION: PASS"
-
-
-          # Automatic backup runs with a limited user token. Certify that the
-          # mutable backup tree and an existing elevated-created health file
-          # are modifiable by built-in Users before exercising the task.
-          $backupRoot = Join-Path $dataRoot "backups"
-          $backupHealth = Join-Path $backupRoot "backup-health.json"
-          if (-not (Test-Path $backupRoot -PathType Container)) {
-            throw "Installer did not provision DairyOS backup root."
-          }
-
-          # Seed retained/elevated metadata to reproduce the real-world ACL
-          # boundary that previously allowed dump creation but blocked atomic
-          # health replacement.
-          if (-not (Test-Path $backupHealth -PathType Leaf)) {
-            '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $backupHealth -Encoding utf8
-          }
-
-          $backupAcl = Get-Acl $backupRoot
-          $backupAllowsModify = $false
-          foreach ($rule in $backupAcl.Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-            } catch {
-              continue
-            }
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $backupAllowsModify = $true
-              break
-            }
-          }
-          if (-not $backupAllowsModify) {
-            throw "Installed backups tree is not modifiable by the built-in Users group."
-          }
-
-          $healthAcl = Get-Acl $backupHealth
-          $healthAllowsModify = $false
-          foreach ($rule in $healthAcl.Access) {
-            try {
-              $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-            } catch {
-              continue
-            }
-            if (
-              $ruleSid -eq $usersSid -and
-              $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-              (($rule.FileSystemRights -band $modify) -eq $modify)
-            ) {
-              $healthAllowsModify = $true
-              break
-            }
-          }
-          if (-not $healthAllowsModify) {
-            throw "Existing backup-health.json is not modifiable by the built-in Users group."
-          }
-          Write-Host "BACKUP TREE ACL CERTIFICATION: PASS"
-
-          $task = Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup" -ErrorAction Stop
-          $expectedBackupExe = Join-Path $installRoot "DairyOSBackup.exe"
-          $actions = @($task.Actions)
-          if ($actions.Count -ne 1) {
-            throw "Automatic backup task must contain exactly one action; found $($actions.Count)."
-          }
-          $taskExecute = ([string]$actions[0].Execute).Trim('"')
-          $taskArguments = ([string]$actions[0].Arguments).Trim()
-          if ($taskExecute -ne $expectedBackupExe) {
-            throw "Automatic backup task executable is malformed. Expected '$expectedBackupExe', got '$taskExecute'."
-          }
-          if ($taskArguments) {
-            throw "Automatic backup task must not carry command-line arguments. Got: '$taskArguments'"
-          }
-          Write-Host "AUTOMATIC BACKUP TASK STRUCTURED ACTION: PASS"
-
-          $required = @(
-            (Join-Path $installRoot "DairyOS.exe"),
-            (Join-Path $installRoot "DairyOSBackup.exe"),
-            (Join-Path $installRoot "release-manifest.json"),
-            (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe"),
-            (Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"),
-            (Join-Path $installRoot "runtime\PostgreSQL\bin\initdb.exe"),
-            (Join-Path $installRoot "runtime\PostgreSQL\bin\createdb.exe"),
-            (Join-Path $installRoot "runtime\PostgreSQL\bin\psql.exe"),
-            (Join-Path $installRoot "runtime\postgresql.version"),
-            (Join-Path $installRoot "_internal\src\DairyOS.Web\dist\index.html")
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path $path -PathType Leaf)) { throw "Installed DairyOS component is missing: $path" }
-          }
-
-          $installedManifest = Get-Content (Join-Path $installRoot "release-manifest.json") -Raw | ConvertFrom-Json
-          $expectedHead = (& git rev-parse HEAD).Trim()
-          if ($installedManifest.source_commit -ne $expectedHead) { throw "Installed release manifest source commit does not equal the certified checkout." }
-          $installedDesktopHash = (Get-FileHash (Join-Path $installRoot "DairyOS.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($installedManifest.desktop_exe_sha256 -ne $installedDesktopHash) { throw "Installed DairyOS.exe does not match its embedded release manifest." }
-
-          $declaredVersion = (Get-Content (Join-Path $installRoot "runtime\postgresql.version") -Raw).Trim()
-          $reportedVersionText = & (Join-Path $installRoot "runtime\PostgreSQL\bin\postgres.exe") --version 2>&1
-          if ($LASTEXITCODE -ne 0) { throw "Installed postgres.exe --version failed with code $LASTEXITCODE." }
-          $versionMatch = [regex]::Match([string]$reportedVersionText, 'PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
-          if (-not $versionMatch.Success) { throw "Unable to parse installed PostgreSQL version: $reportedVersionText" }
-          if ($versionMatch.Groups[1].Value -ne $declaredVersion) {
-            throw "Installed PostgreSQL version mismatch: binary=$($versionMatch.Groups[1].Value) declared=$declaredVersion"
-          }
-
-          # Use disposable farm state and deliberately poison inherited install
-          # path variables. A frozen DairyOS.exe must locate its private
-          # PostgreSQL beside itself, never through stale machine/session state.
-          $certDataRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installed-Preflight-Data"
-          $certInstallationState = Join-Path $env:RUNNER_TEMP "DairyOS-Installed-Preflight-installation-state.json"
-          if (Test-Path $certDataRoot) { Remove-Item $certDataRoot -Recurse -Force }
-          Remove-Item $certInstallationState -Force -ErrorAction SilentlyContinue
-          $env:DAIRYOS_DATA_DIR = $certDataRoot
-          $env:DAIRYOS_INSTALLATION_STATE = $certInstallationState
-          $env:DAIRYOS_ENV = "production"
-          $env:DAIRYOS_INSTALL_ROOT = Join-Path $env:RUNNER_TEMP "STALE-DAIRYOS-INSTALL-ROOT"
-          $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $env:RUNNER_TEMP "STALE-POSTGRES-RUNTIME"
-          $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP "dairyos-installed-preflight.txt"
-
-          foreach ($cycle in 1..2) {
-            Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
-            $preflight = Start-Process -FilePath $installedExe -ArgumentList @("--database-preflight","--postgres-timeout","60") -PassThru
-            if (-not $preflight.WaitForExit(180000)) {
-              Stop-Process -Id $preflight.Id -Force -ErrorAction SilentlyContinue
-              if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
-                Write-Host "=== INSTALLED DATABASE PREFLIGHT TIMEOUT DIAGNOSTIC ==="
-                Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
-              }
-              throw "Installed DairyOS database preflight cycle $cycle exceeded 180 seconds."
-            }
-            $preflight.Refresh()
-            if ($preflight.ExitCode -ne 0) {
-              if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT -PathType Leaf) {
-                Write-Host "=== INSTALLED DATABASE PREFLIGHT DIAGNOSTIC ==="
-                Get-Content $env:DAIRYOS_PREFLIGHT_REPORT
-              }
-              throw "Installed DairyOS database preflight cycle $cycle failed with code $($preflight.ExitCode)."
-            }
-          }
-
-          $runtimeState = Join-Path $certDataRoot "postgres\runtime.json"
-          $securityState = Join-Path $certDataRoot "postgres\security.json"
-          $clusterVersion = Join-Path $certDataRoot "postgres\data\PG_VERSION"
-          foreach ($path in @($runtimeState, $securityState, $clusterVersion)) {
-            if (-not (Test-Path $path -PathType Leaf)) {
-              throw "Installed DairyOS preflight did not persist required private database state: $path"
-            }
-          }
-
-          $backupWorker = Join-Path $installRoot "DairyOSBackup.exe"
-          $backupHealth = Join-Path $dataRoot "backups\backup-health.json"
-          $beforeBackupWrite = if (Test-Path $backupHealth -PathType Leaf) {
-            (Get-Item $backupHealth).LastWriteTimeUtc
-          } else {
-            [datetime]::MinValue
-          }
-
-          # Exercise the installed Scheduled Task itself. A direct worker run
-          # cannot certify Task Scheduler action quoting or registration.
-          $taskStartedAt = Get-Date
-          Start-ScheduledTask -TaskName "DairyOS-Automatic-Backup"
-
-          $deadline = (Get-Date).AddMinutes(3)
-          do {
-            Start-Sleep -Seconds 2
-            $taskInfo = Get-ScheduledTaskInfo -TaskName "DairyOS-Automatic-Backup"
-            $taskState = (Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup").State
-            if (
-              $taskState -ne "Running" -and
-              $taskInfo.LastRunTime -ge $taskStartedAt.AddSeconds(-2)
-            ) {
-              break
-            }
-          } while ((Get-Date) -lt $deadline)
-
-          $taskInfo = Get-ScheduledTaskInfo -TaskName "DairyOS-Automatic-Backup"
-          if ($taskInfo.LastRunTime -lt $taskStartedAt.AddSeconds(-2)) {
-            throw "Installed DairyOS scheduled backup task did not run within the certification timeout."
-          }
-          if ($taskInfo.LastTaskResult -ne 0) {
-            if (Test-Path $backupHealth -PathType Leaf) { Get-Content $backupHealth }
-            throw "Installed DairyOS scheduled backup task failed with result $($taskInfo.LastTaskResult)."
-          }
-          if (-not (Test-Path $backupHealth -PathType Leaf)) {
-            throw "Installed DairyOS scheduled backup task did not produce backup-health.json."
-          }
-          if ((Get-Item $backupHealth).LastWriteTimeUtc -le $beforeBackupWrite) {
-            throw "Scheduled backup task completed without refreshing backup-health.json."
-          }
-          $backupHealthPayload = Get-Content $backupHealth -Raw | ConvertFrom-Json
-          if ($backupHealthPayload.status -notin @("HEALTHY","DEGRADED")) {
-            throw "Installed DairyOS backup protection is not successful: $($backupHealthPayload.status)"
-          }
-          Write-Host "INSTALLED SCHEDULED BACKUP EXECUTION: PASS"
-
-          $programDataCluster = Join-Path $dataRoot "postgres"
-          $programDataPgData = Join-Path $programDataCluster "data"
-          $runtimeStatePath = Join-Path $programDataCluster "runtime.json"
-          if (-not (Test-Path $runtimeStatePath -PathType Leaf)) {
-            throw "ProgramData runtime.json missing before uninstall certification."
-          }
-          $runtimeState = Get-Content $runtimeStatePath -Raw | ConvertFrom-Json
-          $programDataPort = [int]$runtimeState.port
-          if ($programDataPort -lt 1 -or $programDataPort -gt 65535) {
-            throw "ProgramData private PostgreSQL port is invalid: $programDataPort"
-          }
-
-          $pgCtl = Join-Path $installRoot "runtime\PostgreSQL\bin\pg_ctl.exe"
-          $pgLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-running-postgres.log"
-          & $pgCtl -D $programDataPgData -l $pgLog -o "-p $programDataPort -h 127.0.0.1" -w -t 30 start
-          if ($LASTEXITCODE -ne 0) {
-            if (Test-Path $pgLog -PathType Leaf) { Get-Content $pgLog }
-            throw "Unable to start ProgramData private PostgreSQL for running-uninstall certification."
-          }
-          if (-not (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf)) {
-            throw "Private PostgreSQL did not create postmaster.pid before uninstall certification."
-          }
-
-          # The preflight above intentionally poisoned inherited path
-          # variables to prove that startup discovers its own private runtime.
-          # Restore the real installed authority before invoking the packaged
-          # export directly.  Otherwise the export process would inspect the
-          # disposable preflight root and correctly find no runtime credential.
-          $env:DAIRYOS_DATA_DIR = $dataRoot
-          $env:DAIRYOS_INSTALL_ROOT = $installRoot
-          $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $installRoot "runtime\PostgreSQL"
-          $env:DAIRYOS_ENV = "production"
-
-          # Create a sentinel inside the DairyOS-owned farm state. The explicit
-          # NO path is destructive for DairyOS-owned state, so it must not be
-          # mistaken for preservation certification.
-          "preserve-me" | Set-Content -Path $marker -Encoding ascii
-          if (-not (Test-Path $marker -PathType Leaf)) {
-            throw "Unable to create ProgramData retention marker before uninstall."
-          }
-
-          # Prove the packaged export executable independently before routing
-          # through the uninstaller. This separates PostgreSQL/package failure
-          # from uninstaller lifecycle failure and prevents hidden waits.
-          $preExportPackage = Join-Path $env:RUNNER_TEMP "DairyOS-Farm-pre-uninstall.dairypkg"
-          $preExportStdout = Join-Path $env:RUNNER_TEMP "dairyos-pre-export.stdout.log"
-          $preExportStderr = Join-Path $env:RUNNER_TEMP "dairyos-pre-export.stderr.log"
-          if (Test-Path $preExportPackage) { Remove-Item $preExportPackage -Recurse -Force }
-          Remove-Item $preExportStdout,$preExportStderr -Force -ErrorAction SilentlyContinue
-          $preExport = Start-Process -FilePath $installedExe -ArgumentList @(
-            "--farm-data-export", $preExportPackage, "--data-root", $dataRoot
-          ) -RedirectStandardOutput $preExportStdout -RedirectStandardError $preExportStderr -PassThru
-          if (-not $preExport.WaitForExit(120000)) {
-            Stop-Process -Id $preExport.Id -Force -ErrorAction SilentlyContinue
-            throw "Packaged farm-data export exceeded 120 seconds before uninstall."
-          }
-          if ($preExport.ExitCode -ne 0 -or -not (Test-Path $preExportPackage)) {
-            if (Test-Path $preExportStdout -PathType Leaf) { Get-Content $preExportStdout }
-            if (Test-Path $preExportStderr -PathType Leaf) { Get-Content $preExportStderr }
-            throw "Packaged farm-data export failed before uninstall with code $($preExport.ExitCode)."
-          }
-          Write-Host "PACKAGED FARM-DATA EXPORT CERTIFICATION: PASS"
-
-          $uninstaller = Join-Path $installRoot "unins000.exe"
-          if (-not (Test-Path $uninstaller -PathType Leaf)) { throw "Inno Setup uninstaller is missing." }
-
-          # A keep-data uninstall removes only the application payload. The
-          # durable lifecycle manifest and farm state must remain authoritative
-          # so the same installer can safely refresh the application in place.
-          $keepDataLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall-keep-data.log"
-          $preservedFarmData = Join-Path $env:RUNNER_TEMP "DairyOS-Farm-keep-data.dairypkg"
-          if (Test-Path $preservedFarmData) { Remove-Item $preservedFarmData -Recurse -Force }
-          Remove-Item $keepDataLog -Force -ErrorAction SilentlyContinue
-          $keepDataArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=YES","/PRESERVEDATAPATH=$preservedFarmData","/LOG=$keepDataLog")
-          Write-Host "STARTING KEEP-DATA UNINSTALL: $preservedFarmData"
-          $keepDataUninstall = Start-Process -FilePath $uninstaller -ArgumentList $keepDataArgs -PassThru
-          if (-not $keepDataUninstall.WaitForExit(120000)) {
-            Write-Host "KEEP-DATA UNINSTALL TIMEOUT LOG:" -ForegroundColor Yellow
-            if (Test-Path $keepDataLog -PathType Leaf) { Get-Content $keepDataLog }
-            Stop-Process -Id $keepDataUninstall.Id -Force -ErrorAction SilentlyContinue
-            throw "Keep-data uninstaller did not finish within 120 seconds."
-          }
-          if ($keepDataUninstall.ExitCode -ne 0) {
-            if (Test-Path $keepDataLog -PathType Leaf) {
-              Write-Host "KEEP-DATA UNINSTALL LOG:" -ForegroundColor Yellow
-              Get-Content $keepDataLog
-            }
-            throw "Keep-data uninstaller exited with code $($keepDataUninstall.ExitCode)."
-          }
-          # Inno Setup removes its own uninstaller through a short-lived
-          # helper after the parent process exits. Wait for that bounded,
-          # expected cleanup window before evaluating the runtime invariant.
-          $keepDataCleanupDeadline = (Get-Date).AddSeconds(30)
-          do {
-            $remaining = if (Test-Path $installRoot) {
-              @(Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue)
-            } else { @() }
-            if (-not $remaining) { break }
-            Start-Sleep -Seconds 1
-          } while ((Get-Date) -lt $keepDataCleanupDeadline)
-          if ($remaining) { throw "Application runtime remains after keep-data uninstall: $installRoot" }
-          if (-not (Test-Path $marker -PathType Leaf)) {
-            throw "Keep-data uninstall deleted the ProgramData retention marker."
-          }
-          if (-not (Test-Path (Join-Path $dataRoot "lifecycle.json") -PathType Leaf)) {
-            throw "Keep-data uninstall deleted the durable lifecycle manifest."
-          }
-          if (-not (Test-Path $preservedFarmData)) {
-            throw "Keep-data uninstall did not create the verified farm-data package."
-          }
-
-          $reinstallLog = Join-Path $env:RUNNER_TEMP "dairyos-keep-data-reinstall.log"
-          Remove-Item $reinstallLog -Force -ErrorAction SilentlyContinue
-          $reinstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$installRoot","/LOG=$reinstallLog")
-          $reinstall = Start-Process -FilePath $installer -ArgumentList $reinstallArgs -PassThru -Wait
-          if ($reinstall.ExitCode -ne 0) {
-            if (Test-Path $reinstallLog -PathType Leaf) {
-              Write-Host "KEEP-DATA REINSTALL LOG:" -ForegroundColor Yellow
-              Get-Content $reinstallLog
-            }
-            throw "Keep-data reinstall exited with code $($reinstall.ExitCode)."
-          }
-          if (-not (Test-Path $installedExe -PathType Leaf)) {
-            throw "Keep-data reinstall did not restore the DairyOS executable."
-          }
-          if ((Get-Content $marker -Raw).Trim() -ne "preserve-me") {
-            throw "Keep-data reinstall altered the preserved ProgramData marker."
-          }
-          $reinstalledManifest = Get-Content (Join-Path $installRoot "release-manifest.json") -Raw | ConvertFrom-Json
-          if ($reinstalledManifest.source_commit -ne $expectedHead) {
-            throw "Keep-data reinstall installed a release from the wrong source commit."
-          }
-          Write-Host "INSTALL / KEEP-DATA UNINSTALL / REINSTALL CERTIFICATION: PASS"
-
-          $uninstaller = Join-Path $installRoot "unins000.exe"
-          $uninstallLog = Join-Path $env:RUNNER_TEMP "dairyos-uninstall.log"
-          Remove-Item $uninstallLog -Force -ErrorAction SilentlyContinue
-          $uninstallArgs = @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/PRESERVEFARMDATA=NO","/LOG=$uninstallLog")
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -PassThru -Wait
-          if ($uninstall.ExitCode -ne 0) {
-            if (Test-Path $uninstallLog -PathType Leaf) {
-              Write-Host "UNINSTALL LOG:" -ForegroundColor Yellow
-              Get-Content $uninstallLog
-            }
-            throw "Silent uninstaller exited with code $($uninstall.ExitCode)."
-          }
-
-          $removeDataCleanupDeadline = (Get-Date).AddSeconds(30)
-          do {
-            $remaining = if (Test-Path $installRoot) {
-              @(Get-ChildItem $installRoot -Force -ErrorAction SilentlyContinue)
-            } else { @() }
-            if (-not $remaining) { break }
-            Start-Sleep -Seconds 1
-          } while ((Get-Date) -lt $removeDataCleanupDeadline)
-          if ($remaining) { throw "Application runtime remains after uninstall: $installRoot" }
-          if (Test-Path (Join-Path $programDataPgData "postmaster.pid") -PathType Leaf) {
-            throw "Private PostgreSQL remained running after uninstall."
-          }
-          $task = schtasks.exe /Query /TN "DairyOS-Automatic-Backup" 2>&1
-          $taskExit = $LASTEXITCODE
-          if ($taskExit -eq 0) { throw "DairyOS automatic backup scheduled task remained after uninstall." }
-          if (Test-Path $marker -PathType Leaf) { throw "DairyOS ProgramData marker survived explicit NO uninstall." }
-
-          Write-Host "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS"
-
-          # The NO path removes the DairyOS-owned state; collision safety is
-          # exercised separately against a deliberately populated root.
-          New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
-          "preserve-me" | Set-Content -Path $marker -Encoding ascii
-          $markerBeforeCollision = (Get-Content $marker -Raw).Trim()
-
-          $collisionInstallRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Collision-Rejected"
-          Remove-Item $collisionInstallRoot -Recurse -Force -ErrorAction SilentlyContinue
-
-          $siblingRootsBefore = @(
-            Get-ChildItem `
-              -Path $env:ProgramData `
-              -Directory `
-              -Filter "DairyOS-New-*" `
-              -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty FullName
-          )
-
-          $collisionLog = Join-Path $env:RUNNER_TEMP "dairyos-collision-install.log"
-          Remove-Item $collisionLog -Force -ErrorAction SilentlyContinue
-
-          $collisionArgs = @(
-            "/VERYSILENT",
-            "/SUPPRESSMSGBOXES",
-            "/NORESTART",
-            "/DIR=$collisionInstallRoot",
-            "/LOG=$collisionLog"
-          )
-
-          $collisionSetup = Start-Process `
-            -FilePath $installer `
-            -ArgumentList $collisionArgs `
-            -PassThru `
-            -Wait
-
-          if ($collisionSetup.ExitCode -eq 0) {
-            if (Test-Path $collisionLog -PathType Leaf) {
-              Write-Host "COLLISION INSTALL LOG:" -ForegroundColor Yellow
-              Get-Content $collisionLog
-            }
-
-            throw "Installer accepted a populated canonical DairyOS data root."
-          }
-
-          if (-not (Test-Path $marker -PathType Leaf)) {
-            throw "Rejected collision install deleted preserved farm state."
-          }
-
-          $markerAfterCollision = (Get-Content $marker -Raw).Trim()
-          if ($markerAfterCollision -ne $markerBeforeCollision) {
-            throw "Rejected collision install altered preserved farm state."
-          }
-
-          $siblingRootsAfter = @(
-            Get-ChildItem `
-              -Path $env:ProgramData `
-              -Directory `
-              -Filter "DairyOS-New-*" `
-              -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty FullName
-          )
-
-          $newSiblingRoots = @(
-            $siblingRootsAfter |
-            Where-Object { $_ -notin $siblingRootsBefore }
-          )
-
-          if ($newSiblingRoots.Count -ne 0) {
-            throw "Rejected collision install allocated alternate DairyOS data root: $($newSiblingRoots -join ', ')"
-          }
-
-          if (Test-Path $collisionInstallRoot) {
-            $collisionRuntime = @(
-              Get-ChildItem `
-                -Path $collisionInstallRoot `
-                -Force `
-                -ErrorAction SilentlyContinue
-            )
-
-            if ($collisionRuntime.Count -ne 0) {
-              throw "Rejected collision install left application files behind at $collisionInstallRoot"
-            }
-          }
-
-          Write-Host "CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS"
-
-          # Collision certification is complete; remove only the temporary CI sentinel.
-          Remove-Item $marker -Force
-          exit 0
-
       - name: Certify simplified install and uninstall
         shell: pwsh
-        timeout-minutes: 25
+        timeout-minutes: 35
         run: |
           $installer = Join-Path $PWD "dist\DairyOS-Release\DairyOS-Windows-Installer.exe"
           $installRoot = Join-Path $env:RUNNER_TEMP "DairyOS-Installer-Simplified-Cert"
@@ -711,6 +118,144 @@ jobs:
 
           Invoke-InstalledPreflight 'FIRST START'
           Invoke-InstalledPreflight 'SECOND START'
+
+          # --- Checks ported from the retired "silent install and keep-data uninstall" step ---
+          $usersSid = 'S-1-5-32-545'
+          $modify = [System.Security.AccessControl.FileSystemRights]::Modify
+          function Assert-UsersCanModify([string]$Path, [string]$Label) {
+            foreach ($rule in (Get-Acl $Path).Access) {
+              try { $ruleSid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value } catch { continue }
+              if ($ruleSid -eq $usersSid -and
+                  $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+                  (($rule.FileSystemRights -band $modify) -eq $modify)) { return }
+            }
+            throw "$Label is not modifiable by the built-in Users group: $Path"
+          }
+
+          # lifecycle.json is created by elevated Setup but must stay mutable by
+          # the ordinary non-elevated DairyOS runtime.
+          $lifecycleJson = Join-Path $dataRoot 'lifecycle.json'
+          if (-not (Test-Path $lifecycleJson -PathType Leaf)) { throw 'Installer did not provision lifecycle.json.' }
+          Assert-UsersCanModify $lifecycleJson 'Installed lifecycle.json'
+          Write-Host 'LIFECYCLE MANIFEST ACL CERTIFICATION: PASS'
+
+          # Operational storage, including files that existed before a later
+          # non-elevated atomic replacement, must remain writable.
+          $storageRoot = Join-Path $dataRoot 'storage'
+          if (-not (Test-Path $storageRoot -PathType Container)) { throw 'Installer did not provision DairyOS operational storage root.' }
+          $operationalInputs = Join-Path $storageRoot 'operational_inputs.json'
+          if (-not (Test-Path $operationalInputs -PathType Leaf)) { '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $operationalInputs -Encoding utf8 }
+          Assert-UsersCanModify $storageRoot 'Installed operational storage tree'
+          Assert-UsersCanModify $operationalInputs 'Existing operational_inputs.json'
+          Write-Host 'OPERATIONAL STORAGE ACL CERTIFICATION: PASS'
+
+          # The automatic backup runs with a limited user token.
+          $backupRoot = Join-Path $dataRoot 'backups'
+          $backupHealth = Join-Path $backupRoot 'backup-health.json'
+          if (-not (Test-Path $backupRoot -PathType Container)) { throw 'Installer did not provision DairyOS backup root.' }
+          if (-not (Test-Path $backupHealth -PathType Leaf)) { '{"status":"SEEDED_BY_CERTIFICATION"}' | Set-Content -Path $backupHealth -Encoding utf8 }
+          Assert-UsersCanModify $backupRoot 'Installed backups tree'
+          Assert-UsersCanModify $backupHealth 'Existing backup-health.json'
+          Write-Host 'BACKUP TREE ACL CERTIFICATION: PASS'
+
+          $task = Get-ScheduledTask -TaskName 'DairyOS-Automatic-Backup' -ErrorAction Stop
+          $expectedBackupExe = Join-Path $installRoot 'DairyOSBackup.exe'
+          $actions = @($task.Actions)
+          if ($actions.Count -ne 1) { throw "Automatic backup task must contain exactly one action; found $($actions.Count)." }
+          $taskExecute = ([string]$actions[0].Execute).Trim('"')
+          $taskArguments = ([string]$actions[0].Arguments).Trim()
+          if ($taskExecute -ne $expectedBackupExe) { throw "Automatic backup task executable is malformed. Expected '$expectedBackupExe', got '$taskExecute'." }
+          if ($taskArguments) { throw "Automatic backup task must not carry command-line arguments. Got: '$taskArguments'" }
+          Write-Host 'AUTOMATIC BACKUP TASK STRUCTURED ACTION: PASS'
+
+          foreach ($path in @(
+            (Join-Path $installRoot 'DairyOS.exe'),
+            (Join-Path $installRoot 'DairyOSBackup.exe'),
+            (Join-Path $installRoot 'release-manifest.json'),
+            (Join-Path $installRoot 'runtime\PostgreSQL\bin\postgres.exe'),
+            (Join-Path $installRoot 'runtime\PostgreSQL\bin\pg_ctl.exe'),
+            (Join-Path $installRoot 'runtime\PostgreSQL\bin\initdb.exe'),
+            (Join-Path $installRoot 'runtime\PostgreSQL\bin\createdb.exe'),
+            (Join-Path $installRoot 'runtime\PostgreSQL\bin\psql.exe'),
+            (Join-Path $installRoot 'runtime\postgresql.version'),
+            (Join-Path $installRoot '_internal\src\DairyOS.Web\dist\index.html')
+          )) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Installed DairyOS component is missing: $path" }
+          }
+          $installedManifest = Get-Content (Join-Path $installRoot 'release-manifest.json') -Raw | ConvertFrom-Json
+          $expectedHead = (& git rev-parse HEAD).Trim()
+          if ($installedManifest.source_commit -ne $expectedHead) { throw 'Installed release manifest source commit does not equal the certified checkout.' }
+          $installedDesktopHash = (Get-FileHash (Join-Path $installRoot 'DairyOS.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($installedManifest.desktop_exe_sha256 -ne $installedDesktopHash) { throw 'Installed DairyOS.exe does not match its embedded release manifest.' }
+          $declaredVersion = (Get-Content (Join-Path $installRoot 'runtime\postgresql.version') -Raw).Trim()
+          $reportedVersionText = & (Join-Path $installRoot 'runtime\PostgreSQL\bin\postgres.exe') --version 2>&1
+          if ($LASTEXITCODE -ne 0) { throw "Installed postgres.exe --version failed with code $LASTEXITCODE." }
+          $versionMatch = [regex]::Match([string]$reportedVersionText, 'PostgreSQL\)?\s+([0-9]+(?:\.[0-9]+){1,3})', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+          if (-not $versionMatch.Success) { throw "Unable to parse installed PostgreSQL version: $reportedVersionText" }
+          if ($versionMatch.Groups[1].Value -ne $declaredVersion) { throw "Installed PostgreSQL version mismatch: binary=$($versionMatch.Groups[1].Value) declared=$declaredVersion" }
+          Write-Host 'INSTALLED COMPONENTS AND MANIFEST BINDING: PASS'
+
+          # A frozen DairyOS.exe must find its private PostgreSQL beside itself,
+          # never through stale install-path variables. Use a disposable data
+          # root and restore the environment afterwards.
+          $savedEnv = @{}
+          foreach ($name in 'DAIRYOS_DATA_DIR','DAIRYOS_INSTALLATION_STATE','DAIRYOS_ENV','DAIRYOS_INSTALL_ROOT','DAIRYOS_PRIVATE_POSTGRES_RUNTIME','DAIRYOS_PREFLIGHT_REPORT') {
+            $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+          }
+          $certDataRoot = Join-Path $env:RUNNER_TEMP 'DairyOS-Installed-Preflight-Data'
+          Remove-Item $certDataRoot -Recurse -Force -ErrorAction SilentlyContinue
+          try {
+            $env:DAIRYOS_DATA_DIR = $certDataRoot
+            $env:DAIRYOS_INSTALLATION_STATE = Join-Path $env:RUNNER_TEMP 'DairyOS-Installed-Preflight-installation-state.json'
+            $env:DAIRYOS_ENV = 'production'
+            $env:DAIRYOS_INSTALL_ROOT = Join-Path $env:RUNNER_TEMP 'STALE-DAIRYOS-INSTALL-ROOT'
+            $env:DAIRYOS_PRIVATE_POSTGRES_RUNTIME = Join-Path $env:RUNNER_TEMP 'STALE-POSTGRES-RUNTIME'
+            $env:DAIRYOS_PREFLIGHT_REPORT = Join-Path $env:RUNNER_TEMP 'dairyos-installed-preflight.txt'
+            foreach ($cycle in 1..2) {
+              Remove-Item $env:DAIRYOS_PREFLIGHT_REPORT -Force -ErrorAction SilentlyContinue
+              $poisoned = Start-Process -FilePath $installedExe -ArgumentList @('--database-preflight','--postgres-timeout','60') -PassThru
+              if (-not $poisoned.WaitForExit(180000)) {
+                Stop-Process -Id $poisoned.Id -Force -ErrorAction SilentlyContinue
+                if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT) { Get-Content $env:DAIRYOS_PREFLIGHT_REPORT }
+                throw "Stale-environment preflight cycle $cycle exceeded 180 seconds."
+              }
+              $poisoned.Refresh()
+              if ($poisoned.ExitCode -ne 0) {
+                if (Test-Path $env:DAIRYOS_PREFLIGHT_REPORT) { Get-Content $env:DAIRYOS_PREFLIGHT_REPORT }
+                throw "Stale-environment preflight cycle $cycle failed with code $($poisoned.ExitCode)."
+              }
+            }
+            foreach ($path in @((Join-Path $certDataRoot 'postgres\runtime.json'), (Join-Path $certDataRoot 'postgres\security.json'), (Join-Path $certDataRoot 'postgres\data\PG_VERSION'))) {
+              if (-not (Test-Path $path -PathType Leaf)) { throw "Stale-environment preflight did not persist private database state: $path" }
+            }
+            $certRuntime = Join-Path $certDataRoot 'postgres\data'
+            if (Test-Path (Join-Path $certRuntime 'postmaster.pid')) {
+              & (Join-Path $installRoot 'runtime\PostgreSQL\bin\pg_ctl.exe') -D $certRuntime stop -m fast -w -t 60 | Out-Host
+            }
+          } finally {
+            foreach ($name in $savedEnv.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnv[$name], 'Process') }
+          }
+          Write-Host 'STALE-ENVIRONMENT INSTALLED PREFLIGHT: PASS'
+
+          # Exercise the registered Scheduled Task itself; a direct worker run
+          # cannot certify Task Scheduler action quoting or registration.
+          $beforeBackupWrite = (Get-Item $backupHealth).LastWriteTimeUtc
+          $taskStartedAt = Get-Date
+          Start-ScheduledTask -TaskName 'DairyOS-Automatic-Backup'
+          $taskDeadline = (Get-Date).AddMinutes(3)
+          do {
+            Start-Sleep -Seconds 2
+            $taskInfo = Get-ScheduledTaskInfo -TaskName 'DairyOS-Automatic-Backup'
+            $taskState = (Get-ScheduledTask -TaskName 'DairyOS-Automatic-Backup').State
+            if ($taskState -ne 'Running' -and $taskInfo.LastRunTime -ge $taskStartedAt.AddSeconds(-2)) { break }
+          } while ((Get-Date) -lt $taskDeadline)
+          $taskInfo = Get-ScheduledTaskInfo -TaskName 'DairyOS-Automatic-Backup'
+          if ($taskInfo.LastRunTime -lt $taskStartedAt.AddSeconds(-2)) { throw 'Installed DairyOS scheduled backup task did not run within the certification timeout.' }
+          if ($taskInfo.LastTaskResult -ne 0) { Get-Content $backupHealth; throw "Installed DairyOS scheduled backup task failed with result $($taskInfo.LastTaskResult)." }
+          if ((Get-Item $backupHealth).LastWriteTimeUtc -le $beforeBackupWrite) { throw 'Scheduled backup task completed without refreshing backup-health.json.' }
+          $backupHealthPayload = Get-Content $backupHealth -Raw | ConvertFrom-Json
+          if ($backupHealthPayload.status -notin @('HEALTHY','DEGRADED')) { throw "Installed DairyOS backup protection is not successful: $($backupHealthPayload.status)" }
+          Write-Host 'INSTALLED SCHEDULED BACKUP EXECUTION: PASS'
           $marker = Join-Path $dataRoot 'lifecycle-certification-marker.txt'
           'preserve-me' | Set-Content -Path $marker -Encoding ascii
           $lifecyclePath = Join-Path $dataRoot 'lifecycle.json'
@@ -822,11 +367,39 @@ jobs:
 
           # Retained data must still start cleanly after all damaged uninstalls.
           Invoke-Reinstall 'FINAL'
+
+          # Canonical data collision: a data root holding farm state that is not
+          # tied to any DairyOS installation must make Setup fail closed. Uninstall
+          # keeps farm data, so set the certified root aside and present a root
+          # that holds only an unowned file.
+          $finalUninstall = Start-Process -FilePath (Join-Path $installRoot 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru
+          if (-not $finalUninstall.WaitForExit(120000)) { Stop-Process -Id $finalUninstall.Id -Force -ErrorAction SilentlyContinue; throw 'Final uninstaller did not finish within 120 seconds.' }
+          if ($finalUninstall.ExitCode -ne 0) { throw "Final uninstall exited with code $($finalUninstall.ExitCode)." }
+          $heldRoot = Join-Path $env:ProgramData 'DairyOS-Certification-Held'
+          Remove-Item $heldRoot -Recurse -Force -ErrorAction SilentlyContinue
+          Move-Item -Path $dataRoot -Destination $heldRoot
+          New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
+          $unowned = Join-Path $dataRoot 'unowned-farm-state.txt'
+          'preserve-me' | Set-Content -Path $unowned -Encoding ascii
+          $collisionInstallRoot = Join-Path $env:RUNNER_TEMP 'DairyOS-Collision-Rejected'
+          Remove-Item $collisionInstallRoot -Recurse -Force -ErrorAction SilentlyContinue
+          $siblingRootsBefore = @(Get-ChildItem -Path $env:ProgramData -Directory -Filter 'DairyOS-New-*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+          $collisionLog = Join-Path $env:RUNNER_TEMP 'dairyos-collision-install.log'
+          $collisionSetup = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR=' + $collisionInstallRoot),('/LOG=' + $collisionLog)) -PassThru -Wait
+          if ($collisionSetup.ExitCode -eq 0) { if (Test-Path $collisionLog) { Get-Content $collisionLog }; throw 'Installer accepted a populated canonical DairyOS data root.' }
+          if (-not (Test-Path $unowned -PathType Leaf) -or (Get-Content $unowned -Raw).Trim() -ne 'preserve-me') { throw 'Rejected collision install deleted or altered unowned farm state.' }
+          $newSiblingRoots = @(Get-ChildItem -Path $env:ProgramData -Directory -Filter 'DairyOS-New-*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | Where-Object { $_ -notin $siblingRootsBefore })
+          if ($newSiblingRoots.Count -ne 0) { throw "Rejected collision install allocated alternate DairyOS data root: $($newSiblingRoots -join ', ')" }
+          if ((Test-Path $collisionInstallRoot) -and @(Get-ChildItem -Path $collisionInstallRoot -Force -ErrorAction SilentlyContinue).Count -ne 0) { throw "Rejected collision install left application files behind at $collisionInstallRoot" }
+          Remove-Item $dataRoot -Recurse -Force
+          Move-Item -Path $heldRoot -Destination $dataRoot
+          Write-Host 'CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS'
           Write-Host 'INSTALL / FIRST-SECOND START / KEEP-DATA UNINSTALL / REINSTALL / DAMAGED-PG_CTL RUNNING-STOPPED-STALE: PASS'
           @(
             '## DairyOS installed lifecycle checks',
             '- Passed: install, first/second/reinstall database preflight, keep-data uninstall, reinstall data retention, offline backup with logged result, recovery tools outside the farm data root, no program files in farm backups.',
             '- Passed: damaged installed `pg_ctl.exe` uninstall with the private cluster running, stopped, and with a stale `postmaster.pid`; retained data restarts afterwards.',
+            '- Passed: lifecycle manifest, storage and backup tree ACLs; scheduled backup task structure and execution; installed components and manifest binding; stale-environment preflight; canonical data collision fail-closed.',
             '- Not run: interactive UI open/close/relaunch and rendered Animal Timeline acceptance.'
           ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
           $global:LASTEXITCODE = 0

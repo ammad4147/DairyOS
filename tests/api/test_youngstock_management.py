@@ -1,3 +1,10 @@
+from datetime import date, timedelta
+
+# A calf born two days ago is inside the newborn care window whatever the test
+# run date. A fixed calendar date silently aged out of that window.
+RECENT_BIRTH = (date.today() - timedelta(days=2)).isoformat()
+
+
 def test_youngstock_overview_reads_registered_youngstock(client, registered_animal):
     lifecycle = client.patch(
         f"/farm/animals/{registered_animal}/lifecycle",
@@ -163,7 +170,7 @@ def test_youngstock_overdue_care_resolves_from_authoritative_evidence(client, re
         f"/farm/animals/{registered_animal}",
         json={
             "lifecycle_status": "CALF",
-            "date_of_birth": "2026-09-19",
+            "date_of_birth": RECENT_BIRTH,
             "operator": "Farm Operator",
         },
     )
@@ -181,7 +188,7 @@ def test_youngstock_overdue_care_resolves_from_authoritative_evidence(client, re
 
     care = client.post(
         f"/farm/youngstock/{registered_animal}/care",
-        json={"care_type": "FIRST_COLOSTRUM", "completed_at": "2026-09-19"},
+        json={"care_type": "FIRST_COLOSTRUM", "completed_at": RECENT_BIRTH},
     )
     assert care.status_code == 200, care.text
 
@@ -220,7 +227,7 @@ def test_male_calf_uses_shared_growth_and_care_cycle_without_female_rules(client
         json={
             "lifecycle_status": "CALF",
             "sex": "MALE",
-            "date_of_birth": "2026-09-19",
+            "date_of_birth": RECENT_BIRTH,
             "operator": "Farm Operator",
         },
     )
@@ -233,7 +240,7 @@ def test_male_calf_uses_shared_growth_and_care_cycle_without_female_rules(client
     assert growth.status_code == 200, growth.text
     care = client.post(
         f"/farm/youngstock/{registered_animal}/care",
-        json={"care_type": "NAVEL_CARE", "completed_at": "2026-09-19"},
+        json={"care_type": "NAVEL_CARE", "completed_at": RECENT_BIRTH},
     )
     assert care.status_code == 200, care.text
 

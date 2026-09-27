@@ -23,23 +23,29 @@ def test_installer_provisions_backup_task_with_structured_action():
     assert "/Create /F /TN" not in block
 
 
-def test_installer_ci_verifies_structured_task_before_app_start():
-    source = WORKFLOW.read_text(encoding="utf-8")
-    structured = source.index('$task = Get-ScheduledTask -TaskName "DairyOS-Automatic-Backup"')
-    preflight = source.index("$preflight = Start-Process -FilePath $installedExe")
-    assert structured < preflight
-    assert "$taskExecute" in source
-    assert "$taskArguments" in source
-    assert "AUTOMATIC BACKUP TASK STRUCTURED ACTION: PASS" in source
+def _active_certification() -> str:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    start = workflow.index("- name: Certify simplified install and uninstall")
+    return workflow[start:workflow.index("- name: Publish installer artifact", start)]
+
+
+def test_installer_ci_verifies_structured_task_before_executing_it():
+    active = _active_certification()
+    structured = active.index("$task = Get-ScheduledTask -TaskName 'DairyOS-Automatic-Backup'")
+    executed = active.index("Start-ScheduledTask -TaskName 'DairyOS-Automatic-Backup'")
+    assert structured < executed
+    assert "$taskExecute" in active
+    assert "$taskArguments" in active
+    assert "AUTOMATIC BACKUP TASK STRUCTURED ACTION: PASS" in active
 
 
 def test_installer_ci_executes_registered_scheduled_task_and_checks_health():
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert 'Start-ScheduledTask -TaskName "DairyOS-Automatic-Backup"' in workflow
-    assert 'Get-ScheduledTaskInfo -TaskName "DairyOS-Automatic-Backup"' in workflow
-    assert "LastTaskResult" in workflow
-    assert "backup-health.json" in workflow
-    assert "INSTALLED SCHEDULED BACKUP EXECUTION: PASS" in workflow
+    active = _active_certification()
+    assert "Start-ScheduledTask -TaskName 'DairyOS-Automatic-Backup'" in active
+    assert "Get-ScheduledTaskInfo -TaskName 'DairyOS-Automatic-Backup'" in active
+    assert "LastTaskResult" in active
+    assert "backup-health.json" in active
+    assert "INSTALLED SCHEDULED BACKUP EXECUTION: PASS" in active
 
 
 def test_installer_provisions_modify_acl_only_for_mutable_backup_tree():

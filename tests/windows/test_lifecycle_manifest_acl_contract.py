@@ -74,12 +74,18 @@ def test_installer_does_not_provision_retired_installation_choice_acl():
     assert "ProvisionBackupTreeAcl();" in source
 
 
-def test_installer_ci_certifies_installed_lifecycle_acl():
-    source = WORKFLOW.read_text(encoding="utf-8")
+def _active_certification() -> str:
+    workflow = WORKFLOW.read_text(encoding="utf-8-sig")
+    start = workflow.index("- name: Certify simplified install and uninstall")
+    return workflow[start:workflow.index("- name: Publish installer artifact", start)]
 
-    assert '$usersSid = "S-1-5-32-545"' in source
-    assert "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS" in source
-    assert "Installed lifecycle.json is not modifiable" in source
+
+def test_installer_ci_certifies_installed_lifecycle_acl():
+    active = _active_certification()
+
+    assert "$usersSid = 'S-1-5-32-545'" in active
+    assert "Assert-UsersCanModify $lifecycleJson 'Installed lifecycle.json'" in active
+    assert "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS" in active
 
 
 def test_backup_acl_is_scoped_separately_from_lifecycle_acl():
@@ -110,60 +116,22 @@ def test_windows_ci_retires_installation_choice_and_certifies_canonical_collisio
         "--backup-path",
         "Continue with Existing Farm",
         "Restore to Verified Backup",
+        # Retired behaviour: uninstall never deletes farm data any more.
+        "NO-PRESERVATION CERTIFICATION",
     ):
         assert token not in workflow
 
-    assert "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS" in workflow
-    assert "PROGRAMDATA DATABASE PREFLIGHT: PASS" in workflow
-    assert "OPERATIONAL STORAGE ACL CERTIFICATION: PASS" in workflow
-    assert "BACKUP TREE ACL CERTIFICATION: PASS" in workflow
-    assert "INSTALL / KEEP-DATA UNINSTALL / REINSTALL CERTIFICATION: PASS" in workflow
-    assert "INSTALL / UNINSTALL NO-PRESERVATION CERTIFICATION: PASS" in workflow
+    # Certification steps must run; a disabled step only pretends to certify.
+    assert "if: ${{ false }}" not in workflow
 
-    assert (
-        "CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS"
-        in workflow
-    )
-    assert 'Filter "DairyOS-New-*"' in workflow
-    assert "Installer accepted a populated canonical DairyOS data root." in workflow
-    assert "Rejected collision install altered preserved farm state." in workflow
-
-    marker_create = (
-        '"preserve-me" | Set-Content -Path $marker -Encoding ascii'
-    )
-    collision_start = "# The NO path removes the DairyOS-owned state; collision safety is"
-    collision_pass = (
-        'Write-Host "CANONICAL DATA COLLISION '
-        'FAIL-CLOSED CERTIFICATION: PASS"'
-    )
-    marker_remove = "Remove-Item $marker -Force"
-
-    create_index = workflow.index(marker_create)
-    collision_index = workflow.index(
-        collision_start,
-        create_index,
-    )
-    pass_index = workflow.index(
-        collision_pass,
-        collision_index,
-    )
-    post_create_remove_index = workflow.index(
-        marker_remove,
-        create_index + len(marker_create),
-    )
-
-    assert (
-        create_index
-        < collision_index
-        < pass_index
-        < post_create_remove_index
-    )
-
-    assert (
-        workflow.find(
-            marker_remove,
-            create_index + len(marker_create),
-            pass_index,
-        )
-        == -1
-    )
+    active = _active_certification()
+    for marker in (
+        "LIFECYCLE MANIFEST ACL CERTIFICATION: PASS",
+        "OPERATIONAL STORAGE ACL CERTIFICATION: PASS",
+        "BACKUP TREE ACL CERTIFICATION: PASS",
+        "INSTALLED COMPONENTS AND MANIFEST BINDING: PASS",
+        "STALE-ENVIRONMENT INSTALLED PREFLIGHT: PASS",
+        "INSTALLED SCHEDULED BACKUP EXECUTION: PASS",
+        "CANONICAL DATA COLLISION FAIL-CLOSED CERTIFICATION: PASS",
+    ):
+        assert marker in active, marker
