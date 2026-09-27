@@ -51,7 +51,7 @@ jobs:
               c.execute("GRANT CONNECT ON DATABASE dairyos_test TO dairyos_test_runner")
           PY
       - name: Run Milk Cycle and intelligence tests
-        run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_alert_service.py tests/milk/test_milk_intelligence.py
+        run: pytest -q tests/milk/test_milking_cycle.py tests/milk/test_milk_drop_detection_service.py tests/milk/test_m19_milk_recording_intelligence_compat.py
 
   lifecycle-gate:
     runs-on: ubuntu-latest
